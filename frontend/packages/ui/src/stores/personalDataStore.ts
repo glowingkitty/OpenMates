@@ -301,9 +301,9 @@ async function loadFromStorage(): Promise<void> {
 
     // Rebuild metadata map
     entryStorageMetadata.clear();
-    for (const [id, meta] of loadedMetadata) {
+    loadedMetadata.forEach((meta, id) => {
       entryStorageMetadata.set(id, meta);
-    }
+    });
 
     console.info(
       `[PersonalDataStore] Loaded ${loadedEntries.length} personal data entries from storage`,

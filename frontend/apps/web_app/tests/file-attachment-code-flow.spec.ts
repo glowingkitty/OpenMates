@@ -64,11 +64,14 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	await openNewChat(page, log);
 	await screenshot(page, 'new-chat-ready');
 
+	const editor = page.getByTestId('message-editor');
+	await editor.click();
+	await page.keyboard.type('Please review this Python code:');
+
 	await attachFiles(page, [SAMPLE_PY], log);
 	await page.waitForTimeout(5000);
 	await screenshot(page, 'after-code-attach');
 
-	const editor = page.getByTestId('message-editor');
 	const editorCodeEmbed = editor.locator(
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
 	);
@@ -76,9 +79,6 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	await expect(editor).not.toContainText('```json');
 	await expect(editor).not.toContainText('"embed_id"');
 	log('Code embed rendered in editor without raw JSON reference.');
-
-	await editor.click();
-	await page.keyboard.type('Please review this Python code:');
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });

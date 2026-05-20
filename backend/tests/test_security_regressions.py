@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pyotp
 import pytest
 from fastapi import HTTPException
 
@@ -44,6 +45,56 @@ class _DomainSecurityService:
 
     def validate_email_domain(self, _email: str):
         return True, None
+
+
+@pytest.mark.anyio
+async def test_email_change_password_reauth_does_not_create_login_session():
+    from backend.core.api.app.routes import settings
+
+    directus_service = AsyncMock()
+    directus_service.get_user_fields_direct = AsyncMock(return_value={
+        "hashed_email": "hashed-email",
+        "lookup_hashes": ["lookup-hash"],
+    })
+    directus_service.login_user_with_lookup_hash = AsyncMock()
+
+    await settings._verify_email_change_password(
+        user_id="user-1",
+        hashed_email="hashed-email",
+        lookup_hash="lookup-hash",
+        directus_service=directus_service,
+    )
+
+    directus_service.login_user_with_lookup_hash.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_email_change_2fa_reauth_verifies_totp_without_trusting_device():
+    from backend.core.api.app.routes import settings
+
+    user_id = "user-1"
+    tfa_secret = "JBSWY3DPEHPK3PXP"
+    directus_service = AsyncMock()
+    directus_service.get_user_fields_direct = AsyncMock(return_value={
+        "encrypted_tfa_secret": "encrypted-secret",
+        "vault_key_id": "vault-key",
+    })
+    directus_service.add_user_device_hash = AsyncMock()
+    cache_service = AsyncMock()
+    cache_service.get = AsyncMock(return_value=None)
+    cache_service.set = AsyncMock(return_value=True)
+    encryption_service = AsyncMock()
+    encryption_service.decrypt_with_user_key = AsyncMock(return_value=tfa_secret)
+
+    await settings._verify_email_change_2fa(
+        user_id=user_id,
+        auth_code=pyotp.TOTP(tfa_secret).now(),
+        directus_service=directus_service,
+        cache_service=cache_service,
+        encryption_service=encryption_service,
+    )
+
+    directus_service.add_user_device_hash.assert_not_called()
 
 
 @pytest.mark.anyio

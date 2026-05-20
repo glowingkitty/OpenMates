@@ -24,12 +24,35 @@
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
+  import { authStore } from '../../../stores/authStore';
+  import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
+  import { embedStore } from '../../../services/embedStore';
+  import { decodeToonContent, resolveEmbed } from '../../../services/embedResolver';
+  import { fetchWithPresignedUrl } from '../../../services/presignedUrlService';
+  import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
+  import { sendRequestCodeRunOutputImpl, sendUpsertCodeRunOutputImpl } from '../../../services/sendersCodeRunOutputs';
+  import { chatDB } from '../../../services/db';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import {
+    CodeRunStartError,
+    cancelCodeRun,
+    getCodeRunStatus,
+    getCodeRunStreamUrl,
+    startCodeRun,
+    type CodeRunEvent,
+    type CodeRunClientAttachment,
+    type CodeRunClientFile,
+    type CodeRunDependencyInstall,
+    type CodeRunStatus,
+    type CodeRunStreamMessage,
+  } from '../../../services/codeRunService';
+  import type { CodeRunOutput } from '../../../types/chat';
 
   /**
    * Props for code embed fullscreen
@@ -301,9 +324,731 @@
   /** Whether preview mode is currently active (toggled by the preview button). */
   let previewActive = $state(false);
 
+  const RUNNABLE_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'node', 'typescript', 'ts', 'bash', 'sh', 'shell']);
+  const RUNNABLE_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.cjs', '.ts', '.sh']);
+  const INSTALL_SNIPPET_LANGUAGES = new Set(['bash', 'sh', 'shell', 'terminal', 'console']);
+  const PYTHON_PACKAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$/;
+  const NPM_PACKAGE_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$/;
+
+  let runPanelOpen = $state(false);
+  let runStatus = $state<CodeRunStatus['status'] | 'idle'>('idle');
+  let runExecutionId = $state<string | null>(null);
+  let runEvents = $state<CodeRunEvent[]>([]);
+  let runFiles = $state<string[]>([]);
+  let runError = $state<string | null>(null);
+  let runCancelRequested = $state(false);
+  let runPollTimer: ReturnType<typeof setTimeout> | null = null;
+  let runSocket: WebSocket | null = null;
+  let persistedRunExecutionId = $state<string | null>(null);
+
+  interface SavedCodeRunOutput {
+    id?: string;
+    text: string;
+    status?: CodeRunStatus['status'];
+    files?: string[];
+    savedAt?: number;
+    events?: CodeRunEvent[];
+  }
+
+  let isRunnable = $derived.by(() => {
+    const lang = renderLanguage.toLowerCase();
+    if (RUNNABLE_LANGUAGES.has(lang)) return true;
+    if (renderFilename) {
+      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
+      if (RUNNABLE_EXTENSIONS.has(ext)) return true;
+    }
+    return false;
+  });
+
+  const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
+  const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
+
+  interface CodeRunAttachmentSource {
+    s3Key: string;
+    path: string;
+    aesKey: string;
+    aesNonce: string;
+    mimeType: string;
+  }
+
+  interface CodeRunFileCandidate {
+    id: string;
+    embedId: string;
+    kind: 'code' | 'attachment' | 'dependency';
+    title: string;
+    subtitle: string;
+    selected: boolean;
+    required: boolean;
+    clientFile?: CodeRunClientFile;
+    attachmentSources?: CodeRunAttachmentSource[];
+    dependencyInstall?: CodeRunDependencyInstall;
+  }
+
+  let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
+  let hasCodeHeaderCta = $derived((isRunnable && !!embedId) || isPreviewable);
+  let runSelectionOpen = $state(false);
+  let runSelectionLoading = $state(false);
+  let runSelectionError = $state<string | null>(null);
+  let runCandidates = $state<CodeRunFileCandidate[]>([]);
+  let requestedRunOutputKey = $state<string | null>(null);
+  let outputPaneActive = $derived(previewActive || runPanelOpen || runSelectionOpen);
+  let savedRunOutput = $state<SavedCodeRunOutput | null>(null);
+  let runDisplayEvents = $derived(buildCompactRunEvents(runEvents));
+  let selectableRunCandidates = $derived(runCandidates.filter((candidate) => !candidate.required));
+  let allOptionalCandidatesSelected = $derived(selectableRunCandidates.length > 0 && selectableRunCandidates.every((candidate) => candidate.selected));
+  let selectedRunCandidates = $derived(runCandidates.filter((candidate) => candidate.selected || candidate.required));
+  let runCtaLabel = $derived.by(() => {
+    if (runSelectionOpen) return $text('app_skills.code.run.hide_files');
+    if (runPanelOpen) return $text('app_skills.code.run.hide_output');
+    if (savedRunOutput) return $text('app_skills.code.run.show_output');
+    return $text('app_skills.code.run_code');
+  });
+
+  function readSavedRunOutput(content: Record<string, unknown>): SavedCodeRunOutput | null {
+    const text = content.code_run_output;
+    if (typeof text !== 'string' || !text.trim()) return null;
+    const status = typeof content.code_run_status === 'string'
+      ? content.code_run_status as CodeRunStatus['status']
+      : undefined;
+    const files = Array.isArray(content.code_run_files)
+      ? content.code_run_files.filter((file): file is string => typeof file === 'string')
+      : undefined;
+    const events = Array.isArray(content.code_run_events)
+      ? content.code_run_events.filter((event): event is CodeRunEvent => {
+        if (!event || typeof event !== 'object') return false;
+        const candidate = event as Record<string, unknown>;
+        return (
+          (candidate.kind === 'status' || candidate.kind === 'stdout' || candidate.kind === 'stderr')
+          && typeof candidate.text === 'string'
+          && typeof candidate.timestamp === 'number'
+        );
+      })
+      : undefined;
+    const savedAt = typeof content.code_run_saved_at === 'number' ? content.code_run_saved_at : undefined;
+    return { text, status, files, savedAt, events };
+  }
+
+  function savedRunOutputFromRow(row: CodeRunOutput): SavedCodeRunOutput {
+    return {
+      id: row.id,
+      text: row.output,
+      status: row.status as CodeRunStatus['status'] | undefined,
+      files: row.files,
+      savedAt: row.saved_at,
+      events: row.events as CodeRunEvent[] | undefined,
+    };
+  }
+
+  function codeRunOutputRef(embedIdValue: string): string {
+    return `code-run-output:${embedIdValue}`;
+  }
+
+  async function loadSavedRunOutput() {
+    if (!embedId) return;
+    try {
+      const syncedOutput = await getCodeRunOutputForEmbed(chatDB, embedId);
+      if (syncedOutput) {
+        const output = savedRunOutputFromRow(syncedOutput);
+        if (savedRunOutput?.text !== output.text || savedRunOutput?.id !== output.id) {
+          savedRunOutput = output;
+        }
+      }
+
+      const sidecar = syncedOutput ? null : await embedStore.get(codeRunOutputRef(embedId));
+      if (!sidecar || typeof sidecar !== 'object') return;
+      const output = readSavedRunOutput(sidecar as Record<string, unknown>);
+      if (output && savedRunOutput?.text !== output.text) {
+        savedRunOutput = output;
+        if (chatId) {
+          const now = Math.floor(Date.now() / 1000);
+          await sendUpsertCodeRunOutputImpl({
+            id: crypto.randomUUID(),
+            chat_id: chatId,
+            embed_id: embedId,
+            output: output.text,
+            status: output.status,
+            files: output.files,
+            events: output.events,
+            saved_at: output.savedAt ?? Date.now(),
+            created_at: now,
+            updated_at: now,
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('[CodeEmbedFullscreen] Failed to load saved code run output:', error);
+    }
+  }
+
+  $effect(() => {
+    void embedId;
+    void loadSavedRunOutput();
+    const requestKey = chatId && embedId ? `${chatId}:${embedId}` : null;
+    if (chatId && embedId && requestedRunOutputKey !== requestKey) {
+      requestedRunOutputKey = requestKey;
+      void sendRequestCodeRunOutputImpl(chatId, embedId);
+    }
+  });
+
+  onMount(() => {
+    const handleSyncedOutput = (event: Event) => {
+      const output = (event as CustomEvent<CodeRunOutput>).detail;
+      if (!embedId || output.embed_id !== embedId) return;
+      savedRunOutput = savedRunOutputFromRow(output);
+      if (!runActive && !runPanelOpen) {
+        runEvents = savedOutputToEvents(savedRunOutput);
+        runStatus = savedRunOutput.status ?? 'finished';
+        runFiles = savedRunOutput.files ?? [];
+      }
+    };
+    window.addEventListener('codeRunOutputSynced', handleSyncedOutput);
+    return () => window.removeEventListener('codeRunOutputSynced', handleSyncedOutput);
+  });
+
+  function savedOutputToEvents(output: SavedCodeRunOutput): CodeRunEvent[] {
+    if (output.events?.length) return output.events;
+    const lines = output.text.endsWith('\n') ? output.text : `${output.text}\n`;
+    return lines.split(/(?<=\n)/).filter(Boolean).map((line) => ({
+      kind: 'status',
+      text: line,
+      timestamp: output.savedAt ? output.savedAt / 1000 : Date.now() / 1000,
+    }));
+  }
+
+  function cloneRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    return events.map(({ kind, text, timestamp }) => ({ kind, text, timestamp }));
+  }
+
+  function buildCompactRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    return events.filter((event) => !event.text.startsWith('Queued code run for'));
+  }
+
+  function compactRunOutputText(): string {
+    return runDisplayEvents.map((event) => event.text).join('').trimEnd();
+  }
+
+  function programRunOutputText(): string {
+    return runDisplayEvents
+      .filter((event) => event.kind === 'stdout' || event.kind === 'stderr')
+      .map((event) => event.text)
+      .join('')
+      .trimEnd();
+  }
+
+  let hasProgramRunOutput = $derived(Boolean(programRunOutputText()));
+
+  async function handleCopyRunOutput() {
+    try {
+      const output = programRunOutputText();
+      if (!output) return;
+      const result = await copyToClipboard(output);
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      notificationStore.success($text('app_skills.code.run.output_copied'));
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to copy code run output:', error);
+      notificationStore.error($text('app_skills.code.run.output_copy_failed'));
+    }
+  }
+
+  function compactRunOutputHasFinalLine(): boolean {
+    return runDisplayEvents.some((event) => event.kind === 'status' && (event.text.startsWith('Exited ') || event.text.startsWith('Cancelled ')));
+  }
+
+  async function persistRunOutput() {
+    if (!embedId || !runExecutionId || persistedRunExecutionId === runExecutionId) return;
+    if (!chatId) {
+      console.warn('[CodeEmbedFullscreen] Cannot sync Code Run output without chatId');
+      return;
+    }
+    const outputText = compactRunOutputText();
+    if (!outputText || !compactRunOutputHasFinalLine()) return;
+
+    persistedRunExecutionId = runExecutionId;
+    const savedAt = Date.now();
+    const now = Math.floor(savedAt / 1000);
+    const outputId = savedRunOutput?.id ?? crypto.randomUUID();
+    const plainFiles = runFiles.filter((file) => typeof file === 'string');
+    const plainEvents = cloneRunEvents(runDisplayEvents);
+    try {
+      await sendUpsertCodeRunOutputImpl({
+        id: outputId,
+        chat_id: chatId,
+        embed_id: embedId,
+        output: outputText,
+        status: runStatus as CodeRunStatus['status'],
+        files: plainFiles,
+        events: plainEvents,
+        saved_at: savedAt,
+        created_at: now,
+        updated_at: now,
+      });
+      savedRunOutput = {
+        id: outputId,
+        text: outputText,
+        status: runStatus as CodeRunStatus['status'],
+        files: plainFiles,
+        savedAt,
+        events: plainEvents,
+      };
+    } catch (error) {
+      console.warn('[CodeEmbedFullscreen] Failed to persist code run output:', error);
+      persistedRunExecutionId = null;
+    }
+  }
+
   function togglePreview() {
     previewActive = !previewActive;
   }
+
+  function toggleRunOutput() {
+    if (runSelectionOpen) {
+      runSelectionOpen = false;
+      return;
+    }
+    if (runPanelOpen) {
+      runPanelOpen = false;
+      return;
+    }
+    if (savedRunOutput) {
+      previewActive = false;
+      runPanelOpen = true;
+      runStatus = savedRunOutput.status || 'finished';
+      runFiles = savedRunOutput.files || [];
+      runEvents = savedOutputToEvents(savedRunOutput);
+      runError = null;
+      return;
+    }
+    if (!$authStore.isAuthenticated) {
+      loginInterfaceOpen.set(true);
+      return;
+    }
+    openRunSelectionOrRun();
+  }
+
+  function normalizeEmbedType(value: unknown): string {
+    return typeof value === 'string' ? value.toLowerCase() : '';
+  }
+
+  function pickFileVariant(files: unknown): Record<string, unknown> | null {
+    if (!files || typeof files !== 'object') return null;
+    const record = files as Record<string, unknown>;
+    for (const name of ['original', 'full', 'audio', 'source', 'preview']) {
+      const variant = record[name];
+      if (variant && typeof variant === 'object' && typeof (variant as Record<string, unknown>).s3_key === 'string') {
+        return variant as Record<string, unknown>;
+      }
+    }
+    for (const variant of Object.values(record)) {
+      if (variant && typeof variant === 'object' && typeof (variant as Record<string, unknown>).s3_key === 'string') {
+        return variant as Record<string, unknown>;
+      }
+    }
+    return null;
+  }
+
+  function fileExtension(decoded: Record<string, unknown>, variant: Record<string, unknown>): string {
+    const format = variant.format;
+    if (typeof format === 'string' && format) return `.${format.replace(/^\./, '').toLowerCase()}`;
+    const mimeType = decoded.content_type || decoded.mime_type;
+    if (typeof mimeType === 'string' && mimeType.includes('/')) return `.${mimeType.split('/').pop()?.toLowerCase() || 'bin'}`;
+    return '.bin';
+  }
+
+  function attachmentTitle(decoded: Record<string, unknown>, embedIdValue: string, variant: Record<string, unknown>): string {
+    const title = decoded.filename || decoded.original_filename;
+    if (typeof title === 'string' && title.trim()) return title;
+    return `attachment-${embedIdValue.slice(0, 8)}${fileExtension(decoded, variant)}`;
+  }
+
+  function attachmentMimeType(decoded: Record<string, unknown>): string {
+    const mimeType = decoded.content_type || decoded.mime_type;
+    return typeof mimeType === 'string' && mimeType ? mimeType : 'application/octet-stream';
+  }
+
+  function safeInstallPackagesFromLine(line: string): CodeRunDependencyInstall | null {
+    if (/[;&|<>`$\\]/.test(line)) return null;
+    const trimmed = line.trim();
+    const pythonMatch = trimmed.match(/^(?:pip3?\s+install|python3?\s+-m\s+pip\s+install)\s+(.+)$/);
+    const npmMatch = trimmed.match(/^npm\s+(?:install|i)\s+(.+)$/);
+    const ecosystem = pythonMatch ? 'python' : npmMatch ? 'npm' : null;
+    const rawPackages = pythonMatch?.[1] ?? npmMatch?.[1] ?? '';
+    if (!ecosystem || !rawPackages.trim()) return null;
+
+    const packages = rawPackages.split(/\s+/).filter(Boolean);
+    if (packages.length === 0 || packages.some((pkg) => pkg.startsWith('-'))) return null;
+    const pattern = ecosystem === 'python' ? PYTHON_PACKAGE_PATTERN : NPM_PACKAGE_PATTERN;
+    if (!packages.every((pkg) => pattern.test(pkg))) return null;
+    return { ecosystem, packages };
+  }
+
+  function detectInstallSnippets(code: string, language: string): CodeRunDependencyInstall[] {
+    const normalizedLanguage = language.toLowerCase();
+    if (normalizedLanguage && !INSTALL_SNIPPET_LANGUAGES.has(normalizedLanguage)) return [];
+    const installs = new Map<string, Set<string>>();
+    let sawInstall = false;
+
+    for (const rawLine of code.split('\n')) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const install = safeInstallPackagesFromLine(line);
+      if (!install) return [];
+      sawInstall = true;
+      const packages = installs.get(install.ecosystem) ?? new Set<string>();
+      for (const pkg of install.packages) packages.add(pkg);
+      installs.set(install.ecosystem, packages);
+    }
+
+    if (!sawInstall) return [];
+    return Array.from(installs.entries()).map(([ecosystem, packages]) => ({
+      ecosystem: ecosystem as CodeRunDependencyInstall['ecosystem'],
+      packages: Array.from(packages),
+    }));
+  }
+
+  function dependencyCandidate(embedIdValue: string, install: CodeRunDependencyInstall): CodeRunFileCandidate {
+    const packageList = install.packages.join(', ');
+    const titleKey = install.ecosystem === 'python'
+      ? 'app_skills.code.run.install_python_packages'
+      : 'app_skills.code.run.install_npm_packages';
+    return {
+      id: `dependency:${install.ecosystem}:${embedIdValue}:${install.packages.join('|')}`,
+      embedId: embedIdValue,
+      kind: 'dependency',
+      title: $text(titleKey, { values: { packages: packageList } }),
+      subtitle: $text('app_skills.code.run.detected_install_command'),
+      selected: true,
+      required: false,
+      dependencyInstall: install,
+    };
+  }
+
+  function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  }
+
+  function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(normalized);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  async function decryptAttachmentSource(source: CodeRunAttachmentSource): Promise<CodeRunClientAttachment> {
+    const encryptedData = await fetchWithPresignedUrl(source.s3Key);
+    const nonceBytes = source.aesNonce === '' ? encryptedData.slice(0, 12) : base64ToArrayBuffer(source.aesNonce);
+    const ciphertext = source.aesNonce === '' ? encryptedData.slice(12) : encryptedData;
+    const cryptoKey = await crypto.subtle.importKey('raw', base64ToArrayBuffer(source.aesKey), { name: 'AES-GCM' }, false, ['decrypt']);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonceBytes }, cryptoKey, ciphertext);
+    return {
+      embed_id: '',
+      path: source.path,
+      content_base64: arrayBufferToBase64(decrypted),
+      mime_type: source.mimeType,
+    };
+  }
+
+  async function buildRunCandidates(): Promise<CodeRunFileCandidate[]> {
+    const ids = Array.from(new Set([embedId, ...(data.chatEmbedIds || [])].filter((id): id is string => typeof id === 'string' && !!id)));
+    const candidates: CodeRunFileCandidate[] = [{
+      id: embedId || '',
+      embedId: embedId || '',
+      kind: 'code',
+      title: renderFilename || $text('embeds.code_snippet'),
+      subtitle: $text('app_skills.code.run.required_file'),
+      selected: true,
+      required: true,
+      clientFile: {
+        embed_id: embedId || '',
+        code: renderCodeContent,
+        language: renderLanguage,
+        ...(renderFilename ? { filename: renderFilename } : {}),
+        is_target: true,
+      },
+    }];
+
+    for (const id of ids) {
+      if (!id || id === embedId) continue;
+      const resolved = await resolveEmbed(id);
+      const decoded = resolved?.content ? await decodeToonContent(resolved.content) : null;
+      if (!decoded) continue;
+      const type = normalizeEmbedType(decoded.type || resolved?.type);
+      if (type === 'code' || type === 'code-code') {
+        const parsed = parseCodeEmbedContent(String(decoded.code || decoded.content || ''), {
+          language: typeof decoded.language === 'string' ? decoded.language : '',
+          filename: typeof decoded.filename === 'string' ? decoded.filename : undefined,
+        });
+        if (!parsed.code) continue;
+        const dependencyInstalls = detectInstallSnippets(parsed.code, parsed.language || '');
+        if (dependencyInstalls.length > 0) {
+          candidates.push(...dependencyInstalls.map((install) => dependencyCandidate(id, install)));
+          continue;
+        }
+        candidates.push({
+          id,
+          embedId: id,
+          kind: 'code',
+          title: parsed.filename || $text('embeds.code_snippet'),
+          subtitle: parsed.language || 'code',
+          selected: true,
+          required: false,
+          clientFile: {
+            embed_id: id,
+            code: parsed.code,
+            language: parsed.language || '',
+            ...(parsed.filename ? { filename: parsed.filename } : {}),
+          },
+        });
+        continue;
+      }
+
+      const variant = pickFileVariant(decoded.files || decoded.s3_files);
+      const aesKey = typeof decoded.aes_key === 'string' ? decoded.aes_key : undefined;
+      const aesNonce = typeof decoded.aes_nonce === 'string' ? decoded.aes_nonce : undefined;
+      if (!variant || typeof variant.s3_key !== 'string') continue;
+      const title = attachmentTitle(decoded, id, variant);
+      candidates.push({
+        id,
+        embedId: id,
+        kind: 'attachment',
+        title,
+        subtitle: attachmentMimeType(decoded),
+        selected: true,
+        required: false,
+        attachmentSources: aesKey && aesNonce !== undefined ? [{
+          s3Key: variant.s3_key,
+          path: title,
+          aesKey,
+          aesNonce,
+          mimeType: attachmentMimeType(decoded),
+        }] : [],
+      });
+    }
+
+    return candidates;
+  }
+
+  async function openRunSelectionOrRun() {
+    if (!chatId || !embedId || runActive) return;
+    runSelectionLoading = true;
+    runSelectionError = null;
+    try {
+      const candidates = await buildRunCandidates();
+      runCandidates = candidates;
+      if (candidates.length <= 1) {
+        await handleRun(candidates);
+        return;
+      }
+      previewActive = false;
+      runPanelOpen = false;
+      runSelectionOpen = true;
+    } catch (error) {
+      runSelectionError = error instanceof Error ? error.message : 'Could not load chat files';
+      runSelectionOpen = true;
+    } finally {
+      runSelectionLoading = false;
+    }
+  }
+
+  function toggleRunCandidate(candidateId: string) {
+    runCandidates = runCandidates.map((candidate) => (
+      candidate.id === candidateId && !candidate.required
+        ? { ...candidate, selected: !candidate.selected }
+        : candidate
+    ));
+  }
+
+  function toggleAllOptionalCandidates() {
+    const nextSelected = !allOptionalCandidatesSelected;
+    runCandidates = runCandidates.map((candidate) => candidate.required ? candidate : { ...candidate, selected: nextSelected });
+  }
+
+  async function selectedClientAttachments(candidates: CodeRunFileCandidate[]): Promise<CodeRunClientAttachment[]> {
+    const attachments: CodeRunClientAttachment[] = [];
+    for (const candidate of candidates) {
+      if (candidate.kind !== 'attachment' || !candidate.attachmentSources?.length) continue;
+      for (const source of candidate.attachmentSources) {
+        const attachment = await decryptAttachmentSource(source);
+        attachments.push({ ...attachment, embed_id: candidate.embedId });
+      }
+    }
+    return attachments;
+  }
+
+  function clearRunPollTimer() {
+    if (runPollTimer) {
+      clearTimeout(runPollTimer);
+      runPollTimer = null;
+    }
+  }
+
+  function closeRunSocket() {
+    if (runSocket) {
+      runSocket.onclose = null;
+      runSocket.onerror = null;
+      runSocket.onmessage = null;
+      runSocket.close();
+      runSocket = null;
+    }
+  }
+
+  function syncRunStatus(status: CodeRunStatus) {
+    runStatus = status.status;
+    runCancelRequested = status.status === 'cancelling';
+    runEvents = status.events || [];
+    runFiles = status.files || runFiles;
+    runError = status.error || null;
+  }
+
+  function applyRunUpdate(update: Partial<CodeRunStatus>) {
+    if (update.status) runStatus = update.status;
+    if (update.status === 'cancelling') runCancelRequested = true;
+    if (update.status && TERMINAL_RUN_STATUSES.has(update.status)) runCancelRequested = false;
+    if (update.files) runFiles = update.files;
+    if (update.error !== undefined) runError = update.error || null;
+  }
+
+  function appendRunEvent(event: CodeRunEvent) {
+    runEvents = [...runEvents, event];
+  }
+
+  function openRunStream(executionId: string) {
+    closeRunSocket();
+
+    const socket = new WebSocket(getCodeRunStreamUrl(executionId));
+    runSocket = socket;
+
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data) as CodeRunStreamMessage;
+      if (message.type === 'code_run_snapshot') {
+        syncRunStatus(message.payload);
+        return;
+      }
+      if (message.type === 'code_run_update') {
+        applyRunUpdate(message.payload);
+        return;
+      }
+      if (message.type === 'code_run_event') {
+        appendRunEvent(message.payload);
+      }
+    };
+
+    socket.onerror = () => {
+      socket.close();
+    };
+
+    socket.onclose = () => {
+      if (runSocket === socket) {
+        runSocket = null;
+      }
+      if (runExecutionId === executionId && !TERMINAL_RUN_STATUSES.has(runStatus)) {
+        pollRunStatus(executionId);
+      }
+    };
+  }
+
+  async function pollRunStatus(executionId: string) {
+    try {
+      const status = await getCodeRunStatus(executionId);
+      syncRunStatus(status);
+      if (!TERMINAL_RUN_STATUSES.has(status.status)) {
+        runPollTimer = setTimeout(() => pollRunStatus(executionId), 1000);
+      }
+    } catch (error) {
+      runStatus = 'failed';
+      runError = error instanceof Error ? error.message : 'Code run status unavailable';
+      runEvents = [...runEvents, { kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    }
+  }
+
+  async function handleRun(candidatesOverride?: CodeRunFileCandidate[]) {
+    if (!$authStore.isAuthenticated) {
+      loginInterfaceOpen.set(true);
+      return;
+    }
+    if (!chatId || !embedId || runActive) return;
+    const candidates = candidatesOverride || selectedRunCandidates;
+    const selectedEmbedIds = candidates
+      .filter((candidate) => candidate.kind !== 'dependency')
+      .map((candidate) => candidate.embedId);
+    const selectedCodeFiles = candidates
+      .filter((candidate): candidate is CodeRunFileCandidate & { clientFile: CodeRunClientFile } => candidate.kind === 'code' && !!candidate.clientFile)
+      .map((candidate) => candidate.clientFile);
+    const selectedDependencyInstalls = candidates
+      .filter((candidate): candidate is CodeRunFileCandidate & { dependencyInstall: CodeRunDependencyInstall } => candidate.kind === 'dependency' && !!candidate.dependencyInstall)
+      .map((candidate) => candidate.dependencyInstall);
+    const selectedAttachments = await selectedClientAttachments(candidates);
+    clearRunPollTimer();
+    closeRunSocket();
+    previewActive = false;
+    runSelectionOpen = false;
+    runPanelOpen = true;
+    runStatus = 'queued';
+    runError = null;
+    runCancelRequested = false;
+    runEvents = [{ kind: 'status', text: 'Queued code run...\n', timestamp: Date.now() / 1000 }];
+    runFiles = [];
+    try {
+      let started;
+      try {
+        started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds, selectedDependencyInstalls);
+      } catch (error) {
+        if (!(error instanceof CodeRunStartError) || error.code !== CLIENT_CONTENT_REQUIRED_CODE) {
+          throw error;
+        }
+        runEvents = [
+          ...runEvents,
+          { kind: 'status', text: 'Recent server cache missed; resending decrypted code from this device...\n', timestamp: Date.now() / 1000 }
+        ];
+        started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds, selectedDependencyInstalls);
+      }
+      runExecutionId = started.execution_id;
+      persistedRunExecutionId = null;
+      runStatus = started.status as CodeRunStatus['status'];
+      runFiles = started.files;
+      runEvents = [
+        { kind: 'status', text: `Queued code run for ${started.target_filename}. Pricing: ${started.credits_per_minute} credits per started minute.\n`, timestamp: Date.now() / 1000 }
+      ];
+      openRunStream(started.execution_id);
+    } catch (error) {
+      runStatus = 'failed';
+      runError = error instanceof Error ? error.message : 'Code run failed to start';
+      runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    }
+  }
+
+  async function handleCancelRun() {
+    if (!runExecutionId || !runActive || runCancelRequested) return;
+    runCancelRequested = true;
+    try {
+      const result = await cancelCodeRun(runExecutionId);
+      runStatus = result.status;
+      runEvents = [
+        ...runEvents,
+        { kind: 'status', text: `${$text('app_skills.code.run.cancelling')}\n`, timestamp: Date.now() / 1000 }
+      ];
+    } catch (error) {
+      runCancelRequested = false;
+      runError = error instanceof Error ? error.message : 'Code run cancellation failed';
+      runEvents = [...runEvents, { kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    }
+  }
+
+  $effect(() => {
+    if (runExecutionId && TERMINAL_RUN_STATUSES.has(runStatus) && compactRunOutputHasFinalLine()) {
+      void persistRunOutput();
+    }
+  });
+
+  $effect(() => {
+    return () => {
+      clearRunPollTimer();
+      closeRunSocket();
+    };
+  });
 
   // Share is handled by UnifiedEmbedFullscreen's built-in share handler
   // which uses currentEmbedId, appId, and skillId to construct the embed
@@ -324,9 +1069,6 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
-  showPreview={isPreviewable}
-  {previewActive}
-  onTogglePreview={togglePreview}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -337,10 +1079,31 @@
   {onShowChat}
   skipInitialScrollReset={!!highlightRange}
 >
+  {#snippet embedHeaderCta()}
+    {#if hasCodeHeaderCta}
+      <div class="embed-header-cta-group">
+        {#if isRunnable && embedId}
+          <EmbedHeaderCtaButton label={runCtaLabel} onclick={toggleRunOutput} testId="embed-run-button" />
+        {/if}
+        {#if isPreviewable}
+          <EmbedHeaderCtaButton
+            label={previewActive ? $text('app_skills.code.preview_hide') : $text('app_skills.code.preview_show')}
+            onclick={togglePreview}
+            testId="embed-preview-button"
+          />
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     {#if renderCodeContent}
-      <!-- Split-pane layout when preview is active, full code otherwise -->
-      <div class="code-fullscreen-container" class:preview-split={previewActive}>
+      <!-- Split-pane layout when preview or terminal output is active, full code otherwise -->
+      <div
+        class="code-fullscreen-container"
+        class:output-pane-active={outputPaneActive}
+        class:with-header-cta={hasCodeHeaderCta}
+      >
         {#if hasPII}
           <!-- PII reveal toggle bar -->
           <div class="code-pii-bar">
@@ -374,10 +1137,10 @@
           </div>
         {/if}
 
-        <div class="code-split-wrapper" class:split-active={previewActive}>
-          <!-- Code panel — always visible. When preview is active, takes 50% on desktop,
+        <div class="code-split-wrapper" class:split-active={outputPaneActive}>
+          <!-- Code panel — always visible. When output is active, takes 30% on desktop,
                or becomes a shortened scrollable container on mobile. -->
-          <div class="code-panel" class:code-panel-split={previewActive}>
+          <div class="code-panel" class:code-panel-split={outputPaneActive} data-testid="code-source-panel">
             <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}
@@ -395,10 +1158,78 @@
             </div>
           </div>
 
-          <!-- Preview panel — only rendered when preview mode is active -->
-          {#if previewActive}
+          <!-- Output panel — rendered preview and terminal share the same right-side area. -->
+          {#if outputPaneActive}
             <div class="preview-panel">
-              <CodePreviewPane code={renderCodeContent} {previewType} />
+              {#if previewActive}
+                <CodePreviewPane code={renderCodeContent} {previewType} />
+              {:else if runSelectionOpen}
+                <section class="code-run-selection" data-testid="code-run-file-selection">
+                  <div class="code-run-selection-header">
+                    <div>
+                      <div class="code-run-title">{$text('app_skills.code.run.select_files')}</div>
+                      <div class="code-run-subtitle">{$text('app_skills.code.run.select_files_description')}</div>
+                    </div>
+                    {#if selectableRunCandidates.length > 0}
+                      <button class="code-run-again" onclick={toggleAllOptionalCandidates}>
+                        {allOptionalCandidatesSelected ? $text('app_skills.code.run.unselect_all') : $text('app_skills.code.run.select_all')}
+                      </button>
+                    {/if}
+                  </div>
+                  {#if runSelectionLoading}
+                    <div class="code-run-selection-message">{$text('app_skills.code.run.loading_files')}</div>
+                  {:else if runSelectionError}
+                    <div class="code-run-selection-message code-run-selection-error">{runSelectionError}</div>
+                  {/if}
+                  <div class="code-run-file-list">
+                    {#each runCandidates as candidate}
+                      <label class="code-run-file-option" class:required={candidate.required}>
+                        <input
+                          data-testid={candidate.required ? 'code-run-required-file-checkbox' : 'code-run-optional-file-checkbox'}
+                          type="checkbox"
+                          checked={candidate.selected || candidate.required}
+                          disabled={candidate.required}
+                          onchange={() => toggleRunCandidate(candidate.id)}
+                        />
+                        <span class="code-run-file-meta">
+                          <span class="code-run-file-title">{candidate.title}</span>
+                          <span class="code-run-file-subtitle">{candidate.subtitle}</span>
+                        </span>
+                      </label>
+                    {/each}
+                  </div>
+                  <div class="code-run-selection-footer">
+                    <button class="code-run-cancel" onclick={() => { runSelectionOpen = false; }}>{$text('common.cancel')}</button>
+                    <button class="code-run-continue" onclick={() => handleRun(selectedRunCandidates)} disabled={runActive || selectedRunCandidates.length === 0}>
+                      {$text('app_skills.code.run.continue')}
+                    </button>
+                  </div>
+                </section>
+              {:else if runPanelOpen}
+                <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
+                  <div class="code-run-header">
+                    <div>
+                      <div class="code-run-title">{$text('app_skills.code.run.output')}</div>
+                      <div class="code-run-subtitle">
+                        {#if runExecutionId}
+                          {runStatus} · {runFiles.length} file{runFiles.length === 1 ? '' : 's'} included
+                        {:else}
+                          {runStatus}
+                        {/if}
+                      </div>
+                    </div>
+                    <div class="code-run-header-actions">
+                      <button class="code-run-again" onclick={handleCopyRunOutput} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.copy_output')}</button>
+                      <button class="code-run-stop" onclick={handleCancelRun} disabled={!runActive || runCancelRequested}>{runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}</button>
+                      <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
+                    </div>
+                  </div>
+                  {#if runFiles.length > 0}
+                    <div class="code-run-files">Included: {runFiles.join(', ')}</div>
+                  {/if}
+                  <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                </section>
+              {/if}
             </div>
           {/if}
         </div>
@@ -435,11 +1266,15 @@
     margin-right: var(--spacing-5);
   }
 
-  /* When preview split is active, container fills available height.
+  .code-fullscreen-container.with-header-cta {
+    margin-top: 42px;
+  }
+
+  /* When preview or terminal output is active, container fills available height.
      Uses flex: 1 instead of height: calc() because the parent .content-area
      is itself a flex child (flex: 1) — percentage heights don't resolve
      against flex-sized parents. */
-  .code-fullscreen-container.preview-split {
+  .code-fullscreen-container.output-pane-active {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 358px);
@@ -448,7 +1283,7 @@
     padding-bottom: 0;
   }
 
-  /* ── Split wrapper — holds code panel + preview panel side by side ── */
+  /* ── Split wrapper — holds code panel + output panel side by side ── */
   .code-split-wrapper {
     width: 100%;
     flex: 1;
@@ -483,6 +1318,228 @@
     /* position: relative so child can use absolute positioning to fill the panel
        without expanding it to the iframe's content height */
     position: relative;
+  }
+
+  .code-run-terminal {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    border: 1px solid #2d3748;
+    border-radius: var(--radius-3);
+    background: #050b12;
+    color: #d1d5db;
+    color-scheme: dark;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+  }
+
+  .code-run-selection {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-3);
+    background: var(--color-grey-10);
+    overflow: hidden;
+  }
+
+  .code-run-selection-header,
+  .code-run-selection-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    padding: var(--spacing-5) var(--spacing-6);
+    border-bottom: 1px solid var(--color-grey-25);
+  }
+
+  .code-run-selection-footer {
+    border-top: 1px solid var(--color-grey-25);
+    border-bottom: none;
+    justify-content: flex-end;
+  }
+
+  .code-run-file-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--spacing-4) var(--spacing-6);
+  }
+
+  .code-run-file-option {
+    display: flex;
+    gap: var(--spacing-4);
+    align-items: flex-start;
+    padding: var(--spacing-4);
+    border: 1px solid var(--color-grey-25);
+    border-radius: var(--radius-2);
+    background: var(--color-grey-0);
+    cursor: pointer;
+  }
+
+  .code-run-file-option + .code-run-file-option {
+    margin-top: var(--spacing-3);
+  }
+
+  .code-run-file-option.required {
+    cursor: default;
+    border-color: var(--color-orange-50, #f59e0b);
+  }
+
+  .code-run-file-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    min-width: 0;
+  }
+
+  .code-run-file-title {
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .code-run-file-subtitle,
+  .code-run-selection-message {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-selection-message {
+    padding: var(--spacing-4) var(--spacing-6) 0;
+  }
+
+  .code-run-selection-error {
+    color: var(--color-error, #dc2626);
+  }
+
+  .code-run-cancel,
+  .code-run-continue {
+    border: none;
+    border-radius: var(--radius-2);
+    padding: var(--spacing-3) var(--spacing-6);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    font-weight: 700;
+  }
+
+  .code-run-cancel {
+    background: var(--color-grey-20);
+    color: var(--color-font-primary);
+  }
+
+  .code-run-continue {
+    background: var(--color-orange-50, #f59e0b);
+    color: var(--color-grey-0);
+  }
+
+  .code-run-continue:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .code-run-header {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    align-items: center;
+    padding: var(--spacing-5) var(--spacing-6);
+    background: #0b1220;
+    border-bottom: 1px solid #1f2937;
+  }
+
+  .code-run-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+  }
+
+  .code-run-title {
+    color: #f8fafc;
+    font-size: var(--font-size-small);
+    font-weight: 700;
+  }
+
+  .code-run-subtitle,
+  .code-run-files {
+    color: #94a3b8;
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-files {
+    padding: var(--spacing-4) var(--spacing-6) 0;
+  }
+
+  .code-run-again {
+    border: 1px solid #334155;
+    border-radius: var(--radius-2);
+    background: #111827;
+    color: #e5e7eb;
+    padding: var(--spacing-3) var(--spacing-5);
+    cursor: pointer;
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-again:not(:disabled):hover {
+    background: #1f2937;
+    border-color: #475569;
+  }
+
+  .code-run-again:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .code-run-stop {
+    border: 1px solid #7f1d1d;
+    border-radius: var(--radius-2);
+    background: #450a0a;
+    color: #fecaca;
+    padding: var(--spacing-3) var(--spacing-5);
+    cursor: pointer;
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-stop:not(:disabled):hover {
+    background: #7f1d1d;
+    border-color: #991b1b;
+  }
+
+  .code-run-stop:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .code-run-output {
+    flex: 1;
+    margin: 0;
+    padding: var(--spacing-5) var(--spacing-6) var(--spacing-6);
+    min-height: 0;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    background: #050b12;
+    color: #d1d5db;
+  }
+
+  .code-run-line {
+    display: inline;
+  }
+
+  .code-run-status {
+    color: #7dd3fc;
+  }
+
+  .code-run-stderr {
+    color: #fca5a5;
   }
 
   /* Mobile: preview only — hide code panel, show full-width preview.

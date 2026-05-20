@@ -8,12 +8,14 @@ has changed it.
 
 Usage:
   docker exec api python /app/backend/scripts/reset_test_2fa.py --from-env
+  docker exec api python /app/backend/scripts/reset_test_2fa.py --from-env --slot 10
   docker exec api python /app/backend/scripts/reset_test_2fa.py --from-env --user-id <uuid>
   docker exec api python /app/backend/scripts/reset_test_2fa.py <otp_secret>
   docker exec api python /app/backend/scripts/reset_test_2fa.py <otp_secret> --user-id <uuid>
 
 Flags:
-  --from-env     Read OTP key from OPENMATES_TEST_ACCOUNT_OTP_KEY env var
+  --from-env     Read OTP key from OPENMATES_TEST_ACCOUNT[_N]_OTP_KEY env var
+  --slot N       Use numbered OPENMATES_TEST_ACCOUNT_N_* env vars
   --user-id ID   Target a specific user by Directus UUID (bypasses email lookup)
 
 How it works:
@@ -23,6 +25,7 @@ How it works:
 """
 
 import asyncio
+import argparse
 import base64
 import hashlib
 import os
@@ -31,33 +34,39 @@ import time
 
 sys.path.insert(0, "/app")
 
-from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.services.directus.directus import DirectusService
-from backend.core.api.app.services.cache import CacheService
+def _get_test_account_env(name: str, slot: int | None) -> str | None:
+    if slot is not None:
+        value = os.environ.get(f"OPENMATES_TEST_ACCOUNT_{slot}_{name}")
+        if value:
+            return value
+    return os.environ.get(f"OPENMATES_TEST_ACCOUNT_{name}") or os.environ.get(
+        f"OPENMATES_TEST_ACCOUNT_1_{name}"
+    )
+
+
+def _hash_email(email: str) -> str:
+    return base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
 
 
 async def main():
-    args = sys.argv[1:]
-    if not args:
-        print("Usage: reset_test_2fa.py <otp_secret> | --from-env [--user-id <uuid>]")
-        sys.exit(1)
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus.directus import DirectusService
+    from backend.core.api.app.utils.encryption import EncryptionService
 
-    # Parse flags
-    otp_secret = None
-    explicit_user_id = None
-    i = 0
-    while i < len(args):
-        if args[i] == "--from-env":
-            otp_secret = os.environ.get("OPENMATES_TEST_ACCOUNT_OTP_KEY")
-            if not otp_secret:
-                print("ERROR: OPENMATES_TEST_ACCOUNT_OTP_KEY not set in environment")
-                sys.exit(1)
-        elif args[i] == "--user-id" and i + 1 < len(args):
-            explicit_user_id = args[i + 1]
-            i += 1
-        elif not otp_secret and not args[i].startswith("--"):
-            otp_secret = args[i]
-        i += 1
+    parser = argparse.ArgumentParser(description="Reset a test account's 2FA secret")
+    parser.add_argument("otp_secret", nargs="?", help="TOTP secret to store")
+    parser.add_argument("--from-env", action="store_true", help="Read the TOTP secret from env")
+    parser.add_argument("--slot", type=int, help="Use OPENMATES_TEST_ACCOUNT_<slot>_* env vars")
+    parser.add_argument("--user-id", help="Target a specific Directus user UUID")
+    args = parser.parse_args()
+
+    otp_secret = args.otp_secret
+    if args.from_env:
+        otp_secret = _get_test_account_env("OTP_KEY", args.slot)
+        if not otp_secret:
+            slot_hint = f"_{args.slot}" if args.slot is not None else ""
+            print(f"ERROR: OPENMATES_TEST_ACCOUNT{slot_hint}_OTP_KEY not set in environment")
+            sys.exit(1)
 
     if not otp_secret:
         print("ERROR: No OTP secret provided. Use --from-env or pass as argument.")
@@ -68,9 +77,9 @@ async def main():
     directus_service = DirectusService(cache_service=cache_service)
     encryption_service = EncryptionService()
 
-    if explicit_user_id:
+    if args.user_id:
         # Direct user lookup by ID
-        user_id = explicit_user_id
+        user_id = args.user_id
         fields = await directus_service.get_user_fields_direct(
             user_id, ["id", "vault_key_id"]
         )
@@ -80,16 +89,14 @@ async def main():
         vault_key_id = fields.get("vault_key_id")
     else:
         # Lookup by hashed email
-        test_email = os.environ.get(
-            "OPENMATES_TEST_ACCOUNT_EMAIL",
-            os.environ.get("OPENMATES_TEST_ACCOUNT_1_EMAIL")
-        )
+        test_email = _get_test_account_env("EMAIL", args.slot)
         if not test_email:
-            print("ERROR: OPENMATES_TEST_ACCOUNT_EMAIL not set (use --user-id instead)")
+            slot_hint = f"_{args.slot}" if args.slot is not None else ""
+            print(f"ERROR: OPENMATES_TEST_ACCOUNT{slot_hint}_EMAIL not set (use --user-id instead)")
             sys.exit(1)
 
         print(f"Looking up user by email: {test_email}")
-        email_hash = base64.b64encode(hashlib.sha256(test_email.encode()).digest()).decode()
+        email_hash = _hash_email(test_email)
         success, user, message = await directus_service.get_user_by_hashed_email(email_hash)
         if not success or not user:
             print(f"ERROR: User not found — {message}")

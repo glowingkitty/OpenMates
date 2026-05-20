@@ -15,12 +15,14 @@
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
+    import { demoMode } from '../stores/demoModeStore';
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import type { UploadedFileSearchResult } from '../services/embedStore';
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
@@ -2073,6 +2075,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    function handleFileSuggestionClick(file: UploadedFileSearchResult) {
+        messageInputFieldRef?.insertUploadedFileReference(file);
+        messageInputFieldRef?.focus();
+    }
+
     /**
      * Navigate to an existing chat when selected from the suggestion area's chat search results.
      * Fetches the full Chat object from IndexedDB and loads it via loadChat(), matching the
@@ -2300,6 +2307,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatCategory = $state<string | null>(null);
     let resumeChatIcon = $state<string | null>(null);
     let resumeChatSummary = $state<string | null>(null);
+    let resumeChatImageBubbles = $state<ResumeCardImageBubble[] | null>(null);
     // When the last-opened chat was credits-rejected (no title, waiting_for_user),
     // show the "Credits needed..." label + user message preview instead of category circle + title.
     let resumeChatIsCreditsError = $state(false);
@@ -2631,6 +2639,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         category: string | null;
         icon: string | null;
         summary: string | null;
+        imageBubbles: ResumeCardImageBubble[] | null;
         /** Decrypted draft preview text — set only for draft-only chats (no title, no messages). */
         draftPreview: string | null;
         event?: OpenMatesEvent;
@@ -2642,6 +2651,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     };
 
     type PriorityContinueItem = PriorityChatContinueItem | SavedEmbedContinueCandidate;
+
+    function getPriorityChatImageBubbles(item: PriorityContinueItem): ResumeCardImageBubble[] | null {
+        return item.kind === 'chat' ? item.imageBubbles : null;
+    }
 
     let recentChats = $state<RecentChatMeta[]>([]);
     let priorityContinueItems = $state<PriorityContinueItem[]>([]);
@@ -2679,14 +2692,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chat.title) {
-            return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, draftPreview };
+            const imageBubbles = chat.resume_card_image_bubbles ?? null;
+            return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, imageBubbles, draftPreview };
         }
 
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
+            const imageBubbles = chat.resume_card_image_bubbles ?? null;
+            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
         } catch {
-            return { chat, title: null, category: null, icon: null, summary: null, draftPreview };
+            return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }
     }
 
@@ -2817,6 +2832,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 category: translated.metadata.category ?? null,
                 icon: translated.metadata.icon_names?.[0] ?? null,
                 summary: translated.description ?? null,
+                imageBubbles: null,
                 draftPreview: null,
             };
         });
@@ -2842,6 +2858,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 category: 'events',
                 icon: 'calendar-days',
                 summary: formatOpenMatesEventSummary(event),
+                imageBubbles: null,
                 draftPreview: null,
                 event,
             }));
@@ -2853,6 +2870,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             category: chat.category ?? null,
             icon: chat.icon?.split(',')[0] ?? null,
             summary: chat.chat_summary ?? null,
+            imageBubbles: null,
             draftPreview: null,
         }));
 
@@ -3142,6 +3160,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 resumeChatCategory = null;
                 resumeChatIcon = null;
                 resumeChatSummary = null;
+                resumeChatImageBubbles = null;
                 resumeChatIsCreditsError = true;
                 resumeChatUserMessagePreview = userPreview;
                 console.info(`[ActiveChat] Resume chat is credits-error state: ${chat.chat_id}, preview: "${userPreview}"`);
@@ -3153,12 +3172,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
+            const imageBubbles = chat.resume_card_image_bubbles ?? null;
 
             resumeChatData = chat;
             resumeChatTitle = displayTitle;
             resumeChatCategory = displayCategory;
             resumeChatIcon = displayIcon;
             resumeChatSummary = displaySummary;
+            resumeChatImageBubbles = imageBubbles;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
@@ -3187,6 +3208,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatCategory = chat.category || 'general_knowledge';
             resumeChatIcon = chat.icon || 'sparkles';
             resumeChatSummary = chat.chat_summary || null;
+            resumeChatImageBubbles = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             return;
@@ -3201,6 +3223,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatCategory = null;
             resumeChatIcon = null;
             resumeChatSummary = null;
+            resumeChatImageBubbles = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             return;
@@ -3276,6 +3299,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatIcon = syncState.resumeChatIcon;
             // Reset credits-error state and summary (will be populated by loadResumeChatFromDB if needed)
             resumeChatSummary = null;
+            resumeChatImageBubbles = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat synced from phasedSyncState: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
@@ -3667,6 +3691,243 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             processingPhase = { phase: 'typing', statusLines: lines, showIcon: true, completedSteps: carrySteps };
             console.debug('[ActiveChat] Processing phase set to TYPING', { mateName, displayModelName, displayProviderName, displayServerRegion, lineCount: lines.length, completedSteps: carrySteps.length });
         }
+    }
+
+    type ChatReplayOptions = {
+        /** Assistant message to replay. Defaults to the latest assistant message in the open chat. */
+        messageId?: string;
+        /** Playback speed multiplier. Values above 1 make the replay faster. */
+        speed?: number;
+        /** Optional delay before the assistant bubble appears, before speed scaling. */
+        initialDelayMs?: number;
+        /** Optional delay between paragraph chunks, before speed scaling. */
+        paragraphDelayMs?: number;
+    };
+
+    type ChatReplayCommand = {
+        start: (options?: ChatReplayOptions) => Promise<void>;
+        stop: () => void;
+        status: () => { running: boolean; chatId: string | null };
+    };
+
+    let replayGeneration = 0;
+    let replayOriginalMessages: ChatMessageModel[] | null = null;
+
+    function cloneMessagesForReplay(messages: ChatMessageModel[]): ChatMessageModel[] {
+        return messages.map((message) => ({ ...message }));
+    }
+
+    function getReplayDelay(baseMs: number, speed: number): number {
+        return Math.max(40, Math.round(baseMs / Math.max(0.1, speed)));
+    }
+
+    function waitForReplay(ms: number, generation: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            setTimeout(() => resolve(replayGeneration === generation), ms);
+        });
+    }
+
+    function splitReplayContent(content: string): string[] {
+        const paragraphs = content
+            .split(/\n{2,}/)
+            .map((part) => part.trim())
+            .filter(Boolean);
+
+        if (paragraphs.length > 1) {
+            return paragraphs.map((_, index) => paragraphs.slice(0, index + 1).join('\n\n'));
+        }
+
+        const sentences = content.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
+        if (sentences.length > 1) {
+            return sentences.map((_, index) => sentences.slice(0, index + 1).join(' '));
+        }
+
+        return [content];
+    }
+
+    function resolveReplayPair(options: ChatReplayOptions) {
+        const assistantIndex = options.messageId
+            ? currentMessages.findIndex((message) => message.message_id === options.messageId && message.role === 'assistant')
+            : (() => {
+                for (let index = currentMessages.length - 1; index >= 0; index -= 1) {
+                    if (currentMessages[index].role === 'assistant') return index;
+                }
+                return -1;
+            })();
+
+        if (assistantIndex === -1) {
+            throw new Error('No assistant message found to replay in the open chat.');
+        }
+
+        const assistantMessage = currentMessages[assistantIndex];
+        const linkedUserIndex = assistantMessage.user_message_id
+            ? currentMessages.findIndex((message) => message.message_id === assistantMessage.user_message_id)
+            : -1;
+        const userIndex = linkedUserIndex !== -1
+            ? linkedUserIndex
+            : (() => {
+                for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+                    if (currentMessages[index].role === 'user') return index;
+                }
+                return -1;
+            })();
+
+        if (userIndex === -1) {
+            throw new Error('No user message found before the assistant message to replay.');
+        }
+
+        return { assistantIndex, userIndex, assistantMessage, userMessage: currentMessages[userIndex] };
+    }
+
+    function updateReplayMessages(messages: ChatMessageModel[]) {
+        currentMessages = messages;
+        chatHistoryRef?.updateMessages(currentMessages);
+        setTimeout(() => chatHistoryRef?.scrollToBottom(), 0);
+    }
+
+    function stopChatReplay() {
+        replayGeneration += 1;
+        if (replayOriginalMessages) {
+            updateReplayMessages(cloneMessagesForReplay(replayOriginalMessages));
+            replayOriginalMessages = null;
+        }
+        clearProcessingPhase();
+        currentTypingStatus = null;
+        _aiTaskStateTrigger += 1;
+    }
+
+    async function startChatReplay(options: ChatReplayOptions = {}) {
+        if (!currentChat?.chat_id) {
+            throw new Error('No open chat to replay. Open a chat first.');
+        }
+        if (currentMessages.length === 0) {
+            throw new Error('The open chat has no messages to replay.');
+        }
+
+        stopChatReplay();
+        demoMode.set(true);
+        const generation = replayGeneration + 1;
+        replayGeneration = generation;
+        replayOriginalMessages = cloneMessagesForReplay(currentMessages);
+
+        const speed = options.speed ?? 4;
+        const initialDelay = getReplayDelay(options.initialDelayMs ?? 900, speed);
+        const paragraphDelay = getReplayDelay(options.paragraphDelayMs ?? 650, speed);
+        const { assistantIndex, userIndex, assistantMessage, userMessage } = resolveReplayPair(options);
+        const beforePair = cloneMessagesForReplay(currentMessages.slice(0, userIndex));
+        const replayUserMessage: ChatMessageModel = { ...userMessage, status: 'sending' };
+        const replayAssistantMessage: ChatMessageModel = {
+            ...assistantMessage,
+            content: '',
+            status: 'streaming',
+        };
+        const category = assistantMessage.category || currentChat.category || activeChatDecryptedCategory || undefined;
+        const modelName = assistantMessage.model_name || undefined;
+
+        console.info('[chat_replay] Starting UI-only replay', {
+            chatId: currentChat.chat_id,
+            userMessageId: userMessage.message_id,
+            assistantMessageId: assistantMessage.message_id,
+            speed,
+        });
+
+        updateReplayMessages([...beforePair, replayUserMessage]);
+        processingPhase = { phase: 'sending', statusLines: [$text('enter_message.sending')] };
+
+        if (!(await waitForReplay(getReplayDelay(500, speed), generation))) return;
+
+        const completedSteps: PreprocessorStepResult[] = [];
+        const title = activeChatDecryptedTitle || currentChat.title || undefined;
+        if (title) {
+            completedSteps.push({ step: 'title_generated', skipped: false, data: { title } });
+        }
+        if (category) {
+            completedSteps.push({
+                step: 'mate_selected',
+                skipped: false,
+                data: { mate_name: $text('mates.' + category), mate_category: category },
+            });
+        }
+        if (modelName) {
+            completedSteps.push({
+                step: 'model_selected',
+                skipped: false,
+                data: { model_name: getModelDisplayName(modelName) },
+            });
+        }
+
+        processingPhase = {
+            phase: 'processing',
+            statusLines: [$text('enter_message.status.analyzing_message')],
+            showIcon: true,
+            completedSteps,
+        };
+
+        if (!(await waitForReplay(initialDelay, generation))) return;
+
+        currentTypingStatus = {
+            isTyping: true,
+            category: category ?? null,
+            chatId: currentChat.chat_id,
+            userMessageId: userMessage.message_id,
+            aiMessageId: assistantMessage.message_id,
+            modelName,
+            providerName: null,
+            serverRegion: null,
+        };
+        _aiTaskStateTrigger += 1;
+        applyTypingPhaseTransition(category, modelName, undefined, undefined);
+
+        if (!(await waitForReplay(getReplayDelay(650, speed), generation))) return;
+
+        updateReplayMessages([
+            ...beforePair,
+            { ...replayUserMessage, status: 'synced' },
+            replayAssistantMessage,
+        ]);
+        clearProcessingPhase();
+
+        const chunks = splitReplayContent(assistantMessage.content || '');
+        for (const chunk of chunks) {
+            if (!(await waitForReplay(paragraphDelay, generation))) return;
+            updateReplayMessages([
+                ...beforePair,
+                { ...replayUserMessage, status: 'synced' },
+                { ...replayAssistantMessage, content: chunk, status: 'streaming' },
+            ]);
+        }
+
+        if (!(await waitForReplay(getReplayDelay(500, speed), generation))) return;
+
+        const finalMessages = cloneMessagesForReplay(replayOriginalMessages ?? currentMessages);
+        updateReplayMessages(finalMessages.slice(0, Math.max(assistantIndex + 1, finalMessages.length)));
+        currentTypingStatus = null;
+        _aiTaskStateTrigger += 1;
+        replayOriginalMessages = null;
+        console.info('[chat_replay] Replay complete');
+    }
+
+    function installChatReplayCommand() {
+        const command: ChatReplayCommand = {
+            start: startChatReplay,
+            stop: stopChatReplay,
+            status: () => ({ running: replayOriginalMessages !== null, chatId: currentChat?.chat_id ?? null }),
+        };
+        const target = window as unknown as Record<string, unknown>;
+        target.chat_replay = command;
+        target.demo_replay = command;
+        console.info('[chat_replay] Installed. Usage: await window.chat_replay.start({ speed: 4 })');
+    }
+
+    function uninstallChatReplayCommand() {
+        const target = window as unknown as Record<string, unknown>;
+        if (target.chat_replay && (target.chat_replay as ChatReplayCommand).stop === stopChatReplay) {
+            delete target.chat_replay;
+        }
+        if (target.demo_replay && (target.demo_replay as ChatReplayCommand).stop === stopChatReplay) {
+            delete target.demo_replay;
+        }
+        stopChatReplay();
     }
 
     // Track if the message input has content (draft) using $state
@@ -4318,6 +4579,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputHasContent || 
         messageInputFocused
     );
+    let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
     
     // Reactive variable to determine when to show follow-up suggestions in ChatHistory.
     // Show whenever there are suggestions and the welcome screen is not active.
@@ -5467,7 +5729,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Chats.svelte may not be mounted (e.g., sidebar closed on mobile).
             activeChatStore.setActiveChat(currentChat.chat_id);
             console.debug("[ActiveChat] Updated URL hash with new chat ID:", currentChat.chat_id);
-            
+
+            // loadChat() is not called for the inline new-chat send path, so keep
+            // ChatHeader's closed-sidebar navigation state in sync explicitly.
+            chatListCache.upsertChat(currentChat);
+            updateNavFromCache(currentChat.chat_id);
+
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
@@ -5565,7 +5832,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             activeChatDecryptedIcon = null;
             activeChatDecryptedSummary = null;
         }
-        
+
         // Start the centered status indicator immediately with "Sending..."
         processingPhase = {
             phase: 'sending',
@@ -8238,6 +8505,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
 
         initialize();
+        installChatReplayCommand();
         
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
@@ -9823,6 +10091,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         return () => {
             // Remove listeners from chatSyncService
+            uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
@@ -10162,6 +10431,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const PriorityIconComponent = getLucideIcon(priorityIconName)}
                                         {@const PriorityPillIcon = getLucideIcon(item.priority.reason.startsWith('reminder') ? 'bell' : 'clock')}
                                         {@const priorityChat = item.kind === 'chat' ? item.chat : null}
+                                        {@const priorityImageBubbles = getPriorityChatImageBubbles(item)}
                                         {#if item.kind === 'embed' && isTallViewport}
                                             <SavedEmbedContinuePreview
                                                 appId={item.appId}
@@ -10195,15 +10465,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if PriorityIconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <PriorityIconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <PriorityIconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if PriorityIconComponent && !priorityImageBubbles}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <PriorityIconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <PriorityIconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if priorityImageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each priorityImageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if PriorityIconComponent}
                                                         <div class="resume-large-icon">
                                                             <PriorityIconComponent size={32} color="white" />
@@ -10277,15 +10556,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if IconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if IconComponent && !resumeChatImageBubbles}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if resumeChatImageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each resumeChatImageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -10402,15 +10690,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if IconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if IconComponent && !meta.imageBubbles}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if meta.imageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each meta.imageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -10512,15 +10809,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if IconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if IconComponent && !meta.imageBubbles}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if meta.imageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each meta.imageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -10579,7 +10885,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isNewChatCreditsError}
                          {isCreditsRestored}
                           isIncognito={!!currentChat?.is_incognito}
-                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
+                           isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
                           canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
@@ -10650,11 +10956,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
                          {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                             <NewChatSuggestions
-                                 messageInputContent={liveInputText}
-                                 onSuggestionClick={handleSuggestionClick}
-                                 onChatNavigate={handleChatNavigate}
-                             />
+                              <NewChatSuggestions
+                                  messageInputContent={activeSuggestionSearchText}
+                                  onSuggestionClick={handleSuggestionClick}
+                                  onChatNavigate={handleChatNavigate}
+                                  onFileSelect={handleFileSuggestionClick}
+                              />
                          {/if}
 
 
@@ -10699,10 +11006,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Chat search suggestions — shown when typing in an open chat's message input.
                              Searches existing chats and shows matching results as horizontal cards.
                              Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
-                        {#if !showWelcome && !messageInputMapsOpen}
+                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused}
                             <ChatSearchSuggestions
-                                messageInputContent={liveInputText}
+                                messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
+                                onFileSelect={handleFileSuggestionClick}
                                 currentChatId={currentChat?.chat_id}
                             />
                         {/if}
@@ -10990,6 +11298,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     highlightQuoteText: embedFullscreenData.highlightQuoteText,
                                     focusLineRange: embedFullscreenData.focusLineRange,
                                     focusSheetRange: embedFullscreenData.focusSheetRange,
+                                    chatEmbedIds,
                                 }}
                                 embedId={embedFullscreenData.embedId}
                                 onClose={handleCloseEmbedFullscreen}
@@ -12275,6 +12584,108 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-large-deco :global(svg) {
         width: 80px !important;
         height: 80px !important;
+    }
+
+    .resume-card-image-bubbles {
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-index-raised-2);
+        pointer-events: none;
+    }
+
+    .resume-card-image-bubble {
+        position: absolute;
+        width: 92px;
+        height: 92px;
+        border-radius: 999px;
+        overflow: hidden;
+        box-sizing: border-box;
+        opacity: 0.52;
+        background:
+            radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.64), transparent 16%),
+            radial-gradient(circle at 70% 76%, rgba(0, 0, 0, 0.25), transparent 38%),
+            rgba(255, 255, 255, 0.12);
+        border: 2px solid rgba(255, 255, 255, 0.42);
+        box-shadow:
+            inset 10px 12px 22px rgba(255, 255, 255, 0.32),
+            inset -12px -16px 26px rgba(0, 0, 0, 0.28),
+            inset 0 0 0 5px rgba(255, 255, 255, 0.08),
+            0 14px 28px rgba(0, 0, 0, 0.24);
+        animation: resumeImageBubbleFloat 18s linear infinite;
+    }
+
+    .resume-card-image-bubble::before,
+    .resume-card-image-bubble::after {
+        content: '';
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    .resume-card-image-bubble::before {
+        top: 10px;
+        left: 15px;
+        width: 32px;
+        height: 19px;
+        background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.12) 62%, transparent 72%);
+        filter: blur(1px);
+        transform: rotate(-30deg);
+    }
+
+    .resume-card-image-bubble::after {
+        inset: 0;
+        background:
+            radial-gradient(ellipse at 36% 18%, rgba(255, 255, 255, 0.4), transparent 19%),
+            radial-gradient(ellipse at 72% 84%, rgba(0, 0, 0, 0.26), transparent 36%),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 32%, rgba(255, 255, 255, 0.08) 64%, rgba(0, 0, 0, 0.24));
+        border: 1px solid rgba(255, 255, 255, 0.58);
+        box-shadow:
+            inset 0 0 20px rgba(255, 255, 255, 0.24),
+            inset 0 0 44px rgba(255, 255, 255, 0.08);
+    }
+
+    .resume-card-image-bubble img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        filter: saturate(1.1) contrast(1.06);
+        transform: scale(1.04);
+    }
+
+    .resume-card-image-bubble-left {
+        left: -18px;
+        bottom: -18px;
+        --resume-image-bubble-rotate: -14deg;
+    }
+
+    .resume-card-image-bubble-right {
+        right: -18px;
+        bottom: -18px;
+        --resume-image-bubble-rotate: 14deg;
+        animation-delay: -9s;
+    }
+
+    @keyframes resumeImageBubbleFloat {
+        0%, 100% {
+            transform: translate3d(0, -7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg));
+        }
+        25% {
+            transform: translate3d(6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) + 2deg));
+        }
+        50% {
+            transform: translate3d(0, 7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg));
+        }
+        75% {
+            transform: translate3d(-6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) - 2deg));
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-card-image-bubble { animation: none !important; }
     }
 
     

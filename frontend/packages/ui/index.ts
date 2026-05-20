@@ -47,6 +47,7 @@ export { default as OfflineIndicator } from "./src/components/OfflineIndicator.s
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
 // Types
 export * from "./src/types/chat";
+export type { EmbedType } from "./src/message_parsing/types";
 
 // i18n exports
 export * from "./src/i18n/setup";
@@ -86,6 +87,7 @@ export * from "./src/stores/appHealthStore"; // Export app health store for filt
 export * from "./src/stores/pushNotificationStore"; // Export push notification store for managing push notification state
 export * from "./src/stores/networkStatusStore"; // Export network status store for offline/online detection
 export * from "./src/stores/pairSessionStore"; // Export pair session store for magic pair login
+export { personalDataStore } from "./src/stores/personalDataStore"; // Export privacy demo/store controls
 export { openSearch, setSearchQuery } from "./src/stores/searchStore"; // Export openSearch and setSearchQuery for global keyboard shortcuts + 404 screen
 export { notFoundPathStore } from "./src/stores/notFoundPathStore"; // Export 404 not-found path store
 // loginOverlayStore removed - not needed
@@ -125,6 +127,8 @@ export {
   type ShareDuration,
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
+export type { EmbedKeyEntry } from "./src/services/embedStore";
+export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
 export { pushNotificationService } from "./src/services/pushNotificationService"; // Export push notification service
 export {

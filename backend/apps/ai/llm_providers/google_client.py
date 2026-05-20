@@ -41,6 +41,7 @@ _google_ai_studio_api_key: Optional[str] = None
 # text into the response (missing the `thought: true` flag).
 # Reference: https://discuss.ai.google.dev/t/gemini-3-flash-preview-infinite-reasoning-loop-causing-max-token-exhaustion-raw-logic-leak/114528
 GEMINI_THINKING_MIN_TEMPERATURE = 1.0
+GOOGLE_MODEL_ALIASES = {}
 
 def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> float:
     """
@@ -439,6 +440,9 @@ def _normalize_google_model_id(model_id: str) -> str:
     Returns:
         The model ID unchanged (with publisher prefix if present)
     """
+    if model_id in GOOGLE_MODEL_ALIASES:
+        return GOOGLE_MODEL_ALIASES[model_id]
+
     # Return model_id as-is - Google API requires the full format including publisher prefix
     # Example: "qwen/qwen3-235b-a22b-instruct-2507-maas"
     return model_id

@@ -1537,8 +1537,9 @@ export async function sendEncryptedStoragePackage(
 			console.warn(
 				`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`
 			);
-			// New chat on originating device — use atomic createAndPersistKey to ensure
-			// the key is persisted to IDB before any data is encrypted with it.
+			// New chat on originating device — use locked atomic key creation so another
+			// tab cannot generate a different key for the same chat while we are sending.
+			// The key is persisted to IDB before any data is encrypted with it.
 			// This prevents the race where key K1 is in memory but not in IDB, a
 			// disruption wipes memory, and a new key K2 is generated.
 			if (!chatKey) {
@@ -1547,7 +1548,7 @@ export async function sendEncryptedStoragePackage(
 
 			if (!chatKey) {
 				try {
-					const result = await chatKeyManager.createAndPersistKey(chat_id);
+					const result = await chatKeyManager.createAndPersistKeyLocked(chat_id);
 					chatKey = result.chatKey;
 					encryptedChatKey = result.encryptedChatKey;
 					chat.encrypted_chat_key = encryptedChatKey;

@@ -34,6 +34,7 @@
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import { authStore } from '../../../stores/authStore';
+  import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Segment data within a leg */
@@ -727,6 +728,11 @@
    */
   async function handleLoadBookingLink() {
     if (!connection.booking_token || bookingState === 'loading') return;
+
+    if (!$authStore.isAuthenticated) {
+      loginInterfaceOpen.set(true);
+      return;
+    }
 
     // Store examples: show info notification instead of making the API call.
     // The button stays in 'idle' state so the user can keep browsing.

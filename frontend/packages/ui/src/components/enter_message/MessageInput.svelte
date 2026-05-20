@@ -30,6 +30,7 @@
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+    import { demoMode } from '../../stores/demoModeStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -121,7 +122,7 @@
         removePendingSend,
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
-    import { embedStore } from '../../services/embedStore';
+    import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
     interface UnclosedBlock {
@@ -382,7 +383,8 @@
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
-    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0);
+    let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
+    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
@@ -2199,6 +2201,7 @@
                     id: entry.id,
                     textToHide: entry.textToHide,
                     replaceWith: entry.replaceWith,
+                    type: entry.type === 'address' ? 'ADDRESS' : undefined,
                 };
                 // For address entries, include individual address lines as additional search texts
                 if (entry.type === 'address' && entry.addressLines) {
@@ -3741,6 +3744,11 @@
         // is visible but editor is actually empty).
         if (!hasContent) return;
 
+        if ($demoMode && !$authStore.isAuthenticated) {
+            console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
+            return;
+        }
+
         // Defer the send while paste→code-embed creation is in flight. Firing
         // now would read originalMarkdown before the embed reference is appended,
         // producing a broken or empty message (OPE-377). The .finally() handler
@@ -3990,6 +3998,37 @@
             console.warn('[MessageInput] appendSuggestionText: editor not available or destroyed');
         }
     }
+
+    export function insertUploadedFileReference(file: UploadedFileSearchResult) {
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] insertUploadedFileReference: editor not available or destroyed');
+            return;
+        }
+
+        editor
+            .chain()
+            .focus('end')
+            .insertContent({
+                type: 'embed',
+                attrs: {
+                    id: file.embedId,
+                    type: file.nodeType,
+                    status: 'finished',
+                    contentRef: file.contentRef,
+                    filename: file.title,
+                    title: file.title,
+                    referenceOnly: true,
+                }
+            })
+            .insertContent(' ')
+            .run();
+
+        hasContent = true;
+        lastEditorUpdateText = editor.getText();
+        updateOriginalMarkdown(editor);
+        editor.commands.focus('end');
+    }
+
     export function getTextContent(): string {
         if (editor && !editor.isDestroyed) {
             return editor.getText();
@@ -4553,7 +4592,7 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isAuthenticated={$authStore.isAuthenticated}
+                    isAuthenticated={demoVisualAuthenticated}
                     {hasNoCredits}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}

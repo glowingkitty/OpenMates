@@ -1,13 +1,12 @@
-# Shopping app — REWE online supermarket product search
+# Shopping app — product search across groceries, marketplaces, and fabrics
 #
-# Searches the REWE online shop for products with live prices.
-# Uses a Playwright-harvested cookie pool stored in Vault to authenticate
-# requests to the REWE API, which requires an active session for pricing.
-# All API calls are routed through a residential proxy because the Cloudflare
-# cf_clearance cookie is IP-bound to the session that harvested it.
+# Searches REWE, Amazon, and Stoffe.de for products with live prices.
+# REWE uses a Playwright-harvested cookie pool stored in Vault and a matching
+# residential proxy. Amazon uses SerpAPI. Stoffe.de uses the public
+# plentymarkets storefront API and does not require auth or proxy.
 #
-# Provider: REWE (shop.rewe.de)
-# Pricing data: market-specific, scoped to Berlin (PLZ 10115) by default
+# Providers: REWE (shop.rewe.de), Amazon (SerpAPI), Stoffe.de (plentymarkets)
+# REWE pricing data: market-specific, scoped to Berlin (PLZ 10115) by default
 
 name_translation_key: shopping
 description_translation_key: shopping.description
@@ -40,9 +39,9 @@ skills:
     description_translation_key: app_skills.shopping.search_products.description
     icon_image: shopping.svg
     preprocessor_hint: >
-      Search products on REWE or Amazon with real-time prices.
-      Returns products with prices, ratings, badges, and purchase links.
-      Costs 10 credits per search. Best for grocery price comparisons and shopping lists.
+      Search products on REWE, Amazon, or Stoffe.de with real-time prices.
+      Use category to route groceries, marketplace products, fabrics, sewing supplies,
+      and patterns to compatible providers. Invalid provider/category combinations are rejected.
     stage: production
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
@@ -52,6 +51,8 @@ skills:
       - name: REWE
         no_api_key: true
       - Amazon
+      - name: Stoffe.de
+        no_api_key: true
     exclude_fields_for_llm:
       - type
       - product_id
@@ -71,7 +72,7 @@ skills:
           type: array
           description: >
             Array of product search requests. Each request searches for
-            products matching a query on the REWE online shop.
+            products matching a query on a compatible shopping provider.
           items:
             type: object
             properties:
@@ -82,12 +83,42 @@ skills:
               provider:
                 type: string
                 description: >
-                  Product provider. "REWE" searches the German REWE supermarket.
-                  "Amazon" searches Amazon marketplace products via SerpAPI.
+                  Product provider. If omitted, inferred from category: grocery routes
+                  to REWE, fabrics/sewing_supplies/patterns route to Stoffe.de, and
+                  marketplace categories route to Amazon. Invalid explicit
+                  provider/category combinations are rejected.
                 enum:
                   - REWE
                   - Amazon
-                default: REWE
+                  - Stoffe.de
+              category:
+                type: string
+                description: >
+                  Product category used for routing and provider compatibility.
+                  Fabrics can be searched on Stoffe.de or Amazon. Groceries can be
+                  searched on REWE or Amazon. Marketplace categories are Amazon-only.
+                enum:
+                  - grocery
+                  - fabrics
+                  - sewing_supplies
+                  - patterns
+                  - general_marketplace
+                  - electronics
+                  - home
+                  - fashion
+                  - beauty
+                  - books
+                  - sports
+                  - toys
+                  - automotive
+                  - health
+                  - music
+                  - movies
+                  - tools
+                  - office
+                  - pet_supplies
+                  - video_games
+                  - baby
               max_results:
                 type: integer
                 description: Maximum number of products to return (1-20, default 10).
@@ -99,6 +130,7 @@ skills:
                   REWE supports: relevance, price_asc, price_desc, new.
                   Amazon supports: relevance, price_asc, price_desc, review_rank,
                   newest, best_sellers.
+                  Stoffe.de supports: relevance, price_asc, price_desc, new.
                 enum:
                   - relevance
                   - price_asc
@@ -112,7 +144,7 @@ skills:
                 type: string
                 description: >
                   REWE-only fulfilment type. "DELIVERY" for home delivery (default).
-                  "CLICK_AND_COLLECT" for store pickup. Ignored for Amazon.
+                  "CLICK_AND_COLLECT" for store pickup. Ignored for Amazon and Stoffe.de.
                 enum:
                   - DELIVERY
                   - CLICK_AND_COLLECT

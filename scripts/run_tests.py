@@ -73,6 +73,7 @@ PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
+ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
@@ -121,7 +122,6 @@ class SpecResult:
     steps: list[dict] = field(default_factory=list)
     screenshot_paths: list[str] = field(default_factory=list)
     video_paths: list[str] = field(default_factory=list)
-    local_video_paths: list[str] = field(default_factory=list)
     video_artifact_name: Optional[str] = None
     github_run_url: Optional[str] = None
 
@@ -815,7 +815,6 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
-            local_video_paths: list[str] = []
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -834,8 +833,6 @@ class BatchRunner:
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
-                if status in {"failed", "timeout"}:
-                    local_video_paths = self._persist_failed_videos(spec, art_path)
 
                 # Collect screenshot paths relative to test-results/
                 spec_name = spec.replace(".spec.ts", "")
@@ -863,7 +860,6 @@ class BatchRunner:
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
                 video_paths=video_paths,
-                local_video_paths=local_video_paths,
                 video_artifact_name=art_name if video_paths else None,
                 github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
             ))
@@ -1026,31 +1022,6 @@ class BatchRunner:
         return sorted(video_paths)
 
     @staticmethod
-    def _persist_failed_videos(spec: str, art_path: Path) -> list[str]:
-        """Copy failed-run videos into test-results so Obsidian can embed them."""
-        spec_name = spec.replace(".spec.ts", "")
-        dest = RESULTS_DIR / "videos" / "current" / spec_name
-        if dest.exists():
-            shutil.rmtree(dest)
-        dest.mkdir(parents=True, exist_ok=True)
-
-        copied_paths: list[str] = []
-        for root, _dirs, files in os.walk(art_path):
-            for fname in files:
-                if not fname.lower().endswith((".webm", ".mp4")):
-                    continue
-                src = Path(root) / fname
-                parent_slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", src.parent.name).strip("-")
-                dest_name = f"{parent_slug}-{fname}" if parent_slug else fname
-                target = dest / dest_name
-                shutil.copy2(src, target)
-                copied_paths.append(str(target.relative_to(RESULTS_DIR)))
-
-        if copied_paths:
-            _log(f"    Saved {len(copied_paths)} failed video(s) to test-results/videos/current/{spec_name}/")
-        return sorted(copied_paths)
-
-    @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
         """Convert SpecResult to the dict format used in last-run.json."""
         d: dict = {
@@ -1064,6 +1035,8 @@ class BatchRunner:
             d["file"] = r.file
         if r.run_id:
             d["run_id"] = r.run_id
+        if r.account:
+            d["account"] = r.account
         if r.retries > 0:
             d["retries"] = r.retries
         if r.flaky:
@@ -1076,8 +1049,6 @@ class BatchRunner:
             d["screenshot_paths"] = r.screenshot_paths
         if r.video_paths:
             d["video_paths"] = r.video_paths
-        if r.local_video_paths:
-            d["local_video_paths"] = r.local_video_paths
         if r.video_artifact_name:
             d["video_artifact_name"] = r.video_artifact_name
         if r.github_run_url:
@@ -3946,6 +3917,12 @@ class TestOrchestrator:
             return SuiteResult(status="skipped", reason="dry run")
 
         client = GitHubActionsClient()
+
+        if not self.spec and not self.only_failed:
+            preflight = self._run_account_preflight(client)
+            if preflight.status == "failed":
+                return preflight
+
         runner = BatchRunner(
             client=client,
             specs=specs,
@@ -3963,6 +3940,33 @@ class TestOrchestrator:
             self._merge_cookie_audits()
 
         return result
+
+    def _run_account_preflight(self, client: GitHubActionsClient) -> SuiteResult:
+        """Validate each configured persistent E2E account before normal specs."""
+        started = time.time()
+        _log(f"Playwright account preflight: {MAX_ACCOUNTS} account slot(s)")
+        runner = BatchRunner(
+            client=client,
+            specs=[ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS,
+            batch_size=MAX_ACCOUNTS,
+            fail_fast=False,
+            use_mocks=self.use_mocks,
+        )
+        results = runner._run_batch([ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS, 0)
+        failures = [r for r in results if r.status != "passed"]
+        if failures:
+            failed_slots = ", ".join(str(r.account) for r in failures)
+            _log(f"Account preflight failed for slot(s): {failed_slots}", "ERROR")
+        else:
+            failed_slots = ""
+            _log("Account preflight passed", "OK")
+
+        return SuiteResult(
+            status="failed" if failures else "passed",
+            tests=[runner._spec_result_to_dict(r) for r in results],
+            duration_seconds=round(time.time() - started, 1),
+            reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
+        )
 
     @staticmethod
     def _merge_cookie_audits() -> None:
@@ -3992,6 +3996,7 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        ACCOUNT_PREFLIGHT_SPEC,
     }
 
     def _discover_specs(self) -> list[str]:

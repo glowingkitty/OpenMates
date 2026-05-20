@@ -97,7 +97,7 @@ describe("tipTapToCanonicalMarkdown", () => {
     expect(result).toContain("|----------|----------|");
   });
 
-  it("should convert web embed to json_embed markdown", () => {
+    it("should convert web embed to json_embed markdown", () => {
     // Uses current embed type name 'web-website' (not legacy 'web').
     // Without contentRef starting with 'embed:', serializes as json_embed block.
     const doc = {
@@ -117,8 +117,31 @@ describe("tipTapToCanonicalMarkdown", () => {
     };
 
     const result = tipTapToCanonicalMarkdown(doc);
-    expect(result).toContain("https://example.com");
-  });
+      expect(result).toContain("https://example.com");
+    });
+
+    it("should preserve reference-only metadata in embed JSON references", () => {
+      const doc = {
+        type: "doc",
+        content: [
+          {
+            type: "embed",
+            attrs: {
+              id: "uploaded-file-1",
+              type: "pdf",
+              status: "finished",
+              contentRef: "embed:uploaded-file-1",
+              filename: "report.pdf",
+              referenceOnly: true,
+            },
+          },
+        ],
+      };
+
+      const result = tipTapToCanonicalMarkdown(doc);
+
+      expect(result).toContain('"reference_only": true');
+    });
 
   it("should handle mixed content types", () => {
     // Uses current embed type names ('code-code', 'web-website')
@@ -249,6 +272,20 @@ describe("clipboard operations", () => {
       expect(clipboardData.contentHash).toBe("abc123");
     });
 
+    it("should preserve reference-only metadata in clipboard data", () => {
+      const attrs: EmbedNodeAttributes = {
+        id: "uploaded-file-1",
+        type: "pdf",
+        status: "finished",
+        contentRef: "embed:uploaded-file-1",
+        referenceOnly: true,
+      };
+
+      const clipboardData = createEmbedClipboardData(attrs);
+
+      expect(clipboardData.referenceOnly).toBe(true);
+    });
+
     it("should create clipboard data for doc embed", () => {
       const attrs: EmbedNodeAttributes = {
         id: "test-id",
@@ -290,6 +327,20 @@ describe("clipboard operations", () => {
       expect(attrs.filename).toBe("script.py");
       expect(attrs.contentRef).toBe("cid:sha256:xyz789");
       expect(attrs.contentHash).toBe("xyz789");
+    });
+
+    it("should restore reference-only metadata from clipboard data", () => {
+      const clipboardData: EmbedClipboardData = {
+        version: 1,
+        id: "uploaded-file-1",
+        type: "pdf",
+        contentRef: "embed:uploaded-file-1",
+        referenceOnly: true,
+      };
+
+      const attrs = parseEmbedClipboardData(clipboardData);
+
+      expect(attrs.referenceOnly).toBe(true);
     });
 
     it("should handle minimal clipboard data", () => {

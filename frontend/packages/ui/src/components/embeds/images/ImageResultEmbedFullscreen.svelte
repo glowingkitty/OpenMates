@@ -14,6 +14,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { resolveImageSourceDomain } from '../../../utils/embedSourceDomain';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
@@ -41,7 +42,7 @@
   // Extract fields from data.decodedContent
   let dc = $derived(data.decodedContent);
   let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
-  let sourceDomain = $derived(typeof dc.source_domain === 'string' ? dc.source_domain : undefined);
+  let sourceDomain = $derived(resolveImageSourceDomain(dc) || undefined);
   let sourcePageUrl = $derived(typeof dc.source_page_url === 'string' ? dc.source_page_url : undefined);
   let imageUrl = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
   let thumbnailUrl = $derived(typeof dc.thumbnail_url === 'string' ? dc.thumbnail_url : undefined);
@@ -50,10 +51,20 @@
   let imageLoaded = $state(false);
   let imageFailed = $state(false);
   let showThumbnail = $state(true); // show thumbnail as placeholder until full image loads
+  let isVerticalImage = $state(false);
 
-  function handleImageLoad() {
+  function updateImageOrientation(img: HTMLImageElement) {
+    isVerticalImage = img.naturalHeight > img.naturalWidth;
+  }
+
+  function handleImageLoad(event: Event) {
+    updateImageOrientation(event.currentTarget as HTMLImageElement);
     imageLoaded = true;
     showThumbnail = false;
+  }
+
+  function handleThumbnailLoad(event: Event) {
+    if (!imageLoaded) updateImageOrientation(event.currentTarget as HTMLImageElement);
   }
 
   function handleImageFail() {
@@ -80,7 +91,7 @@
   {onNavigateNext}
 >
   {#snippet content()}
-    <div class="result-fullscreen">
+    <div class="result-fullscreen" class:vertical-image={isVerticalImage}>
       <!-- Image display section -->
       <div class="image-section">
         {#if imageUrl && !imageFailed}
@@ -90,6 +101,7 @@
               src={thumbnailUrl}
               alt={title || ''}
               class="display-image blurred"
+              onload={handleThumbnailLoad}
               use:handleImageError
             />
           {/if}
@@ -107,6 +119,7 @@
             src={thumbnailUrl}
             alt={title || ''}
             class="display-image"
+            onload={handleThumbnailLoad}
             use:handleImageError
           />
         {:else}
@@ -156,32 +169,51 @@
 <style>
   .result-fullscreen {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     width: 100%;
+    min-height: calc(100vh - 220px);
+    overflow-y: auto;
+  }
+
+  .result-fullscreen.vertical-image {
+    flex-direction: row;
     height: 100%;
+    min-height: 0;
     overflow: hidden;
   }
 
-  /* Image section — left column on wide, full-width on narrow */
+  /* Image section — top by default; left column only for portrait images. */
   .image-section {
-    flex: 1;
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     padding: var(--spacing-12);
+    width: 100%;
+    max-height: min(60vh, 720px);
     min-width: 0;
     overflow: hidden;
     background: var(--color-grey-5, #fafafa);
   }
 
+  .result-fullscreen.vertical-image .image-section {
+    flex: 1;
+    width: auto;
+    max-height: none;
+  }
+
   .display-image {
     max-width: 100%;
-    max-height: 100%;
+    max-height: min(60vh, 720px);
     object-fit: contain;
     border-radius: var(--radius-4);
     box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.15);
     display: block;
+  }
+
+  .result-fullscreen.vertical-image .display-image {
+    max-height: 100%;
   }
 
   .display-image.blurred {
@@ -211,15 +243,23 @@
     background: var(--color-grey-40, #bbb) !important;
   }
 
-  /* Metadata section — right column on wide, below image on narrow */
+  /* Metadata section — below image by default; right column only for portrait images. */
   .meta-section {
-    width: 280px;
-    flex-shrink: 0;
+    width: 100%;
+    max-width: 760px;
+    flex: none;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
     padding: var(--spacing-12);
     overflow-y: auto;
+    align-self: flex-start;
+  }
+
+  .result-fullscreen.vertical-image .meta-section {
+    width: 280px;
+    max-width: none;
+    flex-shrink: 0;
     align-self: center;
   }
 
@@ -293,17 +333,28 @@
   @container fullscreen (max-width: 560px) {
     .result-fullscreen {
       flex-direction: column;
+      height: auto;
+      min-height: calc(100vh - 220px);
       overflow-y: auto;
     }
 
-    .image-section {
+    .image-section,
+    .result-fullscreen.vertical-image .image-section {
       flex: none;
       width: 100%;
+      max-height: min(60vh, 520px);
       padding: var(--spacing-8);
     }
 
-    .meta-section {
+    .display-image,
+    .result-fullscreen.vertical-image .display-image {
+      max-height: min(60vh, 520px);
+    }
+
+    .meta-section,
+    .result-fullscreen.vertical-image .meta-section {
       width: 100%;
+      max-width: none;
       padding: 0 16px 16px 16px;
       align-self: stretch;
     }

@@ -397,6 +397,11 @@ directus_users:
       nullable: false
       note: "Whether follow-up suggestion chips and proactive next-step prompts are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
 
+    default_app_skill_models:
+      type: json
+      default: '{}'
+      note: "User's preferred default models for app skills, keyed by app.skill with values in 'provider/model_id' format. Settable via POST /v1/settings/ai-model-defaults."
+
     # Debug logging opt-in (OpenTelemetry Tier 3 tracing)
     debug_logging_opted_in:
       type: boolean

@@ -9,6 +9,7 @@
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
@@ -390,6 +391,19 @@
                             {loginButtonText}
                         </button>
                     </div>
+                    {#if context === 'webapp' && $demoMode}
+                        <button
+                            class="user-profile profile-button demo-profile-button"
+                            data-testid="header-demo-profile-btn"
+                            aria-label={$text('settings.account.profile_picture')}
+                            onclick={() => {
+                                panelState.openSettings();
+                                settingsDeepLink.set('account/profile-picture');
+                            }}
+                        >
+                            <span class="clickable-icon icon_user" aria-hidden="true"></span>
+                        </button>
+                    {/if}
                 {/if}
             </nav>
         </div>
@@ -717,6 +731,17 @@
         padding: 0.5rem;
         border-radius: 50%;
         transition: background-color var(--duration-normal);
+    }
+
+    .demo-profile-button {
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-grey-20);
+        color: var(--color-grey-100);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .profile-button:hover {

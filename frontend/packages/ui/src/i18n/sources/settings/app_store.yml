@@ -1917,6 +1917,102 @@ skills.models:
   sv: Modeller
   he: מודלים
   verified_by_human: []
+skills.default_model:
+  context: Section heading and label for selecting the user's default model for one app skill
+  en: Default model
+  de: Standardmodell
+  zh: 默认模型
+  es: Modelo predeterminado
+  fr: Modèle par défaut
+  pt: Modelo predefinido
+  ru: Модель по умолчанию
+  ja: 既定モデル
+  ko: 기본 모델
+  it: Modello predefinito
+  tr: Varsayılan model
+  vi: Mô hình mặc định
+  id: Model default
+  pl: Model domyślny
+  nl: Standaardmodel
+  ar: النموذج الافتراضي
+  hi: डिफ़ॉल्ट मॉडल
+  th: โมเดลเริ่มต้น
+  cs: Výchozí model
+  sv: Standardmodell
+  he: מודל ברירת מחדל
+  verified_by_human: []
+skills.default_model_description:
+  context: Help text explaining that this setting overrides the default model for a single app skill
+  en: Overrides the OpenMates default for this skill on your future requests.
+  de: Überschreibt den OpenMates-Standard für diese Fähigkeit bei zukünftigen Anfragen.
+  zh: 覆盖此技能在未来请求中的 OpenMates 默认设置。
+  es: Sustituye el valor predeterminado de OpenMates para esta habilidad en tus próximas solicitudes.
+  fr: Remplace le modèle par défaut d’OpenMates pour cette compétence lors de tes prochaines demandes.
+  pt: Substitui o padrão do OpenMates para esta habilidade em pedidos futuros.
+  ru: Переопределяет модель OpenMates по умолчанию для этого навыка в будущих запросах.
+  ja: 今後のリクエストで、このスキルの OpenMates 既定モデルを上書きします。
+  ko: 향후 요청에서 이 스킬의 OpenMates 기본값을 재정의합니다.
+  it: Sostituisce il modello predefinito di OpenMates per questa skill nelle richieste future.
+  tr: Gelecekteki isteklerinde bu beceri için OpenMates varsayılanını geçersiz kılar.
+  vi: Ghi đè mặc định của OpenMates cho kỹ năng này trong các yêu cầu sau.
+  id: Mengganti default OpenMates untuk skill ini pada permintaan berikutnya.
+  pl: Zastępuje domyślny model OpenMates dla tej umiejętności w przyszłych żądaniach.
+  nl: Overschrijft de OpenMates-standaard voor deze vaardigheid bij toekomstige verzoeken.
+  ar: يتجاوز الإعداد الافتراضي من OpenMates لهذه المهارة في طلباتك المستقبلية.
+  hi: भविष्य के अनुरोधों में इस स्किल के लिए OpenMates डिफ़ॉल्ट को बदलता है।
+  th: แทนที่ค่าเริ่มต้นของ OpenMates สำหรับสกิลนี้ในการขอครั้งต่อไปของคุณ
+  cs: Přepíše výchozí model OpenMates pro tuto dovednost v budoucích požadavcích.
+  sv: Åsidosätter OpenMates standardmodell för den här färdigheten i framtida förfrågningar.
+  he: עוקף את ברירת המחדל של OpenMates עבור מיומנות זו בבקשות עתידיות.
+  verified_by_human: []
+skills.default_model_saved:
+  context: Toast shown after saving a default app skill model
+  en: Default model saved.
+  de: Standardmodell gespeichert.
+  zh: 默认模型已保存。
+  es: Modelo predeterminado guardado.
+  fr: Modèle par défaut enregistré.
+  pt: Modelo predefinido guardado.
+  ru: Модель по умолчанию сохранена.
+  ja: 既定モデルを保存しました。
+  ko: 기본 모델이 저장되었습니다.
+  it: Modello predefinito salvato.
+  tr: Varsayılan model kaydedildi.
+  vi: Đã lưu mô hình mặc định.
+  id: Model default disimpan.
+  pl: Zapisano model domyślny.
+  nl: Standaardmodel opgeslagen.
+  ar: تم حفظ النموذج الافتراضي.
+  hi: डिफ़ॉल्ट मॉडल सहेजा गया।
+  th: บันทึกโมเดลเริ่มต้นแล้ว
+  cs: Výchozí model uložen.
+  sv: Standardmodell sparad.
+  he: מודל ברירת המחדל נשמר.
+  verified_by_human: []
+skills.default_model_save_error:
+  context: Toast shown when saving a default app skill model fails
+  en: Could not save the default model.
+  de: Das Standardmodell konnte nicht gespeichert werden.
+  zh: 无法保存默认模型。
+  es: No se pudo guardar el modelo predeterminado.
+  fr: Impossible d’enregistrer le modèle par défaut.
+  pt: Não foi possível guardar o modelo predefinido.
+  ru: Не удалось сохранить модель по умолчанию.
+  ja: 既定モデルを保存できませんでした。
+  ko: 기본 모델을 저장할 수 없습니다.
+  it: Impossibile salvare il modello predefinito.
+  tr: Varsayılan model kaydedilemedi.
+  vi: Không thể lưu mô hình mặc định.
+  id: Tidak dapat menyimpan model default.
+  pl: Nie udało się zapisać modelu domyślnego.
+  nl: Kon het standaardmodel niet opslaan.
+  ar: تعذر حفظ النموذج الافتراضي.
+  hi: डिफ़ॉल्ट मॉडल सहेजा नहीं जा सका।
+  th: ไม่สามารถบันทึกโมเดลเริ่มต้นได้
+  cs: Výchozí model se nepodařilo uložit.
+  sv: Det gick inte att spara standardmodellen.
+  he: לא ניתן היה לשמור את מודל ברירת המחדל.
+  verified_by_human: []
 skills.model_detail.model_info:
   context: Section heading for model details on the skill model detail page
   en: Details
@@ -2502,6 +2598,31 @@ ai.skill.ask.model.gemini_3_flash_preview:
   cs: Gemini 3 Flash
   sv: Gemini 3 Flash
   he: Gemini 3 Flash
+  verified_by_human: []
+
+ai.skill.ask.model.gemini_3.5_flash:
+  context: Display name for the Gemini 3.5 Flash AI model, shown as the settings page title when navigating directly to this model
+  en: Gemini 3.5 Flash
+  de: Gemini 3.5 Flash
+  zh: Gemini 3.5 Flash
+  es: Gemini 3.5 Flash
+  fr: Gemini 3.5 Flash
+  pt: Gemini 3.5 Flash
+  ru: Gemini 3.5 Flash
+  ja: Gemini 3.5 Flash
+  ko: Gemini 3.5 Flash
+  it: Gemini 3.5 Flash
+  tr: Gemini 3.5 Flash
+  vi: Gemini 3.5 Flash
+  id: Gemini 3.5 Flash
+  pl: Gemini 3.5 Flash
+  nl: Gemini 3.5 Flash
+  ar: Gemini 3.5 Flash
+  hi: Gemini 3.5 Flash
+  th: Gemini 3.5 Flash
+  cs: Gemini 3.5 Flash
+  sv: Gemini 3.5 Flash
+  he: Gemini 3.5 Flash
   verified_by_human: []
 
 ai.skill.ask.model.gemini_3.1_pro_preview:

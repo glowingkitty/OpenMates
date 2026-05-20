@@ -228,6 +228,67 @@ async def test_search_connections_overfetches_and_filters_before_final_cap() -> 
     ]
 
 
+@pytest.mark.anyio
+async def test_execute_preserves_empty_search_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.travel.skills import search_connections as search_module
+
+    provider = FakeTransportProvider(
+        [], provider_id="deutsche_bahn", supported_methods={"train"}, supported_countries={"DE"}
+    )
+    monkeypatch.setattr(search_module, "_create_providers", lambda secrets_manager=None: [provider])
+
+    response = await make_skill().execute(
+        requests=[{
+            "legs": [{"origin": "Berlin", "destination": "Bad Schandau", "date": "2026-06-01"}],
+            "transport_methods": ["train"],
+            "countries": ["DE"],
+        }],
+        secrets_manager=object(),
+    )
+
+    assert response.error is None
+    assert response.provider == "Deutsche Bahn"
+    assert response.providers == [{
+        "id": "deutsche_bahn",
+        "name": "Deutsche Bahn",
+        "icon_url": "https://www.bahn.de/favicon.ico",
+    }]
+    assert response.results[0]["query"] == "Berlin → Bad Schandau, 2026-06-01"
+    assert response.results[0]["result_count"] == 0
+    assert response.results[0]["transport_methods"] == ["train"]
+    assert response.results[0]["providers"] == response.providers
+
+
+def test_search_connections_response_has_no_fake_provider_default() -> None:
+    from backend.apps.travel.skills.search_connections import SearchConnectionsResponse
+
+    assert SearchConnectionsResponse().provider == ""
+
+
+@pytest.mark.anyio
+async def test_deutsche_bahn_location_resolution_retries_station_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.shared.providers import deutsche_bahn
+
+    calls: list[str] = []
+
+    async def fake_search_locations(query: str, max_results: int = 5) -> list[dict[str, Any]]:
+        calls.append(query)
+        if query == "Bad Schandau Bahnhof":
+            return [{
+                "locationId": "A=1@O=Bad Schandau Nationalparkbahnhof@L=8010053@",
+                "name": "Bad Schandau Nationalparkbahnhof",
+                "evaNr": "8010053",
+                "coordinates": {},
+            }]
+        return []
+
+    deutsche_bahn._location_cache.clear()
+    monkeypatch.setattr(deutsche_bahn, "search_locations", fake_search_locations)
+
+    assert await deutsche_bahn.resolve_location_id("Bad Schandau") == "A=1@O=Bad Schandau Nationalparkbahnhof@L=8010053@"
+    assert calls[:2] == ["Bad Schandau", "Bad Schandau Bahnhof"]
+
+
 def test_search_connections_filters_duration_and_layovers() -> None:
     skill = make_skill()
     results = [

@@ -32,6 +32,7 @@ from backend.core.api.app.utils.image_processing import (
 )
 from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
+from backend.shared.providers.openai.image_generation import generate_image_openai
 from backend.shared.providers.recraft.recraft import (
     generate_vector_recraft,
     generate_raster_recraft,
@@ -774,12 +775,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 4. Call Provider API
         #
         # Routing logic:
-        #   output_filetype == "svg"  → Recraft V4 Vector (returns SVG bytes)
-        #     quality == "default"    → recraftv4_vector     ( 80 credits, $0.08)
-        #     quality == "max"        → recraftv4_pro_vector (300 credits, $0.30)
-        #   output_filetype == "png"/"jpg" and "recraft" in model_ref → Recraft V4 Raster
-        #     quality == "default"    → recraftv4     ( 40 credits, $0.04, 1024×1024)
-        #     quality == "max"        → recraftv4_pro (250 credits, $0.25, 2048×2048)
+        #   output_filetype == "svg"  → Recraft V4.1 Vector (returns SVG bytes)
+        #     quality == "default"    → recraftv4_1_vector     (100 credits, $0.08)
+        #     quality == "max"        → recraftv4_1_pro_vector (300 credits, $0.30)
+        #   output_filetype == "png"/"jpg" and "recraft" in model_ref → Recraft V4.1 Raster
+        #     quality == "default"    → recraftv4_1     ( 50 credits, $0.04)
+        #     quality == "max"        → recraftv4_1_pro (250 credits, $0.25)
+        #   output_filetype == "png"/"jpg" and "openai" in model_ref → GPT Image 2
         #   output_filetype == "png"/"jpg" and "google" in model_ref → Google Gemini (default)
         #   output_filetype == "png"/"jpg" and "bfl"/"flux" in model_ref → fal.ai FLUX
         #
@@ -799,7 +801,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         )
 
         if output_filetype == "svg":
-            # --- SVG branch: Recraft V4 Vector ---
+            # --- SVG branch: Recraft V4.1 Vector ---
             # Both "default" and "max" use the same generate skill;
             # quality selects between the two Recraft model tiers.
             recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
@@ -816,11 +818,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             model_ref = f"recraft/{recraft_model_id}"
 
         elif model_ref and "recraft" in model_ref:
-            # --- Raster branch: Recraft V4 PNG/JPG ---
-            # Recraft V4 also supports high-quality raster generation.
+            # --- Raster branch: Recraft V4.1 PNG/JPG ---
+            # Recraft V4.1 also supports high-quality raster generation.
             # quality selects between the two Recraft raster model tiers:
-            #   "default" → recraftv4     ( 40 credits, $0.04, 1024×1024)
-            #   "max"     → recraftv4_pro (250 credits, $0.25, 2048×2048)
+            #   "default" → recraftv4_1     ( 50 credits, $0.04)
+            #   "max"     → recraftv4_1_pro (250 credits, $0.25)
             recraft_raster_model_id = (
                 RECRAFT_RASTER_MODEL_MAX if quality == "max" else RECRAFT_RASTER_MODEL_DEFAULT
             )
@@ -872,6 +874,23 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                     use_vertex=True,  # Fallback: Vertex AI (global endpoint)
                 )
             actual_model = f"Google {model_id}"
+            display_model_id = model_id
+
+        elif model_ref and "openai" in model_ref:
+            # --- Raster branch: OpenAI GPT Image generation ---
+            # Billing uses a conservative flat 250 credits/image for GPT Image 2,
+            # covering the published high-quality 1024 estimate (~$0.211/image).
+            model_id = model_ref.split("/")[-1] if "/" in model_ref else model_ref
+            image_bytes = await generate_image_openai(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=model_id,
+                aspect_ratio=aspect_ratio,
+                quality=quality,
+                reference_image_bytes_list=reference_image_bytes_list or None,
+                reference_image_mime_types=reference_image_mime_types or None,
+            )
+            actual_model = f"OpenAI {model_id}"
             display_model_id = model_id
 
         elif model_ref and ("bfl" in model_ref or "flux" in model_ref):

@@ -16,6 +16,7 @@
   const MAX_WIDTH_PREVIEW_IMAGE = 480;
 
   interface ProductAttributes {
+    [key: string]: unknown;
     is_organic?: boolean;
     is_vegan?: boolean;
     is_vegetarian?: boolean;
@@ -31,6 +32,10 @@
     brand?: string;
     price_cents?: number | null;
     price_eur?: string | null;
+    base_price?: string | null;
+    stock?: number | null;
+    availability?: string | null;
+    color_child_item_ids?: string[];
     was_price_cents?: number | null;
     grammage?: string | null;
     image_url?: string | null;
@@ -54,6 +59,10 @@
     brand,
     price_cents = null,
     price_eur = null,
+    base_price = null,
+    stock = null,
+    availability = null,
+    color_child_item_ids = [],
     was_price_cents = null,
     grammage = null,
     image_url = null,
@@ -118,12 +127,19 @@
     return tags.slice(0, 2);
   }
 
+  function formatStock(value: number | null | undefined): string {
+    if (value == null || value <= 0) return '';
+    return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
+  }
+
   let cardTitle = $derived(title || brand || 'Product');
   let displayPrice = $derived(getDisplayPrice());
   let displayOldPrice = $derived(getDisplayOldPrice());
   let onSale = $derived(hasSale());
   let tags = $derived(getTags());
   let imageUrl = $derived(image_url ? proxyImage(image_url, MAX_WIDTH_PREVIEW_IMAGE) : '');
+  let stockText = $derived(formatStock(stock));
+  let colorCount = $derived(color_child_item_ids.length);
 
   function handleStop() {
     // Product cards are not cancellable.
@@ -166,6 +182,24 @@
 
           {#if grammage}
             <div class="grammage">{grammage}</div>
+          {/if}
+
+          {#if base_price}
+            <div class="grammage">{base_price}</div>
+          {/if}
+
+          {#if availability || stockText || colorCount > 0}
+            <div class="stoffe-details-row">
+              {#if availability}
+                <span class="detail-pill">{availability}</span>
+              {/if}
+              {#if stockText}
+                <span class="detail-pill">{$text('embeds.shopping.stock')}: {stockText}</span>
+              {/if}
+              {#if colorCount > 0}
+                <span class="detail-pill">{$text('embeds.shopping.colors')}: {colorCount}</span>
+              {/if}
+            </div>
           {/if}
 
           {#if rating != null}
@@ -329,6 +363,25 @@
   .grammage {
     font-size: var(--font-size-tiny);
     color: var(--color-grey-60);
+  }
+
+  .stoffe-details-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-top: 1px;
+  }
+
+  .detail-pill {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-tiny);
+    color: var(--color-font-secondary);
+    background: var(--color-grey-10);
+    border-radius: var(--radius-4);
+    padding: 1px 6px;
   }
 
   .rating-row {

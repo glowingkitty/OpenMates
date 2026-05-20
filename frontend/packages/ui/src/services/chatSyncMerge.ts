@@ -13,6 +13,10 @@ export function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
 ): boolean {
+  if (serverChat.key_fingerprint && localChat?.key_fingerprint) {
+    return serverChat.key_fingerprint !== localChat.key_fingerprint;
+  }
+
   return Boolean(
     serverChat.encrypted_chat_key &&
       localChat?.encrypted_chat_key &&
@@ -28,6 +32,20 @@ function appendCandidateKey(
   const candidates = existing ?? [];
   if (candidates.includes(encryptedKey)) return candidates;
   return [...candidates, encryptedKey].slice(-MAX_CANDIDATE_KEYS);
+}
+
+function mergeCandidateKeys(
+  ...keyLists: Array<string[] | null | undefined>
+): string[] | null | undefined {
+  const merged: string[] = [];
+  for (const keys of keyLists) {
+    for (const key of keys ?? []) {
+      if (!merged.includes(key)) {
+        merged.push(key);
+      }
+    }
+  }
+  return merged.length > 0 ? merged.slice(-MAX_CANDIDATE_KEYS) : undefined;
 }
 
 /**
@@ -80,8 +98,9 @@ export async function mergeServerChatWithLocal(
   const merged: Chat = {
     chat_id: serverChat.id,
     user_id: localChat.user_id ?? currentUserId,
-    encrypted_title:
-      serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
+    encrypted_title: keyMismatch
+      ? localChat.encrypted_title ?? null
+      : serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
     draft_v: serverChat.draft_v ?? localChat.draft_v ?? 0,
@@ -101,36 +120,54 @@ export async function mergeServerChatWithLocal(
     encrypted_draft_preview:
       serverChat.encrypted_draft_preview ??
       (keyMismatch ? undefined : localChat.encrypted_draft_preview),
-    encrypted_chat_key:
-      serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,
+    encrypted_chat_key: keyMismatch
+      ? localChat.encrypted_chat_key
+      : serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,
     candidate_encrypted_keys:
       serverChat.candidate_encrypted_keys ?? localChat.candidate_encrypted_keys,
-    encrypted_icon: serverChat.encrypted_icon ?? localChat.encrypted_icon,
+    encrypted_icon: keyMismatch
+      ? localChat.encrypted_icon
+      : serverChat.encrypted_icon ?? localChat.encrypted_icon,
     encrypted_category:
-      serverChat.encrypted_category ?? localChat.encrypted_category,
+      keyMismatch
+        ? localChat.encrypted_category
+        : serverChat.encrypted_category ?? localChat.encrypted_category,
     last_visible_message_id:
       serverChat.last_visible_message_id ?? localChat.last_visible_message_id,
     pinned: serverChat.pinned ?? localChat.pinned,
     encrypted_follow_up_request_suggestions:
-      serverChat.encrypted_follow_up_request_suggestions ??
-      localChat.encrypted_follow_up_request_suggestions,
+      keyMismatch
+        ? localChat.encrypted_follow_up_request_suggestions
+        : serverChat.encrypted_follow_up_request_suggestions ??
+          localChat.encrypted_follow_up_request_suggestions,
     encrypted_chat_summary:
-      serverChat.encrypted_chat_summary ?? localChat.encrypted_chat_summary,
+      keyMismatch
+        ? localChat.encrypted_chat_summary
+        : serverChat.encrypted_chat_summary ?? localChat.encrypted_chat_summary,
     encrypted_chat_tags:
-      serverChat.encrypted_chat_tags ?? localChat.encrypted_chat_tags,
+      keyMismatch
+        ? localChat.encrypted_chat_tags
+        : serverChat.encrypted_chat_tags ?? localChat.encrypted_chat_tags,
     encrypted_top_recommended_apps_for_chat:
-      serverChat.encrypted_top_recommended_apps_for_chat ??
-      localChat.encrypted_top_recommended_apps_for_chat,
+      keyMismatch
+        ? localChat.encrypted_top_recommended_apps_for_chat
+        : serverChat.encrypted_top_recommended_apps_for_chat ??
+          localChat.encrypted_top_recommended_apps_for_chat,
     encrypted_active_focus_id:
-      serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
+      keyMismatch
+        ? localChat.encrypted_active_focus_id
+        : serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
   };
 
   if (keyMismatch) {
     merged.candidate_encrypted_keys = appendCandidateKey(
-      merged.candidate_encrypted_keys,
-      localChat.encrypted_chat_key,
+      mergeCandidateKeys(
+        localChat.candidate_encrypted_keys,
+        serverChat.candidate_encrypted_keys,
+      ),
+      serverChat.encrypted_chat_key,
     );
     merged.messages_v = 0;
     return merged;

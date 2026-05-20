@@ -280,6 +280,27 @@ async def replay_fixture(
     # Update fixture data so downstream code uses the rewritten response
     fixture_data["response"] = full_response
 
+    if fixture_data.get("verify_source_quotes"):
+        from backend.apps.ai.tasks.stream_consumer import _verify_and_strip_bad_quotes
+
+        verified_response = await _verify_and_strip_bad_quotes(
+            aggregated_response=full_response,
+            tool_calls_info=fixture_data.get("tool_calls_info", []),
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
+            known_valid_refs=set(),
+            log_prefix=f"[MOCK fixture={fixture_id}]",
+        )
+        if verified_response != full_response:
+            logger.info(
+                f"[MOCK] Source quote verification stripped fixture response "
+                f"({len(full_response)} → {len(verified_response)} chars)"
+            )
+            full_response = verified_response
+            fixture_data["response"] = full_response
+
     # Determine streaming speed
     speed_profile = speed_override or fixture_data.get("speed_profile", DEFAULT_SPEED_PROFILE)
     chunk_delay = get_chunk_delay_seconds(speed_profile)
@@ -550,6 +571,52 @@ async def _recreate_fixture_embeds(
                         f"[MOCK] Recreated focus_mode_activation embed: "
                         f"{old_embed_id} → {fm_embed_data['embed_id']}"
                     )
+            elif embed_type == "app_skill_use":
+                app_id = embed_meta.get("app_id") or ref_fields.get("app_id")
+                skill_id = embed_meta.get("skill_id") or ref_fields.get("skill_id")
+                results = embed_meta.get("results", [])
+                if not app_id or not skill_id or not isinstance(results, list):
+                    logger.warning(
+                        f"[MOCK] app_skill_use embed {old_embed_id} missing app_id, skill_id, or results — skipping."
+                    )
+                    continue
+
+                placeholder = await embed_service.create_processing_embed_placeholder(
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    metadata=embed_meta.get("metadata", {}),
+                    log_prefix=log_prefix,
+                )
+                if not placeholder:
+                    continue
+
+                await embed_service.update_embed_with_results(
+                    embed_id=placeholder["embed_id"],
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    results=results,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    request_metadata=embed_meta.get("metadata", {}),
+                    log_prefix=log_prefix,
+                )
+
+                new_ref = placeholder["embed_reference"]
+                new_block = f"```json\n{new_ref}\n```"
+                response = response[:match.start()] + new_block + response[match.end():]
+                logger.info(
+                    f"[MOCK] Recreated app_skill_use embed: {old_embed_id} → {placeholder['embed_id']}"
+                )
             else:
                 logger.info(f"[MOCK] Skipping embed recreation for type '{embed_type}' (not yet supported)")
         except Exception as e:

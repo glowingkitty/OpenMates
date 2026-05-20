@@ -1,0 +1,51 @@
+{
+  "fixture_id": "code_run_e2b_smoke",
+  "recorded_at": "2026-05-19T11:40:00.000000+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "Write a self-contained Python script with no external dependencies that prints exactly openmates-code-run-ok.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "software_development",
+    "title": "Runnable Python smoke script",
+    "icon_names": ["code"],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini 3 Flash",
+    "mate_id": "sophia",
+    "chat_summary": "User requests a minimal Python script for Code Run verification.",
+    "chat_tags": ["Python", "Code Run", "E2B"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "software_development",
+    "model_name": "Gemini 3 Flash",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": ["code"]
+  },
+  "response": "Here is a helper file and the minimal self-contained Python script:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"2b7d63d4-2b45-45c8-a5d6-4d8f0dff6a71\"}\n```\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6f61e239-0470-47e3-bd19-cd74f37b8a24\"}\n```",
+  "embeds": {
+    "2b7d63d4-2b45-45c8-a5d6-4d8f0dff6a71": {
+      "type": "code",
+      "language": "python",
+      "filename": "code_run_helper.py",
+      "code_content": "HELPER_VALUE = \"not-needed-for-smoke\"\n"
+    },
+    "6f61e239-0470-47e3-bd19-cd74f37b8a24": {
+      "type": "code",
+      "language": "python",
+      "filename": "code_run_smoke.py",
+      "code_content": "print(\"openmates-code-run-ok\")\n"
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": "Preparing a minimal Python script with no external dependencies for Code Run smoke verification.",
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3 Flash"
+  }
+}

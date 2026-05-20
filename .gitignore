@@ -313,6 +313,10 @@ scripts/dependabot-processed.json.bak
 scripts/eu-vuln-processed.json
 scripts/eu-vuln-processed.json.tmp
 
+# Local OpenCode dev server admin scripts (host-specific operational tooling)
+scripts/set-opencode-caddy-auth.sh
+scripts/start-opencode-server.sh
+
 # Test output artifacts
 backend/tests/output/
 

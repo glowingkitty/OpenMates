@@ -27,6 +27,7 @@
     receiver: receiverProp,
     subject: subjectProp,
     content: contentProp,
+    footer: _footerProp,
     status: statusProp,
     taskId,
     isMobile = false,
@@ -83,6 +84,9 @@
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (!data.decodedContent) {
+      if (receiverProp || subjectProp || contentProp) {
+        return;
+      }
       if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
         localStatus = data.status;
         if (data.status !== 'processing') { storeResolved = true; }

@@ -56,6 +56,7 @@ import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPrevie
 import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
+import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -1120,8 +1121,11 @@ export class GroupRenderer implements EmbedRenderer {
     const query = decodedContent?.query || embedData?.query || itemQuery;
     const provider =
       decodedContent?.provider || embedData?.provider || itemProvider;
-    const providers: string[] =
-      (decodedContent?.providers as string[]) || (embedData?.providers as string[]) || [];
+    const providers = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
+        : [];
 
     console.debug("[GroupRenderer] mountAppSkillUsePreview:", {
       embedId, // CRITICAL: This is the ID used for embedUpdated event matching
@@ -1268,7 +1272,8 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Google",
+            provider: provider || "",
+            providers,
             status,
             results,
             taskId,
@@ -3442,10 +3447,10 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
-    const receiver = decodedContent?.receiver || "";
-    const subject = decodedContent?.subject || "";
-    const mailContent = decodedContent?.content || "";
-    const footer = decodedContent?.footer || "";
+    const receiver = decodedContent?.receiver || item.receiver || "";
+    const subject = decodedContent?.subject || item.subject || "";
+    const mailContent = decodedContent?.content || item.content || "";
+    const footer = decodedContent?.footer || item.footer || "";
     const status = (decodedContent?.status ||
       embedData?.status ||
       item.status ||
@@ -3582,10 +3587,10 @@ export class GroupRenderer implements EmbedRenderer {
       }
     }
 
-    const receiver = decodedContent?.receiver || "";
-    const subject = decodedContent?.subject || "";
-    const mailContent = decodedContent?.content || "";
-    const footer = decodedContent?.footer || "";
+    const receiver = decodedContent?.receiver || item.receiver || "";
+    const subject = decodedContent?.subject || item.subject || "";
+    const mailContent = decodedContent?.content || item.content || "";
+    const footer = decodedContent?.footer || item.footer || "";
     const status = (decodedContent?.status ||
       embedData?.status ||
       item.status ||
@@ -4239,8 +4244,7 @@ export class GroupRenderer implements EmbedRenderer {
       "finished") as "processing" | "finished" | "error";
 
     const title = (decodedContent?.title as string | undefined) || "";
-    const sourceDomain =
-      (decodedContent?.source_domain as string | undefined) || "";
+    const sourceDomain = resolveImageSourceDomain(decodedContent);
     const thumbnailUrl =
       (decodedContent?.thumbnail_url as string | undefined) || "";
     const faviconUrl =
@@ -4316,8 +4320,7 @@ export class GroupRenderer implements EmbedRenderer {
   ): Promise<string> {
     const title =
       (decodedContent?.title as string | undefined) || "Image result";
-    const sourceDomain =
-      (decodedContent?.source_domain as string | undefined) || "";
+    const sourceDomain = resolveImageSourceDomain(decodedContent);
 
     return `
       <div class="embed-app-icon images">

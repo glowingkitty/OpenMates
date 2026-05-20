@@ -521,7 +521,7 @@ export function processSettingsDeepLink(
 
     // Normalize hyphens to underscores for route segments (e.g., report-issue -> report_issue),
     // but preserve hyphens in ai/model and ai/provider ID segments since model IDs use hyphens
-    // (e.g., claude-opus-4-7, gemini-3-flash-preview).
+    // (e.g., claude-opus-4-7, gemini-3-flash-preview, gemini-3.5-flash).
     const aiDetailMatch = path.match(/^(ai\/(?:model|provider))\/(.*)/);
     if (aiDetailMatch) {
       path = aiDetailMatch[1].replace(/-/g, "_") + "/" + aiDetailMatch[2];

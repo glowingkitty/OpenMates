@@ -11,7 +11,7 @@ import { embedStore } from "./embedStore";
 import {
   getExampleChatEmbed,
 } from "../demo_chats/exampleChatStore";
-import { EmbedNodeAttributes } from "../message_parsing/types";
+import { EmbedNodeAttributes, EmbedType } from "../message_parsing/types";
 import { generateUUID } from "../message_parsing/utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
@@ -59,8 +59,104 @@ export function clearEmbedError(embedId: string): void {
 // TOON decoder (will be imported when available)
 // Using official @toon-format/toon package
 let toonDecode:
-  | ((toonString: string, options?: { strict?: boolean }) => any)
+  | ((toonString: string, options?: { strict?: boolean }) => unknown)
   | null = null;
+
+const CODE_TOON_FOLLOWER_FIELDS = [
+  "filename",
+  "embed_ref",
+  "status",
+  "line_count",
+  "code_run_output",
+  "task_id",
+];
+
+function parseSimpleToonField(toonContent: string, key: string): string | undefined {
+  const match = toonContent.match(new RegExp(`(?:^|\\n)${key}:\\s*([^\\n]*)`));
+  if (!match) return undefined;
+  const value = unquoteToonValue(match[1]);
+  return value === "null" ? undefined : value;
+}
+
+function unquoteToonValue(value: string): string {
+  const trimmed = value.trim();
+  const quote = trimmed[0];
+  const hasMatchingQuotes =
+    (quote === '"' || quote === "'") && trimmed.endsWith(quote);
+  const unquoted = hasMatchingQuotes ? trimmed.slice(1, -1) : trimmed;
+  return unquoted
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\"/g, '"')
+    .replace(/\\'/g, "'");
+}
+
+function parseCodeBlockFromToon(toonContent: string): string | undefined {
+  const codeMatch = toonContent.match(/(?:^|\n)code:\s*/);
+  if (!codeMatch || codeMatch.index === undefined) return undefined;
+
+  const start = codeMatch.index + codeMatch[0].length;
+  let end = toonContent.length;
+  for (const field of CODE_TOON_FOLLOWER_FIELDS) {
+    const marker = `\n${field}:`;
+    const markerIndex = toonContent.indexOf(marker, start);
+    if (markerIndex !== -1 && markerIndex < end) {
+      end = markerIndex;
+    }
+  }
+
+  const rawCode = toonContent.slice(start, end).trim();
+  return rawCode ? unquoteToonValue(rawCode) : undefined;
+}
+
+export function recoverCodeEmbedFromToon(
+  toonContent: string,
+  decoded: unknown,
+): unknown {
+  if (!toonContent.includes("code:")) return decoded;
+
+  const record =
+    decoded && typeof decoded === "object"
+      ? { ...(decoded as Record<string, unknown>) }
+      : {};
+
+  if (typeof record.code !== "string" || record.code.length === 0) {
+    const code = parseCodeBlockFromToon(toonContent);
+    if (code) record.code = code;
+  }
+
+  if (typeof record.lineCount !== "number") {
+    const rawLineCount = record.line_count ?? parseSimpleToonField(toonContent, "line_count");
+    const lineCount = Number(rawLineCount);
+    if (Number.isFinite(lineCount)) record.lineCount = lineCount;
+  }
+
+  for (const key of ["type", "language", "filename", "embed_ref", "status"] as const) {
+    if (typeof record[key] !== "string") {
+      const value = parseSimpleToonField(toonContent, key);
+      if (value) record[key] = value;
+    }
+  }
+
+  return Object.keys(record).length > 0 ? record : decoded;
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberField(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === "number" ? value : undefined;
+}
 
 /**
  * Initialize TOON decoder
@@ -236,7 +332,7 @@ export async function resolveEmbed(
  */
 export async function decodeToonContent(
   toonContent: string | null | undefined,
-): Promise<any> {
+): Promise<Record<string, unknown> | null> {
   // CRITICAL: Handle null/undefined content gracefully to prevent crashes
   // This can happen when embeds fail to decrypt (e.g., missing embed keys)
   if (!toonContent) {
@@ -254,7 +350,7 @@ export async function decodeToonContent(
     );
     // If it's already an object, return it as-is
     if (typeof toonContent === "object") {
-      return toonContent;
+      return toonContent as Record<string, unknown>;
     }
     return null;
   }
@@ -265,7 +361,8 @@ export async function decodeToonContent(
     try {
       // Use non-strict mode to be lenient with content that may have edge-case formatting
       // (e.g., large pasted text with unusual indentation or special characters)
-      return toonDecode(toonContent, { strict: false });
+      const decoded = toonDecode(toonContent, { strict: false });
+      return toRecord(recoverCodeEmbedFromToon(toonContent, decoded));
     } catch (error) {
       console.error(
         "[embedResolver] Error decoding TOON content:",
@@ -277,7 +374,7 @@ export async function decodeToonContent(
       );
       // Fallback to treating as JSON string
       try {
-        return JSON.parse(toonContent);
+        return toRecord(recoverCodeEmbedFromToon(toonContent, JSON.parse(toonContent)));
       } catch (jsonError) {
         console.error(
           "[embedResolver] Error parsing as JSON fallback:",
@@ -339,36 +436,37 @@ export async function embedDataToNodeAttributes(
       // For app_skill_use, we might need to handle composite embeds
       // For now, store the decoded content
       // The actual rendering will be handled by the embed renderer
-      nodeAttrs.title = decodedContent.skill_id || decodedContent.app_id;
+      nodeAttrs.title = stringField(decodedContent, "skill_id") || stringField(decodedContent, "app_id");
     } else if (embedType === "website") {
       // Extract website-specific fields
-      nodeAttrs.url = decodedContent.url;
-      nodeAttrs.title = decodedContent.title;
-      nodeAttrs.description = decodedContent.description;
+      nodeAttrs.url = stringField(decodedContent, "url");
+      nodeAttrs.title = stringField(decodedContent, "title");
+      nodeAttrs.description = stringField(decodedContent, "description");
       nodeAttrs.favicon =
-        decodedContent.meta_url_favicon || decodedContent.favicon;
+        stringField(decodedContent, "meta_url_favicon") || stringField(decodedContent, "favicon");
       nodeAttrs.image =
-        decodedContent.thumbnail_original || decodedContent.image;
+        stringField(decodedContent, "thumbnail_original") || stringField(decodedContent, "image");
     } else if (embedType === "video") {
       // Extract video-specific fields (YouTube, etc.)
-      nodeAttrs.url = decodedContent.url;
-      nodeAttrs.title = decodedContent.title;
-      nodeAttrs.description = decodedContent.description;
+      nodeAttrs.url = stringField(decodedContent, "url");
+      nodeAttrs.title = stringField(decodedContent, "title");
+      nodeAttrs.description = stringField(decodedContent, "description");
       // Video-specific fields
-      (nodeAttrs as any).video_id = decodedContent.video_id;
-      (nodeAttrs as any).channel_name = decodedContent.channel_name;
-      (nodeAttrs as any).thumbnail = decodedContent.thumbnail;
-      (nodeAttrs as any).duration_seconds = decodedContent.duration_seconds;
-      (nodeAttrs as any).duration_formatted = decodedContent.duration_formatted;
-      (nodeAttrs as any).view_count = decodedContent.view_count;
+      const videoAttrs = nodeAttrs as EmbedNodeAttributes & Record<string, unknown>;
+      videoAttrs.video_id = decodedContent.video_id;
+      videoAttrs.channel_name = decodedContent.channel_name;
+      videoAttrs.thumbnail = decodedContent.thumbnail;
+      videoAttrs.duration_seconds = decodedContent.duration_seconds;
+      videoAttrs.duration_formatted = decodedContent.duration_formatted;
+      videoAttrs.view_count = decodedContent.view_count;
     } else if (embedType === "code") {
-      nodeAttrs.language = decodedContent.language;
-      nodeAttrs.filename = decodedContent.filename;
-      nodeAttrs.lineCount = decodedContent.lineCount;
+      nodeAttrs.language = stringField(decodedContent, "language");
+      nodeAttrs.filename = stringField(decodedContent, "filename");
+      nodeAttrs.lineCount = numberField(decodedContent, "lineCount");
     } else if (embedType === "sheet") {
-      nodeAttrs.rows = decodedContent.rows;
-      nodeAttrs.cols = decodedContent.cols;
-      nodeAttrs.cellCount = decodedContent.cellCount;
+      nodeAttrs.rows = numberField(decodedContent, "rows");
+      nodeAttrs.cols = numberField(decodedContent, "cols");
+      nodeAttrs.cellCount = numberField(decodedContent, "cellCount");
     }
 
     return nodeAttrs;
@@ -386,7 +484,7 @@ export async function embedDataToNodeAttributes(
  * @param embedType - Server embed type (app_skill_use, website, code, etc.)
  * @returns EmbedNodeType for TipTap
  */
-function mapEmbedTypeToNodeType(embedType: string): string {
+function mapEmbedTypeToNodeType(embedType: string): EmbedType {
   // Uses the auto-generated EMBED_TYPE_NORMALIZATION_MAP from app.yml definitions.
   // To add a new type mapping, add an embed_types entry to the relevant app.yml
   // and rebuild — do NOT add manual entries here.
@@ -404,7 +502,7 @@ export async function storeEmbed(embedData: EmbedData): Promise<void> {
     await embedStore.put(
       `embed:${embedData.embed_id}`,
       embedData,
-      mapEmbedTypeToNodeType(embedData.type) as any,
+      mapEmbedTypeToNodeType(embedData.type),
     );
     console.debug(
       "[embedResolver] Stored embed in EmbedStore:",

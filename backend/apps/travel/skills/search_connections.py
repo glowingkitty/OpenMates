@@ -205,7 +205,7 @@ class SearchConnectionsResponse(BaseModel):
         default_factory=list,
         description="List of result groups, each with 'id' and 'results' array",
     )
-    provider: str = Field(default="Google")
+    provider: str = Field(default="")
     providers: List[Dict[str, str]] = Field(
         default_factory=list,
         description="Providers that returned results, each with 'id', 'name', 'icon_url'",
@@ -287,6 +287,33 @@ def _get_providers_for_request(
             continue
         matched.append(provider)
     return matched
+
+
+def _provider_metadata(provider: BaseTransportProvider) -> Dict[str, str]:
+    """Return display metadata for a searched provider."""
+    provider_id = getattr(provider, "provider_id", "") or type(provider).__name__
+    meta = PROVIDER_REGISTRY.get(provider_id)
+    if meta:
+        return {"id": provider_id, **meta}
+    return {"id": provider_id, "name": provider_id, "icon_url": ""}
+
+
+def _request_query_summary(req: Dict[str, Any]) -> str:
+    """Build a compact route/date summary from the original request."""
+    legs = req.get("legs", []) if isinstance(req.get("legs"), list) else []
+    if not legs:
+        return ""
+
+    first_leg = legs[0]
+    last_leg = legs[-1]
+    origin = str(first_leg.get("origin") or "").strip()
+    destination = str(last_leg.get("destination") or "").strip()
+    date = str(first_leg.get("date") or "").strip()
+
+    summary = f"{origin} → {destination}" if origin and destination else origin or destination
+    if date:
+        summary = f"{summary}, {date}" if summary else date
+    return summary
 
 
 # ---------------------------------------------------------------------------
@@ -376,9 +403,42 @@ class SearchConnectionsSkill(BaseSkill):
             logger=logger,
         )
 
-        # 6. Determine provider attribution from actual results (not requested methods)
-        # Collect unique source_provider IDs from all result dicts across all groups
+        request_by_id = {req.get("id"): req for req in validated_requests}
+        searched_provider_ids: set[str] = set()
+        for group in grouped_results:
+            req = request_by_id.get(group.get("id"))
+            if not req:
+                continue
+            transport_methods = [
+                method
+                for method in req.get("transport_methods", ["airplane"])
+                if method in {"airplane", "train", "bus", "boat"}
+            ] or ["airplane"]
+            matched_providers = _get_providers_for_request(
+                all_providers,
+                transport_methods,
+                requested_providers=req.get("providers"),
+                countries=req.get("countries"),
+            )
+            group_providers: List[Dict[str, str]] = []
+            seen_group_provider_ids: set[str] = set()
+            for provider in matched_providers:
+                metadata = _provider_metadata(provider)
+                if metadata["id"] in seen_group_provider_ids:
+                    continue
+                seen_group_provider_ids.add(metadata["id"])
+                group_providers.append(metadata)
+            searched_provider_ids.update(provider["id"] for provider in group_providers)
+            group["query"] = _request_query_summary(req)
+            group["legs"] = req.get("legs", [])
+            group["transport_methods"] = transport_methods
+            group["providers"] = group_providers
+            group["result_count"] = len(group.get("results", []))
+
+        # 6. Determine provider attribution from searched providers first, falling
+        # back to actual results for legacy embeds that lack request metadata.
         seen_provider_ids: set[str] = set()
+        seen_provider_ids.update(searched_provider_ids)
         for group in grouped_results:
             for result in group.get("results", []):
                 sp = result.get("source_provider")
@@ -395,8 +455,9 @@ class SearchConnectionsSkill(BaseSkill):
                 # Unknown provider — use ID as fallback display name
                 providers_list.append({"id": pid, "name": pid, "icon_url": ""})
 
-        # Legacy provider string for backward compatibility
-        provider_name = ", ".join(p["name"] for p in providers_list) or "Google"
+        # Legacy provider string for older renderers. Keep it empty when no
+        # provider metadata exists so empty states do not claim a fake source.
+        provider_name = ", ".join(p["name"] for p in providers_list)
 
         # 7. Build and return response
         return self._build_response_with_errors(

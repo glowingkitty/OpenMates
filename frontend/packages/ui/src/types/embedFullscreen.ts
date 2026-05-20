@@ -21,6 +21,8 @@ export interface EmbedFullscreenRawData {
 	focusLineRange?: { start: number; end: number } | null;
 	/** Sheet cell/range to highlight in sheet fullscreen (from #cell/#range suffix) */
 	focusSheetRange?: string | null;
+	/** Ordered embed ids from the current chat, used by fullscreen tools such as Code Run. */
+	chatEmbedIds?: string[];
 }
 
 /** Common props ALL fullscreen components share (passed as top-level props, not inside data) */

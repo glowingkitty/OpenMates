@@ -5,6 +5,7 @@
 
 import logging
 import asyncio
+import json
 import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -43,6 +44,8 @@ class UsageMethods:
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
         server_provider: Optional[str] = None,  # Server provider display name (e.g., "AWS Bedrock")
         server_region: Optional[str] = None,  # Server region (e.g., "EU", "US")
+        code_run_filenames: Optional[List[str]] = None,  # Code Run file paths included in the sandbox request
+        code_run_duration_seconds: Optional[float] = None,  # Total Code Run billable execution time
         tool_inference_iterations: Optional[int] = None,  # Extra LLM calls from tool use (cleartext int)
     ) -> Optional[str]:
         """
@@ -73,6 +76,8 @@ class UsageMethods:
             device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
             server_provider: Optional server provider display name (e.g., "AWS Bedrock", "Anthropic API"). Only for AI Ask skill.
             server_region: Optional server region (e.g., "EU", "US", "APAC"). Only for AI Ask skill.
+            code_run_filenames: File paths included in a Code Run sandbox request. Only for Code Run.
+            code_run_duration_seconds: Total Code Run billable execution duration in seconds. Only for Code Run.
             tool_inference_iterations: Number of extra LLM calls triggered by tool use in this turn
                 (0 or None = no tool calls). Stored as a cleartext integer for client-side display.
                 Only populated for AI Ask skill.
@@ -180,6 +185,23 @@ class UsageMethods:
                 )
                 encrypted_server_region = res[0] if res else None
 
+            encrypted_code_run_filenames = None
+            if code_run_filenames:
+                cleaned_filenames = [name for name in code_run_filenames if isinstance(name, str) and name.strip()]
+                if cleaned_filenames:
+                    res = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id,
+                        plaintext=json.dumps(cleaned_filenames, separators=(",", ":")),
+                    )
+                    encrypted_code_run_filenames = res[0] if res else None
+
+            encrypted_code_run_duration_seconds = None
+            if code_run_duration_seconds is not None:
+                res = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=str(round(float(code_run_duration_seconds), 3))
+                )
+                encrypted_code_run_duration_seconds = res[0] if res else None
+
             if should_save_tokens:
                 if actual_input_tokens is not None:
                     encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
@@ -257,6 +279,10 @@ class UsageMethods:
                 payload["encrypted_server_provider"] = encrypted_server_provider
             if encrypted_server_region:
                 payload["encrypted_server_region"] = encrypted_server_region
+            if encrypted_code_run_filenames:
+                payload["encrypted_code_run_filenames"] = encrypted_code_run_filenames
+            if encrypted_code_run_duration_seconds:
+                payload["encrypted_code_run_duration_seconds"] = encrypted_code_run_duration_seconds
 
             # Store tool_inference_iterations as a cleartext integer when present.
             # This lets the client display "X app skill iterations" in the usage detail view
@@ -1021,6 +1047,18 @@ class UsageMethods:
                         decrypt_tasks["server_region"] = self.encryption_service.decrypt_with_user_key(
                             encrypted_server_region, user_vault_key_id
                         )
+
+                    encrypted_code_run_filenames = entry.get("encrypted_code_run_filenames")
+                    if encrypted_code_run_filenames:
+                        decrypt_tasks["code_run_filenames"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_code_run_filenames, user_vault_key_id
+                        )
+
+                    encrypted_code_run_duration_seconds = entry.get("encrypted_code_run_duration_seconds")
+                    if encrypted_code_run_duration_seconds:
+                        decrypt_tasks["code_run_duration_seconds"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_code_run_duration_seconds, user_vault_key_id
+                        )
                     
                     # Execute all decryptions in parallel for this entry
                     if decrypt_tasks:
@@ -1049,6 +1087,18 @@ class UsageMethods:
                                         processed_entry[field_name] = int(result) if result else 0
                                     except ValueError:
                                         processed_entry[field_name] = 0
+                                elif field_name == "code_run_filenames":
+                                    try:
+                                        parsed_filenames = json.loads(result)
+                                        if isinstance(parsed_filenames, list):
+                                            processed_entry[field_name] = [name for name in parsed_filenames if isinstance(name, str)]
+                                    except (TypeError, ValueError):
+                                        processed_entry[field_name] = []
+                                elif field_name == "code_run_duration_seconds":
+                                    try:
+                                        processed_entry[field_name] = float(result)
+                                    except (TypeError, ValueError):
+                                        processed_entry[field_name] = None
                                 else:
                                     processed_entry[field_name] = result
                     
@@ -1528,6 +1578,18 @@ class UsageMethods:
                     decrypt_tasks["server_region"] = self.encryption_service.decrypt_with_user_key(
                         encrypted_server_region, user_vault_key_id
                     )
+
+                encrypted_code_run_filenames = entry.get("encrypted_code_run_filenames")
+                if encrypted_code_run_filenames:
+                    decrypt_tasks["code_run_filenames"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_code_run_filenames, user_vault_key_id
+                    )
+
+                encrypted_code_run_duration_seconds = entry.get("encrypted_code_run_duration_seconds")
+                if encrypted_code_run_duration_seconds:
+                    decrypt_tasks["code_run_duration_seconds"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_code_run_duration_seconds, user_vault_key_id
+                    )
                 
                 if decrypt_tasks:
                     results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
@@ -1553,6 +1615,18 @@ class UsageMethods:
                                     processed_entry[field_name] = int(result) if result else 0
                                 except ValueError:
                                     processed_entry[field_name] = 0
+                            elif field_name == "code_run_filenames":
+                                try:
+                                    parsed_filenames = json.loads(result)
+                                    if isinstance(parsed_filenames, list):
+                                        processed_entry[field_name] = [name for name in parsed_filenames if isinstance(name, str)]
+                                except (TypeError, ValueError):
+                                    processed_entry[field_name] = []
+                            elif field_name == "code_run_duration_seconds":
+                                try:
+                                    processed_entry[field_name] = float(result)
+                                except (TypeError, ValueError):
+                                    processed_entry[field_name] = None
                             else:
                                 # String fields: model_used, server_provider, server_region
                                 processed_entry[field_name] = result

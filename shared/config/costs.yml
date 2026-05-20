@@ -66,7 +66,7 @@ ai:
         max_token_limit: 1000000
 
       input_per_image:
-        tokens: ? # see https://ai.google.dev/gemini-api/docs/image-understanding for detailed calculation
+        tokens: null # see https://ai.google.dev/gemini-api/docs/image-understanding for detailed calculation
 
   mistral:
 
@@ -90,7 +90,7 @@ ai:
         max_token_limit: 128000
 
       input_per_image:
-        tokens: ? # see https://docs.mistral.ai/capabilities/vision/ for detailed calculation
+        tokens: null # see https://docs.mistral.ai/capabilities/vision/ for detailed calculation
 
     pixtral_large:
 
@@ -112,7 +112,7 @@ ai:
         max_token_limit: 128000
 
       input_per_image:
-        tokens: ? # see https://docs.mistral.ai/capabilities/vision/ for detailed calculation
+        tokens: null # see https://docs.mistral.ai/capabilities/vision/ for detailed calculation
 
 audio:
 
@@ -143,7 +143,39 @@ images:
       output_types:
         - image
 
-      per_image: ? # See https://platform.openai.com/docs/models/gpt-image-1 for detailed pricing
+      per_image: null # See https://platform.openai.com/docs/models/gpt-image-1 for detailed pricing
+
+    gpt_image_2:
+
+      api_name: gpt-image-2
+      input_types:
+        - text
+        - image
+      output_types:
+        - image
+
+      text_input_per_million_token:
+        price: 5.00
+        currency: USD
+
+      image_input_per_million_token:
+        price: 8.00
+        currency: USD
+
+      image_output_per_million_token:
+        price: 30.00
+        currency: USD
+
+      per_image_estimates:
+        low_1024:
+          price: 0.006
+          currency: USD
+        medium_1024:
+          price: 0.053
+          currency: USD
+        high_1024:
+          price: 0.211
+          currency: USD
 
   google:
 
@@ -165,7 +197,7 @@ video:
 
     veo_2:
 
-      api_name: ?
+      api_name: null
       input_types:
         - text
         - image

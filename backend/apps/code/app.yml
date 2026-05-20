@@ -383,6 +383,39 @@ skills:
       required:
         - library
         - question
+  - id: run
+    name_translation_key: app_skills.code.run
+    description_translation_key: app_skills.code.run.description
+    icon_image: play.svg
+    preprocessor_hint: >
+      Run the currently selected code embed in an isolated E2B sandbox from the
+      web app. The sandbox receives code files from the current chat, installs
+      supported dependency manifests, and executes the selected file. Pricing is
+      5 credits per started minute of sandbox runtime.
+    stage: production
+    class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
+    providers:
+      - name: E2B
+    pricing:
+      per_minute: 5
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        chat_id:
+          type: string
+          description: Chat ID containing the code embeds to run.
+        target_embed_id:
+          type: string
+          description: Code embed ID to execute as the entrypoint.
+        enable_internet:
+          type: boolean
+          default: true
+          description: Allow outbound internet access from the E2B sandbox.
+      required:
+        - chat_id
+        - target_embed_id
   - id: clean_repo
     name_translation_key: code.clean_repo
     description_translation_key: code.clean_repo.description

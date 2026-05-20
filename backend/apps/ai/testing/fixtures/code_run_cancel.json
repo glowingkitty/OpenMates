@@ -1,0 +1,45 @@
+{
+  "fixture_id": "code_run_cancel",
+  "recorded_at": "2026-05-19T23:00:00.000000+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "Write a Python script named code_run_cancel.py that prints start, sleeps for 120 seconds, then prints done.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "software_development",
+    "title": "Long-running Python cancellation script",
+    "icon_names": ["code"],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini 3 Flash",
+    "mate_id": "sophia",
+    "chat_summary": "User requests a long-running Python script for Code Run cancellation verification.",
+    "chat_tags": ["Python", "Code Run", "Cancellation"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "software_development",
+    "model_name": "Gemini 3 Flash",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": ["code"]
+  },
+  "response": "```json\n{\"type\": \"code\", \"embed_id\": \"9f8d9702-2d4e-4d6b-93db-b9cc7080b0c7\"}\n```",
+  "embeds": {
+    "9f8d9702-2d4e-4d6b-93db-b9cc7080b0c7": {
+      "type": "code",
+      "language": "python",
+      "filename": "code_run_cancel.py",
+      "code_content": "import time\n\nprint(\"start\", flush=True)\ntime.sleep(120)\nprint(\"done\", flush=True)\n"
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": "Preparing a long-running Python script so Code Run cancellation can be verified.",
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3 Flash"
+  }
+}

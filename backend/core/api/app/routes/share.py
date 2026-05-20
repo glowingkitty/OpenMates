@@ -650,7 +650,7 @@ async def get_shared_embed(
             logger.debug(f"Embed {embed_id} not found, returning dummy data")
             dummy_data = generate_dummy_encrypted_embed_data(embed_id)
             dummy_data.pop("is_dummy", None)
-            return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
+            return {"embed": dummy_data, "child_embeds": [], "embed_keys": [], "code_run_outputs": []}
 
         # Check if embed is private (not shared)
         # Use is_private field (mirrors chat sharing structure)
@@ -661,7 +661,7 @@ async def get_shared_embed(
             logger.debug(f"Embed {embed_id} is private (unshared), returning dummy data")
             dummy_data = generate_dummy_encrypted_embed_data(embed_id)
             dummy_data.pop("is_dummy", None)
-            return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
+            return {"embed": dummy_data, "child_embeds": [], "embed_keys": [], "code_run_outputs": []}
 
         # Embed exists and is shared - return real encrypted data
         logger.debug(f"Returning real encrypted data for shared embed {embed_id}")
@@ -699,10 +699,22 @@ async def get_shared_embed(
                 if child_keys:
                     embed_keys.extend(child_keys)
 
+        code_run_outputs = await directus_service.get_items(
+            "code_run_outputs",
+            params={
+                "filter[embed_id][_eq]": embed_id,
+                "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+                "sort": "-updated_at",
+                "limit": 1,
+            },
+            admin_required=True,
+        ) or []
+
         return {
             "embed": embed,
             "child_embeds": child_embeds,
-            "embed_keys": embed_keys
+            "embed_keys": embed_keys,
+            "code_run_outputs": code_run_outputs,
         }
 
     except Exception as e:
@@ -710,7 +722,7 @@ async def get_shared_embed(
         # On error, return dummy data to prevent information leakage
         dummy_data = generate_dummy_encrypted_embed_data(embed_id)
         dummy_data.pop("is_dummy", None)
-        return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
+        return {"embed": dummy_data, "child_embeds": [], "embed_keys": [], "code_run_outputs": []}
 
 @router.get("/embed/{embed_id}/og-metadata")
 @limiter.limit("60/minute")

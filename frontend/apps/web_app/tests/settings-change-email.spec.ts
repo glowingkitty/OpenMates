@@ -146,7 +146,13 @@ async function changeEmail(page: any, targetEmail: string, log: any): Promise<vo
 
 	const requestedAt = new Date().toISOString();
 	await page.getByTestId('email-change-new-email').fill(targetEmail);
+	const requestCodeResponsePromise = page.waitForResponse(
+		(response: any) => response.url().includes('/v1/settings/user/email/request-change-code') && response.request().method() === 'POST'
+	);
 	await page.getByTestId('email-change-request-code').click();
+	const requestCodeResponse = await requestCodeResponsePromise;
+	expect(requestCodeResponse.status(), 'Email change request-code response status.').toBe(200);
+	await expect(await requestCodeResponse.json(), 'Email change request-code response body.').toMatchObject({ success: true });
 	log('Requested email change code.', { targetEmail });
 
 	const message = await emailClient.waitForMailosaurMessage({
@@ -158,7 +164,13 @@ async function changeEmail(page: any, targetEmail: string, log: any): Promise<vo
 	expect(code, 'Expected a six-digit email-change code.').toBeTruthy();
 
 	await page.getByTestId('email-change-code').fill(code);
+	const verifyCodeResponsePromise = page.waitForResponse(
+		(response: any) => response.url().includes('/v1/settings/user/email/verify-change-code') && response.request().method() === 'POST'
+	);
 	await page.getByTestId('email-change-verify-code').click();
+	const verifyCodeResponse = await verifyCodeResponsePromise;
+	expect(verifyCodeResponse.status(), 'Email change verify-code response status.').toBe(200);
+	await expect(await verifyCodeResponse.json(), 'Email change verify-code response body.').toMatchObject({ success: true });
 	await expect(page.getByText(/new e-mail verified|new email verified/i)).toBeVisible({ timeout: 15000 });
 
 	await page.getByTestId('email-change-confirm').click();
@@ -172,11 +184,26 @@ async function changeEmail(page: any, targetEmail: string, log: any): Promise<vo
 
 	const tfaInput = authModal.getByTestId('tfa-input');
 	await expect(tfaInput).toBeVisible({ timeout: 15000 });
+	const reauthResponsePromise = page.waitForResponse(
+		(response: any) => response.url().includes('/v1/settings/user/email/reauth') && response.request().method() === 'POST'
+	);
+	const confirmResponsePromise = page.waitForResponse(
+		(response: any) => response.url().includes('/v1/settings/user/email/confirm-change') && response.request().method() === 'POST'
+	);
 	await tfaInput.fill(generateTotp(TEST_OTP_KEY));
+
+	const reauthResponse = await reauthResponsePromise;
+	expect(reauthResponse.status(), 'Email change reauth response status.').toBe(200);
+	await expect(await reauthResponse.json(), 'Email change reauth response body.').toMatchObject({ success: true });
+
+	const confirmResponse = await confirmResponsePromise;
+	expect(confirmResponse.status(), 'Email change confirm response status.').toBe(200);
+	await expect(await confirmResponse.json(), 'Email change confirm response body.').toMatchObject({ success: true });
 
 	await expect(page.getByText(/e-mail address changed successfully|email address changed successfully/i)).toBeVisible({
 		timeout: 30000
 	});
+	await expect(authModal).toBeHidden({ timeout: 10000 });
 	await expect(page.getByText(targetEmail)).toBeVisible({ timeout: 15000 });
 	log('Email changed.', { targetEmail });
 }

@@ -9,7 +9,7 @@ Status: PROPOSAL — awaiting review before implementation.
 - ~224 files, ~120 are auto-generated test spec notes (removing)
 - ~100 real notes: tasks, features, bugs, marketing, research, daily notes, loose ideas
 - 12 orphan files at vault root (sentence-named ideas with no folder)
-- Good foundations: frontmatter schema, templates, daily note automation, Kanban boards, dashboard
+- Good foundations: frontmatter schema, templates, daily note automation, dashboard
 - Problems: flat root, overlapping categories, no clear separation between knowledge and tasks
 
 ## Design Principles
@@ -115,11 +115,6 @@ memory/
 |   |-- decision.md                 # NEW
 |   |-- area-overview.md            # NEW
 |
-|-- Boards/                         # Generated Kanban boards
-|   |-- all-todos.md
-|   |-- bugs.md
-|   |-- marketing.md
-|
 |-- assets/                         # Images, videos, attachments
 |   |-- current/
 |       |-- ...
@@ -131,7 +126,7 @@ memory/
 |--------|-------|-----|
 | 12 loose files at root | Moved to Projects/ or Areas/ | No orphans |
 | `OpenMates/` top-level folder | Dissolved into Areas/ | Everything is OpenMates — redundant nesting |
-| `OpenMates/Tasks/` + `OpenMates/Tasks/Boards/` | Boards/ at root, tasks live in their area | Tasks belong where the work is, not in a separate silo |
+| `OpenMates/Tasks/` + `OpenMates/Tasks/Boards/` | Tasks live in their area and surface through Dashboard.md queries | Tasks belong where the work is, not in a separate silo |
 | 120 test spec files | Deleted, keep only `tests/overview.md` | Noise reduction |
 | `Events/` at root + `Marketing/Events/` | `Areas/marketing/events/` | Single location |
 | `Videos/` at root + `Marketing/Videos/` | Split: marketing videos vs reference videos | Clear purpose |
@@ -195,14 +190,14 @@ linear_id: OPE-XX        # for migrated Linear issues (preserves traceability)
 | Linear feature | Obsidian replacement |
 |---------------|---------------------|
 | My Issues | Dashboard.md — Tasks queries filtered by `status.type is IN_PROGRESS` or `not done` |
-| Issue board | Boards/all-todos.md (Kanban) — auto-generated from frontmatter |
+| Issue board | Dashboard.md queries over note frontmatter and Tasks plugin syntax |
 | Backlog | Tasks query: `not done`, `no due date`, `tags do not include #someday` |
 | Cycles/Sprints | Weekly focus section in Daily Notes + due date ranges in Tasks queries |
 | Labels | `area:` frontmatter field + tags |
 | Priority | Tasks plugin priority emojis + frontmatter `priority:` |
 | Comments/discussion | Body content of the note itself |
 | Issue search | Obsidian search + Dataview queries |
-| Automation | `sync_obsidian_tasks.py` + `generate_obsidian_task_boards.py` (already exist) |
+| Automation | Daily-note updater only; task boards are intentionally not generated |
 
 ### Dashboard.md sections
 
@@ -220,9 +215,8 @@ linear_id: OPE-XX        # for migrated Linear issues (preserves traceability)
 1. Export open Linear issues as CSV
 2. Script converts each to a markdown note with frontmatter (preserving `linear_id:`)
 3. Place in appropriate Area folder based on labels
-4. Regenerate Kanban boards
-5. Verify Dashboard.md queries pick everything up
-6. Keep Linear read-only for 2 weeks as safety net, then archive
+4. Verify Dashboard.md queries pick everything up
+5. Keep Linear read-only for 2 weeks as safety net, then archive
 
 ---
 
@@ -251,7 +245,6 @@ It is co-edited by a human (Marco) and AI agents (Claude).
 - New tasks/bugs/features: create note in the correct Area/ subfolder
 - Use the appropriate Template (Templates/task.md, Templates/bug.md, etc.)
 - Always include full frontmatter (type, status, priority, area, created)
-- After creating: run sync_obsidian_tasks.py to update boards
 - Log the addition in today's Daily Note under "Manual Notes"
 
 ### QUERY (answering questions)
@@ -460,7 +453,7 @@ SORT priority DESC
 2. Move existing files to new locations (with renames)
 3. Delete 120 test spec files, keep overview
 4. Update all `[[wikilinks]]` that break from moves
-5. Update board generator and daily note scripts for new paths
+5. Update daily note scripts for new paths
 
 ### Phase 2: Schema + Templates
 1. Write `_schema.md` at vault root
@@ -470,14 +463,13 @@ SORT priority DESC
 
 ### Phase 3: Dashboard
 1. Rewrite Dashboard.md with new query sections
-2. Regenerate Kanban boards for new structure
-3. Verify all queries resolve correctly
+2. Verify all queries resolve correctly
 
 ### Phase 4: Linear Migration
 1. Export open Linear issues
 2. Convert to Obsidian notes with script
 3. Place in correct Area folders
-4. Verify on Dashboard + Boards
+4. Verify on Dashboard
 5. Keep Linear read-only for 2 weeks
 
 ### Phase 5: Claude Instructions

@@ -13,15 +13,14 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
 
 /**
  * Multi-turn code generation E2E test.
@@ -217,6 +216,42 @@ async function assertNoJsonEmbedLeaks(page: any, messageIndex: number, log: any)
 	expect(fenceLeaks.length).toBe(0);
 
 	log(`Message ${messageIndex}: no JSON embed leaks.`);
+}
+
+async function waitForCodeRunSuccess(fullscreenOverlay: any, _expectedOutput: string, log: any) {
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 15000 });
+
+	await expect(async () => {
+		const text = (await terminal.textContent()) || '';
+		log(`Code Run terminal text: ${text.substring(0, 500)}`);
+		expect(text).toContain('...');
+		expect(text).toMatch(/finished|Exited (?:at .* )?with code 0/i);
+		expect(text).toMatch(/Charged .*5 credits/i);
+	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
+}
+
+async function waitForCodeRunCancelled(fullscreenOverlay: any, log: any) {
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 15000 });
+
+	await expect(async () => {
+		const text = (await terminal.textContent()) || '';
+		log(`Cancelled Code Run terminal text: ${text.substring(0, 500)}`);
+		expect(text).toMatch(/cancelled|Cancelled at/i);
+		expect(text).toMatch(/Charged .*5 credits/i);
+	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
+}
+
+async function assertCodeRunDidNotMutateSource(fullscreenOverlay: any, expectedOutput: string, log: any) {
+	const sourcePanel = fullscreenOverlay.getByTestId('code-source-panel');
+	await expect(sourcePanel).toBeVisible({ timeout: 10000 });
+
+	const sourceText = (await sourcePanel.textContent()) || '';
+	log(`Code source after run (first 500 chars): ${sourceText.substring(0, 500)}`);
+	expect(sourceText).toContain(expectedOutput);
+	expect(sourceText).not.toMatch(/Charged 5 credits/i);
+	expect(sourceText).not.toMatch(/Exited at .* with code 0/i);
 }
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
@@ -494,4 +529,163 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 
 	log(`Test completed successfully. Chat ${chatId} was created and deleted.`);
+});
+
+test('generated Python code embed can run in E2B sandbox', async ({ page }: { page: any }) => {
+ setupPageListeners(page);
+
+ test.slow();
+ test.setTimeout(240000);
+
+ const log = createSignupLogger('CODE_RUN_E2B');
+ const screenshot = createStepScreenshotter(log, {
+  filenamePrefix: 'code-run-e2b'
+ });
+ const expectedOutput = 'openmates-code-run-ok';
+
+ skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+ await archiveExistingScreenshots(log);
+ log('Starting Code Run E2B test.');
+
+  await loginToTestAccount(page, log, screenshot);
+  await startNewChat(page, log);
+  await screenshot(page, 'ready');
+
+  await sendMessage(
+  page,
+  withMockMarker(
+   `Write a self-contained Python script with no external dependencies that prints exactly "${expectedOutput}". Show only the complete code in one Python code block.`,
+   'code_run_e2b_smoke'
+  ),
+  log,
+  screenshot,
+  'code-run'
+ );
+
+ await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
+ const chatIdMatch = page.url().match(/chat-id=([0-9a-f-]+)/);
+ const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
+ log(`Chat ID: ${chatId}`);
+
+ const assistantMessages = page.getByTestId('message-assistant');
+ await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
+ const messageIndex = (await assistantMessages.count()) - 1;
+ await waitForCodeEmbedsInMessage(page, messageIndex, log);
+ await waitForStreamingComplete(page, log);
+
+  const codeEmbed = assistantMessages
+   .nth(messageIndex)
+   .locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+   .filter({ hasText: 'code_run_smoke.py' })
+   .first();
+ const fullscreenOverlay = await openFullscreen(page, codeEmbed);
+ await screenshot(page, 'fullscreen-open');
+
+  const runButton = fullscreenOverlay.getByTestId('embed-run-button');
+  await expect(runButton).toBeVisible({ timeout: 10000 });
+  await runButton.click();
+
+  const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
+  await expect(fileSelection).toBeVisible({ timeout: 15000 });
+  await expect(fileSelection).toContainText('Select files to upload & process in E2B sandbox:');
+  await expect(fileSelection).toContainText('code_run_helper.py');
+
+  const requiredCheckbox = fileSelection.getByTestId('code-run-required-file-checkbox').first();
+  await expect(requiredCheckbox).toBeChecked();
+  await expect(requiredCheckbox).toBeDisabled();
+
+  const optionalCheckbox = fileSelection.getByTestId('code-run-optional-file-checkbox').first();
+  await expect(optionalCheckbox).toBeChecked();
+  await fileSelection.getByRole('button', { name: 'Unselect all' }).click();
+  await expect(optionalCheckbox).not.toBeChecked();
+  await screenshot(page, 'file-selection');
+
+  await fileSelection.getByRole('button', { name: 'Continue' }).click();
+
+  await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
+  await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
+	await screenshot(page, 'run-complete');
+
+ await closeFullscreen(page, fullscreenOverlay);
+ await deleteActiveChat(page, log, screenshot, 'cleanup');
+
+ log(`Code Run E2B test completed successfully. Chat ${chatId} was created and deleted.`);
+});
+
+test('active Code Run can be stopped and shows cancelled billing summary', async ({ page }: { page: any }) => {
+	setupPageListeners(page);
+
+	test.slow();
+	test.setTimeout(240000);
+
+	const log = createSignupLogger('CODE_RUN_CANCEL');
+	const screenshot = createStepScreenshotter(log, {
+		filenamePrefix: 'code-run-cancel'
+	});
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await archiveExistingScreenshots(log);
+	log('Starting Code Run cancellation test.');
+
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	await screenshot(page, 'ready');
+
+	await sendMessage(
+		page,
+		withMockMarker(
+			'Write a Python script named code_run_cancel.py that prints "start", sleeps for 120 seconds, then prints "done". Show only the complete code block.',
+			'code_run_cancel'
+		),
+		log,
+		screenshot,
+		'code-run-cancel'
+	);
+
+	await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
+	const chatIdMatch = page.url().match(/chat-id=([0-9a-f-]+)/);
+	const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
+	log(`Chat ID: ${chatId}`);
+
+	const assistantMessages = page.getByTestId('message-assistant');
+	await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
+	const messageIndex = (await assistantMessages.count()) - 1;
+	await waitForCodeEmbedsInMessage(page, messageIndex, log);
+	await waitForStreamingComplete(page, log);
+
+	const codeEmbed = assistantMessages
+		.nth(messageIndex)
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+		.filter({ hasText: 'code_run_cancel.py' })
+		.first();
+	const fullscreenOverlay = await openFullscreen(page, codeEmbed);
+	await screenshot(page, 'fullscreen-open');
+
+	const runButton = fullscreenOverlay.getByTestId('embed-run-button');
+	await expect(runButton).toBeVisible({ timeout: 10000 });
+	await runButton.click();
+
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 15000 });
+	await expect(async () => {
+		const text = (await terminal.textContent()) || '';
+		log(`Waiting for long-running Code Run to start: ${text.substring(0, 300)}`);
+		expect(text).toContain('Running (code_run_cancel.py)');
+	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
+
+	const stopButton = fullscreenOverlay.getByRole('button', { name: 'Stop' });
+	await expect(stopButton).toBeVisible({ timeout: 10000 });
+	await expect(stopButton).toBeEnabled({ timeout: 10000 });
+	await stopButton.click();
+	await screenshot(page, 'stop-clicked');
+
+	await waitForCodeRunCancelled(fullscreenOverlay, log);
+	await screenshot(page, 'run-cancelled');
+
+	await closeFullscreen(page, fullscreenOverlay);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+
+	log(`Code Run cancellation test completed successfully. Chat ${chatId} was created and deleted.`);
 });

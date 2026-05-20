@@ -36,6 +36,7 @@ import {
   type PersonalDataEntry,
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
+import { demoMode } from "../../../stores/demoModeStore";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -920,6 +921,7 @@ export async function handleSend(
             id: entry.id,
             textToHide: entry.textToHide,
             replaceWith: entry.replaceWith,
+            type: entry.type === "address" ? "ADDRESS" : undefined,
           };
           // For address entries, include individual address lines as additional search texts
           if (entry.type === "address" && entry.addressLines) {
@@ -1700,6 +1702,7 @@ export async function executeDeferredSend(
             id: entry.id,
             textToHide: entry.textToHide,
             replaceWith: entry.replaceWith,
+            type: entry.type === "address" ? "ADDRESS" : undefined,
           };
           if (entry.type === "address" && entry.addressLines) {
             const additionalTexts: string[] = [];
@@ -1904,7 +1907,7 @@ export function createKeyboardHandlingExtension() {
             // (which would fail because WebSocket requires authentication)
             const isAuthenticated = get(authStore).isAuthenticated;
 
-            if (!isAuthenticated) {
+            if (!isAuthenticated && !get(demoMode)) {
               // Dispatch sign-up event instead of send event for unauthenticated users
               // This triggers the sign-up flow which saves the draft and opens signup interface
               const signUpEvent = new Event("custom-sign-up-click", {

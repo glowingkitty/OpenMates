@@ -551,6 +551,17 @@ export class ChatSynchronizationService extends EventTarget {
         m.handleMessageHighlightRemovedImpl(payload),
       );
     });
+    webSocketService.on("code_run_output_synced", (payload) => {
+      void import("./handlersCodeRunOutputs").then((m) =>
+        m.handleCodeRunOutputSyncedImpl(payload),
+      );
+    });
+    webSocketService.on("code_run_outputs_sync_ready", (payload) => {
+      const outputs = (payload as { outputs?: unknown[] })?.outputs ?? [];
+      void import("./handlersCodeRunOutputs").then((m) =>
+        Promise.all(outputs.map((output) => m.handleCodeRunOutputSyncedImpl(output))),
+      );
+    });
     // Handle draft_embed_deleted broadcast from other devices:
     // Another device deleted an uploaded file from the message draft — clean up
     // the local IndexedDB EmbedStore entry so it doesn't accumulate indefinitely.

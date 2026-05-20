@@ -2065,7 +2065,6 @@
 			await initialize();
 		}
 		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
-
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
 		if (sharedChatRedirectId && browser) {

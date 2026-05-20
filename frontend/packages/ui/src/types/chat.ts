@@ -221,6 +221,58 @@ export interface MessageHighlightPayload {
   updated_at?: number;
 }
 
+export interface CodeRunOutput {
+  id: string;
+  chat_id: string;
+  embed_id: string;
+  author_user_id?: string;
+  output: string;
+  status?: string;
+  files?: string[];
+  events?: Array<{ kind: string; text: string; timestamp: number }>;
+  saved_at: number;
+  created_at: number;
+  updated_at?: number;
+  key_version?: number | null;
+}
+
+export interface CodeRunOutputPayload {
+  output: string;
+  status?: string;
+  files?: string[];
+  events?: Array<{ kind: string; text: string; timestamp: number }>;
+  saved_at: number;
+  created_at: number;
+  updated_at?: number;
+}
+
+export interface UpsertCodeRunOutputPayload {
+  chat_id: string;
+  embed_id: string;
+  id?: string;
+  key_version?: number | null;
+  encrypted_payload: string;
+  inference_payload?: CodeRunOutputPayload;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface RequestCodeRunOutputPayload {
+  chat_id: string;
+  embed_id: string;
+}
+
+export interface CodeRunOutputSyncedPayload {
+  chat_id: string;
+  embed_id: string;
+  id: string;
+  author_user_id: string;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
 /**
  * A single PII mapping entry for restoration
  */
@@ -281,6 +333,10 @@ export interface Chat {
   category?: string | null; // Cleartext category for demo chats
   demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
 
+  // Local UI metadata derived from image-search embeds. Stored only in IndexedDB so
+  // resume/recent chat cards can render decorative thumbnails without re-parsing messages.
+  resume_card_image_bubbles?: ResumeCardImageBubble[] | null;
+
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
   is_private?: boolean; // Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
@@ -309,6 +365,11 @@ export interface Chat {
   // Messages load on-demand when the user opens the chat. Search matches against
   // title, summary, and tags only (no message content search until opened).
   is_metadata_only?: boolean;
+}
+
+export interface ResumeCardImageBubble {
+  imageUrl: string;
+  title?: string;
 }
 
 export interface ChatComponentVersions {
@@ -742,6 +803,17 @@ export interface SyncEmbed {
   updated_at?: number; // Server-provided timestamp
 }
 
+export interface SyncCodeRunOutput {
+  chat_id: string;
+  embed_id: string;
+  id: string;
+  author_user_id: string;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface Phase1LastChatPayload {
   chat_id: string;
   chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
@@ -768,6 +840,7 @@ export interface Phase1bChatContentPayload {
   }>;
   embeds?: SyncEmbed[];
   embed_keys?: EmbedKeyEntry[];
+  code_run_outputs?: SyncCodeRunOutput[];
 }
 
 /**
@@ -788,6 +861,8 @@ export interface BackgroundMessageSyncPayload {
   embeds?: SyncEmbed[];
   /** Embed encryption keys for this batch's chats */
   embed_keys?: EmbedKeyEntry[];
+  /** Encrypted Code Run terminal-output sidecars for this batch's code embeds */
+  code_run_outputs?: SyncCodeRunOutput[];
 }
 
 export interface CachePrimedPayload {

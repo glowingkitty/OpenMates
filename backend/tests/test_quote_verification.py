@@ -17,6 +17,7 @@ try:
     from backend.apps.ai.tasks.stream_consumer import (
         _SOURCE_QUOTE_PATTERN,
         _extract_source_citations,
+        _verify_and_strip_bad_quotes,
     )
     from backend.core.api.app.services.embed_service import EmbedService
 except ImportError as _exc:
@@ -25,6 +26,7 @@ except ImportError as _exc:
     # Stubs so module-level references don't raise NameError during collection
     _SOURCE_QUOTE_PATTERN = None  # type: ignore[assignment]
     _extract_source_citations = None  # type: ignore[assignment]
+    _verify_and_strip_bad_quotes = None  # type: ignore[assignment]
     EmbedService = None  # type: ignore[assignment,misc]
 
 
@@ -327,3 +329,136 @@ class TestExtractSourceCitations:
         refs = {r[1] for r in results}
         assert "source-a1B" in refs
         assert "source-c3D" in refs
+
+
+# ---------------------------------------------------------------------------
+# 5. RESPONSE-LEVEL STRIPPING TESTS
+#    _verify_and_strip_bad_quotes must remove unverified quote blocks from the
+#    final assistant response, using the same keyword arguments as production.
+# ---------------------------------------------------------------------------
+
+
+def _quote_verification_services() -> tuple[MagicMock, MagicMock, MagicMock]:
+    return MagicMock(), MagicMock(), MagicMock()
+
+
+class TestVerifyAndStripBadQuotes:
+
+    def test_modified_quote_is_removed_from_response(self, monkeypatch):
+        """Regression for issue 8eff9401: shortened/edited Wikipedia quote must disappear."""
+        from toon_format import encode
+
+        parent_embed_id = "382dba79-d27c-4026-a83b-655191219669"
+        child_embed_id = "ac26ab3e-9b7f-463a-8cc4-2b707d822c32"
+        embed_ref = "en.wikipedia.org-gDS"
+        source_text = (
+            'The tower was known as Burj Dubai ("Dubai Tower") until its official opening '
+            'in January 2010. It was renamed in honour of the ruler of Abu Dhabi, Khalifa '
+            'bin Zayed Al Nahyan; Abu Dhabi and the federal government of UAE lent Dubai '
+            'tens of billions of US dollars so that Dubai could pay its debts - Dubai '
+            'borrowed at least $80 billion for construction projects.'
+        )
+        modified_quote = (
+            "The tower was known as Burj Dubai until its official opening in January 2010. "
+            "It was renamed in honour of the ruler of Abu Dhabi, Khalifa bin Zayed Al Nahyan; "
+            "Abu Dhabi and the federal government of UAE lent Dubai tens of billions of US "
+            "dollars so that Dubai could pay its debts."
+        )
+        encoded_by_id = {
+            parent_embed_id: encode({"embed_ids": child_embed_id}),
+            child_embed_id: encode({"embed_ref": embed_ref, "description": source_text}),
+        }
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            return encoded_by_id.get(embed_id)
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = (
+            "The Burj Khalifa was renamed during the opening.\n\n"
+            f"> [{modified_quote}](embed:{embed_ref})\n\n"
+            "That helped Dubai manage the debt crisis."
+        )
+
+        stripped = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert modified_quote not in stripped
+        assert f"embed:{embed_ref}" not in stripped
+        assert "The Burj Khalifa was renamed during the opening." in stripped
+        assert "That helped Dubai manage the debt crisis." in stripped
+
+    def test_unknown_embed_ref_quote_is_removed_from_response(self, monkeypatch):
+        from toon_format import encode
+
+        parent_embed_id = "parent-embed"
+        known_ref = "example.com-a1B"
+        hallucinated_ref = "fake.example-z9Z"
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            if embed_id == parent_embed_id:
+                return encode({"embed_ref": known_ref, "description": "Real source text."})
+            return None
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = (
+            "Intro.\n\n"
+            f"> [This quote points at a non-existing embed ref](embed:{hallucinated_ref})\n\n"
+            "Outro."
+        )
+
+        stripped = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert hallucinated_ref not in stripped
+        assert "This quote points at a non-existing embed ref" not in stripped
+        assert stripped.strip() == "Intro.\n\nOutro."
+
+    def test_exact_quote_is_preserved_in_response(self, monkeypatch):
+        from toon_format import encode
+
+        parent_embed_id = "parent-embed"
+        child_embed_id = "child-embed"
+        embed_ref = "source.example-a1B"
+        exact_quote = "Exact source text with no edits."
+        encoded_by_id = {
+            parent_embed_id: encode({"embed_ids": child_embed_id}),
+            child_embed_id: encode({"embed_ref": embed_ref, "description": exact_quote}),
+        }
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            return encoded_by_id.get(embed_id)
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = f"Answer.\n\n> [{exact_quote}](embed:{embed_ref})"
+
+        verified = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert verified == response

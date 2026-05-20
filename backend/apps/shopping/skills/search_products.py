@@ -22,7 +22,8 @@ See: docs/architecture/shopping-cookie-pool.md for the cookie harvesting design.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -33,8 +34,35 @@ from backend.apps.shopping.providers.amazon_provider import (
 )
 from backend.apps.shopping.providers.amazon_provider import infer_country_from_locale
 from backend.apps.shopping.providers.rewe_provider import search_products as rewe_search
+from backend.apps.shopping.providers.stoffe_provider import search_products as stoffe_search
 
 logger = logging.getLogger(__name__)
+
+
+ShoppingProvider = Literal["REWE", "Amazon", "Stoffe.de"]
+ShoppingCategory = Literal[
+    "grocery",
+    "fabrics",
+    "sewing_supplies",
+    "patterns",
+    "general_marketplace",
+    "electronics",
+    "home",
+    "fashion",
+    "beauty",
+    "books",
+    "sports",
+    "toys",
+    "automotive",
+    "health",
+    "music",
+    "movies",
+    "tools",
+    "office",
+    "pet_supplies",
+    "video_games",
+    "baby",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -48,9 +76,28 @@ class SearchProductsRequestItem(BaseModel):
     query: str = Field(
         description="Search query (e.g. 'bio joghurt', 'coffee grinder', 'wireless mouse')."
     )
-    provider: str = Field(
-        default="REWE",
-        description="Product provider: 'REWE' (German supermarket) or 'Amazon' (marketplace).",
+    provider: Optional[ShoppingProvider] = Field(
+        default=None,
+        description="Product provider: 'REWE', 'Amazon', or 'Stoffe.de'. Inferred from category if omitted.",
+    )
+    category: Optional[ShoppingCategory] = Field(
+        default=None,
+        description=(
+            "Product category used for provider routing and compatibility validation. "
+            "Use 'grocery' for supermarket food/household products, 'fabrics' for fabric by the meter, "
+            "'sewing_supplies' for needles/thread/zippers/buttons, 'patterns' for sewing patterns, "
+            "or an Amazon marketplace category such as 'electronics', 'home', 'fashion', 'beauty', "
+            "'books', 'sports', 'toys', 'automotive', 'health', 'music', 'movies', 'tools', "
+            "'office', 'pet_supplies', 'video_games', or 'baby'."
+        ),
+    )
+    country: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional ISO 3166-1 alpha-2 destination country code (e.g. 'DE', 'AT', 'US'). "
+            "Used for provider routing: REWE is Germany-only, Stoffe.de ships to selected European countries, "
+            "and Amazon is used for other countries."
+        ),
     )
     max_results: int = Field(
         default=10,
@@ -80,7 +127,7 @@ class SearchProductsRequest(BaseModel):
         description=(
             "Array of product search request objects. Each object requires "
             "a 'query' field (e.g. 'bio joghurt') and optionally "
-            "'provider', 'max_results', 'sort', and provider-specific filters."
+            "'provider', 'category', 'country', 'max_results', 'sort', and provider-specific filters."
         )
     )
 
@@ -119,17 +166,18 @@ class SearchProductsResponse(BaseModel):
 
 class SearchProductsSkill(BaseSkill):
     """
-    Skill that searches the REWE online shop for products with live pricing.
+    Skill that searches supported shopping providers for products with live pricing.
 
     Accepts a 'requests' array where each request contains:
     - query: Search term (required), e.g. "bio joghurt", "pasta barilla"
-    - provider: "REWE" | "Amazon" (default: "REWE")
+    - provider: "REWE" | "Amazon" | "Stoffe.de" (default inferred from category/country, else REWE)
+    - category: enum used to route omitted providers and reject incompatible combinations
+    - country: ISO 3166-1 alpha-2 destination country for provider availability and Amazon localization
     - max_results: Maximum products per search (1–20, default 10)
     - sort: Provider-specific sort order
       - REWE: "relevance" | "price_asc" | "price_desc" | "new"
       - Amazon: "relevance" | "price_asc" | "price_desc" | "review_rank" | "newest" | "best_sellers"
     - service_type: REWE only — "DELIVERY" | "CLICK_AND_COLLECT" (default: "DELIVERY")
-    - country: Amazon only country code (e.g. "us", "de"). Optional.
     - department: Amazon only category filter (e.g. "electronics", "home")
     - min_price/max_price: Amazon only client-side price filters
 
@@ -141,8 +189,8 @@ class SearchProductsSkill(BaseSkill):
     - purchase_url, image_url
     - attributes: is_organic, is_vegan, is_vegetarian, etc.
 
-    Pricing requires an active REWE session stored in Vault (cookie pool).
-    Without cookies, basic product info is returned but prices are None.
+    REWE pricing requires an active session stored in Vault (cookie pool).
+    Amazon uses SerpAPI, and Stoffe.de uses its public storefront API.
     """
 
     FOLLOW_UP_SUGGESTIONS = [
@@ -155,6 +203,83 @@ class SearchProductsSkill(BaseSkill):
     DEFAULT_PROVIDER = "REWE"
     AMAZON_PROVIDER = "AMAZON"
     REWE_PROVIDER = "REWE"
+    STOFFE_PROVIDER = "STOFFE.DE"
+    REWE_SUPPORTED_COUNTRIES = {"DE"}
+    STOFFE_SUPPORTED_COUNTRIES = {
+        "AT",
+        "BE",
+        "BG",
+        "CH",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GB",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IT",
+        "LT",
+        "LV",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK",
+    }
+
+    CATEGORY_DEFAULT_PROVIDERS = {
+        "grocery": REWE_PROVIDER,
+        "fabrics": STOFFE_PROVIDER,
+        "sewing_supplies": STOFFE_PROVIDER,
+        "patterns": STOFFE_PROVIDER,
+        "general_marketplace": AMAZON_PROVIDER,
+        "electronics": AMAZON_PROVIDER,
+        "home": AMAZON_PROVIDER,
+        "fashion": AMAZON_PROVIDER,
+        "beauty": AMAZON_PROVIDER,
+        "books": AMAZON_PROVIDER,
+        "sports": AMAZON_PROVIDER,
+        "toys": AMAZON_PROVIDER,
+        "automotive": AMAZON_PROVIDER,
+        "health": AMAZON_PROVIDER,
+        "music": AMAZON_PROVIDER,
+        "movies": AMAZON_PROVIDER,
+        "tools": AMAZON_PROVIDER,
+        "office": AMAZON_PROVIDER,
+        "pet_supplies": AMAZON_PROVIDER,
+        "video_games": AMAZON_PROVIDER,
+        "baby": AMAZON_PROVIDER,
+    }
+    CATEGORY_ALLOWED_PROVIDERS = {
+        "grocery": {REWE_PROVIDER, AMAZON_PROVIDER},
+        "fabrics": {STOFFE_PROVIDER, AMAZON_PROVIDER},
+        "sewing_supplies": {STOFFE_PROVIDER, AMAZON_PROVIDER},
+        "patterns": {STOFFE_PROVIDER, AMAZON_PROVIDER},
+        "general_marketplace": {AMAZON_PROVIDER},
+        "electronics": {AMAZON_PROVIDER},
+        "home": {AMAZON_PROVIDER},
+        "fashion": {AMAZON_PROVIDER},
+        "beauty": {AMAZON_PROVIDER},
+        "books": {AMAZON_PROVIDER},
+        "sports": {AMAZON_PROVIDER},
+        "toys": {AMAZON_PROVIDER},
+        "automotive": {AMAZON_PROVIDER},
+        "health": {AMAZON_PROVIDER},
+        "music": {AMAZON_PROVIDER},
+        "movies": {AMAZON_PROVIDER},
+        "tools": {AMAZON_PROVIDER},
+        "office": {AMAZON_PROVIDER},
+        "pet_supplies": {AMAZON_PROVIDER},
+        "video_games": {AMAZON_PROVIDER},
+        "baby": {AMAZON_PROVIDER},
+    }
 
     async def execute(
         self,
@@ -216,7 +341,11 @@ class SearchProductsSkill(BaseSkill):
         )
 
         provider_values = {
-            (req.get("provider") or self.DEFAULT_PROVIDER).strip().upper()
+            self._resolve_provider(
+                req.get("provider"),
+                self._normalize_category(req.get("category")),
+                self._normalize_country(req.get("country")),
+            )[0]
             for req in validated_requests
         }
         response_provider = (
@@ -255,12 +384,19 @@ class SearchProductsSkill(BaseSkill):
 
         # Extract parameters with defaults
         query: str = req.get("query", "").strip()
-        provider: str = str(req.get("provider", self.DEFAULT_PROVIDER)).strip().upper()
+        category = self._normalize_category(req.get("category"))
+        country: Optional[str] = self._normalize_country(req.get("country"))
+        provider, provider_error = self._resolve_provider(
+            req.get("provider"),
+            category,
+            country,
+        )
+        if provider_error:
+            return (request_id, [], provider_error)
         max_results: int = int(req.get("max_results", 10))
         sort: str = req.get("sort", "relevance")
         # Use "or" to handle None from Pydantic model_dump() — prevents None reaching rewe_search()
         service_type: str = req.get("service_type") or "DELIVERY"
-        country: Optional[str] = req.get("country")
         department: Optional[str] = req.get("department")
         min_price_raw = req.get("min_price")
         max_price_raw = req.get("max_price")
@@ -306,11 +442,17 @@ class SearchProductsSkill(BaseSkill):
                     locale_hint=locale_hint,
                     secrets_manager=secrets_manager,
                 )
+            elif provider == self.STOFFE_PROVIDER:
+                products, pagination = await stoffe_search(
+                    query=query,
+                    max_results=max_results,
+                    sort=sort,
+                )
             else:
                 return (
                     request_id,
                     [],
-                    "Invalid provider. Choose 'REWE' or 'Amazon'",
+                    "Invalid provider. Choose 'REWE', 'Amazon', or 'Stoffe.de'",
                 )
         except ValueError as e:
             logger.error(
@@ -370,3 +512,83 @@ class SearchProductsSkill(BaseSkill):
         )
 
         return (request_id, results, None)
+
+    @classmethod
+    def _normalize_category(cls, category: Any) -> Optional[str]:
+        if category is None:
+            return None
+        normalized = str(category).strip().lower().replace("-", "_")
+        return normalized or None
+
+    @staticmethod
+    def _normalize_country(country: Any) -> Optional[str]:
+        if country is None:
+            return None
+        normalized = str(country).strip().upper()
+        if not normalized or not re.match(r"^[A-Z]{2}$", normalized):
+            return None
+        return normalized
+
+    @classmethod
+    def _normalize_provider(cls, provider: Any) -> Optional[str]:
+        if provider is None:
+            return None
+        normalized = str(provider).strip().upper()
+        if normalized in {"STOFFE", "STOFFE.DE", "STOFFE_DE"}:
+            return cls.STOFFE_PROVIDER
+        return normalized or None
+
+    @classmethod
+    def _resolve_provider(
+        cls,
+        provider: Any,
+        category: Optional[str],
+        country: Optional[str] = None,
+    ) -> tuple[str, Optional[str]]:
+        normalized_provider = cls._normalize_provider(provider)
+
+        if category and category not in cls.CATEGORY_DEFAULT_PROVIDERS:
+            return (
+                normalized_provider or cls.DEFAULT_PROVIDER,
+                "Invalid category. Choose one of: %s" % sorted(cls.CATEGORY_DEFAULT_PROVIDERS),
+            )
+
+        if normalized_provider:
+            resolved_provider = normalized_provider
+        elif category:
+            resolved_provider = cls.CATEGORY_DEFAULT_PROVIDERS.get(category, cls.DEFAULT_PROVIDER)
+            if country and not cls._provider_supports_country(resolved_provider, country):
+                resolved_provider = cls.AMAZON_PROVIDER
+        else:
+            resolved_provider = cls.DEFAULT_PROVIDER
+            if country and not cls._provider_supports_country(resolved_provider, country):
+                resolved_provider = cls.AMAZON_PROVIDER
+
+        if category and resolved_provider not in cls.CATEGORY_ALLOWED_PROVIDERS[category]:
+            return (
+                resolved_provider,
+                "Invalid provider/category combination: provider '%s' cannot search category '%s'. "
+                "Allowed providers: %s"
+                % (resolved_provider, category, sorted(cls.CATEGORY_ALLOWED_PROVIDERS[category])),
+            )
+
+        if resolved_provider not in {cls.REWE_PROVIDER, cls.AMAZON_PROVIDER, cls.STOFFE_PROVIDER}:
+            return resolved_provider, "Invalid provider. Choose 'REWE', 'Amazon', or 'Stoffe.de'"
+
+        if country and not cls._provider_supports_country(resolved_provider, country):
+            return (
+                resolved_provider,
+                "Provider '%s' does not support destination country '%s'. "
+                "Use Amazon or omit the provider so it can be inferred."
+                % (resolved_provider, country),
+            )
+
+        return resolved_provider, None
+
+    @classmethod
+    def _provider_supports_country(cls, provider: str, country: str) -> bool:
+        if provider == cls.REWE_PROVIDER:
+            return country in cls.REWE_SUPPORTED_COUNTRIES
+        if provider == cls.STOFFE_PROVIDER:
+            return country in cls.STOFFE_SUPPORTED_COUNTRIES
+        return True

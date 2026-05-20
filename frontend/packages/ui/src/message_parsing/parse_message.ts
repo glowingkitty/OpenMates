@@ -54,6 +54,8 @@ function _getEmbedStore(): import("../services/embedStore").EmbedStore | null {
   return _embedStoreRef;
 }
 
+const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
+
 /**
  * Pass 1: Walk the document tree and collect all `app_id` values from `embed`
  * nodes (type "app-skill-use"). These are always populated from the raw JSON
@@ -108,6 +110,35 @@ function convertEmbedLinksInNode(
 ): any | any[] {
   // Leaf text node — check for embed: or wiki: link mark
   if (node.type === "text" && Array.isArray(node.marks)) {
+    const codeMarkIndex = node.marks.findIndex((m: any) => m.type === "code");
+    if (codeMarkIndex !== -1 && typeof node.text === "string") {
+      const inlineCodeEmbedMatch = node.text.match(INLINE_CODE_EMBED_LINK_RE);
+      if (inlineCodeEmbedMatch) {
+        const displayText = inlineCodeEmbedMatch[1];
+        const rawRef = inlineCodeEmbedMatch[2];
+        const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
+          parseEmbedLinkTarget(rawRef);
+        const resolvedDisplayText = resolveEmbedDisplayText(displayText, cleanRef);
+        const resolvedEmbedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
+        const resolvedLiveAppId = _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+        const appId = resolvedLiveAppId ?? fallbackAppId;
+
+        return {
+          type: "embedInline",
+          attrs: {
+            embedRef: cleanRef,
+            embedId: resolvedEmbedId,
+            displayText: resolvedDisplayText,
+            appId,
+            focusLineStart: lineStart,
+            focusLineEnd: lineEnd,
+            highlightQuoteText,
+            focusSheetRange: sheetRange,
+          },
+        };
+      }
+    }
+
     // ── Wikipedia inline link: [display text](wiki:Article_Title) ─────────
     // The main processor includes Wikipedia topic references inline in its
     // response (see base_wikipedia_linking_instruction.md). Invalid titles
@@ -811,13 +842,17 @@ function extractEmbedId(attrs: any): string | null {
   return null;
 }
 
-function createLargePreviewNode(embedId: string, appId: string | null): any {
+function createLargePreviewNode(embedId: string, appId: string | null, attrs: any = {}): any {
   return {
     type: "embedPreviewLarge",
     attrs: {
       embedRef: embedId,
       embedId,
       appId,
+      receiver: attrs.receiver,
+      subject: attrs.subject,
+      content: attrs.content,
+      footer: attrs.footer,
       carouselIndex: 0,
       carouselTotal: 1,
     },
@@ -853,7 +888,7 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
       .map((item: any) => {
         const embedId = extractEmbedId(item);
         if (!embedId) return null;
-        return createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(item));
+        return createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(item), item);
       })
       .filter(Boolean);
 
@@ -862,7 +897,7 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
 
   const embedId = extractEmbedId(attrs);
   if (!embedId) return null;
-  return [createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(attrs))];
+  return [createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(attrs), attrs)];
 }
 
 /**

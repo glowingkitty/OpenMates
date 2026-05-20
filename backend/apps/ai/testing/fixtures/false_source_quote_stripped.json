@@ -1,0 +1,64 @@
+{
+  "fixture_id": "false_source_quote_stripped",
+  "recorded_at": "2026-05-17T18:55:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Regression fixture for false source quote stripping",
+  "verify_source_quotes": true,
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "False Quote Regression",
+    "icon_names": ["quote"],
+    "selected_model_id": "mock/fixture",
+    "selected_model_name": "Mock Fixture",
+    "mate_id": "default",
+    "chat_summary": "Testing false source quote stripping.",
+    "chat_tags": ["test", "quotes", "source-verification"],
+    "relevant_app_skills": ["web-search"],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Mock Fixture",
+    "provider_name": "Mock",
+    "server_region": "EU"
+  },
+  "response": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"11111111-1111-4111-8111-111111111111\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Burj Khalifa quote verification regression\", \"provider\": \"Fixture\"}\n```\n\nThe source says the Burj Khalifa had a previous name.\n\n> [The tower was known as Burj Dubai until its official opening in January 2010. It was renamed in honour of the ruler of Abu Dhabi, Khalifa bin Zayed Al Nahyan; Abu Dhabi and the federal government of UAE lent Dubai tens of billions of US dollars so that Dubai could pay its debts.](embed:en.wikipedia.org-gDS)\n\nThis sentence should remain after the invalid quote is removed.",
+  "embeds": {
+    "11111111-1111-4111-8111-111111111111": {
+      "type": "app_skill_use",
+      "app_id": "web",
+      "skill_id": "search",
+      "metadata": {
+        "query": "Burj Khalifa quote verification regression",
+        "provider": "Fixture"
+      },
+      "results": [
+        {
+          "type": "search_result",
+          "title": "Burj Khalifa - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Burj_Khalifa",
+          "description": "The tower was known as Burj Dubai (\"Dubai Tower\") until its official opening in January 2010. It was renamed in honour of the ruler of Abu Dhabi, Khalifa bin Zayed Al Nahyan; Abu Dhabi and the federal government of UAE lent Dubai tens of billions of US dollars so that Dubai could pay its debts - Dubai borrowed at least $80 billion for construction projects.",
+          "extra_snippets": "The tower was known as Burj Dubai (\"Dubai Tower\") until its official opening in January 2010.",
+          "profile_name": "Wikipedia",
+          "embed_ref": "en.wikipedia.org-gDS"
+        }
+      ]
+    }
+  },
+  "tool_calls_info": [
+    {
+      "embed_id": "11111111-1111-4111-8111-111111111111"
+    }
+  ],
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 80,
+    "total_credits": 3,
+    "model_name": "Mock Fixture"
+  }
+}

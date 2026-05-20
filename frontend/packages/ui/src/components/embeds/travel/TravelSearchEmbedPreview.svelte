@@ -43,6 +43,22 @@
     stops?: number;
     carriers?: string[];
   }
+
+  interface SearchLeg {
+    origin?: string;
+    destination?: string;
+    date?: string;
+  }
+
+  interface SearchResultGroup {
+    id?: string | number;
+    query?: string;
+    legs?: SearchLeg[];
+    transport_methods?: string[];
+    providers?: ProviderInfo[];
+    result_count?: number;
+    results?: ConnectionResult[];
+  }
   
   /** Provider metadata for favicon display */
   interface ProviderInfo {
@@ -67,7 +83,7 @@
     /** Processing status - must match SkillExecutionStatus */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Connection results (for finished state) */
-    results?: ConnectionResult[];
+    results?: Array<ConnectionResult | SearchResultGroup>;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill */
@@ -97,7 +113,7 @@
   let localProviders = $state<ProviderInfo[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
-  let localResults = $state<ConnectionResult[]>([]);
+  let localResults = $state<Array<ConnectionResult | SearchResultGroup>>([]);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
@@ -120,7 +136,6 @@
   // Use local state as the source of truth (allows updates from embed events)
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
@@ -169,7 +184,7 @@
       }
       
       if (content.results && Array.isArray(content.results)) {
-        localResults = content.results as ConnectionResult[];
+        localResults = content.results as Array<ConnectionResult | SearchResultGroup>;
       }
     }
   }
@@ -223,22 +238,16 @@
   // Skill icon
   const skillIconName = 'search';
   
-  // Provider display: prefer providers list (with icons), fall back to legacy text
-  let hasProviderIcons = $derived(providers.length > 0);
-  let viaProviderText = $derived(
-    provider ? `${$text('embeds.via')} ${provider}` : ''
-  );
-  
   /**
    * Flatten nested results if needed (backend returns [{id, results: [...]}] for multi-request)
    */
-  function flattenResults(rawResults: ConnectionResult[]): ConnectionResult[] {
+  function flattenResults(rawResults: Array<ConnectionResult | SearchResultGroup>): ConnectionResult[] {
     if (!rawResults || rawResults.length === 0) return [];
     
     const firstItem = rawResults[0] as Record<string, unknown>;
     if (firstItem && 'results' in firstItem && Array.isArray(firstItem.results)) {
       const flattened: ConnectionResult[] = [];
-      for (const entry of rawResults as unknown as Array<{ id?: string; results?: ConnectionResult[] }>) {
+      for (const entry of rawResults as SearchResultGroup[]) {
         if (entry.results && Array.isArray(entry.results)) {
           flattened.push(...entry.results);
         }
@@ -246,10 +255,41 @@
       return flattened;
     }
     
-    return rawResults;
+    return rawResults as ConnectionResult[];
   }
-  
+
+  function extractGroups(rawResults: Array<ConnectionResult | SearchResultGroup>): SearchResultGroup[] {
+    if (!rawResults || rawResults.length === 0) return [];
+    return rawResults.filter((entry): entry is SearchResultGroup => {
+      const candidate = entry as SearchResultGroup;
+      return Array.isArray(candidate.results) || Array.isArray(candidate.legs) || typeof candidate.query === 'string';
+    });
+  }
+
+  function groupProviders(groups: SearchResultGroup[]): ProviderInfo[] {
+    const seen = new Set<string>();
+    const providersFromGroups: ProviderInfo[] = [];
+    for (const group of groups) {
+      for (const providerInfo of group.providers || []) {
+        if (!providerInfo.id || seen.has(providerInfo.id)) continue;
+        seen.add(providerInfo.id);
+        providersFromGroups.push(providerInfo);
+      }
+    }
+    return providersFromGroups;
+  }
+   
   let flatResults = $derived(flattenResults(results));
+  let searchGroups = $derived(extractGroups(results));
+  let providers = $derived(localProviders.length > 0 ? localProviders : groupProviders(searchGroups));
+
+  // Provider display: prefer providers list (with icons), fall back to legacy text
+  let hasProviderIcons = $derived(providers.length > 0);
+  let viaProviderText = $derived(
+    provider && (flatResults.length > 0 || providers.length > 0)
+      ? `${$text('embeds.via')} ${provider}`
+      : ''
+  );
   
   // Route summary: origin → destination from first result
   let routeSummary = $derived.by(() => {
@@ -259,16 +299,24 @@
         return `${first.origin} → ${first.destination}`;
       }
     }
+    const firstGroup = searchGroups[0];
+    const firstLeg = firstGroup?.legs?.[0];
+    const lastLeg = firstGroup?.legs?.[firstGroup.legs.length - 1];
+    if (firstLeg?.origin && lastLeg?.destination) {
+      return `${firstLeg.origin} → ${lastLeg.destination}`;
+    }
+    if (firstGroup?.query) return firstGroup.query;
     return query || '';
   });
   
   // Date display: extract departure date from first result
   let dateDisplay = $derived.by(() => {
-    if (flatResults.length === 0) return '';
-    const first = flatResults[0];
-    if (!first.departure) return '';
+    const firstDeparture = flatResults[0]?.departure;
+    const firstGroupDate = searchGroups[0]?.legs?.[0]?.date;
+    const rawDate = firstDeparture || firstGroupDate;
+    if (!rawDate) return '';
     try {
-      const date = new Date(first.departure);
+      const date = new Date(rawDate);
       return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     } catch {
       return '';
@@ -296,7 +344,10 @@
   });
   
   // Connection count display
-  let connectionCount = $derived(flatResults.length);
+  let connectionCount = $derived.by(() => {
+    if (flatResults.length > 0) return flatResults.length;
+    return searchGroups.reduce((total, group) => total + (group.result_count || 0), 0);
+  });
   
   // Handle stop button click
   async function handleStop() {
@@ -374,12 +425,12 @@
       {:else if status === 'finished'}
         <!-- Finished state: show connection count and price -->
         <div class="ds-search-results-info">
-          {#if connectionCount > 0}
+          {#if isLoadingChildren}
+            <span class="ds-loading-text">{$text('common.loading')}</span>
+          {:else}
             <span class="connection-count">
               {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
             </span>
-          {:else if isLoadingChildren}
-            <span class="ds-loading-text">{$text('common.loading')}</span>
           {/if}
 
           {#if priceInfo}

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for images/search skill.
@@ -107,6 +106,8 @@ test.describe('App: Images / Skill: search', () => {
 
 		const embed = await waitForEmbedFinished(page, 'images', 'search');
 		logCheckpoint('Images search embed finished.');
+		await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30_000 });
+		logCheckpoint('Chat header image bubbles visible.');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay);

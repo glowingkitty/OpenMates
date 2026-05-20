@@ -228,6 +228,13 @@ _MIXED_URL_EMBED_PATTERN = re.compile(
     r'\[([^\]]+)\]\((https?://[^\s)]+)\)\s*\(embed:([^)]+)\)'
 )
 
+# Regex to detect correct inline embed links accidentally wrapped in inline code.
+# Markdown parsers treat `[title](embed:ref)` as code when backticked, so the UI
+# never sees a link mark and cannot convert it into an inline embed badge.
+_BACKTICKED_INLINE_EMBED_LINK_PATTERN = re.compile(
+    r'(?<!`)`(\[[^\]\n]*\]\(embed:[^)`\n]+\))`(?!`)'
+)
+
 _EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
 _EMAIL_SUBJECT_PATTERN = re.compile(r'^subject\s*:\s*(.+)$', re.IGNORECASE)
 _EMAIL_CONTENT_MARKER_PATTERN = re.compile(r'^content\s*:\s*$', re.IGNORECASE)
@@ -364,6 +371,7 @@ async def _verify_and_strip_bad_quotes(
     directus_service: Optional[DirectusService],
     encryption_service: Optional[EncryptionService],
     user_vault_key_id: Optional[str],
+    known_valid_refs: Optional[set[str]] = None,
     log_prefix: str = "",
 ) -> str:
     """
@@ -924,6 +932,31 @@ def _fix_mixed_url_embed_references(aggregated_response: str, log_prefix: str = 
     if replacements_made > 0:
         logger.info(
             f"{log_prefix} [MIXED_EMBED_FIX] Fixed {replacements_made} mixed URL+embed reference(s)"
+        )
+
+    return modified
+
+
+def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix: str = "") -> str:
+    """
+    Post-streaming safety fix: unwrap inline-code formatting around embed links.
+
+    The frontend only converts normal markdown links like `[text](embed:ref)` into
+    interactive inline embed badges. If the LLM wraps that exact link in backticks,
+    it renders as a grey code pill and stays visible as raw markdown.
+    """
+    if not aggregated_response or '`[' not in aggregated_response or '](embed:' not in aggregated_response:
+        return aggregated_response
+
+    modified, replacements_made = _BACKTICKED_INLINE_EMBED_LINK_PATTERN.subn(
+        lambda match: match.group(1),
+        aggregated_response,
+    )
+
+    if replacements_made > 0:
+        logger.info(
+            f"{log_prefix} [BACKTICKED_EMBED_FIX] Unwrapped "
+            f"{replacements_made} backticked inline embed reference(s)"
         )
 
     return modified
@@ -4487,6 +4520,32 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
                 f"Failed embed IDs: {failed_embed_ids}"
             )
+
+    # --- Backticked Inline Embed Reference Fix ---
+    # Detect and rewrite patterns where the LLM wrapped a correct embed markdown
+    # link in inline-code backticks, e.g.:
+    #   `[Ausflugsziele](embed:komoot.com-2gG)`
+    # Backticked links render as code pills, so the frontend cannot convert them
+    # into interactive inline embed badges.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        backticked_fixed_response = _fix_backticked_inline_embed_references(
+            aggregated_response,
+            log_prefix,
+        )
+        if backticked_fixed_response != aggregated_response:
+            aggregated_response = backticked_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            if cache_service:
+                backticked_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, backticked_fix_payload, log_prefix,
+                    f"Published response with backticked embed references fixed "
+                    f"(length: {len(aggregated_response)})"
+                )
 
     # --- Mixed URL+Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrote both an https:// markdown link

@@ -1906,7 +1906,10 @@ export async function handlePostProcessingCompletedImpl(
 
     const chat = await chatDB.getChat(payload.chat_id);
     if (!chat) {
-      throw new Error(`Chat ${payload.chat_id} not found`);
+      console.debug(
+        `[ChatSyncService:AI] Ignoring post-processing results for deleted/missing chat ${payload.chat_id}`,
+      );
+      return;
     }
 
     // KEYS-04: converted from getKeySync+getKey to withKey for key-before-content guarantee.

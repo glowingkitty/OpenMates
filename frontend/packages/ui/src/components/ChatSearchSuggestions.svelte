@@ -26,6 +26,8 @@
     convertDemoChatToChat,
   } from '../demo_chats';
   import type { Chat } from '../types/chat';
+  import Icon from './Icon.svelte';
+  import { embedStore, type UploadedFileSearchResult } from '../services/embedStore';
 
   /** Maximum number of existing chat results to show */
   const MAX_CHAT_RESULTS = 5;
@@ -33,10 +35,12 @@
   let {
     messageInputContent = '',
     onChatNavigate,
+    onFileSelect,
     currentChatId = undefined,
   }: {
     messageInputContent?: string;
     onChatNavigate: (chatId: string) => void;
+    onFileSelect: (file: UploadedFileSearchResult) => void;
     currentChatId?: string | undefined;
   } = $props();
 
@@ -50,6 +54,7 @@
   }
 
   let chatSearchResults = $state<ChatResultCard[]>([]);
+  let fileSearchResults = $state<UploadedFileSearchResult[]>([]);
   let searchGeneration = 0;
 
   function getPublicSearchChats(): Chat[] {
@@ -111,6 +116,7 @@
     const query = filterQuery;
     if (!query) {
       chatSearchResults = [];
+      fileSearchResults = [];
       return;
     }
 
@@ -132,7 +138,10 @@
           chatsToSearch = publicChats;
         }
 
-        const results = await performSearch(query, chatsToSearch, textFn);
+        const [results, fileResults] = await Promise.all([
+          performSearch(query, chatsToSearch, textFn),
+          embedStore.searchUploadedFiles(query),
+        ]);
         // Stale guard — a newer search was triggered while this one ran
         if (gen !== searchGeneration) return;
 
@@ -172,20 +181,44 @@
         // Final stale guard after async metadata resolution
         if (gen !== searchGeneration) return;
         chatSearchResults = processed;
+        fileSearchResults = fileResults;
       } catch (error) {
         console.error('[ChatSearchSuggestions] Chat search error:', error);
-        if (gen === searchGeneration) chatSearchResults = [];
+        if (gen === searchGeneration) {
+          chatSearchResults = [];
+          fileSearchResults = [];
+        }
       }
     })();
   });
 </script>
 
-{#if chatSearchResults.length > 0}
+{#if chatSearchResults.length > 0 || fileSearchResults.length > 0}
   <div class="chat-search-wrapper" data-testid="chat-search-suggestions">
     <div class="chat-search-header">
       {$text('chat.suggestions.related_chats')}
     </div>
     <div class="chat-search-scroll">
+      {#each fileSearchResults as fileResult (fileResult.embedId)}
+        <div class="chat-result-wrapper">
+          <button
+            class="suggestion-card file-result-card"
+            data-testid="file-search-result"
+            onclick={() => onFileSelect(fileResult)}
+          >
+            <span class="card-icon">
+              <Icon name={fileResult.iconName} type="skill" size="24px" noAnimation noMargin />
+            </span>
+            <span class="card-text">{fileResult.title}</span>
+          </button>
+          <span class="card-date">{fileResult.subtitle}</span>
+        </div>
+      {/each}
+
+      {#if fileSearchResults.length > 0 && chatSearchResults.length > 0}
+        <div class="chat-results-divider"></div>
+      {/if}
+
       {#each chatSearchResults as chatResult (chatResult.chatId)}
         {@const IconComponent = getLucideIcon(chatResult.iconName)}
         <div class="chat-result-wrapper">
@@ -300,6 +333,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .file-result-card {
+    background: var(--color-app-files, linear-gradient(135deg, #4867cd, #a0beff));
+  }
+
+  .chat-results-divider {
+    width: 1px;
+    min-width: 1px;
+    height: 40px;
+    background: var(--color-grey-30);
+    opacity: 0.4;
+    flex-shrink: 0;
+    border-radius: 1px;
+    align-self: center;
   }
 
   .card-text {

@@ -24,7 +24,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
-    import { SettingsSectionHeading } from './elements';
+    import { SettingsDropdown, SettingsSectionHeading } from './elements';
     import SkillExamplesSection from './SkillExamplesSection.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -33,6 +33,10 @@
     import { onDestroy } from 'svelte';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
+    import { authStore } from '../../stores/authStore';
+    import { userProfile, updateProfile } from '../../stores/userProfile';
+    import { notificationStore } from '../../stores/notificationStore';
+    import { getApiUrl, apiEndpoints } from '../../config/api';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -43,6 +47,7 @@
     }
     
     let { appId, skillId }: Props = $props();
+    let isAuthenticated = $derived($authStore.isAuthenticated);
     
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
@@ -64,6 +69,13 @@
     
     /** Whether this skill has models to show in a list. */
     let hasModels = $derived(skillModels.length > 0);
+    let skillKey = $derived(`${appId}.${skillId}`);
+    let defaultAppSkillModels = $derived($userProfile.default_app_skill_models || {});
+    let selectedSkillModel = $derived(defaultAppSkillModels[skillKey] ?? '');
+    let modelOptions = $derived([
+        { value: '', label: $text('settings.ai_ask.ai_ask_settings.model_auto') },
+        ...skillModels.map(model => ({ value: modelToValue(model), label: model.name })),
+    ]);
     
     /**
      * Format pricing information for display.
@@ -266,6 +278,40 @@
         });
     }
 
+    function modelToValue(model: AIModelMetadata): string {
+        return `${model.provider_id}/${model.id}`;
+    }
+
+    async function handleDefaultSkillModelChange(nextValue: string): Promise<void> {
+        const nextDefaults = { ...defaultAppSkillModels };
+        if (nextValue) {
+            nextDefaults[skillKey] = nextValue;
+        } else {
+            delete nextDefaults[skillKey];
+        }
+
+        updateProfile({ default_app_skill_models: nextDefaults });
+
+        try {
+            const response = await fetch(getApiUrl() + apiEndpoints.settings.aiModelDefaults, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ default_app_skill_models: nextDefaults }),
+                credentials: 'include',
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`[SkillDetails] Failed to save default skill model: ${response.status} – ${errorData?.detail ?? 'unknown error'}`);
+                notificationStore.error($text('settings.app_store.skills.default_model_save_error'));
+            } else {
+                notificationStore.success($text('settings.app_store.skills.default_model_saved'));
+            }
+        } catch (err) {
+            console.error('[SkillDetails] Network error while saving default skill model:', err);
+            notificationStore.error($text('settings.app_store.skills.default_model_save_error'));
+        }
+    }
+
     /**
      * Navigate to a provider's detail page.
      * Looks up the provider by display name to get its id for the route.
@@ -323,6 +369,26 @@
                     {/if}
                 </div>
             </div>
+
+            {#if isAuthenticated}
+                <div class="section">
+                    <SettingsSectionHeading title={$text('settings.app_store.skills.default_model')} icon="settings" />
+                    <div class="default-model-content">
+                        <label class="default-model-label" for="default-skill-model-select">
+                            {$text('settings.app_store.skills.default_model')}
+                        </label>
+                        <SettingsDropdown
+                            value={selectedSkillModel}
+                            options={modelOptions}
+                            ariaLabel={$text('settings.app_store.skills.default_model')}
+                            onChange={handleDefaultSkillModelChange}
+                        />
+                        <p class="default-model-description">
+                            {$text('settings.app_store.skills.default_model_description')}
+                        </p>
+                    </div>
+                </div>
+            {/if}
 
             <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
             <SkillExamplesSection {appId} {skillId} />
@@ -808,6 +874,26 @@
         font-size: 1.25rem;
         color: var(--color-grey-40);
         line-height: 1;
+    }
+
+    .default-model-content {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-4);
+        margin-left: var(--spacing-5);
+    }
+
+    .default-model-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-grey-100);
+    }
+
+    .default-model-description {
+        margin: 0;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--color-grey-60);
     }
     
     .error {

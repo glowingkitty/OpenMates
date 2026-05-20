@@ -1126,6 +1126,7 @@ export class GroupHandlerRegistry {
    * Check if two embed nodes can be grouped together
    */
   canGroup(nodeA: EmbedNodeAttributes, nodeB: EmbedNodeAttributes): boolean {
+    if (nodeA.referenceOnly || nodeB.referenceOnly) return false;
     const handler = this.getHandler(nodeA.type);
     return handler ? handler.canGroup(nodeA, nodeB) : false;
   }

@@ -269,6 +269,15 @@ export function parseEmbedNodes(
               if (embedRef.page_count != null) {
                 embedAttrs.pageCount = embedRef.page_count;
               }
+              if (embedRef.reference_only === true) {
+                embedAttrs.referenceOnly = true;
+              }
+
+              for (const key of ["receiver", "subject", "content", "footer"] as const) {
+                if (typeof embedRef[key] === "string") {
+                  embedAttrs[key] = embedRef[key];
+                }
+              }
 
               embedNodes.push(embedAttrs);
               console.debug(

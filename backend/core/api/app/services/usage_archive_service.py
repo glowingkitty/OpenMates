@@ -90,7 +90,7 @@ class UsageArchiveService:
         Returns:
             S3 key path if successful, None otherwise
         """
-        log_prefix = f"UsageArchiveService:"
+        log_prefix = "UsageArchiveService:"
         logger.info(f"{log_prefix} Archiving usage entries for user '{user_id_hash}', month '{year_month}'")
         
         try:
@@ -231,7 +231,7 @@ class UsageArchiveService:
             archive_s3_key: S3 key path to archived data
             summary_type: Type of summary ("chat", "app", or "api_key")
         """
-        log_prefix = f"UsageArchiveService:"
+        log_prefix = "UsageArchiveService:"
         collection_name = f"usage_monthly_{summary_type}_summaries"
         
         try:
@@ -289,7 +289,7 @@ class UsageArchiveService:
         Returns:
             List of decrypted usage entries (filtered if filters provided)
         """
-        log_prefix = f"UsageArchiveService:"
+        log_prefix = "UsageArchiveService:"
         logger.info(f"{log_prefix} Retrieving archived usage for user '{user_id_hash}', month '{year_month}'")
         
         try:
@@ -404,6 +404,30 @@ class UsageArchiveService:
                         if decrypted_output:
                             try:
                                 decrypted_entry["output_tokens"] = int(decrypted_output)
+                            except ValueError:
+                                pass
+
+                    encrypted_code_run_filenames = entry.get("encrypted_code_run_filenames")
+                    if encrypted_code_run_filenames:
+                        decrypted_filenames = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_code_run_filenames, user_vault_key_id
+                        )
+                        if decrypted_filenames:
+                            try:
+                                filenames = json.loads(decrypted_filenames)
+                                if isinstance(filenames, list):
+                                    decrypted_entry["code_run_filenames"] = [name for name in filenames if isinstance(name, str)]
+                            except ValueError:
+                                decrypted_entry["code_run_filenames"] = []
+
+                    encrypted_code_run_duration = entry.get("encrypted_code_run_duration_seconds")
+                    if encrypted_code_run_duration:
+                        decrypted_duration = await self.encryption_service.decrypt_with_user_key(
+                            encrypted_code_run_duration, user_vault_key_id
+                        )
+                        if decrypted_duration:
+                            try:
+                                decrypted_entry["code_run_duration_seconds"] = float(decrypted_duration)
                             except ValueError:
                                 pass
                     

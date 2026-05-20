@@ -5,7 +5,7 @@
   import ChatMessage from "./ChatMessage.svelte";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import { fade } from "svelte/transition";
-  import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
+  import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -57,6 +57,9 @@
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { introBannerVisible } from '../stores/uiStateStore';
+  import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
+  import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
+  import { chatDB } from '../services/db';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -66,6 +69,30 @@
   type TiptapDoc = {
     type: 'doc';
     content: Array<Record<string, unknown>>;
+  };
+
+  type TiptapNode = {
+    type?: string;
+    attrs?: Record<string, unknown>;
+    content?: TiptapNode[];
+  };
+
+  type ImageSearchCandidate = {
+    parentEmbedId: string;
+    childEmbedIds: string[];
+  };
+
+  type HeaderImageBubble = {
+    imageUrl: string;
+    parentEmbedId: string;
+    childEmbedId: string;
+    title?: string;
+  };
+
+  type ImageResultContent = {
+    title?: string;
+    image_url?: string;
+    thumbnail_url?: string;
   };
 
   interface InternalMessage {
@@ -233,6 +260,100 @@
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+  let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
+  let headerImageBubbleRequestId = 0;
+  let headerImageBubbleCandidateKey = '';
+  const HEADER_IMAGE_BUBBLE_LIMIT = 8;
+
+  function normalizeEmbedIds(embedIds: unknown): string[] {
+    if (typeof embedIds === 'string') {
+      return embedIds.split('|').map(id => id.trim()).filter(Boolean);
+    }
+    if (Array.isArray(embedIds)) {
+      return embedIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+    }
+    return [];
+  }
+
+  function collectImageSearchCandidates(node: TiptapNode | undefined, candidates: ImageSearchCandidate[]) {
+    if (!node) return;
+
+    const attrs = node.attrs;
+    if (attrs) {
+      const groupedItems = attrs.groupedItems;
+      if (Array.isArray(groupedItems)) {
+        for (const item of groupedItems) collectImageSearchCandidates({ attrs: item as Record<string, unknown> }, candidates);
+      }
+
+      const appId = attrs.app_id;
+      const skillId = attrs.skill_id;
+      const contentRef = attrs.contentRef;
+      if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+        candidates.push({
+          parentEmbedId: contentRef.slice('embed:'.length),
+          childEmbedIds: normalizeEmbedIds(attrs.embed_ids),
+        });
+      }
+    }
+
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) collectImageSearchCandidates(child, candidates);
+    }
+  }
+
+  async function resolveHeaderImageBubbles(candidates: ImageSearchCandidate[]): Promise<HeaderImageBubble[]> {
+    const seen = new Set<string>();
+    const bubbles: HeaderImageBubble[] = [];
+
+    for (const candidate of candidates) {
+      let childEmbedIds = candidate.childEmbedIds;
+      if (childEmbedIds.length === 0) {
+        const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
+        const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+        childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
+      }
+      if (childEmbedIds.length === 0) continue;
+
+      const remainingCount = HEADER_IMAGE_BUBBLE_LIMIT - bubbles.length;
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, remainingCount), 3, 250);
+      for (const childEmbed of childEmbeds) {
+        const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
+        const rawUrl = decodedChild?.thumbnail_url || decodedChild?.image_url;
+        if (!rawUrl || seen.has(rawUrl)) continue;
+
+        seen.add(rawUrl);
+        bubbles.push({
+          imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
+          parentEmbedId: candidate.parentEmbedId,
+          childEmbedId: childEmbed.embed_id,
+          title: decodedChild?.title,
+        });
+        if (bubbles.length >= HEADER_IMAGE_BUBBLE_LIMIT) return bubbles;
+      }
+    }
+
+    return bubbles;
+  }
+
+  async function persistResumeCardImageBubbles(bubbles: ResumeCardImageBubble[] | null): Promise<void> {
+    if (!currentChatId || isIncognito || isPublicChat(currentChatId)) return;
+
+    try {
+      const chat = await chatDB.getChat(currentChatId);
+      if (!chat) return;
+
+      const nextBubbles = bubbles?.slice(0, 2) ?? null;
+      const current = chat.resume_card_image_bubbles ?? null;
+      if (JSON.stringify(current) === JSON.stringify(nextBubbles)) return;
+
+      await chatDB.updateChat({
+        ...chat,
+        resume_card_image_bubbles: nextBubbles,
+      });
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to persist resume card image bubbles:', error);
+    }
+  }
 
   /**
    * Parse system message content to check if it's an app_settings_memories_response.
@@ -742,6 +863,53 @@
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
   let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+
+  $effect(() => {
+    const requestId = ++headerImageBubbleRequestId;
+
+    if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
+      headerImageBubbleCandidateKey = '';
+      headerImageBubbles = null;
+      void persistResumeCardImageBubbles(null);
+      return;
+    }
+
+    const candidates: ImageSearchCandidate[] = [];
+    for (const message of messages) {
+      collectImageSearchCandidates(message.content as TiptapNode | undefined, candidates);
+    }
+
+    if (candidates.length === 0) {
+      headerImageBubbleCandidateKey = '';
+      headerImageBubbles = null;
+      void persistResumeCardImageBubbles(null);
+      return;
+    }
+
+    const embedUpdateKey = messages
+      .map(message => message._embedUpdateTimestamp ?? '')
+      .join('|');
+    const candidateKey = `${candidates
+      .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
+      .join(';')}#${embedUpdateKey}`;
+    if (candidateKey === headerImageBubbleCandidateKey) return;
+    headerImageBubbleCandidateKey = candidateKey;
+
+    resolveHeaderImageBubbles(candidates)
+      .then((bubbles) => {
+        if (requestId !== headerImageBubbleRequestId) return;
+        headerImageBubbles = bubbles.length > 0 ? bubbles : null;
+        void persistResumeCardImageBubbles(
+          bubbles.length > 0 ? bubbles.map(({ imageUrl, title }) => ({ imageUrl, title })).slice(0, 2) : null,
+        );
+      })
+      .catch((error) => {
+        if (requestId !== headerImageBubbleRequestId) return;
+        console.warn('[ChatHistory] Failed to resolve image-search header bubbles:', error);
+        headerImageBubbles = null;
+        void persistResumeCardImageBubbles(null);
+      });
+  });
 
   // ─── Highlights aggregation for ChatHeader pill + navigation overlay ─────
   // Per-chat reactive selectors. The store is keyed by chat_id so switching
@@ -1674,6 +1842,7 @@
                 {videoTeaserMp4Url}
                 {videoTeaserWebpUrl}
                 {backgroundFrames}
+                {headerImageBubbles}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}

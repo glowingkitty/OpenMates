@@ -18,10 +18,14 @@
   interface Props {
     embedRef: string;
     embedId?: string | null;
+    receiver?: string | null;
+    subject?: string | null;
+    content?: string | null;
+    footer?: string | null;
     variant?: 'small' | 'large';
   }
 
-  let { embedRef, embedId = null, variant = 'small' }: Props = $props();
+  let { embedRef, embedId = null, receiver = null, subject = null, content = null, footer = null, variant = 'small' }: Props = $props();
 
   let containerEl = $state<HTMLElement | null>(null);
   let errorText = $state<string | null>(null);
@@ -125,6 +129,10 @@
       query: (data.query as string | null) || (decodedContent?.query as string | null) || null,
       url: (data.url as string | null) || (decodedContent?.url as string | null) || null,
       title: (data.title as string | null) || (decodedContent?.title as string | null) || null,
+      receiver: (decodedContent?.receiver as string | null) || (data.receiver as string | null) || undefined,
+      subject: (decodedContent?.subject as string | null) || (data.subject as string | null) || undefined,
+      content: (decodedContent?.content as string | null) || (data.content as string | null) || undefined,
+      footer: (decodedContent?.footer as string | null) || (data.footer as string | null) || undefined,
       filename: (data.filename as string | null) || null,
       language: (data.language as string | null) || null,
     } as EmbedNodeAttributes;
@@ -140,7 +148,30 @@
     containerEl.innerHTML = '';
     errorText = null;
 
+    const renderInlineMailPreview = async () => {
+      if (!containerEl || (!receiver && !subject && !content)) return false;
+      const renderer = getEmbedRenderer('mail-email');
+      if (!renderer) return false;
+      const attrs = {
+        id: embedRef,
+        type: 'mail-email',
+        status: 'finished',
+        contentRef: null,
+        app_id: 'mail',
+        skill_id: 'email',
+        receiver: receiver || undefined,
+        subject: subject || undefined,
+        content: content || undefined,
+        footer: footer || undefined,
+      } as EmbedNodeAttributes;
+      const maybePromise = renderer.render({ attrs, container: containerEl, content: containerEl });
+      if (maybePromise instanceof Promise) await maybePromise;
+      loading = false;
+      return true;
+    };
+
     if (!resolvedEmbedId) {
+      if (await renderInlineMailPreview()) return;
       loading = true;
       // Retry ref resolution: during cross-device sync, the ref→ID index may
       // not be populated yet. Bump embedRefIndexVersion after a delay to
@@ -169,6 +200,7 @@
       if (thisVersion !== renderVersion) return;
 
       if (!embedData) {
+        if (await renderInlineMailPreview()) return;
         loading = false;
         return;
       }

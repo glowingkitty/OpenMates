@@ -24,6 +24,7 @@
   }
 
   interface ProductAttributes {
+    [key: string]: unknown;
     is_organic?: boolean;
     is_vegan?: boolean;
     is_vegetarian?: boolean;
@@ -41,6 +42,13 @@
     brand?: string;
     price_cents?: number | null;
     price_eur?: string | null;
+    base_price?: string | null;
+    unit?: string | null;
+    stock?: number | null;
+    availability?: string | null;
+    is_salable?: boolean | null;
+    variation_id?: string | null;
+    color_child_item_ids?: string[];
     was_price_cents?: number | null;
     grammage?: string | null;
     purchase_url?: string;
@@ -146,6 +154,7 @@
     if (!raw || typeof raw !== 'object') return undefined;
     const attrs = raw as Record<string, unknown>;
     return {
+      ...attrs,
       is_organic: asBoolean(attrs.is_organic),
       is_vegan: asBoolean(attrs.is_vegan),
       is_vegetarian: asBoolean(attrs.is_vegetarian),
@@ -165,6 +174,15 @@
       brand: asString(content.brand),
       price_cents: asNumber(content.price_cents) ?? null,
       price_eur: asString(content.price_eur) || null,
+      base_price: asString(content.base_price) || null,
+      unit: asString(content.unit) || null,
+      stock: asNumber(content.stock) ?? null,
+      availability: asString(content.availability) || null,
+      is_salable: asBoolean(content.is_salable) ?? null,
+      variation_id: asString(content.variation_id) || null,
+      color_child_item_ids: Array.isArray(content.color_child_item_ids)
+        ? (content.color_child_item_ids.filter((item) => typeof item === 'string') as string[])
+        : undefined,
       was_price_cents: asNumber(content.was_price_cents) ?? null,
       grammage: asString(content.grammage) || null,
       purchase_url: asString(content.purchase_url) || asString(content.url),
@@ -284,6 +302,10 @@
       brand={result.brand}
       price_cents={result.price_cents}
       price_eur={result.price_eur}
+      base_price={result.base_price}
+      stock={result.stock}
+      availability={result.availability}
+      color_child_item_ids={result.color_child_item_ids}
       was_price_cents={result.was_price_cents}
       grammage={result.grammage}
       image_url={result.image_url}

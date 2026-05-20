@@ -304,6 +304,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/preview.svg");
 }
 
+.clickable-icon.icon_play {
+  -webkit-mask-image: url("@openmates/ui/static/icons/play.svg");
+  mask-image: url("@openmates/ui/static/icons/play.svg");
+}
+
 .clickable-icon.icon_fullscreen {
   -webkit-mask-image: url("@openmates/ui/static/icons/fullscreen.svg");
   mask-image: url("@openmates/ui/static/icons/fullscreen.svg");
@@ -1847,7 +1852,6 @@ div.clickable-icon {
   -webkit-mask-position: center;
   mask-position: center;
 }
-
 
 
 

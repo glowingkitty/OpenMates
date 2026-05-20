@@ -100,7 +100,7 @@ def parse_leaderboard(markdown_content: str) -> List[Dict[str, Any]]:
     ```
     1.
     ![Favicon for google](https://openrouter.ai/images/icons/GoogleGemini.svg)
-    [Gemini 3 Flash Preview](https://openrouter.ai/google/gemini-3-flash-preview)
+    [Gemini 3.5 Flash](https://openrouter.ai/google/gemini-3.5-flash)
     by [google](https://openrouter.ai/google)
     764B tokens
     40%

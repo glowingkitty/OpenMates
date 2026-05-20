@@ -17,6 +17,7 @@
   const MAX_WIDTH_PRODUCT_IMAGE = 1200;
 
   interface ProductAttributes {
+    [key: string]: unknown;
     is_organic?: boolean;
     is_vegan?: boolean;
     is_vegetarian?: boolean;
@@ -33,6 +34,13 @@
     brand?: string;
     price_cents?: number | null;
     price_eur?: string | null;
+    base_price?: string | null;
+    unit?: string | null;
+    stock?: number | null;
+    availability?: string | null;
+    is_salable?: boolean | null;
+    variation_id?: string | null;
+    color_child_item_ids?: string[];
     was_price_cents?: number | null;
     grammage?: string | null;
     purchase_url?: string;
@@ -122,6 +130,29 @@
     return tags;
   }
 
+  function formatStock(value: number | null | undefined): string {
+    if (value == null || value <= 0) return '';
+    return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
+  }
+
+  function getAttributeValue(key: string): string {
+    const value = product.attributes?.[key];
+    return value == null || value === '' ? '' : String(value);
+  }
+
+  function getFabricDetails(): { label: string; value: string }[] {
+    const details = [
+      { label: $text('embeds.shopping.material'), value: getAttributeValue('Material') },
+      { label: $text('embeds.shopping.width'), value: getAttributeValue('Stoffbreite (cm)') },
+      { label: $text('embeds.shopping.weight'), value: getAttributeValue('Gramm pro Laufmeter') },
+      { label: $text('embeds.shopping.motif'), value: getAttributeValue('Motiv') },
+      { label: $text('embeds.shopping.usage'), value: getAttributeValue('Verwendung') },
+      { label: $text('embeds.shopping.composition'), value: getAttributeValue('Baumwolle %') },
+    ];
+
+    return details.filter((detail) => detail.value.length > 0);
+  }
+
   let title = $derived(product.title || product.brand || 'Product');
   let subtitle = $derived(product.brand || product.provider || '');
   let displayPrice = $derived(getDisplayPrice());
@@ -130,6 +161,9 @@
   let tags = $derived(getTags());
   let imageUrl = $derived(product.image_url ? proxyImage(product.image_url, MAX_WIDTH_PRODUCT_IMAGE) : '');
   let ratingText = $derived(product.rating != null ? `★ ${product.rating.toFixed(1)}` : '');
+  let stockText = $derived(formatStock(product.stock));
+  let colorCount = $derived(product.color_child_item_ids?.length ?? 0);
+  let fabricDetails = $derived(getFabricDetails());
 </script>
 
 <UnifiedEmbedFullscreen
@@ -185,6 +219,23 @@
           <div class="grammage">{product.grammage}</div>
         {/if}
 
+        {#if product.base_price || product.unit}
+          <div class="detail-grid compact">
+            {#if product.base_price}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.base_price')}</span>
+                <span class="detail-value">{product.base_price}</span>
+              </div>
+            {/if}
+            {#if product.unit}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.unit')}</span>
+                <span class="detail-value">{product.unit}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         {#if ratingText}
           <div class="rating-row">
             <span class="rating">{ratingText}</span>
@@ -201,6 +252,35 @@
           <div class="delivery">{product.delivery[0]}</div>
         {/if}
 
+        {#if product.availability || stockText || colorCount > 0 || product.is_salable != null}
+          <div class="detail-grid">
+            {#if product.availability}
+              <div class="detail-item wide">
+                <span class="detail-label">{$text('embeds.shopping.availability')}</span>
+                <span class="detail-value">{product.availability}</span>
+              </div>
+            {/if}
+            {#if stockText}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.stock')}</span>
+                <span class="detail-value">{stockText}</span>
+              </div>
+            {/if}
+            {#if colorCount > 0}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.colors')}</span>
+                <span class="detail-value">{colorCount}</span>
+              </div>
+            {/if}
+            {#if product.is_salable != null}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.status')}</span>
+                <span class="detail-value">{product.is_salable ? $text('embeds.shopping.available') : $text('embeds.shopping.not_available')}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
         {#if product.bought_last_month}
           <div class="social-proof">{product.bought_last_month}</div>
         {/if}
@@ -210,6 +290,37 @@
             {#each tags as tag}
               <span class="tag">{tag}</span>
             {/each}
+          </div>
+        {/if}
+
+        {#if fabricDetails.length > 0}
+          <div class="fabric-details">
+            <h3>{$text('embeds.shopping.fabric_details')}</h3>
+            <div class="detail-grid">
+              {#each fabricDetails as detail}
+                <div class="detail-item">
+                  <span class="detail-label">{detail.label}</span>
+                  <span class="detail-value">{detail.value}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        {#if product.product_id || product.variation_id}
+          <div class="detail-grid compact muted">
+            {#if product.product_id}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.product_id')}</span>
+                <span class="detail-value">{product.product_id}</span>
+              </div>
+            {/if}
+            {#if product.variation_id}
+              <div class="detail-item">
+                <span class="detail-label">{$text('embeds.shopping.variation_id')}</span>
+                <span class="detail-value">{product.variation_id}</span>
+              </div>
+            {/if}
           </div>
         {/if}
 
@@ -331,6 +442,61 @@
     word-break: break-word;
   }
 
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-3);
+  }
+
+  .detail-grid.compact {
+    gap: var(--spacing-2);
+  }
+
+  .detail-grid.muted {
+    opacity: 0.78;
+  }
+
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-4);
+    background: var(--color-grey-0);
+  }
+
+  .detail-item.wide {
+    grid-column: 1 / -1;
+  }
+
+  .detail-label {
+    font-size: var(--font-size-tiny);
+    color: var(--color-font-secondary);
+    font-weight: 600;
+  }
+
+  .detail-value {
+    font-size: var(--font-size-xs);
+    color: var(--color-font-primary);
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .fabric-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-1);
+  }
+
+  .fabric-details h3 {
+    margin: 0;
+    font-size: var(--font-size-small);
+    color: var(--color-font-primary);
+  }
+
   .rating-row {
     display: flex;
     align-items: center;
@@ -391,6 +557,10 @@
 
     .price {
       font-size: var(--font-size-h2-mobile);
+    }
+
+    .detail-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

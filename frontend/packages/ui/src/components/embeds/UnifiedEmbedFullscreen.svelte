@@ -87,6 +87,8 @@
     onDownload?: () => void;
     /** Optional calendar handler - downloads an .ics calendar file for scheduled embeds */
     onCalendar?: () => void;
+    /** Optional run handler - starts sandbox execution for executable code embeds */
+    onRun?: () => void;
     /** Optional share handler - opens share menu for the embed */
     onShare?: () => void;
     /**
@@ -288,6 +290,12 @@
     /** Whether to show the preview/render toggle button in the top bar. */
     showPreview?: boolean;
 
+    /** Whether to show the code run button in the top bar. */
+    showRun?: boolean;
+
+    /** Whether code execution is currently active (highlights the run button). */
+    runActive?: boolean;
+
     /** Whether preview mode is currently active (highlights the button). */
     previewActive?: boolean;
 
@@ -302,6 +310,7 @@
     onCopy,
     onDownload,
     onCalendar,
+    onRun,
     onShare,
     showShare = true,
     content,
@@ -340,6 +349,8 @@
     onTogglePII,
     // Preview toggle props (for markdown/HTML render)
     showPreview = false,
+    showRun = false,
+    runActive = false,
     previewActive = false,
     onTogglePreview
   }: Props = $props();
@@ -704,13 +715,21 @@
     }
   }
 
-  function handleCalendar() {
-    if (onCalendar) {
-      onCalendar();
-    } else {
-      console.debug('[UnifiedEmbedFullscreen] Calendar action (no handler provided)');
+    function handleCalendar() {
+      if (onCalendar) {
+        onCalendar();
+      } else {
+        console.debug('[UnifiedEmbedFullscreen] Calendar action (no handler provided)');
+      }
     }
-  }
+
+    function handleRun() {
+      if (onRun) {
+        onRun();
+      } else {
+        console.debug('[UnifiedEmbedFullscreen] Run action (no handler provided)');
+      }
+    }
 
   /**
    * Deep-link from the embed header icon to the app-store skill settings page.
@@ -934,6 +953,9 @@
   $effect(() => {
     const query = $searchTextHighlightStore;
     const container = contentAreaElement;
+    let observer: MutationObserver | null = null;
+    let hasScrolledToFirstMatch = false;
+    const observerOptions = { childList: true, subtree: true, characterData: true };
 
     function removeExistingMarks(el: HTMLElement) {
       const marks = Array.from(el.querySelectorAll('mark.search-match'));
@@ -950,73 +972,238 @@
     // Converts typographic variants (ellipsis, smart quotes, dashes) to ASCII equivalents
     // so quotes that passed backend verification also match the rendered snippet text.
     function normalizeForSearch(text: string): string {
-      return text
-        .replace(/…/g, '...')             // … → ...
-        .replace(/[‘’]/g, "'")        // smart single quotes → '
-        .replace(/[“”]/g, '"')        // smart double quotes → "
-        .replace(/[–—]/g, '-')        // en/em dash → -
-        .replace(/\u00A0/g, ' ')         // NBSP → space
-        .replace(/\s{2,}/g, ' ')               // multiple spaces → single
-        .toLowerCase()
-        .trim();
+      return normalizeTextWithOffsets(text).normalizedText.trim();
+    }
+
+    function normalizeTextWithOffsets(text: string): { normalizedText: string; startOffsets: number[]; endOffsets: number[] } {
+      const translated: Array<{ char: string; startOffset: number; endOffset: number }> = [];
+      let normalizedText = '';
+      const startOffsets: number[] = [];
+      const endOffsets: number[] = [];
+
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const replacement = char === '…'
+          ? '...'
+          : /[‘’‚‛]/.test(char)
+            ? "'"
+            : /[“”„‟]/.test(char)
+              ? '"'
+              : /[–—―]/.test(char)
+                ? '-'
+                : /[\u00A0\u2007\u202F\u2009\s]/.test(char)
+                  ? ' '
+                  : char.toLowerCase();
+
+        for (const replacementChar of replacement) {
+          translated.push({ char: replacementChar, startOffset: i, endOffset: i + 1 });
+        }
+      }
+
+      let previousWasWhitespace = false;
+
+      for (let i = 0; i < translated.length; i += 1) {
+        const { char, startOffset, endOffset } = translated[i];
+        if (char === '-' && translated[i + 1]?.char === '-') {
+          normalizedText += '-';
+          startOffsets.push(startOffset);
+          endOffsets.push(translated[i + 1].endOffset);
+          previousWasWhitespace = false;
+          i += 1;
+          continue;
+        }
+
+        if (char === ' ') {
+          if (previousWasWhitespace) continue;
+          previousWasWhitespace = true;
+        } else {
+          previousWasWhitespace = false;
+        }
+
+        normalizedText += char;
+        startOffsets.push(startOffset);
+        endOffsets.push(endOffset);
+      }
+
+      return { normalizedText, startOffsets, endOffsets };
+    }
+
+    function getTextBoundaryElement(textNode: Text): Element | null {
+      return textNode.parentElement?.closest(
+        'address,article,aside,blockquote,dd,div,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hr,li,main,nav,ol,p,pre,section,table,tbody,td,tfoot,th,thead,tr,ul',
+      ) ?? null;
     }
 
     function applyHighlights(el: HTMLElement, q: string) {
       if (!el.isConnected) return;
-      removeExistingMarks(el);
-      if (!q || !q.trim()) return;
+      observer?.disconnect();
 
-      const lowerQuery = normalizeForSearch(q);
-      if (!lowerQuery) return;
+      try {
+        removeExistingMarks(el);
+        if (!q || !q.trim()) return;
 
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-      const textNodes: Text[] = [];
-      let node: Node | null;
-      while ((node = walker.nextNode())) {
-        // Skip aria-hidden elements (e.g. doc page-break spacers, line number columns)
-        let ancestor = node.parentElement;
-        let skip = false;
-        while (ancestor && ancestor !== el) {
-          if (ancestor.getAttribute('aria-hidden') === 'true') { skip = true; break; }
-          ancestor = ancestor.parentElement;
-        }
-        if (!skip) textNodes.push(node as Text);
-      }
+        const lowerQuery = normalizeForSearch(q);
+        if (!lowerQuery) return;
 
-      for (const textNode of textNodes) {
-        const textContent = textNode.textContent || '';
-        // Use plain lowercase for content — web search snippets are ASCII so no normalization
-        // needed. Normalizing content would shift character positions when … → ... expands.
-        const lowerContent = textContent.toLowerCase();
-        if (lowerContent.indexOf(lowerQuery) === -1) continue;
-
-        const fragment = document.createDocumentFragment();
-        let lastIdx = 0;
-        let searchFrom = 0;
-
-        while (searchFrom < lowerContent.length) {
-          const idx = lowerContent.indexOf(lowerQuery, searchFrom);
-          if (idx === -1) break;
-          if (idx > lastIdx) {
-            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+        const textNodes: Text[] = [];
+        const textNodesAfterLineBreak = new WeakSet<Text>();
+        let node: Node | null;
+        let pendingLineBreak = false;
+        while ((node = walker.nextNode())) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            if ((node as Element).tagName === 'BR') pendingLineBreak = true;
+            continue;
           }
-          const mark = document.createElement('mark');
-          mark.className = 'search-match';
-          mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
-          fragment.appendChild(mark);
-          lastIdx = idx + lowerQuery.length;
-          searchFrom = lastIdx;
+
+          // Skip aria-hidden elements (e.g. doc page-break spacers, line number columns)
+          let ancestor = node.parentElement;
+          let skip = false;
+          while (ancestor && ancestor !== el) {
+            if (ancestor.getAttribute('aria-hidden') === 'true') { skip = true; break; }
+            ancestor = ancestor.parentElement;
+          }
+          if (!skip) {
+            const textNode = node as Text;
+            if (pendingLineBreak) textNodesAfterLineBreak.add(textNode);
+            textNodes.push(textNode);
+            pendingLineBreak = false;
+          }
         }
 
-        if (lastIdx < textContent.length) {
-          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+        const segments: Array<{
+          textNode: Text;
+          normalizedStart: number;
+          normalizedEnd: number;
+          startOffsets: number[];
+          endOffsets: number[];
+        }> = [];
+        let normalizedContent = '';
+
+        let previousTextNode: Text | null = null;
+        for (const textNode of textNodes) {
+          const textContent = textNode.textContent || '';
+          let { normalizedText, startOffsets, endOffsets } = normalizeTextWithOffsets(textContent);
+          if (!normalizedText) continue;
+
+          if (
+            previousTextNode
+            && (
+              getTextBoundaryElement(previousTextNode) !== getTextBoundaryElement(textNode)
+              || textNodesAfterLineBreak.has(textNode)
+            )
+            && !normalizedContent.endsWith(' ')
+            && !normalizedText.startsWith(' ')
+          ) {
+            normalizedContent += ' ';
+          }
+
+          if (normalizedContent.endsWith(' ') && normalizedText.startsWith(' ')) {
+            const firstNonSpaceIndex = normalizedText.search(/[^ ]/);
+            if (firstNonSpaceIndex === -1) {
+              previousTextNode = textNode;
+              continue;
+            }
+            normalizedText = normalizedText.slice(firstNonSpaceIndex);
+            startOffsets = startOffsets.slice(firstNonSpaceIndex);
+            endOffsets = endOffsets.slice(firstNonSpaceIndex);
+          }
+
+          const normalizedStart = normalizedContent.length;
+          normalizedContent += normalizedText;
+          segments.push({
+            textNode,
+            normalizedStart,
+            normalizedEnd: normalizedContent.length,
+            startOffsets,
+            endOffsets,
+          });
+          previousTextNode = textNode;
         }
 
-        textNode.parentNode?.replaceChild(fragment, textNode);
+        if (normalizedContent.indexOf(lowerQuery) === -1) return;
+
+        const rangesByNode = new Map<Text, Array<{ start: number; end: number }>>();
+        const findSegmentIndex = (normalizedIndex: number) => {
+          let low = 0;
+          let high = segments.length - 1;
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            const segment = segments[mid];
+            if (normalizedIndex < segment.normalizedStart) {
+              high = mid - 1;
+            } else if (normalizedIndex >= segment.normalizedEnd) {
+              low = mid + 1;
+            } else {
+              return mid;
+            }
+          }
+          return -1;
+        };
+
+        let searchFrom = 0;
+        while (searchFrom < normalizedContent.length) {
+          const idx = normalizedContent.indexOf(lowerQuery, searchFrom);
+          if (idx === -1) break;
+          const endIdx = idx + lowerQuery.length - 1;
+          const startSegmentIndex = findSegmentIndex(idx);
+          const endSegmentIndex = findSegmentIndex(endIdx);
+          if (startSegmentIndex === -1 || endSegmentIndex === -1) break;
+          const startSegment = segments[startSegmentIndex];
+          const endSegment = segments[endSegmentIndex];
+          for (let segmentIndex = startSegmentIndex; segmentIndex <= endSegmentIndex; segmentIndex += 1) {
+            const segment = segments[segmentIndex];
+            const textLength = segment.textNode.textContent?.length ?? 0;
+            const rangeStart = segment === startSegment
+              ? segment.startOffsets[idx - segment.normalizedStart]
+              : 0;
+            const rangeEnd = segment === endSegment
+              ? segment.endOffsets[endIdx - segment.normalizedStart]
+              : textLength;
+            if (rangeEnd <= rangeStart) continue;
+            const ranges = rangesByNode.get(segment.textNode) ?? [];
+            ranges.push({ start: rangeStart, end: rangeEnd });
+            rangesByNode.set(segment.textNode, ranges);
+          }
+
+          searchFrom = idx + lowerQuery.length;
+        }
+
+        for (const textNode of [...textNodes].reverse()) {
+          const ranges = rangesByNode.get(textNode);
+          if (!ranges?.length) continue;
+          const textContent = textNode.textContent || '';
+          const sortedRanges = [...ranges].sort((a, b) => a.start - b.start);
+
+          const fragment = document.createDocumentFragment();
+          let lastIdx = 0;
+          for (const range of sortedRanges) {
+            if (range.start < lastIdx) continue;
+            if (range.start > lastIdx) {
+              fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, range.start)));
+            }
+            const mark = document.createElement('mark');
+            mark.className = 'search-match';
+            mark.textContent = textContent.slice(range.start, range.end);
+            fragment.appendChild(mark);
+            lastIdx = range.end;
+          }
+
+          if (lastIdx < textContent.length) {
+            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+          }
+
+          textNode.parentNode?.replaceChild(fragment, textNode);
+        }
+
+        const firstMatch = el.querySelector('mark.search-match') as HTMLElement | null;
+        if (firstMatch && !hasScrolledToFirstMatch) {
+          hasScrolledToFirstMatch = true;
+          firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+      } finally {
+        if (observer && el.isConnected) observer.observe(el, observerOptions);
       }
-
-      const firstMatch = el.querySelector('mark.search-match') as HTMLElement | null;
-      firstMatch?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }
 
     if (!container) return;
@@ -1036,19 +1223,19 @@
     // (e.g. markdown-it, highlight.js, or async embed child loading updating the DOM).
     // Debounce via rAF to avoid excessive re-runs on rapid DOM mutations.
     let mutationRafHandle: number | null = null;
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
       if (mutationRafHandle !== null) return; // already pending
       mutationRafHandle = requestAnimationFrame(() => {
         mutationRafHandle = null;
         applyHighlights(container, query);
       });
     });
-    observer.observe(container, { childList: true, subtree: true, characterData: true });
+    observer.observe(container, observerOptions);
 
     return () => {
       if (rafHandle !== null) cancelAnimationFrame(rafHandle);
       if (mutationRafHandle !== null) cancelAnimationFrame(mutationRafHandle);
-      observer.disconnect();
+      observer?.disconnect();
       if (container.isConnected) removeExistingMarks(container);
     };
   });
@@ -1130,6 +1317,8 @@
       showCopy={!!onCopy}
       showDownload={!!onDownload}
       showCalendar={!!onCalendar}
+      {showRun}
+      {runActive}
       {showPreview}
       {previewActive}
       {showPIIToggle}
@@ -1139,6 +1328,7 @@
       onCopy={handleCopy}
       onDownload={handleDownload}
       onCalendar={handleCalendar}
+      onRun={handleRun}
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}

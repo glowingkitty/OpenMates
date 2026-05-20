@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # backend/scripts/test_gemini_flash_function_calling.py
 #
-# Integration test script for Gemini 3 Flash via Google AI Studio.
+# Integration test script for Gemini 3.5 Flash via Google AI Studio.
 # This script tests both streaming and function calling capabilities.
 #
 # Run via docker exec:
@@ -15,7 +15,7 @@ import asyncio
 import sys
 import logging
 import argparse
-from typing import List, Dict, Any, Optional, Union, AsyncIterator
+from typing import List, Dict
 
 # Set up logging to see what's happening
 logging.basicConfig(
@@ -32,7 +32,7 @@ logging.getLogger("google").setLevel(logging.WARNING)
 
 async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
     """
-    Test streaming functionality with Gemini 3 Flash.
+    Test streaming functionality with Gemini 3.5 Flash.
     
     Streaming is critical for main processor usage - if streaming doesn't work,
     the model cannot be used for real-time responses.
@@ -40,13 +40,13 @@ async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
     from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
     
     print("\n" + "="*80)
-    print("GEMINI 3 FLASH STREAMING TESTS")
+    print("GEMINI 3.5 FLASH STREAMING TESTS")
     print("="*80 + "\n")
     
     results = {"passed": [], "failed": [], "errors": []}
     
     # Model to test - using the model_id as it appears in google.yml server config
-    model_id = "gemini-3-flash-preview"
+    model_id = "gemini-3.5-flash"
     
     # Test cases for streaming
     streaming_test_cases = [
@@ -86,7 +86,7 @@ async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
         
         try:
             task_id = f"test_streaming_{test_name.replace(' ', '_').lower()}"
-            
+
             # Call with stream=True
             stream_response = await invoke_google_ai_studio_chat_completions(
                 task_id=task_id,
@@ -94,7 +94,7 @@ async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
                 messages=messages,
                 secrets_manager=secrets_manager,
                 temperature=0.7,
-                max_tokens=200,
+                max_tokens=1024,
                 tools=tools,
                 tool_choice=None,
                 stream=True
@@ -120,8 +120,6 @@ async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
                     if chunk_count <= 3:
                         print(f"  Chunk {chunk_count}: {repr(chunk[:50])}...")
                 else:
-                    # Could be usage metadata or tool call
-                    from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
                     if hasattr(chunk, 'prompt_token_count'):
                         usage_metadata = chunk
                         print(f"  Usage: {chunk.prompt_token_count} input, {chunk.candidates_token_count} output tokens")
@@ -130,10 +128,15 @@ async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
             
             # Validate results
             if not collected_text:
-                print(f"❌ FAIL - No text content received from stream")
+                print("❌ FAIL - No text content received from stream")
                 results["failed"].append((test_name, "No text content"))
                 continue
-            
+
+            if "This response was cut short" in collected_text:
+                print("❌ FAIL - Response hit max token limit")
+                results["failed"].append((test_name, "Response hit max token limit"))
+                continue
+             
             print(f"✅ Received {chunk_count} chunks, total {len(collected_text)} chars")
             print(f"  Response preview: {collected_text[:100]}...")
             
@@ -152,7 +155,7 @@ async def run_streaming_tests(secrets_manager) -> Dict[str, List]:
 
 async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
     """
-    Test function calling with Gemini 3 Flash.
+    Test function calling with Gemini 3.5 Flash.
     
     Function calling (tool use) is required for the main processor to execute
     skills like web search, news, etc.
@@ -160,12 +163,12 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
     from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
     
     print("\n" + "="*80)
-    print("GEMINI 3 FLASH FUNCTION CALLING TESTS")
+    print("GEMINI 3.5 FLASH FUNCTION CALLING TESTS")
     print("="*80 + "\n")
     
     results = {"passed": [], "failed": [], "errors": []}
     
-    model_id = "gemini-3-flash-preview"
+    model_id = "gemini-3.5-flash"
     
     # Define test tools
     test_tools = [
@@ -330,7 +333,7 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
                 messages=messages,
                 secrets_manager=secrets_manager,
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=1024,
                 tools=tools,
                 tool_choice=tool_choice,
                 stream=stream
@@ -350,8 +353,6 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
                     if isinstance(chunk, str):
                         text_content += chunk
                     else:
-                        # Check if it's a tool call
-                        from backend.apps.ai.llm_providers.google_client import ParsedGoogleToolCall, GoogleUsageMetadata
                         if hasattr(chunk, 'function_name'):
                             tool_calls_received.append(chunk)
                             print(f"  Tool call received: {chunk.function_name}")
@@ -360,7 +361,7 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
                             print(f"  Usage: {chunk.prompt_token_count} input, {chunk.candidates_token_count} output tokens")
                 
                 if not tool_calls_received:
-                    print(f"❌ FAIL - No tool calls received in stream")
+                    print("❌ FAIL - No tool calls received in stream")
                     if text_content:
                         print(f"  Text content instead: {text_content[:200]}...")
                     results["failed"].append((test_name, "No tool calls in stream"))
@@ -378,7 +379,7 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
                     continue
                 
                 if not response.tool_calls_made or len(response.tool_calls_made) == 0:
-                    print(f"❌ FAIL - No tool calls were made")
+                    print("❌ FAIL - No tool calls were made")
                     if response.direct_message_content:
                         print(f"  Response content: {response.direct_message_content[:200]}...")
                     results["failed"].append((test_name, "No tool calls were made"))
@@ -431,7 +432,7 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
                     
             elif called_function_name == "web_search":
                 if "query" not in args:
-                    print(f"❌ FAIL - Missing required parameter: query")
+                    print("❌ FAIL - Missing required parameter: query")
                     results["failed"].append((test_name, "Missing query parameter"))
                     validation_passed = False
                 elif not isinstance(args.get("query"), str) or len(args.get("query", "").strip()) == 0:
@@ -441,7 +442,7 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
                     
             elif called_function_name == "get_weather":
                 if "location" not in args:
-                    print(f"❌ FAIL - Missing required parameter: location")
+                    print("❌ FAIL - Missing required parameter: location")
                     results["failed"].append((test_name, "Missing location parameter"))
                     validation_passed = False
                 elif not isinstance(args.get("location"), str) or len(args.get("location", "").strip()) == 0:
@@ -463,7 +464,7 @@ async def run_function_calling_tests(secrets_manager) -> Dict[str, List]:
 
 async def run_main_processor_simulation(secrets_manager) -> Dict[str, List]:
     """
-    Simulate a main processor call using Gemini 3 Flash.
+    Simulate a main processor call using Gemini 3.5 Flash.
     
     This tests the model in a more realistic scenario with:
     - System prompt similar to what main_processor uses
@@ -478,7 +479,7 @@ async def run_main_processor_simulation(secrets_manager) -> Dict[str, List]:
     
     results = {"passed": [], "failed": [], "errors": []}
     
-    model_id = "gemini-3-flash-preview"
+    model_id = "gemini-3.5-flash"
     
     # Simulate main processor system prompt (simplified)
     system_prompt = """You are a helpful AI assistant named Mates. Current date and time: 2026-01-14 10:00:00 UTC.
@@ -592,7 +593,7 @@ Be helpful, accurate, and concise."""
                 messages=messages,
                 secrets_manager=secrets_manager,
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=1024,
                 tools=test_tools,
                 tool_choice=tool_choice,
                 stream=stream
@@ -606,7 +607,6 @@ Be helpful, accurate, and concise."""
                 if isinstance(chunk, str):
                     text_content += chunk
                 else:
-                    from backend.apps.ai.llm_providers.google_client import ParsedGoogleToolCall
                     if hasattr(chunk, 'function_name'):
                         tool_calls.append(chunk)
             
@@ -632,12 +632,15 @@ Be helpful, accurate, and concise."""
                     print(f"⚠️  Got tool call when direct response expected: {tool_calls[0].function_name}")
                     # This might be acceptable - model decided to use tools
                     results["passed"].append(test_name + " (used tool)")
+                elif "This response was cut short" in text_content:
+                    print("❌ FAIL - Response hit max token limit")
+                    results["failed"].append((test_name, "Response hit max token limit"))
                 elif text_content:
-                    print(f"✅ PASS - Got direct response")
+                    print("✅ PASS - Got direct response")
                     print(f"  Response: {text_content[:200]}...")
                     results["passed"].append(test_name)
                 else:
-                    print(f"❌ FAIL - No response received")
+                    print("❌ FAIL - No response received")
                     results["failed"].append((test_name, "No response"))
                     
         except Exception as e:
@@ -650,12 +653,12 @@ Be helpful, accurate, and concise."""
 
 async def run_integration_tests(run_streaming=True, run_function_calling=True, run_main_sim=True):
     """
-    Run integration tests for Gemini 3 Flash via Google AI Studio.
+    Run integration tests for Gemini 3.5 Flash via Google AI Studio.
     """
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     
     print("\n" + "="*80)
-    print("GEMINI 3 FLASH INTEGRATION TESTS (Google AI Studio)")
+    print("GEMINI 3.5 FLASH INTEGRATION TESTS (Google AI Studio)")
     print("="*80 + "\n")
     
     # Initialize services
@@ -745,7 +748,7 @@ async def run_integration_tests(run_streaming=True, run_function_calling=True, r
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Test Gemini 3 Flash via Google AI Studio")
+    parser = argparse.ArgumentParser(description="Test Gemini 3.5 Flash via Google AI Studio")
     parser.add_argument("--streaming-only", action="store_true", help="Run only streaming tests")
     parser.add_argument("--function-calling-only", action="store_true", help="Run only function calling tests")
     parser.add_argument("--main-sim-only", action="store_true", help="Run only main processor simulation tests")

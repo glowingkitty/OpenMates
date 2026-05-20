@@ -286,6 +286,14 @@ preprocess_request_tool:
         # category, harmful_or_illegal, misuse_risk, output_language are added to required by Python
         # on follow-up messages (when is_first_message is False)
 
+base_embed_source_quote_instruction: |
+  Source quote rules for embed citations:
+  - Use source quote blockquotes only when you copy exact 1:1 text from a result's title, description, extra_snippets, markdown, table, code, or transcript.
+  - The quote text inside `> [quote](embed:ref)` must be verbatim: do not paraphrase, summarize, shorten, remove parentheticals, change punctuation, join separate passages, or stop before the source sentence continues.
+  - If the exact text is too long, quote a shorter contiguous passage that appears exactly in the source instead of editing it.
+  - If you cannot copy exact source text, do not use a quote block. Write normal prose and cite the source with a regular `[title](embed:ref)` link if needed.
+  - Modified, false, or non-existing source quotes are automatically removed from the assistant response before the user sees them.
+
 postprocess_response_tool:
   type: "function"
   function:
@@ -470,4 +478,3 @@ url_correction_tool:
           description: "The corrected assistant response with broken URLs removed. Optionally includes natural language questions asking if the user wants the chatbot to search for that topic, but only when contextually appropriate. Must maintain the same structure, tone, and content as the original."
       required:
         - "assistant_response_corrected"
-

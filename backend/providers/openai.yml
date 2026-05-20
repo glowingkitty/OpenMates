@@ -8,6 +8,45 @@ description: "AI models and services from OpenAI."
 logo_svg: "logos/openai.svg" # Path for UI, relative to a common logos directory
 
 models:
+  - id: "gpt-image-2"
+    name: "GPT Image 2"
+    description: "OpenAI's state-of-the-art image generation and editing model with strong prompt adherence, typography, and flexible image sizes."
+    country_origin: "US"
+    for_app_skill: "images.generate"
+    release_date: "2026-04-21"
+    allow_auto_select: false
+    input_types:
+      - text
+      - image
+    output_types:
+      - image
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-image-2"
+        region: "US"
+    pricing:
+      per_unit:
+        credits: 250 # High quality 1024 output is estimated at ~$0.211; 250 credits avoids loss and covers overhead.
+        unit_name: "image"
+    costs:
+      text_input_per_million_token:
+        price: 5.00
+        currency: USD
+      image_input_per_million_token:
+        price: 8.00
+        currency: USD
+      cached_text_input_per_million_token:
+        price: 1.25
+        currency: USD
+      cached_image_input_per_million_token:
+        price: 2.00
+        currency: USD
+      image_output_per_million_token:
+        price: 30.00
+        currency: USD
+
   - id: "gpt-5.5"
     name: "GPT-5.5"
     description: "OpenAI's most capable frontier model with advanced reasoning, coding, and multimodal understanding."

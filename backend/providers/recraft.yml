@@ -11,12 +11,12 @@
 # Vault secret: kv/data/providers/recraft → api_key
 #
 # Raster models (PNG/JPG output, output_filetype != "svg"):
-#   recraftv4:     $0.04/image →  50 credits (1024×1024)  [25% margin above break-even]
-#   recraftv4_pro: $0.25/image → 250 credits (2048×2048)  [break-even]
+#   recraftv4_1:     $0.04/image →  50 credits [25% margin above break-even]
+#   recraftv4_1_pro: $0.25/image → 250 credits [break-even]
 #
 # Vector models (SVG output, output_filetype == "svg"):
-#   recraftv4_vector:     $0.08/image → 100 credits (default quality)  [25% margin above break-even]
-#   recraftv4_pro_vector: $0.30/image → 300 credits (max quality)      [break-even]
+#   recraftv4_1_vector:     $0.08/image → 100 credits [25% margin above break-even]
+#   recraftv4_1_pro_vector: $0.30/image → 300 credits [break-even]
 
 provider_id: "recraft"
 name: "Recraft"
@@ -24,12 +24,12 @@ description: "State-of-the-art image generation for both raster (PNG/JPG) and ve
 logo_svg: "icons/recraft.svg"
 
 models:
-  - id: "recraftv4"
-    name: "Recraft V4"
-    description: "1024×1024 raster image generation from text prompts. Fast and cost-effective. Best for photos, realistic scenes, and general illustration."
+  - id: "recraftv4_1"
+    name: "Recraft V4.1"
+    description: "Latest Recraft raster image generation from text prompts. Fast and cost-effective. Best for photos, realistic scenes, and general illustration."
     country_origin: "US"
     for_app_skill: "images.generate" # Used when output_filetype=png/jpg, quality=default
-    release_date: "2026-02-01"
+    release_date: "2026-05-01"
     input_types:
       - text
     output_types:
@@ -38,7 +38,7 @@ models:
     servers:
       - id: "recraft"
         name: "Recraft API"
-        model_id: "recraftv4"
+        model_id: "recraftv4_1"
         region: "US"
     pricing:
       per_unit:
@@ -49,12 +49,12 @@ models:
         price: 0.04
         currency: USD
 
-  - id: "recraftv4_pro"
-    name: "Recraft V4 Pro"
-    description: "2048×2048 high-resolution raster image generation. Best for print-ready assets, large-format output, and highly detailed compositions."
+  - id: "recraftv4_1_pro"
+    name: "Recraft V4.1 Pro"
+    description: "Latest high-resolution Recraft raster image generation. Best for print-ready assets, large-format output, and highly detailed compositions."
     country_origin: "US"
     for_app_skill: "images.generate" # Used when output_filetype=png/jpg, quality=max
-    release_date: "2026-02-01"
+    release_date: "2026-05-01"
     input_types:
       - text
     output_types:
@@ -63,7 +63,7 @@ models:
     servers:
       - id: "recraft"
         name: "Recraft API"
-        model_id: "recraftv4_pro"
+        model_id: "recraftv4_1_pro"
         region: "US"
     pricing:
       per_unit:
@@ -74,12 +74,12 @@ models:
         price: 0.25
         currency: USD
 
-  - id: "recraftv4_vector"
-    name: "Recraft V4 Vector"
-    description: "1MP vector generation from text prompts. Best for icons, logos, illustrations, and web graphics."
+  - id: "recraftv4_1_vector"
+    name: "Recraft V4.1 Vector"
+    description: "Latest Recraft vector generation from text prompts. Best for icons, logos, illustrations, and web graphics."
     country_origin: "US"
     for_app_skill: "images.generate" # Used when output_filetype=svg, quality=default
-    release_date: "2026-02-01"
+    release_date: "2026-05-01"
     input_types:
       - text
     output_types:
@@ -88,7 +88,7 @@ models:
     servers:
       - id: "recraft"
         name: "Recraft API"
-        model_id: "recraftv4_vector"
+        model_id: "recraftv4_1_vector"
         region: "US"
     pricing:
       per_unit:
@@ -99,12 +99,12 @@ models:
         price: 0.08
         currency: USD
 
-  - id: "recraftv4_pro_vector"
-    name: "Recraft V4 Pro Vector"
-    description: "4MP high-resolution vector generation. Best for print-ready assets, detailed illustrations, and large-format output."
+  - id: "recraftv4_1_pro_vector"
+    name: "Recraft V4.1 Pro Vector"
+    description: "Latest high-resolution Recraft vector generation. Best for print-ready assets, detailed illustrations, and large-format output."
     country_origin: "US"
     for_app_skill: "images.generate" # Used when output_filetype=svg, quality=max
-    release_date: "2026-02-01"
+    release_date: "2026-05-01"
     input_types:
       - text
     output_types:
@@ -113,7 +113,7 @@ models:
     servers:
       - id: "recraft"
         name: "Recraft API"
-        model_id: "recraftv4_pro_vector"
+        model_id: "recraftv4_1_pro_vector"
         region: "US"
     pricing:
       per_unit:
@@ -154,10 +154,10 @@ models:
 # Break-even formula:  credits_break_even = cost_usd / 0.001
 #
 # Model                 API cost   Break-even   Charged   Margin
-# recraftv4             $0.04      40 credits    50 cr     +25%
-# recraftv4_pro         $0.25     250 credits   250 cr      0%  (pass-through)
-# recraftv4_vector      $0.08      80 credits   100 cr     +25%
-# recraftv4_pro_vector  $0.30     300 credits   300 cr      0%  (pass-through)
+# recraftv4_1             $0.04      40 credits    50 cr     +25%
+# recraftv4_1_pro         $0.25     250 credits   250 cr      0%  (pass-through)
+# recraftv4_1_vector      $0.08      80 credits   100 cr     +25%
+# recraftv4_1_pro_vector  $0.30     300 credits   300 cr      0%  (pass-through)
 # vectorize             $0.01      10 credits    15 cr     +50%
 #
 # Rationale: default-quality models carry a 25% margin to cover infrastructure overhead

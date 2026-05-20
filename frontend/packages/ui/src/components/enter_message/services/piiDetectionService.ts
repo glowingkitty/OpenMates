@@ -32,6 +32,7 @@
  */
 export type PIIType =
   | "EMAIL"
+  | "ADDRESS"
   | "PHONE"
   | "AWS_ACCESS_KEY"
   | "AWS_SECRET_KEY"
@@ -644,6 +645,7 @@ const MIN_PII_TEXT_LENGTH = 6;
 
 export const PII_TYPE_TO_CATEGORY: Record<PIIType, string> = {
   EMAIL: "email_addresses",
+  ADDRESS: "addresses",
   PHONE: "phone_numbers",
   CREDIT_CARD: "credit_card_numbers",
   SSN: "social_security_numbers",
@@ -698,6 +700,7 @@ export interface PersonalDataForDetection {
   replaceWith: string;
   /** Optional additional text lines to detect (for address entries) */
   additionalTexts?: string[];
+  type?: PIIType;
 }
 
 /**
@@ -889,7 +892,7 @@ export function detectPII(
               : `[${entry.replaceWith}]`;
 
             matches.push({
-              type: "EMAIL" as PIIType, // Use EMAIL as a stand-in type for compatibility
+              type: entry.type ?? "EMAIL",
               match: matchText,
               startIndex,
               endIndex,
@@ -949,6 +952,7 @@ export function replacePIIWithPlaceholders(
  * from deserialized PII mappings.
  */
 export function getPIILabel(type: string): string {
+  if (type === "ADDRESS") return "Address";
   const pattern = PII_PATTERNS.find((p) => p.type === type);
   return pattern?.label ?? type;
 }

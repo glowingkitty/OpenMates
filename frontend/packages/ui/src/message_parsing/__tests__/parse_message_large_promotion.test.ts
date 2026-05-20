@@ -267,4 +267,16 @@ describe("parse_message assistant large promotion", () => {
     expect(inline?.attrs?.embedRef).toBe("flixtrain-1423-3VT");
     expect(inline?.attrs?.displayText).toBe("FlixTrain 14:23");
   });
+
+  it("renders backticked inline embed links as embedInline nodes", () => {
+    const doc = parseAssistant(
+      "- `[Ausflugsziele in Brandenburg - Die Top 20](embed:komoot.com-2gG)`",
+    );
+    const inline = findInlineEmbeds(doc.content || [])[0];
+
+    expect(inline?.attrs?.embedRef).toBe("komoot.com-2gG");
+    expect(inline?.attrs?.displayText).toBe(
+      "Ausflugsziele in Brandenburg - Die Top 20",
+    );
+  });
 });

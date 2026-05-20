@@ -57,6 +57,29 @@ const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
 const DIRECT_EMBED_REF_ID_PREFIX_RE = /^[0-9a-f]{6}$/i;
 
+const FILE_SEARCH_RESULT_LIMIT = 6;
+const FILE_LIKE_EMBED_TYPES = new Set([
+  "pdf",
+  "image",
+  "images-image",
+  "code",
+  "code-code",
+  "audio",
+  "recording",
+]);
+
+export interface UploadedFileSearchResult {
+  embedId: string;
+  contentRef: string;
+  title: string;
+  subtitle: string;
+  type: string;
+  nodeType: EmbedType;
+  iconName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Reactive version counter — incremented on every registerEmbedRef() call.
 // EmbedInlineLink.svelte subscribes to this Svelte store so it re-derives
 // effectiveAppId whenever new refs are registered (e.g. after a page-reload
@@ -146,6 +169,48 @@ async function decodeToonContentLocal(
   }
 }
 
+async function decodeToonContentSilently(
+  toonContent: string | null | undefined,
+): Promise<unknown> {
+  if (!toonContent || typeof toonContent !== "string") {
+    return typeof toonContent === "object" ? toonContent : null;
+  }
+
+  await initToonDecoder();
+
+  if (toonDecode) {
+    try {
+      return toonDecode(toonContent, { strict: false });
+    } catch {
+      // File search runs over private local embeds. Do not log content previews here.
+    }
+  }
+
+  try {
+    return JSON.parse(toonContent);
+  } catch {
+    return null;
+  }
+}
+
+function addSearchableName(names: string[], value: unknown): void {
+  if (typeof value !== "string" || !value.trim()) return;
+  const trimmed = value.trim();
+  const basename = trimmed.split("/").pop() || trimmed;
+  if (!names.includes(basename)) names.push(basename);
+  if (!names.includes(trimmed)) names.push(trimmed);
+}
+
+function getFileNamesFromDecodedContent(decoded: unknown): string[] {
+  const names: string[] = [];
+  if (!decoded || typeof decoded !== "object") return names;
+  const record = decoded as Record<string, unknown>;
+  for (const key of ["filename", "file_name", "file_path", "original_filename"]) {
+    addSearchableName(names, record[key]);
+  }
+  return names;
+}
+
 /**
  * Interface for embed key entries stored in embed_keys collection
  */
@@ -159,6 +224,154 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  private isFileLikeType(type: string | undefined): boolean {
+    if (!type) return false;
+    return FILE_LIKE_EMBED_TYPES.has(type);
+  }
+
+  private inferNodeTypeFromFileName(fileName: string, fallbackType: string): EmbedType {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith(".pdf") || fallbackType === "pdf") return "pdf";
+    if (/\.(png|jpe?g|gif|webp|svg|avif|heic|heif)$/.test(lower) || fallbackType.includes("image")) return "image";
+    if (/\.(ts|tsx|js|jsx|py|rs|go|java|kt|swift|css|scss|html|md|json|yaml|yml|toml|xml|sql|sh|txt)$/.test(lower) || fallbackType.includes("code")) return "code-code";
+    if (/\.(doc|docx|odt|rtf)$/.test(lower) || fallbackType.includes("doc")) return "docs-doc";
+    if (/\.(mp3|wav|m4a|ogg|webm)$/.test(lower) || fallbackType.includes("audio") || fallbackType === "recording") return "recording";
+    if (this.isFileLikeType(fallbackType)) return fallbackType as EmbedType;
+    return "docs-doc";
+  }
+
+  private getFileIconName(nodeType: EmbedType): string {
+    if (nodeType === "pdf") return "pdf";
+    if (nodeType === "image") return "image";
+    if (nodeType === "code-code") return "coding";
+    if (nodeType === "docs-doc") return "document";
+    if (nodeType === "recording") return "audio";
+    return "file";
+  }
+
+  private getFileSubtitle(nodeType: EmbedType): string {
+    if (nodeType === "pdf") return "PDF";
+    if (nodeType === "image") return "Image";
+    if (nodeType === "code-code") return "Code file";
+    if (nodeType === "recording") return "Audio";
+    return "Uploaded file";
+  }
+
+  private hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean {
+    return this.isFileLikeType(entry.type) || !!entry.file_path || !!entry.encrypted_type;
+  }
+
+  private async getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]> {
+    const names: string[] = [];
+    addSearchableName(names, entry.file_path);
+
+    const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name;
+    addSearchableName(names, metadataName);
+
+    try {
+      const resolved = await this.get(entry.contentRef);
+      if (resolved && typeof resolved === "object") {
+        for (const name of getFileNamesFromDecodedContent(resolved)) {
+          addSearchableName(names, name);
+        }
+
+        const content = (resolved as Record<string, unknown>).content;
+        if (typeof content === "string") {
+          const decoded = await decodeToonContentSilently(content);
+          for (const name of getFileNamesFromDecodedContent(decoded)) {
+            addSearchableName(names, name);
+          }
+        }
+      }
+    } catch {
+      // Search should be best-effort and must not log private embed content.
+    }
+
+    if (entry.encrypted_content) {
+      const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
+      if (!embedId) return names;
+
+      try {
+        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        if (!embedKey) return names;
+
+        const decryptedContent = await decryptWithEmbedKey(
+          entry.encrypted_content,
+          embedKey,
+        );
+        const decoded = await decodeToonContentSilently(decryptedContent);
+        for (const name of getFileNamesFromDecodedContent(decoded)) {
+          addSearchableName(names, name);
+        }
+      } catch {
+        return names;
+      }
+    }
+
+    return names;
+  }
+
+  async searchUploadedFiles(
+    query: string,
+    limit: number = FILE_SEARCH_RESULT_LIMIT,
+  ): Promise<UploadedFileSearchResult[]> {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return [];
+
+    try {
+      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+      const allEntries = await new Promise<EmbedStoreEntry[]>((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+
+      const candidates = allEntries
+        .filter((entry) => entry?.contentRef && entry.status !== "error" && entry.status !== "cancelled")
+        .filter((entry) => this.hasUploadSearchEvidence(entry))
+        .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+
+      const results: UploadedFileSearchResult[] = [];
+      const seenEmbedIds = new Set<string>();
+
+      for (const entry of candidates) {
+        const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
+        if (!embedId || seenEmbedIds.has(embedId)) continue;
+
+        const searchableNames = await this.getSearchableFileNames(entry);
+        const title = searchableNames[0];
+        if (!title) continue;
+
+        const haystack = [...searchableNames, entry.file_path, entry.type]
+          .filter((value): value is string => typeof value === "string" && value.length > 0)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(normalizedQuery)) continue;
+
+        const nodeType = this.inferNodeTypeFromFileName(title, entry.type || "file");
+        results.push({
+          embedId,
+          contentRef: entry.contentRef,
+          title,
+          subtitle: this.getFileSubtitle(nodeType),
+          type: entry.type || "file",
+          nodeType,
+          iconName: this.getFileIconName(nodeType),
+          createdAt: entry.createdAt || 0,
+          updatedAt: entry.updatedAt || entry.createdAt || 0,
+        });
+        seenEmbedIds.add(embedId);
+        if (results.length >= limit) break;
+      }
+
+      return results;
+    } catch (error) {
+      console.warn("[EmbedStore] Failed to search uploaded files:", error);
+      return [];
+    }
+  }
+
   private normalizeEmbedId(embedId: string): string {
     return embedId.startsWith("embed:")
       ? embedId.slice("embed:".length)

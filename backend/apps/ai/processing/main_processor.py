@@ -33,6 +33,7 @@ from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, Op
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.config_manager import config_manager
 
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -60,6 +61,43 @@ FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
     "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
     "unless clarification is necessary to answer safely and correctly."
 )
+
+
+def _resolve_app_skill_model_override(
+    user_preferences: Optional[Dict[str, Any]],
+    app_id: str,
+    skill_id: str,
+    log_prefix: str,
+) -> Optional[str]:
+    defaults = (user_preferences or {}).get("default_app_skill_models")
+    if not isinstance(defaults, dict):
+        return None
+
+    skill_key = f"{app_id}.{skill_id}"
+    model_ref = defaults.get(skill_key)
+    if not model_ref:
+        return None
+    if not isinstance(model_ref, str) or "/" not in model_ref:
+        logger.warning(
+            f"{log_prefix} Ignoring invalid default_app_skill_models[{skill_key!r}]: {model_ref!r}"
+        )
+        return None
+
+    provider_id, model_id = model_ref.split("/", 1)
+    model_config = config_manager.get_model_pricing(provider_id, model_id)
+    if not model_config:
+        logger.warning(
+            f"{log_prefix} Ignoring unknown app skill model override for {skill_key}: {model_ref}"
+        )
+        return None
+    if model_config.get("for_app_skill") != skill_key:
+        logger.warning(
+            f"{log_prefix} Ignoring app skill model override {model_ref} for {skill_key}; "
+            f"model belongs to {model_config.get('for_app_skill')!r}."
+        )
+        return None
+
+    return model_ref
 
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
@@ -95,7 +133,7 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
 
 
 # Characters LLM providers use instead of the canonical hyphen in tool names.
-# Gemini 3 Flash emits colons ('web:search'), some older models emit underscores
+# Gemini 3.5 Flash emits colons ('web:search'), some older models emit underscores
 # ('web_search'), others emit pipes or dots. We normalize all of these to the
 # hyphen form ('web-search') before the allow-list check in main processing.
 # See OPE-399 follow-up for the incident where an entire chat response went
@@ -1770,7 +1808,7 @@ async def handle_main_processing(
     # and must be rejected before it reaches skill execution. See OPE-399.
     #
     # Separator normalization: different LLM providers emit tool names with
-    # different separators (Gemini 3 Flash uses ':' — 'web:search', older
+    # different separators (Gemini 3.5 Flash uses ':' — 'web:search', older
     # models sometimes use '_' — 'web_search', some emit '|' — 'web|search',
     # and the canonical form is '-' — 'web-search'). To avoid rejecting a
     # legitimately preselected tool just because the provider used the
@@ -3507,6 +3545,20 @@ async def handle_main_processing(
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_file_path_index"] = embed_file_path_index
 
+                    model_override = _resolve_app_skill_model_override(
+                        getattr(request_data, "user_preferences", None),
+                        app_id,
+                        skill_id,
+                        log_prefix,
+                    )
+                    if model_override:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_full_model_reference_override"] = model_override
+                        logger.info(
+                            f"{log_prefix} Applying app skill model override for "
+                            f"{app_id}.{skill_id}: {model_override}"
+                        )
+
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
@@ -4029,9 +4081,12 @@ async def handle_main_processing(
                         # > [verbatim text](embed:ref) blockquote syntax to cite sources.
                         # Placed at the wrapper level so it costs ~30 tokens total, not per result.
                         _sq_hint = (
-                            "When citing specific facts from these results, quote the exact "
-                            "text using: > [verbatim text from title, description, or "
-                            "extra_snippets](embed:the_result's_embed_ref)"
+                            "When citing specific facts from these results, quote only exact "
+                            "1:1 text copied from title, description, or extra_snippets. "
+                            "Do not shorten, paraphrase, remove parentheticals, add punctuation, "
+                            "or stop before the source sentence continues. Use: > [verbatim "
+                            "text](embed:the_result's_embed_ref). Modified or false quotes "
+                            "are automatically removed."
                         ) if skill_id in _QUOTABLE_SKILL_IDS else None
 
                         # Embed ref display-text hint — added once per tool result group

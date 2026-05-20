@@ -75,6 +75,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         # Create a profile object with both encrypted and decrypted data
         profile = {
             "id": user_id,
+            "user_id": user_id,
             "account_id": user_data.get("account_id"),  # Include account_id for invoice generation
             "tfa_enabled": tfa_enabled_status, # Add the determined status here
             "is_admin": user_data.get("is_admin", False),
@@ -90,6 +91,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "timezone": user_data.get("timezone"),  # IANA timezone (e.g., 'Europe/Berlin'), auto-detected from browser
             "default_ai_model_simple": user_data.get("default_ai_model_simple"),
             "default_ai_model_complex": user_data.get("default_ai_model_complex"),
+            "default_app_skill_models": user_data.get("default_app_skill_models") or {},
             "follow_up_suggestions_enabled": user_data.get("follow_up_suggestions_enabled", True),
             "tfa_last_used": user_data.get("tfa_last_used"),  # Include 2FA last used timestamp
             "consent_privacy_and_apps_default_settings": user_data.get("consent_privacy_and_apps_default_settings"),
