@@ -91,6 +91,11 @@ server_stats_global_daily:
       default: 0
       note: "Number of subscriptions cancelled on this day."
 
+    deleted_accounts:
+      type: integer
+      default: 0
+      note: "Number of user accounts permanently deleted on this day."
+
     # Token/Cost Tracking (Phase 6)
     total_input_tokens:
       type: bigint

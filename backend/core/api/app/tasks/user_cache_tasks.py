@@ -1864,6 +1864,7 @@ async def _async_delete_user_account(
             )
             if success:
                 logger.info(f"[DELETE_ACCOUNT] Successfully deleted user record for user {user_id}")
+                await cache_service.increment_stat("deleted_accounts")
             else:
                 logger.error(f"[DELETE_ACCOUNT] Failed to delete user record for user {user_id}")
                 return False

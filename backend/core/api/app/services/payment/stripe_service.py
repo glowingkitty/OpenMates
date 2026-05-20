@@ -213,6 +213,8 @@ class StripeService:
             ytd_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
             monthly_cents: Dict[str, int] = {}
             monthly_transactions: Dict[str, int] = {}
+            daily_cents: Dict[str, int] = {}
+            daily_transactions: Dict[str, int] = {}
             all_time_cents = 0
             ytd_cents = 0
             transaction_count = 0
@@ -222,8 +224,11 @@ class StripeService:
                 amount = int(txn.amount or 0)
                 created_at = datetime.fromtimestamp(int(txn.created), tz=timezone.utc)
                 month = created_at.strftime("%Y-%m")
+                day = created_at.strftime("%Y-%m-%d")
                 monthly_cents[month] = monthly_cents.get(month, 0) + amount
                 monthly_transactions[month] = monthly_transactions.get(month, 0) + 1
+                daily_cents[day] = daily_cents.get(day, 0) + amount
+                daily_transactions[day] = daily_transactions.get(day, 0) + 1
                 all_time_cents += amount
                 transaction_count += 1
                 if created_at >= ytd_start:
@@ -237,12 +242,21 @@ class StripeService:
                 }
                 for month in sorted(monthly_cents)
             ]
+            daily = [
+                {
+                    "date": day,
+                    "revenue_eur": daily_cents[day] / 100.0,
+                    "transactions": daily_transactions.get(day, 0),
+                }
+                for day in sorted(daily_cents)
+            ]
 
             return {
                 "all_time_eur": all_time_cents / 100.0,
                 "ytd_eur": ytd_cents / 100.0,
                 "transactions": transaction_count,
                 "monthly": monthly,
+                "daily": daily,
             }
         except stripe.error.StripeError as e:
             logger.error(f"Stripe API error fetching revenue summary: {e.user_message}", exc_info=True)

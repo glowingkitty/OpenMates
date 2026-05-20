@@ -414,6 +414,29 @@ def _monthly_revenue(stripe_monthly: list[dict[str, object]], bank_monthly: list
     return [by_month[month] for month in sorted(by_month)][-6:]
 
 
+def _daily_revenue(stripe_daily: list[dict[str, object]], bank_daily: list[dict[str, object]]) -> list[dict[str, object]]:
+    by_day: dict[str, dict[str, object]] = {}
+    for day in stripe_daily:
+        if not isinstance(day, dict):
+            continue
+        label = str(day.get("date") or "")
+        if not label:
+            continue
+        by_day.setdefault(label, {"date": label, "stripe": 0.0, "bank": 0.0, "transactions": 0})
+        by_day[label]["stripe"] = _safe_float(day.get("revenue_eur"))
+        by_day[label]["transactions"] = _safe_int(day.get("transactions"))
+    for day in bank_daily:
+        if not isinstance(day, dict):
+            continue
+        label = str(day.get("date") or "")
+        if not label:
+            continue
+        by_day.setdefault(label, {"date": label, "stripe": 0.0, "bank": 0.0, "transactions": 0})
+        by_day[label]["bank"] = _safe_float(day.get("revenue_eur"))
+        by_day[label]["transactions"] = _safe_int(by_day[label].get("transactions")) + _safe_int(day.get("transactions"))
+    return [by_day[day] for day in sorted(by_day)]
+
+
 def _six_month_month_cutoff(date_str: str) -> str:
     year, month, *_ = [int(part) for part in date_str.split("-")]
     month -= 5
@@ -511,35 +534,6 @@ def _monthly_newsletter_history(vault: Path, date_str: str, current_subscribers:
             continue
         by_month[month] = {"month": month, "subscribers": _safe_int(item.get("subscribers"))}
     return _filter_month_window([by_month[month] for month in sorted(by_month)], date_str)
-
-
-def _daily_signup_history(vault: Path, date_str: str, current_registered: int, current_paid: int) -> list[dict[str, object]]:
-    history: list[dict[str, object]] = []
-    daily_dir = vault / DAILY_NOTES_DIR
-    if daily_dir.exists():
-        for path in sorted(daily_dir.glob("*.md")):
-            day = path.stem
-            if day > date_str:
-                continue
-            try:
-                text = path.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            match = re.search(r"\| Signup funnel \| ([\d,]+) registered accounts -> ([\d,]+) paid users", text)
-            if match:
-                history.append(
-                    {
-                        "date": day,
-                        "registered": _safe_int(match.group(1).replace(",", "")),
-                        "paid": _safe_int(match.group(2).replace(",", "")),
-                    }
-                )
-    if not history or history[-1].get("date") != date_str:
-        history.append({"date": date_str, "registered": current_registered, "paid": current_paid})
-    else:
-        history[-1]["registered"] = current_registered
-        history[-1]["paid"] = current_paid
-    return history[-180:]
 
 
 def _daily_snapshot_deltas(
@@ -1037,6 +1031,8 @@ def generate_daily_metric_svgs(
     lifetime_monthly_trend = lifetime.get("monthly_trend") if isinstance(lifetime.get("monthly_trend"), list) else []
     stripe_monthly = stripe_revenue.get("monthly") if isinstance(stripe_revenue.get("monthly"), list) else []
     bank_monthly = bank_transfer_revenue.get("monthly") if isinstance(bank_transfer_revenue.get("monthly"), list) else []
+    stripe_daily = stripe_revenue.get("daily") if isinstance(stripe_revenue.get("daily"), list) else []
+    bank_daily = bank_transfer_revenue.get("daily") if isinstance(bank_transfer_revenue.get("daily"), list) else []
     month_labels = _last_six_month_labels(date_str)
     comparison_day_labels = _last_day_labels(date_str, 14)
     previous_day_labels = comparison_day_labels[:7]
@@ -1046,6 +1042,11 @@ def generate_daily_metric_svgs(
         month_labels,
         ("stripe", "bank", "transactions"),
     )
+    daily_revenue_by_day = {
+        str(day.get("date") or ""): day
+        for day in _daily_revenue(stripe_daily, bank_daily)
+        if day.get("date")
+    }
     user_history = _align_month_items(
         _filter_month_window(_monthly_user_history(lifetime_monthly_trend, paying_customers), date_str),
         month_labels,
@@ -1067,8 +1068,6 @@ def generate_daily_metric_svgs(
         for item in engagement_trend
         if isinstance(item, dict) and item.get("date")
     }
-    signup_history = _daily_signup_history(vault, date_str, registered_accounts, paying_customers)
-    registered_deltas = _daily_snapshot_deltas(signup_history, comparison_day_labels, "registered", clamp_negative=True)
     newsletter_deltas = _daily_snapshot_deltas(
         _daily_newsletter_history(vault, date_str, confirmed_subscribers),
         comparison_day_labels,
@@ -1099,17 +1098,26 @@ def generate_daily_metric_svgs(
             item = trend_by_day.get(label, {})
             registrations = _optional_float(item.get("new_registrations"))
             completed = _optional_float(item.get("completed_signups"))
-            if registrations is None and completed is None:
-                values.append(registered_deltas.get(label))
+            values.append(None if registrations is None and completed is None else max(0.0, (registrations or 0.0) - (completed or 0.0)))
+        return values
+
+    def revenue_values(labels: list[str], key: str) -> list[float | None]:
+        if not stripe_daily and not bank_daily:
+            return [None for _ in labels]
+        values = []
+        for label in labels:
+            day = daily_revenue_by_day.get(label, {})
+            if key == "revenue_eur":
+                values.append(_safe_float(day.get("stripe")) + _safe_float(day.get("bank")))
             else:
-                values.append(max(0.0, (registrations or 0.0) - (completed or 0.0)))
+                values.append(float(_safe_int(day.get(key))))
         return values
 
     daily_development_metrics = [
         {
             "label": "Revenue",
-            "current": current_trend_total(trend_by_day, "income_eur"),
-            "previous": previous_trend_total(trend_by_day, "income_eur"),
+            "current": _sum_optional(revenue_values(day_labels, "revenue_eur")),
+            "previous": _sum_optional(revenue_values(previous_day_labels, "revenue_eur")),
             "formatter": "eur",
         },
         {
@@ -1119,8 +1127,8 @@ def generate_daily_metric_svgs(
         },
         {
             "label": "New purchases",
-            "current": current_trend_total(trend_by_day, "purchases"),
-            "previous": previous_trend_total(trend_by_day, "purchases"),
+            "current": _sum_optional(revenue_values(day_labels, "transactions")),
+            "previous": _sum_optional(revenue_values(previous_day_labels, "transactions")),
         },
         {
             "label": "New chats",
@@ -1136,7 +1144,6 @@ def generate_daily_metric_svgs(
             "label": "New app skill uses",
             "current": current_trend_total(trend_by_day, "usage_entries_created"),
             "previous": previous_trend_total(trend_by_day, "usage_entries_created"),
-            "default_zero": True,
         },
         {
             "label": "Used credits",
@@ -1153,7 +1160,6 @@ def generate_daily_metric_svgs(
             "current": current_trend_total(trend_by_day, "deleted_accounts"),
             "previous": previous_trend_total(trend_by_day, "deleted_accounts"),
             "lower_is_better": True,
-            "default_zero": True,
         },
     ]
     asset_dir = vault / DAILY_METRICS_ASSET_DIR / date_str
