@@ -3416,7 +3416,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement,
   ): void {
-    const query = decodedContent?.query || (attrs as any).query || "";
+    const results = decodedContent?.results || [];
+    const query =
+      decodedContent?.query ||
+      decodedContent?.expression ||
+      (attrs as any).query ||
+      results[0]?.expression ||
+      "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -3424,7 +3430,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
