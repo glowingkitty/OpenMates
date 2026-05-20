@@ -120,6 +120,31 @@ context_menu.select:
   he: בחירה
   verified_by_human: []
 
+context_menu.open_new_tab:
+  context: Menu option to open a chat in a new browser tab
+  en: Open in new tab
+  de: In neuem Tab öffnen
+  zh: 在新标签页中打开
+  es: Abrir en una pestaña nueva
+  fr: Ouvrir dans un nouvel onglet
+  pt: Abrir em nova aba
+  ru: Открыть в новой вкладке
+  ja: 新しいタブで開く
+  ko: 새 탭에서 열기
+  it: Apri in una nuova scheda
+  tr: Yeni sekmede aç
+  vi: Mở trong thẻ mới
+  id: Buka di tab baru
+  pl: Otwórz w nowej karcie
+  nl: Openen in nieuw tabblad
+  ar: فتح في علامة تبويب جديدة
+  hi: नए टैब में खोलें
+  th: เปิดในแท็บใหม่
+  cs: Otevřít na nové kartě
+  sv: Öppna i ny flik
+  he: פתיחה בכרטיסייה חדשה
+  verified_by_human: []
+
 context_menu.downloading:
   context: Text shown on download button while chat download is in progress
   en: Downloading...

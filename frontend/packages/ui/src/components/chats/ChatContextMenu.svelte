@@ -36,8 +36,10 @@
         downloading = false
     }: Props = $props();
 
+    type MenuAction = 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share' | 'openNewTab';
+
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share', detail: string): void;
+        (e: MenuAction, detail: string): void;
     } = createEventDispatcher();
     
     // Derive if chat is currently unread (has unread_count > 0)
@@ -247,11 +249,21 @@
     // No local select mode management - this is handled by Chats.svelte
 
     // Unified handler for both mouse and touch events
-    function handleMenuAction(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
+    function handleMenuAction(action: MenuAction, event: MouseEvent | TouchEvent) {
         event.stopPropagation();
         event.preventDefault();
 
         console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
+
+        // Open directly from the user gesture so browsers do not block the new tab.
+        if (action === 'openNewTab') {
+            if (chat?.chat_id) {
+                const chatUrl = `${window.location.origin}/#chat-id=${encodeURIComponent(chat.chat_id)}`;
+                window.open(chatUrl, '_blank', 'noopener,noreferrer');
+            }
+            dispatch('close', 'close');
+            return;
+        }
 
         // Handle enter select mode
         if (action === 'enterSelectMode') {
@@ -301,14 +313,14 @@
 
 
     // Single event handler that works for all input types (iOS-compatible)
-    function handleButtonClick(action: Parameters<typeof dispatch>[0], event: Event) {
+    function handleButtonClick(action: MenuAction, event: Event) {
         event.stopPropagation();
         event.preventDefault();
         
         console.debug('[ChatContextMenu] Button click handled:', action, 'Event type:', event.type);
         
         // Handle the action with appropriate delay for touch events
-        if (event.type === 'touchend') {
+        if (event.type === 'touchend' && action !== 'openNewTab') {
             setTimeout(() => {
                 handleMenuAction(action, event as TouchEvent);
             }, 10);
@@ -481,6 +493,16 @@
             {/if}
         {:else}
             <!-- Not in select mode: show normal menu with option to enter select mode -->
+            <button
+                class="menu-item open-new-tab"
+                data-testid="chat-context-open-new-tab"
+                onclick={(event) => handleButtonClick('openNewTab', event)}
+                ontouchend={(event) => handleButtonClick('openNewTab', event)}
+            >
+                <div class="clickable-icon icon_chat"></div>
+                {$text('chats.context_menu.open_new_tab')}
+            </button>
+
             <button
                 class="menu-item select"
                 onclick={(event) => handleButtonClick('enterSelectMode', event)}
