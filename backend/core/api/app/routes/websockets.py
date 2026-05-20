@@ -2060,6 +2060,7 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     encryption_service=encryption_service,
                     user_id=user_id,
+                    user_vault_key_id=_user_data.get("vault_key_id"),
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,

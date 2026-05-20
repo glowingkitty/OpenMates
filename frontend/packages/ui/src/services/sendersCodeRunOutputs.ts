@@ -55,6 +55,7 @@ export async function sendUpsertCodeRunOutputImpl(
       id: cloneSafeOutput.id,
       key_version: cloneSafeOutput.key_version ?? null,
       encrypted_payload,
+      inference_payload: payload,
       created_at: cloneSafeOutput.created_at,
       updated_at: cloneSafeOutput.updated_at ?? cloneSafeOutput.created_at,
     });

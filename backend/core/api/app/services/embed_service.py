@@ -1865,6 +1865,41 @@ class EmbedService:
             logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
             return None
 
+    async def _get_cached_code_run_output_toon(
+        self,
+        embed_id: str,
+        user_vault_key_id: str,
+        log_prefix: str = "",
+    ) -> Optional[str]:
+        """Retrieve the latest vault-encrypted Code Run output for LLM context."""
+        try:
+            client = await self.cache_service.client
+            if not client:
+                logger.warning(f"{log_prefix} Redis client not available")
+                return None
+
+            cached_json = await client.get(f"code_run_output:{embed_id}")
+            if not cached_json:
+                return None
+
+            cached_data = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
+            encrypted_content = cached_data.get("encrypted_content")
+            if not encrypted_content:
+                logger.debug(f"{log_prefix} Code Run output cache for embed {embed_id} has no encrypted_content")
+                return None
+
+            plaintext_toon = await self.encryption_service.decrypt_with_user_key(
+                encrypted_content,
+                user_vault_key_id,
+            )
+            if not plaintext_toon:
+                logger.warning(f"{log_prefix} Failed to decrypt Code Run output for embed {embed_id}")
+                return None
+            return plaintext_toon
+        except Exception as e:
+            logger.error(f"{log_prefix} Error retrieving Code Run output for embed {embed_id}: {e}", exc_info=True)
+            return None
+
     async def _get_cached_embed(
         self,
         embed_id: str,
@@ -2727,6 +2762,26 @@ class EmbedService:
                 # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it
                 # Format as code block to preserve TOON structure
                 resolved_text = f"```toon\n{filtered_toon}\n```"
+
+                try:
+                    decoded_for_type = decode(toon_content)
+                    if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "code":
+                        code_run_output_toon = await self._get_cached_code_run_output_toon(
+                            embed_id,
+                            user_vault_key_id,
+                            log_prefix,
+                        )
+                        if code_run_output_toon:
+                            resolved_text += f"\n\n```toon\n{code_run_output_toon}\n```"
+                            logger.debug(
+                                f"{log_prefix} Appended Code Run output for code embed {embed_id} "
+                                f"({len(code_run_output_toon)} chars)"
+                            )
+                except Exception as e:
+                    logger.warning(
+                        f"{log_prefix} Failed to append Code Run output for embed {embed_id}: {e}",
+                        exc_info=True,
+                    )
 
                 logger.debug(
                     f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) "

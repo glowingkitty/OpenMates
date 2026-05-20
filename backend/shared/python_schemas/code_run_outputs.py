@@ -20,6 +20,10 @@ class UpsertCodeRunOutputPayload(BaseModel):
         ...,
         description="E2EE JSON blob of CodeRunOutputPayload encrypted with the embed key.",
     )
+    inference_payload: Optional[dict] = Field(
+        default=None,
+        description="Plaintext CodeRunOutputPayload for transient vault-encrypted LLM inference cache.",
+    )
     created_at: int
     updated_at: int
 

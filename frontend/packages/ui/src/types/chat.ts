@@ -252,6 +252,7 @@ export interface UpsertCodeRunOutputPayload {
   id?: string;
   key_version?: number | null;
   encrypted_payload: string;
+  inference_payload?: CodeRunOutputPayload;
   created_at: number;
   updated_at: number;
 }

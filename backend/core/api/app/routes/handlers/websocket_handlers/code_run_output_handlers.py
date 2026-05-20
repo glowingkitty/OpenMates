@@ -9,11 +9,13 @@ The encrypted_payload is client-side encrypted with the embed key. The server is
 blind to terminal output and only enforces chat ownership plus author updates.
 """
 
+import json
 import logging
 from typing import Any, Dict
 from uuid import uuid4
 
 from fastapi import WebSocket
+from toon_format import encode
 
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
@@ -23,6 +25,88 @@ from backend.core.api.app.utils.encryption import EncryptionService
 logger = logging.getLogger(__name__)
 
 COLLECTION = "code_run_outputs"
+CODE_RUN_OUTPUT_CACHE_TTL_SECONDS = 259200
+CODE_RUN_OUTPUT_MAX_INFERENCE_CHARS = 24000
+CODE_RUN_OUTPUT_TRUNCATED_HEAD_CHARS = 12000
+CODE_RUN_OUTPUT_TRUNCATED_TAIL_CHARS = 12000
+
+
+def code_run_output_cache_key(embed_id: str) -> str:
+    return f"code_run_output:{embed_id}"
+
+
+def _compact_output_for_inference(output: str) -> tuple[str, bool]:
+    if len(output) <= CODE_RUN_OUTPUT_MAX_INFERENCE_CHARS:
+        return output, False
+    head = output[:CODE_RUN_OUTPUT_TRUNCATED_HEAD_CHARS].rstrip()
+    tail = output[-CODE_RUN_OUTPUT_TRUNCATED_TAIL_CHARS:].lstrip()
+    return f"{head}\n\n[... Code Run output truncated for inference ...]\n\n{tail}", True
+
+
+def _build_inference_payload(payload: Dict[str, Any]) -> Dict[str, Any] | None:
+    inference_payload = payload.get("inference_payload")
+    if not isinstance(inference_payload, dict):
+        return None
+
+    output = inference_payload.get("output")
+    saved_at = inference_payload.get("saved_at")
+    if not isinstance(output, str) or not output.strip() or not isinstance(saved_at, (int, float)):
+        return None
+
+    compact_output, truncated = _compact_output_for_inference(output)
+    files = inference_payload.get("files")
+    clean_files = [str(file) for file in files if isinstance(file, str)] if isinstance(files, list) else []
+
+    result: Dict[str, Any] = {
+        "type": "code_run_output",
+        "status": str(inference_payload.get("status") or "unknown"),
+        "saved_at": int(saved_at),
+        "output": compact_output,
+    }
+    if clean_files:
+        result["files"] = clean_files
+    if truncated:
+        result["truncated_for_inference"] = True
+    return result
+
+
+async def _cache_output_for_inference(
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+    user_vault_key_id: str | None,
+    chat_id: str,
+    embed_id: str,
+    payload: Dict[str, Any],
+) -> None:
+    if not user_vault_key_id:
+        logger.warning("[code_run_outputs] missing vault key id; skipping inference cache embed=%s", embed_id)
+        return
+
+    inference_payload = _build_inference_payload(payload)
+    if not inference_payload:
+        return
+
+    inference_payload["chat_id"] = chat_id
+    inference_payload["embed_id"] = embed_id
+    content_toon = encode(inference_payload)
+    encrypted_content, _ = await encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
+
+    client = await cache_service.client
+    if not client:
+        logger.warning("[code_run_outputs] Redis unavailable; skipping inference cache embed=%s", embed_id)
+        return
+
+    await client.set(
+        code_run_output_cache_key(embed_id),
+        json.dumps({
+            "chat_id": chat_id,
+            "embed_id": embed_id,
+            "encrypted_content": encrypted_content,
+            "updated_at": int(payload.get("updated_at") or payload.get("created_at") or 0),
+        }),
+        ex=CODE_RUN_OUTPUT_CACHE_TTL_SECONDS,
+    )
+    logger.debug("[code_run_outputs] cached inference output embed=%s chat=%s", embed_id, chat_id)
 
 
 async def _verify_chat_accessible(
@@ -95,10 +179,11 @@ async def _broadcast_output(
 async def handle_upsert_code_run_output(
     websocket: WebSocket,
     manager: ConnectionManager,
-    cache_service: CacheService,  # noqa: ARG001
+    cache_service: CacheService,
     directus_service: DirectusService,
-    encryption_service: EncryptionService,  # noqa: ARG001
+    encryption_service: EncryptionService,
     user_id: str,
+    user_vault_key_id: str | None,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
@@ -110,7 +195,16 @@ async def handle_upsert_code_run_output(
     except Exception:
         pass
     try:
-        await _impl_upsert(manager, directus_service, user_id, device_fingerprint_hash, payload)
+        await _impl_upsert(
+            manager,
+            cache_service,
+            directus_service,
+            encryption_service,
+            user_id,
+            user_vault_key_id,
+            device_fingerprint_hash,
+            payload,
+        )
     finally:
         if _otel_span is not None:
             try:
@@ -120,7 +214,16 @@ async def handle_upsert_code_run_output(
                 pass
 
 
-async def _impl_upsert(manager, directus_service, user_id, device_fingerprint_hash, payload):
+async def _impl_upsert(
+    manager,
+    cache_service,
+    directus_service,
+    encryption_service,
+    user_id,
+    user_vault_key_id,
+    device_fingerprint_hash,
+    payload,
+):
     chat_id = payload.get("chat_id")
     embed_id = payload.get("embed_id")
     encrypted_payload = payload.get("encrypted_payload")
@@ -178,6 +281,18 @@ async def _impl_upsert(manager, directus_service, user_id, device_fingerprint_ha
             device_fingerprint_hash=device_fingerprint_hash,
         )
         return
+
+    try:
+        await _cache_output_for_inference(
+            cache_service=cache_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
+            chat_id=chat_id,
+            embed_id=embed_id,
+            payload=payload,
+        )
+    except Exception as exc:
+        logger.warning("[code_run_outputs] inference cache write failed embed=%s err=%s", embed_id, exc, exc_info=True)
 
     await _broadcast_output(manager, row, user_id)
     logger.info("[code_run_outputs] synced embed=%s chat=%s user=%s", embed_id, chat_id, user_id)

@@ -30,6 +30,11 @@ from backend.core.api.app.routes.code_execution import (
     _merge_dependency_installs,
     cancel_code_run,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.code_run_output_handlers import (
+    _impl_upsert,
+    code_run_output_cache_key,
+)
+from backend.core.api.app.services.embed_service import EmbedService
 
 
 CHAT_ID = "chat-1"
@@ -92,7 +97,48 @@ class FakeDirectus:
         self.embed = FakeDirectusEmbed(embeds)
 
 
+class FakeCodeRunDirectusChat:
+    async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+        return chat_id == CHAT_ID and user_id == USER_ID
+
+    async def get_chat_metadata(self, chat_id: str):
+        return {"id": chat_id}
+
+
+class FakeCodeRunDirectus(FakeDirectus):
+    def __init__(self, embeds: dict[str, dict]):
+        super().__init__(embeds)
+        self.chat = FakeCodeRunDirectusChat()
+        self.items: dict[str, dict] = {}
+
+    async def get_items(self, collection: str, params: dict, admin_required: bool = False):
+        return []
+
+    async def create_item(self, collection: str, row: dict, admin_required: bool = False):
+        self.items[row["id"]] = row
+        return row
+
+    async def update_item(self, collection: str, item_id: str, row: dict):
+        self.items[item_id] = {**self.items.get(item_id, {}), **row}
+        return self.items[item_id]
+
+
+class FakeManager:
+    def __init__(self):
+        self.personal_messages: list[dict] = []
+        self.broadcasts: list[dict] = []
+
+    async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
+        self.personal_messages.append(message)
+
+    async def broadcast_to_user(self, message: dict, user_id: str, exclude_device_hash: str | None = None):
+        self.broadcasts.append(message)
+
+
 class FakeEncryption:
+    async def encrypt_with_user_key(self, plaintext: str, key_id: str):
+        return f"vault:{plaintext}", None
+
     async def decrypt_with_user_key(self, ciphertext: str, key_id: str):
         if ciphertext.startswith("vault:"):
             return ciphertext.removeprefix("vault:")
@@ -134,6 +180,69 @@ async def test_collect_code_files_uses_vault_encrypted_recent_cache() -> None:
 
     assert target_path == "main.py"
     assert files == [{"path": "main.py", "content": "print('ok')", "language": "python", "is_target": True}]
+
+
+@pytest.mark.anyio
+async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload() -> None:
+    cache = FakeCache([], {})
+    manager = FakeManager()
+
+    await _impl_upsert(
+        manager,
+        cache,
+        FakeCodeRunDirectus({}),
+        FakeEncryption(),
+        USER_ID,
+        "vault-key",
+        "device-1",
+        {
+            "chat_id": CHAT_ID,
+            "embed_id": TARGET_EMBED_ID,
+            "id": "output-1",
+            "key_version": 1,
+            "encrypted_payload": "client-ciphertext",
+            "inference_payload": {
+                "output": "hello from code\n",
+                "status": "exited",
+                "files": ["main.py"],
+                "saved_at": 123,
+                "created_at": 120,
+                "updated_at": 123,
+            },
+            "created_at": 120,
+            "updated_at": 123,
+        },
+    )
+
+    client = await cache.client
+    cached = json.loads((await client.get(code_run_output_cache_key(TARGET_EMBED_ID))).decode())
+    decrypted = await FakeEncryption().decrypt_with_user_key(cached["encrypted_content"], "vault-key")
+
+    assert "type: code_run_output" in decrypted
+    assert "hello from code" in decrypted
+    assert manager.broadcasts[0]["type"] == "code_run_output_synced"
+
+
+@pytest.mark.anyio
+async def test_resolve_code_embed_references_appends_cached_code_run_output() -> None:
+    code_toon = encode({"type": "code", "code": "print('ok')", "language": "python", "filename": "main.py"})
+    output_toon = encode({"type": "code_run_output", "status": "exited", "output": "ok\n", "files": ["main.py"], "saved_at": 123})
+    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
+    client = await cache.client
+    await client.set(
+        code_run_output_cache_key(TARGET_EMBED_ID),
+        json.dumps({"encrypted_content": f"vault:{output_toon}", "chat_id": CHAT_ID, "embed_id": TARGET_EMBED_ID}),
+    )
+    service = EmbedService(cache, FakeDirectus({}), FakeEncryption())
+
+    resolved, _ = await service.resolve_embed_references_in_content(
+        f'```json\n{{"type":"code","embed_id":"{TARGET_EMBED_ID}"}}\n```',
+        "vault-key",
+    )
+
+    assert "type: code" in resolved
+    assert "type: code_run_output" in resolved
+    assert "ok" in resolved
 
 
 @pytest.mark.anyio
