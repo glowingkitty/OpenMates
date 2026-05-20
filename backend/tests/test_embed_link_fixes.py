@@ -15,6 +15,7 @@ import asyncio
 import pytest
 
 try:
+    import backend.apps.ai.tasks.stream_consumer as stream_consumer
     from backend.apps.ai.tasks.stream_consumer import (
         _fix_bad_embed_display_text,
         _fix_mixed_url_embed_references,
@@ -213,6 +214,42 @@ class TestFixMixedUrlEmbedReferences:
         assert "[Third Result](embed:third.com-e5F)" in result
         assert "https://first.com" not in result
         assert "https://third.com" not in result
+
+
+# ---------------------------------------------------------------------------
+# _fix_backticked_inline_embed_references — synchronous
+# ---------------------------------------------------------------------------
+
+
+class TestFixBacktickedInlineEmbedReferences:
+    """Tests for unwrapping inline-code embed links so the UI can render them."""
+
+    def test_unwraps_backticked_embed_link(self):
+        text = "- `[Ausflugsziele in Brandenburg - Die Top 20](embed:komoot.com-2gG)`"
+
+        result = stream_consumer._fix_backticked_inline_embed_references(text)
+
+        assert result == "- [Ausflugsziele in Brandenburg - Die Top 20](embed:komoot.com-2gG)"
+
+    def test_unwraps_multiple_backticked_embed_links(self):
+        text = (
+            "1. `[First](embed:first.example-a1B)`\n"
+            "2. `[Second](embed:second.example-c3D)`"
+        )
+
+        result = stream_consumer._fix_backticked_inline_embed_references(text)
+
+        assert "`[First]" not in result
+        assert "`[Second]" not in result
+        assert "[First](embed:first.example-a1B)" in result
+        assert "[Second](embed:second.example-c3D)" in result
+
+    def test_leaves_normal_inline_code_unchanged(self):
+        text = "Use `pnpm install` before [Docs](embed:docs.example-a1B)."
+
+        result = stream_consumer._fix_backticked_inline_embed_references(text)
+
+        assert result == text
 
 
 # ---------------------------------------------------------------------------
