@@ -10,7 +10,6 @@ key_files:
   - scripts/nightly-code-structure.sh
   - scripts/daily-meeting.sh
   - scripts/update_obsidian_daily_note.py
-  - scripts/sync_obsidian_tasks.py
   - scripts/_daily_meeting_helper.py
   - scripts/_claude_utils.py
 ---
@@ -40,7 +39,6 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
 | `03:00 Mon-Fri`               | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
-| `*/5 * * * *`                 | `sync_obsidian_tasks.py`               | Normalize Obsidian tasks and regenerate boards |
 | `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
@@ -62,8 +60,6 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76). On failure, dispatches claude analysis session. Archives to `test-results/daily-run-YYYY-MM-DD.json`. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional — no-op when unset).
 
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
-
-**Obsidian task sync** (every 5 min): Runs `sync_obsidian_tasks.py`, which normalizes notes with capture tags (`#todo`, `#bug`, `#event`) and regenerates `vaults/memory/Boards/*.md`. The board generator is idempotent, so unchanged boards are not rewritten. Log: `logs/obsidian-task-sync.log`.
 
 **Prod smoke** (GitHub Actions, hourly 10–20 Europe/Berlin): Runs three Playwright specs against the live production server: (1) reachability pre-flight, (2) fresh signup + reusable domain-bound gift card redemption + first chat (no Stripe), (3) login + chat on a persistent prod test account. On any failure, the shared composite action `.github/actions/notify-test-failure` posts to a Discord webhook **and** sends an email via Brevo — both sends independent so a single channel outage never masks the failure. No dependency on dev server uptime. Secrets: `PROD_BASE_URL`, `PROD_SMOKE_GIFT_CARD_CODE`, `PROD_SMOKE_EMAIL_DOMAIN`, `PROD_SMOKE_MAILOSAUR_API_KEY`, `PROD_SMOKE_MAILOSAUR_SERVER_ID`, `OPENMATES_PROD_TEST_ACCOUNT_{EMAIL,PASSWORD,OTP_KEY}`, `DISCORD_WEBHOOK_PROD_SMOKE`, `PROD_SMOKE_EMAIL_TO`, `BREVO_API_KEY`. The gift card's `allowed_email_domain` must exactly match the Mailosaur server subdomain — suffix matches would let any Mailosaur customer redeem the card.
 

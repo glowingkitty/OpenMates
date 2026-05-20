@@ -31,8 +31,11 @@ DAILY_NOTES_DIR = "Daily Notes"
 STATE_DIR = ".obsidian-auto/daily-note-state"
 SERVER_STATS_CACHE_DIR = ".obsidian-auto/server-stats"
 SERVER_STATS_CACHE_MAX_AGE_SECONDS = 60 * 60
-KANBAN_BOARD_EMBED = "![[Boards/all-todos]]"
-KANBAN_BOARD_LINK = "Kanban: [[Boards/all-todos|Open All Todos board]]"
+LEGACY_BOARD_LINKS = (
+    "Kanban: [[Boards/all-todos|Open All Todos board]]",
+    "Kanban: [[OpenMates/Tasks/Boards/All Todos|Open All Todos board]]",
+    "![[Boards/all-todos]]",
+)
 GENERATED_TEST_NOTE_PREFIX = "OpenMates/Tests/"
 GENERATED_TEST_NOTE_TYPES = {"e2e-test", "test-dashboard"}
 MARKER_PATTERN = re.compile(
@@ -211,8 +214,6 @@ tags:
 
 # {date_str}
 
-{KANBAN_BOARD_LINK}
-
 ## Daily Summary
 
 <!-- AUTO:daily-summary:start -->
@@ -268,18 +269,11 @@ def ensure_daily_note(path: Path, date_str: str) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def ensure_kanban_link(text: str) -> str:
-    if KANBAN_BOARD_EMBED in text:
-        text = text.replace(KANBAN_BOARD_EMBED, KANBAN_BOARD_LINK)
-    if KANBAN_BOARD_LINK in text:
-        return text
-
-    title_match = re.search(r"(?m)^# .+\n", text)
-    if not title_match:
-        return f"{KANBAN_BOARD_LINK}\n\n{text}"
-
-    insert_at = title_match.end()
-    return f"{text[:insert_at]}\n{KANBAN_BOARD_LINK}\n{text[insert_at:]}"
+def remove_legacy_board_links(text: str) -> str:
+    for link in LEGACY_BOARD_LINKS:
+        text = text.replace(f"\n{link}\n", "\n")
+        text = text.replace(f"{link}\n", "")
+    return text
 
 
 def ensure_marker(text: str, name: str, heading: str, default_body: str) -> str:
@@ -681,8 +675,7 @@ def update_daily_note(
     commits = git_commits(git_repo, start_ts, end_ts, tz)
     manifest, manifest_changed = merge_manifest(load_manifest(manifest_path), current_notes, vault, now)
 
-    text = ensure_daily_note(daily_path, date_str)
-    text = ensure_kanban_link(text)
+    text = remove_legacy_board_links(ensure_daily_note(daily_path, date_str))
     text = ensure_marker(text, "daily-summary", "Daily Summary", "No changed notes detected yet.\n")
     text = ensure_marker(text, "server-stats", "Server Stats", "Server stats not fetched yet.\n")
     text = ensure_marker(text, "changed-notes", "Recent Activity", "- No activity detected yet.\n")
