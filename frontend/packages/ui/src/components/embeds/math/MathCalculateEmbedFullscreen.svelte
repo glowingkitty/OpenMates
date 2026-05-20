@@ -18,12 +18,21 @@
   /**
    * Individual calculation result from the backend TOON content.
    */
-  interface CalculateResult {
+  type CalculateStep = string | {
+    description?: string;
     expression?: string;
     result?: string;
+    latex?: string;
+  };
+
+  interface CalculateResult {
+    expression?: string;
+    expression_latex?: string;
+    result?: string;
+    result_latex?: string;
     result_type?: string;
     mode?: string;
-    steps?: string[];
+    steps?: CalculateStep[];
     error?: string;
   }
 
@@ -69,7 +78,13 @@
   // ── Extract fields from data ────────────────────────────────────────────────
 
   let dc = $derived(data.decodedContent);
-  let queryProp = $derived(typeof dc.query === 'string' ? dc.query : undefined);
+  let queryProp = $derived(
+    typeof dc.query === 'string'
+      ? dc.query
+      : typeof dc.expression === 'string'
+        ? dc.expression
+        : undefined
+  );
   let subtitleProp = $derived(typeof dc.subtitle === 'string' ? dc.subtitle : undefined);
   let statusProp = $derived(normalizeStatus(dc.status));
   let resultsProp = $derived(Array.isArray(dc.results) ? dc.results as CalculateResult[] : undefined);
@@ -91,6 +106,7 @@
   let subtitle = $derived(localSubtitle);
   let status   = $derived(localStatus);
   let results  = $derived(localResults);
+  let primaryExpression = $derived(query || results[0]?.expression || '');
 
   // ── Embed data updates ───────────────────────────────────────────────────────
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
@@ -100,7 +116,25 @@
     }
     const c = data.decodedContent;
     if (typeof c.query === 'string') localQuery = c.query;
+    else if (typeof c.expression === 'string') localQuery = c.expression;
     if (Array.isArray(c.results)) localResults = c.results as CalculateResult[];
+  }
+
+  function calculationExpression(result: CalculateResult): string {
+    return query || result.expression || '';
+  }
+
+  function stepText(step: CalculateStep): string {
+    if (typeof step === 'string') return step;
+    if (step.expression && step.result) return `${step.expression} = ${step.result}`;
+    if (step.description && step.latex) return `${step.description}: ${step.latex}`;
+    return step.latex || step.description || '';
+  }
+
+  function fallbackStep(result: CalculateResult): string {
+    const expression = calculationExpression(result);
+    if (!expression || !result.result) return '';
+    return `${expression} = ${result.result}`;
   }
 
   /**
@@ -123,8 +157,8 @@
 <UnifiedEmbedFullscreen
   appId="math"
   skillId="calculate"
-  embedHeaderTitle={query || 'Calculation'}
-  embedHeaderSubtitle={subtitle}
+  embedHeaderTitle="Calculation"
+  embedHeaderSubtitle={subtitle || primaryExpression}
   onClose={onClose}
   skillIconName="math"
   showSkillIcon={true}
@@ -154,15 +188,21 @@
         {#each results as result}
           <div class="result-card">
             <!-- Expression -->
-            {#if result.expression}
-              <div class="result-expression">{result.expression}</div>
+            {#if calculationExpression(result)}
+              <section class="calculation-section">
+                <h3>Expression</h3>
+                <div class="result-expression">{calculationExpression(result)}</div>
+              </section>
             {/if}
 
             <!-- Result value -->
             {#if result.error}
               <div class="result-error">{result.error}</div>
             {:else if result.result}
-              <div class="result-value">{result.result}</div>
+              <section class="calculation-section">
+                <h3>Result</h3>
+                <div class="result-value">{result.result}</div>
+              </section>
               {#if result.result_type}
                 <div class="result-meta">Type: {result.result_type}</div>
               {/if}
@@ -171,16 +211,21 @@
               {/if}
             {/if}
 
-            <!-- Steps (if provided) -->
+            <!-- Steps (or a compact fallback calculation trace) -->
             {#if result.steps && result.steps.length > 0}
-              <details class="result-steps">
-                <summary>Steps</summary>
+              <section class="calculation-section result-steps">
+                <h3>Calculation</h3>
                 <ol>
                   {#each result.steps as step}
-                    <li>{step}</li>
+                    <li>{stepText(step)}</li>
                   {/each}
                 </ol>
-              </details>
+              </section>
+            {:else if fallbackStep(result)}
+              <section class="calculation-section result-steps">
+                <h3>Calculation</h3>
+                <div class="calculation-line">{fallbackStep(result)}</div>
+              </section>
             {/if}
           </div>
         {/each}
@@ -233,7 +278,22 @@
     padding: var(--spacing-10);
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-4);
+    gap: var(--spacing-6);
+  }
+
+  .calculation-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .calculation-section h3 {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--color-grey-70);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .result-expression {
@@ -273,20 +333,21 @@
     color: var(--color-grey-70);
   }
 
-  .result-steps summary {
-    cursor: pointer;
-    font-weight: 500;
-    color: var(--color-grey-100);
-    margin-bottom: var(--spacing-3);
-  }
-
   .result-steps ol {
     padding-left: var(--spacing-10);
+    margin: 0;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
     font-family: 'Courier New', Courier, monospace;
     font-size: var(--font-size-xs);
+  }
+
+  .calculation-line {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--font-size-small);
+    color: var(--color-grey-100);
+    word-break: break-all;
   }
 
   /* ── Skill icon ──────────────────────────────────────────────────────────── */

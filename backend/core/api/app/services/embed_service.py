@@ -4001,7 +4001,7 @@ class EmbedService:
                 
                 # Add request metadata if available
                 if request_metadata:
-                    for key in ["query", "provider", "url", "languages", "country", "search_lang", "safesearch"]:
+                    for key in ["query", "expression", "provider", "url", "languages", "country", "search_lang", "safesearch"]:
                         if key in request_metadata:
                             content_with_metadata[key] = request_metadata[key]
                 
