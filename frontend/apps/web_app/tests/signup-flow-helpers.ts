@@ -1495,16 +1495,16 @@ function withLiveRecordMarker(message: string, groupId: string): string {
  * Build a deterministic test account email for a given slot number.
  * Used by create-test-account.spec.ts to provision persistent E2E test accounts.
  */
-function buildTestAccountEmail(slot: number, domain: string): string {
+function buildTestAccountEmail(slot: number, domain: string, localName = `testacct${slot}`): string {
 	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
 	if (gmailTestAddress && gmailTestAddress.includes('@')) {
 		const [localPart, gmailDomain] = gmailTestAddress.split('@');
 		if (domain.toLowerCase() === gmailDomain.toLowerCase()) {
-			return `${localPart}+testacct${slot}@${gmailDomain}`;
+			return `${localPart}+${localName}@${gmailDomain}`;
 		}
 	}
 
-	return `testacct${slot}@${domain}`;
+	return `${localName}@${domain}`;
 }
 
 module.exports = {

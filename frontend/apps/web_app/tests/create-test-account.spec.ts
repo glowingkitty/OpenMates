@@ -82,9 +82,11 @@ test.describe('Create persistent test account', () => {
 
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-		// Build deterministic credentials for this slot
-		const accountEmail = buildTestAccountEmail(slot, signupDomain);
-		const accountUsername = `testacct${slot}`;
+		// Build slot-scoped credentials with a unique suffix so recreating a broken
+		// persistent account is not blocked by older partial signup records.
+		const accountSlug = `testacct${slot}${Date.now().toString(36).slice(-6)}`;
+		const accountEmail = buildTestAccountEmail(slot, signupDomain, accountSlug);
+		const accountUsername = accountSlug;
 		const accountPassword = `TestAcct!2026pw${slot}`;
 
 		logCheckpoint(`Creating test account for slot ${slot}.`, { accountEmail });
