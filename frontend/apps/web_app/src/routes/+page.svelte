@@ -57,7 +57,10 @@
 		registerExampleChatEmbedRefs,
 		DevConsole,
 		openSearch,
-		notFoundPathStore
+		notFoundPathStore,
+		decryptWithChatKey,
+		getPublicChatById,
+		translateDemoChat
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -391,9 +394,61 @@
 	// Uses metadata.webapp keys from translations (en.json, de.json, etc.)
 	// $text() is reactive and will update when language changes
 	// If translations aren't loaded, $text() returns the key itself as fallback
-	let seoTitle = $derived($text('metadata.webapp.title'));
+	let activeBrowserChatTitle = $state<string | null>(null);
+	let seoTitle = $derived(activeBrowserChatTitle ? `${activeBrowserChatTitle} | OpenMates` : $text('metadata.webapp.title'));
 	let seoDescription = $derived($text('metadata.webapp.description'));
 	let seoKeywords = $derived($text('metadata.default.keywords'));
+	let browserTitleGeneration = 0;
+	let chatTitleUpdateHandler: ((event: Event) => void) | null = null;
+
+	function normalizeBrowserChatTitle(title: string | null | undefined): string | null {
+		const normalized = title?.trim();
+		return normalized ? normalized : null;
+	}
+
+	async function resolveBrowserChatTitle(chatId: string | null): Promise<string | null> {
+		if (!browser || !chatId || chatId === NEW_CHAT_SENTINEL) return null;
+
+		if (isPublicChat(chatId)) {
+			const publicChat = getPublicChatById(chatId);
+			return normalizeBrowserChatTitle(publicChat ? translateDemoChat(publicChat).title : null);
+		}
+
+		const chat = await chatDB.getChat(chatId).catch(() => null);
+		if (!chat) return null;
+
+		const plaintextTitle = normalizeBrowserChatTitle(chat.title);
+		if (plaintextTitle) return plaintextTitle;
+
+		if (!chat.encrypted_title) return null;
+
+		const chatKey = chatDB.getChatKeyOrNull(chatId);
+		if (!chatKey) return null;
+
+		try {
+			return normalizeBrowserChatTitle(
+				await decryptWithChatKey(chat.encrypted_title, chatKey, {
+					chatId,
+					fieldName: 'encrypted_title'
+				})
+			);
+		} catch (error) {
+			console.warn('[+page.svelte] Failed to decrypt chat title for browser tab:', error);
+			return null;
+		}
+	}
+
+	async function updateBrowserChatTitle(chatId: string | null = $activeChatStore): Promise<void> {
+		const generation = ++browserTitleGeneration;
+		const title = await resolveBrowserChatTitle(chatId);
+		if (generation === browserTitleGeneration && chatId === $activeChatStore) {
+			activeBrowserChatTitle = title;
+		}
+	}
+
+	$effect(() => {
+		void updateBrowserChatTitle($activeChatStore);
+	});
 
 	// --- Reactive Computations ---
 
@@ -2446,6 +2501,15 @@
 		// Works even when the sidebar is closed because the store holds the chat list.
 		window.addEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
 
+		chatTitleUpdateHandler = (event: Event) => {
+			const detail = event instanceof CustomEvent ? event.detail : null;
+			const chatId = detail?.chat_id || detail?.chat?.chat_id;
+			if (!chatId || chatId === $activeChatStore) {
+				void updateBrowserChatTitle($activeChatStore);
+			}
+		};
+		chatSyncService.addEventListener('chatUpdated', chatTitleUpdateHandler);
+
 		// Listen for pending deep link processing after successful login
 		// This handles cases where user opened a deep link while not authenticated
 		const pendingDeepLinkHandlerWrapper = (event: Event) => {
@@ -2541,6 +2605,9 @@
 		window.removeEventListener('demoChatSelected', handleDemoChatSelected);
 		// Remove ChatHeader arrow navigation event listener
 		window.removeEventListener('chatHeaderNavigation', handleChatHeaderNavigation);
+		if (chatTitleUpdateHandler) {
+			chatSyncService.removeEventListener('chatUpdated', chatTitleUpdateHandler);
+		}
 		// Remove BFCache restore handler
 		if (bfcacheRestoreHandler) {
 			window.removeEventListener('pageshow', bfcacheRestoreHandler);
