@@ -49,8 +49,8 @@ ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
 # Category marker for compression summary system messages
 COMPRESSION_SUMMARY_CATEGORY = "compression_summary"
 
-# Compression model: Gemini 3.5 Flash (fast, 1M context)
-COMPRESSION_MODEL_ID = "gemini-3.5-flash"
+# Compression model: Gemini 3 Flash (fast, cheap, 1M context)
+COMPRESSION_MODEL_ID = "gemini-3-flash-preview"
 COMPRESSION_MODEL_SERVER = "google_ai_studio"  # Default server for Gemini Flash
 
 
@@ -309,7 +309,7 @@ async def compress_chat_history(
     1. Checks if compression is needed (token threshold)
     2. Splits history into messages to compress and recent messages to keep
     3. Finds any existing compression summary
-    4. Calls the compression LLM (Gemini 3.5 Flash) to generate a new summary
+    4. Calls the compression LLM (Gemini 3 Flash) to generate a new summary
     5. Returns the result with summary content and metadata
 
     Args:

@@ -192,8 +192,8 @@ skills:
       enable_auto_model_selection: true
       default_llms:
         preprocessing_model: mistral/mistral-small-2506
-        # main_processing_simple: google/gemini-3.5-flash
-        # main_processing_simple_name: Gemini 3.5 Flash
+        # main_processing_simple: google/gemini-3-flash-preview
+        # main_processing_simple_name: Gemini 3 Flash
         main_processing_simple: alibaba/qwen3-235b-a22b-2507
         main_processing_simple_name: Qwen3
         # main_processing_complex: google/gemini-3.1-pro-preview

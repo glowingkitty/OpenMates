@@ -150,7 +150,7 @@ async def translate_text_batch(secrets_manager, text: str, target_languages: Lis
         try:
             response = await invoke_google_ai_studio_chat_completions(
                 task_id=f"translate_batch_{hash(text) % 10000}_{batch_start}",
-                model_id="gemini-3.5-flash",
+                model_id="gemini-3-flash-preview",
                 messages=messages,
                 secrets_manager=secrets_manager,
                 tools=[translation_tool],
@@ -297,7 +297,7 @@ async def translate_tiptap_json_batch(secrets_manager, tiptap_json: str, target_
         try:
             response = await invoke_google_ai_studio_chat_completions(
                 task_id=f"translate_json_batch_{hash(tiptap_json) % 10000}_{batch_start}",
-                model_id="gemini-3.5-flash",
+                model_id="gemini-3-flash-preview",
                 messages=messages,
                 secrets_manager=secrets_manager,
                 tools=[translation_tool],
@@ -350,7 +350,7 @@ async def main():
     Main function for the translation script.
     """
     parser = argparse.ArgumentParser(
-        description="Translate text to multiple languages using Gemini 3.5 Flash",
+        description="Translate text to multiple languages using Gemini 3 Flash",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

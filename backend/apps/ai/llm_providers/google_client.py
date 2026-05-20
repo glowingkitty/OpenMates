@@ -41,9 +41,7 @@ _google_ai_studio_api_key: Optional[str] = None
 # text into the response (missing the `thought: true` flag).
 # Reference: https://discuss.ai.google.dev/t/gemini-3-flash-preview-infinite-reasoning-loop-causing-max-token-exhaustion-raw-logic-leak/114528
 GEMINI_THINKING_MIN_TEMPERATURE = 1.0
-GOOGLE_MODEL_ALIASES = {
-    "gemini-3-flash-preview": "gemini-3.5-flash",
-}
+GOOGLE_MODEL_ALIASES = {}
 
 def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> float:
     """

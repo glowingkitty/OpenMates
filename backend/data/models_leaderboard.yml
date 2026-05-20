@@ -11,9 +11,9 @@ metadata:
       url: https://openrouter.ai/rankings
       models_fetched: 0
       valid: false
-  total_models: 16
+  total_models: 17
   ranked_models: 10
-  unranked_models: 6
+  unranked_models: 7
 rankings:
   - rank: 1
     model_id: gemini-3.1-pro-preview
@@ -43,8 +43,8 @@ rankings:
     lmarena_rank: 5
     openrouter_rank: null
   - rank: 4
-    model_id: gemini-3.5-flash
-    name: Gemini 3.5 Flash
+    model_id: gemini-3-flash-preview
+    name: Gemini 3 Flash Preview
     provider_id: google
     country_origin: US
     composite_score: 93.8
@@ -116,6 +116,10 @@ unranked:
     country_origin: US
   - model_id: gemini-3-pro-image-preview
     name: Gemini 3 Pro Image Preview
+    provider_id: google
+    country_origin: US
+  - model_id: gemini-3.5-flash
+    name: Gemini 3.5 Flash
     provider_id: google
     country_origin: US
   - model_id: mistral-small-2506

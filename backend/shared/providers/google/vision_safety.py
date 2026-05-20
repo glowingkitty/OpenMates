@@ -1,6 +1,6 @@
 # backend/shared/providers/google/vision_safety.py
 #
-# Gemini 3.5 Flash vision safety classifier using function calling.
+# Gemini 3 Flash vision safety classifier using function calling.
 #
 # Used by the image safety pipeline (docs/architecture/image-safety-pipeline.md §1b)
 # to extract factual observations about an image (people, age bracket, clothing
@@ -24,7 +24,7 @@ from backend.shared.providers.google.gemini_image import (
 
 logger = logging.getLogger(__name__)
 
-VISION_SAFETY_MODEL_DEFAULT = "gemini-3.5-flash"
+VISION_SAFETY_MODEL_DEFAULT = "gemini-3-flash-preview"
 
 SYSTEM_PROMPT = """You are a visual content analyzer. Extract factual observations from the image.
 
@@ -240,7 +240,7 @@ async def analyze_image_gemini(
     model_id: str = VISION_SAFETY_MODEL_DEFAULT,
 ) -> VisionSafetyFindings:
     """
-    Run Gemini 3.5 Flash vision safety analysis with function calling.
+    Run Gemini 3 Flash vision safety analysis with function calling.
 
     Fails CLOSED: any exception returns hard_block=True so the caller can
     escalate to the fallback chain (GPT-5 mini → Sightengine-only → reject).

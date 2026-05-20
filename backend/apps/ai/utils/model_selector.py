@@ -67,7 +67,7 @@ TASK_AREA_CATEGORIES = {
 # These are model_id values from leaderboard (without provider prefix)
 ECONOMICAL_MODELS = {
     "claude-haiku-4-5-20251001",  # Fast, affordable Claude
-    "gemini-3.5-flash",           # Fast Gemini
+    "gemini-3-flash-preview",     # Fast Gemini
     "gemini-flash-latest",        # Fast Gemini
     "gpt-oss-120b",               # Cheaper GPT
 }
@@ -77,6 +77,7 @@ ECONOMICAL_MODELS = {
 PREMIUM_MODELS = {
     "claude-opus-4-6",               # Top Claude
     "claude-sonnet-4-6",             # High-quality Claude
+    "gemini-3.5-flash",              # Mid-tier Gemini alternative to Pro
     "gemini-3.1-pro-preview",         # Top Gemini
     "gpt-5.4",                       # Top GPT
 }
