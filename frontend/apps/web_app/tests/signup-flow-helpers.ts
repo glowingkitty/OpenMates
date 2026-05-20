@@ -209,8 +209,8 @@ function createStepScreenshotter(
  * We scroll into view first, then explicitly check/uncheck the input.
  */
 async function setToggleChecked(toggleLocator: any, shouldBeChecked: boolean): Promise<void> {
-	await toggleLocator.scrollIntoViewIfNeeded();
 	try {
+		await toggleLocator.scrollIntoViewIfNeeded();
 		if (shouldBeChecked) {
 			await toggleLocator.check({ force: true });
 		} else {
