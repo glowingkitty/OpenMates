@@ -229,6 +229,17 @@ test.describe('Create persistent test account', () => {
 		logCheckpoint('Payment consent accepted.');
 
 		// Fill Stripe test card
+		const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+		if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await switchToStripeBtn.click();
+			await page.waitForTimeout(3000);
+			logCheckpoint('Managed Payments detected; switched to EU Stripe card form.');
+		}
+
+		await page.waitForSelector('iframe[title="Secure payment input frame"]', {
+			state: 'attached',
+			timeout: 30000
+		});
 		await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
 		logCheckpoint('Filled Stripe card details.');
 
