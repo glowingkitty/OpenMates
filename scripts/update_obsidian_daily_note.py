@@ -12,6 +12,7 @@ links across repeated runs.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 import subprocess
@@ -31,6 +32,31 @@ DAILY_NOTES_DIR = "Daily Notes"
 STATE_DIR = ".obsidian-auto/daily-note-state"
 SERVER_STATS_CACHE_DIR = ".obsidian-auto/server-stats"
 SERVER_STATS_CACHE_MAX_AGE_SECONDS = 60 * 60
+DAILY_METRICS_ASSET_DIR = "assets/daily-metrics"
+SVG_WIDTH = 1200
+SVG_HEIGHT = 660
+SVG_FONT = "Lexend Deca Variable, Lexend Deca, Inter, Arial, sans-serif"
+SVG_COLORS = {
+    "background": "#171717",
+    "card": "#212121",
+    "card_alt": "#252525",
+    "grid": "#404040",
+    "text": "#ffffff",
+    "text_primary": "#e6e6e6",
+    "text_secondary": "#cfcfcf",
+    "text_tertiary": "#a0a0a0",
+    "primary_start": "#4867cd",
+    "primary_end": "#5a85eb",
+    "button": "#ff553b",
+    "button_hover": "#ff6b54",
+    "finance_start": "#0a6e04",
+    "finance_end": "#2cb81e",
+    "health_start": "#fd50a0",
+    "health_end": "#f42c2d",
+    "travel_start": "#059db3",
+    "travel_end": "#13daf5",
+    "warning": "#f0a050",
+}
 LEGACY_BOARD_LINKS = (
     "Kanban: [[Boards/all-todos|Open All Todos board]]",
     "Kanban: [[OpenMates/Tasks/Boards/All Todos|Open All Todos board]]",
@@ -339,6 +365,15 @@ def _safe_float(value: object, default: float = 0.0) -> float:
         return default
 
 
+def _optional_float(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _format_count(value: object) -> str:
     return f"{_safe_int(value):,}"
 
@@ -353,6 +388,555 @@ def _sum_trend(trend: list[dict[str, object]], key: str) -> int:
 
 def _sum_trend_float(trend: list[dict[str, object]], key: str) -> float:
     return sum(_safe_float(day.get(key)) for day in trend)
+
+
+def _svg_escape(value: object) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def _monthly_revenue(stripe_monthly: list[dict[str, object]], bank_monthly: list[dict[str, object]]) -> list[dict[str, object]]:
+    by_month: dict[str, dict[str, object]] = {}
+    for month in stripe_monthly:
+        if not isinstance(month, dict):
+            continue
+        label = str(month.get("month") or "?")
+        by_month.setdefault(label, {"month": label, "stripe": 0.0, "bank": 0.0, "transactions": 0})
+        by_month[label]["stripe"] = _safe_float(month.get("revenue_eur"))
+        by_month[label]["transactions"] = _safe_int(month.get("transactions"))
+    for month in bank_monthly:
+        if not isinstance(month, dict):
+            continue
+        label = str(month.get("month") or "?")
+        by_month.setdefault(label, {"month": label, "stripe": 0.0, "bank": 0.0, "transactions": 0})
+        by_month[label]["bank"] = _safe_float(month.get("revenue_eur"))
+        by_month[label]["transactions"] = _safe_int(by_month[label].get("transactions")) + _safe_int(month.get("transfers"))
+    return [by_month[month] for month in sorted(by_month)][-6:]
+
+
+def _six_month_month_cutoff(date_str: str) -> str:
+    year, month, *_ = [int(part) for part in date_str.split("-")]
+    month -= 5
+    while month <= 0:
+        month += 12
+        year -= 1
+    return f"{year:04d}-{month:02d}"
+
+
+def _last_six_month_labels(date_str: str) -> list[str]:
+    year, month, *_ = [int(part) for part in date_str.split("-")]
+    labels = []
+    for offset in range(5, -1, -1):
+        label_year = year
+        label_month = month - offset
+        while label_month <= 0:
+            label_month += 12
+            label_year -= 1
+        labels.append(f"{label_year:04d}-{label_month:02d}")
+    return labels
+
+
+def _align_month_items(
+    items: list[dict[str, object]],
+    labels: list[str],
+    value_keys: tuple[str, ...],
+) -> list[dict[str, object]]:
+    by_month = {str(item.get("month") or ""): item for item in items}
+    aligned = []
+    for label in labels:
+        item = dict(by_month.get(label, {}))
+        item["month"] = label
+        for key in value_keys:
+            item.setdefault(key, None)
+        aligned.append(item)
+    return aligned
+
+
+def _filter_month_window(items: list[dict[str, object]], date_str: str, key: str = "month") -> list[dict[str, object]]:
+    cutoff = _six_month_month_cutoff(date_str)
+    return [item for item in items if str(item.get(key) or "") >= cutoff]
+
+
+def _monthly_user_history(monthly_trend: list[dict[str, object]], current_paid_users: int) -> list[dict[str, object]]:
+    months = [month for month in monthly_trend if isinstance(month, dict)][-6:]
+    paid_by_month: list[int] = []
+    later_new_paid = 0
+    for month in reversed(months):
+        paid_by_month.append(max(0, current_paid_users - later_new_paid))
+        later_new_paid += _safe_int(month.get("new_paying_users"))
+    paid_by_month.reverse()
+    return [
+        {
+            "month": str(month.get("month") or "?"),
+            "registered": _safe_int(month.get("total_users")),
+            "paid": paid_by_month[index] if index < len(paid_by_month) else current_paid_users,
+        }
+        for index, month in enumerate(months)
+    ]
+
+
+def _daily_newsletter_history(vault: Path, date_str: str, current_subscribers: int) -> list[dict[str, object]]:
+    history: list[dict[str, object]] = []
+    daily_dir = vault / DAILY_NOTES_DIR
+    if daily_dir.exists():
+        for path in sorted(daily_dir.glob("*.md")):
+            day = path.stem
+            if day > date_str:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            match = re.search(r"\| Newsletter \| ([\d,]+) confirmed subscribers \|", text)
+            if match:
+                history.append({"date": day, "subscribers": _safe_int(match.group(1).replace(",", ""))})
+    if not history or history[-1].get("date") != date_str:
+        history.append({"date": date_str, "subscribers": current_subscribers})
+    else:
+        history[-1]["subscribers"] = current_subscribers
+    return history[-180:]
+
+
+def _monthly_newsletter_history(vault: Path, date_str: str, current_subscribers: int) -> list[dict[str, object]]:
+    by_month: dict[str, dict[str, object]] = {}
+    for item in _daily_newsletter_history(vault, date_str, current_subscribers):
+        day = str(item.get("date") or "")
+        month = day[:7]
+        if not month:
+            continue
+        by_month[month] = {"month": month, "subscribers": _safe_int(item.get("subscribers"))}
+    return _filter_month_window([by_month[month] for month in sorted(by_month)], date_str)
+
+
+def _line_path(values: list[float], x: float, y: float, width: float, height: float) -> str:
+    points = _line_points(values, x, y, width, height)
+    if not points:
+        return ""
+    command = [f"M{points[0][0]:.1f} {points[0][1]:.1f}"]
+    command.extend(f"L{px:.1f} {py:.1f}" for px, py in points[1:])
+    return " ".join(command)
+
+
+def _line_points(values: list[float], x: float, y: float, width: float, height: float) -> list[tuple[float, float]]:
+    if not values:
+        return []
+    max_value = max(values) or 1.0
+    min_value = min(values)
+    if max_value == min_value:
+        step = width / max(len(values) - 1, 1)
+        return [(x + index * step, y + height / 2) for index, _ in enumerate(values)]
+    span = max_value - min_value
+    step = width / max(len(values) - 1, 1)
+    points: list[tuple[float, float]] = []
+    for index, value in enumerate(values):
+        px = x + index * step
+        py = y + height - ((value - min_value) / span * height)
+        points.append((px, py))
+    return points
+
+
+def _line_path_fixed_scale(
+    values: list[float],
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    min_value: float,
+    max_value: float,
+) -> str:
+    points = _line_points_fixed_scale(values, x, y, width, height, min_value, max_value)
+    if not points:
+        return ""
+    command = [f"M{points[0][0]:.1f} {points[0][1]:.1f}"]
+    command.extend(f"L{px:.1f} {py:.1f}" for px, py in points[1:])
+    return " ".join(command)
+
+
+def _line_points_fixed_scale(
+    values: list[float],
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    min_value: float,
+    max_value: float,
+) -> list[tuple[float, float]]:
+    if not values:
+        return []
+    span = max(max_value - min_value, 1.0)
+    step = width / max(len(values) - 1, 1)
+    return [
+        (x + index * step, y + height - ((value - min_value) / span * height))
+        for index, value in enumerate(values)
+    ]
+
+
+def _line_path_optional(values: list[float | None], x: float, y: float, width: float, height: float) -> str:
+    present = [value for value in values if value is not None]
+    if not present:
+        return ""
+    min_value = min(present)
+    max_value = max(present) or 1.0
+    if max_value == min_value:
+        max_value = min_value + 1.0
+    span = max_value - min_value
+    step = width / max(len(values) - 1, 1)
+    commands: list[str] = []
+    drawing = False
+    for index, value in enumerate(values):
+        if value is None:
+            drawing = False
+            continue
+        px = x + index * step
+        py = y + height - ((value - min_value) / span * height)
+        commands.append(("L" if drawing else "M") + f"{px:.1f} {py:.1f}")
+        drawing = True
+    return " ".join(commands)
+
+
+def _line_dots_optional(values: list[float | None], x: float, y: float, width: float, height: float, fill: str) -> str:
+    present = [value for value in values if value is not None]
+    if not present:
+        return ""
+    min_value = min(present)
+    max_value = max(present) or 1.0
+    if max_value == min_value:
+        max_value = min_value + 1.0
+    span = max_value - min_value
+    step = width / max(len(values) - 1, 1)
+    dots = []
+    for index, value in enumerate(values):
+        if value is None:
+            continue
+        px = x + index * step
+        py = y + height - ((value - min_value) / span * height)
+        dots.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4.5" fill="{fill}" stroke="{SVG_COLORS["card"]}" stroke-width="2"/>')
+    return "".join(dots)
+
+
+def _line_dots_fixed_scale(
+    values: list[float | None],
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    min_value: float,
+    max_value: float,
+    fill: str,
+) -> str:
+    return "".join(
+        f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4.5" fill="{fill}" stroke="{SVG_COLORS["card"]}" stroke-width="2"/>'
+        for px, py in _line_points_fixed_scale(values, x, y, width, height, min_value, max_value)
+    )
+
+
+def _line_dots(values: list[float], x: float, y: float, width: float, height: float, fill: str) -> str:
+    return "".join(
+        f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4.5" fill="{fill}" stroke="{SVG_COLORS["card"]}" stroke-width="2"/>'
+        for px, py in _line_points(values, x, y, width, height)
+    )
+
+
+def _all_axis_labels(labels: list[str], x: float, y: float, width: float, font_size: int = 16) -> str:
+    if not labels:
+        return ""
+    colors = SVG_COLORS
+    step = width / max(len(labels) - 1, 1)
+    return "".join(
+        f'<text x="{x + index * step:.1f}" y="{y}" fill="{colors["text_tertiary"]}" font-family="{SVG_FONT}" font-size="{font_size}" font-weight="500" text-anchor="middle">{_svg_escape(label)}</text>'
+        for index, label in enumerate(labels)
+    )
+
+
+def _value_row(
+    label: str,
+    values: list[float],
+    x: float,
+    y: float,
+    width: float,
+    color: str,
+    formatter: str = "count",
+    font_size: int = 16,
+) -> str:
+    if not values:
+        return ""
+    step = width / max(len(values) - 1, 1)
+    label_text = f'<text x="78" y="{y}" fill="{color}" font-family="{SVG_FONT}" font-size="{font_size}" font-weight="800" text-anchor="start">{_svg_escape(label)}</text>'
+    cells = []
+    for index, value in enumerate(values):
+        if value is None:
+            text = "-"
+        else:
+            text = f"EUR {value:,.0f}" if formatter == "eur" else f"{value:,.0f}"
+        cells.append(
+            f'<text x="{x + index * step:.1f}" y="{y}" fill="{SVG_COLORS["text_secondary"]}" font-family="{SVG_FONT}" font-size="{font_size}" font-weight="500" text-anchor="middle">{_svg_escape(text)}</text>'
+        )
+    return label_text + "".join(cells)
+
+
+def _svg_shell(title: str, subtitle: str, body: str, defs: str = "") -> str:
+    colors = SVG_COLORS
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{SVG_WIDTH}" height="{SVG_HEIGHT}" viewBox="0 0 {SVG_WIDTH} {SVG_HEIGHT}" role="img" aria-labelledby="title desc">
+  <title id="title">{_svg_escape(title)}</title>
+  <desc id="desc">{_svg_escape(subtitle)}</desc>
+  <defs>
+    <linearGradient id="om-primary" x1="0" x2="1" y1="0" y2="1"><stop offset="9.04%" stop-color="{colors['primary_start']}"/><stop offset="90.06%" stop-color="{colors['primary_end']}"/></linearGradient>
+    <linearGradient id="om-action" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="{colors['button']}"/><stop offset="1" stop-color="{colors['button_hover']}"/></linearGradient>
+    <linearGradient id="om-finance" x1="0" x2="1" y1="0" y2="1"><stop offset="9.04%" stop-color="{colors['finance_start']}"/><stop offset="90.06%" stop-color="{colors['finance_end']}"/></linearGradient>
+    <linearGradient id="om-health" x1="0" x2="1" y1="0" y2="1"><stop offset="9.04%" stop-color="{colors['health_start']}"/><stop offset="90.06%" stop-color="{colors['health_end']}"/></linearGradient>
+    <linearGradient id="om-travel" x1="0" x2="1" y1="0" y2="1"><stop offset="9.04%" stop-color="{colors['travel_start']}"/><stop offset="90.06%" stop-color="{colors['travel_end']}"/></linearGradient>
+    <filter id="card-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000000" flood-opacity="0.22"/></filter>
+{defs}
+  </defs>
+  <rect width="{SVG_WIDTH}" height="{SVG_HEIGHT}" rx="34" fill="{colors['background']}"/>
+  <rect x="38" y="34" width="1124" height="592" rx="28" fill="{colors['card']}" filter="url(#card-shadow)"/>
+  <rect x="38" y="34" width="1124" height="8" rx="4" fill="url(#om-primary)"/>
+  <text x="78" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="40" font-weight="800">{_svg_escape(title)}</text>
+  <text x="78" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="20" font-weight="500">{_svg_escape(subtitle)}</text>
+{body}
+</svg>
+'''
+
+
+def _write_svg(path: Path, content: str, dry_run: bool) -> None:
+    if dry_run:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _daily_note_image_embed(vault_relative_path: str) -> str:
+    # Daily notes live in DAILY_NOTES_DIR, so standard Markdown image links need
+    # one parent hop. Obsidian SVG wikilinks are not rendered reliably in all setups.
+    alt = Path(vault_relative_path).stem.replace("-", " ").title()
+    return f"![{alt}](../{vault_relative_path})"
+
+
+def _revenue_svg(
+    lifetime_revenue: float,
+    monthly_revenue: list[dict[str, object]],
+    paid_users: int,
+) -> str:
+    colors = SVG_COLORS
+    chart_x = 230
+    chart_y = 176
+    chart_w = 850
+    chart_h = 250
+    totals = []
+    for month in monthly_revenue:
+        stripe = _optional_float(month.get("stripe"))
+        bank = _optional_float(month.get("bank"))
+        totals.append(None if stripe is None and bank is None else (stripe or 0.0) + (bank or 0.0))
+    max_total = max((total for total in totals if total is not None), default=1.0)
+    max_total = max(max_total, 1.0)
+    bar_gap = 42
+    bar_w = (chart_w - bar_gap * (len(monthly_revenue) - 1)) / max(len(monthly_revenue), 1)
+    bars = []
+    for index, month in enumerate(monthly_revenue):
+        stripe = _optional_float(month.get("stripe"))
+        bank = _optional_float(month.get("bank"))
+        total = None if stripe is None and bank is None else (stripe or 0.0) + (bank or 0.0)
+        x = chart_x + index * (bar_w + bar_gap)
+        if total is not None:
+            stripe_height = (stripe or 0.0) / max_total * chart_h
+            bank_height = (bank or 0.0) / max_total * chart_h
+            stripe_y = chart_y + chart_h - stripe_height
+            bank_y = stripe_y - bank_height
+            label_y = max(chart_y - 10, bank_y - 12)
+            bars.append(f'<rect x="{x:.1f}" y="{stripe_y:.1f}" width="{bar_w:.1f}" height="{stripe_height:.1f}" rx="15" fill="url(#om-primary)"/>')
+            if bank_height > 0:
+                bars.append(f'<rect x="{x:.1f}" y="{bank_y:.1f}" width="{bar_w:.1f}" height="{bank_height:.1f}" rx="15" fill="url(#om-finance)"/>')
+            bars.append(f'<text x="{x + bar_w / 2:.1f}" y="{label_y:.1f}" fill="{colors["text_primary"]}" font-family="{SVG_FONT}" font-size="21" font-weight="700" text-anchor="middle">{_svg_escape(f"EUR {total:,.0f}")}</text>')
+        bars.append(f'<text x="{x + bar_w / 2:.1f}" y="{chart_y + chart_h + 38}" fill="{colors["text_tertiary"]}" font-family="{SVG_FONT}" font-size="19" font-weight="500" text-anchor="middle">{_svg_escape(month.get("month", "?"))}</text>')
+    grid = "".join(
+        f'<line x1="{chart_x}" y1="{chart_y + chart_h * i / 4:.1f}" x2="{chart_x + chart_w}" y2="{chart_y + chart_h * i / 4:.1f}" stroke="{colors["grid"]}" stroke-opacity="0.45"/>'
+        for i in range(5)
+    )
+    body = f'''
+  <text x="1112" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="36" font-weight="800" text-anchor="end">{_svg_escape(_format_eur(lifetime_revenue))}</text>
+  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="19" font-weight="500" text-anchor="end">lifetime · {paid_users:,} paid users</text>
+  <g>{grid}{''.join(bars)}</g>
+  {_value_row('Total', totals, chart_x, 512, chart_w, colors['text_primary'], 'eur', 18)}
+  <circle cx="86" cy="574" r="8" fill="url(#om-primary)"/><text x="106" y="581" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18">Stripe</text>
+  <circle cx="190" cy="574" r="8" fill="url(#om-finance)"/><text x="210" y="581" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18">Bank transfer</text>
+'''
+    return _svg_shell("Revenue", "Revenue in the last 6 months, with lifetime total in the header", body)
+
+
+def _users_svg(user_history: list[dict[str, object]], registered_accounts: int, paying_customers: int) -> str:
+    colors = SVG_COLORS
+    conversion = paying_customers * 100 / registered_accounts if registered_accounts else 0.0
+    chart_x = 230
+    chart_w = 850
+    panel_h = 88
+    registered_values = [_optional_float(month.get("registered")) for month in user_history]
+    paid_values = [_optional_float(month.get("paid")) for month in user_history]
+    labels = [str(month.get("month") or "?") for month in user_history]
+
+    def panel(y: float, title: str, values: list[float | None], stroke: str, total: int) -> str:
+        grid = "".join(
+            f'<line x1="{chart_x}" y1="{y + panel_h * i / 3:.1f}" x2="{chart_x + chart_w}" y2="{y + panel_h * i / 3:.1f}" stroke="{colors["grid"]}" stroke-opacity="0.4"/>'
+            for i in range(4)
+        )
+        return f'''
+  <text x="{chart_x}" y="{y - 16}" fill="{colors['text_primary']}" font-family="{SVG_FONT}" font-size="21" font-weight="800">{_svg_escape(title)}</text>
+  <text x="{chart_x + chart_w}" y="{y - 16}" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="24" font-weight="800" text-anchor="end">{total:,}</text>
+  <g>{grid}<path d="{_line_path_optional(values, chart_x, y, chart_w, panel_h)}" fill="none" stroke="{stroke}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>{_line_dots_optional(values, chart_x, y, chart_w, panel_h, stroke)}</g>
+'''
+
+    body = f'''
+  <text x="1112" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="36" font-weight="800" text-anchor="end">{conversion:.1f}%</text>
+  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="19" font-weight="500" text-anchor="end">paid conversion</text>
+  {panel(184, 'Registered accounts over time', registered_values, 'url(#om-primary)', registered_accounts)}
+  {panel(316, 'Paid users over time', paid_values, 'url(#om-action)', paying_customers)}
+  {_all_axis_labels(labels, chart_x, 458, chart_w, 19)}
+  {_value_row('Registered', registered_values, chart_x, 498, chart_w, colors['primary_end'], 'count', 18)}
+  {_value_row('Paid', paid_values, chart_x, 536, chart_w, colors['button'], 'count', 18)}
+'''
+    return _svg_shell("Users", "Registered accounts and paid users in the last 6 months", body)
+
+
+def _engagement_svg(engagement_trend: list[dict[str, object]], paid_users: int) -> str:
+    colors = SVG_COLORS
+    engagement_trend = engagement_trend[-7:]
+    chart_x = 220
+    chart_y = 176
+    chart_w = 860
+    chart_h = 194
+    messages = [_safe_float(day.get("messages")) for day in engagement_trend]
+    chats = [_safe_float(day.get("chats")) for day in engagement_trend]
+    embeds = [_safe_float(day.get("embeds")) for day in engagement_trend]
+    labels = [str(day.get("date") or "?")[5:] for day in engagement_trend]
+    totals = {
+        "messages": sum(messages),
+        "chats": sum(chats),
+        "embeds": sum(embeds),
+    }
+    max_all = max(messages + chats + embeds + [1.0])
+
+    def path(values: list[float]) -> str:
+        return _line_path_fixed_scale(values, chart_x, chart_y, chart_w, chart_h, 0, max_all)
+
+    def dots(values: list[float], fill: str) -> str:
+        return _line_dots_fixed_scale(values, chart_x, chart_y, chart_w, chart_h, 0, max_all, fill)
+
+    grid = "".join(
+        f'<line x1="{chart_x}" y1="{chart_y + chart_h * i / 4:.1f}" x2="{chart_x + chart_w}" y2="{chart_y + chart_h * i / 4:.1f}" stroke="{colors["grid"]}" stroke-opacity="0.45"/>'
+        for i in range(5)
+    )
+    per_paid = totals["messages"] / paid_users if paid_users else 0.0
+    body = f'''
+  <text x="1112" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="36" font-weight="800" text-anchor="end">{totals['messages']:,.0f}</text>
+  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="19" font-weight="500" text-anchor="end">messages · {per_paid:.1f} per paid user</text>
+  <g>{grid}
+    <path d="{path(embeds)}" fill="none" stroke="url(#om-primary)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="{path(messages)}" fill="none" stroke="url(#om-action)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="{path(chats)}" fill="none" stroke="url(#om-finance)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    {dots(embeds, 'url(#om-primary)')}{dots(messages, 'url(#om-action)')}{dots(chats, 'url(#om-finance)')}
+  </g>
+  {_all_axis_labels(labels, chart_x, 410, chart_w, 19)}
+  {_value_row('Messages', messages, chart_x, 448, chart_w, colors['button'], 'count', 18)}
+  {_value_row('Chats', chats, chart_x, 486, chart_w, colors['finance_end'], 'count', 18)}
+  {_value_row('Embeds', embeds, chart_x, 524, chart_w, colors['primary_end'], 'count', 18)}
+  <circle cx="86" cy="574" r="8" fill="url(#om-action)"/><text x="106" y="581" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18">Messages {totals['messages']:,.0f}</text>
+  <circle cx="270" cy="574" r="8" fill="url(#om-finance)"/><text x="290" y="581" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18">Chats {totals['chats']:,.0f}</text>
+  <circle cx="410" cy="574" r="8" fill="url(#om-primary)"/><text x="430" y="581" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18">Embeds {totals['embeds']:,.0f}</text>
+'''
+    return _svg_shell("Engagement", "Daily engagement over the last 7 days", body)
+
+
+def _newsletter_svg(
+    monthly_newsletter: list[dict[str, object]],
+    confirmed_subscribers: int,
+    page_loads: int,
+    unique_visits: int,
+) -> str:
+    colors = SVG_COLORS
+    milestone = ((confirmed_subscribers // 50) + 1) * 50 if confirmed_subscribers else 50
+    progress = confirmed_subscribers / milestone if milestone else 0.0
+    chart_x = 230
+    chart_y = 188
+    chart_w = 850
+    chart_h = 214
+    subscribers = [_optional_float(month.get("subscribers")) for month in monthly_newsletter]
+    labels = [str(month.get("month") or "?") for month in monthly_newsletter]
+    grid = "".join(
+        f'<line x1="{chart_x}" y1="{chart_y + chart_h * i / 4:.1f}" x2="{chart_x + chart_w}" y2="{chart_y + chart_h * i / 4:.1f}" stroke="{colors["grid"]}" stroke-opacity="0.45"/>'
+        for i in range(5)
+    )
+    body = f'''
+  <text x="1112" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="36" font-weight="800" text-anchor="end">{confirmed_subscribers:,}</text>
+  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="19" font-weight="500" text-anchor="end">confirmed subscribers</text>
+  <g>{grid}<path d="{_line_path_optional(subscribers, chart_x, chart_y, chart_w, chart_h)}" fill="none" stroke="url(#om-primary)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>{_line_dots_optional(subscribers, chart_x, chart_y, chart_w, chart_h, 'url(#om-primary)')}</g>
+  {_all_axis_labels(labels, chart_x, 434, chart_w, 19)}
+  {_value_row('Subscribers', subscribers, chart_x, 478, chart_w, colors['primary_end'], 'count', 18)}
+  <text x="88" y="538" fill="{colors['text_primary']}" font-family="{SVG_FONT}" font-size="21" font-weight="800">Next milestone</text>
+  <rect x="330" y="517" width="520" height="34" rx="17" fill="{colors['card_alt']}"/>
+  <rect x="330" y="517" width="{min(520, max(18, 520 * progress)):.1f}" height="34" rx="17" fill="url(#om-primary)"/>
+  <text x="900" y="542" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="21" font-weight="800">{confirmed_subscribers:,} / {milestone:,}</text>
+  <text x="1112" y="582" fill="{colors['text_tertiary']}" font-family="{SVG_FONT}" font-size="18" text-anchor="end">Web yesterday: {unique_visits:,} unique · {page_loads:,} loads</text>
+'''
+    return _svg_shell("Newsletter & Web", "Subscriber snapshots from the last 6 months plus web traffic", body)
+
+
+def generate_daily_metric_svgs(
+    vault: Path,
+    date_str: str,
+    sections: dict[str, object],
+    dry_run: bool,
+) -> list[str]:
+    lifetime = sections.get("lifetime_revenue") if isinstance(sections.get("lifetime_revenue"), dict) else {}
+    stripe_revenue = sections.get("stripe_revenue") if isinstance(sections.get("stripe_revenue"), dict) else {}
+    bank_transfer_revenue = sections.get("bank_transfer_revenue") if isinstance(sections.get("bank_transfer_revenue"), dict) else {}
+    invoices = sections.get("invoices") if isinstance(sections.get("invoices"), dict) else {}
+    user_growth = sections.get("user_growth") if isinstance(sections.get("user_growth"), dict) else {}
+    engagement = sections.get("engagement") if isinstance(sections.get("engagement"), dict) else {}
+    web_analytics = sections.get("web_analytics") if isinstance(sections.get("web_analytics"), dict) else {}
+    newsletter = sections.get("newsletter") if isinstance(sections.get("newsletter"), dict) else {}
+
+    registered_accounts = _safe_int(user_growth.get("total_users"))
+    invoice_buyers = _safe_int(invoices.get("lifetime_unique_buyers"))
+    known_paying_users = _safe_int(newsletter.get("total_paying_users"))
+    paying_customers = max(invoice_buyers, known_paying_users)
+    stripe_all_time = stripe_revenue.get("all_time_eur") if "error" not in stripe_revenue else None
+    bank_all_time = bank_transfer_revenue.get("all_time_eur") if "error" not in bank_transfer_revenue else None
+    revenue_parts = [value for value in (stripe_all_time, bank_all_time) if isinstance(value, (int, float))]
+    lifetime_revenue = sum(float(value) for value in revenue_parts) if revenue_parts else _safe_float(lifetime.get("total_eur"))
+    engagement_trend = engagement.get("trend_14d") if isinstance(engagement.get("trend_14d"), list) else []
+    lifetime_monthly_trend = lifetime.get("monthly_trend") if isinstance(lifetime.get("monthly_trend"), list) else []
+    stripe_monthly = stripe_revenue.get("monthly") if isinstance(stripe_revenue.get("monthly"), list) else []
+    bank_monthly = bank_transfer_revenue.get("monthly") if isinstance(bank_transfer_revenue.get("monthly"), list) else []
+    month_labels = _last_six_month_labels(date_str)
+    monthly_revenue = _align_month_items(
+        _filter_month_window(_monthly_revenue(stripe_monthly, bank_monthly), date_str),
+        month_labels,
+        ("stripe", "bank", "transactions"),
+    )
+    user_history = _align_month_items(
+        _filter_month_window(_monthly_user_history(lifetime_monthly_trend, paying_customers), date_str),
+        month_labels,
+        ("registered", "paid"),
+    )
+    confirmed_subscribers = _safe_int(newsletter.get("confirmed_subscribers"))
+    monthly_newsletter = _align_month_items(
+        _monthly_newsletter_history(vault, date_str, confirmed_subscribers),
+        month_labels,
+        ("subscribers",),
+    )
+    asset_dir = vault / DAILY_METRICS_ASSET_DIR / date_str
+    files = {
+        "revenue.svg": _revenue_svg(lifetime_revenue, monthly_revenue, paying_customers),
+        "users.svg": _users_svg(user_history, registered_accounts, paying_customers),
+        "engagement.svg": _engagement_svg(engagement_trend, paying_customers),
+        "newsletter-web.svg": _newsletter_svg(
+            monthly_newsletter,
+            confirmed_subscribers,
+            _safe_int(web_analytics.get("page_loads")),
+            _safe_int(web_analytics.get("unique_visits")),
+        ),
+    }
+    for filename, content in files.items():
+        _write_svg(asset_dir / filename, content, dry_run)
+    return [f"{DAILY_METRICS_ASSET_DIR}/{date_str}/{filename}" for filename in files]
 
 
 def _read_server_stats_cache(cache_path: Path) -> dict[str, object] | None:
@@ -425,7 +1009,13 @@ def load_or_refresh_server_stats(
     return payload, None
 
 
-def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: str | None) -> str:
+def server_stats_summary_body(
+    stats_payload: dict[str, object] | None,
+    warning: str | None,
+    vault: Path,
+    date_str: str,
+    dry_run: bool,
+) -> str:
     if not stats_payload:
         return f"Server stats unavailable. {warning or ''}".strip()
 
@@ -451,6 +1041,7 @@ def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: 
     web_analytics = sections.get("web_analytics") if isinstance(sections.get("web_analytics"), dict) else {}
     newsletter = sections.get("newsletter") if isinstance(sections.get("newsletter"), dict) else {}
     data_health = sections.get("data_health") if isinstance(sections.get("data_health"), dict) else {}
+    metric_svgs = generate_daily_metric_svgs(vault, date_str, sections, dry_run)
 
     registered_accounts = _safe_int(user_growth.get("total_users"))
     invoice_buyers = _safe_int(invoices.get("lifetime_unique_buyers"))
@@ -536,6 +1127,12 @@ def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: 
     if warning:
         lines.append(f"Warning: {warning}")
     lines.append("")
+    if metric_svgs:
+        lines.append("**Metric Graphics**")
+        lines.append("")
+        for svg_path in metric_svgs:
+            lines.append(_daily_note_image_embed(svg_path))
+            lines.append("")
     lines.extend(rows)
     stripe_monthly = stripe_revenue.get("monthly") if isinstance(stripe_revenue.get("monthly"), list) else []
     if stripe_monthly:
@@ -684,7 +1281,7 @@ def update_daily_note(
     text = replace_auto_block(
         text,
         "server-stats",
-        server_stats_summary_body(server_stats_payload, server_stats_warning),
+        server_stats_summary_body(server_stats_payload, server_stats_warning, vault, date_str, dry_run),
     )
     text = move_section_after_auto_block(text, "Server Stats", "server-stats", "daily-summary")
     text = replace_auto_block(text, "changed-notes", activity_list_body(manifest, commits))
