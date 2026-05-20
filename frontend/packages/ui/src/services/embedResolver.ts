@@ -219,6 +219,17 @@ export async function resolveEmbed(
       ? embed_id.slice("embed:".length)
       : embed_id;
 
+    // Check known failures before touching IndexedDB. Some stale encrypted rows
+    // stay present locally after a key mismatch; retrying those WebCrypto decrypts
+    // on every render causes severe Safari slowdowns.
+    const knownErrorInfo = knownErrorEmbeds.get(bareId);
+    if (knownErrorInfo) {
+      console.debug(
+        `[embedResolver] Embed ${bareId} is known ${knownErrorInfo.status} (since ${new Date(knownErrorInfo.timestamp).toISOString()}), returning null without re-reading cache`,
+      );
+      return null;
+    }
+
     const demoEmbed = getExampleChatEmbed(bareId);
     if (demoEmbed) {
       console.debug(
@@ -255,18 +266,6 @@ export async function resolveEmbed(
       }
       console.debug("[embedResolver] Found embed in EmbedStore:", bareId);
       return cachedEmbed as EmbedData;
-    }
-
-    // Check if this embed is known to be in an error/cancelled state.
-    // This breaks the infinite loop: error embeds are never persisted to IndexedDB,
-    // so without this check, every render cycle would re-request them from the server,
-    // which would send them back with status=error, which would trigger another re-render.
-    const errorInfo = knownErrorEmbeds.get(bareId);
-    if (errorInfo) {
-      console.debug(
-        `[embedResolver] Embed ${bareId} is known ${errorInfo.status} (since ${new Date(errorInfo.timestamp).toISOString()}), returning null without re-requesting`,
-      );
-      return null;
     }
 
     // If not in any store, request from server via WebSocket (async, non-blocking)
