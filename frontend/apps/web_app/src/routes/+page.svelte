@@ -19,7 +19,6 @@
 		phasedSyncState, // Import phased sync state store
 		messageHighlightStore, // Import message highlight store for deep linking
 		websocketStatus, // Import WebSocket status store
-		personalDataStore, // Import privacy store for deterministic video demo setup
 		userProfile, // Import user profile to access last_opened
 		loadUserProfileFromDB, // Import loadUserProfileFromDB function
 		loginInterfaceOpen, // Import loginInterfaceOpen to control login interface visibility
@@ -1102,32 +1101,6 @@
 		// (Priority 1/2/3), so translateDemoChat always uses the URL-specified
 		// language regardless of whether this is a first visit or a return visit.
 		if (browser) {
-			if (window.localStorage.getItem('openmates.demoMode') === 'privacy-video') {
-				authStore.update((state) => ({ ...state, isAuthenticated: true, isInitialized: true }));
-				userProfile.update((profile) => ({ ...profile, credits: Math.max(profile.credits ?? 0, 100), darkmode: true }));
-				websocketStatus.setStatus('connected');
-				loginInterfaceOpen.set(false);
-				personalDataStore.setDemoEntries([
-					{
-						id: 'privacy-video-address',
-						type: 'address',
-						title: 'Demo address',
-						textToHide: 'Lindenstrasse 42, 10969 Berlin',
-						replaceWith: '[ADDRESS_1]',
-						enabled: true,
-						addressLines: {
-							street: 'Lindenstrasse 42',
-							city: '10969 Berlin',
-							state: '',
-							zip: '',
-							country: ''
-						},
-						createdAt: Math.floor(Date.now() / 1000),
-						updatedAt: Math.floor(Date.now() / 1000)
-					}
-				]);
-			}
-
 			const langParamEarly = new URLSearchParams(window.location.search).get('lang');
 			if (langParamEarly && LANGUAGE_CODES.includes(langParamEarly)) {
 				locale.set(langParamEarly);
@@ -2092,26 +2065,6 @@
 			await initialize();
 		}
 		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
-		if (browser && window.localStorage.getItem('openmates.demoMode') === 'privacy-video') {
-			authStore.update((state) => ({ ...state, isAuthenticated: true, isInitialized: true }));
-			userProfile.update((profile) => ({ ...profile, credits: Math.max(profile.credits ?? 0, 100), darkmode: true }));
-			websocketStatus.setStatus('connected');
-			loginInterfaceOpen.set(false);
-			personalDataStore.setDemoEntries([
-				{
-					id: 'privacy-video-address',
-					type: 'address',
-					title: 'Demo address',
-					textToHide: 'Lindenstrasse 42, 10969 Berlin',
-					replaceWith: '[ADDRESS_1]',
-					enabled: true,
-					addressLines: { street: 'Lindenstrasse 42', city: '10969 Berlin', state: '', zip: '', country: '' },
-					createdAt: Math.floor(Date.now() / 1000),
-					updatedAt: Math.floor(Date.now() / 1000)
-				}
-			]);
-		}
-
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
 		if (sharedChatRedirectId && browser) {

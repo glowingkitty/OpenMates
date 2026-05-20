@@ -30,7 +30,7 @@
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
-    import { isPrivacyVideoDemoMode } from '../../demoMode';
+    import { demoMode } from '../../stores/demoModeStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -383,7 +383,8 @@
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
-    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !isPrivacyVideoDemoMode());
+    let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
+    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
@@ -3743,6 +3744,11 @@
         // is visible but editor is actually empty).
         if (!hasContent) return;
 
+        if ($demoMode && !$authStore.isAuthenticated) {
+            console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
+            return;
+        }
+
         // Defer the send while paste→code-embed creation is in flight. Firing
         // now would read originalMarkdown before the embed reference is appended,
         // producing a broken or empty message (OPE-377). The .finally() handler
@@ -4586,7 +4592,7 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isAuthenticated={$authStore.isAuthenticated}
+                    isAuthenticated={demoVisualAuthenticated}
                     {hasNoCredits}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}

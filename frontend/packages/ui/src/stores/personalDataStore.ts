@@ -825,10 +825,6 @@ function reset(): void {
   locationSettingsCreatedAt = 0;
 }
 
-function setDemoEntries(entries: PersonalDataEntry[]): void {
-  personalDataEntries.set(entries);
-}
-
 // ─── Exported Store ─────────────────────────────────────────────────────────
 
 export const personalDataStore = {
@@ -860,7 +856,6 @@ export const personalDataStore = {
   updateEntry,
   removeEntry,
   toggleEntry,
-  setDemoEntries,
 
   // Settings management (all async — encrypt, save to IndexedDB, sync to server)
   toggleMaster,

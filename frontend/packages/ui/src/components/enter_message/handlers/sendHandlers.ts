@@ -36,7 +36,7 @@ import {
   type PersonalDataEntry,
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
-import { isPrivacyVideoDemoMode, privacyVideoDemoChatCategory, privacyVideoDemoChatIcon, privacyVideoDemoChatSummary, privacyVideoDemoChatTitle } from "../../../demoMode";
+import { demoMode } from "../../../stores/demoModeStore";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -1171,7 +1171,7 @@ export async function handleSend(
         chat_id: chatIdToUse,
         encrypted_title: null,
         messages_v: 1, // A new chat with its first message starts at version 1
-        title_v: isPrivacyVideoDemoMode() ? 1 : 0, // Will be incremented to 1 when first title is set
+        title_v: 0, // Will be incremented to 1 when first title is set
         draft_v: 0,
         encrypted_draft_md: null,
         encrypted_draft_preview: null,
@@ -1180,18 +1180,10 @@ export async function handleSend(
         created_at: now,
         updated_at: now,
         processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
-        waiting_for_metadata: isPrivacyVideoDemoMode() ? false : !isIncognitoEnabled, // Incognito chats don't get metadata from server
+        waiting_for_metadata: !isIncognitoEnabled, // Incognito chats don't get metadata from server
         is_incognito: isIncognitoEnabled,
         source_demo_id: sourceDemoId, // Track source for duplication flow
       };
-
-      if (isPrivacyVideoDemoMode()) {
-        newChatData.title = privacyVideoDemoChatTitle;
-        newChatData.category = privacyVideoDemoChatCategory;
-        newChatData.icon = privacyVideoDemoChatIcon;
-        newChatData.chat_summary = privacyVideoDemoChatSummary;
-        newChatData.processing_metadata = false;
-      }
 
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {
@@ -1493,12 +1485,6 @@ export async function handleSend(
     }
 
     uiSpan.end();
-
-    if (isPrivacyVideoDemoMode()) {
-      messagePayload.status = "synced";
-      console.info("[handleSend] Privacy video demo mode: skipping backend send");
-      return;
-    }
 
     // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
     const wsSpan = tracer.startSpan('message.send.ws_send');
@@ -1921,7 +1907,7 @@ export function createKeyboardHandlingExtension() {
             // (which would fail because WebSocket requires authentication)
             const isAuthenticated = get(authStore).isAuthenticated;
 
-            if (!isAuthenticated && !isPrivacyVideoDemoMode()) {
+            if (!isAuthenticated && !get(demoMode)) {
               // Dispatch sign-up event instead of send event for unauthenticated users
               // This triggers the sign-up flow which saves the draft and opens signup interface
               const signUpEvent = new Event("custom-sign-up-click", {

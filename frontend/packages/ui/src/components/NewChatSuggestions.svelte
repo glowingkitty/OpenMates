@@ -30,7 +30,6 @@
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
   import { INTRO_CHATS, LEGAL_CHATS, getAllExampleChats, translateDemoChats, convertDemoChatToChat } from '../demo_chats';
-  import { isPrivacyVideoDemoMode, privacyVideoDemoSuggestions } from '../demoMode';
   import { embedStore, type UploadedFileSearchResult } from '../services/embedStore';
 
   /** Number of suggestion cards to show in the scrollable row */
@@ -414,10 +413,6 @@
    * Used for non-auth users, as initial placeholder while sync loads, and as fallback.
    */
   function buildDefaultSuggestions(): Array<{ text: string; encrypted: string; id: string }> {
-    if (isPrivacyVideoDemoMode()) {
-      return privacyVideoDemoSuggestions.map(text => ({ text, encrypted: '', id: '' }));
-    }
-
     const t = get(text);
     const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
     const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
@@ -464,12 +459,6 @@
    * to real suggestions once they're loaded from IndexedDB.
    */
   const loadSuggestions = async () => {
-    if (isPrivacyVideoDemoMode()) {
-      applyDefaultSuggestions();
-      loading = false;
-      return;
-    }
-
     if (!$authStore.isAuthenticated) {
       applyDefaultSuggestions();
       loading = false;
