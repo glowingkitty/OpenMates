@@ -15,6 +15,7 @@
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { hydrateWikiLinks, replaceWikiLinksInText } from '../../../utils/embedLinkUtils';
 
   /**
    * Coerce an unknown value to a string, returning empty string for non-strings.
@@ -85,6 +86,10 @@
   let safeSubject = $derived(applyPIIMode(subject));
   let safeContent = $derived(applyPIIMode(content));
   let safeFooter = $derived(applyPIIMode(footer));
+  let contentEl: HTMLDivElement | undefined = $state(undefined);
+  let footerEl: HTMLDivElement | undefined = $state(undefined);
+  let safeContentHtml = $derived(replaceWikiLinksInText(safeContent));
+  let safeFooterHtml = $derived(replaceWikiLinksInText(safeFooter));
 
   let mailBody = $derived.by(() => {
     if (safeFooter && safeContent) return `${safeContent}\n\n${safeFooter}`;
@@ -127,6 +132,17 @@
   function handleOpenMailClient() {
     window.location.href = mailtoUrl;
   }
+
+  $effect(() => {
+    void safeContentHtml;
+    void safeFooterHtml;
+    const cleanupContent = hydrateWikiLinks(contentEl);
+    const cleanupFooter = hydrateWikiLinks(footerEl);
+    return () => {
+      cleanupContent();
+      cleanupFooter();
+    };
+  });
 </script>
 
 <UnifiedEmbedFullscreen
@@ -168,13 +184,27 @@
 
       <section class="mail-field">
         <div class="label">{$text('embeds.mail.content')}</div>
-        <div class="body">{safeContent || $text('embeds.mail.empty_content')}</div>
+        <div class="body" bind:this={contentEl}>
+          {#if safeContentHtml}
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
+            {@html safeContentHtml}
+          {:else}
+            {safeContent || $text('embeds.mail.empty_content')}
+          {/if}
+        </div>
       </section>
 
       {#if safeFooter}
         <section class="mail-field">
           <div class="label">{$text('embeds.mail.footer')}</div>
-          <div class="body footer">{safeFooter}</div>
+          <div class="body footer" bind:this={footerEl}>
+            {#if safeFooterHtml}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
+              {@html safeFooterHtml}
+            {:else}
+              {safeFooter}
+            {/if}
+          </div>
         </section>
       {/if}
     </div>

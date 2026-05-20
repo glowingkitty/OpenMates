@@ -15,6 +15,7 @@
 
 import { mount, unmount } from "svelte";
 import EmbedInlineLink from "../components/embeds/EmbedInlineLink.svelte";
+import WikiInlineLink from "../components/embeds/wiki/WikiInlineLink.svelte";
 import { embedStore } from "../services/embedStore";
 import { resolveEmbedDisplayText } from "./embedDisplayText";
 import { parseEmbedLinkTarget } from "./embedFragmentUtils";
@@ -41,8 +42,16 @@ const EMBED_LINK_MARKDOWN_RE = /\[([^\]]*)\]\(embed:([^)]+)\)/g;
 const EMBED_LINK_HTML_RE =
   /<a\s[^>]*href=["']embed:([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
+/** Regex matching `[display text](wiki:Article_Title)` in raw text. */
+const WIKI_LINK_MARKDOWN_RE = /\[([^\]\n]*)\]\(wiki:((?:[^()\n]|\([^()\n]*\))+?)\)/g;
+
+/** Regex matching `<a href="wiki:Article_Title">display text</a>` in HTML. */
+const WIKI_LINK_HTML_RE =
+  /<a\s[^>]*href=["']wiki:([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+
 /** CSS class for placeholder spans that will be hydrated with EmbedInlineLink */
 const EMBED_PLACEHOLDER_CLASS = "embed-inline-placeholder";
+const WIKI_PLACEHOLDER_CLASS = "wiki-inline-placeholder";
 
 /** Data attribute names used on placeholder spans */
 const DATA_EMBED_REF = "data-embed-ref";
@@ -51,6 +60,10 @@ const DATA_FOCUS_LINE_START = "data-focus-line-start";
 const DATA_FOCUS_LINE_END = "data-focus-line-end";
 const DATA_HIGHLIGHT_QUOTE_TEXT = "data-highlight-quote-text";
 const DATA_FOCUS_SHEET_RANGE = "data-focus-sheet-range";
+const DATA_WIKI_TITLE = "data-wiki-title";
+const DATA_WIKIDATA_ID = "data-wikidata-id";
+const DATA_THUMBNAIL_URL = "data-thumbnail-url";
+const DATA_DESCRIPTION = "data-description";
 
 // ──────────────────────────────────────────────────────────────
 // Conversion: Markdown → HTML with placeholder spans
@@ -86,6 +99,20 @@ function buildPlaceholderSpan(rawEmbedRef: string, displayText: string): string 
   if (parsed.highlightQuoteText) attrs.push(`${DATA_HIGHLIGHT_QUOTE_TEXT}="${escapeHtml(parsed.highlightQuoteText)}"`);
   if (parsed.sheetRange) attrs.push(`${DATA_FOCUS_SHEET_RANGE}="${escapeHtml(parsed.sheetRange)}"`);
   return `<span ${attrs.join(" ")}>${escapeHtml(displayText)}</span>`;
+}
+
+function decodeWikiTitle(rawWikiTitle: string): string {
+  try {
+    return decodeURIComponent(rawWikiTitle);
+  } catch {
+    return rawWikiTitle;
+  }
+}
+
+function buildWikiPlaceholderSpan(rawWikiTitle: string, displayText: string): string {
+  const wikiTitle = decodeWikiTitle(rawWikiTitle);
+  const fallbackText = displayText || wikiTitle.replace(/_/g, " ");
+  return `<span class="${WIKI_PLACEHOLDER_CLASS}" ${DATA_WIKI_TITLE}="${escapeHtml(wikiTitle)}" ${DATA_DISPLAY_TEXT}="${escapeHtml(fallbackText)}">${escapeHtml(fallbackText)}</span>`;
 }
 
 /**
@@ -124,6 +151,73 @@ export function replaceEmbedLinksInText(text: string): string | null {
   return result;
 }
 
+export function replaceWikiLinksInText(text: string): string | null {
+  if (!text) return null;
+
+  WIKI_LINK_MARKDOWN_RE.lastIndex = 0;
+  if (!WIKI_LINK_MARKDOWN_RE.test(text)) return null;
+
+  WIKI_LINK_MARKDOWN_RE.lastIndex = 0;
+  let result = "";
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = WIKI_LINK_MARKDOWN_RE.exec(text)) !== null) {
+    result += escapeHtml(text.slice(lastIndex, match.index));
+    result += buildWikiPlaceholderSpan(match[2], match[1]);
+    lastIndex = match.index + match[0].length;
+  }
+
+  result += escapeHtml(text.slice(lastIndex));
+  return result;
+}
+
+export function replaceInlineLinksInText(text: string): string | null {
+  if (!text) return null;
+
+  const matches: Array<{
+    index: number;
+    length: number;
+    html: string;
+  }> = [];
+
+  EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
+  let embedMatch: RegExpExecArray | null;
+  while ((embedMatch = EMBED_LINK_MARKDOWN_RE.exec(text)) !== null) {
+    const embedRef = embedMatch[2];
+    const displayText = resolveEmbedDisplayText(embedMatch[1], parseEmbedLinkTarget(embedRef).cleanRef);
+    matches.push({
+      index: embedMatch.index,
+      length: embedMatch[0].length,
+      html: buildPlaceholderSpan(embedRef, displayText),
+    });
+  }
+
+  WIKI_LINK_MARKDOWN_RE.lastIndex = 0;
+  let wikiMatch: RegExpExecArray | null;
+  while ((wikiMatch = WIKI_LINK_MARKDOWN_RE.exec(text)) !== null) {
+    matches.push({
+      index: wikiMatch.index,
+      length: wikiMatch[0].length,
+      html: buildWikiPlaceholderSpan(wikiMatch[2], wikiMatch[1]),
+    });
+  }
+
+  if (matches.length === 0) return null;
+
+  matches.sort((a, b) => a.index - b.index);
+  let result = "";
+  let lastIndex = 0;
+  for (const match of matches) {
+    if (match.index < lastIndex) continue;
+    result += escapeHtml(text.slice(lastIndex, match.index));
+    result += match.html;
+    lastIndex = match.index + match.length;
+  }
+  result += escapeHtml(text.slice(lastIndex));
+  return result;
+}
+
 // ──────────────────────────────────────────────────────────────
 // Conversion: HTML <a href="embed:..."> → placeholder spans
 // ──────────────────────────────────────────────────────────────
@@ -145,6 +239,19 @@ export function convertEmbedAnchorsToSpans(html: string): string {
       // Strip any inner HTML tags from the display text (keep plain text only)
       const rawDisplayText = innerHtml.replace(/<[^>]*>/g, "").trim();
       return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, parseEmbedLinkTarget(embedRef).cleanRef));
+    },
+  );
+}
+
+export function convertWikiAnchorsToSpans(html: string): string {
+  if (!html) return html;
+
+  WIKI_LINK_HTML_RE.lastIndex = 0;
+  return html.replace(
+    WIKI_LINK_HTML_RE,
+    (_match, wikiTitle: string, innerHtml: string) => {
+      const rawDisplayText = innerHtml.replace(/<[^>]*>/g, "").trim();
+      return buildWikiPlaceholderSpan(wikiTitle, rawDisplayText);
     },
   );
 }
@@ -228,6 +335,57 @@ export function hydrateEmbedLinks(
   };
 }
 
+export function hydrateWikiLinks(
+  container: HTMLElement | undefined,
+  options: { clickable?: boolean } = {},
+): () => void {
+  if (!container) return () => {};
+
+  const placeholders = container.querySelectorAll<HTMLSpanElement>(
+    `.${WIKI_PLACEHOLDER_CLASS}`,
+  );
+  if (placeholders.length === 0) return () => {};
+
+  const instances: MountedInstance[] = [];
+  const clickable = options.clickable ?? true;
+
+  placeholders.forEach((span) => {
+    const wikiTitle = span.getAttribute(DATA_WIKI_TITLE);
+    const displayText = span.getAttribute(DATA_DISPLAY_TEXT);
+    if (!wikiTitle || !displayText) return;
+
+    span.textContent = "";
+
+    try {
+      const instance = mount(WikiInlineLink, {
+        target: span,
+        props: {
+          displayText,
+          wikiTitle,
+          wikidataId: span.getAttribute(DATA_WIKIDATA_ID),
+          thumbnailUrl: span.getAttribute(DATA_THUMBNAIL_URL),
+          description: span.getAttribute(DATA_DESCRIPTION),
+          clickable,
+        },
+      });
+      instances.push(instance);
+    } catch (err) {
+      console.error("[embedLinkUtils] Failed to mount WikiInlineLink:", err);
+      span.textContent = displayText;
+    }
+  });
+
+  return () => {
+    instances.forEach((inst) => {
+      try {
+        unmount(inst);
+      } catch {
+        // Ignore unmount errors (component may already be destroyed)
+      }
+    });
+  };
+}
+
 // ──────────────────────────────────────────────────────────────
 // Plain text extraction (for export: CSV, TSV, XLSX, clipboard)
 // ──────────────────────────────────────────────────────────────
@@ -243,6 +401,12 @@ export function stripEmbedLinks(text: string): string {
   if (!text) return text;
   EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
   return text.replace(EMBED_LINK_MARKDOWN_RE, "$1");
+}
+
+export function stripWikiLinks(text: string): string {
+  if (!text) return text;
+  WIKI_LINK_MARKDOWN_RE.lastIndex = 0;
+  return text.replace(WIKI_LINK_MARKDOWN_RE, "$1");
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -276,6 +440,21 @@ export function convertMarkdownEmbedLinksInHtml(html: string): string {
     EMBED_LINK_MARKDOWN_RE,
     (_match: string, rawDisplayText: string, embedRef: string) => {
       return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, parseEmbedLinkTarget(embedRef).cleanRef));
+    },
+  );
+}
+
+export function convertMarkdownWikiLinksInHtml(html: string): string {
+  if (!html) return html;
+
+  WIKI_LINK_MARKDOWN_RE.lastIndex = 0;
+  if (!WIKI_LINK_MARKDOWN_RE.test(html)) return html;
+
+  WIKI_LINK_MARKDOWN_RE.lastIndex = 0;
+  return html.replace(
+    WIKI_LINK_MARKDOWN_RE,
+    (_match: string, rawDisplayText: string, wikiTitle: string) => {
+      return buildWikiPlaceholderSpan(wikiTitle, rawDisplayText);
     },
   );
 }

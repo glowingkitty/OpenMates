@@ -25,11 +25,14 @@
     thumbnailUrl?: string | null;
     /** Short description from Wikipedia/Wikidata — may be null */
     description?: string | null;
+    /** Whether the link should open the Wikipedia fullscreen panel */
+    clickable?: boolean;
   }
 
-  let { displayText, wikiTitle, wikidataId = null, thumbnailUrl = null, description = null }: Props = $props();
+  let { displayText, wikiTitle, wikidataId = null, thumbnailUrl = null, description = null, clickable = true }: Props = $props();
 
   function handleClick(e: MouseEvent) {
+    if (!clickable) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -46,17 +49,29 @@
       }),
     );
   }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (!clickable || e.key !== 'Enter') return;
+    handleClick(e as unknown as MouseEvent);
+  }
 </script>
 
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
-<span class="wiki-inline-link" role="link" tabindex="0" data-testid="wiki-inline-link" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
-  <!-- Small circular study-app-gradient badge with study icon -->
-  <span class="wiki-inline-badge" aria-hidden="true">
-    <span class="icon_rounded study"></span>
+{#if clickable}
+  <span class="wiki-inline-link" role="link" tabindex="0" data-testid="wiki-inline-link" onclick={handleClick} onkeydown={handleKeydown}>
+    <span class="wiki-inline-badge" aria-hidden="true">
+      <span class="icon_rounded study"></span>
+    </span>
+    <span class="wiki-inline-text">{displayText}</span>
   </span>
-  <!-- Display text in study app colors -->
-  <span class="wiki-inline-text">{displayText}</span>
-</span>
+{:else}
+  <span class="wiki-inline-link disabled" data-testid="wiki-inline-link">
+    <span class="wiki-inline-badge" aria-hidden="true">
+      <span class="icon_rounded study"></span>
+    </span>
+    <span class="wiki-inline-text">{displayText}</span>
+  </span>
+{/if}
 
 <style>
   /* Outer wrapper — true inline so it flows naturally within paragraph text.
@@ -69,7 +84,12 @@
     user-select: none;
   }
 
-  .wiki-inline-link:hover {
+  .wiki-inline-link.disabled {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .wiki-inline-link:not(.disabled):hover {
     opacity: 0.8;
   }
 
