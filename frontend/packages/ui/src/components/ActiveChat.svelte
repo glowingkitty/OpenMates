@@ -137,7 +137,7 @@
         VideoTranscriptSkillPreviewData,
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
-    import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
+    import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -200,6 +200,27 @@
         focus: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
+    };
+
+    type ResumeCardImageBubble = {
+        imageUrl: string;
+        title?: string;
+    };
+
+    type ImageSearchCandidate = {
+        parentEmbedId: string;
+        childEmbedIds: string[];
+    };
+
+    type ImageResultContent = {
+        title?: string;
+        image_url?: string;
+        thumbnail_url?: string;
+    };
+
+    type TiptapNode = {
+        attrs?: Record<string, unknown>;
+        content?: TiptapNode[];
     };
 
     type EmbedResolverData = {
@@ -2307,6 +2328,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatCategory = $state<string | null>(null);
     let resumeChatIcon = $state<string | null>(null);
     let resumeChatSummary = $state<string | null>(null);
+    let resumeChatImageBubbles = $state<ResumeCardImageBubble[] | null>(null);
     // When the last-opened chat was credits-rejected (no title, waiting_for_user),
     // show the "Credits needed..." label + user message preview instead of category circle + title.
     let resumeChatIsCreditsError = $state(false);
@@ -2638,6 +2660,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         category: string | null;
         icon: string | null;
         summary: string | null;
+        imageBubbles: ResumeCardImageBubble[] | null;
         /** Decrypted draft preview text — set only for draft-only chats (no title, no messages). */
         draftPreview: string | null;
         event?: OpenMatesEvent;
@@ -2649,6 +2672,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     };
 
     type PriorityContinueItem = PriorityChatContinueItem | SavedEmbedContinueCandidate;
+
+    function getPriorityChatImageBubbles(item: PriorityContinueItem): ResumeCardImageBubble[] | null {
+        return item.kind === 'chat' ? item.imageBubbles : null;
+    }
 
     let recentChats = $state<RecentChatMeta[]>([]);
     let priorityContinueItems = $state<PriorityContinueItem[]>([]);
@@ -2670,6 +2697,86 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
+    function normalizeImageBubbleEmbedIds(embedIds: unknown): string[] {
+        if (typeof embedIds === 'string') {
+            return embedIds.split('|').map(id => id.trim()).filter(Boolean);
+        }
+        if (Array.isArray(embedIds)) {
+            return embedIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+        }
+        return [];
+    }
+
+    function collectResumeCardImageCandidates(node: TiptapNode | undefined, candidates: ImageSearchCandidate[]) {
+        if (!node) return;
+
+        const attrs = node.attrs;
+        if (attrs) {
+            const groupedItems = attrs.groupedItems;
+            if (Array.isArray(groupedItems)) {
+                for (const item of groupedItems) collectResumeCardImageCandidates({ attrs: item as Record<string, unknown> }, candidates);
+            }
+
+            const appId = attrs.app_id;
+            const skillId = attrs.skill_id;
+            const contentRef = attrs.contentRef;
+            if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+                candidates.push({
+                    parentEmbedId: contentRef.slice('embed:'.length),
+                    childEmbedIds: normalizeImageBubbleEmbedIds(attrs.embed_ids),
+                });
+            }
+        }
+
+        if (Array.isArray(node.content)) {
+            for (const child of node.content) collectResumeCardImageCandidates(child, candidates);
+        }
+    }
+
+    async function buildResumeCardImageBubbles(chatId: string): Promise<ResumeCardImageBubble[] | null> {
+        try {
+            const messages = await chatDB.getMessagesForChat(chatId);
+            const candidates: ImageSearchCandidate[] = [];
+            for (const message of messages) {
+                collectResumeCardImageCandidates(message.content as TiptapNode | undefined, candidates);
+            }
+            if (candidates.length === 0) return null;
+
+            const { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } = await import('../services/embedResolver');
+            const seen = new Set<string>();
+            const bubbles: ResumeCardImageBubble[] = [];
+
+            for (const candidate of candidates) {
+                let childEmbedIds = candidate.childEmbedIds;
+                if (childEmbedIds.length === 0) {
+                    const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
+                    const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+                    childEmbedIds = normalizeImageBubbleEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
+                }
+                if (childEmbedIds.length === 0) continue;
+
+                const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, 2 - bubbles.length), 3, 250);
+                for (const childEmbed of childEmbeds) {
+                    const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
+                    const rawUrl = decodedChild?.thumbnail_url || decodedChild?.image_url;
+                    if (!rawUrl || seen.has(rawUrl)) continue;
+
+                    seen.add(rawUrl);
+                    bubbles.push({
+                        imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
+                        title: decodedChild?.title,
+                    });
+                    if (bubbles.length >= 2) return bubbles;
+                }
+            }
+
+            return bubbles.length > 0 ? bubbles : null;
+        } catch (error) {
+            console.warn('[ActiveChat] Failed to build resume card image bubbles:', error);
+            return null;
+        }
+    }
+
     async function buildRecentChatMeta(chat: Chat): Promise<RecentChatMeta> {
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
@@ -2686,14 +2793,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chat.title) {
-            return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, draftPreview };
+            const imageBubbles = await buildResumeCardImageBubbles(chat.chat_id);
+            return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, imageBubbles, draftPreview };
         }
 
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
+            const imageBubbles = await buildResumeCardImageBubbles(chat.chat_id);
+            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
         } catch {
-            return { chat, title: null, category: null, icon: null, summary: null, draftPreview };
+            return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }
     }
 
@@ -2824,6 +2933,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 category: translated.metadata.category ?? null,
                 icon: translated.metadata.icon_names?.[0] ?? null,
                 summary: translated.description ?? null,
+                imageBubbles: null,
                 draftPreview: null,
             };
         });
@@ -2849,6 +2959,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 category: 'events',
                 icon: 'calendar-days',
                 summary: formatOpenMatesEventSummary(event),
+                imageBubbles: null,
                 draftPreview: null,
                 event,
             }));
@@ -2860,6 +2971,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             category: chat.category ?? null,
             icon: chat.icon?.split(',')[0] ?? null,
             summary: chat.chat_summary ?? null,
+            imageBubbles: null,
             draftPreview: null,
         }));
 
@@ -3149,6 +3261,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 resumeChatCategory = null;
                 resumeChatIcon = null;
                 resumeChatSummary = null;
+                resumeChatImageBubbles = null;
                 resumeChatIsCreditsError = true;
                 resumeChatUserMessagePreview = userPreview;
                 console.info(`[ActiveChat] Resume chat is credits-error state: ${chat.chat_id}, preview: "${userPreview}"`);
@@ -3160,12 +3273,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
+            const imageBubbles = await buildResumeCardImageBubbles(chat.chat_id);
 
             resumeChatData = chat;
             resumeChatTitle = displayTitle;
             resumeChatCategory = displayCategory;
             resumeChatIcon = displayIcon;
             resumeChatSummary = displaySummary;
+            resumeChatImageBubbles = imageBubbles;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat loaded: "${displayTitle}" (${chat.chat_id}), category: ${displayCategory}, icon: ${displayIcon}`);
@@ -3194,6 +3309,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatCategory = chat.category || 'general_knowledge';
             resumeChatIcon = chat.icon || 'sparkles';
             resumeChatSummary = chat.chat_summary || null;
+            resumeChatImageBubbles = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             return;
@@ -3208,6 +3324,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatCategory = null;
             resumeChatIcon = null;
             resumeChatSummary = null;
+            resumeChatImageBubbles = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             return;
@@ -3283,6 +3400,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             resumeChatIcon = syncState.resumeChatIcon;
             // Reset credits-error state and summary (will be populated by loadResumeChatFromDB if needed)
             resumeChatSummary = null;
+            resumeChatImageBubbles = null;
             resumeChatIsCreditsError = false;
             resumeChatUserMessagePreview = null;
             console.info(`[ActiveChat] Resume chat synced from phasedSyncState: "${syncState.resumeChatTitle}" (${syncState.resumeChatData.chat_id})`);
@@ -10414,6 +10532,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const PriorityIconComponent = getLucideIcon(priorityIconName)}
                                         {@const PriorityPillIcon = getLucideIcon(item.priority.reason.startsWith('reminder') ? 'bell' : 'clock')}
                                         {@const priorityChat = item.kind === 'chat' ? item.chat : null}
+                                        {@const priorityImageBubbles = getPriorityChatImageBubbles(item)}
                                         {#if item.kind === 'embed' && isTallViewport}
                                             <SavedEmbedContinuePreview
                                                 appId={item.appId}
@@ -10447,15 +10566,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if PriorityIconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <PriorityIconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <PriorityIconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if PriorityIconComponent}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <PriorityIconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <PriorityIconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if priorityImageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each priorityImageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if PriorityIconComponent}
                                                         <div class="resume-large-icon">
                                                             <PriorityIconComponent size={32} color="white" />
@@ -10529,15 +10657,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if IconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if IconComponent}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if resumeChatImageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each resumeChatImageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -10654,15 +10791,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if IconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if IconComponent}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if meta.imageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each meta.imageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -10764,15 +10910,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                {#if IconComponent}
-                                                    <div class="resume-large-deco resume-large-deco-left">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                    <div class="resume-large-deco resume-large-deco-right">
-                                                        <IconComponent size={80} color="white" />
-                                                    </div>
-                                                {/if}
-                                                <div class="resume-large-content">
+                                                 {#if IconComponent}
+                                                     <div class="resume-large-deco resume-large-deco-left">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                     <div class="resume-large-deco resume-large-deco-right">
+                                                         <IconComponent size={80} color="white" />
+                                                     </div>
+                                                 {/if}
+                                                 {#if meta.imageBubbles}
+                                                     <div class="resume-card-image-bubbles" aria-hidden="true">
+                                                         {#each meta.imageBubbles.slice(0, 2) as bubble, index}
+                                                             <div class:resume-card-image-bubble-left={index === 0} class:resume-card-image-bubble-right={index !== 0} class="resume-card-image-bubble">
+                                                                 <img src={bubble.imageUrl} alt="" loading="lazy" decoding="async" />
+                                                             </div>
+                                                         {/each}
+                                                     </div>
+                                                 {/if}
+                                                 <div class="resume-large-content">
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -12530,6 +12685,108 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-large-deco :global(svg) {
         width: 80px !important;
         height: 80px !important;
+    }
+
+    .resume-card-image-bubbles {
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-index-raised-2);
+        pointer-events: none;
+    }
+
+    .resume-card-image-bubble {
+        position: absolute;
+        width: 92px;
+        height: 92px;
+        border-radius: 999px;
+        overflow: hidden;
+        box-sizing: border-box;
+        opacity: 0.52;
+        background:
+            radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.64), transparent 16%),
+            radial-gradient(circle at 70% 76%, rgba(0, 0, 0, 0.25), transparent 38%),
+            rgba(255, 255, 255, 0.12);
+        border: 2px solid rgba(255, 255, 255, 0.42);
+        box-shadow:
+            inset 10px 12px 22px rgba(255, 255, 255, 0.32),
+            inset -12px -16px 26px rgba(0, 0, 0, 0.28),
+            inset 0 0 0 5px rgba(255, 255, 255, 0.08),
+            0 14px 28px rgba(0, 0, 0, 0.24);
+        animation: resumeImageBubbleFloat 18s linear infinite;
+    }
+
+    .resume-card-image-bubble::before,
+    .resume-card-image-bubble::after {
+        content: '';
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    .resume-card-image-bubble::before {
+        top: 10px;
+        left: 15px;
+        width: 32px;
+        height: 19px;
+        background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.12) 62%, transparent 72%);
+        filter: blur(1px);
+        transform: rotate(-30deg);
+    }
+
+    .resume-card-image-bubble::after {
+        inset: 0;
+        background:
+            radial-gradient(ellipse at 36% 18%, rgba(255, 255, 255, 0.4), transparent 19%),
+            radial-gradient(ellipse at 72% 84%, rgba(0, 0, 0, 0.26), transparent 36%),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 32%, rgba(255, 255, 255, 0.08) 64%, rgba(0, 0, 0, 0.24));
+        border: 1px solid rgba(255, 255, 255, 0.58);
+        box-shadow:
+            inset 0 0 20px rgba(255, 255, 255, 0.24),
+            inset 0 0 44px rgba(255, 255, 255, 0.08);
+    }
+
+    .resume-card-image-bubble img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        filter: saturate(1.1) contrast(1.06);
+        transform: scale(1.04);
+    }
+
+    .resume-card-image-bubble-left {
+        left: -18px;
+        bottom: -18px;
+        --resume-image-bubble-rotate: -14deg;
+    }
+
+    .resume-card-image-bubble-right {
+        right: -18px;
+        bottom: -18px;
+        --resume-image-bubble-rotate: 14deg;
+        animation-delay: -9s;
+    }
+
+    @keyframes resumeImageBubbleFloat {
+        0%, 100% {
+            transform: translate3d(0, -7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg));
+        }
+        25% {
+            transform: translate3d(6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) + 2deg));
+        }
+        50% {
+            transform: translate3d(0, 7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg));
+        }
+        75% {
+            transform: translate3d(-6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) - 2deg));
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .resume-card-image-bubble { animation: none !important; }
     }
 
     
