@@ -707,6 +707,8 @@ changes to the documentation (to keep the documentation up to date).
     
     let username = $derived($userProfile.username || '');
     let isInSignupMode = $derived($isInSignupProcess);
+    let demoProfileImageUrl = $state<string | null>(null);
+    let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
 
     /**
      * Resolved blob URL (or legacy https:// URL) for the user's profile image.
@@ -717,6 +719,7 @@ changes to the documentation (to keep the documentation up to date).
      * displayable blob URL.
      */
     let resolvedProfileImageBlobUrl = $state<string | null>(null);
+    let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl || ($demoMode ? demoProfileImageUrl : null));
 
     $effect(() => {
         const url = $userProfile.profile_image_url;
@@ -735,6 +738,10 @@ changes to the documentation (to keep the documentation up to date).
             }
         });
         return () => { cancelled = true; };
+    });
+
+    onMount(() => {
+        demoProfileImageUrl = window.localStorage.getItem('demo_profile_image_url');
     });
 
     // State to track active submenu view
@@ -2521,9 +2528,8 @@ changes to the documentation (to keep the documentation up to date).
     		aria-label={$text('settings.open_settings_menu')}
     		bind:this={profileContainer}
     	>
-            <!-- Show language icon when not logged in and menu is closed, user icon when menu is open -->
-            <!-- Show profile picture when user is logged in -->
-            {#if !$authStore.isAuthenticated}
+            <!-- Demo mode uses the same profile-container-wrapper as authenticated users so recordings show product UI, not capture-only overlays. -->
+            {#if !visuallyAuthenticated}
                 <div class="profile-picture language-icon-container">
                     <div class="clickable-icon" class:icon_settings={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
@@ -2531,9 +2537,9 @@ changes to the documentation (to keep the documentation up to date).
                 <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
                      new encrypted proxy endpoint works. Legacy https:// URLs are also
                      passed through by the profileImageService unchanged. -->
-                <div class="profile-picture" data-testid="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
-                    {#if resolvedProfileImageBlobUrl}
-                        <img class="profile-picture-avatar" src={resolvedProfileImageBlobUrl} alt="Profile" />
+                <div class="profile-picture" data-testid="profile-picture" data-demo-profile-image={$demoMode && !!demoProfileImageUrl ? 'true' : undefined} class:profile-picture-img={!!displayProfileImageUrl}>
+                    {#if displayProfileImageUrl}
+                        <img class="profile-picture-avatar" src={displayProfileImageUrl} alt="Profile" />
                     {:else}
                         <div class="default-user-icon"></div>
                     {/if}

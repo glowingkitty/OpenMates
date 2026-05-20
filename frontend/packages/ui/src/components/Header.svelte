@@ -9,7 +9,6 @@
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
@@ -46,7 +45,6 @@
     );
 
     let headerDiv: HTMLElement;
-    let demoProfileImageUrl = $state<string | null>(null);
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
@@ -171,8 +169,6 @@
         checkMobile();
         window.addEventListener('resize', checkMobile);
 
-        demoProfileImageUrl = localStorage.getItem('demo_profile_image_url');
-        
         // Fetch server status to display server edition (async, fire and forget)
         (async () => {
             try {
@@ -394,23 +390,6 @@
                             {loginButtonText}
                         </button>
                     </div>
-                    {#if context === 'webapp' && $demoMode}
-                        <button
-                            class="user-profile profile-button demo-profile-button"
-                            class:has-demo-profile-image={!!demoProfileImageUrl}
-                            data-testid="header-demo-profile-btn"
-                            aria-label={$text('settings.account.profile_picture')}
-                            style={demoProfileImageUrl ? `background-image: url('${demoProfileImageUrl}')` : undefined}
-                            onclick={() => {
-                                panelState.openSettings();
-                                settingsDeepLink.set('account/profile-picture');
-                            }}
-                        >
-                            {#if !demoProfileImageUrl}
-                                <span class="clickable-icon icon_user" aria-hidden="true"></span>
-                            {/if}
-                        </button>
-                    {/if}
                 {/if}
             </nav>
         </div>
@@ -730,35 +709,6 @@
 
     .menu-button:hover {
         opacity: 1;
-    }
-
-    .profile-button {
-        all: unset;
-        cursor: pointer;
-        padding: 0.5rem;
-        border-radius: 50%;
-        transition: background-color var(--duration-normal);
-    }
-
-    .demo-profile-button {
-        width: 2rem;
-        height: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--color-grey-20);
-        color: var(--color-grey-100);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .demo-profile-button.has-demo-profile-image {
-        background-position: center;
-        background-size: cover;
-        background-repeat: no-repeat;
-    }
-
-    .profile-button:hover {
-        background-color: var(--color-grey-20);
     }
 
     .right-section {
