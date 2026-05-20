@@ -1493,10 +1493,13 @@
       0 8px 18px rgba(255, 255, 255, 0.08);
     --float-rx: 13px;
     --float-ry: 16px;
+    opacity: var(--image-bubble-opacity, 0.4);
     animation:
-      decoEnter 0.6s ease-out 0.1s both,
-      decoFloat 16s linear 0.7s infinite;
+      decoEnter 0.6s ease-out 0.1s backwards,
+      imageBubbleFloat 16s linear 0.7s infinite;
     transition: transform var(--duration-fast) var(--easing-default),
+                scale var(--duration-fast) var(--easing-default),
+                opacity var(--duration-fast) var(--easing-default),
                 box-shadow var(--duration-fast) var(--easing-default),
                 border-color var(--duration-fast) var(--easing-default);
   }
@@ -1578,7 +1581,7 @@
   }
 
   .image-bubble:hover {
-    --deco-target-opacity: 1;
+    --image-bubble-opacity: 1;
     scale: 1.12;
     border-color: rgba(255, 255, 255, 0.66);
     box-shadow:
@@ -1587,6 +1590,49 @@
       inset 0 0 0 8px rgba(255, 255, 255, 0.12),
       0 30px 62px rgba(0, 0, 0, 0.34),
       0 10px 22px rgba(255, 255, 255, 0.1);
+  }
+
+  @keyframes imageBubbleFloat {
+    0% {
+      transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
+        rotate(var(--deco-rotate, 0deg));
+    }
+    12.5% {
+      transform: translateX(calc(0.707 * var(--float-rx, 10px)))
+        translateY(calc(-0.707 * var(--float-ry, 12px)))
+        rotate(calc(var(--deco-rotate, 0deg) + 2deg));
+    }
+    25% {
+      transform: translateX(var(--float-rx, 10px)) translateY(0px)
+        rotate(calc(var(--deco-rotate, 0deg) + 3deg));
+    }
+    37.5% {
+      transform: translateX(calc(0.707 * var(--float-rx, 10px)))
+        translateY(calc(0.707 * var(--float-ry, 12px)))
+        rotate(calc(var(--deco-rotate, 0deg) + 2deg));
+    }
+    50% {
+      transform: translateX(0px) translateY(var(--float-ry, 12px))
+        rotate(var(--deco-rotate, 0deg));
+    }
+    62.5% {
+      transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
+        translateY(calc(0.707 * var(--float-ry, 12px)))
+        rotate(calc(var(--deco-rotate, 0deg) - 2deg));
+    }
+    75% {
+      transform: translateX(calc(-1 * var(--float-rx, 10px))) translateY(0px)
+        rotate(calc(var(--deco-rotate, 0deg) - 3deg));
+    }
+    87.5% {
+      transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
+        translateY(calc(-0.707 * var(--float-ry, 12px)))
+        rotate(calc(var(--deco-rotate, 0deg) - 2deg));
+    }
+    100% {
+      transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
+        rotate(var(--deco-rotate, 0deg));
+    }
   }
 
   .image-bubble:focus-visible {
@@ -1600,7 +1646,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .image-bubble {
-      animation: decoEnter 0.6s ease-out 0.1s both !important;
+      animation: decoEnter 0.6s ease-out 0.1s backwards !important;
     }
   }
 
