@@ -110,6 +110,17 @@
 		encrypted_embed_key?: string;
 	};
 
+	type ShareChatCodeRunOutput = {
+		id: string;
+		chat_id: string;
+		embed_id: string;
+		author_user_id: string;
+		key_version?: number | null;
+		encrypted_payload: string;
+		created_at: number;
+		updated_at: number;
+	};
+
 	/**
 	 * Extract the encryption key and message ID from the URL fragment
 	 * Format: #key={encrypted_blob} or #key={encrypted_blob}&messageid={messageId}
@@ -162,6 +173,7 @@
 		messages: Message[];
 		embeds: ShareChatEmbedLike[];
 		embed_keys: ShareChatEmbedKey[];
+		code_run_outputs: ShareChatCodeRunOutput[];
 		message_highlights: ShareChatHighlight[];
 	}> {
 		try {
@@ -296,11 +308,12 @@
 				messages,
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
 				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
+				code_run_outputs: (data.code_run_outputs || []) as ShareChatCodeRunOutput[],
 				message_highlights: (data.message_highlights || []) as ShareChatHighlight[]
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
-			return { chat: null, messages: [], embeds: [], embed_keys: [], message_highlights: [] };
+			return { chat: null, messages: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [] };
 		}
 	}
 
@@ -416,6 +429,7 @@
 				messages: fetchedMessages,
 				embeds: fetchedEmbeds,
 				embed_keys: fetchedEmbedKeys,
+				code_run_outputs: fetchedCodeRunOutputs,
 				message_highlights: fetchedMessageHighlights
 			} = await fetchChatFromServer(chatId);
 
@@ -617,6 +631,14 @@
 				console.debug(
 					`[ShareChat] Stored ${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`
 				);
+			}
+
+			if (fetchedCodeRunOutputs.length > 0) {
+				const { handleCodeRunOutputSyncedImpl } = await import('@repo/ui');
+				for (const output of fetchedCodeRunOutputs) {
+					await handleCodeRunOutputSyncedImpl(output);
+				}
+				console.debug(`[ShareChat] Stored ${fetchedCodeRunOutputs.length} code run outputs`);
 			}
 
 			// NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage

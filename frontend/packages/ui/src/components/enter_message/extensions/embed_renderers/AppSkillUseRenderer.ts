@@ -295,8 +295,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
-    // Determine status - prefer embedData status, then check knownErrorEmbeds (for error embeds
-    // that are intentionally never persisted to IndexedDB), then attrs.status, then 'processing'.
+    // Determine status. Decrypted content is authoritative when present: stored embed rows can
+    // retain a stale top-level error/processing status even after encrypted content finished.
+    // Then check knownErrorEmbeds (for error embeds that are intentionally never persisted to
+    // IndexedDB), then attrs.status, then 'processing'.
     // Without the knownErrorEmbeds check, error embeds show as "Completed" because:
     // 1. embedData is null (error embeds are never stored by design)
     // 2. attrs.status is 'finished' (set by the AI stream before the error signal arrived)
@@ -305,7 +307,19 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const isKnownError = statusEmbedId
       ? isEmbedKnownError(statusEmbedId)
       : false;
+    const decodedStatus =
+      decodedContent?.status === "processing" ||
+      decodedContent?.status === "finished" ||
+      decodedContent?.status === "error" ||
+      decodedContent?.status === "cancelled"
+        ? decodedContent.status
+        : null;
+    const hasFinishedDecodedContent =
+      decodedStatus === "finished" ||
+      (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
+      Boolean(decodedContent?.embed_ids);
     const status =
+      (hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       (isKnownError ? "error" : null) ||
       attrs.status ||
@@ -3423,7 +3437,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       (attrs as any).query ||
       results[0]?.expression ||
       "";
+    const hasFinishedResult = Array.isArray(results) && results.length > 0;
     const status =
+      (hasFinishedResult ? "finished" : null) ||
       decodedContent?.status ||
       embedData?.status ||
       attrs.status ||
