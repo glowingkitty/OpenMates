@@ -333,6 +333,21 @@ async function assertActiveChatHeaderVisible(
 	logFn(`Active chat header visible in ${sessionLabel}: "${titleText}".`);
 }
 
+function assertNoForcedKeyReplacement(
+	logs: SessionLogs,
+	chatId: string,
+	sessionLabel: string
+): void {
+	const forcedReplacementLogs = logs.consoleLogs.filter(
+		line => line.includes('FORCE replacing key') && line.includes(chatId)
+	);
+	if (forcedReplacementLogs.length > 0) {
+		throw new Error(
+			`[${sessionLabel}] Sync force-replaced the chat key for ${chatId}:\n${forcedReplacementLogs.join('\n')}`
+		);
+	}
+}
+
 // ---- Delete active chat ----
 
 async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promise<void> {
@@ -443,6 +458,8 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 		);
 		await assertChatKeyInvariants(tabA, chatId, 'TAB-A', logA);
 		await assertChatKeyInvariants(tabB, chatId, 'TAB-B', logB);
+		assertNoForcedKeyReplacement(logsA, chatId, 'TAB-A');
+		assertNoForcedKeyReplacement(logsB, chatId, 'TAB-B');
 
 		logA('TEST-01 PASSED: Both tabs decrypted the same chat correctly.');
 	} catch (error) {
@@ -548,6 +565,8 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 			logB
 		);
 		await assertChatKeyInvariants(tabB, chatId, 'TAB-B-cross-tab', logB);
+		assertNoForcedKeyReplacement(logsA, chatId, 'TAB-A-cross-tab');
+		assertNoForcedKeyReplacement(logsB, chatId, 'TAB-B-cross-tab');
 
 		// Verify: zero decryption errors in tab B
 		if (logsB.decryptionErrors.length > 0) {
@@ -672,6 +691,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 		);
 		await assertActiveChatHeaderVisible(freshTab, 'FRESH-TAB', logFresh);
 		await assertChatKeyInvariants(freshTab, chatId, 'FRESH-TAB', logFresh);
+		assertNoForcedKeyReplacement(logsFresh, chatId, 'FRESH-TAB');
 
 		// Verify: zero decryption errors
 		if (logsFresh.decryptionErrors.length > 0) {

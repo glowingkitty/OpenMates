@@ -282,58 +282,46 @@ export async function handlePhase1LastChatImpl(
     // Helper to build Chat from server metadata
     const buildChat = async (
       details: Partial<Chat> & { id: string },
-    ): Promise<{ chat: Chat; keyMismatch: boolean }> => {
+    ): Promise<Chat> => {
       const existingChat = await chatDB.getChat(details.id);
       const keyMismatch = hasEncryptedChatKeyMismatch(details, existingChat);
 
       if (keyMismatch) {
         console.warn(
           `[ChatSyncService:CoreSync] Phase 1a - chat key mismatch for ${details.id}; ` +
-            `server key will be used and local message content will be re-synced`,
+            `preserving local key and storing server key as recovery candidate`,
         );
-        if (details.encrypted_chat_key) {
-          await chatKeyManager.acceptServerKeyForMismatch(
-            details.id,
-            details.encrypted_chat_key,
-          );
-        } else {
+        if (!details.encrypted_chat_key) {
           chatKeyManager.removeKey(details.id);
         }
       }
 
-      return {
-        chat: await mergeServerChatWithLocal(
-          details,
-          existingChat,
-          currentUserId,
-        ),
-        keyMismatch,
-      };
+      return mergeServerChatWithLocal(details, existingChat, currentUserId);
     };
 
     // Collect all chats to decrypt: last-opened + recent metadata
     const allPhase1Chats: Chat[] = [];
 
     if (payload.chat_details && payload.chat_id) {
-      const { chat: lastChat, keyMismatch } = await buildChat({
+      const lastChat = await buildChat({
         ...payload.chat_details,
         id: payload.chat_id,
       } as Partial<Chat> & { id: string });
       allPhase1Chats.push(lastChat);
       await chatDB.addChat(lastChat, undefined, {
         isFromSync: true,
-        forceIncomingEncryptedChatKey: keyMismatch,
+        forceIncomingEncryptedChatKey: false,
       });
       chatListCache.upsertChat(lastChat);
     }
 
     if (payload.recent_chat_metadata) {
       for (const meta of payload.recent_chat_metadata) {
-        const { chat, keyMismatch } = await buildChat(meta);
+        const chat = await buildChat(meta);
         allPhase1Chats.push(chat);
         await chatDB.addChat(chat, undefined, {
           isFromSync: true,
-          forceIncomingEncryptedChatKey: keyMismatch,
+          forceIncomingEncryptedChatKey: false,
         });
         chatListCache.upsertChat(chat);
       }

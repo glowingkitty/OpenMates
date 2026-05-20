@@ -588,14 +588,9 @@ async function storeRecentChats(
       if (keyMismatch) {
         console.warn(
           `[ChatSyncService] Phase 2 - chat key mismatch for ${chatId}; ` +
-            `server key will be used and local message content will be re-synced`,
+            `preserving local key and storing server key as recovery candidate`,
         );
-        if (chat_details.encrypted_chat_key) {
-          await chatKeyManager.acceptServerKeyForMismatch(
-            chatId,
-            chat_details.encrypted_chat_key,
-          );
-        } else {
+        if (!chat_details.encrypted_chat_key) {
           chatKeyManager.removeKey(chatId);
         }
       }
@@ -623,7 +618,7 @@ async function storeRecentChats(
         messages && Array.isArray(messages) && messages.length > 0;
       const syncSaveOptions = {
         isFromSync: true,
-        forceIncomingEncryptedChatKey: keyMismatch,
+        forceIncomingEncryptedChatKey: false,
       };
 
       // Metadata-only path: save chat and move on (no message processing)
@@ -665,6 +660,23 @@ async function storeRecentChats(
         await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
+        continue;
+      }
+
+      if (keyMismatch) {
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
+        chatListCache.upsertChat(mergedChat);
+        processedChatIds.add(chatId);
+        serviceInstance.dispatchEvent(
+          new CustomEvent("chatDataInconsistency", {
+            detail: {
+              chatId,
+              localCount: await chatDB.getMessageCountForChat(chatId),
+              serverCount: messages?.length ?? serverMessagesV,
+              phase: "phase2-key-mismatch",
+            },
+          }),
+        );
         continue;
       }
 
@@ -775,14 +787,9 @@ async function storeAllChats(
       if (keyMismatch) {
         console.warn(
           `[ChatSyncService] Phase 3 - chat key mismatch for ${chatId}; ` +
-            `clearing cached key and forcing server message re-sync`,
+            `preserving local key and storing server key as recovery candidate`,
         );
-        if (chat_details.encrypted_chat_key) {
-          await chatKeyManager.acceptServerKeyForMismatch(
-            chatId,
-            chat_details.encrypted_chat_key,
-          );
-        } else {
+        if (!chat_details.encrypted_chat_key) {
           chatKeyManager.removeKey(chatId);
         }
       }
@@ -819,7 +826,7 @@ async function storeAllChats(
         messages && Array.isArray(messages) && messages.length > 0;
       const syncSaveOptions = {
         isFromSync: true,
-        forceIncomingEncryptedChatKey: keyMismatch,
+        forceIncomingEncryptedChatKey: false,
       };
       const serverMessagesV = chat_details.messages_v || 0;
       const localMessagesV = existingChat?.messages_v || 0;
@@ -866,7 +873,7 @@ async function storeAllChats(
         }
       }
 
-      if (keyMismatch && !shouldSyncMessages) {
+      if (keyMismatch) {
         await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
         serviceInstance.dispatchEvent(

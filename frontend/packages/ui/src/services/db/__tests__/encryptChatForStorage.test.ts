@@ -31,6 +31,7 @@ vi.mock("../../cryptoService", () => ({
 const mockGetKeySync = vi.fn();
 const mockInjectKey = vi.fn();
 const mockCreateKeyForNewChat = vi.fn();
+const mockCreateAndPersistKeyLocked = vi.fn();
 const mockComputeKeyFingerprint = vi.fn().mockReturnValue("abcd1234");
 vi.mock("../../encryption/ChatKeyManager", () => ({
   chatKeyManager: {
@@ -38,6 +39,8 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
     injectKey: (...args: unknown[]) => mockInjectKey(...args),
     createKeyForNewChat: (...args: unknown[]) =>
       mockCreateKeyForNewChat(...args),
+    createAndPersistKeyLocked: (...args: unknown[]) =>
+      mockCreateAndPersistKeyLocked(...args),
     onKeyReady: vi.fn(() => () => {}),
   },
   computeKeyFingerprint: (...args: unknown[]) =>
@@ -138,18 +141,23 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     mockDecryptChatKeyWithMasterKey.mockResolvedValue(null);
     mockEncryptChatKeyWithMasterKey.mockResolvedValue(null);
     mockCreateKeyForNewChat.mockReturnValue(fakeKey);
+    mockCreateAndPersistKeyLocked.mockResolvedValue({
+      chatKey: fakeKey,
+      encryptedChatKey: "encrypted-key-base64",
+    });
   });
 
   it("creates a new key for a genuinely new chat (isFromSync=false, default)", async () => {
     const db = makeDbInstance();
     const chat = makeChat();
 
-    mockEncryptChatKeyWithMasterKey.mockResolvedValue("encrypted-key-base64");
-
     const result = await encryptChatForStorage(db as any, chat);
 
     // Step 4 should have been called — this IS a new chat
-    expect(mockCreateKeyForNewChat).toHaveBeenCalledWith("test-chat-123");
+    expect(mockCreateAndPersistKeyLocked).toHaveBeenCalledWith(
+      "test-chat-123",
+    );
+    expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(result.encrypted_chat_key).toBe("encrypted-key-base64");
     expect(result.key_fingerprint).toBe("abcd1234");
   });

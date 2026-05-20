@@ -281,7 +281,9 @@ export async function encryptChatForStorage(
     console.log(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
-    chatKey = chatKeyManager.createKeyForNewChat(chat.chat_id);
+    const result = await chatKeyManager.createAndPersistKeyLocked(chat.chat_id);
+    chatKey = result.chatKey;
+    encryptedChat.encrypted_chat_key = result.encryptedChatKey;
   }
 
   // Ensure encrypted_chat_key is present in the stored object
