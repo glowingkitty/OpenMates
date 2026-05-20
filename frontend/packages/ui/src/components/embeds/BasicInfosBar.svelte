@@ -154,6 +154,7 @@
     if (customStatusText) return customStatusText;
     if (status === 'processing') return $text('common.processing');
     if (status === 'cancelled') return $text('embeds.cancelled');
+    if (status === 'finished') return '';
     return $text('embeds.error');
   });
 

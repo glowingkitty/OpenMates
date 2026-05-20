@@ -172,16 +172,19 @@
 
     if (!resolvedEmbedId) {
       if (await renderInlineMailPreview()) return;
-      loading = true;
       // Retry ref resolution: during cross-device sync, the ref→ID index may
       // not be populated yet. Bump embedRefIndexVersion after a delay to
       // trigger $derived re-evaluation once eager decryption has registered refs.
       if (embedRef && retryCount < 3) {
+        loading = true;
         if (retryTimer) clearTimeout(retryTimer);
         retryTimer = setTimeout(() => {
           retryCount++;
           embedRefIndexVersion.update((n) => n + 1);
         }, 1000 * (retryCount + 1)); // 1s, 2s, 3s
+      } else {
+        loading = false;
+        errorText = 'Preview unavailable';
       }
       return;
     }
