@@ -240,6 +240,8 @@ def main() -> None:
             print(f"Would write {output_path} ({len(content.splitlines())} lines)")
             continue
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output_path.exists() and output_path.read_text(encoding="utf-8") == content:
+            continue
         output_path.write_text(content, encoding="utf-8")
 
 
