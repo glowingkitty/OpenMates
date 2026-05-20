@@ -10465,7 +10465,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                 {#if PriorityIconComponent}
+                                                 {#if PriorityIconComponent && !priorityImageBubbles}
                                                      <div class="resume-large-deco resume-large-deco-left">
                                                          <PriorityIconComponent size={80} color="white" />
                                                      </div>
@@ -10556,7 +10556,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                 {#if IconComponent}
+                                                 {#if IconComponent && !resumeChatImageBubbles}
                                                      <div class="resume-large-deco resume-large-deco-left">
                                                          <IconComponent size={80} color="white" />
                                                      </div>
@@ -10690,7 +10690,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                 {#if IconComponent}
+                                                 {#if IconComponent && !meta.imageBubbles}
                                                      <div class="resume-large-deco resume-large-deco-left">
                                                          <IconComponent size={80} color="white" />
                                                      </div>
@@ -10809,7 +10809,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <div class="resume-orb resume-orb-2"></div>
                                                     <div class="resume-orb resume-orb-3"></div>
                                                 </div>
-                                                 {#if IconComponent}
+                                                 {#if IconComponent && !meta.imageBubbles}
                                                      <div class="resume-large-deco resume-large-deco-left">
                                                          <IconComponent size={80} color="white" />
                                                      </div>
