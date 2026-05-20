@@ -23,6 +23,7 @@
    * Result shape from the backend TOON content for math/calculate.
    */
   interface CalculateResult {
+    title?: string;
     expression?: string;
     expression_latex?: string;
     result?: string;
@@ -36,6 +37,8 @@
     id: string;
     /** Expression that was evaluated */
     query?: string;
+    /** Human-readable calculation title/context */
+    title?: string;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Calculation results */
@@ -53,6 +56,7 @@
   let {
     id,
     query: queryProp,
+    title: titleProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -63,6 +67,7 @@
 
   // ── Local state ─────────────────────────────────────────────────────────────
   let localQuery        = $state('');
+  let localTitle        = $state('');
   let localStatus       = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults      = $state<CalculateResult[]>([]);
   let localTaskId       = $state<string | undefined>(undefined);
@@ -70,6 +75,7 @@
 
   $effect(() => {
     localQuery       = queryProp || '';
+    localTitle       = titleProp || '';
     localStatus      = statusProp || 'processing';
     localResults     = resultsProp || [];
     localTaskId      = taskIdProp;
@@ -79,6 +85,7 @@
   let query       = $derived(localQuery);
   let status      = $derived(localStatus);
   let results     = $derived(localResults);
+  let title       = $derived(localTitle || results[0]?.title || '');
   let taskId      = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
 
@@ -95,6 +102,7 @@
     }
     const c = data.decodedContent;
     if (!c) return;
+    if (typeof c.title === 'string') localTitle = c.title;
     if (typeof c.query === 'string') localQuery = c.query;
     else if (typeof c.expression === 'string') localQuery = c.expression;
     if (Array.isArray(c.results)) localResults = c.results as CalculateResult[];
@@ -132,6 +140,13 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="math-calculate-details" class:mobile={isMobileLayout}>
       <!-- Expression shown in processing and finished states -->
+      {#if title}
+        <div class="calculation-row">
+          <span class="calculation-label">Title</span>
+          <span class="title-text">{title}</span>
+        </div>
+      {/if}
+
       {#if displayExpression}
         <div class="calculation-row">
           <span class="calculation-label">Expression</span>
@@ -196,6 +211,19 @@
     text-overflow: ellipsis;
     word-break: break-all;
     font-family: 'Courier New', Courier, monospace;
+  }
+
+  .title-text {
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    color: var(--color-grey-100);
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* ── Result ─────────────────────────────────────────────────────────────── */

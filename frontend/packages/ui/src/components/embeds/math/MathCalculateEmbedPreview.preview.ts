@@ -5,6 +5,7 @@
 
 const defaultProps = {
   id: "preview-math-calculate-1",
+  title: "Trigonometry sanity check",
   query: "sin(pi/4) + cos(pi/3)",
   status: "finished" as const,
   results: [

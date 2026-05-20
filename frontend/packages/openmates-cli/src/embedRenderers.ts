@@ -791,6 +791,8 @@ function renderMathCalculatePreview(
   ln: (s: string) => void,
 ): void {
   const results = c.results as Array<Record<string, unknown>> | undefined;
+  const title = str(c.title);
+  if (title) ln(trunc(title, 80));
   if (Array.isArray(results) && results.length > 0) {
     const first = results[0];
     const expr = str(first.expression) ?? str(first.input) ?? "";
@@ -802,13 +804,17 @@ function renderMathCalculatePreview(
 
 function renderMathCalculateFullscreen(c: Record<string, unknown>): void {
   const results = c.results as Array<Record<string, unknown>> | undefined;
+  const title = str(c.title);
+  if (title) process.stdout.write(`  \x1b[2mTitle:\x1b[0m ${title}\n`);
   if (!Array.isArray(results) || results.length === 0) {
     console.log("No calculation results.");
     return;
   }
   for (const r of results) {
+    const resultTitle = str(r.title);
     const expr = str(r.expression) ?? str(r.input) ?? "";
     const result = str(r.result) ?? str(r.output) ?? "";
+    if (resultTitle && resultTitle !== title) process.stdout.write(`  \x1b[2mTitle:\x1b[0m ${resultTitle}\n`);
     if (expr) process.stdout.write(`  \x1b[2mExpression:\x1b[0m ${expr}\n`);
     if (result) process.stdout.write(`  \x1b[1mResult:\x1b[0m ${result}\n`);
     console.log();

@@ -26,6 +26,7 @@
   };
 
   interface CalculateResult {
+    title?: string;
     expression?: string;
     expression_latex?: string;
     result?: string;
@@ -85,18 +86,21 @@
         ? dc.expression
         : undefined
   );
+  let titleProp = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let subtitleProp = $derived(typeof dc.subtitle === 'string' ? dc.subtitle : undefined);
   let statusProp = $derived(normalizeStatus(dc.status));
   let resultsProp = $derived(Array.isArray(dc.results) ? dc.results as CalculateResult[] : undefined);
 
   // ── Local state ─────────────────────────────────────────────────────────────
   let localQuery    = $state('');
+  let localTitle    = $state('');
   let localSubtitle = $state('');
   let localStatus   = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let localResults  = $state<CalculateResult[]>([]);
 
   $effect(() => {
     localQuery    = queryProp    || '';
+    localTitle    = titleProp    || '';
     localSubtitle = subtitleProp || '';
     localStatus   = statusProp   || 'finished';
     localResults  = resultsProp  || [];
@@ -106,6 +110,7 @@
   let subtitle = $derived(localSubtitle);
   let status   = $derived(localStatus);
   let results  = $derived(localResults);
+  let title    = $derived(localTitle || results[0]?.title || 'Calculation');
   let primaryExpression = $derived(query || results[0]?.expression || '');
 
   // ── Embed data updates ───────────────────────────────────────────────────────
@@ -115,6 +120,7 @@
       localStatus = data.status;
     }
     const c = data.decodedContent;
+    if (typeof c.title === 'string') localTitle = c.title;
     if (typeof c.query === 'string') localQuery = c.query;
     else if (typeof c.expression === 'string') localQuery = c.expression;
     if (Array.isArray(c.results)) localResults = c.results as CalculateResult[];
@@ -157,7 +163,7 @@
 <UnifiedEmbedFullscreen
   appId="math"
   skillId="calculate"
-  embedHeaderTitle="Calculation"
+  embedHeaderTitle={title}
   embedHeaderSubtitle={subtitle || primaryExpression}
   onClose={onClose}
   skillIconName="math"

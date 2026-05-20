@@ -168,8 +168,10 @@ describe('renderEmbedAsText', () => {
 
 	it('math calculate renders expressions', () => {
 		const result = renderEmbedAsText('app:math:calculate', {
+			title: 'Power of two',
 			results: [{ expression: '2^10', result: '1024' }]
 		});
+		expect(result).toContain('Power of two');
 		expect(result).toContain('2^10 = 1024');
 	});
 

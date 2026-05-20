@@ -3431,6 +3431,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const results = decodedContent?.results || [];
+    const title = decodedContent?.title || results[0]?.title || "";
     const query =
       decodedContent?.query ||
       decodedContent?.expression ||
@@ -3473,6 +3474,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         props: {
           id: embedId,
           query,
+          title,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,

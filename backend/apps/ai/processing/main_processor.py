@@ -3929,6 +3929,10 @@ async def handle_main_processing(
                 # Extract query from input arguments if available (for search skills)
                 # This is used by frontend for preview display
                 if not is_async_skill and parsed_args and isinstance(parsed_args, dict):
+                    if "title" in parsed_args and isinstance(parsed_args["title"], str):
+                        title = parsed_args["title"].strip()
+                        if title:
+                            preview_data["title"] = title
                     # Try to extract query from various possible input structures
                     if "query" in parsed_args:
                         preview_data["query"] = parsed_args["query"]
