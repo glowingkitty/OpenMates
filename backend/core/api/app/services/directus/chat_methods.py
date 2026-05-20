@@ -171,7 +171,7 @@ class ChatMethods:
             logger.error(f"DB Fallback: Error fetching chat list item data for {chat_id}: {e}", exc_info=True)
             return None
 
-    async def get_chat_metadata(self, chat_id: str) -> Optional[Dict[str, Any]]:
+    async def get_chat_metadata(self, chat_id: str, admin_required: bool = False) -> Optional[Dict[str, Any]]:
         """
         Fetches metadata for a specific chat from Directus, excluding content.
         
@@ -196,7 +196,12 @@ class ChatMethods:
             'limit': 1
         }
         try:
-            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
+            response = await self.directus_service.get_items(
+                'chats',
+                params=params,
+                no_cache=True,
+                admin_required=admin_required,
+            )
             if response and isinstance(response, list) and len(response) > 0:
                 logger.info(f"Successfully fetched metadata for chat {chat_id}")
                 return response[0]

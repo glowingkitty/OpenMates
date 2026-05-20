@@ -127,7 +127,7 @@ async def get_shared_chat(
     """
     try:
         # Fetch chat from database
-        chat = await directus_service.chat.get_chat_metadata(chat_id)
+        chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
         
         if not chat:
             # Chat doesn't exist - return dummy data to prevent enumeration
