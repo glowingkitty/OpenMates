@@ -731,6 +731,23 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	await takeStepScreenshot(page, '05-initial-state-verified');
 
+	// Header prev/next navigation must include the just-created chat even while
+	// the sidebar is closed. The new chat should be newest-first, so the right
+	// arrow navigates to the next older chat and the left arrow returns here.
+	logChatCheckpoint('Phase 4b: Verifying ChatHeader navigation includes the new chat...');
+	const headerPreviousChatButton = page.getByTestId('chat-header-previous');
+	await expect(headerPreviousChatButton).toBeVisible({ timeout: 10000 });
+	await headerPreviousChatButton.click();
+	await expect(page).not.toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 10000 });
+	logChatCheckpoint('ChatHeader previous arrow navigated away from the new chat.');
+
+	const headerNextChatButton = page.getByTestId('chat-header-next');
+	await expect(headerNextChatButton).toBeVisible({ timeout: 10000 });
+	await headerNextChatButton.click();
+	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 10000 });
+	await expect(page.getByTestId('message-user').first()).toBeVisible({ timeout: 15000 });
+	logChatCheckpoint('ChatHeader next arrow returned to the just-created chat.');
+
 	// =========================================================================
 	// PHASE 4.5: Navigate to "new chat" → verify just-created chat is most recent
 	// =========================================================================

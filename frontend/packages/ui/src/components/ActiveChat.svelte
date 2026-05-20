@@ -5712,7 +5712,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Chats.svelte may not be mounted (e.g., sidebar closed on mobile).
             activeChatStore.setActiveChat(currentChat.chat_id);
             console.debug("[ActiveChat] Updated URL hash with new chat ID:", currentChat.chat_id);
-            
+
+            // loadChat() is not called for the inline new-chat send path, so keep
+            // ChatHeader's closed-sidebar navigation state in sync explicitly.
+            chatListCache.upsertChat(currentChat);
+            updateNavFromCache(currentChat.chat_id);
+
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
