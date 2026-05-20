@@ -2387,6 +2387,8 @@ async def get_server_stats(
                     "purchases": _safe_int(it.get("purchase_count")),
                     "credits_sold": _safe_int(it.get("credits_sold")),
                     "credits_used": _safe_int(it.get("credits_used")),
+                    "usage_entries_created": _safe_int(it.get("usage_entries_created")),
+                    "deleted_accounts": _safe_int(it.get("deleted_accounts")),
                 }
                 for it in trend_items
             ]

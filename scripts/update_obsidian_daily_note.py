@@ -952,29 +952,28 @@ def _daily_development_svg(metrics: list[dict[str, object]]) -> str:
     gap_x = 48
     gap_y = 28
 
-    def block_color(current: float | None, previous: float | None) -> str:
+    def block_color(current: float | None, previous: float | None, lower_is_better: bool) -> str:
+        if lower_is_better and current and current > 0:
+            return colors["warning"]
         if current is None or previous is None or current == previous:
-            return colors["neutral"]
+            return colors["primary_end"]
         if current > previous:
-            return colors["finance_end"]
-        return colors["warning"]
+            return colors["warning"] if lower_is_better else colors["finance_end"]
+        return colors["finance_end"] if lower_is_better else colors["warning"]
 
     def format_value(value: float | None, formatter: str) -> str:
         if value is None:
             return "-"
         if formatter == "eur":
-            return f"{value:+,.0f} EUR"
-        if value > 0:
-            return f"+{value:,.0f}"
+            return f"{value:,.0f} EUR"
         return f"{value:,.0f}"
 
     def format_delta(current: float | None, previous: float | None, formatter: str) -> str:
-        if current is None or previous is None:
-            return "no prior week data"
-        delta = current - previous
+        if previous is None:
+            return "no week-before data"
         if formatter == "eur":
-            return f"{delta:+,.0f} EUR vs previous 7d"
-        return f"{delta:+,.0f} vs previous 7d"
+            return f"{previous:,.0f} EUR in week before"
+        return f"{previous:,.0f} in week before"
 
     blocks = []
     for index, metric in enumerate(metrics):
@@ -982,8 +981,12 @@ def _daily_development_svg(metrics: list[dict[str, object]]) -> str:
         y = start_y + (index // 3) * (card_h + gap_y)
         current = _optional_float(metric.get("current"))
         previous = _optional_float(metric.get("previous"))
+        if metric.get("default_zero"):
+            current = current or 0.0
+            previous = previous or 0.0
         formatter = str(metric.get("formatter") or "count")
-        fill = block_color(current, previous)
+        lower_is_better = bool(metric.get("lower_is_better"))
+        fill = block_color(current, previous, lower_is_better)
         blocks.append(
             f'<rect x="{x}" y="{y}" width="{card_w}" height="{card_h}" rx="24" fill="{fill}" fill-opacity="0.24" stroke="{fill}" stroke-opacity="0.74"/>'
         )
@@ -998,7 +1001,7 @@ def _daily_development_svg(metrics: list[dict[str, object]]) -> str:
         )
     body = f'''
   <text x="1112" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="28" font-weight="800" text-anchor="end">last 7 days</text>
-  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18" font-weight="500" text-anchor="end">green up · grey flat · orange down</text>
+  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18" font-weight="500" text-anchor="end">green up · blue same · orange down</text>
   {''.join(blocks)}
 '''
     return _svg_shell("Daily Development", "Seven-day totals compared with the previous seven days", body)
@@ -1072,11 +1075,6 @@ def generate_daily_metric_svgs(
         "subscribers",
         clamp_negative=True,
     )
-    has_registration_trend = any(
-        isinstance(item, dict) and "new_registrations" in item
-        for item in revenue_trend + engagement_trend
-    )
-
     def trend_values(source: dict[str, dict[str, object]], key: str) -> list[float | None]:
         return [_optional_float(source.get(label, {}).get(key)) for label in day_labels]
 
@@ -1095,23 +1093,34 @@ def generate_daily_metric_svgs(
     def previous_trend_total(source: dict[str, dict[str, object]], key: str) -> float | None:
         return _sum_optional(previous_trend_values(source, key))
 
+    def signup_values(labels: list[str]) -> list[float | None]:
+        values = []
+        for label in labels:
+            item = trend_by_day.get(label, {})
+            registrations = _optional_float(item.get("new_registrations"))
+            completed = _optional_float(item.get("completed_signups"))
+            if registrations is None and completed is None:
+                values.append(registered_deltas.get(label))
+            else:
+                values.append(max(0.0, (registrations or 0.0) - (completed or 0.0)))
+        return values
+
     daily_development_metrics = [
         {
             "label": "Revenue",
             "current": current_trend_total(trend_by_day, "income_eur"),
             "previous": previous_trend_total(trend_by_day, "income_eur"),
             "formatter": "eur",
-            "label_color": SVG_COLORS["primary_end"],
         },
         {
-            "label": "New registered users",
-            "current": current_trend_total(trend_by_day, "new_registrations") if has_registration_trend else current_snapshot_total(registered_deltas),
-            "previous": previous_trend_total(trend_by_day, "new_registrations") if has_registration_trend else previous_snapshot_total(registered_deltas),
+            "label": "New signups",
+            "current": _sum_optional(signup_values(day_labels)),
+            "previous": _sum_optional(signup_values(previous_day_labels)),
         },
         {
-            "label": "New paying users",
-            "current": current_trend_total(trend_by_day, "unique_buyers"),
-            "previous": previous_trend_total(trend_by_day, "unique_buyers"),
+            "label": "New purchases",
+            "current": current_trend_total(trend_by_day, "purchases"),
+            "previous": previous_trend_total(trend_by_day, "purchases"),
         },
         {
             "label": "New chats",
@@ -1124,14 +1133,27 @@ def generate_daily_metric_svgs(
             "previous": previous_trend_total(engagement_by_day, "messages"),
         },
         {
-            "label": "New embeds",
-            "current": current_trend_total(engagement_by_day, "embeds"),
-            "previous": previous_trend_total(engagement_by_day, "embeds"),
+            "label": "New app skill uses",
+            "current": current_trend_total(trend_by_day, "usage_entries_created"),
+            "previous": previous_trend_total(trend_by_day, "usage_entries_created"),
+            "default_zero": True,
+        },
+        {
+            "label": "Used credits",
+            "current": current_trend_total(trend_by_day, "credits_used"),
+            "previous": previous_trend_total(trend_by_day, "credits_used"),
         },
         {
             "label": "New newsletter subscribers",
             "current": current_snapshot_total(newsletter_deltas),
             "previous": previous_snapshot_total(newsletter_deltas),
+        },
+        {
+            "label": "Deleted accounts",
+            "current": current_trend_total(trend_by_day, "deleted_accounts"),
+            "previous": previous_trend_total(trend_by_day, "deleted_accounts"),
+            "lower_is_better": True,
+            "default_zero": True,
         },
     ]
     asset_dir = vault / DAILY_METRICS_ASSET_DIR / date_str
