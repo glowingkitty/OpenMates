@@ -588,7 +588,7 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
 
   const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
   await expect(fileSelection).toBeVisible({ timeout: 15000 });
-  await expect(fileSelection).toContainText('Select files to include');
+  await expect(fileSelection).toContainText('Select files to upload & process in E2B sandbox:');
   await expect(fileSelection).toContainText('code_run_helper.py');
 
   const requiredCheckbox = fileSelection.getByTestId('code-run-required-file-checkbox').first();
