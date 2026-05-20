@@ -1496,6 +1496,14 @@ function withLiveRecordMarker(message: string, groupId: string): string {
  * Used by create-test-account.spec.ts to provision persistent E2E test accounts.
  */
 function buildTestAccountEmail(slot: number, domain: string): string {
+	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
+	if (gmailTestAddress && gmailTestAddress.includes('@')) {
+		const [localPart, gmailDomain] = gmailTestAddress.split('@');
+		if (domain.toLowerCase() === gmailDomain.toLowerCase()) {
+			return `${localPart}+testacct${slot}@${gmailDomain}`;
+		}
+	}
+
 	return `testacct${slot}@${domain}`;
 }
 
