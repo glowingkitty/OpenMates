@@ -2381,6 +2381,8 @@ async def get_server_stats(
                     "messages": _safe_int(it.get("messages_sent")),
                     "embeds": _safe_int(it.get("embeds_created")),
                     "chats": _safe_int(it.get("chats_created")),
+                    "new_registrations": _safe_int(it.get("new_users_registered")),
+                    "completed_signups": _safe_int(it.get("new_users_finished_signup")),
                     "income_eur": _safe_int(it.get("income_eur_cents")) / 100.0,
                     "purchases": _safe_int(it.get("purchase_count")),
                     "credits_sold": _safe_int(it.get("credits_sold")),

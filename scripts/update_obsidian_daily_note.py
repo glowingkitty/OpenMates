@@ -18,7 +18,7 @@ import re
 import subprocess
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -56,6 +56,7 @@ SVG_COLORS = {
     "travel_start": "#059db3",
     "travel_end": "#13daf5",
     "warning": "#f0a050",
+    "neutral": "#555555",
 }
 LEGACY_BOARD_LINKS = (
     "Kanban: [[Boards/all-todos|Open All Todos board]]",
@@ -435,6 +436,11 @@ def _last_six_month_labels(date_str: str) -> list[str]:
     return labels
 
 
+def _last_day_labels(date_str: str, days: int) -> list[str]:
+    end = datetime.strptime(date_str, "%Y-%m-%d").date()
+    return [(end - timedelta(days=offset)).isoformat() for offset in range(days - 1, -1, -1)]
+
+
 def _align_month_items(
     items: list[dict[str, object]],
     labels: list[str],
@@ -505,6 +511,65 @@ def _monthly_newsletter_history(vault: Path, date_str: str, current_subscribers:
             continue
         by_month[month] = {"month": month, "subscribers": _safe_int(item.get("subscribers"))}
     return _filter_month_window([by_month[month] for month in sorted(by_month)], date_str)
+
+
+def _daily_signup_history(vault: Path, date_str: str, current_registered: int, current_paid: int) -> list[dict[str, object]]:
+    history: list[dict[str, object]] = []
+    daily_dir = vault / DAILY_NOTES_DIR
+    if daily_dir.exists():
+        for path in sorted(daily_dir.glob("*.md")):
+            day = path.stem
+            if day > date_str:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            match = re.search(r"\| Signup funnel \| ([\d,]+) registered accounts -> ([\d,]+) paid users", text)
+            if match:
+                history.append(
+                    {
+                        "date": day,
+                        "registered": _safe_int(match.group(1).replace(",", "")),
+                        "paid": _safe_int(match.group(2).replace(",", "")),
+                    }
+                )
+    if not history or history[-1].get("date") != date_str:
+        history.append({"date": date_str, "registered": current_registered, "paid": current_paid})
+    else:
+        history[-1]["registered"] = current_registered
+        history[-1]["paid"] = current_paid
+    return history[-180:]
+
+
+def _daily_snapshot_deltas(
+    history: list[dict[str, object]],
+    labels: list[str],
+    key: str,
+    clamp_negative: bool = False,
+) -> dict[str, float | None]:
+    by_day = {str(item.get("date") or ""): item for item in history}
+    deltas: dict[str, float | None] = {}
+    previous_value: float | None = None
+    for day in sorted(by_day):
+        value = _optional_float(by_day[day].get(key))
+        if value is not None and previous_value is not None and day in labels:
+            delta = value - previous_value
+            deltas[day] = max(0.0, delta) if clamp_negative else delta
+        elif day in labels:
+            deltas[day] = None
+        if value is not None:
+            previous_value = value
+    for label in labels:
+        deltas.setdefault(label, None)
+    return deltas
+
+
+def _sum_optional(values: list[float | None]) -> float | None:
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    return sum(present)
 
 
 def _line_path(values: list[float], x: float, y: float, width: float, height: float) -> str:
@@ -878,6 +943,67 @@ def _newsletter_svg(
     return _svg_shell("Newsletter & Web", "Subscriber snapshots from the last 6 months plus web traffic", body)
 
 
+def _daily_development_svg(metrics: list[dict[str, object]]) -> str:
+    colors = SVG_COLORS
+    card_w = 315
+    card_h = 118
+    start_x = 78
+    start_y = 168
+    gap_x = 48
+    gap_y = 28
+
+    def block_color(current: float | None, previous: float | None) -> str:
+        if current is None or previous is None or current == previous:
+            return colors["neutral"]
+        if current > previous:
+            return colors["finance_end"]
+        return colors["warning"]
+
+    def format_value(value: float | None, formatter: str) -> str:
+        if value is None:
+            return "-"
+        if formatter == "eur":
+            return f"{value:+,.0f} EUR"
+        if value > 0:
+            return f"+{value:,.0f}"
+        return f"{value:,.0f}"
+
+    def format_delta(current: float | None, previous: float | None, formatter: str) -> str:
+        if current is None or previous is None:
+            return "no prior week data"
+        delta = current - previous
+        if formatter == "eur":
+            return f"{delta:+,.0f} EUR vs previous 7d"
+        return f"{delta:+,.0f} vs previous 7d"
+
+    blocks = []
+    for index, metric in enumerate(metrics):
+        x = start_x + (index % 3) * (card_w + gap_x)
+        y = start_y + (index // 3) * (card_h + gap_y)
+        current = _optional_float(metric.get("current"))
+        previous = _optional_float(metric.get("previous"))
+        formatter = str(metric.get("formatter") or "count")
+        fill = block_color(current, previous)
+        blocks.append(
+            f'<rect x="{x}" y="{y}" width="{card_w}" height="{card_h}" rx="24" fill="{fill}" fill-opacity="0.24" stroke="{fill}" stroke-opacity="0.74"/>'
+        )
+        blocks.append(
+            f'<text x="{x + 24}" y="{y + 42}" fill="{fill}" font-family="{SVG_FONT}" font-size="30" font-weight="800">{_svg_escape(format_value(current, formatter))}</text>'
+        )
+        blocks.append(
+            f'<text x="{x + 24}" y="{y + 72}" fill="{colors["text_secondary"]}" font-family="{SVG_FONT}" font-size="18" font-weight="800">{_svg_escape(metric.get("label", "?"))}</text>'
+        )
+        blocks.append(
+            f'<text x="{x + 24}" y="{y + 100}" fill="{colors["text_tertiary"]}" font-family="{SVG_FONT}" font-size="15" font-weight="500">{_svg_escape(format_delta(current, previous, formatter))}</text>'
+        )
+    body = f'''
+  <text x="1112" y="92" fill="{colors['text']}" font-family="{SVG_FONT}" font-size="28" font-weight="800" text-anchor="end">last 7 days</text>
+  <text x="1112" y="128" fill="{colors['text_secondary']}" font-family="{SVG_FONT}" font-size="18" font-weight="500" text-anchor="end">green up · grey flat · orange down</text>
+  {''.join(blocks)}
+'''
+    return _svg_shell("Daily Development", "Seven-day totals compared with the previous seven days", body)
+
+
 def generate_daily_metric_svgs(
     vault: Path,
     date_str: str,
@@ -902,10 +1028,16 @@ def generate_daily_metric_svgs(
     revenue_parts = [value for value in (stripe_all_time, bank_all_time) if isinstance(value, (int, float))]
     lifetime_revenue = sum(float(value) for value in revenue_parts) if revenue_parts else _safe_float(lifetime.get("total_eur"))
     engagement_trend = engagement.get("trend_14d") if isinstance(engagement.get("trend_14d"), list) else []
+    revenue_trend = sections.get("revenue", {}).get("trend_14d") if isinstance(sections.get("revenue"), dict) else []
+    if not isinstance(revenue_trend, list):
+        revenue_trend = []
     lifetime_monthly_trend = lifetime.get("monthly_trend") if isinstance(lifetime.get("monthly_trend"), list) else []
     stripe_monthly = stripe_revenue.get("monthly") if isinstance(stripe_revenue.get("monthly"), list) else []
     bank_monthly = bank_transfer_revenue.get("monthly") if isinstance(bank_transfer_revenue.get("monthly"), list) else []
     month_labels = _last_six_month_labels(date_str)
+    comparison_day_labels = _last_day_labels(date_str, 14)
+    previous_day_labels = comparison_day_labels[:7]
+    day_labels = comparison_day_labels[7:]
     monthly_revenue = _align_month_items(
         _filter_month_window(_monthly_revenue(stripe_monthly, bank_monthly), date_str),
         month_labels,
@@ -922,8 +1054,89 @@ def generate_daily_metric_svgs(
         month_labels,
         ("subscribers",),
     )
+    trend_by_day = {
+        str(item.get("date") or ""): item
+        for item in revenue_trend
+        if isinstance(item, dict) and item.get("date")
+    }
+    engagement_by_day = {
+        str(item.get("date") or ""): item
+        for item in engagement_trend
+        if isinstance(item, dict) and item.get("date")
+    }
+    signup_history = _daily_signup_history(vault, date_str, registered_accounts, paying_customers)
+    registered_deltas = _daily_snapshot_deltas(signup_history, comparison_day_labels, "registered", clamp_negative=True)
+    newsletter_deltas = _daily_snapshot_deltas(
+        _daily_newsletter_history(vault, date_str, confirmed_subscribers),
+        comparison_day_labels,
+        "subscribers",
+        clamp_negative=True,
+    )
+    has_registration_trend = any(
+        isinstance(item, dict) and "new_registrations" in item
+        for item in revenue_trend + engagement_trend
+    )
+
+    def trend_values(source: dict[str, dict[str, object]], key: str) -> list[float | None]:
+        return [_optional_float(source.get(label, {}).get(key)) for label in day_labels]
+
+    def previous_trend_values(source: dict[str, dict[str, object]], key: str) -> list[float | None]:
+        return [_optional_float(source.get(label, {}).get(key)) for label in previous_day_labels]
+
+    def current_snapshot_total(deltas: dict[str, float | None]) -> float | None:
+        return _sum_optional([deltas[label] for label in day_labels])
+
+    def previous_snapshot_total(deltas: dict[str, float | None]) -> float | None:
+        return _sum_optional([deltas[label] for label in previous_day_labels])
+
+    def current_trend_total(source: dict[str, dict[str, object]], key: str) -> float | None:
+        return _sum_optional(trend_values(source, key))
+
+    def previous_trend_total(source: dict[str, dict[str, object]], key: str) -> float | None:
+        return _sum_optional(previous_trend_values(source, key))
+
+    daily_development_metrics = [
+        {
+            "label": "Revenue",
+            "current": current_trend_total(trend_by_day, "income_eur"),
+            "previous": previous_trend_total(trend_by_day, "income_eur"),
+            "formatter": "eur",
+            "label_color": SVG_COLORS["primary_end"],
+        },
+        {
+            "label": "New registered users",
+            "current": current_trend_total(trend_by_day, "new_registrations") if has_registration_trend else current_snapshot_total(registered_deltas),
+            "previous": previous_trend_total(trend_by_day, "new_registrations") if has_registration_trend else previous_snapshot_total(registered_deltas),
+        },
+        {
+            "label": "New paying users",
+            "current": current_trend_total(trend_by_day, "unique_buyers"),
+            "previous": previous_trend_total(trend_by_day, "unique_buyers"),
+        },
+        {
+            "label": "New chats",
+            "current": current_trend_total(engagement_by_day, "chats"),
+            "previous": previous_trend_total(engagement_by_day, "chats"),
+        },
+        {
+            "label": "New messages",
+            "current": current_trend_total(engagement_by_day, "messages"),
+            "previous": previous_trend_total(engagement_by_day, "messages"),
+        },
+        {
+            "label": "New embeds",
+            "current": current_trend_total(engagement_by_day, "embeds"),
+            "previous": previous_trend_total(engagement_by_day, "embeds"),
+        },
+        {
+            "label": "New newsletter subscribers",
+            "current": current_snapshot_total(newsletter_deltas),
+            "previous": previous_snapshot_total(newsletter_deltas),
+        },
+    ]
     asset_dir = vault / DAILY_METRICS_ASSET_DIR / date_str
     files = {
+        "daily-development.svg": _daily_development_svg(daily_development_metrics),
         "revenue.svg": _revenue_svg(lifetime_revenue, monthly_revenue, paying_customers),
         "users.svg": _users_svg(user_history, registered_accounts, paying_customers),
         "engagement.svg": _engagement_svg(engagement_trend, paying_customers),
