@@ -1578,6 +1578,8 @@
   }
 
   .image-bubble:hover {
+    --deco-target-opacity: 1;
+    scale: 1.12;
     border-color: rgba(255, 255, 255, 0.66);
     box-shadow:
       inset 18px 20px 36px rgba(255, 255, 255, 0.42),
