@@ -106,8 +106,8 @@ test.describe('App: Images / Skill: search', () => {
 
 		const embed = await waitForEmbedFinished(page, 'images', 'search');
 		logCheckpoint('Images search embed finished.');
-		await expect(page.getByTestId('chat-header-image-background')).toBeVisible({ timeout: 30_000 });
-		logCheckpoint('Chat header image background visible.');
+		await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30_000 });
+		logCheckpoint('Chat header image bubbles visible.');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
