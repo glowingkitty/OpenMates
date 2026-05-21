@@ -116,7 +116,7 @@ test('real YouTube analysis request activates video focus mode and continues wit
 	await startNewChat(page, logCheckpoint);
 
 	const message =
-		'Please analyze this YouTube video. Summarize it, assess credibility and bias, and fact-check the main claims: https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+		'Please start the Analyze video focus mode for this YouTube video, then summarize it, assess credibility and bias, and fact-check the main claims: https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 	await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'video-real');
 
 	await waitForAssistantMessage(page, { which: 'first', timeout: 120000, logCheckpoint });
