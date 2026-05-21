@@ -230,7 +230,8 @@ test('focus mode UI elements work correctly after activation', async ({
 		await expect(bannerText).toBeVisible({ timeout: 5000 });
 		const bannerTextContent = await bannerText.textContent();
 		logCheckpoint(`Banner text: "${bannerTextContent}"`);
-		expect(bannerTextContent?.toLowerCase()).toContain('focus');
+		expect(bannerTextContent?.toLowerCase()).toContain('career');
+		await expect(banner).toContainText(/focus on/i);
 
 		await takeStepScreenshot(page, 'ui-banner-visible');
 	});
