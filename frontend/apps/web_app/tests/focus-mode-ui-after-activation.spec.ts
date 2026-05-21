@@ -311,6 +311,14 @@ test('focus mode UI elements work correctly after activation', async ({
 	// CHECK 4: Follow-up persistence (test 4)
 	// ======================================================================
 	await test.step('Focus mode persists on follow-up messages', async () => {
+		await page.keyboard.press('Escape');
+		const sidebar = page.getByTestId('activity-history-wrapper');
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		if (await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await sidebarToggle.click();
+			await page.waitForTimeout(500);
+		}
+
 		const allAssistantMessagesBefore = page.getByTestId('message-assistant');
 		const countBefore = await allAssistantMessagesBefore.count();
 		logCheckpoint(`Assistant messages before follow-up: ${countBefore}`);
