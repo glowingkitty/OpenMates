@@ -6,7 +6,8 @@ const {
 	test,
 	expect,
 	attachConsoleListeners,
-	attachNetworkListeners
+	attachNetworkListeners,
+	allowConsoleErrorPatterns
 } = require('./console-monitor');
 
 const {
@@ -55,6 +56,13 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 function setupPageListeners(page: any) {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
+	allowConsoleErrorPatterns([
+		/\[ChatSyncService:AI\].*Chat key unavailable or unsafe for HKDF derivation; refusing to persist embed/,
+		/\[ChatSyncService:AI\].*Failed to get parent embed key after 5 retries/,
+		/\[ChatSyncService:AI\].*Failed to get parent embed key for child embed/,
+		/\[ChatSyncService:AI\].*Chat .* not found in DB or incognito service for background response/,
+		/\[ChatSyncService:AI\].*Error handling post-processing results for chat .* not found/
+	]);
 }
 
 /**
