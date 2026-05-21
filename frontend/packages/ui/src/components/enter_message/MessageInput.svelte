@@ -4456,6 +4456,7 @@
         {#if showFocusPill}
             <div
                 class="focus-pill"
+                data-testid="focus-pill"
                 style="--focus-pill-gradient: var(--color-app-{activeFocusAppId}, linear-gradient(135deg, #5856d6, #a78bfa))"
                 transition:fade={{ duration: 200 }}
             >
@@ -4472,7 +4473,7 @@
                             aria-hidden="true"
                         ></span>
                     {/if}
-                    <span class="focus-pill-label">
+                    <span class="focus-pill-label" data-testid="focus-pill-label">
                         {#if activeFocusModeMetadata}
                             {$text(activeFocusModeMetadata.name_translation_key)}
                         {:else}
