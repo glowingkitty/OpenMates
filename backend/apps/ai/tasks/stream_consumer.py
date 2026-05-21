@@ -2361,7 +2361,7 @@ async def _consume_main_processing_stream(
                         f"{log_prefix} Detected error marker in stream chunk "
                         f"(chunk_len={len(chunk)}). Replacing with generic error message."
                     )
-                    chunk = "chat.an_error_occured"
+                    chunk = STANDARDIZED_USER_ERROR_MESSAGE
                 
                 # Strip <tool_call>...</tool_call> XML blocks from text content
                 # Some LLMs (e.g., Qwen3) output tool calls as XML text in addition to proper function calling

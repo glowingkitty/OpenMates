@@ -149,6 +149,16 @@
     return content.includes('"type":"focus_mode_activation"') || content.includes('"type": "focus_mode_activation"');
   }
 
+  const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
+
+  function isRawChatErrorMessage(content: unknown): boolean {
+    return typeof content === 'string' && RAW_CHAT_ERROR_KEYS.has(content.trim());
+  }
+
+  function normalizeRawChatErrorMessage(content: string): string {
+    return isRawChatErrorMessage(content) ? $text('chat.an_error_occured') : content;
+  }
+
   /**
    * Merge consecutive assistant messages for display when the previous is a focus mode activation.
    * Backend stores two messages (focus embed, then continuation text). We show one bubble.
@@ -161,7 +171,8 @@
       if (
         prev?.role === 'assistant' &&
         curr.role === 'assistant' &&
-        hasFocusModeActivationEmbed(prev.content)
+        hasFocusModeActivationEmbed(prev.content) &&
+        !isRawChatErrorMessage(curr.content)
       ) {
         const prevContent = typeof prev.content === 'string' ? prev.content : '';
         const currContent = typeof curr.content === 'string' ? curr.content : '';
@@ -203,7 +214,7 @@
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
-      let contentToProcess = incomingMessage.content;
+      let contentToProcess = normalizeRawChatErrorMessage(incomingMessage.content);
       
       // PII RESTORATION: Restore PII placeholders with original values before parsing
       // This applies to both user and assistant messages when mappings are available

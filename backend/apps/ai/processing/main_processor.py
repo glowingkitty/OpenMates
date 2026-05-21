@@ -125,6 +125,8 @@ INVALID_TOOL_RESULT_REASON = (
     "completed results. Do not mention unavailable internal tools to the user."
 )
 
+APP_FOCUS_MODES_NAMESPACE = "app_focus_modes"
+
 ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "search"),
@@ -140,6 +142,31 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
 # empty because Gemini 3 called 'web:search' and the strict string-match
 # allow-list rejected it even though 'web-search' was preselected.
 _TOOL_NAME_SEPARATORS = (":", "|", "_", ".")
+
+
+def _resolve_focus_mode_display_name(
+    translation_service: TranslationService,
+    translation_key: str,
+    fallback: str,
+    user_language: str,
+) -> str:
+    """Resolve app.yml focus-mode labels through the frontend app_focus_modes namespace."""
+    candidate_keys = []
+    if translation_key.startswith(f"{APP_FOCUS_MODES_NAMESPACE}."):
+        candidate_keys.append(translation_key)
+    else:
+        candidate_keys.append(f"{APP_FOCUS_MODES_NAMESPACE}.{translation_key}")
+        candidate_keys.append(translation_key)
+
+    for lang in (user_language, "en"):
+        if not lang:
+            continue
+        for candidate_key in candidate_keys:
+            translated = translation_service.get_nested_translation(candidate_key, lang=lang)
+            if translated and translated != candidate_key:
+                return translated
+
+    return fallback
 
 
 def _canonicalize_tool_name(name: str) -> str:
@@ -1964,15 +1991,12 @@ async def handle_main_processing(
                     if fm_app_metadata and fm_app_metadata.focuses:
                         for fm_def in fm_app_metadata.focuses:
                             if fm_def.id == fm_mode_id:
-                                focus_mode_display_name = translation_service.get_nested_translation(
-                                    fm_def.name_translation_key, lang=user_language
-                                ) or ""
-                                if not focus_mode_display_name and user_language != "en":
-                                    focus_mode_display_name = translation_service.get_nested_translation(
-                                        fm_def.name_translation_key, lang="en"
-                                    ) or fm_def.name_translation_key
-                                elif not focus_mode_display_name:
-                                    focus_mode_display_name = fm_def.name_translation_key
+                                focus_mode_display_name = _resolve_focus_mode_display_name(
+                                    translation_service,
+                                    fm_def.name_translation_key,
+                                    fallback=fm_def.name_translation_key,
+                                    user_language=user_language,
+                                )
                                 break
                 except Exception:
                     pass
@@ -3165,16 +3189,12 @@ async def handle_main_processing(
                                     if fm_app_metadata and fm_app_metadata.focuses:
                                         for fm_def in fm_app_metadata.focuses:
                                             if fm_def.id == fm_mode_id:
-                                                # Try user's language first, fallback to English
-                                                focus_mode_display_name = translation_service.get_nested_translation(
-                                                    fm_def.name_translation_key, lang=user_language
-                                                ) or ""
-                                                if not focus_mode_display_name and user_language != "en":
-                                                    focus_mode_display_name = translation_service.get_nested_translation(
-                                                        fm_def.name_translation_key, lang="en"
-                                                    ) or fm_def.name_translation_key
-                                                elif not focus_mode_display_name:
-                                                    focus_mode_display_name = fm_def.name_translation_key
+                                                focus_mode_display_name = _resolve_focus_mode_display_name(
+                                                    translation_service,
+                                                    fm_def.name_translation_key,
+                                                    fallback=fm_def.name_translation_key,
+                                                    user_language=user_language,
+                                                )
                                                 break
                                 except Exception:
                                     pass
