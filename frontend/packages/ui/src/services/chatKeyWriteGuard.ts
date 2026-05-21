@@ -25,6 +25,17 @@ export async function ensureChatKeySafeForWrite(
     chat?.encrypted_chat_key ?? (await chatDB.getEncryptedChatKey(chatId));
   const rawFingerprint = computeKeyFingerprint(rawChatKey);
 
+  if (chat?.candidate_encrypted_keys?.length) {
+    console.error(
+      `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: chat has ` +
+        `${chat.candidate_encrypted_keys.length} candidate/conflicting key(s) pending recovery`,
+    );
+    notificationStore.error(
+      "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
+    );
+    return false;
+  }
+
   if (chat?.key_fingerprint && chat.key_fingerprint !== rawFingerprint) {
     if (encryptedChatKey) addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
     console.error(

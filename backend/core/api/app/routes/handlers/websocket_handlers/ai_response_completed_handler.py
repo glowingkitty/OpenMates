@@ -9,6 +9,10 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.shared.python_utils.chat_ciphertext_fingerprint import (
+    authoritative_chat_fingerprint,
+    validate_message_matches_authoritative_fingerprint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,10 +126,12 @@ async def handle_ai_response_completed(
             # certainly the creator and the task just hasn't written yet — allow it through.
             # If the row exists but belongs to someone else, reject as usual.
             is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            chat_metadata_for_validation = None
             if not is_owner:
                 import hashlib as _hashlib
                 existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
                 if existing_chat:
+                    chat_metadata_for_validation = existing_chat
                     chat_owner_hash = existing_chat.get("hashed_user_id", "")
                     caller_hash = _hashlib.sha256(user_id.encode()).hexdigest()
                     if chat_owner_hash != caller_hash:
@@ -140,6 +146,50 @@ async def handle_ai_response_completed(
                 else:
                     # Chat row not written yet — persist_encrypted_chat_metadata task still in flight.
                     logger.info(f"Chat {chat_id} not in Directus yet (persist task in flight), allowing ai_response_completed for user {user_id}")
+
+            if chat_metadata_for_validation is None:
+                chat_metadata_for_validation = await directus_service.chat.get_chat_metadata(chat_id)
+
+            existing_messages_for_validation = []
+            if chat_metadata_for_validation:
+                try:
+                    messages_by_chat = await directus_service.chat.get_messages_for_chats([chat_id])
+                    existing_messages_for_validation = messages_by_chat.get(chat_id, [])
+                except Exception as message_fetch_error:
+                    logger.warning(
+                        f"Failed to fetch existing messages for AI response key validation in chat {chat_id}: {message_fetch_error}",
+                        exc_info=True,
+                    )
+
+            authoritative_fingerprint = authoritative_chat_fingerprint(
+                chat_metadata_for_validation,
+                existing_messages_for_validation,
+            )
+            fingerprint_validation = validate_message_matches_authoritative_fingerprint(
+                message_payload_from_client,
+                authoritative_fingerprint,
+            )
+            if not fingerprint_validation.valid:
+                logger.warning(
+                    f"[AI_RESPONSE_KEY_GUARD] Rejecting AI response {message_id} for chat {chat_id}: "
+                    f"incoming_fp={fingerprint_validation.incoming_fingerprint}, "
+                    f"authoritative_fp={fingerprint_validation.authoritative_fingerprint}, "
+                    f"reason={fingerprint_validation.reason}"
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "chat_key_mismatch",
+                        "payload": {
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "code": "chat_key_mismatch",
+                            "message": "Chat encryption key mismatch. Reload the chat key and retry.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
             # CRITICAL: Check if this specific response ID was already processed or is being processed
             # This prevents duplicate confirmations and redundant Celery tasks
