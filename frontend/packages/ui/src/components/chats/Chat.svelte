@@ -2066,6 +2066,7 @@
                   {#if activeFocusBadgeAppId}
                     <div
                       class="focus-mode-badge"
+                      data-testid="focus-mode-badge"
                       style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
                       title={activeFocusId ?? ''}
                       aria-label="Focus mode active"
