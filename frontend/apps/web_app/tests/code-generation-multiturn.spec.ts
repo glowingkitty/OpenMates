@@ -48,6 +48,12 @@ const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helper
 // Slot 3 doesn't have 2FA configured, causing auth failures on parallel runs.
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 
+// All tests in this file use the same long-lived account slot and create chats
+// with generated code embeds. Running them concurrently races chat-key setup and
+// background embed sync, so keep the file serial while still letting other specs
+// run in parallel workers.
+test.describe.configure({ mode: 'serial' });
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
