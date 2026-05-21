@@ -188,7 +188,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	const careerMessage =
 		"I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?";
 
-	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_6'), logCheckpoint, takeStepScreenshot, 'ui-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_1'), logCheckpoint, takeStepScreenshot, 'ui-career');
 
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
@@ -309,7 +309,7 @@ test('focus mode UI elements work correctly after activation', async ({
 			"I'm particularly interested in transitioning to a product management role. " +
 			'What skills do I need and how should I prepare?';
 
-		await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_5'), logCheckpoint, takeStepScreenshot, 'ui-followup');
+		await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_followup'), logCheckpoint, takeStepScreenshot, 'ui-followup');
 
 		logCheckpoint('Waiting for follow-up assistant response...');
 		await expect(async () => {
