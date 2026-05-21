@@ -139,6 +139,16 @@ async function getActiveChatId(page: any): Promise<string> {
 	return chatId as string;
 }
 
+async function waitForAssistantIdle(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	logCheckpoint('Waiting for assistant stream to be idle...');
+	await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 45000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Assistant stream idle and editor is visible.');
+}
+
 function setupPageListeners(page: any): void {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -200,10 +210,9 @@ test('focus mode UI elements work correctly after activation', async ({
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode has been activated!');
 
-	// Wait for AI streaming to fully complete
-	logCheckpoint('Waiting for AI streaming to complete (send button enabled)...');
-	await expect(page.locator('[data-action="send-message"]')).toBeEnabled({ timeout: 45000 });
-	logCheckpoint('Streaming complete — send button is enabled again.');
+	// Wait for AI streaming to fully complete. The send button only exists while
+	// the editor has content, so do not use it as an idle signal after a send.
+	await waitForAssistantIdle(page, logCheckpoint);
 
 	// Wait for sync to propagate encrypted_active_focus_id to IndexedDB
 	await page.waitForTimeout(3000);
@@ -348,8 +357,8 @@ test('focus mode UI elements work correctly after activation', async ({
 		const originalFocusId = await originalEmbed.first().getAttribute('data-focus-id');
 		expect(originalFocusId).toContain('career_insights');
 
-		// Wait for streaming to complete before next steps
-		await expect(page.locator('[data-action="send-message"]')).toBeEnabled({ timeout: 45000 });
+		// Wait for streaming to complete before next steps.
+		await waitForAssistantIdle(page, logCheckpoint);
 		await takeStepScreenshot(page, 'ui-followup-verified');
 	});
 
