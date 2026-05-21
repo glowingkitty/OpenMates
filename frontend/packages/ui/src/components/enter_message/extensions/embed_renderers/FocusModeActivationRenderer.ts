@@ -90,7 +90,9 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     // Check if this focus mode is already active on the current chat.
     // This prevents the countdown from replaying when the user revisits
     // a chat where a focus mode was previously activated.
-    let alreadyActive = false;
+    // Persisted/read-mode activation embeds are historical records and must not
+    // replay the first-time countdown when opening an existing or shared chat.
+    let alreadyActive = attrs.status === "finished";
     try {
       const chatId = activeChatStore.get();
       if (chatId) {

@@ -190,6 +190,16 @@ describe("parse_message assistant large promotion", () => {
     expect(secondNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
   });
 
+  it("marks read-mode focus activation embeds as finished", () => {
+    const doc = parseAssistant(
+      '```json\n{"type":"focus_mode_activation","embed_id":"focus-1","focus_id":"videos-analyze_video","app_id":"videos","focus_mode_name":"Analyze video"}\n```',
+    );
+
+    const firstNode = doc.content?.[0];
+    expect(firstNode?.content?.[0]?.attrs?.type).toBe("focus-mode-activation");
+    expect(firstNode?.content?.[0]?.attrs?.status).toBe("finished");
+  });
+
   it("promotes a sheet embed surrounded by markdown headings", () => {
     const markdown = [
       "### Comparison Table",
