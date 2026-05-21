@@ -2311,6 +2311,7 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+        focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
         # so it carries over correctly from previous iterations
@@ -2439,7 +2440,16 @@ async def handle_main_processing(
                             f"tool_resolver_map. Skipping placeholder creation."
                         )
                         continue
-                    
+
+                    if app_id == "system" and skill_id == "activate_focus_mode":
+                        focus_activation_seen_this_turn = True
+                    elif focus_activation_seen_this_turn and app_id != "system":
+                        logger.info(
+                            f"{log_prefix} [FOCUS_EXCLUSIVITY] Suppressing inline placeholder for "
+                            f"'{tool_name}' because activate_focus_mode was already emitted in this turn."
+                        )
+                        continue
+                     
                     # === DEDUPLICATION CHECK (INLINE PLACEHOLDER PHASE) ===
                     # Check if this exact skill call was already executed in a previous iteration.
                     # If so, skip creating placeholder - the execution phase will also skip it.
