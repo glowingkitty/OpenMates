@@ -118,7 +118,7 @@ export function socialProviderLabel(provider: unknown): string {
   if (!value) return 'Social Media';
   return value
     .split(',')
-    .map((part) => part.trim().replace(/_/g, ' '))
+    .map((part) => providerName(part.trim()))
     .filter(Boolean)
     .join(', ');
 }
@@ -160,4 +160,12 @@ function asNumber(value: unknown): number | undefined {
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function providerName(value: string): string {
+  const normalized = value.toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'reddit_json' || normalized === 'reddit_rss') return 'Reddit';
+  if (normalized === 'bluesky_public') return 'Bluesky';
+  if (normalized === 'mastodon_public') return 'Mastodon';
+  return value.replace(/_/g, ' ');
 }

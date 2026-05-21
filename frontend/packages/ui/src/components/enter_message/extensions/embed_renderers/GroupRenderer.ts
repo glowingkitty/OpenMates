@@ -1182,7 +1182,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "Recent emails",
-            provider: provider || "Proton Mail Bridge",
+            provider: provider || "Proton Mail",
             status,
             results,
             taskId,

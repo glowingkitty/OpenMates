@@ -21,8 +21,8 @@
      * Converts provider name to lowercase with underscores.
      */
     function getIconUrlVar(providerName: string): string {
-        if (providerName === 'Bluesky Public AppView') return '--icon-url-bluesky';
-        if (providerName === 'Reddit RSS') return '--icon-url-reddit';
+        if (providerName === 'Bluesky') return '--icon-url-bluesky';
+        if (providerName === 'Reddit') return '--icon-url-reddit';
 
         const normalized = providerName.toLowerCase()
             .replace(/\s+/g, '_')

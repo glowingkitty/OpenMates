@@ -152,11 +152,11 @@ async def fetch_subreddit_posts_json(
         result.rate_limited = True
         result.next_retry_after_seconds = exc.retry_after_seconds
         result.rate_limit = exc.rate_limit
-        result.warnings.append(f"Reddit JSON rate limit reached before fetching r/{subreddit}.")
+        result.warnings.append(f"Reddit rate limit reached before fetching r/{subreddit}.")
         return result
     except Exception as exc:
         logger.warning("Reddit JSON post fetch failed for r/%s: %s", subreddit, exc)
-        result.errors.append(f"Could not fetch r/{subreddit} via Reddit JSON: {exc}")
+        result.errors.append(f"Could not fetch r/{subreddit} from Reddit: {exc}")
         return result
 
     if include_comments and comment_limit > 0:
@@ -176,11 +176,11 @@ async def fetch_subreddit_posts_json(
                 result.next_retry_after_seconds = exc.retry_after_seconds
                 result.rate_limit = exc.rate_limit
                 result.comments_skipped_count += len(posts) - posts.index(post)
-                result.warnings.append("Skipped remaining comments because Reddit JSON is rate limited.")
+                result.warnings.append("Skipped remaining comments because Reddit is rate limited.")
                 break
             except Exception as exc:
                 logger.info("Reddit JSON comment fetch failed for %s: %s", post.url, exc)
-                result.errors.append(f"Could not fetch comments for {post.url} via Reddit JSON: {exc}")
+                result.errors.append(f"Could not fetch comments for {post.url} from Reddit: {exc}")
 
     result.posts = posts
     return result
@@ -232,7 +232,7 @@ async def search_reddit_posts_json(
         result.rate_limited = True
         result.next_retry_after_seconds = exc.retry_after_seconds
         result.rate_limit = exc.rate_limit
-        result.warnings.append("Reddit JSON rate limit reached before completing search.")
+        result.warnings.append("Reddit rate limit reached before completing search.")
         return result
     except Exception as exc:
         logger.warning("Reddit JSON search failed for %s: %s", search_query, exc)
@@ -252,7 +252,7 @@ async def search_reddit_posts_json(
                 post.comments = _parse_detail_comments(detail.data)[:comment_limit]
                 post.fetched_comment_count = len(post.comments)
             except Exception as exc:
-                result.errors.append(f"Could not fetch comments for {post.url} via Reddit JSON: {exc}")
+                result.errors.append(f"Could not fetch comments for {post.url} from Reddit: {exc}")
 
     result.posts = posts
     return result

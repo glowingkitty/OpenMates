@@ -147,7 +147,7 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
         cache_service=cache,
         async_task_id="async-task-1",
         completed_results=[{"title": "A useful post", "url": "https://example.com/post"}],
-        request_metadata={"query": "privacy AI", "provider": "bluesky_public"},
+        request_metadata={"query": "privacy AI", "provider": "Bluesky"},
     )
 
     assert task_id == "continuation-task-1"
@@ -185,7 +185,7 @@ async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monke
         cache_service=cache,
         async_task_id="async-task-1",
         completed_results=[{"title": "A useful post", "url": "https://example.com/post"}],
-        request_metadata={"query": "privacy AI", "provider": "bluesky_public"},
+        request_metadata={"query": "privacy AI", "provider": "Bluesky"},
     )
 
     assert task_id is None

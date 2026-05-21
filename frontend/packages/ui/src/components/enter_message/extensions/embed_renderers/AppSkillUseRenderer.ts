@@ -40,6 +40,7 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
@@ -646,6 +647,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "music" && skillId === "generate") {
+        console.debug("[AppSkillUseRenderer] Rendering music generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderMusicGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For images/view skill, render image view preview with original embed fullscreen
       if (appId === "images" && skillId === "view") {
         console.debug("[AppSkillUseRenderer] Rendering images view for", {
@@ -750,7 +766,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const query =
       decodedContent?.query || (attrs as any).query || "Recent emails";
-    const provider = decodedContent?.provider || "Proton Mail Bridge";
+    const provider = decodedContent?.provider || "Proton Mail";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -2241,7 +2257,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         </div>
         <div class="embed-text-content">
           <div class="embed-text-line">Video Transcript: ${this.escapeHtml(videoTitle)}</div>
-          <div class="embed-text-line">via YouTube Transcript API</div>
+          <div class="embed-text-line">via YouTube</div>
         </div>
         <div class="embed-extended-preview">
           <div class="video-transcript-preview">
@@ -2604,6 +2620,76 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         error,
       );
       // Fallback to generic skill rendering
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render music generate embed using Svelte component. */
+  private renderMusicGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const prompt = decodedContent?.prompt || "";
+    const mode = decodedContent?.mode || "background";
+    const model = decodedContent?.model || "";
+    const durationSeconds = decodedContent?.duration_seconds;
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(MusicGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          prompt,
+          mode,
+          model,
+          durationSeconds,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting MusicGenerateEmbedPreview component:",
+        error,
+      );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

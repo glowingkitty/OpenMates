@@ -356,7 +356,7 @@
     return count;
   });
   
-  // Subtitle text: "via YouTube:\nX words" (user-friendly, not "YouTube Transcript API")
+  // Subtitle text: "via YouTube:\nX words".
   let subtitleText = $derived.by(() => {
     const wordCount = totalWordCount;
     if (wordCount > 0) {
@@ -524,7 +524,7 @@
     line-clamp: 3;
   }
   
-  /* Subtitle: "via YouTube Transcript API:\nX words" */
+  /* Subtitle: "via YouTube:\nX words" */
   .transcript-subtitle {
     font-size: var(--font-size-small);
     font-weight: 700;
@@ -552,4 +552,3 @@
     mask-image: url('@openmates/ui/static/icons/transcript.svg');
   }
 </style>
-

@@ -121,8 +121,8 @@ skills:
     icon_image: socialmedia.svg
     preprocessor_hint: >
       Fetch recent social media posts from one or more specific platform pages
-      or profiles. Supports Reddit subreddits through JSON endpoints, Bluesky public
-      AppView profile feeds, and Mastodon public profiles. Use for profile monitoring, community research, and
+      or profiles. Supports Reddit subreddits, Bluesky profile feeds, and
+      Mastodon public profiles. Use for profile monitoring, community research, and
       finding conversations to review manually. Costs 10 credits per request.
     stage: production
     pricing:
@@ -130,13 +130,11 @@ skills:
         credits: 10
         unit_name: request
     providers:
-      - name: Reddit JSON
+      - name: Reddit
         no_api_key: true
-      - name: Reddit RSS fallback
+      - name: Bluesky
         no_api_key: true
-      - name: Bluesky Public AppView
-        no_api_key: true
-      - name: Mastodon Public API
+      - name: Mastodon
         no_api_key: true
     class_path: backend.apps.social_media.skills.get_posts.GetPostsSkill
     tool_schema:
@@ -189,7 +187,7 @@ skills:
                 type: integer
                 description: Number of posts to fetch per page.
                 minimum: 1
-                maximum: 5
+                maximum: 25
                 default: 10
               include_comments:
                 type: boolean
@@ -245,20 +243,16 @@ skills:
       Search supported social platforms for recent public posts around a topic.
       Use this for topic monitoring and broad discovery across pages/profiles,
       not for monitoring a known profile; use Get posts for profile/page posts.
-      Omit platform to search every supported search provider. Bluesky search may use
-      Vault credentials from kv/data/providers/bluesky; Reddit search uses the
-      provider-managed Webshare proxy when available. Costs 10 credits per request.
+      Omit platform to search every supported social platform. Costs 10 credits per request.
     stage: production
     pricing:
       per_unit:
         credits: 10
         unit_name: request
     providers:
-      - name: Bluesky Public AppView
+      - name: Bluesky
         no_api_key: true
-      - name: Reddit JSON
-        no_api_key: true
-      - name: Reddit RSS fallback
+      - name: Reddit
         no_api_key: true
     class_path: backend.apps.social_media.skills.search.SearchSkill
     tool_schema:
@@ -313,7 +307,7 @@ skills:
                 type: integer
                 description: Number of posts to fetch per search.
                 minimum: 1
-                maximum: 5
+                maximum: 25
                 default: 10
               author:
                 type: string

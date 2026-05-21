@@ -65,8 +65,21 @@ class BlueskyPost(BaseModel):
     thumbnail_url: Optional[str] = None
     external_url: Optional[str] = None
     external_title: Optional[str] = None
-    comments: list[Any] = Field(default_factory=list)
+    comments: list["BlueskyComment"] = Field(default_factory=list)
     fetched_comment_count: int = 0
+
+
+class BlueskyComment(BaseModel):
+    """A normalized Bluesky direct reply from a post thread."""
+
+    id: str = Field(description="AT URI for the reply.")
+    author: Optional[str] = Field(default=None, description="Bluesky handle.")
+    author_display_name: Optional[str] = None
+    body: str = Field(default="", description="Reply text.")
+    url: str = Field(default="", description="Canonical bsky.app reply URL when derivable.")
+    published_at: Optional[str] = None
+    like_count: int = 0
+    reply_count: int = 0
 
 
 class BlueskyResult(BaseModel):
@@ -76,7 +89,7 @@ class BlueskyResult(BaseModel):
     page: str
     sort: str
     posts: list[BlueskyPost] = Field(default_factory=list)
-    provider: str = Field(default="bluesky_public")
+    provider: str = Field(default="Bluesky")
     request_count: int = 0
     cursor: Optional[str] = None
     warnings: list[str] = Field(default_factory=list)
@@ -88,6 +101,8 @@ async def fetch_author_posts(
     *,
     limit: int = DEFAULT_POST_LIMIT,
     filter: str = AUTHOR_FEED_FILTER,
+    include_comments: bool = True,
+    comments_limit: int = 5,
 ) -> BlueskyResult:
     """Fetch recent public posts from a Bluesky actor handle or DID."""
     actor = _normalize_actor(page)
@@ -110,6 +125,8 @@ async def fetch_author_posts(
             for item in payload.get("feed", [])
             if isinstance(item, dict) and isinstance(item.get("post"), dict)
         ]
+        if include_comments:
+            await _hydrate_post_comments(result, comments_limit=comments_limit)
     except Exception as exc:
         logger.warning("Bluesky author feed fetch failed for %s: %s", actor, exc)
         result.errors.append(f"Could not fetch Bluesky profile {actor}: {exc}")
@@ -122,6 +139,8 @@ async def search_posts(
     sort: str = "latest",
     limit: int = DEFAULT_POST_LIMIT,
     author: Optional[str] = None,
+    include_comments: bool = False,
+    comments_limit: int = 0,
     secrets_manager: Optional["SecretsManager"] = None,
 ) -> BlueskyResult:
     """Search public Bluesky posts around a topic."""
@@ -154,6 +173,8 @@ async def search_posts(
             for post in payload.get("posts", [])
             if isinstance(post, dict)
         ]
+        if include_comments:
+            await _hydrate_post_comments(result, comments_limit=comments_limit)
     except Exception as exc:
         logger.warning("Bluesky post search failed for %s: %s", normalized_query, exc)
         result.errors.append(f"Could not search Bluesky posts for {normalized_query}: {exc}")
@@ -163,6 +184,43 @@ async def search_posts(
                 f"{IDENTIFIER_ENV_VAR} and {APP_PASSWORD_ENV_VAR} with a Bluesky app password."
             )
     return result
+
+
+async def fetch_post_thread(uri: str, *, comments_limit: int = 5) -> list[BlueskyComment]:
+    """Fetch direct replies for a Bluesky post thread."""
+    if not uri.strip():
+        return []
+    payload = await _fetch_json(
+        "/xrpc/app.bsky.feed.getPostThread",
+        {
+            "uri": uri,
+            "depth": "2",
+            "parentHeight": "0",
+        },
+    )
+    thread = payload.get("thread") if isinstance(payload.get("thread"), dict) else {}
+    replies = thread.get("replies") if isinstance(thread.get("replies"), list) else []
+    return [
+        _comment_from_thread_node(reply)
+        for reply in replies[: _normalize_comment_limit(comments_limit)]
+        if isinstance(reply, dict) and isinstance(reply.get("post"), dict)
+    ]
+
+
+async def _hydrate_post_comments(result: BlueskyResult, *, comments_limit: int) -> None:
+    comment_limit = _normalize_comment_limit(comments_limit)
+    if comment_limit <= 0:
+        return
+    for post in result.posts:
+        if not post.id:
+            continue
+        try:
+            post.comments = await fetch_post_thread(post.id, comments_limit=comment_limit)
+            post.fetched_comment_count = len(post.comments)
+            result.request_count += 1
+        except Exception as exc:
+            logger.info("Bluesky thread fetch failed for %s: %s", post.url or post.id, exc)
+            result.warnings.append(f"Could not fetch Bluesky replies for {post.url or post.id}: {exc}")
 
 
 async def _fetch_json(
@@ -279,6 +337,24 @@ def _post_from_view(post: dict[str, Any], *, page: str) -> BlueskyPost:
     )
 
 
+def _comment_from_thread_node(node: dict[str, Any]) -> BlueskyComment:
+    post = node.get("post") if isinstance(node.get("post"), dict) else {}
+    record = post.get("record") if isinstance(post.get("record"), dict) else {}
+    author = post.get("author") if isinstance(post.get("author"), dict) else {}
+    handle = str(author.get("handle") or "").strip() or None
+    text = str(record.get("text") or "").strip()
+    return BlueskyComment(
+        id=str(post.get("uri") or ""),
+        author=handle,
+        author_display_name=author.get("displayName"),
+        body=text,
+        url=_post_url(post.get("uri"), handle),
+        published_at=record.get("createdAt"),
+        like_count=int(post.get("likeCount") or 0),
+        reply_count=int(post.get("replyCount") or 0),
+    )
+
+
 def _extract_embed_summary(embed: Any) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     if not isinstance(embed, dict):
         return None, None, None, None
@@ -326,6 +402,10 @@ def _normalize_actor(actor: str) -> str:
 
 def _normalize_limit(limit: int) -> int:
     return max(1, min(limit, MAX_POST_LIMIT))
+
+
+def _normalize_comment_limit(limit: int) -> int:
+    return max(0, min(limit, MAX_POST_LIMIT))
 
 
 def _normalize_search_sort(sort: str) -> str:

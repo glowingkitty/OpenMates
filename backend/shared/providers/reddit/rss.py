@@ -172,7 +172,7 @@ async def fetch_subreddit_posts(
         result.rate_limited = True
         result.next_retry_after_seconds = exc.retry_after_seconds
         result.rate_limit = exc.rate_limit
-        result.warnings.append(f"Reddit RSS rate limit reached before fetching r/{subreddit}.")
+        result.warnings.append(f"Reddit rate limit reached before fetching r/{subreddit}.")
         return result
     except Exception as exc:
         logger.warning("Reddit RSS post fetch failed for r/%s: %s", subreddit, exc)
@@ -185,7 +185,7 @@ async def fetch_subreddit_posts(
                 skipped = len(posts) - index
                 result.comments_skipped_count += skipped
                 result.warnings.append(
-                    f"Skipped comments for {skipped} posts because the per-call Reddit RSS request budget was reached."
+                    f"Skipped comments for {skipped} posts because the per-call Reddit request budget was reached."
                 )
                 break
 
@@ -193,7 +193,7 @@ async def fetch_subreddit_posts(
                 skipped = len(posts) - index
                 result.comments_skipped_count += skipped
                 result.warnings.append(
-                    f"Skipped comments for {skipped} posts because Reddit RSS remaining budget is low."
+                    f"Skipped comments for {skipped} posts because Reddit remaining budget is low."
                 )
                 break
 
@@ -215,7 +215,7 @@ async def fetch_subreddit_posts(
                 result.rate_limit = exc.rate_limit
                 result.comments_skipped_count += skipped
                 result.warnings.append(
-                    f"Skipped comments for {skipped} posts because Reddit RSS is rate limited."
+                    f"Skipped comments for {skipped} posts because Reddit is rate limited."
                 )
                 break
             except Exception as exc:
@@ -256,7 +256,7 @@ async def search_reddit_posts(
         result.rate_limited = True
         result.next_retry_after_seconds = exc.retry_after_seconds
         result.rate_limit = exc.rate_limit
-        result.warnings.append("Reddit RSS rate limit reached before completing search.")
+        result.warnings.append("Reddit rate limit reached before completing search.")
     except Exception as exc:
         logger.warning("Reddit RSS search failed for %s: %s", search_query, exc)
         result.errors.append(f"Could not search Reddit for {search_query}: {exc}")

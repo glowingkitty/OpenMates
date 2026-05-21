@@ -167,8 +167,8 @@ class TranscriptResponse(BaseModel):
         description="List of request results. Each entry contains 'id' (matching request id) and 'results' array with actual transcript results for that request."
     )
     provider: str = Field(
-        default="YouTube Transcript API",
-        description="The provider used (e.g., 'YouTube Transcript API')"
+        default="YouTube",
+        description="The provider used (e.g., 'YouTube')"
     )
     suggestions_follow_up_requests: Optional[List[str]] = Field(
         None,
@@ -586,7 +586,7 @@ class TranscriptSkill(BaseSkill):
             logger.debug(f"Using Webshare proxy for {max_retries} retry attempts")
             proxy_configs = [webshare_config] * max_retries
         else:
-            logger.warning(f"Webshare proxy not available - attempting direct connection (may fail due to IP blocks)")
+            logger.warning("Webshare proxy not available - attempting direct connection (may fail due to IP blocks)")
             proxy_configs = [None] * max_retries
 
         # Run synchronous transcript fetching in thread pool to avoid blocking
@@ -759,7 +759,7 @@ class TranscriptSkill(BaseSkill):
         """
         video_url = req.get("url", "")
         if not video_url:
-            return (request_id, [], f"Missing 'url' parameter")
+            return (request_id, [], "Missing 'url' parameter")
         
         # Sanitize URL by removing fragment parameters (#{text}) as a security measure
         # Fragments can contain malicious content and are not needed for video transcript fetching
@@ -1091,7 +1091,7 @@ class TranscriptSkill(BaseSkill):
             response_class=TranscriptResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="YouTube Transcript API",
+            provider="YouTube",
             suggestions=getattr(self, 'suggestions_follow_up_requests', None),
             logger=logger
         )

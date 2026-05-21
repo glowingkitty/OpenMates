@@ -58,7 +58,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || 'Recent emails';
-      localProvider = providerProp || 'Proton Mail Bridge';
+      localProvider = providerProp || 'Proton Mail';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
     }

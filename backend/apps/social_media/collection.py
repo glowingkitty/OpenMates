@@ -23,9 +23,16 @@ from backend.shared.providers.reddit.json import (
 from backend.shared.providers.reddit.rss import RedditRateLimit, RedditRssPost, fetch_subreddit_posts
 
 SUPPORTED_PLATFORMS = {"bluesky", "mastodon", "reddit"}
+BLUESKY_PROVIDER_NAME = "Bluesky"
 DEFAULT_REQUEST_LIMIT = 10
 DEFAULT_COMMENTS_LIMIT = 5
 MAX_COMMENTS_PER_POST = 5
+MASTODON_PROVIDER_NAME = "Mastodon"
+REDDIT_PROVIDER_NAME = "Reddit"
+REDDIT_PROXY_REQUIRED_WARNING = (
+    "Reddit post collection is currently unavailable because the Reddit proxy is not configured. "
+    "Try a Bluesky or Mastodon profile, or ask an admin to configure Webshare proxy credentials."
+)
 
 
 class GetPostsRequestItem(BaseModel):
@@ -143,19 +150,19 @@ async def _fetch_reddit(
             platform="reddit",
             page="",
             sort=item.sort,
-            provider="reddit_json",
+            provider=REDDIT_PROVIDER_NAME,
             errors=["Reddit requests require a page/subreddit."],
         )
 
     if not proxy_url:
-        error = proxy_warning or "Reddit JSON requests require Webshare proxy credentials."
+        error = proxy_warning or REDDIT_PROXY_REQUIRED_WARNING
         return GetPostsResponseItem(
             id=request_id,
             platform="reddit",
             page=item.page,
             sort=item.sort,
-            provider="reddit_json",
-            errors=[error],
+            provider=REDDIT_PROVIDER_NAME,
+            errors=[REDDIT_PROXY_REQUIRED_WARNING if "Webshare" in error else error],
         )
 
     reddit_result = await fetch_subreddit_posts_json(
@@ -174,12 +181,11 @@ async def _fetch_reddit(
         include_link_posts=item.include_link_posts,
         proxy_url=proxy_url,
     )
-    provider = "reddit_json"
     if reddit_result.errors and not reddit_result.posts:
         warnings = [
-            "Reddit JSON failed; fell back to Reddit RSS.",
+            "Reddit temporarily used a fallback source.",
             *reddit_result.warnings,
-            *reddit_result.errors,
+            *[_clean_reddit_error(error, item.page) for error in reddit_result.errors],
         ]
         fallback = await fetch_subreddit_posts(
             item.page,
@@ -191,7 +197,6 @@ async def _fetch_reddit(
         )
         fallback.warnings = warnings + fallback.warnings
         reddit_result = fallback
-        provider = "reddit_rss"
     warnings = list(reddit_result.warnings)
     if proxy_warning:
         warnings.append(proxy_warning)
@@ -201,15 +206,26 @@ async def _fetch_reddit(
         page=reddit_result.page,
         sort=reddit_result.sort,
         posts=reddit_result.posts,
-        provider=provider,
+        provider=REDDIT_PROVIDER_NAME,
         request_count=reddit_result.request_count,
         rate_limit=reddit_result.rate_limit,
         rate_limited=reddit_result.rate_limited,
         next_retry_after_seconds=reddit_result.next_retry_after_seconds,
         comments_skipped_count=reddit_result.comments_skipped_count,
         warnings=warnings,
-        errors=reddit_result.errors,
+        errors=[_clean_reddit_error(error, item.page) for error in reddit_result.errors],
     )
+
+
+def _clean_reddit_error(error: str, page: str) -> str:
+    if (
+        "HTTP 403" in error
+        or "HTTP 429" in error
+        or "reddit.com" in error
+        or "Proxy Authentication Required" in error
+    ):
+        return f"Could not fetch r/{page}. Reddit temporarily blocked or rate-limited the request; please try again later."
+    return error if len(error) <= 240 else f"{error[:237]}..."
 
 
 async def _fetch_bluesky(request_id: Any, item: GetPostsRequestItem) -> GetPostsResponseItem:
@@ -225,7 +241,7 @@ async def _fetch_bluesky(request_id: Any, item: GetPostsRequestItem) -> GetPosts
         page=bluesky_result.page,
         sort=bluesky_result.sort,
         posts=bluesky_result.posts,
-        provider=bluesky_result.provider,
+        provider=BLUESKY_PROVIDER_NAME,
         request_count=bluesky_result.request_count,
         warnings=bluesky_result.warnings,
         errors=bluesky_result.errors,
@@ -245,7 +261,7 @@ async def _fetch_mastodon(request_id: Any, item: GetPostsRequestItem) -> GetPost
         page=mastodon_result.page,
         sort=mastodon_result.sort,
         posts=mastodon_result.posts,
-        provider=mastodon_result.provider,
+        provider=MASTODON_PROVIDER_NAME,
         request_count=mastodon_result.request_count,
         warnings=mastodon_result.warnings,
         errors=mastodon_result.errors,

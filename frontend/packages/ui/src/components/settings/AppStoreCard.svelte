@@ -150,8 +150,8 @@
      * Maps provider names like "Brave" to icon names like "brave".
      */
     function getProviderIconName(providerName: string): string {
-        if (providerName === 'Bluesky Public AppView') return 'bluesky';
-        if (providerName === 'Reddit RSS') return 'reddit';
+        if (providerName === 'Bluesky') return 'bluesky';
+        if (providerName === 'Reddit') return 'reddit';
 
         // Convert to lowercase and handle special cases
         const normalized = providerName.toLowerCase()

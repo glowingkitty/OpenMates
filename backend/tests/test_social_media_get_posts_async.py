@@ -158,7 +158,7 @@ async def test_collect_posts_normalizes_supported_and_unsupported_platforms(monk
             page="openmates.bsky.social",
             sort="new",
             posts=[],
-            provider="bluesky_public",
+            provider="Bluesky",
             request_count=1,
             warnings=[],
             errors=[],
@@ -171,7 +171,7 @@ async def test_collect_posts_normalizes_supported_and_unsupported_platforms(monk
             page="Gargron@mastodon.social",
             sort="profile",
             posts=[],
-            provider="mastodon_public",
+            provider="Mastodon",
             request_count=3,
             warnings=[],
             errors=[],
@@ -192,13 +192,13 @@ async def test_collect_posts_normalizes_supported_and_unsupported_platforms(monk
     )
 
     assert [item.platform for item in results] == ["reddit", "bluesky", "mastodon", "unknown"]
-    assert results[0].provider == "reddit_json"
+    assert results[0].provider == "Reddit"
     assert results[0].request_count == 2
     assert captured["reddit_proxy_url"] == "http://user-rotate:pass@p.webshare.io:80/"
     assert captured["reddit_sort"] == collection.RedditListingSort.COMMENTS
-    assert results[1].provider == "bluesky_public"
+    assert results[1].provider == "Bluesky"
     assert captured["bluesky_kwargs"]["include_comments"] is True
-    assert results[2].provider == "mastodon_public"
+    assert results[2].provider == "Mastodon"
     assert captured["mastodon_kwargs"]["include_comments"] is True
     assert results[3].errors == ["Unsupported social platform: unknown"]
 
@@ -206,15 +206,15 @@ async def test_collect_posts_normalizes_supported_and_unsupported_platforms(monk
 @pytest.mark.asyncio
 async def test_collect_posts_rejects_reddit_without_webshare_proxy(monkeypatch):
     async def unexpected_fetch_subreddit_posts_json(*args, **kwargs):
-        raise AssertionError("Reddit JSON must not be fetched without Webshare proxy")
+        raise AssertionError("Reddit must not be fetched without Webshare proxy")
 
     monkeypatch.setattr(collection, "fetch_subreddit_posts_json", unexpected_fetch_subreddit_posts_json)
 
     results = await collection.collect_posts([{"platform": "reddit", "page": "ClaudeCode", "limit": 5}])
 
     assert results[0].posts == []
-    assert results[0].provider == "reddit_json"
-    assert results[0].errors == ["Reddit JSON requests require Webshare proxy credentials."]
+    assert results[0].provider == "Reddit"
+    assert results[0].errors == [collection.REDDIT_PROXY_REQUIRED_WARNING]
 
 
 @pytest.mark.asyncio
@@ -257,8 +257,8 @@ async def test_collect_posts_falls_back_to_rss_when_json_fails(monkeypatch):
         reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
     )
 
-    assert results[0].provider == "reddit_rss"
-    assert "Reddit JSON failed; fell back to Reddit RSS." in results[0].warnings
+    assert results[0].provider == "Reddit"
+    assert "Reddit temporarily used a fallback source." in results[0].warnings
     assert "json failed" in results[0].warnings
     assert results[0].errors == []
 
@@ -270,7 +270,7 @@ def test_social_media_task_result_exposes_grouped_posts_without_embed_context():
         page="openmates.bsky.social",
         sort="new",
         posts=[{"title": "Post title", "url": "https://bsky.app/post/1"}],
-        provider="bluesky_public",
+        provider="Bluesky",
         request_count=1,
         warnings=[],
         errors=[],
@@ -283,7 +283,7 @@ def test_social_media_task_result_exposes_grouped_posts_without_embed_context():
         status="finished",
         results=[group],
         post_results=[{"title": "Post title", "url": "https://bsky.app/post/1"}],
-        request_metadata={"query": "bluesky: openmates.bsky.social", "provider": "bluesky_public", "request_count": 1},
+        request_metadata={"query": "bluesky: openmates.bsky.social", "provider": "Bluesky", "request_count": 1},
         elapsed_seconds=0.5,
         task_id="task-1",
     )

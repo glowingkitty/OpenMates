@@ -201,9 +201,9 @@ async def test_collect_search_results_falls_back_to_rss_when_json_fails(monkeypa
         reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
     )
 
-    assert results[0].provider == "reddit_rss"
+    assert results[0].provider == "Reddit"
     assert results[0].posts[0].title == "Fallback post"
-    assert "Reddit JSON failed; fell back to Reddit RSS." in results[0].warnings
+    assert "Reddit temporarily used a fallback source." in results[0].warnings
     assert "json failed" in results[0].warnings
     assert results[0].errors == []
 
@@ -214,3 +214,36 @@ async def test_collect_search_results_rejects_unsupported_platform():
 
     assert results[0].posts == []
     assert results[0].errors == ["Unsupported social search platform: mastodon"]
+
+
+@pytest.mark.asyncio
+async def test_collect_search_results_soft_skips_unavailable_reddit_for_all_search():
+    results = await search_collection.collect_search_results([{"platform": "all", "query": "privacy ai", "limit": 5}])
+
+    reddit_result = next(result for result in results if result.platform == "reddit")
+    assert reddit_result.posts == []
+    assert reddit_result.errors == []
+    assert reddit_result.warnings == [search_collection.REDDIT_PROXY_REQUIRED_WARNING]
+
+
+@pytest.mark.asyncio
+async def test_collect_search_results_hides_raw_bluesky_auth_errors(monkeypatch):
+    async def fake_search_posts(query: str, **kwargs):
+        return BlueskyResult(
+            page=query,
+            sort="latest",
+            request_count=0,
+            warnings=["Bluesky topic search may require authentication. Configure SECRET__BLUESKY__IDENTIFIER."],
+            errors=["Could not search Bluesky posts for privacy ai: HTTP 403: <html>Forbidden</html>"],
+        )
+
+    monkeypatch.setattr(search_collection, "search_posts", fake_search_posts)
+
+    explicit = await search_collection.collect_search_results([{"platform": "bluesky", "query": "privacy ai", "limit": 5}])
+    assert explicit[0].warnings == [search_collection.BLUESKY_AUTH_REQUIRED_WARNING]
+    assert explicit[0].errors == [search_collection.BLUESKY_AUTH_REQUIRED_WARNING]
+
+    multi = await search_collection.collect_search_results([{"platform": "all", "query": "privacy ai", "limit": 5}])
+    bluesky_result = next(result for result in multi if result.platform == "bluesky")
+    assert bluesky_result.errors == []
+    assert search_collection.BLUESKY_AUTH_REQUIRED_WARNING in bluesky_result.warnings
