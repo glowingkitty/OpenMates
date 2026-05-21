@@ -30,6 +30,11 @@ logger = logging.getLogger(__name__)
 FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN = 5
 
 
+def _is_focus_activation_message(content: str) -> bool:
+    """Return true for the assistant-only embed message that starts focus activation."""
+    return '"type":"focus_mode_activation"' in content or '"type": "focus_mode_activation"' in content
+
+
 def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:
     """
     Load the 'ask' skill's configuration from the AI app's app.yml.
@@ -207,9 +212,30 @@ async def _async_focus_mode_auto_confirm(
             })
         except json.JSONDecodeError:
             continue
+
+    removed_trailing_assistant_count = 0
+    while message_history and message_history[-1].get("role") == "assistant":
+        trailing_content = message_history[-1].get("content", "")
+        if not _is_focus_activation_message(trailing_content):
+            break
+        message_history.pop()
+        removed_trailing_assistant_count += 1
+
+    if removed_trailing_assistant_count:
+        logger.info(
+            f"{log_prefix} Removed {removed_trailing_assistant_count} trailing focus activation "
+            "assistant message(s) before continuation preprocessing"
+        )
     
     if not message_history:
         logger.error(f"{log_prefix} No messages found in cached chat {chat_id}")
+        return
+
+    if message_history[-1].get("role") != "user":
+        logger.error(
+            f"{log_prefix} Rebuilt focus continuation history ends with "
+            f"role={message_history[-1].get('role')!r}; expected 'user'. Cannot continue processing."
+        )
         return
     
     logger.info(f"{log_prefix} Retrieved and decrypted {len(message_history)} messages from AI cache")
