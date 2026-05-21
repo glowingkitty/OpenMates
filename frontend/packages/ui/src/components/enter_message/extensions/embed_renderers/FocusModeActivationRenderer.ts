@@ -99,6 +99,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
           if (metadata?.activeFocusId === focusId) {
             alreadyActive = true;
+          } else if (chat.encrypted_active_focus_id && !metadata?.activeFocusId) {
+            // Existing chats can render the saved activation embed before the chat key
+            // finishes decrypting activeFocusId. Treat the encrypted field as enough
+            // evidence to avoid replaying the first-time activation countdown.
+            alreadyActive = true;
           }
         }
       }

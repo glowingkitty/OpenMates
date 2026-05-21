@@ -242,10 +242,58 @@ export function enhanceDocumentWithEmbeds(
     );
   }
 
+  modifiedContent = moveFocusModeActivationBeforeSkillEmbeds(modifiedContent);
+
   return {
     ...doc,
     content: modifiedContent,
   };
+}
+
+function moveFocusModeActivationBeforeSkillEmbeds(
+  nodes: TipTapNode[],
+): TipTapNode[] {
+  const focusNodes: TipTapNode[] = [];
+  const remainingNodes: TipTapNode[] = [];
+  let firstSkillEmbedIndex = -1;
+
+  for (const node of nodes) {
+    if (isEmbedOnlyParagraph(node, "focus-mode-activation")) {
+      focusNodes.push(node);
+      continue;
+    }
+
+    if (
+      firstSkillEmbedIndex === -1 &&
+      isEmbedOnlyParagraph(node, "app-skill-use")
+    ) {
+      firstSkillEmbedIndex = remainingNodes.length;
+    }
+
+    remainingNodes.push(node);
+  }
+
+  if (focusNodes.length === 0 || firstSkillEmbedIndex === -1) {
+    return nodes;
+  }
+
+  return [
+    ...remainingNodes.slice(0, firstSkillEmbedIndex),
+    ...focusNodes,
+    ...remainingNodes.slice(firstSkillEmbedIndex),
+  ];
+}
+
+function isEmbedOnlyParagraph(node: TipTapNode, embedType: string): boolean {
+  if (node.type !== "paragraph" || !node.content || node.content.length !== 1) {
+    return false;
+  }
+  const child = node.content[0];
+  return (
+    child?.type === "embed" &&
+    typeof child.attrs?.type === "string" &&
+    (child.attrs.type === embedType || child.attrs.type === `${embedType}-group`)
+  );
 }
 
 /**
