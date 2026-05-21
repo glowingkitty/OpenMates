@@ -312,10 +312,14 @@ test('focus mode UI elements work correctly after activation', async ({
 	// ======================================================================
 	await test.step('Focus mode persists on follow-up messages', async () => {
 		await page.keyboard.press('Escape');
+		await page.getByTestId('active-chat-container').click({ position: { x: 20, y: 20 }, timeout: 2000 }).catch(() => undefined);
 		const sidebar = page.getByTestId('activity-history-wrapper');
 		const sidebarToggle = page.getByTestId('sidebar-toggle');
-		if (await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) {
-			await sidebarToggle.click();
+		if (
+			(await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) &&
+			(await sidebarToggle.isVisible({ timeout: 1000 }).catch(() => false))
+		) {
+			await sidebarToggle.click({ timeout: 2000 });
 			await page.waitForTimeout(500);
 		}
 
