@@ -86,6 +86,7 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
             max_parallel=3,
             always_sanitize_field_names={"title", "body"},
         )
+        post_results = await _annotate_post_embed_refs(task._cache_service, app_id, skill_id, post_results, log_prefix)
         providers = sorted({item.provider for item in results if item.provider})
 
         request_metadata = {
@@ -218,6 +219,36 @@ def _flatten_post_results(results: list[GetPostsResponseItem]) -> list[dict[str,
                 payload["warnings"] = group_warnings
             posts.append(payload)
     return posts
+
+
+async def _annotate_post_embed_refs(
+    cache_service: Any,
+    app_id: str,
+    skill_id: str,
+    post_results: list[dict[str, Any]],
+    log_prefix: str,
+) -> list[dict[str, Any]]:
+    """Add the same stable child embed refs to embeds and async continuations."""
+    if not post_results:
+        return post_results
+    try:
+        child_type = await EmbedService.get_composite_child_embed_type(
+            app_id,
+            skill_id,
+            cache_service=cache_service,
+        )
+        seen_refs: dict[str, int] = {}
+        annotated: list[dict[str, Any]] = []
+        for post in post_results:
+            post_with_ref = dict(post)
+            if not post_with_ref.get("embed_ref"):
+                raw_ref = EmbedService._generate_embed_ref_slug(child_type, post_with_ref)
+                post_with_ref["embed_ref"] = EmbedService._unique_embed_ref(raw_ref, seen_refs)
+            annotated.append(post_with_ref)
+        return annotated
+    except Exception as exc:
+        logger.warning("%s Failed to annotate social post embed refs: %s", log_prefix, exc)
+        return post_results
 
 
 def _request_label(results: list[GetPostsResponseItem]) -> str:

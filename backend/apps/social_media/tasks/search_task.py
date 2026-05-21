@@ -17,7 +17,12 @@ from typing import Any, Dict
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
 from backend.apps.social_media.search_collection import SearchResponseItem, collect_search_results
-from backend.apps.social_media.tasks.get_posts_task import WEBSHARE_UNAVAILABLE_WARNING, _get_webshare_proxy_url, _send_embed
+from backend.apps.social_media.tasks.get_posts_task import (
+    WEBSHARE_UNAVAILABLE_WARNING,
+    _annotate_post_embed_refs,
+    _get_webshare_proxy_url,
+    _send_embed,
+)
 from backend.apps.social_media.result_payload import build_social_media_task_result
 from backend.core.api.app.services.embed_service import EmbedService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -75,6 +80,7 @@ async def _async_search(task: BaseServiceTask, app_id: str, skill_id: str, argum
             max_parallel=3,
             always_sanitize_field_names={"title", "body"},
         )
+        post_results = await _annotate_post_embed_refs(task._cache_service, app_id, skill_id, post_results, log_prefix)
         providers = sorted({item.provider for item in results if item.provider})
 
         request_metadata = {

@@ -72,16 +72,23 @@
 >
   {#snippet details()}
     <div class="social-post-preview">
-      <div class="post-meta">
-        <span class="source">{source}</span>
-        {#if postedAt}
-          <span>{postedAt}</span>
+      <div class="post-author-row">
+        {#if avatar}
+          <img class="avatar" src={avatar} alt="" use:handleImageError />
+        {:else}
+          <div class="avatar avatar-fallback">{displayAuthor.slice(0, 1).toUpperCase()}</div>
         {/if}
-        {#if author}
-          <span class="author">@{author}</span>
-        {/if}
+        <div class="post-heading">
+          <div class="post-title">{title || displayAuthor}</div>
+          <div class="post-meta">
+            <span class="source">{source}</span>
+            {#if postedAt}
+              <span>·</span>
+              <span>{postedAt}</span>
+            {/if}
+          </div>
+        </div>
       </div>
-      <div class="post-title">{title || displayAuthor}</div>
       {#if text}
         <p class="post-body">{text}</p>
       {/if}
@@ -105,23 +112,49 @@
     display: flex;
     height: 100%;
     flex-direction: column;
-    gap: var(--spacing-3);
+    gap: var(--spacing-4);
     padding: var(--spacing-7);
     overflow: hidden;
+  }
+
+  .post-author-row {
+    display: flex;
+    gap: var(--spacing-4);
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+  }
+
+  .avatar-fallback {
+    display: grid;
+    place-items: center;
+    background: var(--color-app-socialmedia, var(--color-primary));
+    color: var(--color-font-button);
+    font-weight: 800;
+  }
+
+  .post-heading {
+    min-width: 0;
   }
 
   .post-meta,
   .post-footer {
     display: flex;
-    gap: var(--spacing-4);
+    gap: var(--spacing-2);
     align-items: center;
     color: var(--color-text-secondary);
     font-size: var(--font-size-xxs);
     min-width: 0;
   }
 
-  .source,
-  .author {
+  .source {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -153,6 +186,9 @@
 
   .post-footer {
     margin-top: auto;
+    gap: var(--spacing-5);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
   }
 
   .post-image {

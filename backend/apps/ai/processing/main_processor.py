@@ -1550,6 +1550,7 @@ async def handle_main_processing(
         "maps-search", "events-search",
         "travel-search_connections", "travel-search_stays",
         "shopping-search_products",
+        "social_media-search", "social_media-get-posts",
         "web-read",  # Non-composite single-result skills also produce embed_refs
     }
     # Subset whose results contain quotable text (web/news search results with
@@ -3743,7 +3744,13 @@ async def handle_main_processing(
                     if async_result.get("task_id"):
                         async_task_ids.append(async_result.get("task_id"))
                     async_task_ids.extend(async_result.get("task_ids") or [])
-                    should_wait_inline = (app_id, skill_id) in ASYNC_SKILL_INLINE_WAIT_SKILLS
+                    # Inline waits are useful for a single async tool, but in a parallel
+                    # tool batch they block later tools and can leave their placeholders
+                    # stuck. Let the async continuation path handle multi-tool batches.
+                    should_wait_inline = (
+                        (app_id, skill_id) in ASYNC_SKILL_INLINE_WAIT_SKILLS
+                        and len(tool_calls_for_this_turn) == 1
+                    )
                     inline_wait_deadline = time.time() + ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else None
                     try:
                         from backend.apps.ai.tasks.async_skill_continuation import (
