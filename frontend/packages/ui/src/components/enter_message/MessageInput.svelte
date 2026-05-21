@@ -64,7 +64,7 @@
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
     // Code embed service - creates proper embeds for pasted code/text
-    import { createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { createCodeEmbed, createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
 
@@ -1820,11 +1820,18 @@
         }
         window.addEventListener('docsMessagePrefill', handleDocsPrefill);
 
+        function handleCodeRunOutputFollowup(event: Event) {
+            const { output } = (event as CustomEvent<{ output?: string }>).detail ?? {};
+            void insertCodeRunOutputFollowup(output);
+        }
+        window.addEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
+
         return () => {
             cleanup();
             unsubscribeAiTyping();
             unsubscribeText();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
+            window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
         };
     });
  
@@ -3906,6 +3913,45 @@
             console.debug('[MessageInput] Editor focused successfully');
         } catch (error) {
             console.error('[MessageInput] Error focusing editor:', error);
+        }
+    }
+
+    async function insertCodeRunOutputFollowup(rawOutput: string | undefined) {
+        const output = sanitizeText(rawOutput || '').trimEnd();
+        if (!editor || editor.isDestroyed || !output.trim()) return;
+
+        try {
+            if (!$authStore.isAuthenticated) {
+                const embedId = generateUUID();
+                editor.commands.insertContent({
+                    type: 'embed',
+                    attrs: {
+                        id: embedId,
+                        type: 'code-code',
+                        status: 'finished',
+                        contentRef: `preview:code:${embedId}`,
+                        code: output,
+                        language: 'text',
+                        filename: 'run-output.txt',
+                        lineCount: output.split('\n').length,
+                    }
+                });
+                editor.commands.insertContent(' ');
+            } else {
+                const embedResult = await createCodeEmbed(output, 'text', 'run-output.txt');
+                updateOriginalMarkdown(editor);
+                const currentMarkdown = originalMarkdown || '';
+                originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
+                updateEditorFromMarkdown(editor, originalMarkdown);
+            }
+
+            editor.commands.focus('end');
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateOriginalMarkdown(editor);
+            lastEditorUpdateText = editor.getText();
+            triggerSaveDraft(currentChatId);
+        } catch (error) {
+            console.error('[MessageInput] Failed to insert code run output follow-up embed:', error);
         }
     }
 

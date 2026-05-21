@@ -550,6 +550,22 @@
     }
   }
 
+  async function handleAskRunOutputFollowup() {
+    try {
+      const output = programRunOutputText();
+      if (!output) return;
+      const result = await copyToClipboard(output);
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      window.dispatchEvent(new CustomEvent('codeRunOutputFollowup', { detail: { output } }));
+      onShowChat?.();
+      onClose();
+      notificationStore.success($text('app_skills.code.run.followup_inserted'));
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to prepare code run output follow-up:', error);
+      notificationStore.error($text('app_skills.code.run.followup_failed'));
+    }
+  }
+
   function compactRunOutputHasFinalLine(): boolean {
     return runDisplayEvents.some((event) => event.kind === 'status' && (event.text.startsWith('Exited ') || event.text.startsWith('Cancelled ')));
   }
@@ -1219,6 +1235,7 @@
                       </div>
                     </div>
                     <div class="code-run-header-actions">
+                      <button class="code-run-again" onclick={handleAskRunOutputFollowup} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.ask_followup')}</button>
                       <button class="code-run-again" onclick={handleCopyRunOutput} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.copy_output')}</button>
                       <button class="code-run-stop" onclick={handleCancelRun} disabled={!runActive || runCancelRequested}>{runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}</button>
                       <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
