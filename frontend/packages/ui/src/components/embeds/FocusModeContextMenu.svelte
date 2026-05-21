@@ -49,11 +49,11 @@
   }: Props = $props();
 
   // Reserved for future use in menu label (e.g., "Stop Career Insights focus mode")
-  void focusModeName;
+  $effect(() => { void focusModeName; });
 
   let menuElement = $state<HTMLDivElement>();
-  let adjustedX = $state(x);
-  let adjustedY = $state(y);
+  let adjustedX = $state(0);
+  let adjustedY = $state(0);
   let showBelow = $state(false);
 
   /**
@@ -216,6 +216,7 @@
     <!-- Cancel/Stop action — changes label based on activation state -->
     <button
       class="menu-item cancel-stop"
+      data-testid="focus-context-stop"
       onclick={(event) => handleButtonClick('cancelOrStop', event)}
     >
       <div class="clickable-icon {isActivated ? 'icon_pause' : 'icon_close'}"></div>
@@ -229,6 +230,7 @@
     <!-- Details action — always available -->
     <button
       class="menu-item details"
+      data-testid="focus-context-details"
       onclick={(event) => handleButtonClick('details', event)}
     >
       <div class="clickable-icon icon_question"></div>
