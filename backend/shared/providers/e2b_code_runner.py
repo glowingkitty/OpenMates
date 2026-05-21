@@ -258,6 +258,7 @@ def run_code_in_e2b(
         _emit(on_output, "status", "Starting sandbox...\n")
         sandbox = Sandbox.create(
             api_key=api_key,
+            secure=True,
             allow_internet_access=enable_internet,
             network={"allow_public_traffic": False},
         )

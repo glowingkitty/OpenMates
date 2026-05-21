@@ -141,6 +141,7 @@ def test_run_code_passes_explicit_e2b_network_controls(monkeypatch: pytest.Monke
     assert result.sandbox_id == "sandbox-1"
     assert FakeE2BSandbox.create_kwargs == {
         "api_key": "test-key",
+        "secure": True,
         "allow_internet_access": False,
         "network": {"allow_public_traffic": False},
     }
