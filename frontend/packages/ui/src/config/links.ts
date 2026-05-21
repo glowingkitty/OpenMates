@@ -162,6 +162,7 @@ export const privacyPolicyLinks = {
   cerebras: "https://www.cerebras.ai/privacy-policy",
   google: "https://policies.google.com/privacy",
   googleVertexMaas: "https://cloud.google.com/terms/cloud-privacy-notice",
+  googleVertexAi: "https://cloud.google.com/terms/cloud-privacy-notice", // verified 2026-05-21
   together: "https://www.together.ai/privacy",
   groq: "https://groq.com/privacy-policy",
 

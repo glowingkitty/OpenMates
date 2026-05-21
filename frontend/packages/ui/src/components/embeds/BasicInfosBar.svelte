@@ -390,6 +390,11 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
     mask-image: url('@openmates/ui/static/icons/image.svg');
   }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="music"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/music.svg');
+    mask-image: url('@openmates/ui/static/icons/music.svg');
+  }
   
   .basic-infos-bar .skill-icon[data-skill-icon="ai"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');

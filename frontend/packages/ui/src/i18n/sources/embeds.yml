@@ -5246,6 +5246,199 @@ wiki.article_not_found:
   he: הערך לא נמצא
   verified_by_human: []
 
+music_generate.generating:
+  context: Status text shown while generated music is being created
+  en: Generating music...
+  de: Musik wird generiert...
+  zh: Generating music...
+  es: Generating music...
+  fr: Generating music...
+  pt: Generating music...
+  ru: Generating music...
+  ja: Generating music...
+  ko: Generating music...
+  it: Generating music...
+  tr: Generating music...
+  vi: Generating music...
+  id: Generating music...
+  pl: Generating music...
+  nl: Generating music...
+  ar: Generating music...
+  hi: Generating music...
+  th: Generating music...
+  cs: Generating music...
+  sv: Generating music...
+  he: Generating music...
+  verified_by_human: [en, de]
+music_generate.loading:
+  context: Text shown while generated music audio is loading
+  en: Loading audio...
+  de: Audio wird geladen...
+  zh: Loading audio...
+  es: Loading audio...
+  fr: Loading audio...
+  pt: Loading audio...
+  ru: Loading audio...
+  ja: Loading audio...
+  ko: Loading audio...
+  it: Loading audio...
+  tr: Loading audio...
+  vi: Loading audio...
+  id: Loading audio...
+  pl: Loading audio...
+  nl: Loading audio...
+  ar: Loading audio...
+  hi: Loading audio...
+  th: Loading audio...
+  cs: Loading audio...
+  sv: Loading audio...
+  he: Loading audio...
+  verified_by_human: [en, de]
+music_generate.error:
+  context: Error title for generated music embeds
+  en: Music generation failed
+  de: Musikgenerierung fehlgeschlagen
+  zh: Music generation failed
+  es: Music generation failed
+  fr: Music generation failed
+  pt: Music generation failed
+  ru: Music generation failed
+  ja: Music generation failed
+  ko: Music generation failed
+  it: Music generation failed
+  tr: Music generation failed
+  vi: Music generation failed
+  id: Music generation failed
+  pl: Music generation failed
+  nl: Music generation failed
+  ar: Music generation failed
+  hi: Music generation failed
+  th: Music generation failed
+  cs: Music generation failed
+  sv: Music generation failed
+  he: Music generation failed
+  verified_by_human: [en, de]
+music_generate.prompt_label:
+  context: Label for generated music prompt
+  en: Prompt
+  de: Prompt
+  zh: Prompt
+  es: Prompt
+  fr: Prompt
+  pt: Prompt
+  ru: Prompt
+  ja: Prompt
+  ko: Prompt
+  it: Prompt
+  tr: Prompt
+  vi: Prompt
+  id: Prompt
+  pl: Prompt
+  nl: Prompt
+  ar: Prompt
+  hi: Prompt
+  th: Prompt
+  cs: Prompt
+  sv: Prompt
+  he: Prompt
+  verified_by_human: [en, de]
+music_generate.model_label:
+  context: Label for generated music model
+  en: Model
+  de: Modell
+  zh: Model
+  es: Model
+  fr: Model
+  pt: Model
+  ru: Model
+  ja: Model
+  ko: Model
+  it: Model
+  tr: Model
+  vi: Model
+  id: Model
+  pl: Model
+  nl: Model
+  ar: Model
+  hi: Model
+  th: Model
+  cs: Model
+  sv: Model
+  he: Model
+  verified_by_human: [en, de]
+music_generate.duration:
+  context: Label for generated music duration
+  en: Duration
+  de: Dauer
+  zh: Duration
+  es: Duration
+  fr: Duration
+  pt: Duration
+  ru: Duration
+  ja: Duration
+  ko: Duration
+  it: Duration
+  tr: Duration
+  vi: Duration
+  id: Duration
+  pl: Duration
+  nl: Duration
+  ar: Duration
+  hi: Duration
+  th: Duration
+  cs: Duration
+  sv: Duration
+  he: Duration
+  verified_by_human: [en, de]
+music_generate.generated_at:
+  context: Label for generated music creation timestamp
+  en: Generated
+  de: Generiert
+  zh: Generated
+  es: Generated
+  fr: Generated
+  pt: Generated
+  ru: Generated
+  ja: Generated
+  ko: Generated
+  it: Generated
+  tr: Generated
+  vi: Generated
+  id: Generated
+  pl: Generated
+  nl: Generated
+  ar: Generated
+  hi: Generated
+  th: Generated
+  cs: Generated
+  sv: Generated
+  he: Generated
+  verified_by_human: [en, de]
+music_generate.watermarking:
+  context: Label for generated music watermarking metadata
+  en: Watermarking
+  de: Wasserzeichen
+  zh: Watermarking
+  es: Watermarking
+  fr: Watermarking
+  pt: Watermarking
+  ru: Watermarking
+  ja: Watermarking
+  ko: Watermarking
+  it: Watermarking
+  tr: Watermarking
+  vi: Watermarking
+  id: Watermarking
+  pl: Watermarking
+  nl: Watermarking
+  ar: Watermarking
+  hi: Watermarking
+  th: Watermarking
+  cs: Watermarking
+  sv: Watermarking
+  he: Watermarking
+  verified_by_human: [en, de]
+
 wiki.source_wikipedia:
   context: Attribution text for Wikipedia content
   en: "Source: Wikipedia \u2014 content available under CC BY-SA 4.0"

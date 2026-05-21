@@ -718,6 +718,54 @@ nutrition.description:
   sv: Följ måltider, hitta recept och ät hälsosammare.
   he: עקוב אחר ארוחות, מצא מתכונים ואכול בריא יותר.
   verified_by_human: [en, de]
+music:
+  context: App name for the Music app
+  en: Music
+  de: Musik
+  zh: Music
+  es: Music
+  fr: Music
+  pt: Music
+  ru: Music
+  ja: Music
+  ko: Music
+  it: Music
+  tr: Music
+  vi: Music
+  id: Music
+  pl: Music
+  nl: Music
+  ar: Music
+  hi: Music
+  th: Music
+  cs: Music
+  sv: Music
+  he: Music
+  verified_by_human: [en, de]
+music.description:
+  context: Description for the Music app
+  en: Generate songs, loops, and background music.
+  de: Generiere Songs, Loops und Hintergrundmusik.
+  zh: Generate songs, loops, and background music.
+  es: Generate songs, loops, and background music.
+  fr: Generate songs, loops, and background music.
+  pt: Generate songs, loops, and background music.
+  ru: Generate songs, loops, and background music.
+  ja: Generate songs, loops, and background music.
+  ko: Generate songs, loops, and background music.
+  it: Generate songs, loops, and background music.
+  tr: Generate songs, loops, and background music.
+  vi: Generate songs, loops, and background music.
+  id: Generate songs, loops, and background music.
+  pl: Generate songs, loops, and background music.
+  nl: Generate songs, loops, and background music.
+  ar: Generate songs, loops, and background music.
+  hi: Generate songs, loops, and background music.
+  th: Generate songs, loops, and background music.
+  cs: Generate songs, loops, and background music.
+  sv: Generate songs, loops, and background music.
+  he: Generate songs, loops, and background music.
+  verified_by_human: [en, de]
 images:
   context: App name for the Images app
   en: Images

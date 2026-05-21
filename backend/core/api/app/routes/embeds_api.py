@@ -340,8 +340,12 @@ async def download_embed_file(
             "jpeg": "image/jpeg",
             "webp": "image/webp",
             "svg": "image/svg+xml",
+            "mp3": "audio/mpeg",
+            "wav": "audio/wav",
+            "m4a": "audio/mp4",
+            "ogg": "audio/ogg",
         }
-        content_type = content_type_map.get(file_format, "image/webp")
+        content_type = content_type_map.get(file_format, "application/octet-stream")
 
         # Generate a human-readable filename from the prompt (if available in embed content)
         embed_prompt = embed_content.get("prompt")

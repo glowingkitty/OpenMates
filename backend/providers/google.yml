@@ -191,6 +191,84 @@ models:
         price: 0.0011
         currency: USD
 
+  - id: "lyria-3-pro-preview"
+    name: "Lyria 3 Pro"
+    description: "Google's latest Lyria music generation model for longer, high-quality stereo tracks with vocal and lyric support in preview. OpenMates uses Vertex AI by default for Cloud data-governance controls."
+    country_origin: "US"
+    for_app_skill: "music.generate"
+    release_date: "2026-04-07"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "google"
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "lyria-3-pro-preview"
+        region: "global"
+    pricing:
+      per_unit:
+        credits: 240
+        unit_name: "track"
+    costs:
+      output_per_track:
+        price: 0.08
+        currency: USD
+
+  - id: "lyria-3-clip-preview"
+    name: "Lyria 3 Clip"
+    description: "Google Lyria 3 preview model for 30-second high-quality stereo music clips."
+    country_origin: "US"
+    for_app_skill: "music.generate"
+    release_date: "2026-04-07"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "google"
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "lyria-3-clip-preview"
+        region: "global"
+    pricing:
+      per_unit:
+        credits: 120
+        unit_name: "track"
+    costs:
+      output_per_track:
+        price: 0.04
+        currency: USD
+
+  - id: "lyria-002"
+    name: "Lyria 2"
+    description: "Documented Vertex AI Lyria predict model for 30-second instrumental WAV generation. Kept as an explicit fallback for Lyria 3 preview availability gaps."
+    country_origin: "US"
+    for_app_skill: "music.generate"
+    release_date: "2025-01-01"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "google"
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "lyria-002"
+        region: "us-central1"
+    pricing:
+      per_unit:
+        credits: 120
+        unit_name: "track"
+    costs:
+      output_per_track:
+        price: 0.04
+        currency: USD
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token

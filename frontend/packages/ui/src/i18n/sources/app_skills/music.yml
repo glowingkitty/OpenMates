@@ -1,0 +1,49 @@
+generate:
+  context: Skill name for generating music tracks
+  en: Generate Music
+  de: Musik generieren
+  zh: Generate Music
+  es: Generate Music
+  fr: Generate Music
+  pt: Generate Music
+  ru: Generate Music
+  ja: Generate Music
+  ko: Generate Music
+  it: Generate Music
+  tr: Generate Music
+  vi: Generate Music
+  id: Generate Music
+  pl: Generate Music
+  nl: Generate Music
+  ar: Generate Music
+  hi: Generate Music
+  th: Generate Music
+  cs: Generate Music
+  sv: Generate Music
+  he: Generate Music
+  verified_by_human: [en, de]
+
+generate.description:
+  context: Skill description for generating music tracks
+  en: Create songs, instrumentals, loops, and background music.
+  de: Erstelle Songs, Instrumentals, Loops und Hintergrundmusik.
+  zh: Create songs, instrumentals, loops, and background music.
+  es: Create songs, instrumentals, loops, and background music.
+  fr: Create songs, instrumentals, loops, and background music.
+  pt: Create songs, instrumentals, loops, and background music.
+  ru: Create songs, instrumentals, loops, and background music.
+  ja: Create songs, instrumentals, loops, and background music.
+  ko: Create songs, instrumentals, loops, and background music.
+  it: Create songs, instrumentals, loops, and background music.
+  tr: Create songs, instrumentals, loops, and background music.
+  vi: Create songs, instrumentals, loops, and background music.
+  id: Create songs, instrumentals, loops, and background music.
+  pl: Create songs, instrumentals, loops, and background music.
+  nl: Create songs, instrumentals, loops, and background music.
+  ar: Create songs, instrumentals, loops, and background music.
+  hi: Create songs, instrumentals, loops, and background music.
+  th: Create songs, instrumentals, loops, and background music.
+  cs: Create songs, instrumentals, loops, and background music.
+  sv: Create songs, instrumentals, loops, and background music.
+  he: Create songs, instrumentals, loops, and background music.
+  verified_by_human: [en, de]

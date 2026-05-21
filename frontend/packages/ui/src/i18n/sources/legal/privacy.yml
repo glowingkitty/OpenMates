@@ -5420,8 +5420,30 @@ providers.image_generation.recraft.description:
   ru: Recraft обеспечивает работу навыков images.generate и images.vectorize, создавая векторные и растровые изображения и преобразуя растровые изображения в SVG. Recraft получает твои промпты, предпочтения по стилю и — при векторизации — твои исходные изображения.
   he: Recraft מפעילה את המיומנויות images.generate ו-images.vectorize, מייצרת תמונות וקטוריות ורסטר והופכת מפות סיביות (bitmaps) ל-SVG. Recraft מקבלת את ההנחיות שלך, העדפות סגנון, ובעת וקטוריזציה — את תמונות המקור שלך.
   verified_by_human: []
+providers.music_generation.heading:
+  context: Subheading for music generation providers
+  en: Music generation (only when you use a music skill)
+  verified_by_human: []
+providers.music_generation.description:
+  context: Description of music generation providers
+  en: >-
+    These providers are only used when you invoke a music generation skill. If
+    you never use the music app, none of your data is shared with them.
+  verified_by_human: []
+providers.music_generation.google_vertex_ai.heading:
+  context: Heading for Google Vertex AI music generation provider entry
+  en: Google Vertex AI (Lyria music generation)
+  verified_by_human: []
+providers.music_generation.google_vertex_ai.description:
+  context: Google Vertex AI music generation description
+  en: >-
+    Google Vertex AI hosts the Lyria models used by the music.generate skill.
+    Google receives your music generation prompts, optional lyrics, style
+    preferences, and generation settings only when you ask OpenMates to generate
+    music or background music.
+  verified_by_human: []
 providers.code_execution.heading:
-  context: Subheading for Group E providers (code execution)
+  context: Subheading for Group F providers (code execution)
   en: Code execution (only when you run code)
   verified_by_human: []
 providers.code_execution.description:

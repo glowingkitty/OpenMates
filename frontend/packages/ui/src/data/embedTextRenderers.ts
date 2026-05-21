@@ -60,6 +60,7 @@ import { renderHomeSearch, renderListing } from '../components/embeds/home/homeE
 import { renderSheet } from '../components/embeds/sheets/sheetsEmbedText';
 import { renderPdf } from '../components/embeds/pdf/pdfEmbedText';
 import { renderRecording, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
+import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
@@ -101,6 +102,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:images:generate': renderImageGenerate,
 	'app:images:generate_draft': renderImageGenerate,
 	'app:images:search': renderImagesSearch,
+	'app:music:generate': renderMusicGenerate,
 	'app:health:search_appointments': renderHealthSearch,
 	'app:home:search': renderHomeSearch,
 	'app:mail:search': renderMailSearch,

@@ -357,7 +357,23 @@ provider_groups:
           - Source images when vectorizing
 
   # =====================================================================
-  # Group E — Code execution. Only used when you run generated code.
+  # Group E — Music generation. Only used when you invoke a music skill.
+  # =====================================================================
+  music_generation:
+    description: >
+      These providers are only used when you invoke a music generation skill.
+      If you never use the music app, none of your data is shared with them.
+    providers:
+      google_vertex_ai:
+        privacy_policy: https://cloud.google.com/terms/cloud-privacy-notice  # verified 2026-05-21
+        location: US
+        used_for:
+          - music and background music generation via Google Lyria on Vertex AI
+        data_shared:
+          - Music generation prompts, lyrics, style preferences, and generation settings
+
+  # =====================================================================
+  # Group F — Code execution. Only used when you run generated code.
   # =====================================================================
   code_execution:
     description: >

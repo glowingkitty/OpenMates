@@ -167,6 +167,7 @@ export function buildPrivacyPolicyContent(
     openrouter: "legal.privacy.providers.ai_models.openrouter.heading",
     fal: "legal.privacy.providers.image_generation.fal.heading",
     recraft: "legal.privacy.providers.image_generation.recraft.heading",
+    google_vertex_ai: "legal.privacy.providers.music_generation.google_vertex_ai.heading",
   };
 
   lines.push(`### ${t("legal.privacy.training_policies.heading")}`);
@@ -260,7 +261,14 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.image_generation.fal", privacyPolicyLinks.fal);
   renderProvider("legal.privacy.providers.image_generation.recraft", privacyPolicyLinks.recraft);
 
-  // Group E — Code execution
+  // Group E — Music generation
+  lines.push(`### ${t("legal.privacy.providers.music_generation.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.music_generation.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.music_generation.google_vertex_ai", privacyPolicyLinks.googleVertexAi);
+
+  // Group F — Code execution
   lines.push(`### ${t("legal.privacy.providers.code_execution.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.code_execution.description"));
