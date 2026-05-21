@@ -23,10 +23,50 @@ import { mount, unmount } from "svelte";
 import FocusModeActivationEmbed from "../../../embeds/FocusModeActivationEmbed.svelte";
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
+import { chatKeyManager } from "../../../../services/encryption/ChatKeyManager";
+import { chatSyncService } from "../../../../services/chatSyncService";
 import { chatDB } from "../../../../services/db";
+import { webSocketService } from "../../../../services/websocketService";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+
+async function handleLocalFocusActivation(chatId: string, focusId: string): Promise<void> {
+  const chat = await chatDB.getChat(chatId);
+  if (!chat) return;
+
+  const chatKey = await chatKeyManager.getKey(chatId);
+  if (!chatKey) return;
+
+  const { ensureChatKeySafeForWrite } = await import(
+    "../../../../services/chatKeyWriteGuard"
+  );
+  const isSafe = await ensureChatKeySafeForWrite(
+    chatId,
+    chatKey,
+    "active focus id encryption",
+  );
+  if (!isSafe) return;
+
+  const { encryptWithChatKey } = await import(
+    "../../../../services/encryption/MessageEncryptor"
+  );
+  const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
+  chat.encrypted_active_focus_id = encryptedFocusId;
+  await chatDB.updateChat(chat);
+  chatMetadataCache.invalidateChat(chatId);
+
+  webSocketService.sendMessage("update_encrypted_active_focus_id", {
+    chat_id: chatId,
+    encrypted_active_focus_id: encryptedFocusId,
+  });
+
+  chatSyncService.dispatchEvent(
+    new CustomEvent("focusModeActivated", {
+      detail: { chat_id: chatId, focus_id: focusId },
+    }),
+  );
+}
 
 export class FocusModeActivationRenderer implements EmbedRenderer {
   type = "focus-mode-activation";
@@ -128,6 +168,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                 },
               }),
             );
+          },
+          onActivate: (activatedFocusId: string) => {
+            const chatId = activeChatStore.get();
+            if (!chatId) return;
+            void handleLocalFocusActivation(chatId, activatedFocusId);
           },
           onDeactivate: (deactivatedFocusId: string) => {
             console.debug(
