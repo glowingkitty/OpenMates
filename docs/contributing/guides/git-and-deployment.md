@@ -319,9 +319,7 @@ Inspect the commits going into the PR and decide:
 - Any `feat:` commits → minor bump (e.g. `v0.4.1-alpha` → `v0.5.0-alpha`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Also update the user-facing version string in the i18n source file when bumping the minor version:
-`frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` key.
-After editing that file, regenerate the locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Also update `shared/config/product_version.json` when bumping the minor version. The user-facing `userFacing` value should stay short for the web UI, e.g. `v0.10 alpha`, while the CLI `prereleaseBase` controls npm versions like `0.10.0-alpha.N`. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 
