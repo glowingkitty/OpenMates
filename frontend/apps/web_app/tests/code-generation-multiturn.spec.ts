@@ -218,14 +218,14 @@ async function assertNoJsonEmbedLeaks(page: any, messageIndex: number, log: any)
 	log(`Message ${messageIndex}: no JSON embed leaks.`);
 }
 
-async function waitForCodeRunSuccess(fullscreenOverlay: any, _expectedOutput: string, log: any) {
+async function waitForCodeRunSuccess(fullscreenOverlay: any, expectedOutput: string, log: any) {
 	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
 	await expect(terminal).toBeVisible({ timeout: 15000 });
 
 	await expect(async () => {
 		const text = (await terminal.textContent()) || '';
 		log(`Code Run terminal text: ${text.substring(0, 500)}`);
-		expect(text).toContain('...');
+		expect(text).toContain(expectedOutput);
 		expect(text).toMatch(/finished|Exited (?:at .* )?with code 0/i);
 		expect(text).toMatch(/Charged .*5 credits/i);
 	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
@@ -531,7 +531,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	log(`Test completed successfully. Chat ${chatId} was created and deleted.`);
 });
 
-test('generated Python code embed can run in E2B sandbox', async ({ page }: { page: any }) => {
+test('generated Python code embed can run in E2B sandbox', async ({ page, context }: { page: any; context: any }) => {
  setupPageListeners(page);
 
  test.slow();
@@ -544,6 +544,7 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
  const expectedOutput = 'openmates-code-run-ok';
 
  skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
  await archiveExistingScreenshots(log);
  log('Starting Code Run E2B test.');
@@ -607,7 +608,22 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
   await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
 	await screenshot(page, 'run-complete');
 
- await closeFullscreen(page, fullscreenOverlay);
+	const askFollowupButton = fullscreenOverlay.getByRole('button', { name: 'Ask follow-up' });
+	await expect(askFollowupButton).toBeVisible({ timeout: 10000 });
+	await expect(askFollowupButton).toBeEnabled({ timeout: 10000 });
+	await askFollowupButton.click();
+
+	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 10000 });
+	const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+	expect(clipboardText).toContain(expectedOutput);
+
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+	const followupOutputEmbed = messageEditor.locator('[data-testid="embed-preview"][data-app-id="code"]').first();
+	await expect(followupOutputEmbed).toBeVisible({ timeout: 30000 });
+	await expect(followupOutputEmbed).toContainText(expectedOutput, { timeout: 30000 });
+	await screenshot(page, 'followup-output-in-composer');
+
  await deleteActiveChat(page, log, screenshot, 'cleanup');
 
  log(`Code Run E2B test completed successfully. Chat ${chatId} was created and deleted.`);
