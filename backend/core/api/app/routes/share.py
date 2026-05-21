@@ -476,7 +476,13 @@ async def update_share_metadata(
             params = {
                 'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private,share_pii,share_highlights'
             }
-            updated_item = await directus_service.update_item("chats", chat_id, updates, params=params)
+            updated_item = await directus_service.update_item(
+                "chats",
+                chat_id,
+                updates,
+                params=params,
+                admin_required=True,
+            )
             if updated_item is None:
                 logger.error(f"Failed to update chat {chat_id} - update_item returned None")
                 raise HTTPException(status_code=500, detail="Failed to update chat in database")
@@ -505,7 +511,10 @@ async def update_share_metadata(
                 for attempt in range(3):
                     if attempt > 0:
                         await asyncio.sleep(0.2 * attempt)  # 200ms, 400ms delays
-                    updated_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                    updated_chat = await directus_service.chat.get_chat_metadata(
+                        chat_id,
+                        admin_required=True,
+                    )
                     if updated_chat:
                         has_title = bool(updated_chat.get("shared_encrypted_title"))
                         has_summary = bool(updated_chat.get("shared_encrypted_summary"))
