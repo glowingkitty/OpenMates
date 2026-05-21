@@ -407,9 +407,9 @@
     >
         <!-- Active focus mode indicator (shown at top if a focus mode is active) -->
         {#if activeFocusId && focusAppId && focusDisplayName}
-            <div class="focus-mode-indicator">
+            <div class="focus-mode-indicator" data-testid="focus-mode-indicator">
                 <div class="focus-mode-icon" style="background: var(--color-app-{focusAppId});"></div>
-                <span class="focus-mode-label">{focusDisplayName}</span>
+                <span class="focus-mode-label" data-testid="focus-mode-label">{focusDisplayName}</span>
             </div>
         {/if}
         
