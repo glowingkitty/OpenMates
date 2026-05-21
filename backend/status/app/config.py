@@ -69,7 +69,7 @@ def get_check_interval_seconds() -> int:
 def get_base_urls() -> dict[str, dict[str, str]]:
     prod_web = os.getenv("PROD_WEB_URL", "https://openmates.org")
     prod_api = os.getenv("PROD_API_URL", "https://api.openmates.org")
-    dev_web = os.getenv("DEV_WEB_URL", "https://dev.openmates.org")
+    dev_web = os.getenv("DEV_WEB_URL", "https://app.dev.openmates.org")
     dev_api = os.getenv("DEV_API_URL", "https://api.dev.openmates.org")
     upload_url = os.getenv("UPLOAD_URL", "")
     preview_url = os.getenv("PREVIEW_URL", "")

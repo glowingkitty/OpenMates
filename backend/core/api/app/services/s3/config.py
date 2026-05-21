@@ -238,11 +238,10 @@ def get_allowed_origins(environment: str) -> List[str]:
     
     # Add deployed server origins that aren't in the shared config
     # The shared config urls.yml has localhost for development, but the actual
-    # deployed dev server uses app.dev.openmates.org / dev.openmates.org
+    # deployed dev web app uses app.dev.openmates.org.
     if environment == 'development':
         deployed_dev_origins = [
             'https://app.dev.openmates.org',
-            'https://dev.openmates.org',
         ]
         for origin in deployed_dev_origins:
             if origin not in origins:

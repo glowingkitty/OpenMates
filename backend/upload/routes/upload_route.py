@@ -187,7 +187,7 @@ class ProfileImageUploadResponse(BaseModel):
 # There is only ONE upload server domain: upload.openmates.org
 # Caddy sets X-Target-Env to "prod" or "dev" based on the Origin header of the request:
 #   Origin: https://openmates.org     → X-Target-Env: prod → PROD_CORE_API_URL + PROD_INTERNAL_API_SHARED_TOKEN
-#   Origin: https://dev.openmates.org → X-Target-Env: dev  → DEV_CORE_API_URL  + DEV_INTERNAL_API_SHARED_TOKEN
+#   Origin: https://app.dev.openmates.org → X-Target-Env: dev  → DEV_CORE_API_URL  + DEV_INTERNAL_API_SHARED_TOKEN
 #
 # This header is injected by Caddy (trusted proxy) and is never forwarded from
 # the client — it is stripped by the reverse_proxy block in the Caddyfile and

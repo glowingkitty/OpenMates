@@ -13,7 +13,7 @@ Independent status service for `status.openmates.org`.
 
 - `PROD_WEB_URL` (default: `https://openmates.org`)
 - `PROD_API_URL` (default: `https://api.openmates.org`)
-- `DEV_WEB_URL` (default: `https://dev.openmates.org`)
+- `DEV_WEB_URL` (default: `https://app.dev.openmates.org`)
 - `DEV_API_URL` (default: `https://api.dev.openmates.org`)
 - `UPLOAD_URL` (required for upload checks)
 - `PREVIEW_URL` (required for preview checks)

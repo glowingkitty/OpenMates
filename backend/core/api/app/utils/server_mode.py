@@ -159,12 +159,12 @@ def is_payment_enabled() -> bool:
                 # The config will be loaded again during lifespan startup, where it will fail properly if needed
                 logger.warning(f"Could not load domain security config during payment check: {e}. Will retry during lifespan startup.")
         
-        # Fallback: Check if domain matches dev subdomain pattern
-        # This handles the case where we're on dev.openmates.org or *.dev.openmates.org
+        # Fallback: Check if domain matches the dev subdomain pattern.
+        # This handles app.dev.openmates.org and api.dev.openmates.org.
         # We check for common dev subdomain patterns
         if domain:
             domain_lower = domain.lower()
-            # Check for *.dev.* pattern (e.g., app.dev.openmates.org, dev.openmates.org)
+            # Check for *.dev.* pattern (e.g., app.dev.openmates.org, api.dev.openmates.org)
             # This is a safe fallback for development servers
             if is_development and (".dev." in domain_lower or domain_lower.startswith("dev.")):
                 logger.debug(f"Payment enabled: Development server detected on dev subdomain: {domain}")

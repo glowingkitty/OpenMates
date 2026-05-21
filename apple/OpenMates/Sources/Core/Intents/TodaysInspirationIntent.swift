@@ -13,7 +13,7 @@ struct TodaysInspirationIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let baseURL: String = {
             #if DEBUG
-            return "https://dev.openmates.org/api"
+            return "https://api.dev.openmates.org"
             #else
             return "https://api.openmates.org"
             #endif

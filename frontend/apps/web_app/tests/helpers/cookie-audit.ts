@@ -193,7 +193,7 @@ export async function assertNoThirdPartyCookies(context: any): Promise<void> {
 	const FIRST_PARTY_DOMAINS = [
 		'openmates.org',
 		'openmates.dev',
-		'dev.openmates.org',
+		'app.dev.openmates.org',
 		'api.dev.openmates.org',
 		'localhost',
 		'127.0.0.1'

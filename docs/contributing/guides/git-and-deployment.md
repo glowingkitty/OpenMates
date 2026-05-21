@@ -150,7 +150,7 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 | Branch | Server      | URL                                                           |
 | ------ | ----------- | ------------------------------------------------------------- |
-| `dev`  | Development | `https://dev.openmates.org` / `https://api.dev.openmates.org` |
+| `dev`  | Development | `https://app.dev.openmates.org` / `https://api.dev.openmates.org` |
 | `main` | Production  | `https://openmates.org` / `https://api.openmates.org`         |
 
 - The **development server** runs the `dev` branch — this is where we work and push changes.

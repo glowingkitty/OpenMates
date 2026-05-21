@@ -120,7 +120,7 @@ struct InspirationTimelineProvider: TimelineProvider {
         // Try fetching from API first
         let baseURL: String = {
             #if DEBUG
-            return "https://dev.openmates.org/api"
+            return "https://api.dev.openmates.org"
             #else
             return "https://api.openmates.org"
             #endif

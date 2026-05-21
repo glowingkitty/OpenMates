@@ -130,7 +130,7 @@ def parse_caddyfile_ports(content: str) -> set[int]:
 def detect_server_type(caddyfile_path: str) -> str:
     """Detect if this is a dev or prod Caddyfile."""
     content = Path(caddyfile_path).read_text()
-    if "dev.openmates.org" in content:
+    if "api.dev.openmates.org" in content:
         return "dev"
     return "prod"
 
