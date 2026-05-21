@@ -53,7 +53,6 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const SELECTORS = {
-	activeChatItem: '[data-testid="chat-item-wrapper"].active',
 	focusModeBar: '[data-testid="focus-mode-bar"][data-app-id="videos"]',
 	focusModeBarActivated: '[data-testid="focus-mode-bar"].activated[data-app-id="videos"]',
 	focusActiveBanner: '[data-testid="focus-pill"]',
@@ -61,9 +60,10 @@ const SELECTORS = {
 };
 
 async function getActiveChatId(page: any): Promise<string> {
-	const activeChatItem = page.locator(SELECTORS.activeChatItem);
-	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
-	const chatId = await activeChatItem.getAttribute('data-chat-id');
+	await page.waitForFunction(() => window.location.hash.startsWith('#chat-id='), null, {
+		timeout: 15000
+	});
+	const chatId = await page.evaluate(() => window.location.hash.replace('#chat-id=', ''));
 	expect(chatId).toBeTruthy();
 	return chatId as string;
 }
