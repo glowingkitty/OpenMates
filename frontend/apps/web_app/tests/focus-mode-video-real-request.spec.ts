@@ -53,11 +53,20 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const SELECTORS = {
+	activeChatItem: '[data-testid="chat-item-wrapper"].active',
 	focusModeBar: '[data-testid="focus-mode-bar"][data-app-id="videos"]',
 	focusModeBarActivated: '[data-testid="focus-mode-bar"].activated[data-app-id="videos"]',
 	focusActiveBanner: '[data-testid="focus-pill"]',
 	focusActiveBannerText: '[data-testid="focus-pill"] [data-testid="focus-pill-label"]'
 };
+
+async function getActiveChatId(page: any): Promise<string> {
+	const activeChatItem = page.locator(SELECTORS.activeChatItem);
+	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
+	const chatId = await activeChatItem.getAttribute('data-chat-id');
+	expect(chatId).toBeTruthy();
+	return chatId as string;
+}
 
 function setupPageListeners(page: any): void {
 	page.on('console', (msg: any) => {
@@ -111,6 +120,8 @@ test('real YouTube analysis request activates video focus mode and continues wit
 	await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'video-real');
 
 	await waitForAssistantMessage(page, { which: 'first', timeout: 120000, logCheckpoint });
+	const chatId = await getActiveChatId(page);
+	logCheckpoint(`Active chat id for backend log verification: ${chatId}`);
 
 	const focusModeEmbed = page.locator(SELECTORS.focusModeBar);
 	await expect(focusModeEmbed.first()).toBeVisible({ timeout: 120000 });

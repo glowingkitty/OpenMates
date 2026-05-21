@@ -179,8 +179,11 @@ async def _async_focus_mode_auto_confirm(
         logger.error(f"{log_prefix} Failed to retrieve cached messages for chat {chat_id} — cannot continue processing")
         return
     
-    # Decrypt cached messages
+    # Decrypt cached messages. Redis stores newest-first via LPUSH; reverse to
+    # restore chronological order for LLM history. Focus activation embed
+    # messages are UI-only assistant messages and must never be sent to the LLM.
     message_history: List[Dict[str, Any]] = []
+    removed_focus_activation_count = 0
     for msg_str in reversed(cached_messages_str_list):
         try:
             msg_cache_data = json.loads(msg_str)
@@ -202,6 +205,10 @@ async def _async_focus_mode_auto_confirm(
                     continue
             except Exception:
                 continue
+
+            if role == "assistant" and _is_focus_activation_message(decrypted_content):
+                removed_focus_activation_count += 1
+                continue
             
             message_history.append({
                 "role": role,
@@ -213,18 +220,10 @@ async def _async_focus_mode_auto_confirm(
         except json.JSONDecodeError:
             continue
 
-    removed_trailing_assistant_count = 0
-    while message_history and message_history[-1].get("role") == "assistant":
-        trailing_content = message_history[-1].get("content", "")
-        if not _is_focus_activation_message(trailing_content):
-            break
-        message_history.pop()
-        removed_trailing_assistant_count += 1
-
-    if removed_trailing_assistant_count:
+    if removed_focus_activation_count:
         logger.info(
-            f"{log_prefix} Removed {removed_trailing_assistant_count} trailing focus activation "
-            "assistant message(s) before continuation preprocessing"
+            f"{log_prefix} Removed {removed_focus_activation_count} focus activation "
+            "assistant message(s) from continuation preprocessing history"
         )
     
     if not message_history:
@@ -238,7 +237,11 @@ async def _async_focus_mode_auto_confirm(
         )
         return
     
-    logger.info(f"{log_prefix} Retrieved and decrypted {len(message_history)} messages from AI cache")
+    role_sequence = [str(message.get("role", "?")) for message in message_history]
+    logger.info(
+        f"{log_prefix} Retrieved and decrypted {len(message_history)} messages from AI cache "
+        f"for continuation; role_sequence={role_sequence}"
+    )
     
     # Step 2d: Fire a new ask_skill Celery task with focus mode active
     try:
