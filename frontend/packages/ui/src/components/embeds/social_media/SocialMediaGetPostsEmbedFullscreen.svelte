@@ -88,9 +88,11 @@
       author_avatar_url={result.author_avatar_url}
       media_url={result.media_url}
       thumbnail_url={result.thumbnail_url}
+      published_at={result.published_at}
       like_count={result.like_count}
       reply_count={result.reply_count}
       repost_count={result.repost_count}
+      comments={result.comments}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}

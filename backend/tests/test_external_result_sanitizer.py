@@ -17,6 +17,7 @@ try:
         _key_name_for_path,
         _should_sanitize_field,
         _collect_string_fields,
+        _collect_string_fields_with_overrides,
         _set_path_value,
         SKIP_FIELD_NAMES,
         LONG_TEXT_HINTS,
@@ -165,6 +166,23 @@ class TestCollectStringFields:
         _collect_string_fields(payload, "", min_chars=120, collected=collected)
         assert len(collected) == 1
         assert collected[0][0] == "a.b.c.content"
+
+    def test_overrides_collect_short_social_post_and_comment_bodies(self):
+        payload = {
+            "title": "Short title",
+            "author": "safe_username",
+            "comments": [{"body": "short but hostile", "author": "commenter"}],
+        }
+        collected = []
+        _collect_string_fields_with_overrides(
+            payload,
+            "",
+            min_chars=120,
+            collected=collected,
+            always_sanitize_field_names={"title", "body"},
+        )
+
+        assert collected == [("title", "Short title"), ("comments[0].body", "short but hostile")]
 
 
 # ===========================================================================

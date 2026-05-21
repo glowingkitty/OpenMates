@@ -14,14 +14,7 @@
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { formatCount, socialSourceLabel } from './socialMediaEmbedUtils';
-
-  interface SocialComment {
-    author?: string;
-    body?: string;
-    url?: string;
-    published_at?: string;
-  }
+  import { formatCount, normalizeComments, socialSourceLabel } from './socialMediaEmbedUtils';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -62,7 +55,7 @@
   let mediaUrl = $derived(asString(dc.media_url) || asString(dc.thumbnail_url));
   let externalUrl = $derived(asString(dc.external_url));
   let externalTitle = $derived(asString(dc.external_title));
-  let comments = $derived(Array.isArray(dc.comments) ? dc.comments as SocialComment[] : []);
+  let comments = $derived(normalizeComments(dc.comments));
   let source = $derived(socialSourceLabel({ embed_id: embedId || '', platform, page }));
   let favicon = $derived(avatar ? proxyImage(avatar, MAX_WIDTH_FAVICON) : undefined);
 
@@ -135,7 +128,12 @@
           <h2>Comments</h2>
           {#each comments as comment, index (comment.url || `${comment.author || 'comment'}-${index}`)}
             <div class="comment">
-              <div class="comment-author">{comment.author || 'Comment'}</div>
+              <div class="comment-author">
+                <span>{comment.author ? `@${comment.author}` : 'Comment'}</span>
+                {#if typeof comment.score === 'number' || typeof comment.ups === 'number'}
+                  <span>{formatCount(comment.ups ?? comment.score)} points</span>
+                {/if}
+              </div>
               <p>{comment.body}</p>
             </div>
           {/each}
@@ -228,6 +226,9 @@
   }
 
   .comment-author {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-4);
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
     font-weight: 650;

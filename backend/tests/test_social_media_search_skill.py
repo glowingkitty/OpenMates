@@ -8,9 +8,11 @@ import sys
 from types import ModuleType
 
 import pytest
+from pydantic import ValidationError
 
 from backend.apps.social_media import search_collection  # noqa: E402
 from backend.shared.providers.bluesky.public import BlueskyPost, BlueskyResult  # noqa: E402
+from backend.shared.providers.reddit.json import RedditSearchSort  # noqa: E402
 from backend.shared.providers.reddit.rss import RedditRssPost, RedditRssResult  # noqa: E402
 
 
@@ -31,6 +33,11 @@ class DummyApp:
 
 class FakeSecretsManager:
     pass
+
+
+def test_search_request_rejects_too_many_comments():
+    with pytest.raises(ValidationError):
+        search_collection.SearchRequestItem(platform="reddit", query="privacy ai", comments_limit=6)
 
 
 class _FakeTaskSignature:
@@ -108,7 +115,7 @@ async def test_collect_search_results_defaults_to_all_supported_platforms(monkey
             ],
         )
 
-    async def fake_search_reddit_posts(query: str, **kwargs):
+    async def fake_search_reddit_posts_json(query: str, **kwargs):
         captured["reddit_query"] = query
         captured["reddit_kwargs"] = kwargs
         return RedditRssResult(
@@ -128,23 +135,62 @@ async def test_collect_search_results_defaults_to_all_supported_platforms(monkey
         )
 
     monkeypatch.setattr(search_collection, "search_posts", fake_search_posts)
-    monkeypatch.setattr(search_collection, "search_reddit_posts", fake_search_reddit_posts)
+    monkeypatch.setattr(search_collection, "search_reddit_posts_json", fake_search_reddit_posts_json)
 
     results = await search_collection.collect_search_results(
-        [{"query": "privacy ai", "sort": "top", "limit": 5}],
+        [{"query": "privacy ai", "page": "privacy", "sort": "comments", "time_range": "week", "limit": 5}],
         secrets_manager=FakeSecretsManager(),
         reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
     )
 
     assert [result.platform for result in results] == ["bluesky", "reddit"]
     assert captured["bluesky_query"] == "privacy ai"
-    assert captured["bluesky_kwargs"]["sort"] == "top"
+    assert captured["bluesky_kwargs"]["sort"] == "comments"
     assert captured["bluesky_kwargs"]["limit"] == 5
     assert isinstance(captured["bluesky_kwargs"]["secrets_manager"], FakeSecretsManager)
     assert captured["reddit_query"] == "privacy ai"
     assert captured["reddit_kwargs"]["proxy_url"] == "http://user-rotate:pass@p.webshare.io:80/"
+    assert captured["reddit_kwargs"]["page"] == "privacy"
+    assert captured["reddit_kwargs"]["sort"] == RedditSearchSort.COMMENTS
     assert results[0].posts[0].author == "openmates.bsky.social"
     assert results[1].posts[0].author == "/u/example"
+
+
+@pytest.mark.asyncio
+async def test_collect_search_results_falls_back_to_rss_when_json_fails(monkeypatch):
+    async def fake_search_reddit_posts_json(query: str, **kwargs):
+        return RedditRssResult(page=query, sort="new", request_count=1, errors=["json failed"])
+
+    async def fake_search_reddit_posts(query: str, **kwargs):
+        return RedditRssResult(
+            page=query,
+            sort="new",
+            request_count=1,
+            posts=[
+                RedditRssPost(
+                    id="abc123",
+                    page=query,
+                    title="Fallback post",
+                    body="Fallback body.",
+                    author="/u/example",
+                    url="https://www.reddit.com/r/privacy/comments/abc123/post/",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(search_collection, "search_reddit_posts_json", fake_search_reddit_posts_json)
+    monkeypatch.setattr(search_collection, "search_reddit_posts", fake_search_reddit_posts)
+
+    results = await search_collection.collect_search_results(
+        [{"platform": "reddit", "query": "privacy ai", "sort": "new", "limit": 5}],
+        reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
+    )
+
+    assert results[0].provider == "reddit_rss"
+    assert results[0].posts[0].title == "Fallback post"
+    assert "Reddit JSON failed; fell back to Reddit RSS." in results[0].warnings
+    assert "json failed" in results[0].warnings
+    assert results[0].errors == []
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,7 @@ async def _async_search(task: BaseServiceTask, app_id: str, skill_id: str, argum
             cache_service=task._cache_service,
             min_chars=40,
             max_parallel=3,
+            always_sanitize_field_names={"title", "body"},
         )
         providers = sorted({item.provider for item in results if item.provider})
 

@@ -61,7 +61,7 @@ class SearchSkill(BaseSkill):
             return SearchResponse(error="Social media search service temporarily unavailable")
 
         try:
-            request_items = [SearchRequestItem(**item).model_dump() for item in requests]
+            request_items = [SearchRequestItem(**item).model_dump(mode="json") for item in requests]
             placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
             task_ids: list[str] = []
             embed_ids: list[str] = []

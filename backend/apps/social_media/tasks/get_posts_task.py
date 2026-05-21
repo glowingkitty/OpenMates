@@ -34,7 +34,7 @@ WEBSHARE_USERNAME_ENV = "SECRET__WEBSHARE__PROXY_USERNAME"
 WEBSHARE_PASSWORD_ENV = "SECRET__WEBSHARE__PROXY_PASSWORD"
 WEBSHARE_PROXY_HOST = "p.webshare.io"
 WEBSHARE_PROXY_PORT = 80
-WEBSHARE_UNAVAILABLE_WARNING = "Webshare proxy credentials are unavailable; Reddit RSS request was not attempted."
+WEBSHARE_UNAVAILABLE_WARNING = "Webshare proxy credentials are unavailable; Reddit JSON request was not attempted."
 
 
 @app.task(
@@ -83,6 +83,7 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
             cache_service=task._cache_service,
             min_chars=40,
             max_parallel=3,
+            always_sanitize_field_names={"title", "body"},
         )
         providers = sorted({item.provider for item in results if item.provider})
 
@@ -221,7 +222,7 @@ async def _get_webshare_proxy_url(task: BaseServiceTask) -> str | None:
     username = await _get_webshare_secret(task, WEBSHARE_USERNAME_KEY, WEBSHARE_USERNAME_ENV)
     password = await _get_webshare_secret(task, WEBSHARE_PASSWORD_KEY, WEBSHARE_PASSWORD_ENV)
     if not username or not password:
-        logger.warning("Webshare proxy credentials are unavailable for social media Reddit RSS collection")
+        logger.warning("Webshare proxy credentials are unavailable for social media Reddit JSON collection")
         return None
     return f"http://{username}-rotate:{password}@{WEBSHARE_PROXY_HOST}:{WEBSHARE_PROXY_PORT}/"
 

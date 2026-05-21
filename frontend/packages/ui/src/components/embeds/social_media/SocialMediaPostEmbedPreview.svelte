@@ -12,7 +12,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { formatCount, socialSourceLabel, type SocialMediaPostResult } from './socialMediaEmbedUtils';
+  import { formatCount, formatPostedAt, socialSourceLabel, type SocialMediaPostResult } from './socialMediaEmbedUtils';
 
   interface Props extends Partial<SocialMediaPostResult> {
     id?: string;
@@ -33,6 +33,7 @@
     author_avatar_url,
     media_url,
     thumbnail_url,
+    published_at,
     like_count,
     reply_count,
     repost_count,
@@ -47,6 +48,7 @@
   let displayAuthor = $derived(author_display_name || author || page || platform || 'Social post');
   let source = $derived(socialSourceLabel({ embed_id: id, platform, page }));
   let text = $derived(body || title || '');
+  let postedAt = $derived(formatPostedAt(published_at));
 
   function handleStop() {
     // Child posts are already resolved server-side.
@@ -72,6 +74,9 @@
     <div class="social-post-preview">
       <div class="post-meta">
         <span class="source">{source}</span>
+        {#if postedAt}
+          <span>{postedAt}</span>
+        {/if}
         {#if author}
           <span class="author">@{author}</span>
         {/if}
@@ -81,9 +86,11 @@
         <p class="post-body">{text}</p>
       {/if}
       <div class="post-footer">
-        <span>Likes {formatCount(like_count)}</span>
-        <span>Replies {formatCount(reply_count)}</span>
-        <span>Reposts {formatCount(repost_count)}</span>
+        <span>{formatCount(like_count)} likes</span>
+        <span>{formatCount(reply_count)} comments</span>
+        {#if typeof repost_count === 'number' && repost_count > 0}
+          <span>{formatCount(repost_count)} reposts</span>
+        {/if}
       </div>
       {#if image}
         <img class="post-image" src={image} alt="" use:handleImageError />

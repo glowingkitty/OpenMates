@@ -57,6 +57,9 @@ class RedditRssComment(BaseModel):
     body: str = Field(description="Comment text with HTML removed.")
     url: str = Field(description="Canonical Reddit comment URL.")
     published_at: Optional[str] = Field(default=None, description="ISO timestamp from the feed.")
+    score: Optional[int] = Field(default=None, description="Reddit public score when available.")
+    ups: Optional[int] = Field(default=None, description="Reddit public upvote count when available.")
+    downs: Optional[int] = Field(default=None, description="Reddit public downvote count when available.")
 
 
 class RedditRssPost(BaseModel):
@@ -70,6 +73,13 @@ class RedditRssPost(BaseModel):
     author: Optional[str] = Field(default=None, description="Public Reddit username.")
     url: str = Field(description="Canonical Reddit post URL.")
     published_at: Optional[str] = Field(default=None, description="ISO timestamp from the feed.")
+    score: Optional[int] = Field(default=None, description="Reddit public score when available.")
+    ups: Optional[int] = Field(default=None, description="Reddit public upvote count when available.")
+    downs: Optional[int] = Field(default=None, description="Reddit public downvote count when available.")
+    upvote_ratio: Optional[float] = Field(default=None, description="Reddit public upvote ratio when available.")
+    num_comments: Optional[int] = Field(default=None, description="Reddit public comment count when available.")
+    like_count: Optional[int] = Field(default=None, description="Normalized like/upvote count for embeds.")
+    reply_count: Optional[int] = Field(default=None, description="Normalized comment/reply count for embeds.")
     comments: list[RedditRssComment] = Field(default_factory=list)
     fetched_comment_count: int = Field(default=0, description="Number of comments fetched from RSS for this post.")
 
