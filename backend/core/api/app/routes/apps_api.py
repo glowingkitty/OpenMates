@@ -722,6 +722,8 @@ async def call_app_skill(
         request_payload = {}
     request_payload['_user_id'] = user_info['user_id']
     request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
+    request_payload['_api_key_hash'] = user_info.get('api_key_hash')
+    request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
 
     registry = get_global_registry()

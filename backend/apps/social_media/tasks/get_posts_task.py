@@ -21,6 +21,7 @@ from toon_format import encode as toon_encode
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
 from backend.apps.social_media.collection import GetPostsResponseItem, collect_posts
+from backend.apps.social_media.result_payload import build_social_media_task_result
 from backend.core.api.app.services.embed_service import EmbedService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
@@ -56,15 +57,15 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
     user_id = arguments.get("user_id")
     chat_id = arguments.get("chat_id")
     message_id = arguments.get("message_id")
+    external_request = bool(arguments.get("external_request"))
     log_prefix = f"[social_media.get-posts] [task:{task_id[:8]}] [embed:{str(embed_id)[:8]}]"
 
     try:
         await task.initialize_services()
-        if not (embed_id and user_id and chat_id and message_id):
-            raise ValueError("Missing required task context for social media embed update")
         user_vault_key_id = arguments.get("user_vault_key_id")
-        if not user_vault_key_id:
-            raise ValueError("Missing user_vault_key_id for social media embed encryption")
+        chat_embed_mode = bool(embed_id and user_id and chat_id and message_id and user_vault_key_id and not external_request)
+        if not external_request and not chat_embed_mode:
+            raise ValueError("Missing required task context for social media embed update")
 
         started = datetime.now(timezone.utc)
         reddit_proxy_url = await _get_webshare_proxy_url(task)
@@ -87,17 +88,34 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
         )
         providers = sorted({item.provider for item in results if item.provider})
 
-        embed_service = EmbedService(
-            cache_service=task._cache_service,
-            directus_service=task._directus_service,
-            encryption_service=task._encryption_service,
-        )
         request_metadata = {
             "query": _request_label(results),
             "provider": ", ".join(providers) if providers else "Social Media",
             "request_count": total_requests,
             "elapsed_seconds": round(elapsed_seconds, 2),
         }
+        result_payload = build_social_media_task_result(
+            app_id=app_id,
+            skill_id=skill_id,
+            result_type="social_posts",
+            status="finished",
+            results=results,
+            post_results=post_results,
+            request_metadata=request_metadata,
+            elapsed_seconds=elapsed_seconds,
+            task_id=task_id,
+            embed_id=embed_id if chat_embed_mode else None,
+        )
+
+        if not chat_embed_mode:
+            logger.info("%s Completed REST/CLI task with %s result groups and %s provider requests", log_prefix, len(results), total_requests)
+            return result_payload
+
+        embed_service = EmbedService(
+            cache_service=task._cache_service,
+            directus_service=task._directus_service,
+            encryption_service=task._encryption_service,
+        )
         await embed_service.update_embed_with_results(
             embed_id=embed_id,
             app_id=app_id,
@@ -119,15 +137,8 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
             request_metadata=request_metadata,
         )
         logger.info("%s Completed with %s result groups and %s provider requests", log_prefix, len(results), total_requests)
-        return {
-            "embed_id": embed_id,
-            "type": "social_posts",
-            "status": "finished",
-            "result_count": len(results),
-            "post_count": len(post_results),
-            "request_count": total_requests,
-            "continuation_task_id": continuation_task_id,
-        }
+        result_payload["continuation_task_id"] = continuation_task_id
+        return result_payload
     except Exception as exc:
         logger.error("%s Failed: %s", log_prefix, exc, exc_info=True)
         if embed_id and user_id and chat_id and message_id:

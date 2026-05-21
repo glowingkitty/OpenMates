@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from backend.apps.social_media import collection  # noqa: E402
+from backend.apps.social_media.result_payload import build_social_media_task_result  # noqa: E402
 
 
 @pytest.fixture
@@ -74,7 +75,29 @@ async def test_get_posts_skill_dispatches_celery_with_placeholder_embed(get_post
     assert arguments["chat_id"] == "chat-1"
     assert arguments["message_id"] == "message-1"
     assert arguments["user_vault_key_id"] == "vault-key-1"
+    assert arguments["external_request"] is False
     assert arguments["requests"][0]["page"] == "ClaudeCode"
+
+
+@pytest.mark.asyncio
+async def test_get_posts_skill_marks_external_request_for_rest_dispatch(get_posts_skill_class):
+    celery = _FakeCeleryProducer()
+    skill = get_posts_skill_class(
+        app=None,
+        app_id="social_media",
+        skill_id="get-posts",
+        skill_name="Get posts",
+        skill_description="Fetch posts",
+        celery_producer=celery,
+    )
+
+    await skill.execute(
+        [{"platform": "bluesky", "page": "openmates.bsky.social", "limit": 1}],
+        user_id="user-1",
+        external_request=True,
+    )
+
+    assert celery.sent[0]["kwargs"]["arguments"]["external_request"] is True
 
 
 @pytest.mark.asyncio
@@ -238,3 +261,34 @@ async def test_collect_posts_falls_back_to_rss_when_json_fails(monkeypatch):
     assert "Reddit JSON failed; fell back to Reddit RSS." in results[0].warnings
     assert "json failed" in results[0].warnings
     assert results[0].errors == []
+
+
+def test_social_media_task_result_exposes_grouped_posts_without_embed_context():
+    group = SimpleNamespace(
+        id="1",
+        platform="bluesky",
+        page="openmates.bsky.social",
+        sort="new",
+        posts=[{"title": "Post title", "url": "https://bsky.app/post/1"}],
+        provider="bluesky_public",
+        request_count=1,
+        warnings=[],
+        errors=[],
+    )
+
+    payload = build_social_media_task_result(
+        app_id="social_media",
+        skill_id="get-posts",
+        result_type="social_posts",
+        status="finished",
+        results=[group],
+        post_results=[{"title": "Post title", "url": "https://bsky.app/post/1"}],
+        request_metadata={"query": "bluesky: openmates.bsky.social", "provider": "bluesky_public", "request_count": 1},
+        elapsed_seconds=0.5,
+        task_id="task-1",
+    )
+
+    assert payload["status"] == "finished"
+    assert payload["results"][0]["results"][0]["title"] == "Post title"
+    assert payload["items"][0]["url"] == "https://bsky.app/post/1"
+    assert "embed_id" not in payload

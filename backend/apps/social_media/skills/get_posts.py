@@ -77,6 +77,7 @@ class GetPostsSkill(BaseSkill):
                     "skill_id": self.skill_id,
                     "embed_id": embed_id,
                     "user_vault_key_id": kwargs.get("user_vault_key_id"),
+                    "external_request": kwargs.get("external_request", False),
                 }
                 task_id = await execute_skill_via_celery(
                     app_id=self.app_id,

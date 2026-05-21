@@ -558,6 +558,13 @@ export interface OpenMatesClientOptions {
   session?: OpenMatesSession;
 }
 
+interface TaskStatusResponse {
+  task_id: string;
+  status: "pending" | "processing" | "completed" | "failed" | string;
+  result?: unknown;
+  error?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -565,6 +572,8 @@ export interface OpenMatesClientOptions {
 const DEFAULT_API_URL =
   process.env.OPENMATES_API_URL ?? "https://api.openmates.org";
 const SETTINGS_GET_RATE_LIMIT_RETRY_MS = 61_000;
+const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
+const SKILL_TASK_POLL_TIMEOUT_MS = 300_000;
 
 /**
  * Derive the web app URL from the API URL so the pair token is always looked
@@ -1654,6 +1663,96 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  private async resolveAsyncSkillResponse(
+    responseData: unknown,
+    headers: Record<string, string>,
+  ): Promise<unknown> {
+    const envelope = responseData as Record<string, unknown>;
+    const data = (envelope?.data ?? envelope) as Record<string, unknown>;
+    const taskId = typeof data?.task_id === "string" ? data.task_id : null;
+    const taskIds = Array.isArray(data?.task_ids)
+      ? (data.task_ids as unknown[]).filter((id): id is string => typeof id === "string")
+      : [];
+
+    if (taskId) {
+      const result = await this.pollTaskUntilComplete(taskId, headers);
+      return this.wrapResolvedSkillResult(responseData, result.result);
+    }
+
+    if (taskIds.length > 0) {
+      const taskResults = await Promise.all(
+        taskIds.map((id) => this.pollTaskUntilComplete(id, headers)),
+      );
+      return this.wrapResolvedSkillResult(
+        responseData,
+        this.mergeTaskResults(taskResults.map((task) => task.result)),
+      );
+    }
+
+    return responseData;
+  }
+
+  private async pollTaskUntilComplete(
+    taskId: string,
+    headers: Record<string, string>,
+  ): Promise<TaskStatusResponse> {
+    const started = Date.now();
+    while (Date.now() - started < SKILL_TASK_POLL_TIMEOUT_MS) {
+      const response = await this.http.get<TaskStatusResponse>(
+        `/v1/tasks/${encodeURIComponent(taskId)}`,
+        headers,
+      );
+      if (!response.ok) {
+        throw new Error(`Task polling failed with HTTP ${response.status}`);
+      }
+      if (response.data.status === "completed") {
+        return response.data;
+      }
+      if (response.data.status === "failed") {
+        throw new Error(response.data.error ?? "Task failed");
+      }
+      await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+    }
+    throw new Error(`Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s`);
+  }
+
+  private wrapResolvedSkillResult(original: unknown, result: unknown): unknown {
+    const envelope = original as Record<string, unknown>;
+    if (envelope && typeof envelope === "object" && "success" in envelope) {
+      return { ...envelope, data: result };
+    }
+    return result;
+  }
+
+  private mergeTaskResults(results: unknown[]): unknown {
+    const resultObjects = results.filter(
+      (result): result is Record<string, unknown> => result !== null && typeof result === "object",
+    );
+    const groupedResults = resultObjects.flatMap((result) =>
+      Array.isArray(result.results) ? (result.results as unknown[]) : [],
+    );
+    if (groupedResults.length === 0) {
+      return { results };
+    }
+    const first = resultObjects[0] ?? {};
+    return {
+      ...first,
+      results: groupedResults,
+      items: resultObjects.flatMap((result) =>
+        Array.isArray(result.items) ? (result.items as unknown[]) : [],
+      ),
+      result_count: groupedResults.length,
+      post_count: resultObjects.reduce(
+        (count, result) => count + (typeof result.post_count === "number" ? result.post_count : 0),
+        0,
+      ),
+      request_count: resultObjects.reduce(
+        (count, result) => count + (typeof result.request_count === "number" ? result.request_count : 0),
+        0,
+      ),
+    };
+  }
+
   async getApp(appId: string): Promise<unknown> {
     // Public metadata endpoint with include_unavailable to show all skills
     const response = await this.http.get(
@@ -1844,7 +1943,7 @@ export class OpenMatesClient {
       (err as Error & { statusCode: number }).statusCode = response.status;
       throw err;
     }
-    return response.data;
+    return this.resolveAsyncSkillResponse(response.data, headers);
   }
 
   // -------------------------------------------------------------------------

@@ -89,7 +89,22 @@ async def test_search_skill_dispatches_celery_with_placeholder_embed(search_skil
     assert arguments["chat_id"] == "chat-1"
     assert arguments["message_id"] == "message-1"
     assert arguments["user_vault_key_id"] == "vault-key-1"
+    assert arguments["external_request"] is False
     assert arguments["requests"][0]["query"] == "privacy ai"
+
+
+@pytest.mark.asyncio
+async def test_search_skill_marks_external_request_for_rest_dispatch(search_skill_class):
+    celery = _FakeCeleryProducer()
+    skill = make_skill(search_skill_class, celery)
+
+    await skill.execute(
+        requests=[{"platform": "bluesky", "query": "openmates", "limit": 1}],
+        user_id="user-1",
+        external_request=True,
+    )
+
+    assert celery.sent[0]["kwargs"]["arguments"]["external_request"] is True
 
 
 @pytest.mark.asyncio
