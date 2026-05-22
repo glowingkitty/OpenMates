@@ -97,7 +97,6 @@ async def generate_video_google_veo(
         "aspectRatio": normalized_aspect_ratio,
         "durationSeconds": duration,
         "resolution": normalized_resolution,
-        "numberOfVideos": 1,
         "personGeneration": "allow_all",
     }
     if seed is not None:
