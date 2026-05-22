@@ -127,7 +127,9 @@ function spawnCliLogin(apiUrl: string) {
 				);
 				const check = () => {
 					const out = stdout.join('');
-					const m = out.match(/openmates login confirm ([A-Z0-9]{6})/);
+					const m =
+						out.match(/openmates login confirm ([A-Z0-9]{6})/) ??
+						out.match(/[#?]pair=([A-Z0-9]{6})/);
 					if (m) {
 						clearTimeout(timeout);
 						resolve(m[1]);
