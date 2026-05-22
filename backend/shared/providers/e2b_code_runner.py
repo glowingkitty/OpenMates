@@ -119,6 +119,14 @@ def _run_command_for_file(file: CodeRunFile) -> str:
         return f"npx --yes tsx {path}"
     if language in {"bash", "sh", "shell"} or file.path.endswith(".sh"):
         return f"bash {path}"
+    if language in {"c"} or file.path.endswith(".c"):
+        return f"command -v gcc >/dev/null || {{ echo 'C execution is not available in this sandbox yet.' >&2; exit 127; }}; gcc {path} -o /tmp/openmates-run-bin && /tmp/openmates-run-bin"
+    if language in {"cpp", "c++", "cplusplus"} or file.path.endswith((".cc", ".cpp", ".cxx")):
+        return f"command -v g++ >/dev/null || {{ echo 'C++ execution is not available in this sandbox yet.' >&2; exit 127; }}; g++ {path} -std=c++17 -o /tmp/openmates-run-bin && /tmp/openmates-run-bin"
+    if language in {"rust", "rs"} or file.path.endswith(".rs"):
+        return f"command -v rustc >/dev/null || {{ echo 'Rust execution is not available in this sandbox yet.' >&2; exit 127; }}; rustc {path} -o /tmp/openmates-run-bin && /tmp/openmates-run-bin"
+    if language in {"go", "golang"} or file.path.endswith(".go"):
+        return f"command -v go >/dev/null || {{ echo 'Go execution is not available in this sandbox yet.' >&2; exit 127; }}; go run {path}"
     raise ValueError(f"Unsupported executable language for {file.path}")
 
 

@@ -324,8 +324,17 @@
   /** Whether preview mode is currently active (toggled by the preview button). */
   let previewActive = $state(false);
 
-  const RUNNABLE_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'node', 'typescript', 'ts', 'bash', 'sh', 'shell']);
-  const RUNNABLE_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.cjs', '.ts', '.sh']);
+  const RUNNABLE_LANGUAGES = new Set([
+    'python', 'py',
+    'javascript', 'js', 'node',
+    'typescript', 'ts',
+    'bash', 'sh', 'shell',
+    'c',
+    'cpp', 'c++', 'cplusplus',
+    'rust', 'rs',
+    'go', 'golang',
+  ]);
+  const RUNNABLE_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.cjs', '.ts', '.sh', '.c', '.cc', '.cpp', '.cxx', '.rs', '.go']);
   const INSTALL_SNIPPET_LANGUAGES = new Set(['bash', 'sh', 'shell', 'terminal', 'console']);
   const PYTHON_PACKAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$/;
   const NPM_PACKAGE_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$/;

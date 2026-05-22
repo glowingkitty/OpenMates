@@ -61,6 +61,12 @@ EXECUTABLE_EXTENSIONS = {
     ".cjs": "javascript",
     ".ts": "typescript",
     ".sh": "bash",
+    ".c": "c",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".cxx": "cpp",
+    ".rs": "rust",
+    ".go": "go",
 }
 EXECUTABLE_LANGUAGES = {
     "python",
@@ -73,6 +79,14 @@ EXECUTABLE_LANGUAGES = {
     "bash",
     "sh",
     "shell",
+    "c",
+    "cpp",
+    "c++",
+    "cplusplus",
+    "rust",
+    "rs",
+    "go",
+    "golang",
 }
 DEPENDENCY_FILENAMES = {"requirements.txt", "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
 PYTHON_PACKAGE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$")
@@ -203,6 +217,14 @@ def _safe_filename(raw_filename: str | None, embed_id: str, language: str) -> st
             "bash": ".sh",
             "sh": ".sh",
             "shell": ".sh",
+            "c": ".c",
+            "cpp": ".cpp",
+            "c++": ".cpp",
+            "cplusplus": ".cpp",
+            "rust": ".rs",
+            "rs": ".rs",
+            "go": ".go",
+            "golang": ".go",
         }.get((language or "").lower(), ".txt")
         filename = f"snippet-{embed_id[:8]}{ext}"
 
@@ -545,7 +567,9 @@ def _append_code_file(
     path = _dedupe_path(_safe_filename(content.get("filename"), embed_id, language), used_paths)
     is_dependency = path.rsplit("/", 1)[-1] in DEPENDENCY_FILENAMES
     is_executable = language in EXECUTABLE_LANGUAGES or PurePosixPath(path).suffix.lower() in EXECUTABLE_EXTENSIONS
-    if not is_dependency and not is_executable and embed_id != target_embed_id:
+    if embed_id == target_embed_id and not is_executable:
+        raise HTTPException(status_code=400, detail="Target code language is not supported by Code Run")
+    if not is_dependency and not is_executable:
         return total_chars, None
     if is_dependency:
         _validate_dependency_manifest(path, code)

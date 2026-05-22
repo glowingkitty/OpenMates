@@ -28,6 +28,7 @@ from backend.core.api.app.routes.code_execution import (
     _dependency_installs_from_install_snippets,
     _execution_key,
     _merge_dependency_installs,
+    _safe_filename,
     _validate_dependency_manifest,
     cancel_code_run,
 )
@@ -335,6 +336,56 @@ async def test_collect_code_files_accepts_validated_client_fallback() -> None:
 
     assert target_path == "client.py"
     assert files == [{"path": "client.py", "content": "print('client')", "language": "python", "is_target": True}]
+
+
+@pytest.mark.anyio
+async def test_collect_code_files_accepts_compiled_language_client_fallback() -> None:
+    files, target_path = await _collect_code_files(
+        CHAT_ID,
+        TARGET_EMBED_ID,
+        [CodeRunClientFile(embed_id=TARGET_EMBED_ID, code="fn main() {}", language="rust", is_target=True)],
+        [],
+        None,
+        _user(),
+        FakeCache([], {}),
+        FakeDirectus({TARGET_EMBED_ID: _metadata()}),
+        FakeEncryption(),
+    )
+
+    assert target_path == "snippet-embed-ta.rs"
+    assert files == [{"path": "snippet-embed-ta.rs", "content": "fn main() {}", "language": "rust", "is_target": True}]
+
+
+@pytest.mark.anyio
+async def test_collect_code_files_rejects_atopile_client_fallback() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        await _collect_code_files(
+            CHAT_ID,
+            TARGET_EMBED_ID,
+            [CodeRunClientFile(embed_id=TARGET_EMBED_ID, code="module Board:", language="atopile", filename="board.ato", is_target=True)],
+            [],
+            None,
+            _user(),
+            FakeCache([], {}),
+            FakeDirectus({TARGET_EMBED_ID: _metadata()}),
+            FakeEncryption(),
+        )
+
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("language", "expected_filename"),
+    [
+        ("c", "snippet-embed-ta.c"),
+        ("cpp", "snippet-embed-ta.cpp"),
+        ("rust", "snippet-embed-ta.rs"),
+        ("go", "snippet-embed-ta.go"),
+        ("atopile", "snippet-embed-ta.txt"),
+    ],
+)
+def test_safe_filename_defaults_match_code_run_support(language: str, expected_filename: str) -> None:
+    assert _safe_filename(None, TARGET_EMBED_ID, language) == expected_filename
 
 
 @pytest.mark.anyio

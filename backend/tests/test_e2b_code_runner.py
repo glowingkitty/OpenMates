@@ -19,6 +19,7 @@ from backend.shared.providers.e2b_code_runner import (
     CodeRunFile,
     _dependency_commands,
     _run_interruptible_command,
+    _run_command_for_file,
     run_code_in_e2b,
 )
 
@@ -110,6 +111,22 @@ def test_dependency_commands_prefer_explicit_manifests() -> None:
         ("Installing Python dependencies from requirements.txt...", "python -m pip install -r requirements.txt"),
         ("Installing JavaScript dependencies with npm install --ignore-scripts...", "npm install --ignore-scripts"),
     ]
+
+
+@pytest.mark.parametrize(
+    ("file", "expected_parts"),
+    [
+        (CodeRunFile(path="main.c", language="c"), ["command -v gcc", "gcc main.c -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
+        (CodeRunFile(path="main.cpp", language="cpp"), ["command -v g++", "g++ main.cpp -std=c++17 -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
+        (CodeRunFile(path="main.rs", language="rust"), ["command -v rustc", "rustc main.rs -o /tmp/openmates-run-bin", "/tmp/openmates-run-bin"]),
+        (CodeRunFile(path="main.go", language="go"), ["command -v go", "go run main.go"]),
+    ],
+)
+def test_run_command_supports_compiled_language_targets(file: CodeRunFile, expected_parts: list[str]) -> None:
+    command = _run_command_for_file(file)
+
+    for part in expected_parts:
+        assert part in command
 
 
 def test_interruptible_command_kills_active_handle_when_cancelled() -> None:
