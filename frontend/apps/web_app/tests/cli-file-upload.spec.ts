@@ -275,7 +275,7 @@ function writeTinyPng(destPath: string): void {
 // ── Main test ───────────────────────────────────────────────────────────────
 
 test('CLI file upload — text file with secret + image file', async ({ page }: any) => {
-	test.setTimeout(300_000);
+	test.setTimeout(600_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://openmates.org';
@@ -314,7 +314,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 				'new',
 				`Analyse this code snippet @${textFilePath} and tell me what you see. Reply in one sentence.`
 			],
-			90_000 // longer timeout: AI needs to respond + file processed
+			180_000 // includes settings API rate-limit backoff + AI response time
 		);
 
 		logCheckpoint(`Text send exit code: ${textSendResult.code}`);
@@ -348,6 +348,8 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		const showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
 		expect(showResult.code).toBe(0);
 		const showData = JSON.parse(showResult.stdout);
+		const fullChatId: string = showData.chat?.id ?? showData.id ?? chatId;
+		expect(fullChatId).toBeTruthy();
 		const messages: any[] = showData.messages ?? [];
 		const userMessages = messages.filter((m: any) => m.role === 'user');
 		expect(userMessages.length).toBeGreaterThan(0);
@@ -386,10 +388,10 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 				'chats',
 				'send',
 				'--chat',
-				chatId,
+				fullChatId,
 				`What colour is this image? @${imagePath}`
 			],
-			90_000 // longer: upload + AI response
+			180_000 // includes upload + AI response time
 		);
 
 		logCheckpoint(`Image send exit code: ${imageSendResult.code}`);
@@ -408,7 +410,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		expect(imageSendResult.code).toBe(0);
 
 		// Verify the message contains an image embed reference
-		const showAfterImage = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		const showAfterImage = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
 		expect(showAfterImage.code).toBe(0);
 		const showAfterData = JSON.parse(showAfterImage.stdout);
 		const allMessages: any[] = showAfterData.messages ?? [];
@@ -419,7 +421,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		// ── Share link ────────────────────────────────────────────────────
 
 		logCheckpoint('Creating share link...');
-		const shareResult = await runCli(apiUrl, ['chats', 'share', chatId, '--json'], 20_000);
+		const shareResult = await runCli(apiUrl, ['chats', 'share', fullChatId, '--json'], 20_000);
 		expect(shareResult.code).toBe(0);
 		const shareData = JSON.parse(shareResult.stdout);
 
@@ -430,7 +432,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 
 		// ── Cleanup ────────────────────────────────────────────────────────
 
-		await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000);
+		await runCli(apiUrl, ['chats', 'delete', fullChatId, '--yes'], 20_000);
 		logCheckpoint('Chat deleted');
 		await runCli(apiUrl, ['logout'], 10_000);
 		logCheckpoint('Logged out');
