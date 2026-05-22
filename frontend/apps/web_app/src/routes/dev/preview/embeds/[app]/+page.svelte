@@ -291,6 +291,18 @@
 				quoteText: 'Interactive plot of f(x) = sin(x) and f(x) = cos(x) over [-2pi, 2pi].'
 			}
 		],
+		music: [
+			{
+				skillLabel: 'Generate',
+				appId: 'music',
+				previewPath: 'embeds/music/MusicGenerateEmbedPreview',
+				fullscreenPath: 'embeds/music/MusicGenerateEmbedFullscreen',
+				inlineLinkText: 'Ambient synth background loop',
+				quoteText:
+					'Generated music: a 30 second ambient synth background loop with soft pads and no drums.',
+				isAppSkill: true
+			}
+		],
 		events: [
 			{
 				skillLabel: 'Event',
@@ -473,6 +485,7 @@
 		travel: 'travel',
 		maps: 'maps',
 		math: 'math',
+		music: 'music',
 		events: 'event',
 		reminder: 'reminder',
 		sheets: 'sheets',
@@ -495,6 +508,7 @@
 		'travel',
 		'maps',
 		'math',
+		'music',
 		'events',
 		'reminder',
 		'sheets',
