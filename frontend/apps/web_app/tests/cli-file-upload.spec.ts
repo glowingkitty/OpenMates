@@ -65,6 +65,37 @@ function parseChatIdFromSendOutput(output: string): string | undefined {
 	return match?.[1];
 }
 
+async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 60_000): Promise<any> {
+	const startedAt = Date.now();
+	let lastResult: { code: number | null; stdout: string; stderr: string } | undefined;
+
+	while (Date.now() - startedAt < timeoutMs) {
+		lastResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		if (lastResult.code === 0 && lastResult.stdout.trim()) {
+			return JSON.parse(lastResult.stdout);
+		}
+
+		const listResult = await runCli(apiUrl, ['chats', 'list', '--json', '--limit', '20'], 30_000);
+		if (listResult.code === 0 && listResult.stdout.trim()) {
+			const listData = JSON.parse(listResult.stdout);
+			const chats: any[] = listData.chats ?? listData ?? [];
+			const fullChatId = chats.find((chat: any) => chat.id?.startsWith(chatId))?.id;
+			if (fullChatId) {
+				lastResult = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
+				if (lastResult.code === 0 && lastResult.stdout.trim()) {
+					return JSON.parse(lastResult.stdout);
+				}
+			}
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 2_000));
+	}
+
+	throw new Error(
+		`Timed out waiting for chat ${chatId}. Last stdout: ${lastResult?.stdout.slice(0, 500) ?? ''} Last stderr: ${lastResult?.stderr.slice(0, 500) ?? ''}`
+	);
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
@@ -345,11 +376,9 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		logCheckpoint(`Chat ID: ${chatId}`);
 
 		// Show the chat and verify it has an embed reference (the code-code embed)
-		const showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
-		expect(showResult.code).toBe(0);
-		const showData = JSON.parse(showResult.stdout);
-		const fullChatId: string = showData.chat?.id ?? showData.id ?? chatId;
-		expect(fullChatId).toBeTruthy();
+		const showData = await waitForChatShow(apiUrl, chatId);
+		const fullChatId: string = showData.chat?.id;
+		expect(fullChatId).toMatch(/^[a-f0-9-]{36}$/);
 		const messages: any[] = showData.messages ?? [];
 		const userMessages = messages.filter((m: any) => m.role === 'user');
 		expect(userMessages.length).toBeGreaterThan(0);
@@ -407,7 +436,10 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		).toMatch(/uploaded|uploading|✓/i);
 
 		// Verify successful exit
-		expect(imageSendResult.code).toBe(0);
+		expect(
+			imageSendResult.code,
+			`Image send failed. stdout: ${imageSendResult.stdout.slice(0, 1000)} stderr: ${imageSendResult.stderr.slice(0, 1000)}`
+		).toBe(0);
 
 		// Verify the message contains an image embed reference
 		const showAfterImage = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
