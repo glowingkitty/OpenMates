@@ -42,6 +42,19 @@ test.describe('App: Music / Skill: generate', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	test('Phase 0: app store metadata exposes music generate', async ({ request }: { request: any }) => {
+		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
+		expect(response.ok()).toBeTruthy();
+
+		const data = await response.json();
+		const music = data.apps?.music;
+		expect(music, 'music app should appear in app store metadata').toBeTruthy();
+		expect(music.category).toBe('creative');
+
+		const skillIds = (music.skills || []).map((skill: { id: string }) => skill.id);
+		expect(skillIds).toContain('generate');
+	});
+
 	test('Phase 1: embed preview renders at /dev/preview/embeds/music', async ({ page }: { page: any }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'music', log);
@@ -114,14 +127,41 @@ test.describe('App: Music / Skill: generate', () => {
 
 		const embed = await waitForEmbedFinished(page, 'music', 'generate', 240_000);
 		await expect(embed.getByTestId('music-generate-preview')).toBeVisible({ timeout: 15_000 });
-		await expect(embed.getByTestId('music-generate-audio')).toBeVisible({ timeout: 60_000 });
+		const previewAudio = embed.getByTestId('music-generate-audio');
+		await expect(previewAudio).toBeVisible({ timeout: 60_000 });
+		await expectAudioCanPlay(previewAudio, 'preview audio');
 		await takeStepScreenshot(page, 'music-generate-preview-finished');
 
 		const fullscreen = await openFullscreen(page, embed);
 		await expect(fullscreen.getByTestId('music-generate-fullscreen')).toBeVisible({ timeout: 15_000 });
-		await expect(fullscreen.getByTestId('music-generate-fullscreen-audio')).toBeVisible({ timeout: 60_000 });
+		const fullscreenAudio = fullscreen.getByTestId('music-generate-fullscreen-audio');
+		await expect(fullscreenAudio).toBeVisible({ timeout: 60_000 });
+		await expectAudioCanPlay(fullscreenAudio, 'fullscreen audio');
 		await closeFullscreen(page, fullscreen);
 
 		await deleteActiveChat(page, logCheckpoint);
 	});
 });
+
+async function expectAudioCanPlay(audioLocator: any, label: string): Promise<void> {
+	await expect(async () => {
+		const state = await audioLocator.evaluate(async (audio: HTMLAudioElement) => {
+			audio.muted = true;
+			await audio.play();
+			await new Promise((resolve) => setTimeout(resolve, 1200));
+			const result = {
+				paused: audio.paused,
+				currentTime: audio.currentTime,
+				duration: audio.duration,
+				readyState: audio.readyState
+			};
+			audio.pause();
+			return result;
+		});
+
+		expect(state.readyState, `${label} should load audio metadata`).toBeGreaterThanOrEqual(1);
+		expect(Number.isFinite(state.duration), `${label} should have finite duration`).toBe(true);
+		expect(state.duration, `${label} should have non-zero duration`).toBeGreaterThan(0);
+		expect(state.currentTime, `${label} should advance during playback`).toBeGreaterThan(0);
+	}).toPass({ timeout: 30_000 });
+}

@@ -2,6 +2,7 @@ name_translation_key: music
 description_translation_key: music.description
 icon_image: music.svg
 category: creative
+stage: production
 last_updated: "2026-05-21"
 embed_types:
   - id: generate
