@@ -52,20 +52,17 @@ export interface UploadFileResponse {
 
 /**
  * Derive the upload server URL from the API URL.
- * api.openmates.org → upload.openmates.org
- * api.dev.openmates.org → upload.dev.openmates.org
+ * Both dev and prod API environments use upload.openmates.org, matching
+ * frontend/packages/ui/src/config/api.ts.
  */
 function getUploadUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
-    // Replace "api." prefix with "upload."
-    url.hostname = url.hostname.replace(/^api\./, "upload.");
-    // Upload server uses HTTPS on port 443
-    url.port = "";
-    return url.origin;
+    if (url.hostname === "localhost") return "http://localhost:8001";
   } catch {
-    return "https://upload.openmates.org";
+    // Fall back to the shared cloud upload endpoint below.
   }
+  return "https://upload.openmates.org";
 }
 
 // ── Upload function ────────────────────────────────────────────────────
