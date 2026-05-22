@@ -17,3 +17,10 @@ def test_calculate_total_credits_accepts_numeric_per_minute_pricing() -> None:
         pricing_config={"per_minute": 3},
         duration_minutes=2,
     ) == 6
+
+
+def test_calculate_total_credits_accepts_numeric_per_second_pricing() -> None:
+    assert calculate_total_credits(
+        pricing_config={"per_second": 600},
+        duration_seconds=8,
+    ) == 4800

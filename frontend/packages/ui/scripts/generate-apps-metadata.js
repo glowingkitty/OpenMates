@@ -345,6 +345,11 @@ function extractProviderPricing(providerId, modelId = null) {
       pricing.per_minute = providerData.pricing.per_minute;
     }
 
+    // Check for per_second pricing
+    if (providerData.pricing.per_second !== undefined) {
+      pricing.per_second = providerData.pricing.per_second;
+    }
+
     if (Object.keys(pricing).length > 0) {
       return pricing;
     }
@@ -385,6 +390,11 @@ function extractProviderPricing(providerId, modelId = null) {
       // Extract per_minute pricing
       if (model.pricing.per_minute !== undefined) {
         pricing.per_minute = model.pricing.per_minute;
+      }
+
+      // Extract per_second pricing
+      if (model.pricing.per_second !== undefined) {
+        pricing.per_second = model.pricing.per_second;
       }
 
       // Extract fixed pricing
@@ -619,6 +629,9 @@ function parseAppYaml(appId, filePath) {
           }
           if (skill.pricing.per_minute !== undefined) {
             pricing.per_minute = skill.pricing.per_minute;
+          }
+          if (skill.pricing.per_second !== undefined) {
+            pricing.per_second = skill.pricing.per_second;
           }
           if (skill.pricing.fixed !== undefined) {
             pricing.fixed = skill.pricing.fixed;

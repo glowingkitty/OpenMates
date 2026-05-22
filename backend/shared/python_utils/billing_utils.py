@@ -2,9 +2,12 @@
 # This module contains utility functions for calculating costs and credits
 # based on usage metrics and pricing configurations.
 
-import math
 import logging
+import math
+import os
 from typing import Dict, Any, Optional
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +16,71 @@ PricingConfig = Dict[str, Any]
 ModelPricingDetails = PricingConfig
 
 MINIMUM_CREDITS_CHARGED = 1
+OVERDRAFT_LIMIT_CREDITS = -500
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 
 class BillingError(Exception):
     """Custom exception for billing related errors."""
     pass
+
+
+def has_credit_headroom(current_credits: int, estimated_credits: int) -> bool:
+    """Return whether a planned charge stays within the allowed overdraft."""
+    return current_credits - estimated_credits >= OVERDRAFT_LIMIT_CREDITS
+
+
+async def ensure_credit_headroom(
+    *,
+    user_id: str,
+    estimated_credits: int,
+    log_prefix: str,
+    operation_name: str,
+) -> None:
+    """Reject paid provider calls that would exceed the allowed overdraft.
+
+    The balance endpoint is cache-backed and intentionally non-critical. On a
+    cache miss or infrastructure failure we log and proceed, matching the
+    existing billing contract while blocking known insufficient balances.
+    """
+    if estimated_credits <= 0:
+        return
+
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{INTERNAL_API_BASE_URL}/internal/billing/balance",
+                params={"user_id": user_id},
+                headers=headers,
+            )
+            response.raise_for_status()
+        balance = response.json()
+    except Exception as exc:
+        logger.warning("%s Could not precheck %s credits; proceeding: %s", log_prefix, operation_name, exc)
+        return
+
+    if not balance.get("cached"):
+        logger.warning("%s Credit balance not cached; proceeding with %s precheck skipped", log_prefix, operation_name)
+        return
+
+    current_credits = balance.get("credits", 0)
+    if not isinstance(current_credits, int):
+        current_credits = 0
+
+    if not has_credit_headroom(current_credits, estimated_credits):
+        logger.warning(
+            "%s Insufficient credits for %s precheck: current=%s estimated=%s overdraft_limit=%s",
+            log_prefix,
+            operation_name,
+            current_credits,
+            estimated_credits,
+            OVERDRAFT_LIMIT_CREDITS,
+        )
+        raise BillingError(f"Insufficient credits for {operation_name}")
 
 # A constant representing the value of one credit in USD.
 # This is based on the standard pricing tier of 110,000 credits for $110.
@@ -119,6 +183,24 @@ def calculate_credits_from_duration(
         credits += duration_minutes * credits_per_minute
     return credits
 
+
+def calculate_credits_from_seconds(
+    duration_seconds: float,
+    pricing_details: ModelPricingDetails
+) -> float:
+    """
+    Calculates credits based on duration in seconds.
+    """
+    credits = 0.0
+    second_pricing = pricing_details.get("per_second")
+    if isinstance(second_pricing, (int, float)) and not isinstance(second_pricing, bool):
+        credits_per_second = second_pricing
+        credits += duration_seconds * credits_per_second
+    elif second_pricing and second_pricing.get("credits") is not None:
+        credits_per_second = second_pricing.get("credits", 0)
+        credits += duration_seconds * credits_per_second
+    return credits
+
 def calculate_fixed_credits(
     pricing_details: ModelPricingDetails
 ) -> float:
@@ -140,6 +222,7 @@ def calculate_total_credits(
     output_tokens: Optional[int] = None,
     units_processed: Optional[int] = None,
     duration_minutes: Optional[float] = None,
+    duration_seconds: Optional[float] = None,
 ) -> int:
     """
     Calculates the total credits for a skill execution based on its pricing config and usage metrics.
@@ -167,6 +250,9 @@ def calculate_total_credits(
 
     if "per_minute" in pricing_rules and duration_minutes is not None:
         raw_credits += calculate_credits_from_duration(duration_minutes, pricing_rules)
+
+    if "per_second" in pricing_rules and duration_seconds is not None:
+        raw_credits += calculate_credits_from_seconds(duration_seconds, pricing_rules)
 
     # Floor the raw credits to round down.
     final_credits = math.floor(raw_credits)

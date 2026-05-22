@@ -49,6 +49,7 @@ from backend.core.api.app.routes import creators  # noqa: E402 # Import creators
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
+from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
@@ -1336,6 +1337,7 @@ def create_app() -> FastAPI:
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
+    app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner

@@ -41,6 +41,7 @@ import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceC
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
@@ -655,6 +656,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status,
         });
         return this.renderMusicGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "videos" && skillId === "generate") {
+        console.debug("[AppSkillUseRenderer] Rendering video generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderVideoGenerateComponent(
           attrs,
           embedData,
           decodedContent,
@@ -2703,6 +2719,82 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (mountError) {
       console.error(
         "[AppSkillUseRenderer] Error mounting MusicGenerateEmbedPreview component:",
+        mountError,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render generated video embeds with the dedicated video player preview.
+   */
+  private renderVideoGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || "";
+    const model = decodedContent?.model || "";
+    const durationSeconds = decodedContent?.duration_seconds;
+    const resolution = decodedContent?.resolution || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(VideoGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          prompt,
+          model,
+          durationSeconds,
+          resolution,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting VideoGenerateEmbedPreview component:",
         mountError,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

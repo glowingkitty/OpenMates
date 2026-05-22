@@ -148,6 +148,7 @@ TASK_CONFIG = [
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
+    {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks
     {'name': 'app_social_media', 'module': 'backend.apps.social_media.tasks'},  # Social media collection tasks
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats

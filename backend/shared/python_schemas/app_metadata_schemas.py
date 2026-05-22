@@ -17,6 +17,7 @@ class AppPricing(BaseModel):
     tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
     per_minute: Optional[int] = None # credits per minute
+    per_second: Optional[int] = None # credits per second
     fixed: Optional[int] = None # fixed credits per call
 
 class AppSkillApiConfig(BaseModel):

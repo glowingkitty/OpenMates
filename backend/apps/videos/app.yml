@@ -33,6 +33,17 @@ embed_types:
     icon: transcript
     gradient_var: "--color-app-videos"
     i18n_namespace: embeds.videos.get_transcript
+  - id: generate
+    category: app-skill-use
+    skill_id: generate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: videos/VideoGenerateEmbedPreview.svelte
+    fullscreen_component: videos/VideoGenerateEmbedFullscreen.svelte
+    icon: videos
+    gradient_var: "--color-app-videos"
+    i18n_namespace: embeds.videos.generate
 settings_and_memories:
   - id: to_watch_list
     name_translation_key: videos.to_watch_list
@@ -137,6 +148,64 @@ focuses:
       - Present your analysis in a structured, easy-to-read format with clear sections
       - If the transcript is unavailable or the video is not in a supported language, let the user know and offer to help in other ways
 skills:
+  - id: generate
+    name_translation_key: app_skills.videos.generate
+    description_translation_key: app_skills.videos.generate.description
+    icon_image: videos.svg
+    api_config:
+      expose_get: true
+      expose_post: true
+    preprocessor_hint: >
+      Generate short AI videos from text prompts using Google Veo. Use this when
+      the user asks to create, generate, render, or make a video clip.
+    stage: production
+    class_path: backend.apps.videos.skills.generate_skill.GenerateSkill
+    providers:
+      - Google
+    full_model_reference: google/veo-3.1-generate-preview
+    pricing:
+      per_second: 600
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: REQUIRED array of video generation request objects.
+          items:
+            type: object
+            properties:
+              prompt:
+                type: string
+                description: Detailed text description of the video to generate.
+              aspect_ratio:
+                type: string
+                enum: ["16:9", "9:16"]
+                default: "16:9"
+              duration_seconds:
+                type: integer
+                enum: [4, 6, 8]
+                default: 8
+              resolution:
+                type: string
+                enum: ["720p", "1080p", "4k"]
+                default: "720p"
+              seed:
+                type: integer
+                description: Optional seed for more reproducible output when supported.
+              model:
+                type: string
+                enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001"]
+                default: "veo-3.1-generate-preview"
+            required:
+              - prompt
+      required:
+        - requests
+    exclude_fields_for_llm:
+      - s3_base_url
+      - files
+      - aes_key
+      - aes_nonce
+      - vault_wrapped_aes_key
   - id: get_transcript
     name_translation_key: videos.get_transcript
     description_translation_key: videos.get_transcript.description

@@ -61,7 +61,7 @@ skills:
     full_model_reference: google/lyria-3-pro-preview
     pricing:
       per_unit:
-        credits: 240
+        credits: 120
         unit_name: track
     tool_schema:
       type: object

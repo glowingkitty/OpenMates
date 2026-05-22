@@ -23,7 +23,6 @@
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import Icon from '../Icon.svelte';
     
@@ -265,8 +264,8 @@
                     {/if}
                 </div>
             </div>
-        {:else if model.pricing?.per_unit || model.pricing?.per_minute !== undefined}
-            <!-- Per-unit / per-minute pricing from model metadata (image/audio models) -->
+        {:else if model.pricing?.per_unit || model.pricing?.per_minute !== undefined || model.pricing?.per_second !== undefined}
+            <!-- Per-unit / duration pricing from model metadata (image/audio/video models) -->
             <div class="section">
                 <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
@@ -288,6 +287,14 @@
                             <span class="pricing-value">
                                 {model.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {$text('settings.app_store.skills.model_detail.per_minute')}
+                            </span>
+                        </div>
+                    {:else if model.pricing?.per_second !== undefined}
+                        <div class="pricing-row">
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-value">
+                                {model.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                / second
                             </span>
                         </div>
                     {/if}
@@ -316,6 +323,14 @@
                             <span class="pricing-value">
                                 {skill.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {$text('settings.app_store.skills.model_detail.per_minute')}
+                            </span>
+                        </div>
+                    {:else if skill.pricing.per_second !== undefined}
+                        <div class="pricing-row">
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-value">
+                                {skill.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                / second
                             </span>
                         </div>
                     {:else if skill.pricing.fixed !== undefined}

@@ -250,6 +250,7 @@ class GenerateSkill(BaseSkill):
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,
                 "message_id": self._current_message_id,
+                "external_request": kwargs.get("external_request", False),
                 "app_id": self.app_id,
                 "skill_id": self.skill_id,
                 "full_model_reference": self.full_model_reference,

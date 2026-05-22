@@ -4,10 +4,10 @@ icon_image: |
   image.svg
 category: work
 last_updated: "2026-01-17"
-# All image skills rely on zero-knowledge (client-side) encryption or WebSocket-based
-# crypto flows that cannot be executed via a stateless REST call. Hide the entire app
-# from the public /docs so the API reference does not show unusable endpoints.
-expose_in_api: false
+# Image generation now supports REST via encrypted S3 storage plus short-lived
+# server-side decrypted download URLs. Skills that still need chat/browser
+# context keep their own api_config flags disabled.
+expose_in_api: true
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: generate
@@ -264,8 +264,8 @@ skills:
     name_translation_key: images.generate
     description_translation_key: images.generate.description
     api_config:
-      expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
-      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
+      expose_get: true
+      expose_post: true
     preprocessor_hint: >
       Generate high-quality images from text prompts and/or reference images (image-to-image editing).
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
@@ -404,8 +404,8 @@ skills:
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description
     api_config:
-      expose_get: false # Hidden from REST API docs — image generation requires WebSocket + browser crypto (zero-knowledge). Use the web app or CLI instead.
-      expose_post: false # POST requires client-side encryption (WebSocket + browser crypto). Use the web app or CLI instead.
+      expose_get: true
+      expose_post: true
     preprocessor_hint: >
       Quickly generate a draft/preview image from a text prompt and/or reference images (image-to-image).
       Also use for: quick mockups, rough design concepts, draft illustrations,

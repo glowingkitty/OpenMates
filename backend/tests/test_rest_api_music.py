@@ -11,7 +11,60 @@ import os
 
 import pytest
 
+from backend.apps.music.tasks.generate_task import _embed_generation_metadata
 from tests.conftest import poll_task_until_complete
+
+
+def test_music_metadata_embedded_in_mp3_bytes():
+    """Generated MP3 bytes include OpenMates AI generation metadata tags."""
+    result = _embed_generation_metadata(
+        b"\xff\xfbmp3-audio",
+        "audio/mpeg",
+        prompt="Upbeat synth jingle",
+        model="lyria-3-pro-preview",
+        provider="Google Vertex AI",
+        generated_at="2026-05-22T12:00:00+00:00",
+        duration_seconds=30,
+        mode="jingle",
+        style="warm synth",
+        negative_prompt="distortion",
+        seed=123,
+        watermarking="SynthID",
+    )
+
+    assert result.startswith(b"ID3")
+    assert b"OpenMates Prompt" in result
+    assert b"Upbeat synth jingle" in result
+    assert b"lyria-3-pro-preview" in result
+    assert result.endswith(b"\xff\xfbmp3-audio")
+
+
+def test_music_metadata_embedded_in_wav_info_chunk():
+    """Generated WAV bytes include a LIST/INFO metadata chunk."""
+    wav = (
+        b"RIFF" + b"\x28\x00\x00\x00" + b"WAVEfmt " + b"\x10\x00\x00\x00"
+        + (b"\x00" * 16) + b"data" + b"\x04\x00\x00\x00" + b"abcd"
+    )
+    result = _embed_generation_metadata(
+        wav,
+        "audio/wav",
+        prompt="Ambient loop",
+        model="lyria-002",
+        provider="Google Vertex AI",
+        generated_at="2026-05-22T12:00:00+00:00",
+        duration_seconds=12,
+        mode="loop",
+        style=None,
+        negative_prompt=None,
+        seed=None,
+        watermarking="SynthID",
+    )
+
+    assert result.startswith(b"RIFF")
+    assert b"LIST" in result
+    assert b"INFO" in result
+    assert b"Ambient loop" in result
+    assert b"lyria-002" in result
 
 
 @pytest.mark.integration

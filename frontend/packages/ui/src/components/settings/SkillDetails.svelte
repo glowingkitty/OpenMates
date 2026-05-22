@@ -131,6 +131,10 @@
         if (pricing.per_minute !== undefined) {
             parts.push(`${pricing.per_minute} ${$text('common.credits')} / ${$text('settings.app_store.skills.pricing.minute')}`);
         }
+
+        if (pricing.per_second !== undefined) {
+            parts.push(`${pricing.per_second} ${$text('common.credits')} / second`);
+        }
         
         return parts.length > 0 ? parts.join(', ') : `1 ${$text('common.credits')} / request`;
     }

@@ -661,6 +661,8 @@ async def get_skill_providers_with_pricing(
             pricing_dict['per_unit'] = skill.pricing.per_unit
         if skill.pricing.per_minute:
             pricing_dict['per_minute'] = skill.pricing.per_minute
+        if getattr(skill.pricing, 'per_second', None):
+            pricing_dict['per_second'] = skill.pricing.per_second
         if skill.pricing.fixed:
             pricing_dict['fixed'] = skill.pricing.fixed
         

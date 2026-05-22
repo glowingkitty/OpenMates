@@ -210,10 +210,11 @@ models:
         region: "global"
     pricing:
       per_unit:
-        credits: 240
-        unit_name: "track"
+        credits: 120
+        unit_name: "song"
     costs:
-      output_per_track:
+      # Gemini Developer API pricing: $0.08 per song/request, verified 2026-05-22.
+      output_per_song:
         price: 0.08
         currency: USD
 
@@ -236,10 +237,11 @@ models:
         region: "global"
     pricing:
       per_unit:
-        credits: 120
-        unit_name: "track"
+        credits: 60
+        unit_name: "song"
     costs:
-      output_per_track:
+      # Gemini Developer API pricing: $0.04 per song/request, verified 2026-05-22.
+      output_per_song:
         price: 0.04
         currency: USD
 
@@ -262,11 +264,66 @@ models:
         region: "us-central1"
     pricing:
       per_unit:
-        credits: 120
-        unit_name: "track"
+        credits: 60
+        unit_name: "song"
     costs:
-      output_per_track:
+      output_per_song:
         price: 0.04
+        currency: USD
+
+  - id: "veo-3.1-generate-preview"
+    name: "Veo 3.1"
+    description: "Google's latest Veo 3.1 preview model for high-fidelity short video generation with native audio. OpenMates stores generated videos encrypted and serves REST downloads through short-lived decrypted links."
+    country_origin: "US"
+    for_app_skill: "videos.generate"
+    release_date: "2026-01-01"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - video
+      - audio
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google Gemini API"
+        model_id: "veo-3.1-generate-preview"
+        region: "US"
+    pricing:
+      per_second: 600
+    costs:
+      # Gemini Developer API pricing: $0.40/sec for 720p and 1080p, $0.60/sec for 4k.
+      output_per_second:
+        price: 0.40
+        price_4k: 0.60
+        currency: USD
+
+  - id: "veo-3.1-fast-generate-preview"
+    name: "Veo 3.1 Fast"
+    description: "Faster Google Veo 3.1 preview model for short video generation."
+    country_origin: "US"
+    for_app_skill: "videos.generate"
+    release_date: "2026-01-01"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - video
+      - audio
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google Gemini API"
+        model_id: "veo-3.1-fast-generate-preview"
+        region: "US"
+    pricing:
+      per_second: 150
+    costs:
+      # Gemini Developer API pricing: $0.10/sec for 720p, $0.12/sec for 1080p, $0.30/sec for 4k.
+      output_per_second:
+        price: 0.10
+        price_1080p: 0.12
+        price_4k: 0.30
         currency: USD
 
 # Pricing Formula:
@@ -294,3 +351,8 @@ models:
 # Per-Unit Examples:
 # - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
 # - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
+#
+# Generated music/video intentionally uses a lower 1.5x margin:
+# - Lyria 3 Pro ($0.08/song): 120 credits per song
+# - Lyria 3 Clip ($0.04/song): 60 credits per song
+# - Veo 3.1 Standard 720p/1080p ($0.40/sec): 600 credits per second

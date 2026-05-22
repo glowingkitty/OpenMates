@@ -1,0 +1,1 @@
+from .generate_task import generate_video_task as generate_video_task
