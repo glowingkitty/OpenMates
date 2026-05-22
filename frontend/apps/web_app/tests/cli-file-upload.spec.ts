@@ -60,6 +60,11 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const consoleLogs: string[] = [];
 
+function parseChatIdFromSendOutput(output: string): string | undefined {
+	const match = output.match(/openmates chats send --chat ([a-f0-9]{8})\b/i);
+	return match?.[1];
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
@@ -333,11 +338,9 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		expect(textSendResult.code).toBe(0);
 		expect(textSendResult.stdout.length).toBeGreaterThan(10);
 
-		// Get the chat ID from the most recent chat
-		const listResult = await runCli(apiUrl, ['chats', 'list', '--json', '--limit', '1'], 20_000);
-		expect(listResult.code).toBe(0);
-		const listData = JSON.parse(listResult.stdout);
-		const chatId: string = listData.chats?.[0]?.id ?? listData[0]?.id;
+		// Use the chat id emitted by this CLI invocation. Test accounts can have
+		// concurrent runs, so `chats list --limit 1` may point at another spec's chat.
+		const chatId = parseChatIdFromSendOutput(textSendResult.stdout);
 		expect(chatId).toBeTruthy();
 		logCheckpoint(`Chat ID: ${chatId}`);
 
