@@ -1,26 +1,26 @@
 generate:
   context: Skill name for generating music tracks
-  en: Generate Music
+  en: Generate
   de: Musik generieren
-  zh: Generate Music
-  es: Generate Music
-  fr: Generate Music
-  pt: Generate Music
-  ru: Generate Music
-  ja: Generate Music
-  ko: Generate Music
-  it: Generate Music
-  tr: Generate Music
-  vi: Generate Music
-  id: Generate Music
-  pl: Generate Music
-  nl: Generate Music
-  ar: Generate Music
-  hi: Generate Music
-  th: Generate Music
-  cs: Generate Music
-  sv: Generate Music
-  he: Generate Music
+  zh: Generate
+  es: Generate
+  fr: Generate
+  pt: Generate
+  ru: Generate
+  ja: Generate
+  ko: Generate
+  it: Generate
+  tr: Generate
+  vi: Generate
+  id: Generate
+  pl: Generate
+  nl: Generate
+  ar: Generate
+  hi: Generate
+  th: Generate
+  cs: Generate
+  sv: Generate
+  he: Generate
   verified_by_human: [en, de]
 
 generate.description:

@@ -160,19 +160,28 @@
   }
 
   /**
-   * Merge consecutive assistant messages for display when the previous is a focus mode activation.
-   * Backend stores two messages (focus embed, then continuation text). We show one bubble.
+   * Merge short-delay assistant continuations for display.
+   * Backend may store two messages when async skills finish after the first turn
+   * (processing embeds first, continuation text later). We show one bubble.
    */
-  function mergeFocusContinuationForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
+  const ASSISTANT_CONTINUATION_MERGE_WINDOW_MS = 60_000;
+
+  function mergeAssistantContinuationsForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
     const result: GlobalMessage[] = [];
     for (let i = 0; i < incoming.length; i++) {
       const prev = result[result.length - 1];
       const curr = incoming[i];
-      if (
+      const isAssistantContinuation = Boolean(
         prev?.role === 'assistant' &&
         curr.role === 'assistant' &&
-        hasFocusModeActivationEmbed(prev.content) &&
-        !isRawChatErrorMessage(curr.content)
+        !isRawChatErrorMessage(curr.content) &&
+        (
+          hasFocusModeActivationEmbed(prev.content) ||
+          messagesWithinMergeWindow(prev.created_at, curr.created_at)
+        )
+      );
+      if (
+        isAssistantContinuation
       ) {
         const prevContent = typeof prev.content === 'string' ? prev.content : '';
         const currContent = typeof curr.content === 'string' ? curr.content : '';
@@ -186,6 +195,15 @@
       }
     }
     return result;
+  }
+
+  function messagesWithinMergeWindow(previousCreatedAt: number | undefined, currentCreatedAt: number | undefined): boolean {
+    if (typeof previousCreatedAt !== 'number' || typeof currentCreatedAt !== 'number') return false;
+    return Math.abs(toMilliseconds(currentCreatedAt) - toMilliseconds(previousCreatedAt)) <= ASSISTANT_CONTINUATION_MERGE_WINDOW_MS;
+  }
+
+  function toMilliseconds(timestamp: number): number {
+    return timestamp < 1e12 ? timestamp * 1000 : timestamp;
   }
 
   /**
@@ -1096,7 +1114,7 @@
     const previousMessagesLength = messages.length;
     
     // Display merge: show focus activation + following assistant as one bubble
-    const mergedForDisplay = mergeFocusContinuationForDisplay(newMessagesArray);
+    const mergedForDisplay = mergeAssistantContinuationsForDisplay(newMessagesArray);
     
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message

@@ -147,7 +147,7 @@
   {id}
   appId="music"
   skillId="generate"
-  skillIconName="music"
+  skillIconName="ai"
   {status}
   {skillName}
   {taskId}

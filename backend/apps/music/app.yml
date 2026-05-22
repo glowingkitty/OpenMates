@@ -13,7 +13,7 @@ embed_types:
     has_children: false
     preview_component: music/MusicGenerateEmbedPreview.svelte
     fullscreen_component: music/MusicGenerateEmbedFullscreen.svelte
-    icon: music
+    icon: ai
     gradient_var: "--color-app-music"
     i18n_namespace: embeds.music.generate
     content_fields:
@@ -46,6 +46,7 @@ skills:
   - id: generate
     name_translation_key: app_skills.music.generate
     description_translation_key: app_skills.music.generate.description
+    icon_image: ai.svg
     api_config:
       expose_get: true
       expose_post: true

@@ -105,7 +105,7 @@
 <UnifiedEmbedFullscreen
   appId="music"
   skillId="generate"
-  skillIconName="music"
+  skillIconName="ai"
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
   showSkillIcon={true}

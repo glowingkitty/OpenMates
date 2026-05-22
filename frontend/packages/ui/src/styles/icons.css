@@ -860,6 +860,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.music {
+  background: var(--color-app-music);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/music.svg");
+  }
+}
+
 .icon_rounded.mail {
   background: var(--color-app-mail);
   &::after {
@@ -1852,7 +1859,6 @@ div.clickable-icon {
   -webkit-mask-position: center;
   mask-position: center;
 }
-
 
 
 
