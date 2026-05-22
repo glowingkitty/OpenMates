@@ -95,7 +95,7 @@ async def generate_video_google_veo(
 
     parameters: dict[str, object] = {
         "aspectRatio": normalized_aspect_ratio,
-        "durationSeconds": str(duration),
+        "durationSeconds": duration,
         "resolution": normalized_resolution,
         "numberOfVideos": 1,
         "personGeneration": "allow_all",
