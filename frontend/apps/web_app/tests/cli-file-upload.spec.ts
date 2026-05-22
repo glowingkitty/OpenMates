@@ -119,6 +119,10 @@ function spawnCliLogin(apiUrl: string) {
 		process: child,
 		stdout,
 		stderr,
+		sendPin(pin: string) {
+			child.stdin.write(`${pin}\n`);
+			consoleLogs.push(`[CLI stdin] sent PIN: ${pin}`);
+		},
 		waitForToken(): Promise<string> {
 			return new Promise((resolve, reject) => {
 				const timeout = setTimeout(
@@ -231,11 +235,18 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 
 	if (token !== 'already') {
 		// Confirm via web app
-		await page.goto(`/pair-auth?token=${token}`);
-		const confirmBtn = page.getByRole('button', { name: /confirm|approve|allow/i });
-		await expect(confirmBtn).toBeVisible({ timeout: 10000 });
+		await page.goto(`${_baseUrl}/#pair=${token}`);
+		const confirmBtn = page.getByTestId('pair-allow-button');
+		await expect(confirmBtn).toBeVisible({ timeout: 15000 });
 		await confirmBtn.click();
 		logCheckpoint(`Pair-auth confirmed for token ${token}`);
+
+		const pinDisplay = page.getByTestId('pair-pin-display');
+		await expect(pinDisplay).toBeVisible({ timeout: 15000 });
+		const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
+		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+		cli.sendPin(pin);
+		logCheckpoint('Pair-auth PIN sent to CLI');
 	}
 
 	const { code, output } = await cli.waitForExit();
