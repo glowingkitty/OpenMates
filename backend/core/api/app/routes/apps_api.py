@@ -434,6 +434,32 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
         if api_key and api_key.strip():
             logger.debug(f"API key found in environment variable '{env_var_name}' for provider '{provider_id}'")
             return True
+
+    # Google Lyria uses Vertex AI service-account credentials instead of an API key.
+    if provider_id == "google":
+        vertex_project_id = os.getenv("GOOGLE_VERTEX_PROJECT_ID")
+        vertex_service_account = os.getenv("GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON")
+        try:
+            if secrets_manager.vault_token and secrets_manager.vault_url:
+                vertex_project_id = vertex_project_id or await secrets_manager.get_secret(
+                    secret_path=vault_path,
+                    secret_key="project_id",
+                )
+                vertex_service_account = vertex_service_account or await secrets_manager.get_secret(
+                    secret_path=vault_path,
+                    secret_key="service_account_json",
+                )
+        except Exception as e:
+            logger.debug(f"Error checking Vault for provider '{provider_id}' Vertex credentials: {e}")
+
+        if (
+            vertex_project_id
+            and vertex_project_id.strip()
+            and vertex_service_account
+            and vertex_service_account.strip()
+        ):
+            logger.debug("Google Vertex credentials found for provider 'google'")
+            return True
     
     logger.debug(f"No API key found for provider '{provider_id}' (checked Vault and env vars: {env_var_names})")
     return False
