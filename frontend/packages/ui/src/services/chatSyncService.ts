@@ -1324,7 +1324,7 @@ export class ChatSynchronizationService extends EventTarget {
       this.clearCacheStatusRetry();
 
       if (this.cacheStatusServerChatCount > 0) {
-        console.error(
+        console.warn(
           `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
             `but server reports ${this.cacheStatusServerChatCount} chat(s). Keeping sync pending and retrying ` +
             `instead of marking an empty local DB as complete.`,

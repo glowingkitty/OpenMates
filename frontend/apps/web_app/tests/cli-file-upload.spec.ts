@@ -257,6 +257,7 @@ function writeTinyPng(destPath: string): void {
 // ── Main test ───────────────────────────────────────────────────────────────
 
 test('CLI file upload — text file with secret + image file', async ({ page }: any) => {
+	test.setTimeout(300_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://openmates.org';

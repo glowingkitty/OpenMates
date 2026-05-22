@@ -138,6 +138,17 @@ import type {
 // Track which finalized embeds have already been processed to prevent duplicate key generation.
 // This Set is per-tab (in-memory). Cross-tab coordination uses BroadcastChannel below.
 const processedFinalizedEmbeds = new Set<string>();
+const pendingFinalizedEmbedsByChat = new Map<
+  string,
+  Map<string, EmbedDataPayload>
+>();
+const pendingFinalizedEmbedQueuedAtByChat = new Map<string, number>();
+const pendingFinalizedEmbedFlushTimersByChat = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
+const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
+const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
 
 // OPE-360: ai_typing_started payloads queued when the chat shell doesn't yet
 // exist on a secondary device. Flushed after the corresponding new_chat_message
@@ -182,6 +193,81 @@ export async function flushPendingTypingStartedForChat(
       error,
     );
   }
+}
+
+export async function flushPendingFinalizedEmbedsForChat(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+): Promise<void> {
+  const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
+  if (!pendingForChat) return;
+
+  console.info(
+    `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${chatId}`,
+  );
+  let processedThisPass = false;
+  do {
+    processedThisPass = false;
+    for (const [embedId, embedData] of Array.from(pendingForChat)) {
+      try {
+        await handleSendEmbedDataImpl(
+          serviceInstance,
+          embedData as unknown as SendEmbedDataPayload,
+        );
+        if (isEmbedAlreadyProcessed(embedId)) {
+          pendingForChat.delete(embedId);
+          processedThisPass = true;
+        }
+      } catch (error) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to flush queued finalized embed ${embedData.embed_id} for chat ${chatId}:`,
+          error,
+        );
+      }
+    }
+  } while (processedThisPass && pendingForChat.size > 0);
+  if (pendingForChat.size === 0) {
+    pendingFinalizedEmbedsByChat.delete(chatId);
+    pendingFinalizedEmbedQueuedAtByChat.delete(chatId);
+  }
+}
+
+function schedulePendingFinalizedEmbedsFlush(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+): void {
+  if (pendingFinalizedEmbedFlushTimersByChat.has(chatId)) return;
+
+  const timer = setTimeout(() => {
+    pendingFinalizedEmbedFlushTimersByChat.delete(chatId);
+    void (async () => {
+      const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
+      if (!pendingForChat) return;
+
+      if (await chatDB.getChat(chatId)) {
+        await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
+      }
+
+      if (!pendingFinalizedEmbedsByChat.has(chatId)) return;
+      const queuedAt = pendingFinalizedEmbedQueuedAtByChat.get(chatId) ?? Date.now();
+      if (Date.now() - queuedAt >= PENDING_FINALIZED_EMBED_TTL_MS) {
+        pendingFinalizedEmbedsByChat.delete(chatId);
+        pendingFinalizedEmbedQueuedAtByChat.delete(chatId);
+        console.warn(
+          `[ChatSyncService:AI] Dropped queued finalized embed payloads for chat ${chatId} after waiting ${PENDING_FINALIZED_EMBED_TTL_MS}ms for the chat shell`,
+        );
+        return;
+      }
+
+      schedulePendingFinalizedEmbedsFlush(serviceInstance, chatId);
+    })().catch((error) => {
+      console.warn(
+        `[ChatSyncService:AI] Queued finalized embed retry failed for chat ${chatId}:`,
+        error,
+      );
+    });
+  }, PENDING_FINALIZED_EMBED_RETRY_MS);
+  pendingFinalizedEmbedFlushTimersByChat.set(chatId, timer);
 }
 
 // --- Cross-tab embed processing deduplication ---
@@ -1184,6 +1270,10 @@ export async function handleAITypingStartedImpl( // Changed to async
               );
               await flushPendingMessagesForChat(chatIdForRetry);
               await flushPendingSystemMessagesForChat(chatIdForRetry);
+              await flushPendingFinalizedEmbedsForChat(
+                serviceInstance,
+                chatIdForRetry,
+              );
             } else {
               console.debug(
                 `[ChatSyncService:AI] Delayed retry: key still not available for ${chatIdForRetry} — will arrive via encrypted_chat_metadata broadcast`,
@@ -1211,6 +1301,7 @@ export async function handleAITypingStartedImpl( // Changed to async
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
       await flushPendingSystemMessagesForChat(payload.chat_id);
+      await flushPendingFinalizedEmbedsForChat(serviceInstance, payload.chat_id);
       
       // Encrypt title if payload has one (only for new chats on first message)
       if (payload.title) {
@@ -3146,8 +3237,10 @@ export async function handleSendEmbedDataImpl(
         );
         if (!existingKey) {
           const chatKey = await chatKeyManager.getKey(embedData.chat_id);
+          const hasLocalChat = !!(await chatDB.getChat(embedData.chat_id));
           if (
             chatKey &&
+            hasLocalChat &&
             (await ensureChatKeySafeForWrite(
               embedData.chat_id,
               chatKey,
@@ -3264,6 +3357,25 @@ export async function handleSendEmbedDataImpl(
       // ============================================================
       // FINALIZED STATUS (completed/etc): Full encryption and persistence
       // ============================================================
+      // Background WebSocket events can arrive before this tab has created the
+      // chat shell. Without the local chat record there is no encrypted_chat_key
+      // to validate against, so queue the plaintext payload until new_chat_message
+      // creates the shell and can safely flush it through this same handler.
+      if (embedData.chat_id && !(await chatDB.getChat(embedData.chat_id))) {
+        let pendingForChat = pendingFinalizedEmbedsByChat.get(embedData.chat_id);
+        if (!pendingForChat) {
+          pendingForChat = new Map<string, EmbedDataPayload>();
+          pendingFinalizedEmbedsByChat.set(embedData.chat_id, pendingForChat);
+          pendingFinalizedEmbedQueuedAtByChat.set(embedData.chat_id, Date.now());
+        }
+        pendingForChat.set(embedData.embed_id, embedData);
+        schedulePendingFinalizedEmbedsFlush(serviceInstance, embedData.chat_id);
+        console.warn(
+          `[ChatSyncService:AI] Queued finalized embed ${embedData.embed_id}; local chat ${embedData.chat_id} is not available yet`,
+        );
+        return;
+      }
+
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)
       if (isEmbedAlreadyProcessed(embedData.embed_id)) {
