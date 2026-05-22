@@ -49,6 +49,45 @@ except ImportError as _exc:
 # Sightengine threshold tests
 # ---------------------------------------------------------------------------
 
+class TestSightengineClient:
+    @pytest.mark.asyncio
+    async def test_analyze_uses_mock_aware_http_client(self):
+        client = SightengineSafetyClient()
+        client._api_user = "test_user"
+        client._api_secret = "test_secret"
+        client._initialized = True
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"status":"success"}'
+        mock_resp.json.return_value = {
+            "status": "success",
+            "nudity": {},
+            "offensive": {},
+            "gore": {},
+            "type": {"ai_generated": 0.0},
+        }
+
+        with patch(
+            "backend.shared.providers.sightengine.client.create_http_client"
+        ) as mock_client_factory:
+            mock_http_client = AsyncMock()
+            mock_http_client.__aenter__ = AsyncMock(return_value=mock_http_client)
+            mock_http_client.__aexit__ = AsyncMock(return_value=None)
+            mock_http_client.post = AsyncMock(return_value=mock_resp)
+            mock_client_factory.return_value = mock_http_client
+
+            result = await client.analyze(b"image-bytes", filename="image.webp")
+
+        assert not result.hard_block
+        mock_client_factory.assert_called_once_with("sightengine", timeout=20)
+        mock_http_client.post.assert_called_once()
+        _, kwargs = mock_http_client.post.call_args
+        assert "files" in kwargs
+        assert "media" in kwargs["files"]
+        assert "url" not in kwargs.get("data", {})
+
+
 class TestSightengineThresholds:
     def test_clean_image_passes(self):
         f = SightengineFindings()

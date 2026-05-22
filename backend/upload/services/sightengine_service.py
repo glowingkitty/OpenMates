@@ -37,6 +37,8 @@ from typing import Optional
 
 import httpx
 
+from backend.shared.testing.caching_http_transport import create_http_client
+
 logger = logging.getLogger(__name__)
 
 SIGHTENGINE_API_URL = "https://api.sightengine.com/1.0/check.json"
@@ -237,7 +239,7 @@ class SightEngineService:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=20) as client:
+            async with create_http_client("sightengine", timeout=20) as client:
                 resp = await client.post(
                     SIGHTENGINE_API_URL,
                     data={
@@ -407,7 +409,7 @@ class SightEngineService:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=20) as client:
+            async with create_http_client("sightengine", timeout=20) as client:
                 resp = await client.post(
                     SIGHTENGINE_API_URL,
                     data={
@@ -530,7 +532,7 @@ class SightEngineService:
         logger.info(f"{log_prefix} Checking AI-generated probability ({len(image_bytes)} bytes)")
 
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with create_http_client("sightengine", timeout=15) as client:
                 resp = await client.post(
                     SIGHTENGINE_API_URL,
                     data={

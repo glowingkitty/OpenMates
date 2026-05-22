@@ -156,7 +156,7 @@ class TestApiCallShape:
         """check_all() must POST bytes via files={media: ...}, no url= param."""
         mock_resp = _make_mock_response(_safe_response())
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -165,6 +165,7 @@ class TestApiCallShape:
 
             await enabled_service.check_all(DUMMY_IMAGE, filename="photo.jpg")
 
+        mock_client_cls.assert_called_once_with("sightengine", timeout=20)
         mock_client.post.assert_called_once()
         _, kwargs = mock_client.post.call_args
 
@@ -189,7 +190,7 @@ class TestApiCallShape:
         """check_content_safety() (legacy) also sends bytes, not a URL."""
         mock_resp = _make_mock_response(_safe_response())
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -207,7 +208,7 @@ class TestApiCallShape:
         """check_image() (legacy AI detection) also sends bytes, not a URL."""
         mock_resp = _make_mock_response(_safe_response(ai_generated=0.85))
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -245,7 +246,7 @@ class TestSafetyThresholds:
         resp_body = _safe_response(**{kwarg: threshold})
         mock_resp = _make_mock_response(resp_body)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -264,7 +265,7 @@ class TestSafetyThresholds:
         """Clean image (all scores below threshold) must pass."""
         mock_resp = _make_mock_response(_safe_response())
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -296,7 +297,7 @@ class TestFailOpen:
         """
         mock_resp = _make_mock_response({}, status_code=500)
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -313,7 +314,7 @@ class TestFailOpen:
         """Network timeout → is_safe=True (allow upload)."""
         import httpx
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -333,7 +334,7 @@ class TestFailOpen:
             "error": {"type": 3, "message": "image unavailable"},
         })
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -355,7 +356,7 @@ class TestDisabledState:
     @pytest.mark.asyncio
     async def test_check_all_skips_when_disabled(self, disabled_service):
         """check_all() must return (safe=True, None) without any HTTP call."""
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             safety_result, ai_result = await disabled_service.check_all(DUMMY_IMAGE)
             mock_client_cls.assert_not_called()
 
@@ -364,7 +365,7 @@ class TestDisabledState:
 
     @pytest.mark.asyncio
     async def test_check_content_safety_skips_when_disabled(self, disabled_service):
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             result = await disabled_service.check_content_safety(DUMMY_IMAGE)
             mock_client_cls.assert_not_called()
 
@@ -444,7 +445,7 @@ class TestHealthCheckProbe:
 
         mock_resp = _make_mock_response({"status": "success", "nudity": {}})
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch.object(_hct, "create_http_client") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=None)
@@ -492,7 +493,7 @@ class TestHealthCheckProbe:
         mock_cache = AsyncMock()
         mock_cache.close = AsyncMock()
 
-        with patch("httpx.AsyncClient") as mock_client_cls, \
+        with patch.object(_hct, "create_http_client") as mock_client_cls, \
              patch.object(_hct, "CacheService", return_value=mock_cache):
             result = await _check_sightengine_health(mock_secrets)
             mock_client_cls.assert_not_called()
@@ -509,7 +510,7 @@ class TestHealthCheckProbe:
 
         mock_resp = _make_mock_response({"status": "success", "nudity": {}})
 
-        with patch("httpx.AsyncClient") as mock_client_cls, \
+        with patch.object(_hct, "create_http_client") as mock_client_cls, \
              patch.object(_hct, "CacheService") as mock_cache_cls, \
              patch.object(_hct, "_record_health_event_if_changed", new_callable=AsyncMock):
             mock_client = AsyncMock()
@@ -545,7 +546,7 @@ class TestHealthCheckProbe:
             status_code=400,
         )
 
-        with patch("httpx.AsyncClient") as mock_client_cls, \
+        with patch.object(_hct, "create_http_client") as mock_client_cls, \
              patch.object(_hct, "CacheService") as mock_cache_cls, \
              patch.object(_hct, "_record_health_event_if_changed", new_callable=AsyncMock) as mock_record:
             mock_client = AsyncMock()
