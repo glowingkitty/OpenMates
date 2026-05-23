@@ -471,6 +471,25 @@
 				inlineLinkText: 'Bio Vollmilch-Joghurt Naturell',
 				quoteText: 'Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR.'
 			}
+		],
+		electronics: [
+			{
+				skillLabel: 'Search Components',
+				appId: 'electronics',
+				previewPath: 'embeds/electronics/ElectronicsSearchEmbedPreview',
+				fullscreenPath: 'embeds/electronics/ElectronicsSearchEmbedFullscreen',
+				inlineLinkText: '12V to 3.3V buck converter',
+				quoteText: 'Found 10 TI WEBENCH buck converter designs. Top pick: TPS564257DRLR.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Component',
+				appId: 'electronics',
+				previewPath: 'embeds/electronics/ElectronicsComponentEmbedPreview',
+				fullscreenPath: 'embeds/electronics/ElectronicsComponentEmbedFullscreen',
+				inlineLinkText: 'TPS564257DRLR',
+				quoteText: 'TPS564257DRLR - Buck converter, 92.4% efficiency, 0.47 USD BOM.'
+			}
 		]
 	};
 
@@ -494,6 +513,7 @@
 		mail: 'mail',
 		pdf: 'pdf',
 		shopping: 'shopping',
+		electronics: 'pcbdesign',
 		home: 'home',
 		nutrition: 'nutrition'
 	};
@@ -517,6 +537,7 @@
 		'mail',
 		'pdf',
 		'shopping',
+		'electronics',
 		'home',
 		'nutrition'
 	];
@@ -778,6 +799,7 @@
 	 */
 	const DIRECT_PROP_NAMES = new Set([
 		'product',
+		'component',
 		'recipe',
 	]);
 
