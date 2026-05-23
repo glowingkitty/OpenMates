@@ -102,9 +102,18 @@ async function openMatesSettings(
 		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	}
 
-	const matesItem = settingsMenu.getByRole('menuitem', { name: /Mates/i }).first();
+	const activeView = await settingsMenu.getAttribute('data-active-view');
+	if (activeView !== 'main') {
+		const backButton = page.locator('#settings-back-button');
+		await expect(backButton).toBeVisible({ timeout: 10000 });
+		await backButton.click();
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main', { timeout: 10000 });
+	}
+
+	const matesItem = settingsMenu.getByRole('menuitem', { name: /^Mates$/i }).first();
 	await expect(matesItem).toBeVisible({ timeout: 10000 });
 	await matesItem.click();
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'mates', { timeout: 10000 });
 	log('Mates settings opened.');
 	await takeScreenshot(page, '06-mates-settings');
 }
