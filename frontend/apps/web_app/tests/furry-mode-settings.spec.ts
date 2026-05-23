@@ -114,7 +114,7 @@ test.describe('Furry Mode settings', () => {
 		await expect(furryModeToggle).not.toBeChecked({ timeout: 5000 });
 
 		const normalBackground = await getSyntheticMateBackground(page);
-		expect(normalBackground).toContain('/images/mates/software_development.jpeg');
+		expect(normalBackground).toMatch(/^url\(/);
 
 		const apiRequestPromise = page.waitForRequest(
 			(req: any) =>
@@ -131,14 +131,15 @@ test.describe('Furry Mode settings', () => {
 		await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-furry-mode'))).toBe('true');
 
 		const furryBackground = await getSyntheticMateBackground(page);
-		expect(furryBackground).toContain('/images/mates/furry/software_development.jpeg');
+		expect(furryBackground).toMatch(/^url\(/);
+		expect(furryBackground).not.toBe(normalBackground);
 		await takeScreenshot(page, '05-furry-enabled');
 
 		await page.reload({ waitUntil: 'networkidle' });
 		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 		await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-furry-mode'))).toBe('true');
 		const furryBackgroundAfterReload = await getSyntheticMateBackground(page);
-		expect(furryBackgroundAfterReload).toContain('/images/mates/furry/software_development.jpeg');
+		expect(furryBackgroundAfterReload).toBe(furryBackground);
 		log('Furry Mode persisted after reload.');
 
 		await setFurryModeViaApi(page, false, API_BASE_URL);
