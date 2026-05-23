@@ -64,6 +64,7 @@ export {
 
 // Stores
 export * from "./src/stores/theme";
+export * from "./src/stores/furryModeStore";
 export * from "./src/stores/authStore"; // Export everything from authStore
 export * from "./src/stores/menuState";
 export * from "./src/stores/signupState";

@@ -17,6 +17,7 @@ import type { Component } from "svelte";
 import SettingsInterface from "./SettingsInterface.svelte";
 import SettingsLanguage from "./interface/SettingsLanguage.svelte";
 import SettingsDarkMode from "./interface/SettingsDarkMode.svelte";
+import SettingsCustomization from "./interface/SettingsCustomization.svelte";
 
 // AI (replaces the old Chat settings entry — model selection, pricing, memories)
 import SettingsAI from "./SettingsAI.svelte";
@@ -180,6 +181,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,
   "interface/dark_mode": SettingsDarkMode,
+  "interface/customization": SettingsCustomization,
   // Account
   account: SettingsAccount,
   "account/timezone": SettingsTimezone,

@@ -26,7 +26,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.utils.config_manager import config_manager
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, InterfacePreferencesRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 
@@ -522,6 +522,46 @@ async def update_user_darkmode(
     except Exception as e:
         logger.error(f"Error updating dark mode for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred while updating dark mode setting")
+
+
+@router.post("/user/interface-preferences", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_user_interface_preferences(
+    request: Request,
+    request_data: InterfacePreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Updates account-synced interface customization preferences."""
+    user_id = current_user.id
+    update_data: Dict[str, Any] = {}
+
+    if "furry_mode_enabled" in request_data.model_fields_set:
+        update_data["furry_mode_enabled"] = bool(request_data.furry_mode_enabled)
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No interface preferences provided")
+
+    try:
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            raise HTTPException(status_code=500, detail="Failed to save interface preferences")
+
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+            logger.warning(
+                f"Failed to update cache for user {user_id} after interface preferences update, "
+                "but Directus was updated."
+            )
+
+        return SimpleSuccessResponse(success=True, message="Interface preferences updated successfully")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating interface preferences for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while updating interface preferences")
 
 
 # --- Endpoint for updating user timezone ---

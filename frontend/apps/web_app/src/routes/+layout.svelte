@@ -25,6 +25,7 @@
 		// Stores
 		theme,
 		initializeTheme,
+		initializeFurryMode,
 		initializeServerStatus,
 		notificationStore,
 		// Utils
@@ -136,6 +137,7 @@
 		await loadMetaTags();
 
 		initializeTheme();
+		initializeFurryMode();
 		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		// Initialize server status early to prevent UI flashing

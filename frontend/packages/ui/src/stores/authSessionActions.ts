@@ -662,6 +662,7 @@ export async function checkAuth(
             data.user.default_app_skill_models ?? {},
           follow_up_suggestions_enabled:
             data.user.follow_up_suggestions_enabled !== false,
+          furry_mode_enabled: data.user.furry_mode_enabled === true,
         });
         // Apply server dark mode preference to the theme store.
         // applyServerDarkMode is a no-op when the user already has a local

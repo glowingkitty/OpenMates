@@ -28,6 +28,16 @@ from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii
 
 logger = logging.getLogger(__name__)
 
+AI_USER_PREFERENCE_FIELDS = [
+    "timezone",
+    "language",
+    "default_ai_model_simple",
+    "default_ai_model_complex",
+    "default_app_skill_models",
+    "follow_up_suggestions_enabled",
+    "furry_mode_enabled",
+]
+
 
 async def handle_message_received( # Renamed from handle_new_message, logic moved here
     websocket: WebSocket,
@@ -1398,6 +1408,24 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Get user's timezone and system language for AI context
         # Fetch user data once from cache to avoid multiple cache lookups
         user_data_for_prefs = await cache_service.get_user_by_id(user_id)
+        cached_user_data_for_prefs = user_data_for_prefs if isinstance(user_data_for_prefs, dict) else None
+        needs_directus_preferences = (
+            cached_user_data_for_prefs is None
+            or "furry_mode_enabled" not in cached_user_data_for_prefs
+        )
+        if needs_directus_preferences:
+            directus_preference_data = await directus_service.get_user_fields_direct(
+                user_id,
+                AI_USER_PREFERENCE_FIELDS,
+            )
+            if directus_preference_data:
+                user_data_for_prefs = {
+                    **(cached_user_data_for_prefs or {}),
+                    **directus_preference_data,
+                }
+                if cached_user_data_for_prefs is not None:
+                    await cache_service.update_user(user_id, directus_preference_data)
+                logger.debug(f"Loaded AI user preferences from Directus for user {user_id}")
         user_preferences_dict = {}
         if user_data_for_prefs and isinstance(user_data_for_prefs, dict):
             user_timezone = user_data_for_prefs.get("timezone")
@@ -1432,6 +1460,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             logger.debug(
                 f"Including follow_up_suggestions_enabled={user_preferences_dict['follow_up_suggestions_enabled']} "
+                f"in AI request for user {user_id}"
+            )
+            furry_mode_enabled = user_data_for_prefs.get("furry_mode_enabled")
+            user_preferences_dict["furry_mode_enabled"] = bool(furry_mode_enabled)
+            logger.debug(
+                f"Including furry_mode_enabled={user_preferences_dict['furry_mode_enabled']} "
                 f"in AI request for user {user_id}"
             )
         

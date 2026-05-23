@@ -459,7 +459,8 @@ async def get_session(
                     auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
                     auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
-                    has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
+                    has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp")),
+                    furry_mode_enabled=bool(user_data.get("furry_mode_enabled", False)),
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,

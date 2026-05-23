@@ -182,6 +182,15 @@ class AiModelDefaultsRequest(BaseModel):
         }
 
 
+class InterfacePreferencesRequest(BaseModel):
+    """Request body for POST /v1/settings/user/interface-preferences."""
+
+    furry_mode_enabled: Optional[bool] = Field(
+        default=None,
+        description="Whether Furry Mode avatars and matching mate prompt style are enabled. Omit to leave unchanged.",
+    )
+
+
 # ─── Storage Overview ─────────────────────────────────────────────────────────
 
 class StorageCategoryBreakdown(BaseModel):

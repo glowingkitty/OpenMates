@@ -502,6 +502,9 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
+        if ("furry_mode_enabled" in userData) {
+          store.put(!!userData.furry_mode_enabled, "furry_mode_enabled");
+        }
       };
 
       lastOpenedRequest.onerror = () => {
@@ -655,6 +658,9 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
+        if ("furry_mode_enabled" in userData) {
+          store.put(!!userData.furry_mode_enabled, "furry_mode_enabled");
+        }
       };
 
       transaction.oncomplete = () => {
@@ -776,6 +782,7 @@ class UserDatabaseService {
       const disabledAiServersRequest = store.get("disabled_ai_servers");
       const defaultAppSkillModelsRequest = store.get("default_app_skill_models");
       const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
+      const furryModeEnabledRequest = store.get("furry_mode_enabled");
       const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
@@ -1024,6 +1031,13 @@ class UserDatabaseService {
           followUpSuggestionsEnabledRequest.result !== undefined
             ? !!followUpSuggestionsEnabledRequest.result
             : true;
+      };
+
+      furryModeEnabledRequest.onsuccess = () => {
+        profile.furry_mode_enabled =
+          furryModeEnabledRequest.result !== undefined
+            ? !!furryModeEnabledRequest.result
+            : false;
       };
 
       totalChatCountRequest.onsuccess = () => {
@@ -1411,6 +1425,9 @@ class UserDatabaseService {
           !!partialData.follow_up_suggestions_enabled,
           "follow_up_suggestions_enabled",
         );
+      }
+      if (partialData.furry_mode_enabled !== undefined) {
+        store.put(!!partialData.furry_mode_enabled, "furry_mode_enabled");
       }
 
       // Handle AI model enable/disable preferences (device-local, persisted to IndexedDB)
