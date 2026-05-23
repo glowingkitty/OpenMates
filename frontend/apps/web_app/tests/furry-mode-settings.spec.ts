@@ -18,10 +18,12 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 
-async function setFurryModeViaApi(page: any, enabled: boolean): Promise<void> {
-	const result = await page.evaluate(async (nextEnabled: boolean) => {
-		const response = await fetch('/v1/settings/user/interface-preferences', {
+async function setFurryModeViaApi(page: any, enabled: boolean, apiBaseUrl: string): Promise<void> {
+	const result = await page.evaluate(async ({ nextEnabled, apiUrl }: { nextEnabled: boolean; apiUrl: string }) => {
+		const response = await fetch(`${apiUrl}/v1/settings/user/interface-preferences`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 			credentials: 'include',
@@ -29,7 +31,7 @@ async function setFurryModeViaApi(page: any, enabled: boolean): Promise<void> {
 		});
 		const body = await response.json().catch(() => null);
 		return { ok: response.ok, status: response.status, body };
-	}, enabled);
+	}, { nextEnabled: enabled, apiUrl: apiBaseUrl });
 
 	expect(result.ok, `Expected Furry Mode cleanup API status 200, got ${result.status}`).toBe(true);
 }
@@ -95,7 +97,7 @@ test.describe('Furry Mode settings', () => {
 		await archiveExistingScreenshots(log);
 
 		await loginToTestAccount(page, log, takeScreenshot);
-		await setFurryModeViaApi(page, false);
+		await setFurryModeViaApi(page, false, API_BASE_URL);
 		await page.evaluate(() => {
 			localStorage.setItem('openmates_furry_mode_enabled', 'false');
 			document.documentElement.setAttribute('data-furry-mode', 'false');
@@ -139,7 +141,7 @@ test.describe('Furry Mode settings', () => {
 		expect(furryBackgroundAfterReload).toContain('/images/mates/furry/software_development.jpeg');
 		log('Furry Mode persisted after reload.');
 
-		await setFurryModeViaApi(page, false);
+		await setFurryModeViaApi(page, false, API_BASE_URL);
 		await page.evaluate(() => {
 			localStorage.setItem('openmates_furry_mode_enabled', 'false');
 			document.documentElement.setAttribute('data-furry-mode', 'false');
