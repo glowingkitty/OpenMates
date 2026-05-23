@@ -61,7 +61,7 @@ export interface LegalContentOptions {
  * Build Privacy Policy content from translation keys.
  *
  * The structure mirrors shared/docs/privacy_policy.yml. Providers are grouped
- * by WHEN they are used (Group A-K), so a user can tell at a glance which
+   * by WHEN they are used (Group A-L), so a user can tell at a glance which
  * third parties they opt into by using a specific feature.
  *
  * Honest encryption posture: the server processes user content in memory
@@ -318,7 +318,14 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.shopping.rewe", privacyPolicyLinks.rewe);
   renderProvider("legal.privacy.providers.shopping.amazon", privacyPolicyLinks.amazon);
 
-  // Group J — Community
+  // Group J — Electronics
+  lines.push(`### ${t("legal.privacy.providers.electronics.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.electronics.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.electronics.ti_webench", privacyPolicyLinks.tiWebench);
+
+  // Group K — Community
   lines.push(`### ${t("legal.privacy.providers.community.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.community.description"));

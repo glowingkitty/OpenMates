@@ -6384,6 +6384,108 @@ providers.shopping.amazon.description:
   ko: 실시간 제품 및 가격 데이터를 위해 아마존의 제품 카탈로그를 조회합니다. 아마존은 사용자 식별자 없이 검색 쿼리를 수신합니다.
   ar: يتم الاستعلام في كتالوج منتجات أمازون للحصول على بيانات المنتجات والأسعار المباشرة. تتلقى أمازون استعلامات البحث الخاصة بك دون معرف مستخدم.
   verified_by_human: []
+providers.electronics.heading:
+  context: Subheading for Group J providers (electronics)
+  en: Electronics (only when you use the electronics skill)
+  de: Elektronik (nur wenn du den Elektronik-Skill nutzt)
+  zh: Electronics (only when you use the electronics skill)
+  fr: Electronics (only when you use the electronics skill)
+  pt: Electronics (only when you use the electronics skill)
+  ru: Electronics (only when you use the electronics skill)
+  ja: Electronics (only when you use the electronics skill)
+  it: Electronics (only when you use the electronics skill)
+  tr: Electronics (only when you use the electronics skill)
+  vi: Electronics (only when you use the electronics skill)
+  id: Electronics (only when you use the electronics skill)
+  pl: Electronics (only when you use the electronics skill)
+  nl: Electronics (only when you use the electronics skill)
+  hi: Electronics (only when you use the electronics skill)
+  th: Electronics (only when you use the electronics skill)
+  cs: Electronics (only when you use the electronics skill)
+  sv: Electronics (only when you use the electronics skill)
+  he: Electronics (only when you use the electronics skill)
+  es: Electronics (only when you use the electronics skill)
+  ko: Electronics (only when you use the electronics skill)
+  ar: Electronics (only when you use the electronics skill)
+  verified_by_human: [en, de]
+providers.electronics.description:
+  context: Description of Group J
+  en: >-
+    These providers are only used when you invoke the electronics component
+    search skill for live component and reference-design lookups.
+  de: Diese Anbieter werden nur genutzt, wenn du den Elektronik-Komponentensuch-Skill für Live-Komponenten- und Referenzdesign-Abfragen aufrufst.
+  zh: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  fr: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  pt: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ru: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ja: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  it: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  tr: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  vi: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  id: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  pl: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  nl: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  hi: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  th: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  cs: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  sv: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  he: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  es: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ko: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ar: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  verified_by_human: [en, de]
+providers.electronics.ti_webench.heading:
+  context: Heading for TI WEBENCH provider entry
+  en: Texas Instruments WEBENCH (US)
+  de: Texas Instruments WEBENCH (USA)
+  zh: Texas Instruments WEBENCH (US)
+  fr: Texas Instruments WEBENCH (US)
+  pt: Texas Instruments WEBENCH (US)
+  ru: Texas Instruments WEBENCH (US)
+  ja: Texas Instruments WEBENCH (US)
+  it: Texas Instruments WEBENCH (US)
+  tr: Texas Instruments WEBENCH (US)
+  vi: Texas Instruments WEBENCH (US)
+  id: Texas Instruments WEBENCH (US)
+  pl: Texas Instruments WEBENCH (US)
+  nl: Texas Instruments WEBENCH (US)
+  hi: Texas Instruments WEBENCH (US)
+  th: Texas Instruments WEBENCH (US)
+  cs: Texas Instruments WEBENCH (US)
+  sv: Texas Instruments WEBENCH (US)
+  he: Texas Instruments WEBENCH (US)
+  es: Texas Instruments WEBENCH (US)
+  ko: Texas Instruments WEBENCH (US)
+  ar: Texas Instruments WEBENCH (US)
+  verified_by_human: [en, de]
+providers.electronics.ti_webench.description:
+  context: TI WEBENCH description
+  en: >-
+    TI WEBENCH is queried for power converter component candidates and reference
+    design summaries. Texas Instruments receives the electrical requirements you
+    search for, such as input voltage, output voltage, output current,
+    temperature, isolation, and optimization goal, without a user identifier.
+  de: TI WEBENCH wird nach Kandidaten für Leistungswandler-Komponenten und Referenzdesign-Zusammenfassungen abgefragt. Texas Instruments erhält die elektrischen Anforderungen deiner Suche, zum Beispiel Eingangsspannung, Ausgangsspannung, Ausgangsstrom, Temperatur, Isolation und Optimierungsziel, ohne eine Benutzerkennung.
+  zh: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  fr: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  pt: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ru: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ja: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  it: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  tr: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  vi: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  id: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  pl: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  nl: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  hi: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  th: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  cs: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  sv: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  he: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  es: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ko: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ar: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  verified_by_human: [en, de]
 providers.community.heading:
   context: Subheading for Group J providers (community)
   en: Community and developer channels (only if you choose to use them)

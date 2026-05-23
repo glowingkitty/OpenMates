@@ -562,7 +562,24 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
-  # Group K — Community and developer channels. Only used if you choose
+  # Group K — Electronics. Only used when you invoke the electronics skill.
+  # =====================================================================
+  electronics:
+    description: >
+      These providers are only used when you invoke the electronics component
+      search skill for live component and reference-design lookups.
+    providers:
+      ti_webench:
+        privacy_policy: https://www.ti.com/legal/terms-conditions/privacy-policy/north-america.html  # verified 2026-05-23
+        location: US
+        used_for:
+          - power converter component and reference-design lookups via TI WEBENCH
+        data_shared:
+          - Power requirements such as input voltage, output voltage, output current, temperature, isolation, and optimization goal
+          - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group L — Community and developer channels. Only used if you choose
   # to use them.
   # =====================================================================
   community:

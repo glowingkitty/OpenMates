@@ -622,53 +622,53 @@ plants.description:
   sv: Följ dina växter och vårdbehov.
   he: עקוב אחר הצמחים שלך, השקיה וצרכי טיפול.
   verified_by_human: [en, de]
-pcb_design:
-  context: App name for the PCB design app
-  en: PCB design
-  de: Leiterplatten-Design
-  zh: PCB设计
-  es: Diseño de PCB
-  fr: Conception de PCB
-  pt: Design de PCB
-  ru: Проектирование ПП
-  ja: PCB設計
-  ko: PCB 설계
-  it: Progettazione PCB
-  tr: PCB tasarımı
-  vi: Thiết kế PCB
-  id: Desain PCB
-  pl: Projektowanie PCB
-  nl: PCB-ontwerp
-  ar: تصميم PCB
-  hi: PCB डिज़ाइन
-  th: การออกแบบ PCB
-  cs: Návrh desek plošných spojů
-  sv: PCB-design
-  he: עיצוב PCB
+electronics:
+  context: App name for the Electronics app
+  en: Electronics
+  de: Elektronik
+  zh: Electronics
+  es: Electronics
+  fr: Electronics
+  pt: Electronics
+  ru: Electronics
+  ja: Electronics
+  ko: Electronics
+  it: Electronics
+  tr: Electronics
+  vi: Electronics
+  id: Electronics
+  pl: Electronics
+  nl: Electronics
+  ar: Electronics
+  hi: Electronics
+  th: Electronics
+  cs: Electronics
+  sv: Electronics
+  he: Electronics
   verified_by_human: [en, de]
-pcb_design.description:
-  context: Description for the PCB design app
-  en: Plan, create & debug your PCB designs.
-  de: PCB-Designs planen, erstellen und debuggen.
-  zh: 规划、创建和调试PCB设计。
-  es: Planifica, crea y depura diseños de PCB.
-  fr: Planifiez, créez et déboguez vos PCB.
-  pt: Planeje, crie e depure designs de PCB.
-  ru: Планируйте, создавайте и отлаживайте PCB.
-  ja: PCB設計を計画、作成、デバッグ。
-  ko: PCB 설계 계획, 생성 및 디버깅.
-  it: Pianifica, crea e debugga progetti PCB.
-  tr: PCB tasarımlarını planlayın, oluşturun, debug.
-  vi: Lên kế hoạch, tạo và debug thiết kế PCB.
-  id: Rencanakan, buat, dan debug desain PCB.
-  pl: Planuj, twórz i debuguj projekty PCB.
-  nl: Plan, maak en debug je PCB-ontwerpen.
-  ar: خطط وأنشئ وصحح تصميمات PCB.
-  hi: PCB डिज़ाइन की योजना, निर्माण और debug।
-  th: วางแผน สร้าง และดีบักการออกแบบ PCB
-  cs: Plánujte, tvořte a laďte návrhy PCB.
-  sv: Planera, skapa och felsök PCB-design.
-  he: תכנן, צור ונפה שגיאות בעיצובי ה-PCB שלך.
+electronics.description:
+  context: Description for the Electronics app
+  en: Find components and design electronic circuits.
+  de: Finde Komponenten und entwirf elektronische Schaltungen.
+  zh: Find components and design electronic circuits.
+  es: Find components and design electronic circuits.
+  fr: Find components and design electronic circuits.
+  pt: Find components and design electronic circuits.
+  ru: Find components and design electronic circuits.
+  ja: Find components and design electronic circuits.
+  ko: Find components and design electronic circuits.
+  it: Find components and design electronic circuits.
+  tr: Find components and design electronic circuits.
+  vi: Find components and design electronic circuits.
+  id: Find components and design electronic circuits.
+  pl: Find components and design electronic circuits.
+  nl: Find components and design electronic circuits.
+  ar: Find components and design electronic circuits.
+  hi: Find components and design electronic circuits.
+  th: Find components and design electronic circuits.
+  cs: Find components and design electronic circuits.
+  sv: Find components and design electronic circuits.
+  he: Find components and design electronic circuits.
   verified_by_human: [en, de]
 nutrition:
   context: App name for the Nutrition app

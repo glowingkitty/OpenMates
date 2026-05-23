@@ -40,6 +40,8 @@ import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPrev
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
+import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
+import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
@@ -279,6 +281,16 @@ export class GroupRenderer implements EmbedRenderer {
         "shopping-product",
         (item, embedData, decodedContent, content) =>
           this.renderShoppingProductComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "electronics-component",
+        (item, embedData, decodedContent, content) =>
+          this.renderElectronicsComponentComponent(
             item,
             embedData,
             decodedContent,
@@ -587,6 +599,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHomeListingItem(item, embedData, decodedContent);
       case "shopping-product":
         return this.renderShoppingProductItem(item, embedData, decodedContent);
+      case "electronics-component":
+        return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "nutrition-recipe":
         return this.renderNutritionRecipeItem(item, embedData, decodedContent);
       case "social-media-post":
@@ -1564,6 +1578,25 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "REWE",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle electronics.search_components skill
+      if (appId === "electronics" && skillId === "search_components") {
+        const component = mount(ElectronicsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "Power converters",
+            provider: provider || "TI WEBENCH",
             status,
             results,
             taskId,
@@ -4380,6 +4413,7 @@ export class GroupRenderer implements EmbedRenderer {
       "images-image-result": "image",
       "home-listing": "listing",
       "shopping-product": "product",
+      "electronics-component": "component",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
@@ -4659,6 +4693,82 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render an electronics component child embed using ElectronicsComponentEmbedPreview.
+   */
+  private async renderElectronicsComponentComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping ElectronicsComponentEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(ElectronicsComponentEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          part_number: decodedContent?.part_number as string | undefined,
+          base_part_number: decodedContent?.base_part_number as string | undefined,
+          provider: decodedContent?.provider as string | undefined,
+          topology: decodedContent?.topology as string | undefined,
+          package: decodedContent?.package as string | undefined,
+          regulator_type: decodedContent?.regulator_type as string | undefined,
+          bom_cost_usd: typeof decodedContent?.bom_cost_usd === "number"
+            ? decodedContent.bom_cost_usd
+            : null,
+          bom_count: typeof decodedContent?.bom_count === "number"
+            ? decodedContent.bom_count
+            : null,
+          efficiency_percent: typeof decodedContent?.efficiency_percent === "number"
+            ? decodedContent.efficiency_percent
+            : null,
+          footprint_mm2: typeof decodedContent?.footprint_mm2 === "number"
+            ? decodedContent.footprint_mm2
+            : null,
+          status: (embedData?.status || item.status || "finished") as
+            | "processing"
+            | "finished"
+            | "error",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted ElectronicsComponentEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount ElectronicsComponentEmbedPreview:",
+        err,
+      );
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Component preview unavailable</div>`;
+    }
+  }
+
+  /**
    * HTML fallback renderer for home-listing embeds (used in group rendering).
    */
   private async renderHomeListingItem(
@@ -4706,6 +4816,34 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${brand ? `<div class="embed-text-subline">${esc(String(brand))}</div>` : ""}
         ${priceEur ? `<div class="embed-text-subline">${esc(String(priceEur))}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for electronics-component embeds (used in group rendering).
+   */
+  private async renderElectronicsComponentItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const title = decodedContent?.part_number || decodedContent?.title || "Component";
+    const topology = decodedContent?.topology || "";
+    const efficiency = typeof decodedContent?.efficiency_percent === "number"
+      ? `${decodedContent.efficiency_percent.toFixed(1)}% efficiency`
+      : "";
+
+    return `
+      <div class="embed-app-icon electronics">
+        <span class="icon icon_search"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${esc(String(title))}</div>
+        ${topology ? `<div class="embed-text-subline">${esc(String(topology))}</div>` : ""}
+        ${efficiency ? `<div class="embed-text-subline">${esc(String(efficiency))}</div>` : ""}
       </div>
     `;
   }

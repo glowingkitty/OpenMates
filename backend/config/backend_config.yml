@@ -30,7 +30,6 @@ disabled_apps:
   # Planning-stage skills only — no implementation, no container needed yet
   - "fitness"
   - "life_coaching"
-  - "pcb_design"
   - "plants"
 
 # Other backend-wide configurations can be added below.

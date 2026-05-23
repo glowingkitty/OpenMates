@@ -4272,6 +4272,117 @@ shopping.search_products:
   he: חיפוש
   verified_by_human: [en, de]
 
+electronics.search_components:
+  context: Electronics search components skill label shown in BasicInfosBar
+  en: Search components
+  de: Komponenten suchen
+  verified_by_human: [en, de]
+electronics.component:
+  context: Singular label for an electronics component result
+  en: component
+  de: Komponente
+  verified_by_human: [en, de]
+electronics.components:
+  context: Plural label for electronics component results
+  en: components
+  de: Komponenten
+  verified_by_human: [en, de]
+electronics.efficiency:
+  context: Electronics result metric label for converter efficiency
+  en: Efficiency
+  de: Effizienz
+  verified_by_human: [en, de]
+electronics.bom_cost:
+  context: Electronics result metric label for bill-of-materials cost
+  en: BOM cost
+  de: BOM-Kosten
+  verified_by_human: [en, de]
+electronics.bom_count:
+  context: Electronics result metric label for bill-of-materials part count
+  en: BOM parts
+  de: BOM-Teile
+  verified_by_human: [en, de]
+electronics.footprint:
+  context: Electronics result metric label for board footprint area
+  en: Footprint
+  de: Footprint
+  verified_by_human: [en, de]
+electronics.frequency:
+  context: Electronics result metric label for switching frequency
+  en: Frequency
+  de: Frequenz
+  verified_by_human: [en, de]
+electronics.output_current:
+  context: Electronics result metric label for maximum output current
+  en: Output current
+  de: Ausgangsstrom
+  verified_by_human: [en, de]
+electronics.output_ripple:
+  context: Electronics result metric label for output ripple voltage
+  en: Output ripple
+  de: Ausgangsripple
+  verified_by_human: [en, de]
+electronics.input_voltage:
+  context: Electronics result metric label for input voltage range
+  en: Input voltage
+  de: Eingangsspannung
+  verified_by_human: [en, de]
+electronics.output_voltage:
+  context: Electronics result metric label for output voltage range
+  en: Output voltage
+  de: Ausgangsspannung
+  verified_by_human: [en, de]
+electronics.topology:
+  context: Electronics result metric label for converter topology
+  en: Topology
+  de: Topologie
+  verified_by_human: [en, de]
+electronics.regulator_type:
+  context: Electronics result metric label for regulator type
+  en: Regulator type
+  de: Reglertyp
+  verified_by_human: [en, de]
+electronics.control_mode:
+  context: Electronics result metric label for regulator control mode
+  en: Control mode
+  de: Regelmodus
+  verified_by_human: [en, de]
+electronics.isolated:
+  context: Electronics result metric label for isolation support
+  en: Isolated
+  de: Isoliert
+  verified_by_human: [en, de]
+electronics.yes:
+  context: Boolean yes value in electronics embed details
+  en: Yes
+  de: Ja
+  verified_by_human: [en, de]
+electronics.no:
+  context: Boolean no value in electronics embed details
+  en: No
+  de: Nein
+  verified_by_human: [en, de]
+electronics.product_page:
+  context: Link label for a TI product page in electronics component embeds
+  en: Product page
+  de: Produktseite
+  verified_by_human: [en, de]
+electronics.datasheet:
+  context: Link label for a component datasheet in electronics component embeds
+  en: Datasheet
+  de: Datenblatt
+  verified_by_human: [en, de]
+electronics.performance:
+  context: Section title for performance metrics in electronics component embeds
+  en: Performance
+  de: Leistung
+  verified_by_human: [en, de]
+electronics.electrical:
+  context: Section title for electrical specifications in electronics component embeds
+  en: Electrical
+  de: Elektrisch
+  verified_by_human: [en, de]
+
 math.calculate:
   context: Math Calculate skill label shown in BasicInfosBar
   en: Calculate

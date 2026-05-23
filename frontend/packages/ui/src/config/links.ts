@@ -135,7 +135,7 @@ export const routes = {
 
 // Privacy-policy links for every third-party provider referenced in the
 // privacy policy. Grouped to mirror shared/docs/privacy_policy.yml
-// provider_groups (Group A-K). When adding a new provider to a skill or
+  // provider_groups (Group A-L). When adding a new provider to a skill or
 // app.yml, add its privacy-policy link here AND update:
 //   - shared/docs/privacy_policy.yml
 //   - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
@@ -196,7 +196,10 @@ export const privacyPolicyLinks = {
   rewe: "https://www.rewe.de/datenschutz/",
   amazon: "https://www.amazon.com/privacy",
 
-  // Group K — Community
+  // Group K — Electronics
+  tiWebench: "https://www.ti.com/legal/terms-conditions/privacy-policy/north-america.html", // verified 2026-05-23
+
+  // Group L — Community
   discord: "https://discord.com/privacy",
 } as const;
 
