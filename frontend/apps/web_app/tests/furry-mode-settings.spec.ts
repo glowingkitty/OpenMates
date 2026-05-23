@@ -84,6 +84,31 @@ async function getSyntheticMateBackground(page: any): Promise<string> {
 	});
 }
 
+async function getLocatorBackground(locator: any): Promise<string> {
+	return locator.evaluate((element: HTMLElement) => getComputedStyle(element).backgroundImage);
+}
+
+async function openMatesSettings(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+	takeScreenshot: (page: any, label: string) => Promise<void>
+): Promise<void> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	const isOpen = await settingsMenu.isVisible().catch(() => false);
+	if (!isOpen) {
+		const settingsToggle = page.locator('#settings-menu-toggle');
+		await expect(settingsToggle).toBeVisible({ timeout: 10000 });
+		await settingsToggle.click();
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	}
+
+	const matesItem = settingsMenu.getByRole('menuitem', { name: /Mates/i }).first();
+	await expect(matesItem).toBeVisible({ timeout: 10000 });
+	await matesItem.click();
+	log('Mates settings opened.');
+	await takeScreenshot(page, '06-mates-settings');
+}
+
 test.describe('Furry Mode settings', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -134,6 +159,24 @@ test.describe('Furry Mode settings', () => {
 		expect(furryBackground).toMatch(/^url\(/);
 		expect(furryBackground).not.toBe(normalBackground);
 		await takeScreenshot(page, '05-furry-enabled');
+
+		await openMatesSettings(page, log, takeScreenshot);
+		const sophiaListAvatar = page
+			.getByTestId('mate-profile-settings')
+			.and(page.locator('[data-mate-id="software_development"]'));
+		await expect(sophiaListAvatar).toBeVisible({ timeout: 10000 });
+		expect(await getLocatorBackground(sophiaListAvatar)).toBe(furryBackground);
+
+		await page.getByRole('button', { name: /Sophia/i }).click();
+		const sophiaHeaderAvatar = page.getByTestId('mate-profile-header');
+		await expect(sophiaHeaderAvatar).toBeVisible({ timeout: 10000 });
+		expect(await getLocatorBackground(sophiaHeaderAvatar)).toBe(furryBackground);
+
+		await page.getByRole('button', { name: /Show full system prompt/i }).click();
+		const systemPrompt = page.getByTestId('mate-system-prompt');
+		await expect(systemPrompt).toContainText('Furry Mode is enabled by the user');
+		await expect(systemPrompt).toContainText('arctic fox');
+		await takeScreenshot(page, '07-mate-details-furry-prompt');
 
 		await page.reload({ waitUntil: 'networkidle' });
 		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });

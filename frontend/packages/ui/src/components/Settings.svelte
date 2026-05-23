@@ -2636,7 +2636,11 @@ changes to the documentation (to keep the documentation up to date).
                          Uses the same .mate-profile CSS class system as the chat header
                          (mates.css sets background-image per mate id class). -->
                     <div class="mate-detail-header-item">
-                        <div class="mate-profile {activeSubMenuIcon} mate-profile-header"></div>
+                        <div
+                            class="mate-profile {activeSubMenuIcon} mate-profile-header"
+                            data-testid="mate-profile-header"
+                            data-mate-id={activeSubMenuIcon}
+                        ></div>
                         <strong class="model-detail-title">{activeSubMenuTitle}</strong>
                     </div>
                 {:else}
