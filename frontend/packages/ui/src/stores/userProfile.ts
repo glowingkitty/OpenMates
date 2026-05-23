@@ -1,7 +1,6 @@
 import { get, writable } from "svelte/store";
 import { userDB } from "../services/userDB";
 import { pushNotificationStore } from "./pushNotificationStore";
-import { applySyncedFurryMode } from "./furryModeStore";
 
 export interface UserProfile {
   user_id: string | null;
@@ -88,7 +87,7 @@ export interface UserProfile {
   // AI chat follow-up suggestion chips and proactive next-step prompts.
   // Synced cross-device via Directus + Redis cache with the AI model defaults endpoint.
   follow_up_suggestions_enabled?: boolean;
-  furry_mode_enabled?: boolean;
+  // Furry Mode is disabled until any furry art is made by human artists.
   // Total chat count as reported by the server during Phase 3 sync.
   // Stored in IndexedDB so it persists across sessions without a server round-trip.
   // Used by: ActiveChat.svelte overflow "+N" counter, SettingsAccountChats.svelte display.
@@ -150,7 +149,6 @@ export async function loadUserProfileFromDB(): Promise<void> {
           profileFromDB.push_notification_banner_shown,
       });
 
-      applySyncedFurryMode(profileFromDB.furry_mode_enabled);
     }
   } catch (error) {
     console.error("Failed to load user profile from database:", error);
@@ -206,9 +204,6 @@ export function updateProfile(profile: Partial<UserProfile>): void {
     userDB.updateUserData(profile);
   }
 
-  if (profile.furry_mode_enabled !== undefined) {
-    applySyncedFurryMode(profile.furry_mode_enabled);
-  }
 }
 
 // Add getter for components that need user data

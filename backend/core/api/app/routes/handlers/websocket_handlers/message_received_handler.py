@@ -35,7 +35,6 @@ AI_USER_PREFERENCE_FIELDS = [
     "default_ai_model_complex",
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
-    "furry_mode_enabled",
 ]
 
 
@@ -1409,10 +1408,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Fetch user data once from cache to avoid multiple cache lookups
         user_data_for_prefs = await cache_service.get_user_by_id(user_id)
         cached_user_data_for_prefs = user_data_for_prefs if isinstance(user_data_for_prefs, dict) else None
-        needs_directus_preferences = (
-            cached_user_data_for_prefs is None
-            or "furry_mode_enabled" not in cached_user_data_for_prefs
-        )
+        needs_directus_preferences = cached_user_data_for_prefs is None
         if needs_directus_preferences:
             directus_preference_data = await directus_service.get_user_fields_direct(
                 user_id,
@@ -1462,12 +1458,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 f"Including follow_up_suggestions_enabled={user_preferences_dict['follow_up_suggestions_enabled']} "
                 f"in AI request for user {user_id}"
             )
-            furry_mode_enabled = user_data_for_prefs.get("furry_mode_enabled")
-            user_preferences_dict["furry_mode_enabled"] = bool(furry_mode_enabled)
-            logger.debug(
-                f"Including furry_mode_enabled={user_preferences_dict['furry_mode_enabled']} "
-                f"in AI request for user {user_id}"
-            )
+            # Furry Mode preferences are disabled until any furry art is made by human artists.
         
         mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):

@@ -36,7 +36,7 @@ class UserResponse(BaseModel):
     push_notification_subscription: Optional[str] = None # JSON string of browser PushSubscription
     push_notification_preferences: Optional[dict] = None # e.g. {"aiResponses": true}
     push_notification_banner_shown: bool = False # Whether the "Enable push?" banner has been dismissed
-    furry_mode_enabled: bool = False # Whether Furry Mode avatars and mate prompt style are enabled
+    # Furry Mode is disabled until any furry art is made by human artists.
 
     class Config:
         json_schema_extra = {

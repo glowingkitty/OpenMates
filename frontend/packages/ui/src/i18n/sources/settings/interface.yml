@@ -76,15 +76,7 @@ customization:
   en: Customization
   verified_by_human: []
 
-furry_mode:
-  context: Playful interface customization toggle label
-  en: Furry Mode
-  verified_by_human: []
-
-furry_mode.description:
-  context: Subtitle explaining Furry Mode in interface customization settings
-  en: Switch mate portraits to their furrsona avatars and let mates answer with a matching playful style.
-  verified_by_human: []
+# Furry Mode strings are disabled until any furry art is made by human artists.
 
 dark_mode:
   context: Dark mode settings menu item in interface section — shown as the row title on the sub-page entry

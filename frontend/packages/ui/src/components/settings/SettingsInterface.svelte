@@ -15,7 +15,6 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
     import SettingsDarkMode from './interface/SettingsDarkMode.svelte';
-    import SettingsCustomization from './interface/SettingsCustomization.svelte';
     import { locale, waitLocale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { get } from 'svelte/store';
@@ -56,8 +55,6 @@ changes to the documentation (to keep the documentation up to date).
             default:      return $text('settings.interface.dark_mode.auto');
         }
     })());
-
-    let customizationLabel = $derived($text('settings.interface.furry_mode'));
 
     // Handle ?lang= URL parameter on mount
     // This ensures the language is set correctly when the component loads with a URL parameter
@@ -154,29 +151,6 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    function showCustomizationSettings(event = null) {
-        if (event) event.stopPropagation();
-
-        currentView = 'customization';
-        childComponent = SettingsCustomization;
-
-        dispatch('openSettings', {
-            settingsPath: 'interface/customization',
-            direction: 'forward',
-            icon: 'settings',
-            title: $text('settings.interface.customization'),
-            translationKey: 'settings.interface.customization'
-        });
-
-        const settingsContent = document.querySelector('.settings-content-wrapper');
-        if (settingsContent) {
-            settingsContent.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
-    }
-
     // Handle language change event from SettingsLanguage component
     // Note: We don't need to manually update currentLanguage here because it's now
     // derived from the $locale store, which is automatically updated by SettingsLanguage
@@ -221,13 +195,7 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showDarkModeSettings()}
     />
 
-    <SettingsItem
-        type="subsubmenu"
-        icon="subsetting_icon settings"
-        subtitle={$text('settings.interface.customization')}
-        title={customizationLabel}
-        onClick={() => showCustomizationSettings()}
-    />
+    <!-- Furry Mode customization is disabled until any furry art is made by human artists. -->
 {:else if currentView === 'language' && childComponent}
     {@const Component = childComponent}
     <Component 
@@ -238,7 +206,4 @@ changes to the documentation (to keep the documentation up to date).
     <Component
         on:darkModeChanged={handleDarkModeChanged}
     />
-{:else if currentView === 'customization' && childComponent}
-    {@const Component = childComponent}
-    <Component />
 {/if}

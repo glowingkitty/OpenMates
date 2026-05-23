@@ -245,13 +245,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "deutsch",
     ],
   },
-  {
-    path: "interface/customization",
-    translationKey: "settings.interface.customization",
-    icon: "icon_settings",
-    access: "public",
-    keywords: ["customization", "appearance", "furry", "avatar", "profile images"],
-  },
+  // Furry Mode customization is disabled until any furry art is made by human artists.
   // Account — requires authentication (user account management)
   {
     path: "account",

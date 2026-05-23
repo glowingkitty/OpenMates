@@ -93,7 +93,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "default_ai_model_complex": user_data.get("default_ai_model_complex"),
             "default_app_skill_models": user_data.get("default_app_skill_models") or {},
             "follow_up_suggestions_enabled": user_data.get("follow_up_suggestions_enabled", True),
-            "furry_mode_enabled": user_data.get("furry_mode_enabled", False),
+            # Furry Mode is disabled until any furry art is made by human artists.
             "tfa_last_used": user_data.get("tfa_last_used"),  # Include 2FA last used timestamp
             "consent_privacy_and_apps_default_settings": user_data.get("consent_privacy_and_apps_default_settings"),
             "consent_mates_default_settings": user_data.get("consent_mates_default_settings"),

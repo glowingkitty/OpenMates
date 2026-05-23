@@ -98,137 +98,71 @@
   background-image: url("@openmates/ui/static/images/mates/software_development.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.software_development {
-  background-image: url("@openmates/ui/static/images/mates/furry/software_development.jpeg");
-}
-
 .mate-profile.business_development {
   background-image: url("@openmates/ui/static/images/mates/business_development.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.business_development {
-  background-image: url("@openmates/ui/static/images/mates/furry/business_development.jpeg");
 }
 
 .mate-profile.medical_health {
   background-image: url("@openmates/ui/static/images/mates/medical_health.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.medical_health {
-  background-image: url("@openmates/ui/static/images/mates/furry/medical_health.jpeg");
-}
-
 .mate-profile.legal_law {
   background-image: url("@openmates/ui/static/images/mates/legal_law.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.legal_law {
-  background-image: url("@openmates/ui/static/images/mates/furry/legal_law.jpeg");
 }
 
 .mate-profile.maker_prototyping {
   background-image: url("@openmates/ui/static/images/mates/maker_prototyping.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.maker_prototyping {
-  background-image: url("@openmates/ui/static/images/mates/furry/maker_prototyping.jpeg");
-}
-
 .mate-profile.marketing_sales {
   background-image: url("@openmates/ui/static/images/mates/marketing_sales.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.marketing_sales {
-  background-image: url("@openmates/ui/static/images/mates/furry/marketing_sales.jpeg");
 }
 
 .mate-profile.finance {
   background-image: url("@openmates/ui/static/images/mates/finance.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.finance {
-  background-image: url("@openmates/ui/static/images/mates/furry/finance.jpeg");
-}
-
 .mate-profile.design {
   background-image: url("@openmates/ui/static/images/mates/design.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.design {
-  background-image: url("@openmates/ui/static/images/mates/furry/design.jpeg");
 }
 
 .mate-profile.electrical_engineering {
   background-image: url("@openmates/ui/static/images/mates/electrical_engineering.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.electrical_engineering {
-  background-image: url("@openmates/ui/static/images/mates/furry/electrical_engineering.jpeg");
-}
-
 .mate-profile.movies_tv {
   background-image: url("@openmates/ui/static/images/mates/movies_tv.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.movies_tv {
-  background-image: url("@openmates/ui/static/images/mates/furry/movies_tv.jpeg");
 }
 
 .mate-profile.history {
   background-image: url("@openmates/ui/static/images/mates/history.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.history {
-  background-image: url("@openmates/ui/static/images/mates/furry/history.jpeg");
-}
-
 .mate-profile.science {
   background-image: url("@openmates/ui/static/images/mates/science.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.science {
-  background-image: url("@openmates/ui/static/images/mates/furry/science.jpeg");
 }
 
 .mate-profile.life_coach_psychology {
   background-image: url("@openmates/ui/static/images/mates/life_coach_psychology.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.life_coach_psychology {
-  background-image: url("@openmates/ui/static/images/mates/furry/life_coach_psychology.jpeg");
-}
-
 .mate-profile.cooking_food {
   background-image: url("@openmates/ui/static/images/mates/cooking_food.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.cooking_food {
-  background-image: url("@openmates/ui/static/images/mates/furry/cooking_food.jpeg");
 }
 
 .mate-profile.activism {
   background-image: url("@openmates/ui/static/images/mates/activism.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.activism {
-  background-image: url("@openmates/ui/static/images/mates/furry/activism.jpeg");
-}
-
 .mate-profile.general_knowledge {
   background-image: url("@openmates/ui/static/images/mates/general_knowledge.jpeg");
-}
-
-:root[data-furry-mode="true"] .mate-profile.general_knowledge {
-  background-image: url("@openmates/ui/static/images/mates/furry/general_knowledge.jpeg");
 }
 
 .mate-profile.onboarding_support {
   background-image: url("@openmates/ui/static/images/mates/onboarding_support.jpeg");
 }
 
-:root[data-furry-mode="true"] .mate-profile.onboarding_support {
-  background-image: url("@openmates/ui/static/images/mates/furry/onboarding_support.jpeg");
-}
+/* Furry Mode avatar overrides are disabled until any furry art is made by human artists. */
 
 /* Official OpenMates category - shows favicon instead of mate profile, no AI logo badge */
 .mate-profile.openmates_official {

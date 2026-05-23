@@ -64,7 +64,7 @@ export {
 
 // Stores
 export * from "./src/stores/theme";
-export * from "./src/stores/furryModeStore";
+// Furry Mode exports are disabled until any furry art is made by human artists.
 export * from "./src/stores/authStore"; // Export everything from authStore
 export * from "./src/stores/menuState";
 export * from "./src/stores/signupState";

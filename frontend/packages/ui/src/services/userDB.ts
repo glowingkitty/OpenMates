@@ -502,9 +502,7 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
-        if ("furry_mode_enabled" in userData) {
-          store.put(!!userData.furry_mode_enabled, "furry_mode_enabled");
-        }
+        // Furry Mode persistence is disabled until any furry art is made by human artists.
       };
 
       lastOpenedRequest.onerror = () => {
@@ -658,9 +656,7 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
-        if ("furry_mode_enabled" in userData) {
-          store.put(!!userData.furry_mode_enabled, "furry_mode_enabled");
-        }
+        // Furry Mode persistence is disabled until any furry art is made by human artists.
       };
 
       transaction.oncomplete = () => {
@@ -782,7 +778,6 @@ class UserDatabaseService {
       const disabledAiServersRequest = store.get("disabled_ai_servers");
       const defaultAppSkillModelsRequest = store.get("default_app_skill_models");
       const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
-      const furryModeEnabledRequest = store.get("furry_mode_enabled");
       const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
@@ -1031,13 +1026,6 @@ class UserDatabaseService {
           followUpSuggestionsEnabledRequest.result !== undefined
             ? !!followUpSuggestionsEnabledRequest.result
             : true;
-      };
-
-      furryModeEnabledRequest.onsuccess = () => {
-        profile.furry_mode_enabled =
-          furryModeEnabledRequest.result !== undefined
-            ? !!furryModeEnabledRequest.result
-            : false;
       };
 
       totalChatCountRequest.onsuccess = () => {
@@ -1426,9 +1414,7 @@ class UserDatabaseService {
           "follow_up_suggestions_enabled",
         );
       }
-      if (partialData.furry_mode_enabled !== undefined) {
-        store.put(!!partialData.furry_mode_enabled, "furry_mode_enabled");
-      }
+      // Furry Mode persistence is disabled until any furry art is made by human artists.
 
       // Handle AI model enable/disable preferences (device-local, persisted to IndexedDB)
       if (partialData.disabled_ai_models !== undefined) {

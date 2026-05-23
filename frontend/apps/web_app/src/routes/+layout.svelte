@@ -25,7 +25,6 @@
 		// Stores
 		theme,
 		initializeTheme,
-		initializeFurryMode,
 		initializeServerStatus,
 		notificationStore,
 		// Utils
@@ -137,7 +136,7 @@
 		await loadMetaTags();
 
 		initializeTheme();
-		initializeFurryMode();
+		// Furry Mode is disabled until any furry art is made by human artists.
 		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		// Initialize server status early to prevent UI flashing

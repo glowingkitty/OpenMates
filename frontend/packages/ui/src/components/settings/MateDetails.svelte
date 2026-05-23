@@ -21,8 +21,6 @@
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
     import { SettingsSectionHeading } from './elements';
-    import { furryModeEnabled } from '../../stores/furryModeStore';
-    import { appendFurryModePrompt } from '../../utils/furryModeMates';
 
     // Event dispatcher for Settings.svelte navigation
     const dispatch = createEventDispatcher();
@@ -53,11 +51,8 @@
             : ''
     );
 
-    let mateSystemPrompt = $derived(
-        $furryModeEnabled
-            ? appendFurryModePrompt(baseMateSystemPrompt, mate?.id)
-            : baseMateSystemPrompt
-    );
+    // Furry Mode prompt additions are disabled until any furry art is made by human artists.
+    let mateSystemPrompt = $derived(baseMateSystemPrompt);
 
     /**
      * Bullet-point process summary from process_translation_key.

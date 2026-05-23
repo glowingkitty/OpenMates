@@ -397,11 +397,7 @@ directus_users:
       nullable: false
       note: "Whether follow-up suggestion chips and proactive next-step prompts are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
 
-    furry_mode_enabled:
-      type: boolean
-      default: false
-      nullable: false
-      note: "Whether Furry Mode avatars and matching mate prompt style are enabled. Settable via POST /v1/settings/user/interface-preferences."
+    # Furry Mode is disabled until any furry art is made by human artists.
 
     default_app_skill_models:
       type: json

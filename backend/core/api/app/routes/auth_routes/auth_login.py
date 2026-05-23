@@ -556,7 +556,6 @@ async def login(
                         push_notification_subscription=user_profile.get("push_notification_subscription"),
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
-                        furry_mode_enabled=bool(user_profile.get("furry_mode_enabled", False)),
                     ),
                     ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -784,7 +783,6 @@ async def login(
                         push_notification_subscription=user_profile.get("push_notification_subscription"),
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
-                        furry_mode_enabled=bool(user_profile.get("furry_mode_enabled", False)),
                     ),
                     ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1103,7 +1101,6 @@ async def login(
                         push_notification_subscription=user_profile.get("push_notification_subscription"),
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
-                        furry_mode_enabled=bool(user_profile.get("furry_mode_enabled", False)),
                     ),
                     ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
