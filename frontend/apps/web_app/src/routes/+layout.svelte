@@ -54,6 +54,7 @@
 	function ensureOpenMatesFavicons() {
 		if (!browser || faviconGuardActive) return;
 		faviconGuardActive = true;
+		faviconObserver?.disconnect();
 
 		try {
 			// Some mobile browsers aggressively re-evaluate favicons after SPA title/head
@@ -76,16 +77,26 @@
 					document.head.appendChild(link);
 				}
 
-				link.setAttribute('rel', icon.rel);
-				if (icon.type) {
+				if (link.getAttribute('rel') !== icon.rel) {
+					link.setAttribute('rel', icon.rel);
+				}
+				if (icon.type && link.getAttribute('type') !== icon.type) {
 					link.setAttribute('type', icon.type);
-				} else {
+				} else if (!icon.type && link.hasAttribute('type')) {
 					link.removeAttribute('type');
 				}
-				link.setAttribute('href', icon.href);
+				if (link.getAttribute('href') !== icon.href) {
+					link.setAttribute('href', icon.href);
+				}
 			}
 		} finally {
 			faviconGuardActive = false;
+			faviconObserver?.observe(document.head, {
+				attributes: true,
+				attributeFilter: ['href', 'rel', 'type'],
+				childList: true,
+				subtree: true
+			});
 		}
 	}
 
