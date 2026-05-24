@@ -136,6 +136,18 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
 }
 
 
+def _get_skill_execution_args(
+    parsed_args: Dict[str, Any],
+    placeholder_embed_data: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    if isinstance(placeholder_embed_data, dict):
+        placeholder_parsed_args = placeholder_embed_data.get("parsed_args")
+        if isinstance(placeholder_parsed_args, dict):
+            return placeholder_parsed_args
+
+    return parsed_args
+
+
 # Characters LLM providers use instead of the canonical hyphen in tool names.
 # Gemini 3.5 Flash emits colons ('web:search'), some older models emit underscores
 # ('web_search'), others emit pipes or dots. We normalize all of these to the
@@ -3534,7 +3546,7 @@ async def handle_main_processing(
                     # Detect this mismatch using the skill's tool_schema and normalize the arguments.
                     # See: https://github.com/anomalyco/OpenMates/issues/XXX (image generation 422 bug)
                     skill_arguments = _normalize_skill_arguments(
-                        arguments=parsed_args,
+                        arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
                         app_id=app_id,
                         skill_id=skill_id,
                         discovered_apps_metadata=discovered_apps_metadata,
