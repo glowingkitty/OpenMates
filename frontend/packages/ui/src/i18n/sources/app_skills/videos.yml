@@ -1,7 +1,7 @@
 generate:
-  context: Skill name for generated video
-  en: Generate Video
-  de: Video generieren
+  context: Skill name for video generation
+  en: Generate
+  de: Generieren
   verified_by_human:
     - en
     - de

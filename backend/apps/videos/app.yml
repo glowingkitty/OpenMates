@@ -151,7 +151,7 @@ skills:
   - id: generate
     name_translation_key: app_skills.videos.generate
     description_translation_key: app_skills.videos.generate.description
-    icon_image: videos.svg
+    icon_image: ai.svg
     api_config:
       expose_get: true
       expose_post: true
