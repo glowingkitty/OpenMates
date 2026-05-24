@@ -54,6 +54,9 @@ skills:
       Generate music from a text prompt, including full songs, instrumental tracks,
       background music, loops, jingles, lyric-based songs, and soundtrack cues.
       Use this when the user asks to create music or background music.
+      Do not use this to imitate the voice, vocals, cadence, or persona of a real
+      public figure, living artist, famous educator, or recognizable person. Use
+      original voices and styles only, and reject scams, spam, or detection evasion.
     stage: production
     class_path: backend.apps.music.skills.generate_skill.GenerateSkill
     providers:

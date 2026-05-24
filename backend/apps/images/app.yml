@@ -274,6 +274,8 @@ skills:
       Use output_filetype="svg" for logos, icons, illustrations, and any other
       vector graphics that need to be scalable or editable.
       When the user provides uploaded images as references (embed_refs), pass them via reference_images.
+      Do not use this for scam, spam, fake-document, fake-endorsement, public-figure
+      impersonation, or watermark/detection-evasion requests.
     stage: production
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
@@ -411,6 +413,8 @@ skills:
       Also use for: quick mockups, rough design concepts, draft illustrations,
       sketches, quick visual previews, or any request for a fast/rough image.
       When the user provides uploaded images as references (embed_refs), pass them via reference_images.
+      Do not use this for scam, spam, fake-document, fake-endorsement, public-figure
+      impersonation, or watermark/detection-evasion requests.
     stage: production
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill

@@ -139,6 +139,7 @@ async def index_generated_asset(
     original_filename: str,
     content_type: str,
     log_prefix: str,
+    provenance_metadata: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Create upload_files index record for generated media and update storage count."""
     file_size_bytes = sum(
@@ -159,7 +160,11 @@ async def index_generated_asset(
         "aes_nonce": nonce_b64,
         "vault_wrapped_aes_key": vault_wrapped_aes_key,
         "malware_scan": "clean",
-        "ai_detection": {"ai_generated": 1.0, "source": f"openmates_{media_type}_generate"},
+        "ai_detection": {
+            "ai_generated": 1.0,
+            "source": f"openmates_{media_type}_generate",
+            "provenance": provenance_metadata or {},
+        },
         "created_at": created_at,
     }
     success, error = await task._directus_service.create_item("upload_files", record)

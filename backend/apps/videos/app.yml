@@ -158,6 +158,8 @@ skills:
     preprocessor_hint: >
       Generate short AI videos from text prompts using Google Veo. Use this when
       the user asks to create, generate, render, or make a video clip.
+      Do not use this for fake real-world footage, fake endorsements, public-figure
+      likeness/persona/voice imitation, scams, spam, or watermark/detection evasion.
     stage: production
     class_path: backend.apps.videos.skills.generate_skill.GenerateSkill
     providers:

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,14 @@ class GenerateSkill(BaseSkill):
             logger.error("Celery producer not available in videos.GenerateSkill")
             return {"error": "Video generation service temporarily unavailable"}
 
+        batch_decision = validate_media_generation_request(
+            media_type="video",
+            prompt="",
+            request_count=len(requests),
+        )
+        if not batch_decision.allowed:
+            return batch_decision.to_rejection_payload()
+
         user_id = kwargs.get("user_id")
         placeholder_embed_ids = kwargs.get("placeholder_embed_ids", [])
         results: List[Dict[str, str]] = []
@@ -65,6 +74,18 @@ class GenerateSkill(BaseSkill):
             if not prompt:
                 logger.warning("Skipping video generation request without prompt: %s", req)
                 continue
+
+            prompt_decision = validate_media_generation_request(
+                media_type="video",
+                prompt=prompt,
+                request_count=1,
+            )
+            if not prompt_decision.allowed:
+                logger.warning(
+                    "Video generation request rejected by media safety gate: %s",
+                    prompt_decision.category,
+                )
+                return prompt_decision.to_rejection_payload()
 
             embed_id = (
                 placeholder_embed_ids[idx]

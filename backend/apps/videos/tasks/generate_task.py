@@ -31,6 +31,10 @@ from backend.shared.python_utils.generated_assets import (
     create_download_token,
     index_generated_asset,
 )
+from backend.shared.python_utils.media_generation_safety import (
+    MediaGenerationSafetyRejection,
+    validate_media_generation_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +162,20 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         if not prompt or not user_id:
             raise ValueError("Missing required prompt or user_id")
 
+        media_decision = validate_media_generation_request(
+            media_type="video",
+            prompt=prompt,
+            request_count=1,
+        )
+        if not media_decision.allowed:
+            logger.warning(
+                "%s [MediaSafety] REJECTED category=%s reason=%s",
+                log_prefix,
+                media_decision.category,
+                media_decision.reason,
+            )
+            raise MediaGenerationSafetyRejection(media_decision)
+
         requested_duration_seconds = _normalize_veo_duration_seconds(arguments.get("duration_seconds"))
         requested_resolution = _normalize_veo_resolution(arguments.get("resolution", "720p"))
         estimated_credits = _estimate_veo_generation_credits(model, requested_resolution, requested_duration_seconds)
@@ -240,6 +258,11 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             original_filename=f"openmates_generated_video_{embed_id[:8]}.mp4",
             content_type=generated.mime_type,
             log_prefix=log_prefix,
+            provenance_metadata={
+                "labeling": "metadata_only",
+                "visual_watermark": False,
+                "provider_watermarking": "SynthID",
+            },
         )
         if not stored:
             await task._s3_service.delete_file("chatfiles", s3_key)
@@ -264,6 +287,12 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             "vault_wrapped_aes_key": vault_wrapped_aes_key,
             "generated_at": generated_at,
             "watermarking": "SynthID",
+            "provenance": {
+                "ai_generated": True,
+                "labeling": "metadata_only",
+                "visual_watermark": False,
+                "provider_watermarking": "SynthID",
+            },
         }
         if chat_id and message_id:
             from toon_format import encode as toon_encode
@@ -313,11 +342,78 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             "s3_base_url": s3_base_url,
             "generated_at": generated_at,
             "watermarking": "SynthID",
+            "provenance": {
+                "ai_generated": True,
+                "labeling": "metadata_only",
+                "visual_watermark": False,
+                "provider_watermarking": "SynthID",
+            },
         }
         if not external_request:
             result["aes_key"] = aes_key_b64
             result["aes_nonce"] = nonce_b64
             result["vault_wrapped_aes_key"] = vault_wrapped_aes_key
         return result
+    except MediaGenerationSafetyRejection as exc:
+        try:
+            await _send_video_safety_rejection_embed(task, app_id, skill_id, arguments, exc, log_prefix)
+        except Exception as embed_exc:
+            logger.error(
+                "%s Failed to send video safety rejection embed: %s",
+                log_prefix,
+                embed_exc,
+                exc_info=True,
+            )
+        return {
+            "embed_id": arguments.get("embed_id"),
+            "status": "rejected",
+            **exc.decision.to_rejection_payload(),
+        }
     finally:
         await task.cleanup_services()
+
+
+async def _send_video_safety_rejection_embed(
+    task: BaseServiceTask,
+    app_id: str,
+    skill_id: str,
+    arguments: Dict[str, Any],
+    rejection: MediaGenerationSafetyRejection,
+    log_prefix: str,
+) -> None:
+    embed_id = arguments.get("embed_id")
+    user_id = arguments.get("user_id")
+    chat_id = arguments.get("chat_id")
+    message_id = arguments.get("message_id")
+    if not embed_id or not user_id or not chat_id or not message_id:
+        return
+
+    from toon_format import encode as toon_encode
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    payload = rejection.decision.to_rejection_payload()
+    content = {
+        "app_id": app_id,
+        "skill_id": skill_id,
+        "type": "video",
+        "status": "error",
+        "error": payload["user_facing_message"],
+        "safety_rejection": True,
+    }
+    embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    await embed_service.send_embed_data_to_client(
+        embed_id=embed_id,
+        embed_type="app_skill_use",
+        content_toon=toon_encode(content),
+        chat_id=chat_id,
+        message_id=message_id,
+        user_id=user_id,
+        user_id_hash=_hash_value(user_id),
+        status="error",
+        encryption_mode="client",
+        created_at=now_ts,
+        updated_at=now_ts,
+        log_prefix=f"{log_prefix} [MEDIA_SAFETY_REJECT]",
+        check_cache_status=False,
+    )

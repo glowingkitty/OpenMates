@@ -28,6 +28,10 @@ from backend.shared.python_utils.billing_utils import (
     ensure_credit_headroom,
 )
 from backend.shared.python_utils.generated_assets import build_download_url, create_download_token
+from backend.shared.python_utils.media_generation_safety import (
+    MediaGenerationSafetyRejection,
+    validate_media_generation_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +219,15 @@ async def _store_music_upload_record(
         "aes_nonce": nonce_b64,
         "vault_wrapped_aes_key": vault_wrapped_aes_key,
         "malware_scan": "clean",
-        "ai_detection": {"ai_generated": 1.0, "source": "openmates_music_generate"},
+        "ai_detection": {
+            "ai_generated": 1.0,
+            "source": "openmates_music_generate",
+            "provenance": {
+                "labeling": "audio_container_metadata",
+                "visual_watermark": False,
+                "provider_watermarking": "SynthID",
+            },
+        },
         "created_at": created_at,
     }
     success, error = await task._directus_service.create_item("upload_files", record)
@@ -323,6 +335,24 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         if not prompt or not user_id:
             raise ValueError("Missing required prompt or user_id")
 
+        media_decision = validate_media_generation_request(
+            media_type="music",
+            prompt=str(prompt),
+            request_count=1,
+            mode=mode,
+            style=style,
+            lyrics=lyrics,
+            negative_prompt=negative_prompt,
+        )
+        if not media_decision.allowed:
+            logger.warning(
+                "%s [MediaSafety] REJECTED category=%s reason=%s",
+                log_prefix,
+                media_decision.category,
+                media_decision.reason,
+            )
+            raise MediaGenerationSafetyRejection(media_decision)
+
         enriched_prompt_parts = [str(prompt)]
         if mode:
             enriched_prompt_parts.append(f"Use case: {mode}.")
@@ -330,6 +360,10 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
             enriched_prompt_parts.append(f"Style: {style}.")
         if lyrics:
             enriched_prompt_parts.append(f"Lyrics:\n{lyrics}")
+        enriched_prompt_parts.append(
+            "Safety requirement: use an original voice and composition; do not imitate "
+            "any real public figure, living artist, recognizable singer, or named person's persona."
+        )
         enriched_prompt = "\n".join(enriched_prompt_parts)
 
         estimated_credits = await _estimate_music_generation_credits(model_ref, log_prefix)
@@ -463,6 +497,12 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
             "vault_wrapped_aes_key": vault_wrapped_aes_key,
             "generated_at": generated_at,
             "watermarking": "SynthID",
+            "provenance": {
+                "ai_generated": True,
+                "labeling": "audio_container_metadata",
+                "visual_watermark": False,
+                "provider_watermarking": "SynthID",
+            },
         }
 
         s3_file_keys = [{"bucket": "chatfiles", "key": s3_key}]
@@ -525,6 +565,12 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
             "s3_base_url": s3_base_url,
             "generated_at": generated_at,
             "watermarking": "SynthID",
+            "provenance": {
+                "ai_generated": True,
+                "labeling": "audio_container_metadata",
+                "visual_watermark": False,
+                "provider_watermarking": "SynthID",
+            },
         }
         if not external_request:
             result_payload["aes_key"] = aes_key_b64
@@ -532,6 +578,17 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
             result_payload["vault_wrapped_aes_key"] = vault_wrapped_aes_key
         return result_payload
 
+    except MediaGenerationSafetyRejection as exc:
+        logger.warning("%s Music generation rejected by media safety gate: %s", log_prefix, exc.decision.category)
+        try:
+            await _send_music_safety_rejection_embed(task, app_id, skill_id, arguments, exc, log_prefix)
+        except Exception as embed_exc:
+            logger.error("%s Failed to send music safety rejection embed: %s", log_prefix, embed_exc, exc_info=True)
+        return {
+            "embed_id": arguments.get("embed_id"),
+            "status": "rejected",
+            **exc.decision.to_rejection_payload(),
+        }
     except Exception as exc:
         logger.error("%s Music generation task failed: %s", log_prefix, exc, exc_info=True)
         try:
@@ -541,6 +598,52 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         raise
     finally:
         await task.cleanup_services()
+
+
+async def _send_music_safety_rejection_embed(
+    task: BaseServiceTask,
+    app_id: str,
+    skill_id: str,
+    arguments: Dict[str, Any],
+    rejection: MediaGenerationSafetyRejection,
+    log_prefix: str,
+) -> None:
+    embed_id = arguments.get("embed_id")
+    user_id = arguments.get("user_id")
+    chat_id = arguments.get("chat_id")
+    message_id = arguments.get("message_id")
+    if not embed_id or not user_id or not chat_id or not message_id:
+        return
+
+    from toon_format import encode as toon_encode
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    payload = rejection.decision.to_rejection_payload()
+    content = {
+        "app_id": app_id,
+        "skill_id": skill_id,
+        "type": "music",
+        "status": "error",
+        "error": payload["user_facing_message"],
+        "safety_rejection": True,
+    }
+    embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    await embed_service.send_embed_data_to_client(
+        embed_id=embed_id,
+        embed_type="app_skill_use",
+        content_toon=toon_encode(content),
+        chat_id=chat_id,
+        message_id=message_id,
+        user_id=user_id,
+        user_id_hash=_hash_value(user_id),
+        status="error",
+        encryption_mode="client",
+        created_at=now_ts,
+        updated_at=now_ts,
+        log_prefix=f"{log_prefix} [MEDIA_SAFETY_REJECT]",
+        check_cache_status=False,
+    )
 
 
 async def _send_error_embed(

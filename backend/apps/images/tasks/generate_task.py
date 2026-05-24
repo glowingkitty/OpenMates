@@ -59,6 +59,7 @@ from backend.shared.python_utils.image_safety import (
     get_strike_counter,
 )
 from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
+from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
 
@@ -735,6 +736,31 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
 
+        media_decision = validate_media_generation_request(
+            media_type="image",
+            prompt=str(prompt),
+            request_count=1,
+            style=style,
+        )
+        if not media_decision.allowed:
+            tool_response = media_decision.to_rejection_payload()
+            logger.warning(
+                "%s [MediaSafety] REJECTED category=%s reason=%s",
+                log_prefix,
+                media_decision.category,
+                media_decision.reason,
+            )
+            await _emit_safety_rejection_embed(
+                task,
+                embed_id=embed_id,
+                user_id=user_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_facing_message=str(tool_response["user_facing_message"]),
+                log_prefix=log_prefix,
+            )
+            return {"embed_id": embed_id, "status": "rejected", **tool_response}
+
         # 3b. Decrypt reference images (for image-to-image generation).
         # Reference image embed IDs were resolved by the skill layer (embed_ref → embed_id).
         # We fetch and decrypt them here in the task so that image bytes are never stored
@@ -1268,6 +1294,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             original_filename=f"openmates_generated_image_{embed_id[:8]}.{output_filetype}",
             content_type=original_content_type,
             log_prefix=log_prefix,
+            provenance_metadata={
+                "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",
+                "visual_watermark": False,
+                "provider_watermarking": "provider-dependent",
+            },
         )
         if not upload_record_stored:
             for meta in files_metadata.values():
@@ -1296,6 +1327,12 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Input reference image embed IDs (non-empty only for image-to-image generation).
             # Used by the frontend to display thumbnails of the source images above the prompt.
             "input_embed_ids": reference_image_embed_ids or [],
+            "provenance": {
+                "ai_generated": True,
+                "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",
+                "visual_watermark": False,
+                "provider_watermarking": "provider-dependent",
+            },
         }
         
         # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)
