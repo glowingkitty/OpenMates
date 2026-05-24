@@ -48,7 +48,7 @@ skills:
     class_path: |
       backend.apps.electronics.skills.search_components.SearchComponentsSkill
     pricing:
-      fixed: 1
+      fixed: 5
     tool_schema:
       type: object
       properties:

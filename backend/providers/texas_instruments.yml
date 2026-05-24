@@ -10,4 +10,4 @@ logo_svg: "logos/texas_instruments.svg"
 region: "US"
 
 pricing:
-  per_request_credits: 1
+  per_request_credits: 5
