@@ -1249,7 +1249,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || embedData?.provider || "";
+    const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1262,6 +1262,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       ? decodedContent.providers
       : Array.isArray(embedData?.providers)
         ? embedData.providers
+        : Array.isArray((attrs as any).providers)
+          ? (attrs as any).providers
         : [];
 
     // Cleanup any existing mounted component
@@ -1531,7 +1533,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "REWE";
+    const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
+    const providers: string[] = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
+        : Array.isArray((attrs as any).providers)
+          ? (attrs as any).providers
+        : [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1568,6 +1577,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
+          providers,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,
@@ -1671,8 +1681,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Meetup";
-    const providers: string[] = (decodedContent?.providers as string[]) || [];
+    const provider = decodedContent?.provider || (attrs as any).provider || "Meetup";
+    const providers: string[] = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray((attrs as any).providers)
+        ? (attrs as any).providers
+        : [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1743,8 +1757,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Multi";
-    const providers: string[] = (decodedContent?.providers as string[]) || [];
+    const provider = decodedContent?.provider || (attrs as any).provider || "Multi";
+    const providers: string[] = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray((attrs as any).providers)
+        ? (attrs as any).providers
+        : [];
     const status =
       decodedContent?.status ||
       embedData?.status ||

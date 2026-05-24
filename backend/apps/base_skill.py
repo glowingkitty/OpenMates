@@ -154,6 +154,11 @@ class BaseSkill:
         """
         raise NotImplementedError("Each skill must implement the 'execute' method.")
 
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Return metadata that can be shown while a skill is still processing."""
+        return {}
+
     async def _get_effective_pricing_config(self) -> Optional[Dict[str, Any]]:
         """
         Determines the effective pricing configuration.

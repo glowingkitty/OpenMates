@@ -133,6 +133,18 @@ class SearchSkill(BaseSkill):
 
     FOLLOW_UP_SUGGESTIONS = FOLLOW_UP_SUGGESTIONS
 
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve selected housing providers before network search starts."""
+        requested = request.get("providers")
+        if isinstance(requested, list) and requested:
+            providers = [str(provider) for provider in requested if str(provider) in PROVIDER_MAP]
+        else:
+            providers = ALL_PROVIDER_NAMES.copy()
+        if not providers:
+            providers = ALL_PROVIDER_NAMES.copy()
+        return {"provider": "Multi", "providers": providers}
+
     async def execute(
         self,
         requests: List[Dict[str, Any]],

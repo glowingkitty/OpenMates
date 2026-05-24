@@ -105,7 +105,8 @@
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let localQuery = $state('');
-  let localProvider = $state('REWE');
+  let localProvider = $state('');
+  let localProviders = $state<string[]>([]);
   // embedIdsOverride: only set by handleEmbedDataUpdated during streaming;
   // falls back to the raw embedIds prop so it's available at mount time.
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
@@ -117,7 +118,8 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
-      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'REWE';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '';
+      localProviders = Array.isArray(data.decodedContent?.providers) ? data.decodedContent.providers as string[] : [];
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
@@ -126,6 +128,7 @@
 
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let providers = $derived(localProviders);
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let legacyResults = $derived(localResults);
 
@@ -251,22 +254,33 @@
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
+    if (Array.isArray(content.providers)) localProviders = content.providers as string[];
     if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results;
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
 
-  let providerLabel = $derived.by(() => {
-    const normalized = provider.trim().toUpperCase();
+  function shoppingProviderLabel(value: string): string {
+    const normalized = value.trim().toUpperCase();
     if (normalized === 'AMAZON') {
-      return provider;
+      return 'Amazon';
     }
     if (normalized === 'REWE') return 'REWE';
-    return provider;
+    if (normalized === 'STOFFE.DE' || normalized === 'STOFFE_DE' || normalized === 'STOFFE') return 'Stoffe.de';
+    return value;
+  }
+
+  let providerLabel = $derived.by(() => {
+    if (providers.length > 0) {
+      const labels = providers.map(shoppingProviderLabel);
+      if (labels.length <= 2) return labels.join(', ');
+      return `${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+    }
+    return provider ? shoppingProviderLabel(provider) : '';
   });
 
   let headerTitle = $derived(query || $text('common.search'));
-  let headerSubtitle = $derived(`${$text('embeds.via')} ${providerLabel}`);
+  let headerSubtitle = $derived(providerLabel ? `${$text('embeds.via')} ${providerLabel}` : '');
 </script>
 
 <SearchResultsTemplate

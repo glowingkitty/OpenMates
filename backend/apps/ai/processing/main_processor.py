@@ -1,6 +1,8 @@
 # backend/apps/ai/processing/main_processor.py
 # Handles the main processing stage of AI skill requests.
 
+import importlib
+import inspect
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator, Tuple, Union
 import json
@@ -681,6 +683,51 @@ def _validate_skill_provider(
             correct_provider,
         )
     return correct_provider
+
+
+async def _resolve_skill_preview_metadata(
+    *,
+    app_id: str,
+    skill_id: str,
+    request_metadata: Dict[str, Any],
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]],
+    log_prefix: str,
+) -> Dict[str, Any]:
+    """Resolve display metadata that is known before a skill executes."""
+    if not discovered_apps_metadata or app_id not in discovered_apps_metadata:
+        return {}
+
+    skill_def = None
+    for candidate in discovered_apps_metadata[app_id].skills or []:
+        if candidate.id == skill_id:
+            skill_def = candidate
+            break
+    if not skill_def or not skill_def.class_path:
+        return {}
+
+    try:
+        module_path, class_name = skill_def.class_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        skill_class = getattr(module, class_name)
+        resolver = getattr(skill_class, "resolve_preview_metadata", None)
+        if not callable(resolver):
+            return {}
+
+        resolved = resolver(dict(request_metadata))
+        if inspect.isawaitable(resolved):
+            resolved = await resolved
+        if not isinstance(resolved, dict):
+            return {}
+        return {key: value for key, value in resolved.items() if value not in (None, "", [])}
+    except Exception as exc:
+        logger.warning(
+            "%s Failed to resolve preview metadata for %s.%s: %s",
+            log_prefix,
+            app_id,
+            skill_id,
+            exc,
+        )
+        return {}
 
 
 async def _charge_skill_credits(
@@ -2562,6 +2609,15 @@ async def handle_main_processing(
                                     )
                                     if validated_provider is not None:
                                         request_metadata["provider"] = validated_provider
+
+                                preview_metadata = await _resolve_skill_preview_metadata(
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    request_metadata=request_metadata,
+                                    discovered_apps_metadata=discovered_apps_metadata,
+                                    log_prefix=log_prefix,
+                                )
+                                request_metadata.update(preview_metadata)
                                 
                                 # Add request ID for later matching
                                 # ALWAYS auto-generate 1-indexed IDs - ignore any LLM-provided IDs
@@ -2677,6 +2733,15 @@ async def handle_main_processing(
                                 )
                                 if validated_provider is not None:
                                     metadata["provider"] = validated_provider
+
+                            preview_metadata = await _resolve_skill_preview_metadata(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                request_metadata=metadata,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                log_prefix=log_prefix,
+                            )
+                            metadata.update(preview_metadata)
                             
                             # Log final metadata for debugging
                             metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
@@ -3475,6 +3540,15 @@ async def handle_main_processing(
                                 )
                                 if validated_provider is not None:
                                     metadata["provider"] = validated_provider
+
+                            preview_metadata = await _resolve_skill_preview_metadata(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                request_metadata=metadata,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                log_prefix=log_prefix,
+                            )
+                            metadata.update(preview_metadata)
 
                             # Create placeholder embed (fallback path)
                             placeholder_embed_data = await embed_service.create_processing_embed_placeholder(

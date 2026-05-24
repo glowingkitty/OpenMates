@@ -206,7 +206,8 @@ class EmbedService:
                     f"keys={list(metadata.keys())}, "
                     f"key_count={len(metadata.keys())}, "
                     f"query_present={'query' in metadata}, "
-                    f"provider_present={'provider' in metadata}"
+                    f"provider_present={'provider' in metadata}, "
+                    f"providers_present={'providers' in metadata}"
                 )
 
             # Convert to TOON format
@@ -285,6 +286,8 @@ class EmbedService:
                     embed_reference_payload["query"] = metadata["query"]
                 if metadata.get("provider"):
                     embed_reference_payload["provider"] = metadata["provider"]
+                if metadata.get("providers"):
+                    embed_reference_payload["providers"] = metadata["providers"]
             embed_reference = json.dumps(embed_reference_payload)
 
             return {
@@ -2923,7 +2926,7 @@ class EmbedService:
                 
                 # Extract common metadata fields that should be preserved
                 # Include all common input parameters (query, url, provider, languages, etc.)
-                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
+                for key in ['query', 'provider', 'providers', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
                         logger.debug(f"{log_prefix} Found metadata key '{key}'")
@@ -2936,7 +2939,8 @@ class EmbedService:
                     f"(key_count={len(original_metadata.keys())}, "
                     f"query_present={'query' in original_metadata}, "
                     f"url_present={'url' in original_metadata}, "
-                    f"provider_present={'provider' in original_metadata})"
+                    f"provider_present={'provider' in original_metadata}, "
+                    f"providers_present={'providers' in original_metadata})"
                 )
             elif not original_metadata:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
@@ -3074,6 +3078,7 @@ class EmbedService:
                     f"{log_prefix} Parent embed content includes: "
                     f"query_present={'query' in parent_content}, "
                     f"provider_present={'provider' in parent_content}, "
+                    f"providers_present={'providers' in parent_content}, "
                     f"result_count={parent_content.get('result_count')}"
                 )
 
@@ -3320,7 +3325,7 @@ class EmbedService:
             original_metadata = {}
             if original_content:
                 # Extract metadata fields that should be preserved
-                for key in ['query', 'provider', 'url', 'input_data']:
+                for key in ['query', 'provider', 'providers', 'url', 'input_data']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
                         logger.debug(f"{log_prefix} Found metadata key '{key}'")
