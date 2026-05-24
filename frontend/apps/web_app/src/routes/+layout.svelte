@@ -30,7 +30,7 @@
 		// Utils
 		performCleanUpdate
 	} from '@repo/ui';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { waitLocale } from 'svelte-i18n';
 	import { updated } from '$app/state';
@@ -38,6 +38,56 @@
 
 	let loaded = $state(false);
 	let { children } = $props();
+	const OPENMATES_FAVICONS = [
+		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+		{ key: 'fallback', rel: 'alternate icon', type: 'image/png', href: '/favicon.png' },
+		{ key: 'apple', rel: 'apple-touch-icon', type: '', href: '/favicon.png' }
+	] as const;
+	const ICON_REL_TOKENS = new Set(['icon', 'apple-touch-icon']);
+	let faviconGuardActive = false;
+	let faviconObserver: MutationObserver | null = null;
+
+	function isIconLink(link: HTMLLinkElement): boolean {
+		return link.relList.contains('apple-touch-icon') || link.rel.split(/\s+/).some((rel) => ICON_REL_TOKENS.has(rel));
+	}
+
+	function ensureOpenMatesFavicons() {
+		if (!browser || faviconGuardActive) return;
+		faviconGuardActive = true;
+
+		try {
+			// Some mobile browsers aggressively re-evaluate favicons after SPA title/head
+			// updates. Keep result favicons from embed metadata out of the document head.
+			const expectedPaths = new Set<string>(OPENMATES_FAVICONS.map((icon) => icon.href));
+			document.querySelectorAll<HTMLLinkElement>('link[rel]').forEach((link) => {
+				if (!isIconLink(link)) return;
+
+				const hrefPath = new URL(link.getAttribute('href') || '', window.location.origin).pathname;
+				if (!expectedPaths.has(hrefPath)) {
+					link.remove();
+				}
+			});
+
+			for (const icon of OPENMATES_FAVICONS) {
+				let link = document.querySelector<HTMLLinkElement>(`link[data-openmates-favicon="${icon.key}"]`);
+				if (!link || !document.head.contains(link)) {
+					link = document.createElement('link');
+					link.dataset.openmatesFavicon = icon.key;
+					document.head.appendChild(link);
+				}
+
+				link.setAttribute('rel', icon.rel);
+				if (icon.type) {
+					link.setAttribute('type', icon.type);
+				} else {
+					link.removeAttribute('type');
+				}
+				link.setAttribute('href', icon.href);
+			}
+		} finally {
+			faviconGuardActive = false;
+		}
+	}
 
 	function applyBrowserChromeTheme(themeName: string) {
 		if (!browser) return;
@@ -61,6 +111,16 @@
 	let updateNotificationShown = $state(false);
 
 	onMount(async () => {
+		ensureOpenMatesFavicons();
+		faviconObserver = new MutationObserver(() => ensureOpenMatesFavicons());
+		faviconObserver.observe(document.head, {
+			attributes: true,
+			attributeFilter: ['href', 'rel', 'type'],
+			childList: true,
+			subtree: true
+		});
+		window.addEventListener('focus', ensureOpenMatesFavicons);
+
 		// Import font CSS only in the browser to avoid SSR issues
 		// Node.js cannot process CSS files directly during SSR
 		// This dynamic import only runs in the browser, not during SSR
@@ -134,6 +194,7 @@
 
 		// Load meta tags after translations are ready
 		await loadMetaTags();
+		ensureOpenMatesFavicons();
 
 		initializeTheme();
 		// Furry Mode is disabled until any furry art is made by human artists.
@@ -210,11 +271,18 @@
 		// cause zoom drift on iOS.
 		document.addEventListener('visibilitychange', () => {
 			if (document.visibilityState === 'visible') {
+				ensureOpenMatesFavicons();
 				// Small delay to let the browser finish its tab-switch rendering.
 				// Without this, the visualViewport.scale may not yet reflect the glitched state.
 				setTimeout(resetZoom, 100);
 			}
 		});
+	});
+
+	onDestroy(() => {
+		if (!browser) return;
+		faviconObserver?.disconnect();
+		window.removeEventListener('focus', ensureOpenMatesFavicons);
 	});
 
 	// Watch theme changes and update document attribute

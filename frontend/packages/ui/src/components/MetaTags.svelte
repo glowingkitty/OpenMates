@@ -85,8 +85,8 @@
     <title>{title}</title>
 
     <!-- Add favicon links -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate icon" type="image/jpeg" href="/favicon.jpg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" data-openmates-favicon="primary" />
+    <link rel="alternate icon" type="image/png" href="/favicon.png" data-openmates-favicon="fallback" />
 
     <meta name="description" content={description} />
     <meta name="keywords" content={keywords.join(', ')} />
