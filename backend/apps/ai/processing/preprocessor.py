@@ -1375,7 +1375,7 @@ async def handle_preprocessing(
 
     if is_first_message:
         # --- First message: two-call split ---
-        # Call A (fast_preprocess_request_tool): title, category, icon_names, harmful_or_illegal,
+        # Call A (fast_preprocess_request_tool): title, topic_area, topic_shift, icon_names, harmful_or_illegal,
         #   misuse_risk, output_language.  Small schema → fast response → UI shown immediately.
         # Call B (preprocess_request_tool): routing fields (complexity, task_area, skills, etc.)
         #   + chat_summary + chat_tags.  Does NOT include title/category/icons/safety/language.
@@ -1397,13 +1397,12 @@ async def handle_preprocessing(
         logger.info(f"{log_prefix} Loaded fast_preprocess_request_tool (Call A) and preprocess_request_tool (Call B).")
     else:
         # --- Follow-up message: single call (same as before the split) ---
-        # Add category, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
+        # Add topic routing, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
         # (on first messages those come from Call A, but on follow-ups there is no Call A).
-        # Category is critical for follow-ups: without it, the LLM doesn't return a category and
-        # the system falls back to 'general_knowledge', losing the specialized mate from the first message.
+        # Topic routing is critical for follow-ups: without it, backend category derivation falls
+        # back to general_knowledge, losing the specialized mate from the first message.
         logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
         follow_up_extra_required = [
-            "category",
             "topic_area",
             "topic_shift",
             "harmful_or_illegal",
@@ -1465,7 +1464,7 @@ async def handle_preprocessing(
     # We also override a small number of categories with tighter, more precise hints
     # (especially 'onboarding_support' and 'general_knowledge') to prevent mis-routing.
     #
-    # Override map: category -> description string used in the {CATEGORIES_LIST} prompt.
+    # Override map: category -> description string used for category availability and guards.
     # Any category NOT in this map falls back to the description from the mate .md file.
     CATEGORY_DESCRIPTION_OVERRIDES: Dict[str, str] = {
         # 'onboarding_support' is the most mis-routed category. The override makes the
@@ -1544,7 +1543,7 @@ async def handle_preprocessing(
         )
 
     # Ensure 'general_knowledge' is always available as a fallback category.
-    # This is critical for category validation fallback logic.
+    # This is critical for topic_area -> category fallback logic.
     general_knowledge_present = any(item.startswith("general_knowledge:") for item in available_categories_list)
     if not general_knowledge_present:
         logger.warning(
@@ -1587,12 +1586,12 @@ async def handle_preprocessing(
             if len(filtered_categories) != len(available_categories_list):
                 available_categories_list = filtered_categories
                 logger.info(
-                    f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from CATEGORIES_LIST "
+                    f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from selectable categories "
                     "because no onboarding trigger terms were found in user chat history."
                 )
         else:
             logger.debug(
-                f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in CATEGORIES_LIST "
+                f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in selectable categories "
                 "because onboarding trigger terms were found in user chat history."
             )
 
@@ -1731,7 +1730,6 @@ async def handle_preprocessing(
             )
 
     dynamic_context = {
-        "CATEGORIES_LIST": available_categories_list,
         "TOPIC_AREAS_LIST": _build_topic_areas_list(),
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
         "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
@@ -1748,23 +1746,22 @@ async def handle_preprocessing(
         # Two-call parallel preprocessing for first messages.
         #
         # Call A (fast_preprocess_request_tool): small schema, fires and resolves
-        #   quickly.  Provides title, category, icon_names, safety scores, and
+        #   quickly.  Provides title, topic_area, topic_shift, icon_names, safety scores, and
         #   output_language.  Results are used to emit the title_generated event
         #   to the frontend before Call B even finishes.
         #
         # Call B (preprocess_request_tool): full routing / metadata schema without
-        #   the UI fields (no title, category, icons, safety, language).  Provides
+        #   the UI fields (no title, topic_area, topic_shift, icons, safety, language).  Provides
         #   complexity, task_area, skills, focus modes, memories, summary and tags.
         #
         # Both coroutines are awaited with asyncio.gather so they run in parallel
         # over the network and we wait for both before doing any further work.
         # -----------------------------------------------------------------------
-        # Call B: fast_tool only needs CATEGORIES_LIST and CURRENT_DATE_TIME.
+        # Call B: fast_tool only needs topic areas and CURRENT_DATE_TIME.
         # Call A (main tool): needs the full dynamic_context.
         # Include the user's UI language so the title is generated in the user's preferred language,
         # regardless of the language the user is chatting in (mirrors how chat_summary works).
         fast_dynamic_context = {
-            "CATEGORIES_LIST": available_categories_list,
             "TOPIC_AREAS_LIST": _build_topic_areas_list(),
             "CURRENT_DATE_TIME": date_time_str,
             "USER_SYSTEM_LANGUAGE": user_system_language,
@@ -1847,7 +1844,7 @@ async def handle_preprocessing(
             )
 
         # Merge the two result dicts: Call A fields take priority for the fields it owns
-        # (title, category, icon_names, harmful_or_illegal, misuse_risk, output_language),
+        # (title, topic_area, topic_shift, icon_names, harmful_or_illegal, misuse_risk, output_language),
         # Call B provides all routing/metadata fields.
         llm_analysis_args: Dict[str, Any] = {}
         llm_analysis_args.update(call_b_result.arguments)  # routing fields first
@@ -2278,189 +2275,43 @@ async def handle_preprocessing(
         llm_response_temp_val = 0.4
         llm_analysis_args["llm_response_temp"] = llm_response_temp_val
     
-    # --- Validate and potentially retry category selection ---
-    # The LLM should return a bare category ID (e.g. "science", "finance") — NOT the full
-    # "id: description" string from available_categories_list. We validate against
-    # available_category_ids (bare IDs only) to avoid incorrectly rejecting valid responses.
-    llm_category = llm_analysis_args.get("category")
-    validated_category = llm_category
+    # --- Derive mate category from topic_area ---
+    # The LLM no longer owns mate category selection. It classifies the message into a
+    # granular topic_area, and backend code maps that topic_area to the canonical mate category.
+    validated_category = _resolve_category_from_topic_area(
+        raw_topic_area=llm_analysis_args.get("topic_area"),
+        raw_topic_shift=llm_analysis_args.get("topic_shift"),
+        previous_category=previous_category,
+        available_category_ids=available_category_ids,
+    )
 
-    # Defensive strip: if the LLM returned the full "id: description" string instead of just
-    # the bare ID, extract the part before the first ": " so we don't needlessly retry.
-    if llm_category and ": " in llm_category:
-        stripped = llm_category.split(": ", 1)[0].strip()
-        if stripped in available_category_ids:
-            logger.debug(f"{log_prefix} LLM returned full category string, trimmed to bare ID: '{stripped}'")
-            llm_category = stripped
-            llm_analysis_args["category"] = stripped
-            validated_category = stripped
-
-    # Validate the returned category is a known bare ID
-    if llm_category and llm_category not in available_category_ids:
-        logger.warning(
-            f"{log_prefix} LLM returned invalid category '{llm_category}' which is not in available categories list: {available_categories_list}. "
-            f"Attempting retry..."
+    if validated_category:
+        logger.info(
+            f"{log_prefix} TOPIC_ROUTING: Derived category '{validated_category}' from "
+            f"topic_area='{llm_analysis_args.get('topic_area')}', "
+            f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
         )
-        
-        # Retry preprocessing once with a more explicit instruction about category validation.
-        # On first messages the category comes from Call A (fast_preprocess_request_tool), so we
-        # retry with that tool.  On follow-up messages it comes from the main tool (Call B).
-        try:
-            # Choose which tool definition to retry with based on message type.
-            # - First message: category came from Call A → retry with fast_tool_definition
-            # - Follow-up:     category came from the single Call B → retry with tool_definition_for_llm
-            retry_base_tool = fast_tool_definition if is_first_message else tool_definition_for_llm
-            retry_dynamic_ctx = (
-                {
-                    "CATEGORIES_LIST": available_categories_list,
-                    "TOPIC_AREAS_LIST": _build_topic_areas_list(),
-                    "CURRENT_DATE_TIME": date_time_str,
-                }
-                if is_first_message
-                else dynamic_context
-            )
-            retry_tool_definition = copy.deepcopy(retry_base_tool)
-            # Add a note in the category description emphasizing it MUST be from the list
-            category_desc = retry_tool_definition.get('function', {}).get('parameters', {}).get('properties', {}).get('category', {}).get('description', '')
-            retry_tool_definition['function']['parameters']['properties']['category']['description'] = (
-                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category ID from this list: {available_categories_list}. "
-                f"Return ONLY the short category ID (the part before the colon, e.g. 'science', 'finance', 'travel'). "
-                f"DO NOT return the full description string. DO NOT invent new categories. If unsure, use 'general_knowledge'."
-            )
-
-            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions (is_first_message={is_first_message})...")
-            # Pass the FULL dynamic_context so the retry LLM has all the info it needs.
-            # We only extract category from the retry result, but having complete context
-            # helps the LLM make a better decision. We also merge relevant_app_skills from the retry
-            # as a union with the first call's skills, since the retry may identify skills the first
-            # call missed (or vice versa).
-            retry_llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-                task_id=f"{request_data.chat_id}_{request_data.message_id}_retry",
-                model_id=preprocessing_model,
-                fallback_models=preprocessing_fallbacks,
-                message_history=sanitized_message_history,
-                tool_definition=retry_tool_definition,
-                secrets_manager=secrets_manager,
-                user_app_settings_and_memories_metadata=None if is_first_message else user_app_settings_and_memories_metadata,
-                dynamic_context=retry_dynamic_ctx,
-            )
-            
-            if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
-                logger.warning(
-                    f"{log_prefix} Retry preprocessing LLM call failed or returned no arguments. "
-                    f"Error: {retry_llm_call_result.error_message or 'No arguments returned'}. "
-                    f"Using 'general_knowledge' as fallback category."
-                )
-                validated_category = "general_knowledge"
-            else:
-                retry_category = retry_llm_call_result.arguments.get("category")
-                # Strip trailing description in case the LLM returned "science: Science expert..."
-                # instead of just "science" — extract only the bare ID before the first ": "
-                if retry_category and ": " in retry_category:
-                    retry_category = retry_category.split(": ", 1)[0].strip()
-                    logger.debug(f"{log_prefix} Retry category trimmed to bare ID: '{retry_category}'")
-                if retry_category and retry_category in available_category_ids:
-                    logger.info(f"{log_prefix} Retry successful! LLM returned valid category '{retry_category}'.")
-                    validated_category = retry_category
-                    # Update llm_analysis_args with the validated category for consistency
-                    llm_analysis_args["category"] = validated_category
-                else:
-                    # Retry also returned an invalid category (either None, empty, or not in available_category_ids)
-                    logger.warning(
-                        f"{log_prefix} Retry preprocessing also returned invalid category '{retry_category}' "
-                        f"(original invalid category was '{llm_category}'). "
-                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available category IDs: {sorted(available_category_ids)}. "
-                        f"Using 'general_knowledge' as fallback category."
-                    )
-                    validated_category = "general_knowledge"
-                    # Update llm_analysis_args with fallback category
-                    llm_analysis_args["category"] = validated_category
-                
-                # --- Merge relevant_app_skills from retry into first call's results ---
-                # The retry LLM may select different/additional skills compared to the first call.
-                # Since the first call returned an invalid category, it may also have had a suboptimal
-                # skill selection. We take the UNION of both to maximize coverage.
-                # This is safe because the skill validation logic downstream will filter out any
-                # invalid skills, and the main LLM decides which tools to actually invoke.
-                if retry_llm_call_result.arguments:
-                    retry_skills = retry_llm_call_result.arguments.get("relevant_app_skills")
-                    original_skills = llm_analysis_args.get("relevant_app_skills")
-                    if retry_skills and isinstance(retry_skills, list):
-                        if original_skills and isinstance(original_skills, list):
-                            # Union: combine both lists, preserving order (original first, then retry additions)
-                            original_set = set(original_skills)
-                            merged_skills = list(original_skills) + [s for s in retry_skills if s not in original_set]
-                            if len(merged_skills) > len(original_skills):
-                                logger.info(
-                                    f"{log_prefix} Merged relevant_app_skills from retry into first call results. "
-                                    f"Original: {original_skills}, Retry: {retry_skills}, Merged: {merged_skills}"
-                                )
-                                llm_analysis_args["relevant_app_skills"] = merged_skills
-                        elif not original_skills or not isinstance(original_skills, list):
-                            # First call had no skills, use retry's skills entirely
-                            logger.info(
-                                f"{log_prefix} Using relevant_app_skills from retry (first call had none): {retry_skills}"
-                            )
-                            llm_analysis_args["relevant_app_skills"] = retry_skills
-        except Exception as retry_exc:
-            logger.error(
-                f"{log_prefix} Exception during category validation retry: {retry_exc}. "
-                f"Using 'general_knowledge' as fallback category.",
-                exc_info=True
-            )
-            validated_category = "general_knowledge"
-            # Update llm_analysis_args with fallback category
-            llm_analysis_args["category"] = validated_category
-    elif not llm_category:
-        # Category is None or empty - use fallback
-        logger.warning(
-            f"{log_prefix} LLM did not provide a category in its response. "
-            f"Using 'general_knowledge' as fallback category."
-        )
-        validated_category = "general_knowledge"
-        # Update llm_analysis_args with fallback category
         llm_analysis_args["category"] = validated_category
     else:
-        # Category is valid
-        logger.debug(f"{log_prefix} Category '{validated_category}' is valid (exists in available categories list).")
+        logger.warning(
+            f"{log_prefix} TOPIC_ROUTING: Missing or unmapped topic_area "
+            f"'{llm_analysis_args.get('topic_area')}'. Using 'general_knowledge' fallback category."
+        )
+        validated_category = "general_knowledge"
+        llm_analysis_args["category"] = validated_category
 
     # --- Force onboarding_support when Welcome focus is active ---
     # When the user is in an onboarding conversation (openmates-welcome focus mode),
     # always route to the onboarding mate regardless of what the LLM selected.
-    # This overrides any LLM category selection or fallback logic above.
+    # This overrides topic_area-derived category selection above.
     if force_onboarding_category:
         if validated_category != ONBOARDING_SUPPORT_CATEGORY:
             logger.info(
-                f"{log_prefix} Overriding LLM category '{validated_category}' → "
+                f"{log_prefix} Overriding derived category '{validated_category}' → "
                 f"'{ONBOARDING_SUPPORT_CATEGORY}' because Welcome Onboarding focus is active."
             )
         validated_category = ONBOARDING_SUPPORT_CATEGORY
         llm_analysis_args["category"] = ONBOARDING_SUPPORT_CATEGORY
-    else:
-        topic_routed_category = _resolve_category_from_topic_area(
-            raw_topic_area=llm_analysis_args.get("topic_area"),
-            raw_topic_shift=llm_analysis_args.get("topic_shift"),
-            previous_category=previous_category,
-            available_category_ids=available_category_ids,
-        )
-        if topic_routed_category and topic_routed_category != validated_category:
-            logger.info(
-                f"{log_prefix} TOPIC_ROUTING: Overriding LLM category '{validated_category}' -> "
-                f"'{topic_routed_category}' based on topic_area='{llm_analysis_args.get('topic_area')}', "
-                f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
-            )
-            validated_category = topic_routed_category
-            llm_analysis_args["category"] = topic_routed_category
-        elif topic_routed_category:
-            logger.debug(
-                f"{log_prefix} TOPIC_ROUTING: LLM category already matches routed category "
-                f"'{topic_routed_category}' for topic_area='{llm_analysis_args.get('topic_area')}'."
-            )
-        elif llm_analysis_args.get("topic_area"):
-            logger.warning(
-                f"{log_prefix} TOPIC_ROUTING: Ignoring invalid or unmapped topic_area "
-                f"'{llm_analysis_args.get('topic_area')}'. Keeping category '{validated_category}'."
-            )
 
     # --- Mate selection: user override first, then explicit request_data, then category-based ---
     # When the user specified @mate:..., we use only that and do not run automatic selection
