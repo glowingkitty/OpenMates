@@ -735,8 +735,8 @@ async def _charge_skill_credits(
             # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
             # Use the first provider (most skills will have one primary provider)
             provider_name = skill_def.providers[0].name
-            # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
-            provider_id = provider_name.lower()
+            # Normalize provider name to provider_id format (provider YAML IDs use snake_case).
+            provider_id = provider_name.lower().replace(" ", "_")
             
             # Map provider names to provider IDs (handles cases like "Google" -> "google_maps" for maps app)
             # This matches the frontend mapping logic in generate-apps-metadata.js
@@ -863,9 +863,9 @@ async def _charge_skill_credits(
         if skill_def.full_model_reference and "/" in skill_def.full_model_reference:
             info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
         elif skill_def.providers and len(skill_def.providers) > 0:
-            # Re-use the same name-to-ID mapping as the pricing lookup
+            # Re-use the same name-to-ID mapping as the pricing lookup.
             pname = skill_def.providers[0].name
-            info_provider_id = pname.lower()
+            info_provider_id = pname.lower().replace(" ", "_")
             if pname == "Google" and app_id == "maps":
                 info_provider_id = "google_maps"
             elif pname in ("Brave", "Brave Search"):

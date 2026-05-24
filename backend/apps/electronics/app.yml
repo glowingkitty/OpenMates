@@ -40,10 +40,10 @@ skills:
       especially power converters or voltage regulators matching input voltage,
       output voltage, output current, efficiency, BOM cost, footprint, or
       topology requirements. Currently supports category power_converters via
-      TI WEBENCH Power Designer.
+      Texas Instruments WEBENCH Power Designer.
     stage: production
     providers:
-      - name: TI WEBENCH
+      - name: Texas Instruments
         no_api_key: true
     class_path: |
       backend.apps.electronics.skills.search_components.SearchComponentsSkill

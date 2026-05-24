@@ -309,8 +309,8 @@ function mapProviderNameToId(providerName, appId) {
   if (providerName === "YouTube") {
     return "youtube";
   }
-  // Most providers just need to be lowercased (Brave -> brave, Firecrawl -> firecrawl, etc.)
-  return normalized;
+  // Most providers just need to be normalized to provider_id format.
+  return normalized.replace(/\s+/g, "_");
 }
 
 /**

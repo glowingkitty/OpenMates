@@ -1008,7 +1008,7 @@ def resolve_skill_provider_info(
         provider_id = skill.full_model_reference.split("/", 1)[0]
     elif skill.providers and len(skill.providers) > 0:
         pname = skill.providers[0].name
-        provider_id = pname.lower()
+        provider_id = pname.lower().replace(" ", "_")
         # Same name-to-ID mapping as main_processor.py
         if pname == "Google" and app_id == "maps":
             provider_id = "google_maps"

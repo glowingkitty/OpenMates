@@ -1,0 +1,13 @@
+# backend/providers/texas_instruments.yml
+#
+# Provider metadata for Texas Instruments electronics design services.
+# Used by the backend usage metadata and frontend app settings provider pages.
+
+provider_id: "texas_instruments"
+name: "Texas Instruments"
+description: "Semiconductor and embedded systems provider behind WEBENCH Power Designer reference-design search."
+logo_svg: "logos/texas_instruments.svg"
+region: "US"
+
+pricing:
+  per_request_credits: 1
