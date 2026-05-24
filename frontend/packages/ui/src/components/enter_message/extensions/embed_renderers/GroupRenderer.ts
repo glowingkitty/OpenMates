@@ -1599,6 +1599,7 @@ export class GroupRenderer implements EmbedRenderer {
             provider: provider || "TI WEBENCH",
             status,
             results,
+            embedIds: childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

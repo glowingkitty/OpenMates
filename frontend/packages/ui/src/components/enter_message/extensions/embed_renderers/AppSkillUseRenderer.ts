@@ -1609,6 +1609,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
     const results = decodedContent?.results || [];
+    const embedIds = decodedContent?.embed_ids || embedData?.embed_ids;
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1638,6 +1639,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error",
           results,
+          embedIds,
           taskId,
           skillTaskId,
           isMobile: false,

@@ -47,6 +47,7 @@ apps:
   maps:              { start: "#11672d", end: "#3eab61" }
   design:            { start: "#0a0a0a", end: "#3d3d3d" }
   pcbdesign:         { start: "#1a2c6e", end: "#4a6ee8" }
+  electronics:       { start: "#1a2c6e", end: "#4a6ee8" }
   pdf:               { start: "#8f0808", end: "#e84545" }
   pdfeditor:         { start: "#8f0808", end: "#e84545" }
   shopping:          { start: "#ea9e39", end: "#ae6301" }

@@ -790,6 +790,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.electronics {
+  background: var(--color-app-electronics);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/pcbdesign.svg");
+  }
+}
+
 /* Skill icons - used in app skill previews for specific skill types */
 .icon_rounded.search {
   /* Search skill icon - grey background, search icon */
@@ -1859,7 +1866,6 @@ div.clickable-icon {
   -webkit-mask-position: center;
   mask-position: center;
 }
-
 
 
 

@@ -28,6 +28,7 @@
     provider?: string;
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     results?: ComponentResult[];
+    embedIds?: string | string[];
     taskId?: string;
     skillTaskId?: string;
     isMobile?: boolean;
@@ -40,6 +41,7 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp,
+    embedIds: embedIdsProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -50,6 +52,7 @@
   let localProvider = $state('TI WEBENCH');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<ComponentResult[]>([]);
+  let localEmbedIds = $state<string | string[] | undefined>(undefined);
   let localErrorMessage = $state('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
@@ -61,6 +64,7 @@
       localProvider = providerProp || 'TI WEBENCH';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
+      localEmbedIds = embedIdsProp;
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
       localErrorMessage = '';
@@ -71,6 +75,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let embedIds = $derived(localEmbedIds);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
@@ -87,7 +92,14 @@
     if (typeof content.provider === 'string') localProvider = content.provider;
     if (typeof content.error === 'string') localErrorMessage = content.error;
     if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
+    if (content.embed_ids) localEmbedIds = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as ComponentResult[];
+  }
+
+  function countEmbedIds(value: string | string[] | undefined): number {
+    if (Array.isArray(value)) return value.filter((embedId) => embedId.trim().length > 0).length;
+    if (typeof value === 'string') return value.split('|').filter((embedId) => embedId.trim().length > 0).length;
+    return 0;
   }
 
   function flattenResults(rawResults: ComponentResult[]): ComponentResult[] {
@@ -104,7 +116,7 @@
   }
 
   let flatResults = $derived(flattenResults(results));
-  let componentCount = $derived(flatResults.length);
+  let componentCount = $derived(flatResults.length || countEmbedIds(embedIds));
   let bestEfficiency = $derived.by(() => {
     const values = flatResults
       .map((result) => result.efficiency_percent)
