@@ -71,6 +71,94 @@ FINANCIAL_REPO_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
+
+TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
+    "openmates_platform": "Questions about OpenMates itself, its features, mates, apps, skills, account, pricing, or onboarding.",
+    "general_misc": "True fallback only: miscellaneous requests that do not fit any specialized topic area.",
+    "software_development": "Programming, software architecture, APIs, databases, code implementation.",
+    "debugging_code": "Finding and fixing bugs, errors, stack traces, failing tests, regressions.",
+    "devops_infrastructure": "Deployment, CI/CD, Docker, servers, cloud infrastructure, observability.",
+    "data_ai_ml": "Machine learning, AI systems, data science, model evaluation, data pipelines.",
+    "cybersecurity": "Defensive security, vulnerability assessment, auth, encryption, privacy engineering.",
+    "maker_fabrication": "Hands-on fabrication, workshop projects, materials, tools, assembly, physical builds.",
+    "textiles_sewing": "Fabric, textiles, sewing, patterns, tailoring, garments, craft materials like muslin.",
+    "hobby_electronics": "Arduino, Raspberry Pi, sensors, hobby circuits, maker electronics.",
+    "professional_electrical_engineering": "Formal EE, PCB design, power systems, signal processing, industrial electronics.",
+    "mechanical_engineering": "Mechanical design, mechanisms, CAD, tolerances, physical engineering.",
+    "product_prototyping": "Turning product ideas into prototypes, MVP hardware, iteration plans.",
+    "graphic_design": "Visual design, layout, illustration, typography, posters, assets.",
+    "ui_ux_design": "UX flows, interface structure, wireframes, interaction design, usability.",
+    "branding_marketing_creative": "Brand identity, campaigns, creative marketing concepts, positioning visuals.",
+    "writing_editing": "Writing, rewriting, editing, emails, documents, tone, text drafting.",
+    "movies_tv_media": "Films, series, actors, episodes, recommendations, screen media.",
+    "music_audio": "Music, songs, audio production, sound design, podcast/audio topics.",
+    "business_strategy": "Business planning, operations, strategy, growth, partnerships.",
+    "startup_product": "Startup ideas, product-market fit, MVPs, product strategy, roadmaps.",
+    "marketing_sales": "Sales, funnels, lead generation, ad copy, CRM, marketing operations.",
+    "finance_investing": "Investing, budgets, personal finance, markets, financial analysis.",
+    "accounting_taxes": "Bookkeeping, invoices, tax preparation, accounting concepts.",
+    "legal_law": "Legal concepts, contracts, regulations, compliance, rights, law questions.",
+    "medical_health": "Medical symptoms, conditions, treatments, healthcare navigation.",
+    "fitness_nutrition": "Exercise, diet, nutrition, fitness plans, healthy habits.",
+    "mental_health_psychology": "Emotions, therapy-like support, psychology, stress, crisis, self-harm.",
+    "life_coaching_productivity": "Goals, habits, motivation, productivity, personal planning.",
+    "relationships_communication": "Interpersonal communication, relationships, conflict, social advice.",
+    "cooking_food": "Recipes, edible ingredients, kitchen techniques, meals, restaurants, food safety.",
+    "home_diy_repair": "Household repairs, home improvement, furniture fixing, practical home projects.",
+    "gardening_plants": "Plants, gardening, soil, plant diseases, growing food or flowers.",
+    "travel_local": "Trips, destinations, routes, local places, itineraries, tourism.",
+    "shopping_products": "Product comparison, choosing items, purchasing advice, consumer goods.",
+    "science": "Physics, chemistry, biology, astronomy, scientific explanation.",
+    "history": "Historical events, periods, people, civilizations, timelines.",
+    "politics_activism": "Politics, civic action, activism, campaigns, social movements.",
+    "education_learning": "Learning plans, studying, tutoring, explaining school topics.",
+    "language_translation": "Translation, grammar, language learning, wording across languages.",
+}
+
+TOPIC_AREA_TO_MATE_CATEGORY: Dict[str, str] = {
+    "openmates_platform": ONBOARDING_SUPPORT_CATEGORY,
+    "general_misc": "general_knowledge",
+    "software_development": "software_development",
+    "debugging_code": "software_development",
+    "devops_infrastructure": "software_development",
+    "data_ai_ml": "software_development",
+    "cybersecurity": "software_development",
+    "maker_fabrication": "maker_prototyping",
+    "textiles_sewing": "maker_prototyping",
+    "hobby_electronics": "maker_prototyping",
+    "mechanical_engineering": "maker_prototyping",
+    "product_prototyping": "maker_prototyping",
+    "professional_electrical_engineering": "electrical_engineering",
+    "graphic_design": "design",
+    "ui_ux_design": "design",
+    "branding_marketing_creative": "design",
+    "writing_editing": "general_knowledge",
+    "movies_tv_media": "movies_tv",
+    "music_audio": "general_knowledge",
+    "business_strategy": "business_development",
+    "startup_product": "business_development",
+    "marketing_sales": "marketing_sales",
+    "finance_investing": "finance",
+    "accounting_taxes": "finance",
+    "legal_law": "legal_law",
+    "medical_health": "medical_health",
+    "fitness_nutrition": "medical_health",
+    "mental_health_psychology": "life_coach_psychology",
+    "life_coaching_productivity": "life_coach_psychology",
+    "relationships_communication": "life_coach_psychology",
+    "cooking_food": "cooking_food",
+    "home_diy_repair": "maker_prototyping",
+    "gardening_plants": "science",
+    "travel_local": "general_knowledge",
+    "shopping_products": "general_knowledge",
+    "science": "science",
+    "history": "history",
+    "politics_activism": "activism",
+    "education_learning": "general_knowledge",
+    "language_translation": "general_knowledge",
+}
+
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
     """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
@@ -108,6 +196,58 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
                 skill_resolver_map[f"{base_variant}_{last_segment}"] = valid_skill
 
     return skill_resolver_map
+
+
+def _build_topic_areas_list() -> List[str]:
+    """Return topic areas in the same id: description format as mate categories."""
+    return [
+        f"{topic_area}: {description}"
+        for topic_area, description in sorted(TOPIC_AREA_DESCRIPTIONS.items())
+    ]
+
+
+def _normalize_topic_area(raw_topic_area: Any) -> Optional[str]:
+    """Accept bare topic IDs and defensive list/string variants from LLM output."""
+    topic_area = raw_topic_area
+    if isinstance(topic_area, list):
+        topic_area = topic_area[0] if topic_area else None
+    if not isinstance(topic_area, str):
+        return None
+
+    topic_area = topic_area.split(": ", 1)[0].strip()
+    if topic_area in TOPIC_AREA_DESCRIPTIONS:
+        return topic_area
+    return None
+
+
+def _resolve_category_from_topic_area(
+    *,
+    raw_topic_area: Any,
+    raw_topic_shift: Any,
+    previous_category: Optional[str],
+    available_category_ids: set[str],
+) -> Optional[str]:
+    """Map LLM topic classification to a stable mate category.
+
+    Topic areas are intentionally more granular than mates. The LLM picks a
+    topic; code owns the topic -> mate mapping and follow-up continuity rules.
+    """
+    topic_area = _normalize_topic_area(raw_topic_area)
+    if not topic_area:
+        return None
+
+    mapped_category = TOPIC_AREA_TO_MATE_CATEGORY.get(topic_area)
+    if not mapped_category or mapped_category not in available_category_ids:
+        return None
+
+    topic_shift = raw_topic_shift if isinstance(raw_topic_shift, str) else "unclear"
+    if previous_category and topic_shift in SAME_TOPIC_SHIFT_VALUES:
+        return previous_category
+
+    if previous_category and topic_area == "general_misc":
+        return previous_category
+
+    return mapped_category
 
 # ---------------------------------------------------------------------------
 # Onboarding trigger phrases — multilingual (all 20 supported locales).
@@ -653,6 +793,8 @@ class PreprocessingResult(BaseModel):
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
+    topic_area: Optional[str] = Field(None, description="Granular topic area used for deterministic mate routing.")
+    topic_shift: Optional[str] = Field(None, description="Whether the latest message continues or changes the chat topic.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
@@ -1260,7 +1402,14 @@ async def handle_preprocessing(
         # Category is critical for follow-ups: without it, the LLM doesn't return a category and
         # the system falls back to 'general_knowledge', losing the specialized mate from the first message.
         logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
-        follow_up_extra_required = ["category", "harmful_or_illegal", "misuse_risk", "output_language"]
+        follow_up_extra_required = [
+            "category",
+            "topic_area",
+            "topic_shift",
+            "harmful_or_illegal",
+            "misuse_risk",
+            "output_language",
+        ]
         required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
         for field in follow_up_extra_required:
             if field not in required_list:
@@ -1583,6 +1732,7 @@ async def handle_preprocessing(
 
     dynamic_context = {
         "CATEGORIES_LIST": available_categories_list,
+        "TOPIC_AREAS_LIST": _build_topic_areas_list(),
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
         "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
         "CURRENT_DATE_TIME": date_time_str,
@@ -1615,6 +1765,7 @@ async def handle_preprocessing(
         # regardless of the language the user is chatting in (mirrors how chat_summary works).
         fast_dynamic_context = {
             "CATEGORIES_LIST": available_categories_list,
+            "TOPIC_AREAS_LIST": _build_topic_areas_list(),
             "CURRENT_DATE_TIME": date_time_str,
             "USER_SYSTEM_LANGUAGE": user_system_language,
         }
@@ -2160,7 +2311,11 @@ async def handle_preprocessing(
             # - Follow-up:     category came from the single Call B → retry with tool_definition_for_llm
             retry_base_tool = fast_tool_definition if is_first_message else tool_definition_for_llm
             retry_dynamic_ctx = (
-                {"CATEGORIES_LIST": available_categories_list, "CURRENT_DATE_TIME": date_time_str}
+                {
+                    "CATEGORIES_LIST": available_categories_list,
+                    "TOPIC_AREAS_LIST": _build_topic_areas_list(),
+                    "CURRENT_DATE_TIME": date_time_str,
+                }
                 if is_first_message
                 else dynamic_context
             )
@@ -2281,6 +2436,31 @@ async def handle_preprocessing(
             )
         validated_category = ONBOARDING_SUPPORT_CATEGORY
         llm_analysis_args["category"] = ONBOARDING_SUPPORT_CATEGORY
+    else:
+        topic_routed_category = _resolve_category_from_topic_area(
+            raw_topic_area=llm_analysis_args.get("topic_area"),
+            raw_topic_shift=llm_analysis_args.get("topic_shift"),
+            previous_category=previous_category,
+            available_category_ids=available_category_ids,
+        )
+        if topic_routed_category and topic_routed_category != validated_category:
+            logger.info(
+                f"{log_prefix} TOPIC_ROUTING: Overriding LLM category '{validated_category}' -> "
+                f"'{topic_routed_category}' based on topic_area='{llm_analysis_args.get('topic_area')}', "
+                f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
+            )
+            validated_category = topic_routed_category
+            llm_analysis_args["category"] = topic_routed_category
+        elif topic_routed_category:
+            logger.debug(
+                f"{log_prefix} TOPIC_ROUTING: LLM category already matches routed category "
+                f"'{topic_routed_category}' for topic_area='{llm_analysis_args.get('topic_area')}'."
+            )
+        elif llm_analysis_args.get("topic_area"):
+            logger.warning(
+                f"{log_prefix} TOPIC_ROUTING: Ignoring invalid or unmapped topic_area "
+                f"'{llm_analysis_args.get('topic_area')}'. Keeping category '{validated_category}'."
+            )
 
     # --- Mate selection: user override first, then explicit request_data, then category-based ---
     # When the user specified @mate:..., we use only that and do not run automatic selection
@@ -2916,6 +3096,8 @@ async def handle_preprocessing(
         rejection_reason=None,
         harmful_or_illegal_score=harmful_or_illegal_val,
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
+        topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
+        topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
         complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
         misuse_risk_score=misuse_risk_val,
