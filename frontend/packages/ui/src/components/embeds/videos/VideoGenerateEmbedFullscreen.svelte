@@ -38,11 +38,16 @@
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as { original?: VideoFileVariant } : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : '');
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : '');
+  let previewVideoUrl = $derived(typeof dc.previewVideoUrl === 'string' ? dc.previewVideoUrl : '');
   let videoUrl = $state<string | undefined>();
   let error = $state<string | undefined>();
   let retainedS3Key: string | undefined;
 
   $effect(() => {
+    if (previewVideoUrl && videoUrl !== previewVideoUrl) {
+      videoUrl = previewVideoUrl;
+      return;
+    }
     if (!videoUrl && files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) loadVideo();
   });
 

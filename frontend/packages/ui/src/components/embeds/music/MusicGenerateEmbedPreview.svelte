@@ -34,6 +34,7 @@
     files?: MusicFiles;
     aesKey?: string;
     aesNonce?: string;
+    previewAudioUrl?: string;
     status: 'processing' | 'finished' | 'error';
     error?: string;
     taskId?: string;
@@ -51,6 +52,7 @@
     files: filesProp,
     aesKey: aesKeyProp,
     aesNonce: aesNonceProp,
+    previewAudioUrl,
     status: statusProp,
     error: errorProp,
     taskId,
@@ -99,6 +101,10 @@
   });
 
   $effect(() => {
+    if (status === 'finished' && previewAudioUrl && audioUrl !== previewAudioUrl) {
+      audioUrl = previewAudioUrl;
+      return;
+    }
     if (status === 'finished' && !audioUrl && files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
       loadAudio();
     }

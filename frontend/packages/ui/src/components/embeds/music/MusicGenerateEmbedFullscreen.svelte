@@ -57,6 +57,7 @@
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as MusicFiles : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : '');
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : '');
+  let previewAudioUrl = $derived(typeof dc.previewAudioUrl === 'string' ? dc.previewAudioUrl : '');
   let error = $derived(typeof dc.error === 'string' ? dc.error : undefined);
   let generatedAt = $derived(typeof dc.generated_at === 'string' ? dc.generated_at : undefined);
   let watermarking = $derived(typeof dc.watermarking === 'string' ? dc.watermarking : undefined);
@@ -73,6 +74,10 @@
   });
 
   $effect(() => {
+    if (previewAudioUrl && audioUrl !== previewAudioUrl) {
+      audioUrl = previewAudioUrl;
+      return;
+    }
     if (!audioUrl && files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
       loadAudio();
     }

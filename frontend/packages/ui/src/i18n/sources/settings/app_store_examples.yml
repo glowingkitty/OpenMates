@@ -1372,6 +1372,55 @@ images.generate_draft.3:
   he: רחוב אבן אירופי בין ערביים
   verified_by_human: [en]
 
+electronics.search_components.1:
+  context: Query label for the first electronics component search example in the app store. Shown on a preview card that opens real TI WEBENCH buck converter recommendations for converting 12V to 5V.
+  en: 12V to 5V buck converter
+  verified_by_human: [en]
+electronics.search_components.2:
+  context: Query label for the second electronics component search example in the app store. Shown on a preview card that opens real TI WEBENCH regulator recommendations for converting 24V to 3.3V.
+  en: 24V to 3.3V regulator module
+  verified_by_human: [en]
+
+social_media.search.1:
+  context: Query label for the first social media search example in the app store. Shown on a preview card that opens sample social posts about indie coffee setup inspiration.
+  en: Indie coffee setup inspiration
+  verified_by_human: [en]
+social_media.search.2:
+  context: Query label for the second social media search example in the app store. Shown on a preview card that opens sample social posts about remote workshop facilitation tips.
+  en: Remote workshop facilitation tips
+  verified_by_human: [en]
+social_media.get_posts.1:
+  context: Query label for the first social media get-posts example in the app store. Shown on a preview card that opens sample posts from a fictional garden account.
+  en: Garden account posts
+  verified_by_human: [en]
+social_media.get_posts.2:
+  context: Query label for the second social media get-posts example in the app store. Shown on a preview card that opens sample posts from a fictional travel community.
+  en: Travel community posts
+  verified_by_human: [en]
+
+code.search_repos.1:
+  context: Query label for the first code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for facebook/react.
+  en: React UI library
+  verified_by_human: [en]
+code.search_repos.2:
+  context: Query label for the second code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for sveltejs/kit.
+  en: SvelteKit framework
+  verified_by_human: [en]
+code.search_repos.3:
+  context: Query label for the third code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for fastapi/fastapi.
+  en: FastAPI framework
+  verified_by_human: [en]
+
+music.generate.1:
+  context: Query label for the music generation example in the app store. Shown on a preview card that opens a real generated lo-fi audio clip.
+  en: Warm lo-fi writing loop
+  verified_by_human: [en]
+
+videos.generate.1:
+  context: Query label for the video generation example in the app store. Shown on a preview card that opens a real generated alpine meadow video.
+  en: Alpine sunrise meadow
+  verified_by_human: [en]
+
 banner.sample_data:
   context: Banner text shown at the top of the fullscreen view when the user is previewing a hand-crafted app-store example with synthetic data. Makes it clear the people, places, prices or listings on the card are not real. Stays short — a single line.
   en: Sample data — this is what real results from this skill look like.

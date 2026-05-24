@@ -29,6 +29,7 @@
     files?: { original?: VideoFileVariant };
     aesKey?: string;
     aesNonce?: string;
+    previewVideoUrl?: string;
     status: 'processing' | 'finished' | 'error';
     error?: string;
     taskId?: string;
@@ -38,7 +39,7 @@
 
   let {
     id, prompt = '', model = '', durationSeconds, resolution = '', s3BaseUrl = '', files,
-    aesKey = '', aesNonce = '', status, error = '', taskId, isMobile = false, onFullscreen,
+    aesKey = '', aesNonce = '', previewVideoUrl = '', status, error = '', taskId, isMobile = false, onFullscreen,
   }: Props = $props();
 
   let videoUrl = $state<string | undefined>();
@@ -69,6 +70,10 @@
   const currentError = $derived(updatedError ?? error);
 
   $effect(() => {
+    if (currentStatus === 'finished' && previewVideoUrl && videoUrl !== previewVideoUrl) {
+      videoUrl = previewVideoUrl;
+      return;
+    }
     if (currentStatus === 'finished' && !videoUrl && currentFiles?.original?.s3_key && currentS3BaseUrl && currentAesKey && currentAesNonce) {
       loadVideo();
     }
