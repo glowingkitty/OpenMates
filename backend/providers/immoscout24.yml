@@ -8,6 +8,7 @@ name: "ImmoScout24"
 description: "Germany's largest online real estate marketplace for apartments, houses, and rooms."
 logo_svg: "icons/immoscout24.svg"
 region: "EU" # ImmoScout24 HQ is in Berlin, Germany
+privacy_policy: "https://www.immobilienscout24.de/agb/datenschutz.html"
 
 # No API key required — uses web scraping
 no_api_key: true

@@ -6,6 +6,7 @@ provider_id: "zai"
 name: "Z.ai"
 description: "Z.ai - GLM large language models"
 logo_svg: "logos/zai.svg"
+privacy_policy: "https://docs.z.ai/legal-agreement/privacy-policy"
 
 models:
   - id: "zai-glm-4.7"

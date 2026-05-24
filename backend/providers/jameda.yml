@@ -8,6 +8,7 @@ name: "Jameda"
 description: "Germany's largest doctor review and appointment booking platform."
 logo_svg: "icons/jameda.svg"
 region: "EU" # Jameda HQ is in Munich, Germany
+privacy_policy: "https://www.jameda.de/datenschutz"
 
 # No API key required — uses web scraping
 no_api_key: true

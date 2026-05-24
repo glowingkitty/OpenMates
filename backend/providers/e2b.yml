@@ -1,0 +1,10 @@
+# backend/providers/e2b.yml
+#
+# Provider metadata for E2B code execution sandboxes.
+
+provider_id: "e2b"
+name: "E2B"
+description: "Secure cloud sandboxes for running code and agent workflows."
+logo_svg: "logos/e2b.svg"
+region: "US"
+privacy_policy: "https://e2b.dev/privacy"

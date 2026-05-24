@@ -8,6 +8,7 @@ name: "Firecrawl"
 description: "Web scraping and crawling API for extracting content from websites."
 logo_svg: "logos/firecrawl.svg" # Path for UI, relative to a common logos directory
 region: "US" # Firecrawl is based in San Francisco, US
+privacy_policy: "https://www.firecrawl.dev/privacy-policy"
 
 # API endpoint configuration
 api_base_url: "https://api.firecrawl.dev/v2"
@@ -97,4 +98,3 @@ rate_limits:
 #       not the user-facing pricing
 pricing:
   per_request_credits: 20 # Always 20 credits per scrape request for users (10 to creator, 10 to OpenMates)
-

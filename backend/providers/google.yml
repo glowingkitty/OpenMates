@@ -6,6 +6,7 @@ provider_id: "google"
 name: "Google"
 description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
+privacy_policy: "https://privacy.google.com/"
 
 models:
   - id: "gemini-3-flash-preview"

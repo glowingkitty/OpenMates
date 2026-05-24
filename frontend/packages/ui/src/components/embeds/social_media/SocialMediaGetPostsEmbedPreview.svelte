@@ -69,7 +69,7 @@
   {id}
   appId="social_media"
   skillId="get-posts"
-  skillIconName="socialmedia"
+  skillIconName="search"
   status={localStatus}
   skillName="Get posts"
   {isMobile}

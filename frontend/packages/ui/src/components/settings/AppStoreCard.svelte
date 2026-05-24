@@ -152,6 +152,8 @@
     function getProviderIconName(providerName: string): string {
         if (providerName === 'Bluesky') return 'bluesky';
         if (providerName === 'Reddit') return 'reddit';
+        if (providerName === 'Deutsche Bahn') return 'deutsche_bahn';
+        if (providerName === 'FlixBus / FlixTrain') return 'flix';
 
         // Convert to lowercase and handle special cases
         const normalized = providerName.toLowerCase()

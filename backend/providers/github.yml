@@ -1,0 +1,10 @@
+# backend/providers/github.yml
+#
+# Provider metadata for GitHub code repository search.
+
+provider_id: "github"
+name: "GitHub"
+description: "Code hosting and collaboration platform used for public repository discovery."
+logo_svg: "logos/github.svg"
+region: "US"
+privacy_policy: "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"

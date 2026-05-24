@@ -8,6 +8,7 @@ name: "Meetup"
 description: "Community platform for finding and building local groups and events worldwide."
 logo_svg: "logos/meetup.svg"
 region: "US" # Meetup HQ is in New York, US
+privacy_policy: "https://www.meetup.com/privacy/"
 
 # API endpoint configuration
 # Meetup uses an unauthenticated GraphQL endpoint (gql2) for public event searches

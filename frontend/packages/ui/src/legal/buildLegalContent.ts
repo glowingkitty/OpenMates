@@ -61,7 +61,7 @@ export interface LegalContentOptions {
  * Build Privacy Policy content from translation keys.
  *
  * The structure mirrors shared/docs/privacy_policy.yml. Providers are grouped
-   * by WHEN they are used (Group A-L), so a user can tell at a glance which
+  * by WHEN they are used, so a user can tell at a glance which
  * third parties they opt into by using a specific feature.
  *
  * Honest encryption posture: the server processes user content in memory
@@ -210,7 +210,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
 
   // ──────────────────────────────────────────────────────────────
-  // Section 4 — When each provider is used (Group A-K)
+  // Section 4 — When each provider is used
   // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.providers.heading")}`);
   lines.push("");
@@ -252,6 +252,10 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);
   renderProvider("legal.privacy.providers.ai_models.together", privacyPolicyLinks.together);
   renderProvider("legal.privacy.providers.ai_models.groq", privacyPolicyLinks.groq);
+  renderProvider("legal.privacy.providers.ai_models.alibaba", privacyPolicyLinks.alibaba);
+  renderProvider("legal.privacy.providers.ai_models.deepseek", privacyPolicyLinks.deepseek);
+  renderProvider("legal.privacy.providers.ai_models.moonshot", privacyPolicyLinks.moonshot);
+  renderProvider("legal.privacy.providers.ai_models.zai", privacyPolicyLinks.zai);
 
   // Group D — Image generation
   lines.push(`### ${t("legal.privacy.providers.image_generation.heading")}`);
@@ -260,6 +264,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.image_generation.fal", privacyPolicyLinks.fal);
   renderProvider("legal.privacy.providers.image_generation.recraft", privacyPolicyLinks.recraft);
+  renderProvider("legal.privacy.providers.image_generation.bfl", privacyPolicyLinks.bfl);
 
   // Group E — Music generation
   lines.push(`### ${t("legal.privacy.providers.music_generation.heading")}`);
@@ -268,11 +273,13 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.music_generation.google_vertex_ai", privacyPolicyLinks.googleVertexAi);
 
-  // Group F — Code execution
+  // Group F — Code and developer tools
   lines.push(`### ${t("legal.privacy.providers.code_execution.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.code_execution.description"));
   lines.push("");
+  renderProvider("legal.privacy.providers.code_execution.github", privacyPolicyLinks.github);
+  renderProvider("legal.privacy.providers.code_execution.context7", privacyPolicyLinks.context7);
   renderProvider("legal.privacy.providers.code_execution.e2b", privacyPolicyLinks.e2b);
 
   // Group F — Web, search, content
@@ -284,6 +291,7 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.web_and_search.firecrawl", privacyPolicyLinks.firecrawl);
   renderProvider("legal.privacy.providers.web_and_search.webshare", privacyPolicyLinks.webshare);
   renderProvider("legal.privacy.providers.web_and_search.google_maps", privacyPolicyLinks.googleMaps);
+  renderProvider("legal.privacy.providers.web_and_search.youtube", privacyPolicyLinks.youtube);
 
   // Group F — Travel
   lines.push(`### ${t("legal.privacy.providers.travel.heading")}`);
@@ -292,6 +300,8 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.travel.serpapi", privacyPolicyLinks.serpapi);
   renderProvider("legal.privacy.providers.travel.flightradar24", privacyPolicyLinks.flightradar24);
+  renderProvider("legal.privacy.providers.travel.deutsche_bahn", privacyPolicyLinks.deutscheBahn);
+  renderProvider("legal.privacy.providers.travel.flix", privacyPolicyLinks.flix);
 
   // Group G — Events
   lines.push(`### ${t("legal.privacy.providers.events.heading")}`);
@@ -325,7 +335,23 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.electronics.ti_webench", privacyPolicyLinks.tiWebench);
 
-  // Group K — Community
+  // Group L — Mail
+  lines.push(`### ${t("legal.privacy.providers.mail.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.mail.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.mail.protonmail", privacyPolicyLinks.protonmail);
+
+  // Group M — Home and housing
+  lines.push(`### ${t("legal.privacy.providers.home.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.home.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.home.immoscout24", privacyPolicyLinks.immoscout24);
+  renderProvider("legal.privacy.providers.home.kleinanzeigen", privacyPolicyLinks.kleinanzeigen);
+  renderProvider("legal.privacy.providers.home.wg_gesucht", privacyPolicyLinks.wgGesucht);
+
+  // Group N — Community
   lines.push(`### ${t("legal.privacy.providers.community.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.community.description"));
@@ -333,6 +359,15 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.community.discord", privacyPolicyLinks.discord);
   lines.push(t("legal.privacy.providers.community.discord.admin_access"));
   lines.push("");
+
+  // Group M — Social media
+  lines.push(`### ${t("legal.privacy.providers.social_media.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.social_media.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.social_media.reddit", privacyPolicyLinks.reddit);
+  renderProvider("legal.privacy.providers.social_media.bluesky", privacyPolicyLinks.bluesky);
+  renderProvider("legal.privacy.providers.social_media.mastodon", privacyPolicyLinks.mastodon);
 
   // ──────────────────────────────────────────────────────────────
   // Section 5 — Device fingerprinting (security measure)

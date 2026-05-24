@@ -23,6 +23,8 @@
     function getIconUrlVar(providerName: string): string {
         if (providerName === 'Bluesky') return '--icon-url-bluesky';
         if (providerName === 'Reddit') return '--icon-url-reddit';
+        if (providerName === 'Deutsche Bahn') return '--icon-url-deutsche_bahn';
+        if (providerName === 'FlixBus / FlixTrain') return '--icon-url-flix';
 
         const normalized = providerName.toLowerCase()
             .replace(/\s+/g, '_')

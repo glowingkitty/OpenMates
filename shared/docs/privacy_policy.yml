@@ -327,6 +327,34 @@ provider_groups:
         data_shared:
           - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization
           - No user identifiers; Groq does not know which user requested each piece of content
+      alibaba:
+        privacy_policy: https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy
+        location: China
+        used_for:
+          - Qwen-family model inference when an Alibaba-hosted model is selected
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      deepseek:
+        privacy_policy: https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html
+        location: China
+        used_for:
+          - DeepSeek-family model inference when a DeepSeek model is selected
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      moonshot:
+        privacy_policy: https://platform.kimi.ai/docs/agreement/userprivacy
+        location: China
+        used_for:
+          - Kimi-family model inference when a Moonshot AI model is selected
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      zai:
+        privacy_policy: https://docs.z.ai/legal-agreement/privacy-policy
+        location: China
+        used_for:
+          - GLM-family model inference when a Z.ai model is selected
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
 
   # =====================================================================
   # Group D — Image generation and editing. Only used when you invoke an
@@ -355,6 +383,14 @@ provider_groups:
         data_shared:
           - Image generation prompts and style preferences
           - Source images when vectorizing
+      bfl:
+        privacy_policy: https://blackforestlabs.ai/privacy-policy/
+        location: EU
+        used_for:
+          - draft image generation via FLUX models
+        data_shared:
+          - Image generation prompts
+          - Source images when editing
 
   # =====================================================================
   # Group E — Music generation. Only used when you invoke a music skill.
@@ -373,13 +409,30 @@ provider_groups:
           - Music generation prompts, lyrics, style preferences, and generation settings
 
   # =====================================================================
-  # Group F — Code execution. Only used when you run generated code.
+  # Group F — Code and developer tools. Only used when you invoke code skills.
   # =====================================================================
   code_execution:
     description: >
-      This provider is only used when you run code in an isolated sandbox from
-      the code app. If you never run code, none of your data is shared with it.
+      These providers are only used when you invoke a code app skill, such as
+      searching public repositories or running code in an isolated sandbox. If
+      you never use the code app, none of your data is shared with them.
     providers:
+      github:
+        privacy_policy: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
+        location: US
+        used_for:
+          - public repository discovery via the code search-repos skill
+        data_shared:
+          - Repository search queries
+          - Note: Shared without user identifiers
+      context7:
+        privacy_policy: https://upstash.com/trust/privacy.pdf  # Context7 is an Upstash project; verified 2026-05-24
+        location: US
+        used_for:
+          - latest programming documentation lookup via the code get-docs skill
+        data_shared:
+          - Library names and documentation questions
+          - Note: Shared without user identifiers
       e2b:
         privacy_policy: https://e2b.dev/privacy  # verified 2026-05-19
         location: US
@@ -432,7 +485,7 @@ provider_groups:
           - Request URLs routed to external services
           - Note: Webshare sees the URLs but not user identifiers
       google_maps:
-        privacy_policy: https://policies.google.com/privacy
+        privacy_policy: https://privacy.google.com/
         location: US
         used_for:
           - places search skill (Google Maps Platform)
@@ -440,6 +493,15 @@ provider_groups:
           - Place search queries (the text you type to find a place)
           - Approximate location for localized results
           - Note: Shared without user identifiers
+      youtube:
+        privacy_policy: https://www.youtube.com/howyoutubeworks/privacy/
+        location: US
+        used_for:
+          - YouTube transcript retrieval via the videos get-transcript skill
+        data_shared:
+          - YouTube video URLs
+          - Requested transcript language preferences
+          - Note: Routed without OpenMates user identifiers
 
   # =====================================================================
   # Group G — Travel. Only used when you invoke a travel skill.
@@ -467,6 +529,22 @@ provider_groups:
         data_shared:
           - IATA flight numbers and departure dates
           - Note: Shared without user identifiers
+      deutsche_bahn:
+        privacy_policy: https://int.bahn.de/en/privacy
+        location: EU
+        used_for:
+          - train connection search through Deutsche Bahn public data
+        data_shared:
+          - Train search queries, origin, destination, and dates
+          - Note: Shared without user identifiers
+      flix:
+        privacy_policy: https://www.flixbus.com/privacy-policy
+        location: EU
+        used_for:
+          - intercity bus and rail connection search through FlixBus and FlixTrain public data
+        data_shared:
+          - Connection search queries, origin, destination, and dates
+          - Note: Shared without user identifiers
 
   # =====================================================================
   # Group H — Events. Only used when you invoke the events skill.
@@ -490,7 +568,7 @@ provider_groups:
           - Event search queries (city, category, dates)
           - Note: Shared without user identifiers
       luma:
-        privacy_policy: https://lu.ma/privacy
+        privacy_policy: https://lu.ma/privacy-policy
         location: US
         used_for:
           - events search skill (Luma event listings)
@@ -545,7 +623,7 @@ provider_groups:
       These providers are only used when you invoke the shopping search skill.
     providers:
       rewe:
-        privacy_policy: https://www.rewe.de/datenschutz/
+        privacy_policy: https://www.rewe.de/service/datenschutz/
         location: EU
         used_for:
           - live product and price lookups at REWE (German grocery retailer)
@@ -553,7 +631,7 @@ provider_groups:
           - Product search queries
           - Note: Shared without user identifiers
       amazon:
-        privacy_policy: https://www.amazon.com/privacy
+        privacy_policy: https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ  # verified via official search result 2026-05-24
         location: US
         used_for:
           - live product and price lookups at Amazon
@@ -570,7 +648,7 @@ provider_groups:
       search skill for live component and reference-design lookups.
     providers:
       ti_webench:
-        privacy_policy: https://www.ti.com/legal/terms-conditions/privacy-policy/north-america.html  # verified 2026-05-23
+        privacy_policy: https://www.ti.com/legal/terms-conditions/privacy-policy.html
         location: US
         used_for:
           - power converter component and reference-design lookups via TI WEBENCH
@@ -579,7 +657,56 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
-  # Group L — Community and developer channels. Only used if you choose
+  # Group L — Mail. Only used when you connect or search mail.
+  # =====================================================================
+  mail:
+    description: >
+      This provider is only used when you invoke mail skills against a connected
+      mailbox. If you never use the mail app, none of your data is shared with it.
+    providers:
+      protonmail:
+        privacy_policy: https://proton.me/legal/privacy
+        location: EU
+        used_for:
+          - mail search for connected Proton Mail accounts
+        data_shared:
+          - Mail search queries and mailbox data needed to return matching results
+
+  # =====================================================================
+  # Group M — Home and housing. Only used when you invoke the home search skill.
+  # =====================================================================
+  home:
+    description: >
+      These providers are only used when you invoke the home app's housing search
+      skill. If you never search for housing, none of your data is shared with them.
+    providers:
+      immoscout24:
+        privacy_policy: https://www.immobilienscout24.de/agb/datenschutz.html
+        location: EU
+        used_for:
+          - German housing search results
+        data_shared:
+          - Housing search queries, locations, filters, and listing pages requested
+          - Note: Shared without user identifiers
+      kleinanzeigen:
+        privacy_policy: https://themen.kleinanzeigen.de/datenschutzerklaerung/
+        location: EU
+        used_for:
+          - German classified housing search results
+        data_shared:
+          - Housing search queries, locations, filters, and listing pages requested
+          - Note: Shared without user identifiers
+      wg_gesucht:
+        privacy_policy: https://www.wg-gesucht.de/datenschutz.html
+        location: EU
+        used_for:
+          - German shared-apartment and rental search results
+        data_shared:
+          - Housing search queries, locations, filters, and listing pages requested
+          - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group N — Community and developer channels. Only used if you choose
   # to use them.
   # =====================================================================
   community:
@@ -600,6 +727,40 @@ provider_groups:
           OpenMates administrators with Discord server admin rights can read
           all messages posted in the OpenMates Discord server. Do not share
           sensitive information on Discord.
+
+  # =====================================================================
+  # Group O — Social media. Only used when you invoke social media skills.
+  # =====================================================================
+  social_media:
+    description: >
+      These providers are only used when you invoke the social media app's
+      get-posts or search skills. They receive public profile, page, or search
+      queries without an OpenMates user identifier.
+    providers:
+      reddit:
+        privacy_policy: https://www.reddit.com/policies/privacy-policy
+        location: US
+        used_for:
+          - public Reddit post retrieval and search
+        data_shared:
+          - Subreddit names, public post URLs, and search queries
+          - Note: Shared without user identifiers
+      bluesky:
+        privacy_policy: https://bsky.social/about/support/privacy-policy
+        location: US
+        used_for:
+          - public Bluesky post retrieval and search
+        data_shared:
+          - Bluesky handles and search queries
+          - Note: Shared without user identifiers
+      mastodon:
+        privacy_policy: https://joinmastodon.org/privacy-policy
+        location: EU
+        used_for:
+          - public Mastodon profile post retrieval
+        data_shared:
+          - Mastodon profile identifiers or public profile URLs
+          - Note: Shared without user identifiers
 
 # ==========================================================================
 # Section 5 — Specific data processing notes

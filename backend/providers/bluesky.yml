@@ -1,0 +1,10 @@
+# backend/providers/bluesky.yml
+#
+# Provider metadata for Bluesky public social posts.
+
+provider_id: "bluesky"
+name: "Bluesky"
+description: "Public posts and profile feeds from the Bluesky social network."
+logo_svg: "logos/bluesky.svg"
+region: "US"
+privacy_policy: "https://bsky.social/about/support/privacy-policy"

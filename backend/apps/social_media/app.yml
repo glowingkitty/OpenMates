@@ -19,7 +19,7 @@ embed_types:
     fullscreen_component: social_media/SocialMediaGetPostsEmbedFullscreen.svelte
     child_preview_component: social_media/SocialMediaPostEmbedPreview.svelte
     child_fullscreen_component: social_media/SocialMediaPostEmbedFullscreen.svelte
-    icon: socialmedia
+    icon: search
     gradient_var: "--color-app-socialmedia"
     i18n_namespace: embeds.social_media.get_posts
     content_fields:
@@ -118,7 +118,7 @@ skills:
   - id: get-posts
     name_translation_key: app_skills.social_media.get_posts
     description_translation_key: app_skills.social_media.get_posts.description
-    icon_image: socialmedia.svg
+    icon_image: search.svg
     preprocessor_hint: >
       Fetch recent social media posts from one or more specific platform pages
       or profiles. Supports Reddit subreddits, Bluesky profile feeds, and

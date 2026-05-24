@@ -8,6 +8,7 @@ name: "Google Maps"
 description: "Google Maps Platform Places API for location-based search and place information."
 logo_svg: "logos/google_maps.svg" # Path for UI, relative to a common logos directory
 region: "US" # Google Maps Platform HQ is in the US
+privacy_policy: "https://privacy.google.com/"
 
 # API endpoint configuration
 api_base_url: "https://places.googleapis.com/v1"
@@ -71,4 +72,3 @@ rate_limits:
 # If a user makes 5 parallel search requests, they are charged 200 credits total (5 * 40)
 pricing:
   per_request_credits: 40 # Always 40 credits per search request for users
-

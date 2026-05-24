@@ -8,6 +8,7 @@ name: "Context7"
 description: "Documentation retrieval API for programming libraries and frameworks. Provides up-to-date documentation from official sources."
 logo_svg: "logos/context7.svg" # Path for UI, relative to a common logos directory
 region: "US" # Context7 is a US-based service
+privacy_policy: "https://upstash.com/trust/privacy.pdf" # Context7 is an Upstash project; verified 2026-05-24
 
 # API endpoint configuration
 api_base_url: "https://context7.com/api/v2"
@@ -66,4 +67,3 @@ rate_limits:
 # - This covers Context7 API costs (we absorb the LLM selection overhead)
 pricing:
   per_request_credits: 20 # 20 credits per get_docs request
-

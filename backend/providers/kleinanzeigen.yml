@@ -8,6 +8,7 @@ name: "Kleinanzeigen"
 description: "Germany's largest classifieds platform for housing, goods, and services."
 logo_svg: "icons/kleinanzeigen.svg"
 region: "EU" # Kleinanzeigen HQ is in Berlin, Germany
+privacy_policy: "https://themen.kleinanzeigen.de/datenschutzerklaerung/"
 
 # No API key required — uses web scraping
 no_api_key: true

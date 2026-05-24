@@ -8,6 +8,7 @@ name: "Doctolib"
 description: "Europe's leading online doctor appointment booking platform."
 logo_svg: "icons/doctolib.svg"
 region: "EU" # Doctolib HQ is in Paris, operates across EU
+privacy_policy: "https://info.doctolib.de/datenschutzhinweise/" # verified 2026-05-24
 
 # No API key required — uses web scraping
 no_api_key: true
