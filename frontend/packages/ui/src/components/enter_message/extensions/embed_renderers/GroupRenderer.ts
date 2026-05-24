@@ -4673,6 +4673,7 @@ export class GroupRenderer implements EmbedRenderer {
             | "finished"
             | "error",
           isMobile: false,
+          variant: item.previewVariant === "large" ? "large" : "small",
           onFullscreen: () =>
             this.openFullscreen(item, embedData, decodedContent),
         },

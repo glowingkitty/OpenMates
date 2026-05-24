@@ -156,6 +156,7 @@
       footer: (decodedContent?.footer as string | null) || (data.footer as string | null) || undefined,
       filename: (data.filename as string | null) || null,
       language: (data.language as string | null) || null,
+      previewVariant: variant,
     } as EmbedNodeAttributes;
   }
 

@@ -27,6 +27,8 @@ embed_types:
     groupable: false
     preview_component: shopping/ShoppingSearchEmbedPreview.svelte
     fullscreen_component: shopping/ShoppingSearchEmbedFullscreen.svelte
+    child_preview_component: shopping/ShoppingResultEmbedPreview.svelte
+    child_fullscreen_component: shopping/ShoppingResultEmbedFullscreen.svelte
     icon: shopping
     gradient_var: "--color-app-shopping"
     i18n_namespace: embeds.shopping.search_products

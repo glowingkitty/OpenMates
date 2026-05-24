@@ -100,6 +100,10 @@ export interface EmbedNodeAttributes {
   // Reference-only nodes point to an existing synced embed selected from search.
   // Removing them from the composer must not delete the underlying uploaded file.
   referenceOnly?: boolean;
+
+  // Rendering context for embed references. Large previews can request higher
+  // resolution assets without changing the standard inline card layout.
+  previewVariant?: "small" | "large";
 }
 
 export interface ParseMessageOptions {
