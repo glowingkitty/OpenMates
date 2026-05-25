@@ -10,7 +10,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import SettingsUsage from './SettingsUsage.svelte';
-    import { referralStatus } from '../../services/referralService';
+    import { loadReferralStatus, referralStatus } from '../../services/referralService';
 
     const dispatch = createEventDispatcher();
     
@@ -71,6 +71,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     onMount(() => {
         fetchSubscriptionDetails();
+        void loadReferralStatus();
     });
 </script>
 
