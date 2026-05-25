@@ -69,15 +69,18 @@ export const buildingMaintenanceEmailChat: ExampleChat = {
     {
       embed_id: "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227",
       type: "mail",
-      content: `type: mail
-app_id: mail
-skill_id: email
-receiver: "[EMAIL_2_com]"
-subject: "Urgent: Broken Heater in Building - Repair Timeline Needed"
-content: "Dear [Recipient],\n\nI am writing to inform you about a serious issue in our building: the heater has been broken since May 15th and is no longer functioning.\n\nAs this is affecting the comfort and livability of the residents, I would appreciate your prompt attention to this matter. Could you please let me know:\n\n1. When can we expect the heater to be repaired?\n2. What is the estimated timeline for the repair work?\n\nI would prefer to discuss this matter further and would be grateful if you could call me back at [PHONE_1_171] at your earliest convenience.\n\nThank you for your immediate attention to this urgent issue.\n\nBest regards,\n[Your Name]"
-footer: "Sent from [EMAIL_1_.de]"
-embed_ref: urgent-broken-heater-in-building-repair-timeline-ec9c84
-status: finished`,
+      content: JSON.stringify({
+        type: "mail",
+        app_id: "mail",
+        skill_id: "email",
+        receiver: "[EMAIL_2_com]",
+        subject: "Urgent: Broken Heater in Building - Repair Timeline Needed",
+        content:
+          "Dear [Recipient],\n\nI am writing to inform you about a serious issue in our building: the heater has been broken since May 15th and is no longer functioning.\n\nAs this is affecting the comfort and livability of the residents, I would appreciate your prompt attention to this matter. Could you please let me know:\n\n1. When can we expect the heater to be repaired?\n2. What is the estimated timeline for the repair work?\n\nI would prefer to discuss this matter further and would be grateful if you could call me back at [PHONE_1_171] at your earliest convenience.\n\nThank you for your immediate attention to this urgent issue.\n\nBest regards,\n[Your Name]",
+        footer: "Sent from [EMAIL_1_.de]",
+        embed_ref: "urgent-broken-heater-in-building-repair-timeline-ec9c84",
+        status: "finished",
+      }),
       parent_embed_id: null,
       embed_ids: null,
     },
