@@ -208,8 +208,8 @@ skills:
     class_path: |
       backend.apps.images.skills.search_skill.SearchSkill
     providers:
-      - Brave
-      - SerpAPI
+      - Brave Search
+      - Google
     tool_schema:
       type: object
       properties:
