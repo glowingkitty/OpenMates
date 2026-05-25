@@ -208,6 +208,10 @@ export const apiEndpoints = {
     debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
     clientLogsEphemeral: "/v1/client-logs", // Ephemeral anonymized console log forwarding for all authenticated users (48h retention)
   },
+  referrals: {
+    status: "/v1/referrals/status", // Current user's referral code and campaign availability
+    capture: "/v1/referrals/capture", // Persist a captured URL fragment referral code for this user
+  },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider
     createOrder: "/v1/payments/create-order", // Create a payment order

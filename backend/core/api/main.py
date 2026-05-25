@@ -32,7 +32,7 @@ import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startu
 from typing import Dict, List, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets  # noqa: E402
+from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, referrals, websockets  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -1307,6 +1307,7 @@ def create_app() -> FastAPI:
         app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
         app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - web app only
         app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - web app only
+        app.include_router(referrals.router, include_in_schema=False)  # Referral endpoints - web app only
         logger.info("Payment-related routes registered (payment enabled)")
     else:
         logger.info("Skipping payment-related routes (payment disabled - self-hosted mode)")

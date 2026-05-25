@@ -1193,6 +1193,32 @@ class StripeService:
             logger.error(f"Unexpected error retrieving payment method: {str(e)}", exc_info=True)
             return None
 
+    async def get_payment_method_fingerprint(self, payment_intent_id: str) -> Optional[str]:
+        """
+        Return Stripe's stable card fingerprint for a successful PaymentIntent.
+
+        The caller hashes this value before storage. We use it only to prevent a
+        referrer from earning rewards from multiple accounts using the same card.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+
+        try:
+            payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+            payment_method_id = getattr(payment_intent, "payment_method", None)
+            if not payment_method_id:
+                return None
+            payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
+            card = getattr(payment_method, "card", None)
+            return getattr(card, "fingerprint", None) if card else None
+        except stripe.error.StripeError as e:
+            logger.warning(f"Stripe API error retrieving payment fingerprint: {e.user_message}")
+            return None
+        except Exception as e:
+            logger.warning(f"Unexpected error retrieving payment fingerprint: {str(e)}", exc_info=True)
+            return None
+
     async def list_payment_methods(self, customer_id: str) -> List[Dict[str, Any]]:
         """
         List all payment methods attached to a Stripe customer.

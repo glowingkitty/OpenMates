@@ -53,6 +53,7 @@ changes to the documentation (to keep the documentation up to date).
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
+    import { loadReferralStatus, referralStatus } from '../services/referralService';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -720,6 +721,10 @@ changes to the documentation (to keep the documentation up to date).
      */
     let resolvedProfileImageBlobUrl = $state<string | null>(null);
     let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl || ($demoMode ? demoProfileImageUrl : null));
+    let referralCtaCompact = $state(false);
+    let showReferralCta = $derived(
+        $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
+    );
 
     $effect(() => {
         const url = $userProfile.profile_image_url;
@@ -742,6 +747,9 @@ changes to the documentation (to keep the documentation up to date).
 
     onMount(() => {
         demoProfileImageUrl = window.localStorage.getItem('demo_profile_image_url');
+        setTimeout(() => {
+            referralCtaCompact = true;
+        }, 3000);
     });
 
     // State to track active submenu view
@@ -1775,6 +1783,24 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    function openReferralSettings(event: MouseEvent) {
+        event.stopPropagation();
+        if (!isMenuVisible) {
+            isMenuVisible = true;
+            settingsMenuVisible.set(true);
+            panelState.openSettings();
+            lastProgrammaticOpenTime = Date.now();
+        }
+        handleOpenSettings(new CustomEvent('openSettings', {
+            detail: {
+                settingsPath: 'billing/referral-code',
+                direction: 'forward',
+                icon: 'icon_gift',
+                title: $text('settings.billing.referral_code')
+            }
+        }));
+    }
+
     // No more docking/undocking - we use two separate containers instead
    
     // Handler for profile click to show menu
@@ -1927,6 +1953,9 @@ changes to the documentation (to keep the documentation up to date).
                 paymentEnabled = true; // Default to enabled if check fails
             }
         })();
+        if ($authStore.isAuthenticated) {
+            void loadReferralStatus();
+        }
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
@@ -2111,6 +2140,14 @@ changes to the documentation (to keep the documentation up to date).
                 webSocketService.off('payment_failed', handlePaymentFailed);
             }
         };
+    });
+
+    $effect(() => {
+        if ($authStore.isAuthenticated && !isSelfHosted) {
+            void loadReferralStatus();
+        } else {
+            referralStatus.set(null);
+        }
     });
 
     $effect(() => {
@@ -2515,7 +2552,20 @@ changes to the documentation (to keep the documentation up to date).
     	out:fade
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
-    	<div
+        {#if showReferralCta}
+            <button
+                type="button"
+                class="referral-cta"
+                class:compact={referralCtaCompact}
+                data-testid="referral-cta"
+                aria-label={$text('settings.billing.get_free_credits')}
+                onclick={openReferralSettings}
+            >
+                <span class="referral-cta-icon" aria-hidden="true"></span>
+                <span class="referral-cta-text">{$text('settings.billing.get_free_credits')}</span>
+            </button>
+        {/if}
+     	<div
 			id="settings-menu-toggle"
      		class="profile-container"
     		data-testid="profile-container"
@@ -2836,6 +2886,73 @@ changes to the documentation (to keep the documentation up to date).
         /* Fade out when menu opens, fade in when menu closes */
         transition: opacity var(--duration-normal) var(--easing-default);
         opacity: 1;
+    }
+
+    .referral-cta {
+        position: absolute;
+        top: 4px;
+        inset-inline-end: 58px;
+        height: 42px;
+        max-width: 185px;
+        min-width: 42px;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-3);
+        padding: 0 var(--spacing-5);
+        border: none;
+        border-radius: var(--radius-full);
+        background: var(--color-button-primary);
+        color: var(--color-font-button);
+        box-shadow: var(--shadow-xs);
+        cursor: pointer;
+        overflow: hidden;
+        white-space: nowrap;
+        transition:
+            max-width var(--duration-slow) var(--easing-default),
+            padding var(--duration-slow) var(--easing-default),
+            opacity var(--duration-normal) var(--easing-default),
+            transform var(--duration-normal) var(--easing-default);
+    }
+
+    .referral-cta:hover {
+        transform: translateY(-1px);
+    }
+
+    .referral-cta.compact {
+        max-width: 42px;
+        padding-inline: 0;
+        justify-content: center;
+    }
+
+    .referral-cta-icon {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        background-color: currentColor;
+        -webkit-mask-image: url('@openmates/ui/static/icons/gift.svg');
+        mask-image: url('@openmates/ui/static/icons/gift.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    .referral-cta-text {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-semibold);
+        opacity: 1;
+        transition: opacity var(--duration-normal) var(--easing-default);
+    }
+
+    .referral-cta.compact .referral-cta-text {
+        opacity: 0;
+    }
+
+    .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta {
+        opacity: 0;
+        pointer-events: none;
     }
 
     .profile-container.menu-open {

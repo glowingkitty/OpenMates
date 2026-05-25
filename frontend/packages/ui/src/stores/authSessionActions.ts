@@ -43,6 +43,7 @@ import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin li
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference on session restore
+import { captureReferralCodeFromUrl, submitPendingReferralCode } from "../services/referralService";
 
 // Import core auth state and related flags
 import {
@@ -65,6 +66,7 @@ export async function checkAuth(
   deviceSignals?: Record<string, string | null>,
   force: boolean = false,
 ): Promise<boolean> {
+  captureReferralCodeFromUrl();
   // Prevent check if already checking or initialized (unless forced)
   // Allow check if needsDeviceVerification is true, as this indicates a pending state that needs resolution.
   if (
@@ -759,6 +761,8 @@ export async function checkAuth(
           err,
         );
       });
+
+      void submitPendingReferralCode();
 
       return true;
     } else {

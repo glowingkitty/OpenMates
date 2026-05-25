@@ -72,6 +72,7 @@ import SettingsAutoTopUp from "./billing/SettingsAutoTopUp.svelte";
 import SettingsLowBalanceAutotopup from "./billing/autotopup/SettingsLowBalanceAutotopup.svelte";
 import SettingsMonthlyAutotopup from "./billing/autotopup/SettingsMonthlyAutotopup.svelte";
 import SettingsInvoices from "./billing/SettingsInvoices.svelte";
+import SettingsReferralCode from "./billing/SettingsReferralCode.svelte";
 
 // Gift Cards
 import SettingsGiftCards from "./giftcards/SettingsGiftCards.svelte";
@@ -161,6 +162,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
   "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
   "billing/invoices": SettingsInvoices,
+  "billing/referral-code": SettingsReferralCode,
   "billing/gift-cards": SettingsGiftCards,
   "billing/gift-cards/redeem": SettingsGiftCardsRedeem,
   "billing/gift-cards/redeemed": SettingsGiftCardsRedeemed,

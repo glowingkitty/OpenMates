@@ -1,0 +1,86 @@
+# backend/core/directus/schemas/referral_attributions.yml
+# One pending or completed referral relationship for a referred user. A unique
+# referred_user_id_hash enforces that every new account can use at most one
+# referral code ever.
+referral_attributions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    campaign_id:
+      type: uuid
+      note: "Referral campaign budget used for this attribution."
+
+    referral_profile_id:
+      type: uuid
+      note: "Referral profile whose code was used."
+
+    referral_code:
+      type: string
+      length: 32
+      note: "Referral code captured at attribution time for auditability."
+
+    referrer_user_id_hash:
+      type: string
+      length: 512
+      note: "SHA-256 hash of the referrer user id."
+
+    referred_user_id_hash:
+      type: string
+      length: 512
+      unique: true
+      note: "SHA-256 hash of the referred user id; unique to block multiple referral uses."
+
+    status:
+      type: string
+      length: 32
+      default: "pending"
+      note: "pending, rewarded, expired, rejected, or reversed."
+
+    captured_at:
+      type: datetime
+      note: "UTC timestamp when the referral was captured server-side."
+
+    expires_at:
+      type: datetime
+      note: "UTC timestamp after which this attribution can no longer reward."
+
+    rewarded_at:
+      type: datetime
+      nullable: true
+      note: "UTC timestamp when promotional credits were awarded."
+
+    rewarded_order_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "Payment provider order that triggered the reward."
+
+    referred_stripe_customer_id_hash:
+      type: string
+      length: 128
+      nullable: true
+      note: "Hash of referred user's Stripe customer id at reward time."
+
+    payment_method_fingerprint_hash:
+      type: string
+      length: 128
+      nullable: true
+      note: "Hash of Stripe card fingerprint used for eligibility checks."
+
+    rejection_reason:
+      type: string
+      length: 255
+      nullable: true
+      note: "Machine-readable reason when status is rejected or expired."
+
+    created_at:
+      type: datetime
+      note: "UTC timestamp when the row was created."
+
+    updated_at:
+      type: datetime
+      nullable: true
+      note: "UTC timestamp when the row was last updated."
