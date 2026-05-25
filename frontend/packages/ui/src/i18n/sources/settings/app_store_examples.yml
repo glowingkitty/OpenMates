@@ -1399,7 +1399,7 @@ social_media.get_posts.2:
   verified_by_human: [en]
 
 code.search_repos.1:
-  context: Query label for the first code repository search example in the app store. Shown on a preview card that opens the real top GitHub search result for svelte, immich-app/immich.
+  context: Query label for the first code repository search example in the app store. Shown on a preview card that opens real GitHub search results for svelte, including sveltejs/svelte.
   en: svelte
   verified_by_human: [en]
 code.search_repos.2:
