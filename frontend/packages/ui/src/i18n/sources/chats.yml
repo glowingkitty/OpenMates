@@ -2944,27 +2944,52 @@ error_report_consent.secondary:
 
 error_report_consent.action:
   context: Action button label for chat error report consent toast
-  en: Report with chat context
-  de: Report with chat context
-  zh: Report with chat context
-  es: Report with chat context
-  fr: Report with chat context
-  pt: Report with chat context
-  ru: Report with chat context
-  ja: Report with chat context
-  ko: Report with chat context
-  it: Report with chat context
-  tr: Report with chat context
-  vi: Report with chat context
-  id: Report with chat context
-  pl: Report with chat context
-  nl: Report with chat context
-  ar: Report with chat context
-  hi: Report with chat context
-  th: Report with chat context
-  cs: Report with chat context
-  sv: Report with chat context
-  he: Report with chat context
+  en: Report issue
+  de: Report issue
+  zh: Report issue
+  es: Report issue
+  fr: Report issue
+  pt: Report issue
+  ru: Report issue
+  ja: Report issue
+  ko: Report issue
+  it: Report issue
+  tr: Report issue
+  vi: Report issue
+  id: Report issue
+  pl: Report issue
+  nl: Report issue
+  ar: Report issue
+  hi: Report issue
+  th: Report issue
+  cs: Report issue
+  sv: Report issue
+  he: Report issue
+  verified_by_human: []
+
+error_report_consent.submitting:
+  context: Toast text shown while automatic chat error issue report is being submitted
+  en: Sending issue report ...
+  de: Sending issue report ...
+  zh: Sending issue report ...
+  es: Sending issue report ...
+  fr: Sending issue report ...
+  pt: Sending issue report ...
+  ru: Sending issue report ...
+  ja: Sending issue report ...
+  ko: Sending issue report ...
+  it: Sending issue report ...
+  tr: Sending issue report ...
+  vi: Sending issue report ...
+  id: Sending issue report ...
+  pl: Sending issue report ...
+  nl: Sending issue report ...
+  ar: Sending issue report ...
+  hi: Sending issue report ...
+  th: Sending issue report ...
+  cs: Sending issue report ...
+  sv: Sending issue report ...
+  he: Sending issue report ...
   verified_by_human: []
 
 error_report_consent.dismiss:

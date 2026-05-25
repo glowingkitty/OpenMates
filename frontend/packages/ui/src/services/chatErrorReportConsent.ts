@@ -1,18 +1,16 @@
 /**
  * Chat Error Report Consent
  *
- * Shows a privacy-preserving prompt after chat processing failures and, only
- * when the user agrees, opens the existing report issue flow with chat context
- * sharing preselected. Default diagnostics stay separate and content-free.
+ * Shows a privacy-preserving prompt after chat processing failures and submits
+ * an issue report only when the user presses the report action. Default
+ * diagnostics stay separate and content-free.
  */
 
 import { get } from "svelte/store";
 import { text } from "@repo/ui";
 import { notificationStore } from "../stores/notificationStore";
-import { panelState } from "../stores/panelStateStore";
 import { activeChatStore } from "../stores/activeChatStore";
-import { settingsDeepLink } from "../stores/settingsDeepLinkStore";
-import { reportIssueStore } from "../stores/reportIssueStore";
+import { submitIssueReport } from "./issueReportSubmission";
 
 type ChatErrorReportOptions = {
   chatId?: string | null;
@@ -21,7 +19,6 @@ type ChatErrorReportOptions = {
 };
 
 const CONSENT_TOAST_DURATION_MS = 0;
-const REPORT_DEEP_LINK_DELAY_MS = 100;
 
 function translate(key: string): string {
   return get(text)(key);
@@ -48,17 +45,33 @@ export function promptChatErrorReportConsent(options: ChatErrorReportOptions): v
     duration: CONSENT_TOAST_DURATION_MS,
     dismissible: true,
     dedupeKey,
-    onAction: () => {
-      if (notificationId) notificationStore.removeNotification(notificationId);
+    onAction: async () => {
       if (options.chatId) activeChatStore.setActiveChat(options.chatId);
-      reportIssueStore.set({
+      notificationStore.updateNotification(notificationId, {
+        message: translate("chat.error_report_consent.submitting"),
+        messageSecondary: undefined,
+        actionLabel: undefined,
+        secondaryActionLabel: undefined,
+      });
+
+      const result = await submitIssueReport({
         title: translate("chat.error_report_consent.report_title"),
         description: `${translate("chat.error_report_consent.report_description")}\n\nSource: ${options.source}\nError: ${errorSummary(options.error)}`,
-        url: typeof window !== "undefined" ? window.location.href : "",
-        shareChat: true,
+        shareCurrentChat: true,
+        source: options.source,
       });
-      panelState.openSettings();
-      setTimeout(() => settingsDeepLink.set("report_issue"), REPORT_DEEP_LINK_DELAY_MS);
+
+      if (notificationId) notificationStore.removeNotification(notificationId);
+      if (result.success) {
+        notificationStore.success(
+          result.issueId
+            ? `${translate("settings.report_issue_success")} (${result.issueId})`
+            : translate("settings.report_issue_success"),
+          7000,
+        );
+      } else {
+        notificationStore.error(result.message || translate("settings.report_issue_error"), 10000);
+      }
     },
     onSecondaryAction: () => {
       if (notificationId) notificationStore.removeNotification(notificationId);
