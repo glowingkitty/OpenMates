@@ -22,7 +22,7 @@
     async function handleFontChange(font: UiFont) {
         if (font === $uiFont) return;
 
-        const shouldSyncToServer = $authStore.isAuthenticated || !!$userProfile.user_id;
+        const shouldSyncToServer = $authStore.isAuthenticated || !!$userProfile.user_id || !!$userProfile.username;
         await setUiFont(font, shouldSyncToServer);
         updateProfile({ ui_font: font });
         dispatch('fontChanged', { font });
