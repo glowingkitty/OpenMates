@@ -3959,7 +3959,8 @@ function showDebugHelp(): void {
       "  Diagnostics:\n" +
       "  window.debug.logs(n?, level?)             — show last N logs (default 20), filter by level\n" +
       "  window.debug.errors(n?)                   — show last N errors+warnings (default 50)\n" +
-      "  window.debug.state()                      — dump current store state summary\n\n" +
+      "  window.debug.state()                      — dump current store state summary\n" +
+      "  await window.debug.simulateChatError()    — show chat error report consent toast\n\n" +
       "  Animations:\n" +
       "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
       "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n\n" +
@@ -4474,6 +4475,7 @@ export function initDebugUtils(): void {
       const label = filterLevel
         ? `📋 Last ${entries.length} ${filterLevel.toUpperCase()} log(s)`
         : `📋 Last ${entries.length} console log(s)`;
+      // eslint-disable-next-line no-console
       console.group(label);
       for (const entry of entries) {
         const ts = new Date(entry.timestamp)
@@ -4483,6 +4485,7 @@ export function initDebugUtils(): void {
         const lvl = entry.level.toUpperCase().padEnd(5);
         console.log(`[${ts}] ${lvl}`, entry.message);
       }
+      // eslint-disable-next-line no-console
       console.groupEnd();
       return entries;
     },
@@ -4499,6 +4502,7 @@ export function initDebugUtils(): void {
         console.log("No errors or warnings captured yet.");
         return;
       }
+      // eslint-disable-next-line no-console
       console.group(`🔴 Last ${entries.length} error/warn log(s)`);
       for (const entry of entries) {
         const ts = new Date(entry.timestamp)
@@ -4513,6 +4517,7 @@ export function initDebugUtils(): void {
           console.warn(`[${ts}] ${lvl}`, entry.message);
         }
       }
+      // eslint-disable-next-line no-console
       console.groupEnd();
       return entries;
     },
@@ -4559,6 +4564,27 @@ export function initDebugUtils(): void {
 
       console.log("📊 Store state snapshot:", summary);
       return summary;
+    },
+
+    /** Trigger the production chat-error report consent flow for QA/E2E tests. */
+    simulateChatError: async (opts: { chatId?: string; source?: string; message?: string } = {}) => {
+      const { get } = await import("svelte/store");
+      const { activeChatStore } = await import("../stores/activeChatStore");
+      const { promptChatErrorReportConsent } = await import("./chatErrorReportConsent");
+      const chatId = opts.chatId ?? get(activeChatStore) ?? getActiveChatIdFromContext();
+      const source = opts.source ?? "debug-simulated-chat-error";
+      const message = opts.message ?? "Simulated chat processing error";
+
+      promptChatErrorReportConsent({
+        chatId,
+        source,
+        error: new Error(message),
+      });
+      console.info("[debug.simulateChatError] Triggered chat error report consent", {
+        chatId,
+        source,
+      });
+      return { chatId, source, message };
     },
 
     /** Inspect user profile and auth state with health checks */
@@ -4771,6 +4797,7 @@ async function setupAdminAutoExecution(): Promise<void> {
     lastAutoChatId = chatId;
     lastAutoChatTime = now;
 
+    // eslint-disable-next-line no-console
     console.groupCollapsed(
       `%c🔍 [auto] debug.chat %c${trigger}%c — ${chatId}`,
       "color: #60a5fa",
@@ -4782,6 +4809,7 @@ async function setupAdminAutoExecution(): Promise<void> {
     } catch (e) {
       console.error("[auto] debug.chat failed:", e);
     }
+    // eslint-disable-next-line no-console
     console.groupEnd();
   }
 
@@ -4800,6 +4828,7 @@ async function setupAdminAutoExecution(): Promise<void> {
     lastAutoEmbedId = embedId;
     lastAutoEmbedTime = now;
 
+    // eslint-disable-next-line no-console
     console.groupCollapsed(
       `%c🔍 [auto] debug.embed %c— ${embedId}`,
       "color: #60a5fa",
@@ -4810,6 +4839,7 @@ async function setupAdminAutoExecution(): Promise<void> {
     } catch (e) {
       console.error("[auto] debug.embed failed:", e);
     }
+    // eslint-disable-next-line no-console
     console.groupEnd();
   }
 
