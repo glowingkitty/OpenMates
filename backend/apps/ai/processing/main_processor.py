@@ -4678,6 +4678,15 @@ async def handle_main_processing(
                                         }
                                         # Filter out None values
                                         placeholder_metadata = {k: v for k, v in placeholder_metadata.items() if v is not None}
+
+                                        final_preview_metadata = await _resolve_skill_preview_metadata(
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            request_metadata=placeholder_metadata,
+                                            discovered_apps_metadata=discovered_apps_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                        placeholder_metadata.update(final_preview_metadata)
                                         
                                         # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                         updated_embed_data = await embed_service.update_embed_with_results(
@@ -4735,6 +4744,15 @@ async def handle_main_processing(
                                         )
                                         if validated_provider is not None:
                                             single_request_metadata["provider"] = validated_provider
+
+                                    final_preview_metadata = await _resolve_skill_preview_metadata(
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        request_metadata=single_request_metadata,
+                                        discovered_apps_metadata=discovered_apps_metadata,
+                                        log_prefix=log_prefix,
+                                    )
+                                    single_request_metadata.update(final_preview_metadata)
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:

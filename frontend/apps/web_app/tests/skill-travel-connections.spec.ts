@@ -74,6 +74,21 @@ test.describe('App: Travel / Skill: search_connections', () => {
 	test('Phase 1: embed preview renders at /dev/preview/embeds/travel', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'travel', log);
+
+		const searchSection = page.getByTestId('skill-section').filter({
+			has: page.getByTestId('skill-label').filter({ hasText: 'Search' })
+		}).first();
+
+		await searchSection.getByRole('button', { name: 'processing' }).click();
+		await expect(searchSection).toContainText('Berlin → Paris');
+		await expect(searchSection).toContainText('Google Flights');
+		log('Processing travel search preview keeps route and provider metadata.');
+
+		await searchSection.getByRole('button', { name: 'empty' }).click();
+		await expect(searchSection).toContainText('Hamburg → Vienna');
+		await expect(searchSection).toContainText('Google Flights');
+		await expect(searchSection).toContainText('0 connections');
+		log('Finished empty travel search preview keeps route, provider, and count metadata.');
 	});
 
 	test('Phase 2: CLI apps travel search_connections returns results', async () => {

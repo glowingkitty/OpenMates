@@ -25,6 +25,35 @@ from backend.shared.providers.github import build_github_repo_embed, is_github_r
 
 logger = logging.getLogger(__name__)
 
+EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
+    "app_id",
+    "skill_id",
+    "type",
+    "status",
+    "task_id",
+    "skill_task_id",
+    "request_id",
+    "embed_ids",
+    "parent_embed_id",
+    "embed_ref",
+    "result_count",
+    "results",
+    "encrypted_content",
+    "text_length_chars",
+    "created_at",
+    "updated_at",
+    "chat_id",
+    "message_id",
+    "hashed_chat_id",
+    "hashed_message_id",
+    "hashed_task_id",
+    "hashed_skill_task_id",
+    "hashed_user_id",
+    "is_private",
+    "is_shared",
+    "encryption_mode",
+}
+
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
     """
@@ -86,6 +115,24 @@ class EmbedService:
         self.cache_service = cache_service
         self.directus_service = directus_service
         self.encryption_service = encryption_service
+
+    @staticmethod
+    def _merge_request_metadata(
+        original_content: Optional[Dict[str, Any]],
+        request_metadata: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Preserve user-visible request details from placeholder through final embed updates."""
+        merged: Dict[str, Any] = {}
+
+        for source in (original_content, request_metadata):
+            if not source:
+                continue
+            for key, value in source.items():
+                if key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS or value is None:
+                    continue
+                merged[key] = value
+
+        return merged
 
     @staticmethod
     def _slugify_direct_ref_base(value: Any, fallback: str) -> str:
@@ -2894,55 +2941,20 @@ class EmbedService:
 
             child_embed_ids = []
 
-            # Retrieve original placeholder metadata (query, provider, url, etc.)
-            # This ensures we preserve the original metadata when updating the embed
-            # Priority: request_metadata (passed in) > original_content (from cache)
+            # Retrieve original placeholder metadata (query, provider, filters, etc.).
+            # Merge placeholder metadata first so resolved provider lists survive, then
+            # let final request args override raw values that changed during execution.
             original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
-            original_metadata = {}
-            
-            # First, use request_metadata if provided (most reliable source)
-            if request_metadata:
-                # Copy all metadata except internal fields
-                for key, value in request_metadata.items():
-                    if key not in ['request_id']:  # Skip internal tracking fields
-                        original_metadata[key] = value
-                logger.debug(
-                    f"{log_prefix} Using request_metadata for original_metadata: {list(original_metadata.keys())}"
-                )
-            
-            # Fallback to original_content from cache if request_metadata not provided
-            if not original_metadata and original_content:
-                # Extract metadata fields that should be preserved
-                # The decoded TOON content is merged into embed_data, so check both places
-                logger.debug(
-                    f"{log_prefix} Retrieved original_content from cache. "
-                    f"Keys: {list(original_content.keys())}, "
-                    f"Has 'query': {'query' in original_content}, "
-                    f"Has 'provider': {'provider' in original_content}, "
-                    f"Has 'url': {'url' in original_content}, "
-                    f"Has 'app_id': {'app_id' in original_content}, "
-                    f"Has 'skill_id': {'skill_id' in original_content}"
-                )
-                
-                # Extract common metadata fields that should be preserved
-                # Include all common input parameters (query, url, provider, languages, etc.)
-                for key in ['query', 'provider', 'providers', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch', 'file_path', 'embed_id']:
-                    if key in original_content:
-                        original_metadata[key] = original_content[key]
-                        logger.debug(f"{log_prefix} Found metadata key '{key}'")
-                    else:
-                        logger.debug(f"{log_prefix} Metadata key '{key}' not found in original_content")
-                
-                # CRITICAL: Log detailed metadata extraction for debugging
+            original_metadata = self._merge_request_metadata(original_content, request_metadata)
+            if original_metadata:
                 logger.info(
-                    f"{log_prefix} Preserving original metadata from cache: {list(original_metadata.keys())} "
+                    f"{log_prefix} Preserving request metadata for final embed: {list(original_metadata.keys())} "
                     f"(key_count={len(original_metadata.keys())}, "
                     f"query_present={'query' in original_metadata}, "
-                    f"url_present={'url' in original_metadata}, "
                     f"provider_present={'provider' in original_metadata}, "
                     f"providers_present={'providers' in original_metadata})"
                 )
-            elif not original_metadata:
+            else:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
@@ -4119,15 +4131,7 @@ class EmbedService:
 
         # Retrieve original placeholder metadata (query, provider, etc.)
         original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
-        original_metadata: Dict[str, Any] = {}
-        if request_metadata:
-            for key, value in request_metadata.items():
-                if key not in ("request_id",):
-                    original_metadata[key] = value
-        elif original_content:
-            for key in ("query", "provider", "url", "languages", "count", "country", "search_lang"):
-                if key in original_content:
-                    original_metadata[key] = original_content[key]
+        original_metadata = self._merge_request_metadata(original_content, request_metadata)
 
         # Build finished content with 0 results
         finished_content = {

@@ -48,9 +48,21 @@ export const variants = {
 	/** Processing state — shows loading animation */
 	processing: {
 		id: 'preview-travel-search-processing',
-		query: 'Berlin -> Paris, 2026-04-01',
-		provider: 'Google',
+		provider: 'Google Flights',
+		providers: [{ id: 'google_flights', name: 'Google Flights', icon_url: 'https://www.google.com/favicon.ico' }],
+		legs: [{ origin: 'Berlin', destination: 'Paris', date: '2026-04-01' }],
 		status: 'processing' as const,
+		results: [],
+		isMobile: false
+	},
+
+	/** Finished empty state — keeps request metadata even with no result cards */
+	empty: {
+		id: 'preview-travel-search-empty',
+		provider: 'Google Flights',
+		providers: [{ id: 'google_flights', name: 'Google Flights', icon_url: 'https://www.google.com/favicon.ico' }],
+		legs: [{ origin: 'Hamburg', destination: 'Vienna', date: '2026-04-03' }],
+		status: 'finished' as const,
 		results: [],
 		isMobile: false
 	},

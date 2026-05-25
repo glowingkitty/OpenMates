@@ -67,8 +67,38 @@ def test_travel_preview_metadata_resolves_train_provider_icons() -> None:
     from backend.apps.travel.skills.search_connections import SearchConnectionsSkill
 
     metadata = SearchConnectionsSkill.resolve_preview_metadata({
+        "legs": [{"origin": "Berlin", "destination": "Dresden", "date": "2026-04-01"}],
         "transport_methods": ["train"],
     })
 
     assert metadata["provider"] == ""
     assert [provider["id"] for provider in metadata["providers"]] == ["deutsche_bahn", "flix"]
+    assert metadata["query"] == "Berlin → Dresden, 2026-04-01"
+
+
+def test_embed_metadata_merge_preserves_preview_providers_and_final_filters() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._merge_request_metadata(
+        {
+            "app_id": "travel",
+            "skill_id": "search_connections",
+            "status": "processing",
+            "query": "Berlin → Dresden, 2026-04-01",
+            "providers": [{"id": "deutsche_bahn", "name": "Deutsche Bahn"}],
+        },
+        {
+            "request_id": 1,
+            "legs": [{"origin": "Berlin", "destination": "Dresden", "date": "2026-04-01"}],
+            "transport_methods": ["train"],
+            "max_results": 10,
+        },
+    )
+
+    assert metadata["query"] == "Berlin → Dresden, 2026-04-01"
+    assert metadata["providers"] == [{"id": "deutsche_bahn", "name": "Deutsche Bahn"}]
+    assert metadata["legs"] == [{"origin": "Berlin", "destination": "Dresden", "date": "2026-04-01"}]
+    assert metadata["transport_methods"] == ["train"]
+    assert metadata["max_results"] == 10
+    assert "status" not in metadata
+    assert "request_id" not in metadata

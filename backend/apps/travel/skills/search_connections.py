@@ -383,7 +383,11 @@ class SearchConnectionsSkill(BaseSkill):
             providers.append({"id": provider_id, **PROVIDER_REGISTRY[provider_id]})
 
         provider = providers[0]["name"] if len(providers) == 1 else ""
-        return {"provider": provider, "providers": providers}
+        return {
+            "provider": provider,
+            "providers": providers,
+            "query": _request_query_summary(request),
+        }
 
     async def execute(
         self,
