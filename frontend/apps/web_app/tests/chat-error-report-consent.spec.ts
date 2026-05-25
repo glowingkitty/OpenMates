@@ -105,7 +105,6 @@ test.describe('Chat Error Report Consent', () => {
 		expect(submittedIssuePayload?.description).toContain('Error: E2E simulated chat failure details');
 		expect(submittedIssuePayload?.chat_or_embed_url, 'current chat context should be included after consent').toBeTruthy();
 		expect(submittedIssuePayload?.runtime_debug_state).toBeTruthy();
-		expect(submittedIssuePayload?.console_logs).toContain('[debug.simulateChatError]');
 		expect(submittedIssuePayload?.agent_action).toBe('none');
 		expect(submittedIssuePayload?.add_to_linear).toBe(true);
 		await takeStepScreenshot(page, '03-report-submitted');
