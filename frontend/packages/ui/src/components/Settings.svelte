@@ -2537,11 +2537,11 @@ changes to the documentation (to keep the documentation up to date).
                 <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
                      new encrypted proxy endpoint works. Legacy https:// URLs are also
                      passed through by the profileImageService unchanged. -->
-                <div class="profile-picture" data-testid="profile-picture" data-demo-profile-image={$demoMode && !!demoProfileImageUrl ? 'true' : undefined} class:profile-picture-img={!!displayProfileImageUrl}>
+                <div class="profile-picture" data-testid="profile-picture" data-demo-profile-image={$demoMode && !!demoProfileImageUrl ? 'true' : undefined} class:profile-picture-img={!!displayProfileImageUrl} class:language-icon-container={!displayProfileImageUrl}>
                     {#if displayProfileImageUrl}
                         <img class="profile-picture-avatar" src={displayProfileImageUrl} alt="Profile" />
                     {:else}
-                        <div class="default-settings-icon"></div>
+                        <div class="clickable-icon icon_settings"></div>
                     {/if}
                 </div>
             {/if}
@@ -2920,20 +2920,6 @@ changes to the documentation (to keep the documentation up to date).
         background-color: white;
     }
     
-    .default-settings-icon {
-        width: 32px;
-        height: 32px;
-        -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
-        -webkit-mask-size: contain;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-image: url('@openmates/ui/static/icons/settings.svg');
-        mask-size: contain;
-        mask-position: center;
-        mask-repeat: no-repeat;
-        background-color: var(--color-grey-60);
-    }
-
     .settings-menu {
         background-color: var(--color-grey-20);
         height: 100%;
