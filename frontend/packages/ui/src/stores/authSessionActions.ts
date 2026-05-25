@@ -42,6 +42,7 @@ import { isValidLocale } from "../i18n/types"; // Import to validate localStorag
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
+import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference on session restore
 
 // Import core auth state and related flags
 import {
@@ -551,6 +552,7 @@ export async function checkAuth(
         const consent_mates = !!data.user.consent_mates_default_settings;
         const userLanguage = data.user.language || defaultProfile.language;
         const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
+        const userUiFont = data.user.ui_font ?? defaultProfile.ui_font;
 
         // ── Language reconciliation ──────────────────────────────────────
         // The user's localStorage may have a different language than the
@@ -641,6 +643,7 @@ export async function checkAuth(
           consent_mates_default_settings: consent_mates,
           language: effectiveLanguage,
           darkmode: userDarkMode,
+          ui_font: userUiFont,
           timezone: data.user.timezone || null,
           // Low balance auto top-up fields
           auto_topup_low_balance_enabled:
@@ -667,6 +670,7 @@ export async function checkAuth(
         // applyServerDarkMode is a no-op when the user already has a local
         // manual preference in localStorage, so local choices always win.
         applyServerDarkMode(userDarkMode);
+        applyServerUiFont(userUiFont);
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
       }

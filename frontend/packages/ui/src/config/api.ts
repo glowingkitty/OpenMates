@@ -171,6 +171,7 @@ export const apiEndpoints = {
       consent_mates: "/v1/settings/user/consent/mates", // Record consent for mates settings
       language: "/v1/settings/user/language", // Update user language
       darkmode: "/v1/settings/user/darkmode", // Update user dark mode preference
+      ui_font: "/v1/settings/user/ui-font", // Update user interface font preference
       // Furry Mode interface preferences are disabled until any furry art is made by human artists.
       timezone: "/v1/settings/user/timezone", // Update user timezone (auto-detected or manual)
       username: "/v1/settings/user/username", // Update username (validated + encrypted server-side)

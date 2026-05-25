@@ -26,7 +26,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.utils.config_manager import config_manager
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 
@@ -525,6 +525,48 @@ async def update_user_darkmode(
 
 
 # Furry Mode interface preferences are disabled until any furry art is made by human artists.
+
+
+ALLOWED_UI_FONTS = {"lexend", "system", "serif", "mono"}
+
+
+@router.post("/user/ui-font", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_user_ui_font(
+    request: Request,
+    request_data: UiFontUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """Updates the user's web UI font preference."""
+    user_id = current_user.id
+    ui_font = request_data.ui_font
+    logger.info(f"Updating UI font for user {user_id} to {ui_font}")
+
+    if ui_font not in ALLOWED_UI_FONTS:
+        raise HTTPException(status_code=400, detail="Invalid UI font provided")
+
+    update_data = {"ui_font": ui_font}
+
+    try:
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            raise HTTPException(status_code=500, detail="Failed to save UI font setting")
+
+        cache_update_success = await cache_service.update_user(user_id, update_data)
+        if not cache_update_success:
+            logger.warning(f"Failed to update cache for user {user_id} after UI font update, but Directus was updated.")
+        else:
+            logger.info(f"Successfully updated cache for user {user_id} after UI font update.")
+
+        return SimpleSuccessResponse(success=True, message="UI font setting updated successfully")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating UI font for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while updating UI font setting")
 
 
 # --- Endpoint for updating user timezone ---

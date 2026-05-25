@@ -33,6 +33,16 @@ class DarkModeUpdateRequest(BaseModel):
             }
         }
 
+class UiFontUpdateRequest(BaseModel):
+    ui_font: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "ui_font": "system"
+            }
+        }
+
 class TimezoneUpdateRequest(BaseModel):
     """Request model for updating user's timezone setting."""
     timezone: str  # IANA timezone format, e.g., 'Europe/Berlin', 'America/New_York'

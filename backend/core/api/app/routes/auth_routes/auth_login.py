@@ -541,6 +541,7 @@ async def login(
                     consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                     language=user_profile.get("language", 'en'),
                     darkmode=user_profile.get("darkmode", False),
+                    ui_font=user_profile.get("ui_font", "lexend"),
                     encrypted_key=user_profile.get("encrypted_key"),
                     key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
@@ -768,6 +769,7 @@ async def login(
                         consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
+                        ui_font=user_profile.get("ui_font", "lexend"),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
@@ -1086,6 +1088,7 @@ async def login(
                         consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
+                        ui_font=user_profile.get("ui_font", "lexend"),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt

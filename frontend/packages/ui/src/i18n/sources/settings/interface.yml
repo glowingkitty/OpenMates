@@ -103,6 +103,51 @@ dark_mode:
   he: מצב כהה
   verified_by_human: []
 
+font:
+  context: Font settings menu item in interface section
+  en: Font
+  verified_by_human: []
+
+font.lexend:
+  context: Interface font option using the OpenMates default Lexend Deca font
+  en: Lexend Deca
+  verified_by_human: []
+
+font.lexend.description:
+  context: Description for the default OpenMates interface font option
+  en: OpenMates default
+  verified_by_human: []
+
+font.system:
+  context: Interface font option using the operating system UI font
+  en: System
+  verified_by_human: []
+
+font.system.description:
+  context: Description for the system interface font option
+  en: Uses your device's default UI font
+  verified_by_human: []
+
+font.serif:
+  context: Interface font option using a classic serif font stack
+  en: Serif
+  verified_by_human: []
+
+font.serif.description:
+  context: Description for the serif interface font option
+  en: Classic reading style
+  verified_by_human: []
+
+font.mono:
+  context: Interface font option using a monospace font stack
+  en: Mono
+  verified_by_human: []
+
+font.mono.description:
+  context: Description for the monospace interface font option
+  en: Code-like fixed width
+  verified_by_human: []
+
 dark_mode.auto:
   context: "Dark mode option: follows the operating system preference automatically"
   en: Auto

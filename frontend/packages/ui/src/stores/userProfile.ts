@@ -18,6 +18,7 @@ export interface UserProfile {
   consent_recovery_key_stored_timestamp?: number; // Timestamp when user confirmed they stored recovery key
   language: string | null; // User's preferred language
   darkmode: boolean; // User's dark mode preference
+  ui_font: string | null; // User's preferred web UI font
   timezone: string | null; // User's timezone in IANA format (e.g., 'Europe/Berlin'). Auto-detected from browser, can be manually overridden.
   currency: string | null; // User's preferred currency
   encrypted_key?: string;
@@ -121,6 +122,7 @@ export const defaultProfile: UserProfile = {
   consent_mates_default_settings: false,
   language: "en", // Default language
   darkmode: false, // Default dark mode
+  ui_font: "lexend", // Default web UI font
   timezone: null, // Auto-detected from browser on login, can be manually set
   currency: "EUR", // Default currency set to EUR
 };

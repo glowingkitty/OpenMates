@@ -33,6 +33,7 @@ import { resetChatNavigationList } from "./chatNavigationStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { resetUserAvailableSkills } from "./appSkillsStore";
 import { applyServerDarkMode } from "./theme";
+import { applyServerUiFont } from "./uiFont";
 
 // Import core auth state and related flags
 import {
@@ -288,6 +289,7 @@ export async function login(
             const consent_mates = !!data.user.consent_mates_default_settings;
             const userLanguage = data.user.language || defaultProfile.language;
             const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
+            const userUiFont = data.user.ui_font ?? defaultProfile.ui_font;
 
             if (userLanguage && userLanguage !== get(locale)) {
               locale.set(userLanguage);
@@ -306,6 +308,7 @@ export async function login(
               consent_mates_default_settings: consent_mates,
               language: userLanguage,
               darkmode: userDarkMode,
+              ui_font: userUiFont,
               timezone: data.user.timezone || null, // Include timezone from server
               // Low balance auto top-up fields
               auto_topup_low_balance_enabled:
@@ -342,6 +345,7 @@ export async function login(
             // applyServerDarkMode is a no-op when the user already has a local
             // manual preference in localStorage, so local choices always win.
             applyServerDarkMode(userDarkMode);
+            applyServerUiFont(userUiFont);
 
             // Sync browser timezone to server (non-blocking)
             // This ensures the server always has the user's current timezone

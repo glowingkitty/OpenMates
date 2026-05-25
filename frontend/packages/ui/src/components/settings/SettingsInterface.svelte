@@ -15,10 +15,12 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
     import SettingsDarkMode from './interface/SettingsDarkMode.svelte';
+    import SettingsFont from './interface/SettingsFont.svelte';
     import { locale, waitLocale } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { get } from 'svelte/store';
     import { themeMode } from '../../stores/theme';
+    import { UI_FONT_OPTIONS, uiFont } from '../../stores/uiFont';
 
     const dispatch = createEventDispatcher();
     
@@ -54,6 +56,11 @@ changes to the documentation (to keep the documentation up to date).
             case 'light': return $text('settings.interface.dark_mode.light');
             default:      return $text('settings.interface.dark_mode.auto');
         }
+    })());
+
+    let currentFontLabel = $derived((() => {
+        const option = UI_FONT_OPTIONS.find(fontOption => fontOption.value === $uiFont) || UI_FONT_OPTIONS[0];
+        return $text(option.labelKey);
     })());
 
     // Handle ?lang= URL parameter on mount
@@ -151,6 +158,29 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    function showFontSettings(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'font';
+        childComponent = SettingsFont;
+
+        dispatch('openSettings', {
+            settingsPath: 'interface/font',
+            direction: 'forward',
+            icon: 'language',
+            title: $text('settings.interface.font'),
+            translationKey: 'settings.interface.font'
+        });
+
+        const settingsContent = document.querySelector('.settings-content-wrapper');
+        if (settingsContent) {
+            settingsContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+    }
+
     // Handle language change event from SettingsLanguage component
     // Note: We don't need to manually update currentLanguage here because it's now
     // derived from the $locale store, which is automatically updated by SettingsLanguage
@@ -170,6 +200,13 @@ changes to the documentation (to keep the documentation up to date).
     // Handle dark mode change event from SettingsDarkMode component
     function handleDarkModeChanged(event) {
         console.debug('[SettingsInterface] Dark mode changed:', event.detail.mode);
+        currentView = 'main';
+        childComponent = null;
+        dispatch('navigateBack');
+    }
+
+    function handleFontChanged(event) {
+        console.debug('[SettingsInterface] Font changed:', event.detail.font);
         currentView = 'main';
         childComponent = null;
         dispatch('navigateBack');
@@ -195,6 +232,14 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showDarkModeSettings()}
     />
 
+    <SettingsItem
+        type="subsubmenu"
+        icon="subsetting_icon language"
+        subtitle={$text('settings.interface.font')}
+        title={currentFontLabel}
+        onClick={() => showFontSettings()}
+    />
+
     <!-- Furry Mode customization is disabled until any furry art is made by human artists. -->
 {:else if currentView === 'language' && childComponent}
     {@const Component = childComponent}
@@ -205,5 +250,10 @@ changes to the documentation (to keep the documentation up to date).
     {@const Component = childComponent}
     <Component
         on:darkModeChanged={handleDarkModeChanged}
+    />
+{:else if currentView === 'font' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:fontChanged={handleFontChanged}
     />
 {/if}

@@ -14,6 +14,7 @@ class UserResponse(BaseModel):
     consent_mates_default_settings: bool = False
     language: Optional[str] = 'en' # User's preferred language
     darkmode: bool = False # User's dark mode preference
+    ui_font: Optional[str] = 'lexend' # User's preferred web UI font
     invoice_counter: Optional[int] = None # Counter for invoice generation
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
     key_iv: Optional[str] = None # IV used for master key encryption (Web Crypto API)
@@ -53,6 +54,7 @@ class UserResponse(BaseModel):
                 "consent_mates_default_settings": False,
                 "language": "de", # Added example value
                 "darkmode": True, # Added example value
+                "ui_font": "system",
                 "invoice_counter": 5, # Added example value
                 "encrypted_key": "encrypted_master_key_example",
                 "salt": "salt_example",

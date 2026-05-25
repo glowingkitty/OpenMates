@@ -88,6 +88,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "vault_key_version": user_data.get("vault_key_version"),
             "language": user_data.get("language", "en"),
             "darkmode": user_data.get("darkmode", False),
+            "ui_font": user_data.get("ui_font", "lexend"),
             "timezone": user_data.get("timezone"),  # IANA timezone (e.g., 'Europe/Berlin'), auto-detected from browser
             "default_ai_model_simple": user_data.get("default_ai_model_simple"),
             "default_ai_model_complex": user_data.get("default_ai_model_complex"),
