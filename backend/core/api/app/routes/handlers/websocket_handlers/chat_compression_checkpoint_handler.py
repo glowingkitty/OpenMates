@@ -10,6 +10,10 @@ from typing import Any, Dict, List, Optional
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.tasks.persistence_tasks import _validate_client_encrypted_chat_payload
+from backend.shared.python_utils.tracing.ws_span_helper import (
+    end_ws_handler_span,
+    start_ws_handler_span,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,37 @@ async def get_latest_chat_compression_checkpoint(
 
 
 async def handle_store_chat_compression_checkpoint(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    manager: Any,
+    user_id: str,
+    user_id_hash: str,
+    device_fingerprint_hash: str,
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,
+) -> None:
+    _otel_span, _otel_token = start_ws_handler_span(
+        "store_chat_compression_checkpoint",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
+    try:
+        await _handle_store_chat_compression_checkpoint(
+            cache_service,
+            directus_service,
+            manager,
+            user_id,
+            user_id_hash,
+            device_fingerprint_hash,
+            payload,
+            user_otel_attrs,
+        )
+    finally:
+        end_ws_handler_span(_otel_span, _otel_token)
+
+
+async def _handle_store_chat_compression_checkpoint(
     cache_service: CacheService,
     directus_service: DirectusService,
     manager: Any,
@@ -118,6 +153,37 @@ async def handle_store_chat_compression_checkpoint(
 
 
 async def handle_get_compressed_chat_old_messages(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    manager: Any,
+    user_id: str,
+    user_id_hash: str,
+    device_fingerprint_hash: str,
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,
+) -> None:
+    _otel_span, _otel_token = start_ws_handler_span(
+        "get_compressed_chat_old_messages",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
+    try:
+        await _handle_get_compressed_chat_old_messages(
+            cache_service,
+            directus_service,
+            manager,
+            user_id,
+            user_id_hash,
+            device_fingerprint_hash,
+            payload,
+            user_otel_attrs,
+        )
+    finally:
+        end_ws_handler_span(_otel_span, _otel_token)
+
+
+async def _handle_get_compressed_chat_old_messages(
     cache_service: CacheService,
     directus_service: DirectusService,
     manager: Any,

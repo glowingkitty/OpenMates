@@ -37,26 +37,26 @@ export function promptChatErrorReportConsent(options: ChatErrorReportOptions): v
   let notificationId = "";
 
   notificationId = notificationStore.addNotificationWithOptions("error", {
-    title: translate("chat.error_report_consent.title"),
-    message: translate("chat.error_report_consent.message"),
-    messageSecondary: translate("chat.error_report_consent.secondary"),
-    actionLabel: translate("chat.error_report_consent.action"),
-    secondaryActionLabel: translate("chat.error_report_consent.dismiss"),
+    title: translate("chats.error_report_consent.title"),
+    message: translate("chats.error_report_consent.message"),
+    messageSecondary: translate("chats.error_report_consent.secondary"),
+    actionLabel: translate("chats.error_report_consent.action"),
+    secondaryActionLabel: translate("chats.error_report_consent.dismiss"),
     duration: CONSENT_TOAST_DURATION_MS,
     dismissible: true,
     dedupeKey,
     onAction: async () => {
       if (options.chatId) activeChatStore.setActiveChat(options.chatId);
       notificationStore.updateNotification(notificationId, {
-        message: translate("chat.error_report_consent.submitting"),
+        message: translate("chats.error_report_consent.submitting"),
         messageSecondary: undefined,
         actionLabel: undefined,
         secondaryActionLabel: undefined,
       });
 
       const result = await submitIssueReport({
-        title: translate("chat.error_report_consent.report_title"),
-        description: `${translate("chat.error_report_consent.report_description")}\n\nSource: ${options.source}\nError: ${errorSummary(options.error)}`,
+        title: translate("chats.error_report_consent.report_title"),
+        description: `${translate("chats.error_report_consent.report_description")}\n\nSource: ${options.source}\nError: ${errorSummary(options.error)}`,
         shareCurrentChat: true,
         source: options.source,
       });

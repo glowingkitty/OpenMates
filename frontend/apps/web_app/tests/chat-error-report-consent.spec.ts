@@ -63,6 +63,9 @@ test.describe('Chat Error Report Consent', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
+		await page.getByTestId('daily-inspiration-banner').click();
+		await page.waitForFunction(() => window.location.hash.includes('chat-id='), null, { timeout: 30000 });
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
 		await takeStepScreenshot(page, '01-authenticated-chat-open');
 
 		const simulated = await page.evaluate(async () => {
