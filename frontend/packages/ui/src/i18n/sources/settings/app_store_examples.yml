@@ -1037,9 +1037,9 @@ nutrition.search_recipes.1:
   verified_by_human: [en]
 
 nutrition.search_recipes.2:
-  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays quick bowl recipes from the REWE search skill.
-  en: Quick bowl recipes
-  de: Schnelle Bowl-Rezepte
+  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays easy casserole recipes from the REWE search skill.
+  en: Easy casserole recipes
+  de: Einfache Auflauf-Rezepte
   zh: 快速碗食谱
   es: Recetas rápidas de bowls
   fr: Recettes de bowls rapides
