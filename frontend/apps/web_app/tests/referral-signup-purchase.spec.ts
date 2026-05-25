@@ -45,7 +45,8 @@ async function getReferralCodeFromSettings(page: any): Promise<string> {
 async function completeSignupAndPurchase(page: any, context: any, emailClient: any, signupEmail: string, referralCode: string, log: any, screenshot: any): Promise<string> {
 	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient;
 	const signupPassword = 'SignupTest!234';
-	const signupUsername = signupEmail.split('@')[0].replace(/[^a-z0-9_-]/gi, '-').slice(0, 19);
+	const emailLocalPart = signupEmail.split('@')[0].replace(/[^a-z0-9_.]/gi, '_');
+	const signupUsername = `ref_${emailLocalPart.slice(-12)}`.slice(0, 20);
 
 	page.setDefaultTimeout(30000);
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
