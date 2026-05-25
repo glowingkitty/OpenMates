@@ -14,7 +14,7 @@
     import SettingsItem from '../../SettingsItem.svelte';
     import { authStore } from '../../../stores/authStore';
     import { UI_FONT_OPTIONS, setUiFont, uiFont, type UiFont } from '../../../stores/uiFont';
-    import { updateProfile } from '../../../stores/userProfile';
+    import { updateProfile, userProfile } from '../../../stores/userProfile';
     import { createEventDispatcher } from 'svelte';
 
     const dispatch = createEventDispatcher();
@@ -22,7 +22,8 @@
     async function handleFontChange(font: UiFont) {
         if (font === $uiFont) return;
 
-        await setUiFont(font, $authStore.isAuthenticated);
+        const shouldSyncToServer = $authStore.isAuthenticated || !!$userProfile.user_id;
+        await setUiFont(font, shouldSyncToServer);
         updateProfile({ ui_font: font });
         dispatch('fontChanged', { font });
     }
