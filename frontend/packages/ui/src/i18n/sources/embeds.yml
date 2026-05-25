@@ -4984,7 +4984,7 @@ home.search.results_count:
 
 nutrition.search_recipes:
   context: Nutrition recipe search skill label shown in embed preview
-  en: Recipe Search
+  en: Search Recipes
   de: Rezeptsuche
   zh: 食谱搜索
   es: Búsqueda de recetas

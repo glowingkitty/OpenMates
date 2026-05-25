@@ -355,6 +355,14 @@
   :global(.icon_rounded.socialmedia::after) {
     background-image: url('@openmates/ui/static/icons/socialmedia.svg');
   }
+
+  :global(.icon_rounded.nutrition) {
+    background: var(--color-app-nutrition);
+  }
+
+  :global(.icon_rounded.nutrition::after) {
+    background-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
   
   /* Skill icon: 29x29px with color-grey-70, dynamically set icon via data attribute */
   .basic-infos-bar.desktop .skill-icon {

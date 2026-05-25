@@ -110,7 +110,7 @@
   skillId="search_recipes"
   embedHeaderTitle={title}
   embedHeaderSubtitle={subtitle}
-  skillIconName="nutrition"
+  skillIconName="search"
   showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}

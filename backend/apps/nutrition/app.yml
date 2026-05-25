@@ -52,7 +52,7 @@ skills:
   - id: search_recipes
     name_translation_key: app_skills.nutrition.search_recipes
     description_translation_key: app_skills.nutrition.search_recipes.description
-    icon_image: nutrition.svg
+    icon_image: search.svg
     preprocessor_hint: >
       Search REWE Online for recipes by dietary and category filters.
       Returns full recipe details: ingredients, instructions, nutrition, ratings.

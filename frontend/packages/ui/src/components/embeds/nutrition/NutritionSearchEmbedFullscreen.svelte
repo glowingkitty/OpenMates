@@ -118,13 +118,12 @@
 
   function parseNutrition(content: Record<string, unknown>): RecipeResult['nutrition'] | undefined {
     const raw = content.nutrition;
-    if (!raw || typeof raw !== 'object') return undefined;
-    const n = raw as Record<string, unknown>;
+    const n = raw && typeof raw === 'object' ? raw as Record<string, unknown> : content;
     return {
-      calories_kcal: asNumber(n.calories_kcal),
-      protein_g: asNumber(n.protein_g),
-      fat_g: asNumber(n.fat_g),
-      carbs_g: asNumber(n.carbs_g)
+      calories_kcal: asNumber(n.calories_kcal ?? n.nutrition_calories_kcal),
+      protein_g: asNumber(n.protein_g ?? n.nutrition_protein_g),
+      fat_g: asNumber(n.fat_g ?? n.nutrition_fat_g),
+      carbs_g: asNumber(n.carbs_g ?? n.nutrition_carbs_g)
     };
   }
 
@@ -234,7 +233,7 @@
   maxGridWidth="1100px"
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
-  skillIconName="nutrition"
+  skillIconName="search"
   showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}
