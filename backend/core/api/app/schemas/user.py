@@ -54,7 +54,7 @@ class UserResponse(BaseModel):
                 "consent_mates_default_settings": False,
                 "language": "de", # Added example value
                 "darkmode": True, # Added example value
-                "ui_font": "system",
+                "ui_font": "figtree",
                 "invoice_counter": 5, # Added example value
                 "encrypted_key": "encrypted_master_key_example",
                 "salt": "salt_example",

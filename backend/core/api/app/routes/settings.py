@@ -527,7 +527,21 @@ async def update_user_darkmode(
 # Furry Mode interface preferences are disabled until any furry art is made by human artists.
 
 
-ALLOWED_UI_FONTS = {"lexend", "system", "serif", "mono"}
+ALLOWED_UI_FONTS = {
+    "lexend",
+    "figtree",
+    "rubik",
+    "inter",
+    "public_sans",
+    "atkinson",
+    "ibm_plex_sans",
+    "source_serif",
+    "jetbrains_mono",
+    "ibm_plex_mono",
+    "system",
+    "serif",
+    "mono",
+}
 
 
 @router.post("/user/ui-font", response_model=SimpleSuccessResponse, include_in_schema=False)

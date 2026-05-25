@@ -179,7 +179,19 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		// Exclude problematic modules from pre-bundling
-		exclude: ['@fontsource-variable/lexend-deca', 'jspdf']
+		exclude: [
+			'@fontsource-variable/lexend-deca',
+			'@fontsource-variable/figtree',
+			'@fontsource-variable/rubik',
+			'@fontsource-variable/inter',
+			'@fontsource-variable/public-sans',
+			'@fontsource/atkinson-hyperlegible',
+			'@fontsource/ibm-plex-sans',
+			'@fontsource-variable/source-serif-4',
+			'@fontsource-variable/jetbrains-mono',
+			'@fontsource/ibm-plex-mono',
+			'jspdf'
+		]
 	},
 	define: {
 		// Define global variables to help with Svelte 5 build issues

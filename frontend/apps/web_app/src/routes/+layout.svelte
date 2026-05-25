@@ -133,13 +133,6 @@
 		});
 		window.addEventListener('focus', ensureOpenMatesFavicons);
 
-		// Import font CSS only in the browser to avoid SSR issues
-		// Node.js cannot process CSS files directly during SSR
-		// This dynamic import only runs in the browser, not during SSR
-		if (browser) {
-			await import('@fontsource-variable/lexend-deca');
-		}
-
 		await waitLocale();
 		loaded = true;
 

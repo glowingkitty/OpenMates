@@ -39,7 +39,7 @@ class UiFontUpdateRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "ui_font": "system"
+                "ui_font": "figtree"
             }
         }
 

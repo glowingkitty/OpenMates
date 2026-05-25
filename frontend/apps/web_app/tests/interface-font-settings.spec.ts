@@ -6,7 +6,7 @@ export {};
  *
  * Validates Settings -> Interface -> Font:
  * 1. Login with the shared test account.
- * 2. Select the System UI font.
+ * 2. Select the Figtree UI font.
  * 3. Verify localStorage, the root data attribute, computed font family, and server POST.
  * 4. Reset to the OpenMates default Lexend Deca font.
  */
@@ -33,9 +33,9 @@ const SELECTORS = {
 	openSettingsButton: '[aria-label="Open settings menu"]',
 	interfaceMenuItem: '[role="menuitem"]:has-text("Interface")',
 	fontSubMenuItem: '[role="menuitem"]:has-text("Font")',
-	systemFontItem: '[role="menuitem"]:has-text("System")',
+	figtreeFontItem: '[role="menuitem"]:has-text("Figtree")',
 	lexendFontItem: '[role="menuitem"]:has-text("Lexend Deca")',
-	systemCheckbox: 'input[aria-label="Toggle system mode"]',
+	figtreeCheckbox: 'input[aria-label="Toggle figtree mode"]',
 	lexendCheckbox: 'input[aria-label="Toggle lexend deca mode"]'
 };
 
@@ -59,7 +59,7 @@ async function postUiFont(page: any, apiBaseUrl: string, font: string) {
 	);
 }
 
-test('interface font settings — change to System, verify client + server, reset to Lexend', async ({
+test('interface font settings — change to Figtree, verify client + server, reset to Lexend', async ({
 	page
 }: {
 	page: any;
@@ -127,10 +127,10 @@ test('interface font settings — change to System, verify client + server, rese
 		await page.locator(SELECTORS.fontSubMenuItem).first().click();
 		await takeScreenshot(page, '04-font-list');
 
-		const systemFontItem = page.locator(SELECTORS.systemFontItem).first();
+		const figtreeFontItem = page.locator(SELECTORS.figtreeFontItem).first();
 		const lexendCheckbox = page.locator(SELECTORS.lexendCheckbox);
-		const systemCheckbox = page.locator(SELECTORS.systemCheckbox);
-		await expect(systemFontItem).toBeVisible({ timeout: 5000 });
+		const figtreeCheckbox = page.locator(SELECTORS.figtreeCheckbox);
+		await expect(figtreeFontItem).toBeVisible({ timeout: 5000 });
 		await expect(lexendCheckbox).toBeChecked({ timeout: 5000 });
 
 		const fontApiRequestPromise = page.waitForRequest(
@@ -138,14 +138,14 @@ test('interface font settings — change to System, verify client + server, rese
 			{ timeout: 10000 }
 		);
 
-		await systemFontItem.click();
+		await figtreeFontItem.click();
 		const fontApiRequest = await fontApiRequestPromise;
 		await page.waitForTimeout(1000);
-		await takeScreenshot(page, '05-system-selected');
+		await takeScreenshot(page, '05-figtree-selected');
 
 		const requestBody = JSON.parse(fontApiRequest.postData() || '{}');
-		expect(requestBody.ui_font).toBe('system');
-		await expect(systemCheckbox).toBeChecked({ timeout: 5000 });
+		expect(requestBody.ui_font).toBe('figtree');
+		await expect(figtreeCheckbox).toBeChecked({ timeout: 5000 });
 		await expect(lexendCheckbox).not.toBeChecked({ timeout: 5000 });
 
 		const clientState = await page.evaluate(() => ({
@@ -153,12 +153,12 @@ test('interface font settings — change to System, verify client + server, rese
 			rootFont: document.documentElement.dataset.uiFont,
 			computedFont: getComputedStyle(document.body).fontFamily
 		}));
-		expect(clientState.storedFont).toBe('system');
-		expect(clientState.rootFont).toBe('system');
-		expect(clientState.computedFont.toLowerCase()).toContain('system');
+		expect(clientState.storedFont).toBe('figtree');
+		expect(clientState.rootFont).toBe('figtree');
+		expect(clientState.computedFont.toLowerCase()).toContain('figtree');
 
-		const serverResult = await postUiFont(page, API_BASE_URL, 'system');
-		expect(serverResult.ok, 'Expected 200 OK from server for ui_font=system').toBe(true);
+		const serverResult = await postUiFont(page, API_BASE_URL, 'figtree');
+		expect(serverResult.ok, 'Expected 200 OK from server for ui_font=figtree').toBe(true);
 		expect(serverResult.status).toBe(200);
 		expect(serverResult.body?.success).toBe(true);
 	} finally {

@@ -118,6 +118,96 @@ font.lexend.description:
   en: OpenMates default
   verified_by_human: []
 
+font.figtree:
+  context: Interface font option using the Figtree font
+  en: Figtree
+  verified_by_human: []
+
+font.figtree.description:
+  context: Description for the Figtree interface font option
+  en: Friendly modern UI
+  verified_by_human: []
+
+font.rubik:
+  context: Interface font option using the Rubik font
+  en: Rubik
+  verified_by_human: []
+
+font.rubik.description:
+  context: Description for the Rubik interface font option
+  en: Rounded and readable
+  verified_by_human: []
+
+font.inter:
+  context: Interface font option using the Inter font
+  en: Inter
+  verified_by_human: []
+
+font.inter.description:
+  context: Description for the Inter interface font option
+  en: Neutral app interface
+  verified_by_human: []
+
+font.public_sans:
+  context: Interface font option using the Public Sans font
+  en: Public Sans
+  verified_by_human: []
+
+font.public_sans.description:
+  context: Description for the Public Sans interface font option
+  en: Clear professional style
+  verified_by_human: []
+
+font.atkinson:
+  context: Interface font option using the Atkinson Hyperlegible font
+  en: Atkinson Hyperlegible
+  verified_by_human: []
+
+font.atkinson.description:
+  context: Description for the Atkinson Hyperlegible interface font option
+  en: Designed for readability
+  verified_by_human: []
+
+font.ibm_plex_sans:
+  context: Interface font option using the IBM Plex Sans font
+  en: IBM Plex Sans
+  verified_by_human: []
+
+font.ibm_plex_sans.description:
+  context: Description for the IBM Plex Sans interface font option
+  en: Technical and balanced
+  verified_by_human: []
+
+font.source_serif:
+  context: Interface font option using the Source Serif font
+  en: Source Serif 4
+  verified_by_human: []
+
+font.source_serif.description:
+  context: Description for the Source Serif interface font option
+  en: Long-form reading
+  verified_by_human: []
+
+font.jetbrains_mono:
+  context: Interface font option using the JetBrains Mono font
+  en: JetBrains Mono
+  verified_by_human: []
+
+font.jetbrains_mono.description:
+  context: Description for the JetBrains Mono interface font option
+  en: Developer-focused mono
+  verified_by_human: []
+
+font.ibm_plex_mono:
+  context: Interface font option using the IBM Plex Mono font
+  en: IBM Plex Mono
+  verified_by_human: []
+
+font.ibm_plex_mono.description:
+  context: Description for the IBM Plex Mono interface font option
+  en: Clean fixed width
+  verified_by_human: []
+
 font.system:
   context: Interface font option using the operating system UI font
   en: System
