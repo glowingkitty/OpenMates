@@ -47,22 +47,40 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	const signupPassword = 'SignupTest!234';
 	const signupUsername = signupEmail.split('@')[0].replace(/[^a-z0-9_-]/gi, '-').slice(0, 32);
 
+	page.setDefaultTimeout(30000);
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 	await page.goto(getE2EDebugUrl(`/#ref=${referralCode}`));
 	await page.waitForLoadState('load');
 	await expect(page).not.toHaveURL(/#.*ref=/, { timeout: 10000 });
 	const storedReferralCode = await page.evaluate(() => sessionStorage.getItem('openmates_pending_referral_code'));
 	expect(storedReferralCode).toBe(referralCode);
+	log('Captured referral code in referred-user session.', { referralCode });
 	await openSignupInterface(page);
 	await page.getByTestId('login-tabs').getByRole('button', { name: /sign up/i }).click();
 
 	await page.getByRole('button', { name: /continue/i }).click();
+	await screenshot(page, 'referral-signup-basics');
+	log('Reached referred signup basics step.', { signupEmail });
 	const emailRequestedAt = new Date().toISOString();
-	await page.locator('input[type="email"][autocomplete="email"]').fill(signupEmail);
-	await page.locator('input[autocomplete="username"]').fill(signupUsername);
-	await setToggleChecked(page.locator('#stayLoggedIn'), true);
-	await setToggleChecked(page.locator('#terms-agreed-toggle'), true);
-	await setToggleChecked(page.locator('#privacy-agreed-toggle'), true);
+	const emailInput = page.locator('input[type="email"][autocomplete="email"]').first();
+	const usernameInput = page.locator('input[autocomplete="username"]').first();
+	await expect(emailInput).toBeVisible();
+	await expect(usernameInput).toBeVisible();
+	await emailInput.fill(signupEmail);
+	await expect(emailInput).toHaveValue(signupEmail);
+	await usernameInput.fill(signupUsername);
+	await expect(usernameInput).toHaveValue(signupUsername);
+	const stayLoggedInToggle = page.locator('#stayLoggedIn');
+	const termsToggle = page.locator('#terms-agreed-toggle');
+	const privacyToggle = page.locator('#privacy-agreed-toggle');
+	await setToggleChecked(stayLoggedInToggle, true);
+	await setToggleChecked(termsToggle, true);
+	await setToggleChecked(privacyToggle, true);
+	await expect(stayLoggedInToggle).toBeChecked();
+	await expect(termsToggle).toBeChecked();
+	await expect(privacyToggle).toBeChecked();
+	await screenshot(page, 'referral-signup-basics-filled');
+	log('Filled referred signup basics.', { signupEmail, signupUsername });
 	await page.getByRole('button', { name: /create new account/i }).click();
 	log('Submitted referred signup basics.', { signupEmail });
 
