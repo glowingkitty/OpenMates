@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
-import type { PreprocessorStepResult } from "../types/chat";
+import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
@@ -4708,6 +4708,7 @@ export function handleChatCompressionCompletedImpl(
     summary_token_estimate?: number;
     compressed_up_to_timestamp?: number;
     summary_message_id?: string;
+    summary_content?: string;
     error?: string;
   },
 ): void {
@@ -4728,5 +4729,71 @@ export function handleChatCompressionCompletedImpl(
 
   serviceInstance.dispatchEvent(
     new CustomEvent("chatCompressionCompleted", { detail: payload }),
+  );
+
+  if (!payload.error && payload.summary_content && payload.summary_message_id) {
+    void persistClientEncryptedCompressionCheckpoint(payload);
+  }
+}
+
+async function persistClientEncryptedCompressionCheckpoint(payload: {
+  chat_id: string;
+  task_id: string;
+  compressed_message_count?: number;
+  summary_token_estimate?: number;
+  compressed_up_to_timestamp?: number;
+  summary_message_id?: string;
+  summary_content?: string;
+}): Promise<void> {
+  if (!payload.summary_content || !payload.summary_message_id) return;
+  const chat = await chatDB.getChat(payload.chat_id);
+  if (!chat) return;
+  const chatKey = await chatKeyManager.getKey(payload.chat_id);
+  if (!chatKey) {
+    console.warn("[ChatSyncService:AI] Cannot persist compression checkpoint without chat key", payload.chat_id);
+    return;
+  }
+  const encryptedSummary = await encryptWithChatKey(payload.summary_content, chatKey);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const checkpoint: ChatCompressionCheckpoint = {
+    id: payload.summary_message_id,
+    chat_id: payload.chat_id,
+    encrypted_summary: encryptedSummary,
+    summary: payload.summary_content,
+    compressed_up_to_timestamp: payload.compressed_up_to_timestamp || 0,
+    compressed_message_count: payload.compressed_message_count || 0,
+    summary_token_estimate: payload.summary_token_estimate,
+    key_version: chat.key_version ?? null,
+    created_at: nowSeconds,
+    updated_at: nowSeconds,
+  };
+  await webSocketService.sendMessage("store_chat_compression_checkpoint", {
+    chat_id: payload.chat_id,
+    checkpoint_id: checkpoint.id,
+    encrypted_summary: encryptedSummary,
+    compressed_up_to_timestamp: checkpoint.compressed_up_to_timestamp,
+    compressed_message_count: checkpoint.compressed_message_count,
+    summary_token_estimate: checkpoint.summary_token_estimate,
+    key_version: checkpoint.key_version,
+    created_at: checkpoint.created_at,
+  });
+}
+
+export async function handleChatCompressionCheckpointStoredImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; checkpoint: ChatCompressionCheckpoint },
+): Promise<void> {
+  const checkpoint = payload.checkpoint;
+  const chatKey = await chatKeyManager.getKey(payload.chat_id);
+  if (chatKey && checkpoint.encrypted_summary && !checkpoint.summary) {
+    checkpoint.summary = await decryptWithChatKey(checkpoint.encrypted_summary, chatKey) || undefined;
+  }
+  await chatDB.saveChatCompressionCheckpoint(checkpoint);
+  await chatDB.deleteMessagesForChatAtOrBefore(
+    payload.chat_id,
+    checkpoint.compressed_up_to_timestamp,
+  );
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionCheckpointStored", { detail: payload }),
   );
 }

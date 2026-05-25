@@ -10,7 +10,7 @@
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
   // This should align with the global Message type from ../types/chat
-  import type { Message as GlobalMessage, MessageRole } from '../types/chat';
+  import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
   import { truncateTiptapContent } from '../utils/messageTruncation';
@@ -60,6 +60,7 @@
   import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
   import { chatDB } from '../services/db';
+  import { webSocketService } from '../services/websocketService';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -540,6 +541,25 @@
   // --- Compression / forgotten messages ---
   // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
   let showForgottenMessages = $state(false);
+  let oldCompressedMessages = $state<GlobalMessage[]>([]);
+  let oldCompressedMessagesLoading = $state(false);
+
+  let latestCompressionCheckpoint = $derived.by(() => {
+    if (!compressionCheckpoints || compressionCheckpoints.length === 0) return null;
+    return [...compressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+  });
+
+  function makeCompressionSummaryMessage(checkpoint: ChatCompressionCheckpoint): InternalMessage {
+    return G_mapToInternalMessage({
+      message_id: checkpoint.id,
+      chat_id: checkpoint.chat_id,
+      role: 'system',
+      category: 'compression_summary',
+      content: checkpoint.summary || '',
+      created_at: checkpoint.created_at,
+      status: 'synced',
+    });
+  }
 
   /**
    * Find the index of the compression summary system message in the messages array.
@@ -547,6 +567,7 @@
    * "forgotten" (before summary) and "active" (summary + after) groups.
    */
   let compressionSummaryIndex = $derived.by(() => {
+    if (latestCompressionCheckpoint) return 0;
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (
@@ -565,11 +586,23 @@
 
   /** Messages before the compression summary (the "forgotten" ones). */
   let forgottenMessages = $derived.by(() => {
+    if (latestCompressionCheckpoint) {
+      return oldCompressedMessages.map((message) => G_mapToInternalMessage(message));
+    }
     if (!hasCompressionSummary) return [] as typeof messages;
     return messages.slice(0, compressionSummaryIndex);
   });
 
   let displayMessages = $derived.by(() => {
+    if (latestCompressionCheckpoint) {
+      const summaryMessage = makeCompressionSummaryMessage(latestCompressionCheckpoint);
+      const recentMessages = messages.filter(
+        (msg) => (msg.original_message?.created_at ?? 0) > latestCompressionCheckpoint.compressed_up_to_timestamp,
+      );
+      return showForgottenMessages
+        ? [...forgottenMessages, summaryMessage, ...recentMessages]
+        : [summaryMessage, ...recentMessages];
+    }
     // Start with either all messages or only post-summary messages
     let base = hasCompressionSummary && !showForgottenMessages
       ? messages.slice(compressionSummaryIndex)
@@ -591,6 +624,54 @@
       return true;
     });
   });
+
+  async function toggleForgottenMessages(): Promise<void> {
+    if (!latestCompressionCheckpoint) {
+      showForgottenMessages = !showForgottenMessages;
+      return;
+    }
+    if (!showForgottenMessages && oldCompressedMessages.length === 0) {
+      oldCompressedMessagesLoading = true;
+      await webSocketService.sendMessage('get_compressed_chat_old_messages', {
+        chat_id: latestCompressionCheckpoint.chat_id,
+        checkpoint_id: latestCompressionCheckpoint.id,
+        before_timestamp: latestCompressionCheckpoint.compressed_up_to_timestamp,
+        limit: 250,
+      });
+    }
+    showForgottenMessages = !showForgottenMessages;
+  }
+
+  async function handleOldMessagesResponse(payload: {
+    chat_id: string;
+    checkpoint_id: string;
+    messages?: Array<string | GlobalMessage>;
+  }): Promise<void> {
+    if (!latestCompressionCheckpoint || payload.checkpoint_id !== latestCompressionCheckpoint.id) return;
+    const prepared: GlobalMessage[] = [];
+    for (const item of payload.messages || []) {
+      let message = item as GlobalMessage;
+      if (typeof item === 'string') {
+        try {
+          message = JSON.parse(item) as GlobalMessage;
+        } catch {
+          continue;
+        }
+      }
+      if (!message.message_id && (message as GlobalMessage & { id?: string }).id) {
+        message.message_id = (message as GlobalMessage & { id?: string }).id!;
+      }
+      if (!message.chat_id) message.chat_id = payload.chat_id;
+      if (!message.status) message.status = 'delivered';
+      try {
+        prepared.push(await chatDB.decryptMessageFields(message, payload.chat_id));
+      } catch (error) {
+        console.warn('[ChatHistory] Failed to decrypt compressed old message', message.message_id, error);
+      }
+    }
+    oldCompressedMessages = prepared;
+    oldCompressedMessagesLoading = false;
+  }
 
   let debugChatCopied = $state(false);
   let debugChatCopyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -675,6 +756,7 @@
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
+    compressionCheckpoints = [],
     onSuggestionClick = undefined,
     canAnnotate = true,
   }: {
@@ -741,6 +823,7 @@
     followUpSuggestions?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
+    compressionCheckpoints?: ChatCompressionCheckpoint[];
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -1819,9 +1902,15 @@
     // But we still handle it as a fallback for non-demo chats
     window.addEventListener('language-changed-complete', handleLanguageChange);
 
+    const handleOldMessagesWsResponse = (payload: unknown) => {
+      void handleOldMessagesResponse(payload as { chat_id: string; checkpoint_id: string; messages?: Array<string | GlobalMessage> });
+    };
+    webSocketService.on('compressed_chat_old_messages_response', handleOldMessagesWsResponse);
+
     // Cleanup on component destroy
     return () => {
       window.removeEventListener('language-changed-complete', handleLanguageChange);
+      webSocketService.off('compressed_chat_old_messages_response', handleOldMessagesWsResponse);
     };
   });
 
@@ -1907,11 +1996,11 @@
               <div class="forgotten-messages-toggle">
                 <button
                   class="forgotten-messages-btn"
-                  onclick={() => { showForgottenMessages = !showForgottenMessages; }}
+                  onclick={() => { void toggleForgottenMessages(); }}
                 >
                   {showForgottenMessages
                     ? $text('chat.compression.hide_forgotten')
-                    : $text('chat.compression.show_forgotten')}
+                    : (oldCompressedMessagesLoading ? $text('chat.compression.loading_messages') : $text('chat.compression.show_forgotten'))}
                   {#if !showForgottenMessages && forgottenMessages.length > 0}
                     <span class="forgotten-count">({forgottenMessages.length})</span>
                   {/if}
@@ -1927,7 +2016,7 @@
                      data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
-                         opacity: ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1))};
+                          opacity: ${latestCompressionCheckpoint && (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp ? 0.6 : (($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)))};
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}

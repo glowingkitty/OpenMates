@@ -1085,6 +1085,7 @@ async def _async_process_ai_skill_ask_task(
                                 "summary_token_estimate": compression_result.summary_token_estimate,
                                 "compressed_up_to_timestamp": compression_result.compressed_up_to_timestamp,
                                 "summary_message_id": summary_message_id,
+                                "summary_content": compression_result.summary_content,
                             }
                             await cache_service_instance.publish_event(
                                 compression_channel, compression_completed_payload

@@ -13,6 +13,7 @@ import type {
   MetadataChatsResponsePayload,
   SyncEmbed,
   Chat,
+  ChatCompressionCheckpoint,
   Message,
 } from "../types/chat";
 import type { EmbedKeyEntry } from "./embedStore";
@@ -347,6 +348,11 @@ export async function handleBackgroundMessageSyncImpl(
 
   try {
     for (const chatData of payload.chats || []) {
+      if (chatData.compression_checkpoints && chatData.compression_checkpoints.length > 0) {
+        for (const checkpoint of chatData.compression_checkpoints) {
+          await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
       if (!chatData.messages || chatData.messages.length === 0) continue;
 
       // Parse JSON strings and normalize message_id
@@ -530,6 +536,7 @@ async function storeRecentChats(
   chats: Array<{
     chat_details: Partial<Chat> & { id: string };
     messages?: Message[];
+    compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count?: number;
   }>,
 ): Promise<Set<string>> {
@@ -728,6 +735,7 @@ async function storeAllChats(
   chats: Array<{
     chat_details: Partial<Chat> & { id: string };
     messages?: Message[];
+    compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count?: number;
   }>,
   phase2ChatIds?: Set<string>,
@@ -760,7 +768,7 @@ async function storeAllChats(
 
     for (let i = 0; i < sortedChats.length; i++) {
       const chatItem = sortedChats[i];
-      const { chat_details, messages, server_message_count } = chatItem;
+      const { chat_details, messages, compression_checkpoints, server_message_count } = chatItem;
       const chatId = chat_details.id;
 
       // Yield to the main thread between non-active chat saves to prevent UI jank
@@ -824,6 +832,11 @@ async function storeAllChats(
       // Check if we should sync messages
       const shouldSyncMessages =
         messages && Array.isArray(messages) && messages.length > 0;
+      if (compression_checkpoints && Array.isArray(compression_checkpoints)) {
+        for (const checkpoint of compression_checkpoints) {
+          await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
       const syncSaveOptions = {
         isFromSync: true,
         forceIncomingEncryptedChatKey: false,

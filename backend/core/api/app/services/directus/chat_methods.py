@@ -875,6 +875,40 @@ class ChatMethods:
             logger.error(f"Error fetching messages for chats {chat_ids}: {e}", exc_info=True)
             return {}
 
+    async def get_messages_for_chat_before_timestamp(
+        self,
+        chat_id: str,
+        before_timestamp: int,
+        limit: int = 100,
+    ) -> List[str]:
+        """Fetch encrypted old messages for UI-only compressed-history expansion."""
+        params = {
+            'filter': {
+                'chat_id': {'_eq': chat_id},
+                'created_at': {'_lte': before_timestamp},
+            },
+            'fields': MESSAGE_ALL_FIELDS,
+            'sort': 'created_at',
+            'limit': limit,
+        }
+        try:
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                admin_required=True,
+            )
+            if not messages_from_db:
+                return []
+            for msg in messages_from_db:
+                msg['message_id'] = msg.get('client_message_id') or msg.get('id')
+            return [json.dumps(msg) for msg in messages_from_db]
+        except Exception as e:
+            logger.error(
+                f"Error fetching old messages for chat {chat_id} before {before_timestamp}: {e}",
+                exc_info=True,
+            )
+            return []
+
     async def get_all_user_drafts(self, user_id: str) -> Dict[str, Dict[str, Any]]:
         """
         Fetches all of a user's drafts from the 'drafts' collection.

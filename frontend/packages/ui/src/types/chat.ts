@@ -129,6 +129,19 @@ export interface Message {
   highlights?: MessageHighlight[];
 }
 
+export interface ChatCompressionCheckpoint {
+  id: string;
+  chat_id: string;
+  encrypted_summary?: string;
+  summary?: string;
+  compressed_up_to_timestamp: number;
+  compressed_message_count: number;
+  summary_token_estimate?: number;
+  key_version?: number | null;
+  created_at: number;
+  updated_at?: number;
+}
+
 /**
  * A single message annotation — yellow highlight on a text range or a whole embed,
  * optionally carrying a comment. Stored as its own row in the `message_highlights`
@@ -856,6 +869,7 @@ export interface BackgroundMessageSyncPayload {
   chats: Array<{
     chat_id: string;
     messages: (Message | string)[];
+    compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
     messages_v: number;
   }>;

@@ -1,0 +1,48 @@
+# backend/core/directus/schemas/chat_compression_checkpoints.yml
+# Client-encrypted compression checkpoints for long chats.
+# Checkpoints let the UI and inference use a visible summary while preserving
+# original messages server-side for on-demand viewing.
+chat_compression_checkpoints:
+  type: collection
+  fields:
+    id:
+      type: string
+      note: "Client/server shared checkpoint ID, generated during compression."
+      options:
+        unique: true
+
+    chat_id:
+      type: string
+      note: "Chat ID this checkpoint belongs to."
+
+    hashed_user_id:
+      type: string
+      note: "Hashed owner user ID for zero-knowledge lookup and authorization."
+
+    encrypted_summary:
+      type: textfield
+      note: "[Encrypted] Compression summary encrypted client-side with the chat key."
+
+    compressed_up_to_timestamp:
+      type: integer
+      note: "Messages at or before this timestamp are represented by the summary for inference."
+
+    compressed_message_count:
+      type: integer
+      note: "Number of older messages represented by this checkpoint."
+
+    summary_token_estimate:
+      type: integer
+      note: "Estimated token count for the plaintext summary."
+
+    key_version:
+      type: integer
+      note: "Chat key version used to encrypt the summary, if known."
+
+    created_at:
+      type: integer
+      note: "Unix timestamp when the checkpoint was created."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp when the checkpoint was last updated."

@@ -17,7 +17,7 @@
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
+    import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
@@ -4414,6 +4414,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+
+    async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
+        const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
+        const chatKey = await chatKeyManager.getKey(chatId);
+        if (!chatKey) return checkpoints;
+        const { decryptWithChatKey } = await import('../services/encryption/MessageEncryptor');
+        return Promise.all(checkpoints.map(async checkpoint => {
+            if (checkpoint.summary || !checkpoint.encrypted_summary) return checkpoint;
+            try {
+                return {
+                    ...checkpoint,
+                    summary: await decryptWithChatKey(checkpoint.encrypted_summary, chatKey) || undefined,
+                };
+            } catch {
+                return checkpoint;
+            }
+        }));
+    }
 
     let startNewChatPlaceholderMode = $derived(
         !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
@@ -7418,6 +7437,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // append messages from the wrong chat. The generation counter prevents stale completions
          // from overwriting currentMessages after a newer loadChat has started.
          const thisLoadGeneration = ++loadChatGeneration;
+         currentCompressionCheckpoints = [];
 
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
@@ -7799,6 +7819,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
                 try {
                     newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                    currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                 } catch (error) {
                     // If database is unavailable (e.g., being deleted during logout), use empty messages
@@ -9696,8 +9717,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        const compressionCheckpointStoredHandler = (async (event: CustomEvent) => {
+            const { chat_id } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(chat_id);
+                currentMessages = await chatDB.getMessagesForChat(chat_id);
+                chatHistoryRef?.updateMessages(currentMessages);
+            }
+        }) as EventListenerCallback;
+
         chatSyncService.addEventListener('chatCompressionStarted', compressionStartedHandler);
         chatSyncService.addEventListener('chatCompressionCompleted', compressionCompletedHandler);
+        chatSyncService.addEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
@@ -10100,6 +10131,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('chatCompressionStarted', compressionStartedHandler);
             chatSyncService.removeEventListener('chatCompressionCompleted', compressionCompletedHandler);
+            chatSyncService.removeEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             // Remove thinking/reasoning event listeners
@@ -10895,8 +10927,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                          autoplayVideo={pendingAutoplayVideo}
                          onResend={handleResendAfterCreditsRestored}
-                         followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
-                         onSuggestionClick={handleSuggestionClick}
+                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
+                          compressionCheckpoints={currentCompressionCheckpoints}
+                          onSuggestionClick={handleSuggestionClick}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
