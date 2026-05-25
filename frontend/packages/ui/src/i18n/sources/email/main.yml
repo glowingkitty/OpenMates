@@ -2195,6 +2195,31 @@ test_run_summary.footer_note:
   he: "דוח זה נוצר על ידי מערכת הניטור האוטומטית היומית של בדיקות."
   verified_by_human: []
 
+daily_issue_digest.subject:
+  context: Subject for the admin daily issue digest email
+  en: "Daily Issue Digest"
+  de: "Daily Issue Digest"
+  zh: "Daily Issue Digest"
+  es: "Daily Issue Digest"
+  fr: "Daily Issue Digest"
+  pt: "Daily Issue Digest"
+  ru: "Daily Issue Digest"
+  ja: "Daily Issue Digest"
+  ko: "Daily Issue Digest"
+  it: "Daily Issue Digest"
+  tr: "Daily Issue Digest"
+  vi: "Daily Issue Digest"
+  id: "Daily Issue Digest"
+  pl: "Daily Issue Digest"
+  nl: "Daily Issue Digest"
+  ar: "Daily Issue Digest"
+  hi: "Daily Issue Digest"
+  th: "Daily Issue Digest"
+  cs: "Daily Issue Digest"
+  sv: "Daily Issue Digest"
+  he: "Daily Issue Digest"
+  verified_by_human: []
+
 test_run_started.title:
   context: Email subject/title for test run started notification (admin only)
   en: "Test Run Started"

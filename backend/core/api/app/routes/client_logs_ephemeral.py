@@ -2,7 +2,7 @@
 """
 Ephemeral Client Console Log Forwarding — Rolling Buffer with Error-Triggered Retention
 
-Receives batched browser console logs from ALL authenticated users and pushes
+Receives batched browser warnings/errors from ALL authenticated users and pushes
 them to a short-lived OpenObserve stream (client_console_ephemeral, 48h retention).
 When an error-level log is received, a Redis flag is set so a periodic Celery
 task can promote the full session context to a longer-retention stream (14d).
@@ -15,8 +15,8 @@ Privacy guarantees:
 - The session_pseudonym cannot be correlated to a user unless the user
   voluntarily includes it in an issue report.
 
-Legal basis: Legitimate interest (GDPR Art. 6(1)(f)) — service reliability.
-Users can opt out via Settings > Privacy > "Help improve stability".
+Legal basis: Legitimate interest (GDPR Art. 6(1)(f)) for service reliability.
+Users can opt out via Settings > Privacy > diagnostic warning/error reports.
 See docs/architecture/ephemeral-log-forwarding.md for full architecture.
 """
 
@@ -81,16 +81,17 @@ def sanitize_ephemeral_message(message: str) -> str:
 # ── Request Models ────────────────────────────────────────────────────────────
 
 class EphemeralLogEntry(BaseModel):
-    """A single client console log entry (same schema as admin endpoint)."""
+    """A single privacy-safe client diagnostic log entry."""
     timestamp: int = Field(..., description="Log timestamp in milliseconds since epoch")
-    level: str = Field(..., description="Log level: log, info, warn, error")
+    level: str = Field(..., description="Log level: warn or error")
     message: str = Field(..., max_length=2000, description="Sanitized log message")
 
     @field_validator("level")
     @classmethod
     def validate_level(cls, v: str) -> str:
-        # Ephemeral mode drops debug-level on the client, but validate anyway
-        allowed = {"log", "info", "warn", "error", "debug"}
+        # Default diagnostics are warnings/errors only. Admin/debug-session
+        # logging uses separate endpoints with explicit access or consent.
+        allowed = {"warn", "error"}
         if v not in allowed:
             raise ValueError(f"Invalid log level: {v}. Must be one of: {allowed}")
         return v
@@ -156,7 +157,7 @@ async def receive_ephemeral_client_logs(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """
-    Receive batched browser console logs from any authenticated user.
+    Receive batched browser warning/error diagnostics from any authenticated user.
 
     Logs are pushed to the 'client_console_ephemeral' OpenObserve stream (48h retention).
     When an error-level entry is present, a Redis flag is set so the periodic
