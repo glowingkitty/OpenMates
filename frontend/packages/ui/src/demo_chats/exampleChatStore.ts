@@ -21,6 +21,7 @@ import { flightsBerlinBangkokChat } from "./data/example_chats/flights-berlin-to
 import { euChatControlLawChat } from "./data/example_chats/eu-chat-control-law-criticisms";
 import { creativityDrawingMeetupsBerlinChat } from "./data/example_chats/creativity-drawing-meetups-berlin";
 import { germanyHistoricFilmIndustryChat } from "./data/example_chats/germany-historic-film-industry";
+import { buildingMaintenanceEmailChat } from "./data/example_chats/building-maintenance-email";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -34,6 +35,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   euChatControlLawChat,
   creativityDrawingMeetupsBerlinChat,
   germanyHistoricFilmIndustryChat,
+  buildingMaintenanceEmailChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
@@ -77,7 +79,7 @@ function exampleChatToChat(example: ExampleChat): Chat {
     icon: example.icon,
     chat_summary: translate(example.summary),
     follow_up_request_suggestions: JSON.stringify(
-      example.follow_up_suggestions.map(translate)
+      example.follow_up_suggestions.map(translate),
     ),
     demo_chat_category: "for_everyone",
     messages_v: example.messages.length,
@@ -97,6 +99,7 @@ function exampleMessagesToMessages(example: ExampleChat): Message[] {
     content: translate(msg.content),
     category: msg.category,
     model_name: msg.model_name,
+    pii_mappings: msg.pii_mappings,
     created_at: msg.created_at,
     status: "synced" as const,
   }));
@@ -108,7 +111,10 @@ function exampleMessagesToMessages(example: ExampleChat): Message[] {
 
 const chatById = new Map<string, ExampleChat>();
 const chatBySlug = new Map<string, ExampleChat>();
-const embedById = new Map<string, { embed: ExampleChatEmbed; chatId: string }>();
+const embedById = new Map<
+  string,
+  { embed: ExampleChatEmbed; chatId: string }
+>();
 
 for (const example of ALL_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
@@ -187,9 +193,7 @@ export function getExampleChatEmbeds(chatId: string): ExampleChatEmbed[] {
 }
 
 /** Get a specific embed by ID from any example chat */
-export function getExampleChatEmbed(
-  embedId: string,
-): ExampleChatEmbed | null {
+export function getExampleChatEmbed(embedId: string): ExampleChatEmbed | null {
   return embedById.get(embedId)?.embed ?? null;
 }
 
