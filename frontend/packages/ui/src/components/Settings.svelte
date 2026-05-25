@@ -2541,7 +2541,7 @@ changes to the documentation (to keep the documentation up to date).
                     {#if displayProfileImageUrl}
                         <img class="profile-picture-avatar" src={displayProfileImageUrl} alt="Profile" />
                     {:else}
-                        <div class="default-user-icon"></div>
+                        <div class="default-settings-icon"></div>
                     {/if}
                 </div>
             {/if}
@@ -2920,14 +2920,14 @@ changes to the documentation (to keep the documentation up to date).
         background-color: white;
     }
     
-    .default-user-icon {
+    .default-settings-icon {
         width: 32px;
         height: 32px;
-        -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
+        -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
         -webkit-mask-size: contain;
         -webkit-mask-position: center;
         -webkit-mask-repeat: no-repeat;
-        mask-image: url('@openmates/ui/static/icons/user.svg');
+        mask-image: url('@openmates/ui/static/icons/settings.svg');
         mask-size: contain;
         mask-position: center;
         mask-repeat: no-repeat;
