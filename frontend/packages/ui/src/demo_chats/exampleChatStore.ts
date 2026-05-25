@@ -22,6 +22,7 @@ import { euChatControlLawChat } from "./data/example_chats/eu-chat-control-law-c
 import { creativityDrawingMeetupsBerlinChat } from "./data/example_chats/creativity-drawing-meetups-berlin";
 import { germanyHistoricFilmIndustryChat } from "./data/example_chats/germany-historic-film-industry";
 import { buildingMaintenanceEmailChat } from "./data/example_chats/building-maintenance-email";
+import { aiWorkshopsMeetupsBerlinChat } from "./data/example_chats/ai-workshops-meetups-berlin";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -36,6 +37,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   creativityDrawingMeetupsBerlinChat,
   germanyHistoricFilmIndustryChat,
   buildingMaintenanceEmailChat,
+  aiWorkshopsMeetupsBerlinChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
