@@ -65,8 +65,7 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
-	withMockMarker
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
@@ -612,8 +611,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	const firstMessage = 'I am planning a weekend trip to Kyoto and Osaka with food, transit, and local event questions.';
-	await page.keyboard.type(withMockMarker(firstMessage, 'quick_tip_travel_planning'));
+	const firstMessage = 'First write the exact phrase "Kyoto and Osaka quick tip test", then give one concise sentence about planning food, transit, and local events for a weekend trip.';
+	await page.keyboard.type(firstMessage);
 	await takeStepScreenshot(page, '02-message-filled');
 
 	// The send button only appears when the editor has content (hasContent reactive state).
@@ -644,7 +643,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
 	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toContainText('Kyoto and Osaka', { timeout: 45000 });
+	await expect(assistantResponse.last()).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
 	const messageResponseMs = Date.now() - messageSendStartedAt;
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
 	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });

@@ -166,12 +166,12 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	// Send a travel-planning prompt that should make the postprocessor LLM choose
 	// a quick-tip slug. The chat is only one turn, so this cannot be the hardcoded
 	// long-chat quick tip.
-	const message = 'I am planning a weekend trip to Kyoto and Osaka with food, transit, and local event questions.';
+	const message = 'First write the exact phrase "Kyoto and Osaka quick tip test", then give one concise sentence about planning food, transit, and local events for a weekend trip.';
 	log(`Sending: "${message}"`);
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type(withMockMarker(message, 'quick_tip_travel_planning'));
+	await page.keyboard.type(message);
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
@@ -179,7 +179,8 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	log('Message sent.');
 
 	// Wait for AI response
-	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	await expect(assistantMessage).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
 	await screenshot(page, 'ai-response-received');
 	log('AI response received.');
 
