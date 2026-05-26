@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -27,9 +26,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -165,7 +162,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// Click on "Apps" menu item (it's a SettingsItem with .menu-item class)
 	const appStoreItem = settingsMenu
 		.getByTestId('menu-item')
-		.filter({ hasText: /app store/i })
+		.filter({ hasText: /^Apps$/i })
 		.first();
 	await expect(appStoreItem).toBeVisible({ timeout: 10000 });
 	await appStoreItem.click();
@@ -533,7 +530,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 		// Navigate back to Trips category
 		const cleanupAppStoreItem = page
 			.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"]')
-			.filter({ hasText: /app store/i })
+			.filter({ hasText: /^Apps$/i })
 			.first();
 		await expect(cleanupAppStoreItem).toBeVisible({ timeout: 10000 });
 		await cleanupAppStoreItem.click();

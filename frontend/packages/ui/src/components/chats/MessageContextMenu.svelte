@@ -66,6 +66,8 @@
     let adjustedX = $state(0);
     let adjustedY = $state(0);
     let showBelow = $state(false);
+    let lastLeadingHighlightAction = '';
+    let lastLeadingHighlightActionAt = 0;
     
     // State for message credits (only for assistant messages)
     let messageCredits = $state<number | null>(null);
@@ -197,6 +199,17 @@
         event.stopPropagation();
         event.preventDefault();
 
+        if (action === 'highlight' || action === 'highlight_and_comment') {
+            const now = Date.now();
+            if (event.type === 'click' && lastLeadingHighlightAction === action && now - lastLeadingHighlightActionAt < 500) {
+                return;
+            }
+            if (event.type === 'mousedown' || event.type === 'touchstart') {
+                lastLeadingHighlightAction = action;
+                lastLeadingHighlightActionAt = now;
+            }
+        }
+
         console.debug('[MessageContextMenu] Action triggered:', action);
 
         if (action === 'copy') onCopy?.();
@@ -314,6 +327,8 @@
             <button
                 class="menu-item highlight"
                 data-testid="chat-context-highlight"
+                onmousedown={(event) => handleAction('highlight', event)}
+                ontouchstart={(event) => handleAction('highlight', event)}
                 onclick={(event) => handleAction('highlight', event)}
             >
                 <div class="clickable-icon icon_quote"></div>
@@ -324,6 +339,8 @@
             <button
                 class="menu-item highlight-and-comment"
                 data-testid="chat-context-highlight-and-comment"
+                onmousedown={(event) => handleAction('highlight_and_comment', event)}
+                ontouchstart={(event) => handleAction('highlight_and_comment', event)}
                 onclick={(event) => handleAction('highlight_and_comment', event)}
             >
                 <div class="clickable-icon icon_quote"></div>

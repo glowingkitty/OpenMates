@@ -18,7 +18,7 @@
   its `highlighted` prop.
 -->
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import type { MessageHighlight } from '../types/chat';
   import { findAnchorInRendered } from '../utils/messageHighlights';
 
@@ -202,6 +202,12 @@
     lastLeaveHandler = leaveHandler;
   }
 
+  function detachEventHandlers(root: HTMLElement) {
+    if (lastClickHandler) { root.removeEventListener('click', lastClickHandler); lastClickHandler = null; }
+    if (lastEnterHandler) { root.removeEventListener('mouseenter', lastEnterHandler, true); lastEnterHandler = null; }
+    if (lastLeaveHandler) { root.removeEventListener('mouseleave', lastLeaveHandler, true); lastLeaveHandler = null; }
+  }
+
   async function recompute() {
     await tick();
     const root = contentRoot;
@@ -252,15 +258,13 @@
     void recomputeKey;
     void focusedId;
     recompute();
-    return () => {
-      const root = contentRoot;
-      if (root) removeMarks(root);
-      if (root) {
-        if (lastClickHandler) { root.removeEventListener('click', lastClickHandler); lastClickHandler = null; }
-        if (lastEnterHandler) { root.removeEventListener('mouseenter', lastEnterHandler, true); lastEnterHandler = null; }
-        if (lastLeaveHandler) { root.removeEventListener('mouseleave', lastLeaveHandler, true); lastLeaveHandler = null; }
-      }
-    };
+  });
+
+  onDestroy(() => {
+    const root = contentRoot;
+    if (!root) return;
+    removeMarks(root);
+    detachEventHandlers(root);
   });
 
   /** Look up the bounding rect of the first mark element for `id`. */

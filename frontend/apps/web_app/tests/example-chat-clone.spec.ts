@@ -66,7 +66,8 @@ test.describe('Example chat clone-on-send', () => {
 
 		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY);
 
-		await page.waitForURL(/chat/);
+		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
 		console.log('[clone-test] Logged in successfully');
 
 		// Wait for phased sync to complete

@@ -58,8 +58,9 @@ instructions:
         When setting reminders:
         - For specific times, use ISO 8601 datetime format
         - For random times, specify a date range and optional daily time window
-        - Use the user's timezone from the system prompt by default. Only ask if not available or if the user explicitly mentions a different timezone.
-        - Ask the user if they want a new chat or follow-up in current chat
+        - Use the user's timezone from the system prompt by default. If unavailable, use UTC rather than asking a follow-up question.
+        - Do not ask whether to use a new chat or the current chat. In an active chat, default to target_type="existing_chat". Use target_type="new_chat" only when the user explicitly asks for a new chat or standalone reminder thread.
+        - Only ask a clarifying question when the date/time cannot be inferred from the request.
         - Choose response_type carefully — it controls what happens when the reminder fires:
 
           Use "simple" (default) when the user wants a **passive notification**:
@@ -138,8 +139,8 @@ skills:
             - new_chat
             - existing_chat
             - embed
-          default: new_chat
-          description: "'new_chat' creates a new chat when reminder fires, 'existing_chat' sends follow-up in current chat, 'embed' opens a saved embed fullscreen"
+          default: existing_chat
+          description: "'existing_chat' sends a follow-up in the current chat and is the default for reminders requested from chat, 'new_chat' creates a new chat when the user explicitly asks for a new chat or standalone reminder thread, 'embed' opens a saved embed fullscreen"
 
         new_chat_title:
           type: string

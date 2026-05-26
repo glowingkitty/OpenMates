@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for shopping/search_products skill.
@@ -77,7 +76,7 @@ test.describe('App: Shopping / Skill: search_products', () => {
 	test('Phase 3: CLI chats new triggers shopping search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
-		const message = withLiveMockMarker('Find organic yogurt on REWE', 'shopping_search_cli');
+		const message = withLiveMockMarker('Find bio joghurt on REWE', 'shopping_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expect(result.code).toBe(0);
 
@@ -104,7 +103,7 @@ test.describe('App: Shopping / Skill: search_products', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Find organic yogurt on REWE', 'shopping_search_web'),
+			withLiveMockMarker('Find bio joghurt on REWE', 'shopping_search_web'),
 			logCheckpoint, takeStepScreenshot, 'shopping-search'
 		);
 
