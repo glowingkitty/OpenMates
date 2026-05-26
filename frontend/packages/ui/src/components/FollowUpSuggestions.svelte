@@ -293,6 +293,12 @@
     }
   }
 
+  @media (hover: none), (pointer: coarse) {
+    .suggestions-wrapper {
+      gap: 0.8rem;
+    }
+  }
+
   /* Previous gradient suggestion-card rendering intentionally removed.
      Keep this component as the follow-up quick-send list until the colorful
      container gets its new content. */
