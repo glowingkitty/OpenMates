@@ -370,12 +370,27 @@ async def _send_referral_reward_notifications(
         return
 
     try:
+        referrer_email = None
+        contact_rows = await directus_service.get_items(
+            "account_contact_emails",
+            {
+                "filter": {"user_id": {"_eq": referrer_user_id}},
+                "fields": "encrypted_email_address",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        contact_encrypted_email = (contact_rows[0] if contact_rows else {}).get("encrypted_email_address")
+        if contact_encrypted_email:
+            referrer_email = await encryption_service.decrypt_account_contact_email(contact_encrypted_email)
+
         referrer_fields = await directus_service.get_user_fields_direct(
             referrer_user_id,
             ["encrypted_email_address", "language", "darkmode"],
         )
         encrypted_email = (referrer_fields or {}).get("encrypted_email_address")
-        referrer_email = await encryption_service.decrypt_account_contact_email(encrypted_email) if encrypted_email else None
+        if not referrer_email and encrypted_email:
+            referrer_email = await encryption_service.decrypt_account_contact_email(encrypted_email)
         if not referrer_email:
             logger.warning("Referral reward email skipped: referrer %s has no decryptable contact email", referrer_user_id)
             return
