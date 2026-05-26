@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Keeps npm CLI package versions aligned with the user-facing product version.
-// Dev publishes use the configured prerelease base, e.g. 0.10.0-alpha.N.
+// Dev publishes use the configured prerelease base, e.g. 0.11.0-alpha.N.
 // Stable publishes use the configured stable base, then patch-bump only if
 // that exact stable version is already published. This prevents the CLI from
 // continuing an old alpha line after the app version moves forward.

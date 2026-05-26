@@ -1,8 +1,8 @@
 {
-  "userFacing": "v0.10 alpha",
+  "userFacing": "v0.11 alpha",
   "cli": {
-    "stableBase": "0.10.0",
-    "prereleaseBase": "0.10.0-alpha",
-    "prereleaseSeed": "0.10.0-alpha.0"
+    "stableBase": "0.11.0",
+    "prereleaseBase": "0.11.0-alpha",
+    "prereleaseSeed": "0.11.0-alpha.0"
   }
 }
