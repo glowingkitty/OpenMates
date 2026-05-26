@@ -1740,7 +1740,8 @@ async def _async_persist_encrypted_chat_metadata(
                     for field in ("encrypted_title", "encrypted_icon", "encrypted_category",
                                   "encrypted_chat_summary", "encrypted_chat_tags",
                                   "encrypted_follow_up_request_suggestions",
-                                  "encrypted_top_recommended_apps_for_chat"):
+                                  "encrypted_top_recommended_apps_for_chat",
+                                  "encrypted_quick_tip_slugs"):
                         if field in update_fields:
                             rejected_metadata.append(field)
                             update_fields.pop(field)
@@ -1755,6 +1756,8 @@ async def _async_persist_encrypted_chat_metadata(
             metadata_fields = {
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
                 "encrypted_chat_summary", "encrypted_follow_up_request_suggestions", "encrypted_chat_key",
+                "encrypted_top_recommended_apps_for_chat",
+                "encrypted_quick_tip_slugs",
                 "updated_at"
             }
             
@@ -1830,6 +1833,8 @@ async def _async_persist_encrypted_chat_metadata(
                                 encrypted_chat_summary=fresh_chat_metadata.get("encrypted_chat_summary"),
                                 encrypted_chat_tags=fresh_chat_metadata.get("encrypted_chat_tags"),
                                 encrypted_follow_up_request_suggestions=fresh_chat_metadata.get("encrypted_follow_up_request_suggestions"),
+                                encrypted_top_recommended_apps_for_chat=fresh_chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
+                                encrypted_quick_tip_slugs=fresh_chat_metadata.get("encrypted_quick_tip_slugs"),
                                 encrypted_active_focus_id=fresh_chat_metadata.get("encrypted_active_focus_id"),
                                 last_message_timestamp=fresh_chat_metadata.get("last_message_timestamp")
                             )
@@ -1922,6 +1927,8 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_chat_summary=encrypted_metadata.get("encrypted_chat_summary"),
                         encrypted_chat_tags=encrypted_metadata.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+                        encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
+                        encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
                         last_message_timestamp=last_message
                     )
@@ -1988,6 +1995,8 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+                "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
+                "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
             }
 
             # CRITICAL: Add encrypted_chat_key ONLY if it exists (not None, not empty string)

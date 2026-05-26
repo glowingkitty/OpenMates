@@ -224,6 +224,8 @@ def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versio
         "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
         "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
         "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+        "encrypted_top_recommended_apps_for_chat": cached_list_item.encrypted_top_recommended_apps_for_chat,
+        "encrypted_quick_tip_slugs": cached_list_item.encrypted_quick_tip_slugs,
         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
         "last_message_timestamp": cached_list_item.last_message_timestamp,
         "pinned": cached_list_item.pinned,

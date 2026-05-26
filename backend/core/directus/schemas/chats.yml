@@ -61,6 +61,10 @@ chats:
       type: text
       note: "[Encrypted] Array of up to 5 recommended app IDs for this specific chat, encrypted using chat-specific key. Generated during post-processing. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
 
+    encrypted_quick_tip_slugs:
+      type: text
+      note: "[Encrypted] Array of selected product quick tip slugs for this chat, encrypted using chat-specific key. UI copy is loaded client-side from translations. Must be TEXT not JSON since it's encrypted."
+
     encrypted_chat_key:
       type: string
       length: 512

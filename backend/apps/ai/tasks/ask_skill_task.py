@@ -2017,6 +2017,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
+                "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed

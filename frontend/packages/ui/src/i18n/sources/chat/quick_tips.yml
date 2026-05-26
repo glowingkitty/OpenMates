@@ -1,0 +1,39 @@
+eyebrow:
+  context: Small label shown above a product quick tip in chat
+  en: "Did you know?"
+shorter_chats_equal_better_responses.title:
+  context: Quick tip title for shorter topic-specific chats
+  en: "Shorter chats work better"
+shorter_chats_equal_better_responses.body:
+  context: Quick tip body explaining that shorter separate chats improve results and reduce credits
+  en: "You get better responses and save credits when you split topics into separate shorter chats."
+shorter_chats_equal_better_responses.cta:
+  context: CTA for starting a new chat from the shorter chats quick tip
+  en: "Start a new chat"
+search_current_info_next_time.title:
+  context: Quick tip title for using web search when information needs to be fresh
+  en: "Search when freshness matters"
+search_current_info_next_time.body:
+  context: Quick tip body explaining that OpenMates can search for current information next time
+  en: "Next time you need current prices, events, news, product details, or recent facts, OpenMates can search the web for you."
+search_current_info_next_time.cta:
+  context: CTA for opening the web search app from the quick tip
+  en: "Search the web"
+travel_can_add_local_context.title:
+  context: Quick tip title for adding travel context after planning travel
+  en: "Add more travel context"
+travel_can_add_local_context.body:
+  context: Quick tip body explaining that OpenMates can help with travel-related next steps
+  en: "After planning travel, OpenMates can also help find local places, events, stays, routes, and practical details for the same trip."
+travel_can_add_local_context.cta:
+  context: CTA for opening the travel app from the quick tip
+  en: "Explore travel tools"
+use_apps_for_better_results.title:
+  context: Quick tip title for trying a specialized app
+  en: "Try an app for the next step"
+use_apps_for_better_results.body:
+  context: Quick tip body explaining that OpenMates apps provide specialized tools
+  en: "When you know what you want to do next, OpenMates apps can give the AI better tools for tasks like coding, research, events, shopping, writing, or planning."
+use_apps_for_better_results.cta:
+  context: CTA for opening the app store from the quick tip
+  en: "Explore apps"

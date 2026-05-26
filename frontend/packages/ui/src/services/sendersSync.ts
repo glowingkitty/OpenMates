@@ -381,6 +381,7 @@ export async function sendPostProcessingMetadataImpl(
 	encrypted_chat_summary: string,
 	encrypted_chat_tags: string,
 	encrypted_top_recommended_apps: string = "",
+	encrypted_quick_tip_slugs: string = "",
 	encrypted_updated_title: string = "",
 	encrypted_chat_key: string = ""
 ): Promise<void> {
@@ -399,6 +400,7 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_chat_summary?: string;
 			encrypted_chat_tags?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
+			encrypted_quick_tip_slugs?: string;
 			encrypted_title?: string; // OPE-265: Updated title from post-processing
 			encrypted_chat_key?: string; // OPE-314: Include for server-side key validation
 			title_v?: number;
@@ -417,6 +419,10 @@ export async function sendPostProcessingMetadataImpl(
 		if (encrypted_top_recommended_apps) {
 			payload.encrypted_top_recommended_apps_for_chat =
 				encrypted_top_recommended_apps;
+		}
+
+		if (encrypted_quick_tip_slugs) {
+			payload.encrypted_quick_tip_slugs = encrypted_quick_tip_slugs;
 		}
 
 		// OPE-265: Include updated title from post-processing if the conversation drifted

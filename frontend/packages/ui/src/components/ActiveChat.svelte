@@ -1269,6 +1269,36 @@
             console.error('[ActiveChat] Error navigating to focus mode details:', e);
         }
     }
+
+    async function handleQuickTipAction(event: CustomEvent) {
+        const tip = event.detail;
+        if (!tip?.ctaAction) return;
+
+        if (tip.ctaAction === 'new_chat') {
+            await handleNewChatClick();
+            return;
+        }
+
+        if (tip.ctaAction === 'open_app') {
+            try {
+                const { navigateToSettings } = await import('../stores/settingsNavigationStore');
+                const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
+                const { panelState } = await import('../stores/panelStateStore');
+                const settingsPath = tip.appId ? `app_store/${tip.appId}` : 'app_store';
+                navigateToSettings(settingsPath, 'App Store', 'app', '');
+                settingsDeepLink.set(settingsPath);
+                panelState.openSettings();
+            } catch (error) {
+                console.error('[ActiveChat] Error handling quick tip app navigation:', error);
+            }
+            return;
+        }
+
+        if (tip.ctaAction === 'send_prompt' && tip.prompt) {
+            messageInputFieldRef?.setSuggestionText(tip.prompt);
+            messageInputFieldRef?.focus();
+        }
+    }
     
     // Handler for Wikipedia fullscreen events (from WikiInlineLink).
     // Only one fullscreen can be open at a time — close any regular embed fullscreen
@@ -2172,7 +2202,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
-        const { chatId, followUpSuggestions: newSuggestions } = event.detail;
+        const { chatId, followUpSuggestions: newSuggestions, quickTipSlugs: newQuickTipSlugs } = event.detail;
         console.info('[ActiveChat] 📬 Post-processing completed event received:', {
             chatId,
             currentChatId: currentChat?.chat_id,
@@ -2252,6 +2282,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } else {
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
+                    }
+
+                    if (freshChat.encrypted_quick_tip_slugs) {
+                        const chatKey = chatKeyManager.getKeySync(chatId);
+                        if (chatKey) {
+                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                            quickTipSlugs = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
+                        } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
+                            quickTipSlugs = newQuickTipSlugs;
+                        }
+                    } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
+                        quickTipSlugs = newQuickTipSlugs;
+                    } else {
+                        quickTipSlugs = [];
                     }
 
                 } else {
@@ -4257,6 +4301,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    let quickTipSlugs = $state<string[]>([]);
     
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
@@ -5702,6 +5747,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
+        quickTipSlugs = [];
         
         // Hide settings/memories suggestions when user sends a new message
         // New suggestions will be generated during post-processing
@@ -8133,6 +8179,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         } else {
             followUpSuggestions = [];
+        }
+
+        if (!isPublicChat(currentChat.chat_id) && currentChat.encrypted_quick_tip_slugs) {
+            try {
+                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                if (chatKey) {
+                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                    quickTipSlugs = await decryptArrayWithChatKey(currentChat.encrypted_quick_tip_slugs, chatKey) || [];
+                } else {
+                    quickTipSlugs = [];
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Failed to load quick tip slugs:', error);
+                quickTipSlugs = [];
+            }
+        } else {
+            quickTipSlugs = [];
         }
 
 
@@ -10973,12 +11036,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            videoTeaserMp4Url={activeLocaleVideo?.teaser_mp4_url ?? activePublicChatMetadata?.video_teaser_mp4_url ?? null}
                            videoTeaserWebpUrl={activeLocaleVideo?.teaser_webp_url ?? activePublicChatMetadata?.video_teaser_webp_url ?? null}
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
-                         autoplayVideo={pendingAutoplayVideo}
-                         onResend={handleResendAfterCreditsRestored}
-                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
-                          compressionCheckpoints={currentCompressionCheckpoints}
-                           onSuggestionClick={handleFollowUpSuggestionClick}
-                         on:messagesChange={handleMessagesChange}
+                          autoplayVideo={pendingAutoplayVideo}
+                          onResend={handleResendAfterCreditsRestored}
+                           followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
+                           {quickTipSlugs}
+                           compressionCheckpoints={currentCompressionCheckpoints}
+                            onSuggestionClick={handleFollowUpSuggestionClick}
+                          on:quickTipAction={handleQuickTipAction}
+                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
                          on:scrollPositionChanged={handleScrollPositionChanged}

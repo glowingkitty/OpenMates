@@ -976,6 +976,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "chat_tags": redis_payload.get("chat_tags", []),
                         "harmful_response": redis_payload.get("harmful_response", 0.0),
                         "top_recommended_apps_for_user": redis_payload.get("top_recommended_apps_for_user", []),
+                        "quick_tip_slugs": redis_payload.get("quick_tip_slugs", []),
                     }
 
                     # OPE-265: Include updated title when post-processing detected conversation drift

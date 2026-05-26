@@ -4,8 +4,10 @@
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+  import QuickTipsCard from './QuickTipsCard.svelte';
   import { fade } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
+  import type { QuickTipDefinition } from '../data/quickTips';
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -756,6 +758,7 @@
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
+    quickTipSlugs = [],
     compressionCheckpoints = [],
     onSuggestionClick = undefined,
     canAnnotate = true,
@@ -821,6 +824,7 @@
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
     followUpSuggestions?: string[];
+    quickTipSlugs?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
@@ -966,6 +970,16 @@
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
+
+  let showQuickTipsInHistory = $derived(
+    quickTipSlugs.length > 0 &&
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
+  );
+
+  function handleQuickTipAction(tip: QuickTipDefinition): void {
+    dispatch('quickTipAction', tip);
+  }
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
   // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
@@ -2095,6 +2109,16 @@
             
             <!-- Follow-up suggestions shown after the last assistant message.
                  Visible without requiring the user to focus the message input first. -->
+            {#if showQuickTipsInHistory}
+                <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
+                    <QuickTipsCard
+                        chatId={currentChatId}
+                        slugs={quickTipSlugs}
+                        on:action={(event) => handleQuickTipAction(event.detail)}
+                    />
+                </div>
+            {/if}
+
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
                 <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
                     <FollowUpSuggestions
@@ -2268,6 +2292,7 @@
 
   /* Follow-up suggestions wrapper — shown inline below the chat history, aligned
      to the right as quick user-response actions rather than assistant content. */
+  .quick-tips-wrapper,
   .follow-up-suggestions-wrapper {
     padding: 8px 0 14px;
     padding-inline-start: 20px;
@@ -2276,7 +2301,14 @@
     width: 100%;
   }
 
+  .quick-tips-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: 6px;
+  }
+
   @media (max-width: 500px) {
+    .quick-tips-wrapper,
     .follow-up-suggestions-wrapper {
       padding-inline-start: 10px;
       padding-inline-end: 10px;

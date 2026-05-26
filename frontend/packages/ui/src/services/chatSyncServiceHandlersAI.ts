@@ -1979,6 +1979,7 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
+    quick_tip_slugs?: string[]; // Optional: Product quick tip slugs selected during post-processing
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
   },
 ): Promise<void> {
@@ -1993,6 +1994,7 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatSummary: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
+    let encryptedQuickTipSlugs: string | null = null;
     let encryptedUpdatedTitle: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
@@ -2114,6 +2116,17 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
+    if (payload.quick_tip_slugs && payload.quick_tip_slugs.length > 0) {
+      encryptedQuickTipSlugs = await encryptArrayWithChatKey(
+        payload.quick_tip_slugs.slice(0, 2),
+        chatKey,
+      );
+      chat.encrypted_quick_tip_slugs = encryptedQuickTipSlugs;
+      console.debug(
+        `[ChatSyncService:AI] Saved ${payload.quick_tip_slugs.length} quick tip slug(s) for chat ${payload.chat_id}`,
+      );
+    }
+
     // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed
     if (payload.updated_chat_title) {
       encryptedUpdatedTitle = await encryptWithChatKey(
@@ -2135,6 +2148,7 @@ export async function handlePostProcessingCompletedImpl(
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
       encryptedTopRecommendedApps ||
+      encryptedQuickTipSlugs ||
       encryptedUpdatedTitle
     ) {
       await chatDB.updateChat(chat);
@@ -2165,6 +2179,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedChatSummary ||
       encryptedChatTags ||
       encryptedTopRecommendedApps ||
+      encryptedQuickTipSlugs ||
       encryptedUpdatedTitle
     ) {
       const { sendPostProcessingMetadataImpl } =
@@ -2182,6 +2197,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
+        encryptedQuickTipSlugs || "",
         encryptedUpdatedTitle || "",
         encryptedChatKeyForValidation,
       );
@@ -2206,6 +2222,7 @@ export async function handlePostProcessingCompletedImpl(
         chatId: payload.chat_id,
         taskId: payload.task_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
+        quickTipSlugs: payload.quick_tip_slugs || [],
         harmfulResponse: payload.harmful_response,
       },
     });

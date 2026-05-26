@@ -16,6 +16,11 @@ from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreproces
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+from backend.apps.ai.processing.quick_tips import (
+    build_quick_tip_context,
+    sanitize_quick_tip_slug,
+    select_hardcoded_quick_tip_slug,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +229,10 @@ class PostProcessingResult(BaseModel):
         default_factory=list,
         description="3 concise topic/interest phrases (in English) capturing what the user discussed or showed curiosity about"
     )
+    quick_tip_slugs: List[str] = Field(
+        default_factory=list,
+        description="0-1 product quick tip slugs selected from the backend registry; UI copy is loaded client-side from i18n"
+    )
 
 
 async def handle_postprocessing(
@@ -354,6 +363,8 @@ async def handle_postprocessing(
         "Do NOT generate suggestions without a prefix."
     )
 
+    quick_tip_context = build_quick_tip_context(available_app_ids)
+
     # Memory prefixes are no longer used in suggestions — settings/memories suggestions
     # are now generated inline by the main AI processor as deep links in the response text.
     memory_prefix_context = ""
@@ -399,6 +410,7 @@ async def handle_postprocessing(
         f"{available_apps_context}"
         f"{skills_context}{focus_context}{memory_prefix_context}"
         f"{app_prefix_context}"
+        f"{quick_tip_context}"
         f"{title_context}"
         f"{language_instruction}"
     )
@@ -609,6 +621,21 @@ async def handle_postprocessing(
             f"topic suggestions generated (expected 3)"
         )
 
+    hardcoded_quick_tip_slug = select_hardcoded_quick_tip_slug(message_history)
+    if hardcoded_quick_tip_slug:
+        quick_tip_slugs = [hardcoded_quick_tip_slug]
+        logger.info(
+            f"[Task ID: {task_id}] [PostProcessor] Selected hardcoded quick tip: {hardcoded_quick_tip_slug}"
+        )
+    else:
+        sanitized_quick_tip_slug = sanitize_quick_tip_slug(
+            raw_slug=llm_result.arguments.get("quick_tip_slug", ""),
+            available_app_ids=available_app_ids,
+            task_id=task_id,
+            logger=logger,
+        )
+        quick_tip_slugs = [sanitized_quick_tip_slug] if sanitized_quick_tip_slug else []
+
     # Translate new chat suggestions into the user's system/UI language.
     #
     # Why: The main postprocessor call sees the full conversation history (potentially in any
@@ -639,6 +666,7 @@ async def handle_postprocessing(
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
+        quick_tip_slugs=quick_tip_slugs,
     )
 
     # Validate that we have the required number of suggestions
@@ -666,7 +694,8 @@ async def handle_postprocessing(
         f"{len(result.new_chat_request_suggestions)} new chat suggestions, "
         f"{len(result.top_recommended_apps_for_user)} app recommendations, "
 
-        f"{len(result.daily_inspiration_topic_suggestions)} daily inspiration topic suggestions"
+        f"{len(result.daily_inspiration_topic_suggestions)} daily inspiration topic suggestions, "
+        f"{len(result.quick_tip_slugs)} quick tips"
     )
 
     return result

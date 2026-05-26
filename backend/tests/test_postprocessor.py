@@ -15,6 +15,10 @@ try:
         handle_postprocessing,
         sanitize_suggestions,
     )
+    from backend.apps.ai.processing.quick_tips import (
+        sanitize_quick_tip_slug,
+        select_hardcoded_quick_tip_slug,
+    )
     from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
@@ -292,6 +296,30 @@ class TestSanitizeSuggestions:
         assert result[2] == "[ai] No prefix but enough words here"
 
 
+class TestQuickTips:
+    def test_long_chat_selects_shorter_chats_tip(self):
+        history = [
+            {"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"}
+            for index in range(11)
+        ]
+        assert select_hardcoded_quick_tip_slug(history) == "shorter-chats-equal-better-responses"
+
+    def test_unknown_llm_slug_is_dropped(self):
+        class Logger:
+            def warning(self, *args, **kwargs):
+                pass
+
+        assert sanitize_quick_tip_slug("made-up-tip", ["web"], "test", Logger()) == ""
+
+    def test_app_specific_slug_requires_available_app(self):
+        class Logger:
+            def warning(self, *args, **kwargs):
+                pass
+
+        assert sanitize_quick_tip_slug("travel-can-add-local-context", ["web"], "test", Logger()) == ""
+        assert sanitize_quick_tip_slug("travel-can-add-local-context", ["travel"], "test", Logger()) == "travel-can-add-local-context"
+
+
 @pytest.mark.anyio
 async def test_postprocessing_translates_metadata_even_when_output_language_matches_ui(monkeypatch):
     """German-heavy history can produce German metadata even if output_language is misdetected as English."""
@@ -306,6 +334,7 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
                 "chat_summary": "Nutzer erstellt deutsche Bewerbungsunterlagen.",
                 "updated_chat_title": "Bewerbungsunterlagen erstellen",
                 "daily_inspiration_topic_suggestions": ["job applications", "cover letters", "career planning"],
+                "quick_tip_slug": "",
             }
         )
 

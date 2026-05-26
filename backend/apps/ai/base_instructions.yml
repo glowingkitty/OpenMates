@@ -395,7 +395,13 @@ postprocess_response_tool:
          - **NO BRANDS OR PRODUCTS**: Do NOT extract brand names, product names, app names, or commercial service names as topics — unless the user expressed deep, genuine curiosity about the underlying technology, science, or history behind that product (in which case capture the underlying concept, not the brand). Examples of what to avoid: "iPhone 16 review", "Notion productivity app", "Tesla Model Y". If the user discussed a brand passingly (e.g., "I use Notion"), ignore it — only capture substantive intellectual interests. Rephrase to the concept if needed: "note-taking knowledge graphs" instead of "Obsidian app".
          - **NO SENSITIVE CONTENT**: NEVER generate topics related to illegal drugs or substance abuse, explicit sexual content or pornography, graphic violence or gore, self-harm, or weapons/explosives. If the conversation touched such themes, either capture an adjacent educational angle (e.g. "addiction neuroscience" instead of "heroin use") or skip that topic and find a different interest the user expressed. The output must always be family-friendly and suitable for an educational inspiration feed.
          - **NO POLITICAL PARTIES OR ELECTORAL CONTENT**: NEVER extract a political party, political candidate, electoral campaign, or partisan ideology as a topic — in any country or language. If the conversation touched politics, capture the underlying policy, governance, or societal question instead — never the party or candidate. Examples to avoid: "Democratic Party platform", "Trump immigration policy", "Labour manifesto", "AfD views", "BJP campaign". Rephrase to the underlying concept: "universal healthcare economics" instead of "Labour health policy", "immigration economics" instead of any party's border stance. The goal is educational curiosity, not political advocacy.
-         - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
+          - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
+
+      7. **quick_tip_slug**: Select 0 or 1 product quick-tip slug from the available quick_tip_slug values in the system message.
+         - Return a slug only when the tip is timely, concrete, and useful for this exact conversation.
+         - Return an empty string when no quick tip fits.
+         - Do NOT write UI copy. Return only the existing slug.
+         - Do NOT invent slugs.
     parameters:
       type: "object"
       properties:
@@ -437,6 +443,9 @@ postprocess_response_tool:
             type: "string"
           minItems: 3
           maxItems: 3
+        quick_tip_slug:
+          type: "string"
+          description: "One existing quick-tip slug selected from the available quick_tip_slug values in the system message, or an empty string if no product tip fits. Never invent slugs and never write UI copy."
       required:
         - "follow_up_request_suggestions"
         - "new_chat_request_suggestions"
@@ -444,6 +453,7 @@ postprocess_response_tool:
         - "chat_summary"
         - "updated_chat_title"
         - "daily_inspiration_topic_suggestions"
+        - "quick_tip_slug"
 
 url_correction_tool:
   type: "function"

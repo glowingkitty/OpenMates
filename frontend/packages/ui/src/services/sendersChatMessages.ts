@@ -1717,6 +1717,7 @@ export async function sendEncryptedStoragePackage(
 			encrypted_follow_up_suggestions?: string;
 			encrypted_new_chat_suggestions?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
+			encrypted_quick_tip_slugs?: string;
 			created_at: number;
 			encrypted_chat_key?: string;
 			versions: {
