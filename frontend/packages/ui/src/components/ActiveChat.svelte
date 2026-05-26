@@ -198,6 +198,7 @@
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
+        sendCurrentMessage: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
     };
@@ -2045,6 +2046,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
+    const SUGGESTION_MENTION_INSERT_DELAY_MS = 0;
+
     // Handler for suggestion click - copies suggestion to message input.
     // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
     // body text first, then set pendingMentionStore so MessageInput inserts the
@@ -2072,6 +2075,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 messageInputFieldRef.setSuggestionText(suggestion);
                 messageInputFieldRef.focus();
             }
+        }
+    }
+
+    async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
+        console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+        if (messageInputFieldRef) {
+            await messageInputFieldRef.clearMessageField(false);
+            messageInputFieldRef.setSuggestionText(suggestion);
+            if (mentionSyntax) {
+                pendingMentionStore.set(mentionSyntax);
+                await tick();
+                await new Promise(resolve => setTimeout(resolve, SUGGESTION_MENTION_INSERT_DELAY_MS));
+            } else {
+                await tick();
+            }
+            messageInputFieldRef.sendCurrentMessage();
         }
     }
 
@@ -10929,7 +10948,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          onResend={handleResendAfterCreditsRestored}
                           followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                           compressionCheckpoints={currentCompressionCheckpoints}
-                          onSuggestionClick={handleSuggestionClick}
+                           onSuggestionClick={handleFollowUpSuggestionClick}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}

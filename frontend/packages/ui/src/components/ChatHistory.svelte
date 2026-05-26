@@ -2094,16 +2094,13 @@
             {/if}
             
             <!-- Follow-up suggestions shown after the last assistant message.
-                 Visible without requiring the user to focus the message input first.
-                 Passes chatCategory and chatIcon so the gradient card matches the ChatHeader style. -->
+                 Visible without requiring the user to focus the message input first. -->
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
                 <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
                         messageInputContent=""
                         onSuggestionClick={onSuggestionClick}
-                        category={chatCategory}
-                        icon={chatIcon}
                     />
                 </div>
             {/if}
@@ -2269,26 +2266,20 @@
   }
 
 
-  /* Follow-up suggestions wrapper — shown inline in the chat history after the last
-     assistant message. Aligns with mate-message-content by matching the assistant
-     message layout: padding-inline-start offsets content to where the message bubble
-     starts (past the 60px avatar + 10px margin = ~80px), mirroring .message-align-left
-     from chat.css. On mobile (≤500px), avatar stacks above so offset is removed. */
+  /* Follow-up suggestions wrapper — shown inline below the chat history, aligned
+     to the right as quick user-response actions rather than assistant content. */
   .follow-up-suggestions-wrapper {
     padding: 8px 0 14px;
-    /* Align with assistant message x-position while preserving right breathing room */
-    padding-inline-start: 75px;
+    padding-inline-start: 20px;
     padding-inline-end: 20px;
     box-sizing: border-box;
     width: 100%;
   }
 
-  /* When assistant messages are in mobile stacked layout (avatar stacks above),
-     the wrapper can go full-width since there's no side avatar offset. */
   @media (max-width: 500px) {
     .follow-up-suggestions-wrapper {
-      padding-inline-start: 0;
-      padding-inline-end: 0;
+      padding-inline-start: 10px;
+      padding-inline-end: 10px;
     }
   }
 

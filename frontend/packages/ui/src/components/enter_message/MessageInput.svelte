@@ -3995,6 +3995,7 @@
 
     // --- Public API ---
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
+    export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);
