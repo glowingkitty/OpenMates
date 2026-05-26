@@ -24,7 +24,7 @@
 
     const dispatch = createEventDispatcher();
 
-    // Auth state — hub only shows entries for authenticated users
+    // Authenticated users see encrypted entries; guests see read-only examples.
     let isAuthenticated = $derived($authStore.isAuthenticated);
 
     // Store state
@@ -33,8 +33,9 @@
     let isLoading = $state(false);
 
     /**
-     * Build a flat list of { app, category, entryCount } for all app+category combinations
-     * that have at least one user entry. Sorted by most recently updated entry first.
+     * Build a flat list of app+category combinations.
+     * Authenticated users see categories with saved entries. Guests see categories
+     * that ship example entries, so the Memories menu can be explored read-only.
      */
     interface HubEntry {
         app: AppMetadata;
@@ -51,6 +52,23 @@
         for (const appId of Object.keys(apps)) {
             const app = apps[appId];
             if (!app.settings_and_memories || app.settings_and_memories.length === 0) continue;
+
+            if (!isAuthenticated) {
+                for (const category of app.settings_and_memories) {
+                    const exampleCount = Math.max(
+                        category.example_entries?.length ?? 0,
+                        category.example_translation_keys?.length ?? 0,
+                    );
+                    if (exampleCount === 0) continue;
+                    result.push({
+                        app,
+                        category,
+                        entryCount: exampleCount,
+                        lastUpdated: 0,
+                    });
+                }
+                continue;
+            }
 
             const appEntriesMap = entriesByApp.get(appId);
             if (!appEntriesMap) continue;
@@ -74,8 +92,11 @@
             }
         }
 
-        // Sort: most recently updated category first
-        result.sort((a, b) => b.lastUpdated - a.lastUpdated);
+        // Authenticated: most recently updated category first.
+        // Guests: stable app/category order from app metadata.
+        if (isAuthenticated) {
+            result.sort((a, b) => b.lastUpdated - a.lastUpdated);
+        }
         return result;
     });
 
@@ -166,12 +187,7 @@
 <div class="settings-memories-hub">
     <p class="encryption-notice">{$text('settings.app_settings_memories.encryption_notice')}</p>
 
-    {#if !isAuthenticated}
-        <!-- Non-authenticated users: prompt to sign in -->
-        <div class="empty-state">
-            <p class="empty-text">{$text('settings.app_settings_memories.authentication_required')}</p>
-        </div>
-    {:else if isLoading}
+    {#if isLoading}
         <div class="loading-state">
             <p>{$text('settings.app_settings_memories.loading')}</p>
         </div>

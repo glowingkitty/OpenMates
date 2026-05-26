@@ -300,13 +300,14 @@ changes to the documentation (to keep the documentation up to date).
                 }
             }
             
-            // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), mates (browse only), share chat (for sharing demo chats),
+            // For non-authenticated users, include interface settings (top-level and nested),
+            // app store (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
             // newsletter, support, report issue, and the pricing overview page.
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
                     key === 'ai' || key.startsWith('ai/') ||
+                    key === 'settings_memories' ||
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
