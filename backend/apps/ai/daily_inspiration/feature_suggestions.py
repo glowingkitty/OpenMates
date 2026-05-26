@@ -68,6 +68,42 @@ FEATURE_TIPS = [
         "phrase": "OpenMates can do more than chat. App skills connect mates to useful sources.",
         "category": "openmates_official",
     },
+    {
+        "feature_id": "incognito-mode",
+        "icon": "mask",
+        "title": "Incognito chats",
+        "description": "Start temporary chats when you do not want them saved to history.",
+        "settings_path": "privacy/incognito",
+        "phrase": "Need a throwaway conversation? Incognito mode keeps it out of history.",
+        "category": "openmates_official",
+    },
+    {
+        "feature_id": "connected-apps",
+        "icon": "plug",
+        "title": "Connected apps",
+        "description": "Review which app skills your mates can use and adjust them anytime.",
+        "settings_path": "app_store/all/apps",
+        "phrase": "Your mates can use apps for real tasks. Check which ones are available.",
+        "category": "openmates_official",
+    },
+    {
+        "feature_id": "privacy-dashboard",
+        "icon": "lock",
+        "title": "Privacy controls",
+        "description": "Tune encryption, personal-data hiding, and privacy preferences in one place.",
+        "settings_path": "privacy",
+        "phrase": "OpenMates gives you privacy controls worth reviewing before you need them.",
+        "category": "openmates_official",
+    },
+    {
+        "feature_id": "keyboard-shortcuts",
+        "icon": "keyboard",
+        "title": "Faster navigation",
+        "description": "Use shortcuts and focused navigation to move through chats more quickly.",
+        "settings_path": "settings/shortcuts",
+        "phrase": "A few shortcuts can make OpenMates feel much faster.",
+        "category": "openmates_official",
+    },
 ]
 
 
