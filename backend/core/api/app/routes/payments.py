@@ -2192,6 +2192,9 @@ async def payment_webhook(
                                 "credits_purchased": credits_purchased,
                                 "current_credits": new_total_credits_calculated,
                             }
+                            if referral_reward_result and referral_reward_result.awarded:
+                                payment_completed_payload["referral_reward_applied"] = True
+                                payment_completed_payload["referral_referred_bonus"] = referral_reward_result.referred_bonus
                             await cache_service.publish_event(
                                 channel=f"user_updates::{user_id}",
                                 event_data={
@@ -6210,26 +6213,26 @@ async def _handle_revolut_business_webhook(
                     payload=referrer_payload,
                 )
             # Also broadcast payment_completed for frontend navigation
+            payment_completed_payload = {
+                "order_id": order_id,
+                "credits_purchased": credits_amount,
+                "current_credits": new_total_credits,
+            }
+            if referral_reward_result and referral_reward_result.awarded:
+                payment_completed_payload["referral_reward_applied"] = True
+                payment_completed_payload["referral_referred_bonus"] = referral_reward_result.referred_bonus
             await cache_service.publish_event(
                 channel=f"user_updates::{user_id}",
                 event_data={
                     "event_for_client": "payment_completed",
                     "user_id_uuid": user_id,
-                    "payload": {
-                        "order_id": order_id,
-                        "credits_purchased": credits_amount,
-                        "current_credits": new_total_credits,
-                    },
+                    "payload": payment_completed_payload,
                 }
             )
             await manager.broadcast_to_user_specific_event(
                 user_id=user_id,
                 event_name="payment_completed",
-                payload={
-                    "order_id": order_id,
-                    "credits_purchased": credits_amount,
-                    "current_credits": new_total_credits,
-                },
+                payload=payment_completed_payload,
             )
         except Exception as ws_err:
             logger.error(f"Error broadcasting payment events for bank transfer {order_id}: {ws_err}")
