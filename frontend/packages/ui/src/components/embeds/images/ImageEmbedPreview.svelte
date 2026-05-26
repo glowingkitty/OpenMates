@@ -579,27 +579,33 @@
     opacity: 0.92;
   }
 
-  /* AI generated badge: pill shown when SightEngine confirms image is AI-generated */
+  /* AI generated badge: starts as a label pill, then collapses to the icon. */
   .ai-badge {
     position: absolute;
     top: 8px;
     right: 8px;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-2);
-    padding: var(--spacing-2) var(--spacing-4) var(--spacing-2) var(--spacing-3);
-    border-radius: var(--radius-8);
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
+    height: 28px;
+    min-width: 28px;
+    max-width: 160px;
+    padding: 0 var(--spacing-4) 0 var(--spacing-3);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-70);
     pointer-events: none;
     flex-shrink: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    animation: collapseAiBadge 400ms var(--easing-default) 2400ms forwards;
   }
 
   .ai-badge-icon {
     display: block;
     flex-shrink: 0;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     background: var(--color-grey-0);
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
@@ -612,12 +618,31 @@
   }
 
   .ai-badge-label {
-    font-size: null;
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     color: var(--color-grey-0);
     line-height: 1;
     white-space: nowrap;
+    max-width: 120px;
     letter-spacing: 0.01em;
+    overflow: hidden;
+    animation: hideAiBadgeLabel 250ms var(--easing-default) 2150ms forwards;
+  }
+
+  @keyframes hideAiBadgeLabel {
+    to {
+      max-width: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes collapseAiBadge {
+    to {
+      max-width: 28px;
+      padding: 0;
+      gap: 0;
+      border-radius: 50%;
+    }
   }
 
   /* Loading skeleton */
