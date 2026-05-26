@@ -143,7 +143,7 @@ class RunResult:
     git_branch: str
     environment: str
     duration_seconds: float
-    summary: dict  # {total, passed, failed, skipped, not_started}
+    summary: dict  # {total, passed, failed, dispatch_error, skipped, not_started}
     suites: dict  # {suite_name: SuiteResult as dict}
     flags: dict = field(default_factory=dict)
 
@@ -151,6 +151,39 @@ class RunResult:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
+
+
+def _is_problem_status(status: str) -> bool:
+    """Return True for statuses that should page/alert operators."""
+    return status in PROBLEM_STATUSES
+
+
+def _problem_count(summary: dict) -> int:
+    """Count all alert-worthy problems, including GitHub dispatch failures."""
+    return (
+        int(summary.get("failed", 0))
+        + int(summary.get("dispatch_error", 0))
+        + int(summary.get("timeout", 0))
+        + int(summary.get("result_unknown", 0))
+    )
+
+
+def _problem_summary_label(summary: dict) -> str:
+    """Human-readable compact label for alert titles."""
+    parts = []
+    if summary.get("failed", 0):
+        parts.append(f"{summary['failed']} failed")
+    if summary.get("dispatch_error", 0):
+        count = summary["dispatch_error"]
+        parts.append(f"{count} dispatch {'error' if count == 1 else 'errors'}")
+    if summary.get("timeout", 0):
+        parts.append(f"{summary['timeout']} timed out")
+    if summary.get("result_unknown", 0):
+        parts.append(f"{summary['result_unknown']} unknown")
+    return ", ".join(parts) if parts else "all passed"
+
 
 def _print_flaky_report() -> None:
     """Print top flaky tests from flaky-history.json."""
@@ -482,6 +515,7 @@ class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
     def __init__(self) -> None:
+        self.last_dispatch_error: Optional[str] = None
         self._check_gh()
 
     def _check_gh(self) -> None:
@@ -501,6 +535,7 @@ class GitHubActionsClient:
         Dispatch a single spec workflow run.
         Returns the run ID or None on failure.
         """
+        self.last_dispatch_error = None
         # Record the latest run ID before dispatch so we can find the new one
         pre_ids = self._recent_run_ids(limit=5)
 
@@ -515,7 +550,9 @@ class GitHubActionsClient:
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
-            _log(f"Dispatch failed for {spec}: {rc.stderr.strip()}", "ERROR")
+            detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()
+            self.last_dispatch_error = f"Dispatch failed: {detail}"
+            _log(f"Dispatch failed for {spec}: {detail}", "ERROR")
             return None
 
         # Wait for GitHub to register the run, then find its ID
@@ -527,6 +564,7 @@ class GitHubActionsClient:
                 return fresh[0]  # Most recent new run
 
         _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
+        self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
         return None
 
     def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
@@ -742,7 +780,7 @@ class BatchRunner:
 
         duration = time.time() - suite_start
         tests = [self._spec_result_to_dict(r) for r in all_results]
-        has_failures = any(r.status == "failed" for r in all_results)
+        has_failures = any(_is_problem_status(r.status) for r in all_results)
 
         return SuiteResult(
             status="failed" if has_failures else "passed",
@@ -768,8 +806,8 @@ class BatchRunner:
 
             if run_id is None:
                 dispatch_errors.append(SpecResult(
-                    name=spec, file=spec, status="failed",
-                    error="Failed to dispatch workflow after retry",
+                    name=spec, file=spec, status="dispatch_error",
+                    error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
                 ))
             else:
                 dispatched.append((spec, account, run_id))
@@ -850,7 +888,13 @@ class BatchRunner:
                 if log_error:
                     error = log_error
 
-            icon = {"passed": "✓", "failed": "✗", "timeout": "⏱", "not_started": "⊘"}.get(status, "?")
+            icon = {
+                "passed": "✓",
+                "failed": "✗",
+                "dispatch_error": "!",
+                "timeout": "⏱",
+                "not_started": "⊘",
+            }.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")
 
             results.append(SpecResult(
@@ -1074,6 +1118,7 @@ class ResultAggregator:
         flags: dict,
     ) -> RunResult:
         total = passed = failed = skipped = not_started = 0
+        dispatch_error = timeout = result_unknown = 0
         suites_dict = {}
 
         for name, suite in suites.items():
@@ -1093,6 +1138,12 @@ class ResultAggregator:
                     passed += 1
                 elif st == "failed":
                     failed += 1
+                elif st == "dispatch_error":
+                    dispatch_error += 1
+                elif st == "timeout":
+                    timeout += 1
+                elif st == "result_unknown":
+                    result_unknown += 1
                 elif st == "not_started":
                     not_started += 1
                 else:
@@ -1104,8 +1155,16 @@ class ResultAggregator:
             git_branch=git_branch,
             environment=environment,
             duration_seconds=round(duration, 1),
-            summary={"total": total, "passed": passed, "failed": failed,
-                      "skipped": skipped, "not_started": not_started},
+            summary={
+                "total": total,
+                "passed": passed,
+                "failed": failed,
+                "dispatch_error": dispatch_error,
+                "timeout": timeout,
+                "result_unknown": result_unknown,
+                "skipped": skipped,
+                "not_started": not_started,
+            },
             suites=suites_dict,
             flags=flags,
         )
@@ -1152,7 +1211,7 @@ class ResultAggregator:
             if not isinstance(suite_data, dict):
                 continue
             for t in suite_data.get("tests", []):
-                if t.get("status") == "failed":
+                if _is_problem_status(t.get("status", "")):
                     f_name = t.get("file", t.get("name", ""))
                     if f_name:
                         failed.append(f_name)
@@ -1232,7 +1291,8 @@ class NotificationService:
         dual-channel notification pattern.
         """
         s = result.summary
-        status = "All tests passed" if s["failed"] == 0 else f"{s['failed']} of {s['total']} tests failed"
+        problem_count = _problem_count(s)
+        status = "All tests passed" if problem_count == 0 else _problem_summary_label(s)
         subject = f"[OpenMates] {status} ({result.environment})"
 
         # --- Email path (existing) ---
@@ -1361,7 +1421,8 @@ class NotificationService:
             return
 
         s = result.summary
-        all_passed = s["failed"] == 0
+        problem_count = _problem_count(s)
+        all_passed = problem_count == 0
 
         # Hourly modes silence green runs to avoid channel flooding.
         if all_passed and not post_on_success:
@@ -1387,7 +1448,7 @@ class NotificationService:
             current_keys: dict[str, str] = {}
             for sname, sdata in result.suites.items():
                 for t in (sdata or {}).get("tests", []):
-                    if t.get("status") != "failed":
+                    if not _is_problem_status(t.get("status", "")):
                         continue
                     current_keys[_compute_test_key(sname, t)] = _compute_error_hash(t)
             new_summary_hash = _compute_failure_set_hash(current_keys)
@@ -1440,14 +1501,14 @@ class NotificationService:
                 elapsed_h = ", still failing"
             title = (
                 f"{title_emoji} {result.environment} {mode_label} — "
-                f"{s['failed']} failed{elapsed_h}"
+                f"{_problem_summary_label(s)}{elapsed_h}"
             )
         else:
             title_emoji = "✅" if all_passed else "❌"
-            status_suffix = "all passed" if all_passed else f"{s['failed']} failed"
+            status_suffix = _problem_summary_label(s)
             title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
 
-        # Build a compact description listing up to the first 10 failed tests
+        # Build a compact description listing up to the first 10 problem tests
         # AND their error snippets so readers can act on the alert without
         # leaving Discord. Each entry: name + per-test GH Actions run link
         # (when present) + a fenced code block with the truncated error.
@@ -1456,17 +1517,18 @@ class NotificationService:
         max_error_chars = 500   # per failure
         for suite_name, suite_data in result.suites.items():
             for t in suite_data.get("tests", []):
-                if t.get("status") != "failed":
+                if not _is_problem_status(t.get("status", "")):
                     continue
                 name = t.get("file", t.get("name", "?"))
+                status = t.get("status", "failed").replace("_", " ")
                 err = (t.get("error") or "").strip()
                 rid = t.get("run_id")
                 # Header line: suite/test name + optional [logs] link.
                 if rid:
                     rid_url = f"https://github.com/{GH_REPO}/actions/runs/{rid}"
-                    header = f"• `{suite_name}` — **{name}** — [logs]({rid_url})"
+                    header = f"• `{suite_name}` — **{name}** — `{status}` — [logs]({rid_url})"
                 else:
-                    header = f"• `{suite_name}` — **{name}**"
+                    header = f"• `{suite_name}` — **{name}** — `{status}`"
                 if err:
                     if len(err) > max_error_chars:
                         err = err[:max_error_chars - 3].rstrip() + "..."
@@ -1480,7 +1542,7 @@ class NotificationService:
             if len(failed_blocks) >= max_failures_shown:
                 break
 
-        remaining = max(0, s["failed"] - len(failed_blocks))
+        remaining = max(0, problem_count - len(failed_blocks))
         if remaining > 0:
             failed_blocks.append(f"…and {remaining} more failure(s)")
 
@@ -1489,14 +1551,15 @@ class NotificationService:
 
         description_parts = [
             f"**Total:** {s['total']}   **Passed:** {s['passed']}   "
-            f"**Failed:** {s['failed']}   **Skipped:** {s['skipped']}",
+            f"**Failed:** {s['failed']}   **Dispatch errors:** {s.get('dispatch_error', 0)}   "
+            f"**Skipped:** {s['skipped']}",
             f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
         ]
         if run_url:
             description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
         if failed_blocks:
             description_parts.append("")
-            description_parts.append("**Failures:**")
+            description_parts.append("**Failures / Dispatch Errors:**")
             description_parts.extend(failed_blocks)
 
         description = "\n".join(description_parts)
@@ -1778,8 +1841,8 @@ class NotificationService:
                     "screenshot": (caption, p),
                 })
 
-        # Mark the last checkpoint as ❌ for failed tests.
-        if test.get("status") == "failed" and groups:
+        # Mark the last checkpoint as ❌ for failed or infrastructure-error tests.
+        if _is_problem_status(test.get("status", "")) and groups:
             for g in reversed(groups):
                 if g["checkpoints"]:
                     last = g["checkpoints"][-1]
@@ -2102,7 +2165,10 @@ class NotificationService:
             return (0, 0, 0)
 
         suite_data = result.suites.get(suite_name, {}) or {}
-        failed_tests = [t for t in suite_data.get("tests", []) if t.get("status") == "failed"]
+        failed_tests = [
+            t for t in suite_data.get("tests", [])
+            if _is_problem_status(t.get("status", ""))
+        ]
 
         # Load state once. When state_file is None, dedup is disabled and
         # we behave like the original implementation (always POST).
@@ -2120,6 +2186,8 @@ class NotificationService:
         # ─── 1. Process current failures (POST or PATCH) ────────────────────
         current_failure_keys: set[str] = set()
         for t in failed_tests:
+            test_key = _compute_test_key(suite_name, t)
+            current_failure_keys.add(test_key)
             embeds, files = self._build_md_style_test_message(
                 t, suite_name, result.run_id, screenshots_root,
             )
@@ -2129,9 +2197,7 @@ class NotificationService:
                 # don't bother spamming an empty card.
                 continue
 
-            test_key = _compute_test_key(suite_name, t)
             error_hash = _compute_error_hash(t)
-            current_failure_keys.add(test_key)
 
             existing = state.get("tests", {}).get(test_key) if state_file else None
             same_error = (
@@ -2279,14 +2345,15 @@ class NotificationService:
     def _build_summary_html(self, result: RunResult) -> str:
         """Build a simple HTML email for test results."""
         s = result.summary
-        status_color = "#22c55e" if s["failed"] == 0 else "#ef4444"
-        status_text = "ALL PASSED" if s["failed"] == 0 else f"{s['failed']} FAILED"
+        problem_count = _problem_count(s)
+        status_color = "#22c55e" if problem_count == 0 else "#ef4444"
+        status_text = "ALL PASSED" if problem_count == 0 else _problem_summary_label(s).upper()
 
         # Collect failed tests — prefer structured Playwright errors over GHA logs
         failed_rows = ""
         for suite_name, suite_data in result.suites.items():
             for t in suite_data.get("tests", []):
-                if t.get("status") == "failed":
+                if _is_problem_status(t.get("status", "")):
                     # Use first structured Playwright error if available
                     pw_errors = t.get("playwright_errors", [])
                     if pw_errors:
@@ -2311,6 +2378,7 @@ class NotificationService:
 <tr><td style="padding:4px 12px 4px 0;color:#888">Total</td><td><b>{s['total']}</b></td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#22c55e">Passed</td><td><b>{s['passed']}</b></td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#ef4444">Failed</td><td><b>{s['failed']}</b></td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#ef4444">Dispatch errors</td><td><b>{s.get('dispatch_error', 0)}</b></td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Skipped</td><td>{s['skipped']}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Not started</td><td>{s.get('not_started', 0)}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Duration</td><td>{dur_min}m {dur_sec}s</td></tr>
@@ -2319,7 +2387,7 @@ class NotificationService:
 </table>"""
 
         if failed_rows:
-            html += f"""<h3 style="color:#ef4444;margin-top:20px">Failed Tests</h3>
+            html += f"""<h3 style="color:#ef4444;margin-top:20px">Failed Tests / Dispatch Errors</h3>
 <table style="border-collapse:collapse;width:100%;font-size:13px">
 <tr style="color:#888"><th style="text-align:left;padding:4px 8px">Suite</th><th style="text-align:left;padding:4px 8px">Test</th><th style="text-align:left;padding:4px 8px">Error</th></tr>
 {failed_rows}
@@ -2338,18 +2406,19 @@ class NotificationService:
             f"Test Run Summary ({result.environment})",
             f"{'=' * 40}",
             f"Total: {s['total']}  Passed: {s['passed']}  Failed: {s['failed']}  "
-            f"Skipped: {s['skipped']}  Not started: {s.get('not_started', 0)}",
+            f"Dispatch errors: {s.get('dispatch_error', 0)}  Skipped: {s['skipped']}  "
+            f"Not started: {s.get('not_started', 0)}",
             f"Duration: {dur_min}m {dur_sec}s",
             f"Git: {result.git_sha}@{result.git_branch}",
             "",
         ]
 
-        if s["failed"] > 0:
-            lines.append("Failed Tests:")
+        if _problem_count(s) > 0:
+            lines.append("Failed Tests / Dispatch Errors:")
             lines.append("-" * 40)
             for suite_name, suite_data in result.suites.items():
                 for t in suite_data.get("tests", []):
-                    if t.get("status") == "failed":
+                    if _is_problem_status(t.get("status", "")):
                         name = t.get("file", t.get("name", "?"))
                         # Prefer structured Playwright error
                         pw_errors = t.get("playwright_errors", [])
@@ -2381,12 +2450,14 @@ class NotificationService:
             tests = suite_data.get("tests", [])
             suite_passed = sum(1 for t in tests if t.get("status") == "passed")
             suite_failed = sum(1 for t in tests if t.get("status") == "failed")
+            suite_dispatch_error = sum(1 for t in tests if t.get("status") == "dispatch_error")
             suite_not_started = sum(1 for t in tests if t.get("status") == "not_started")
             suites_list.append({
                 "name": suite_name,
                 "total": len(tests),
                 "passed": suite_passed,
                 "failed": suite_failed,
+                "dispatch_error": suite_dispatch_error,
                 "not_started": suite_not_started,
                 "status": suite_data.get("status", "unknown"),
             })
@@ -2397,7 +2468,7 @@ class NotificationService:
                     "status": t.get("status", "unknown"),
                     "duration_seconds": t.get("duration_seconds", 0),
                 })
-                if t.get("status") == "failed":
+                if _is_problem_status(t.get("status", "")):
                     error = (t.get("error") or "")[:MAX_ERROR_SNIPPET]
                     failed_tests.append({
                         "suite": suite_name,
@@ -2414,6 +2485,9 @@ class NotificationService:
             "total": s["total"],
             "passed": s["passed"],
             "failed": s["failed"],
+            "dispatch_error": s.get("dispatch_error", 0),
+            "timeout": s.get("timeout", 0),
+            "result_unknown": s.get("result_unknown", 0),
             "skipped": s["skipped"],
             "not_started": s.get("not_started", 0),
             "suites": suites_list,
@@ -2566,11 +2640,12 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     s = result.summary
     print()
     print("=" * 60)
-    icon = "✓" if s["failed"] == 0 else "✗"
+    problem_count = _problem_count(s)
+    icon = "✓" if problem_count == 0 else "✗"
     dur_min = int(result.duration_seconds // 60)
     dur_sec = int(result.duration_seconds % 60)
     print(f"  {icon} hourly-dev: {s['passed']}/{s['total']} passed, "
-          f"{s['failed']} failed   ({dur_min}m {dur_sec}s)")
+          f"{_problem_summary_label(s)}   ({dur_min}m {dur_sec}s)")
     print("=" * 60)
     print()
 
@@ -2609,7 +2684,7 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
         state_file=state_file,
     )
 
-    return 1 if s["failed"] > 0 else 0
+    return 1 if problem_count > 0 else 0
 
 
 # prod-smoke.yml writes one playwright JSON file per spec into the artifact:
@@ -2785,13 +2860,14 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         capture_output=True, text=True,
     )
     if rc.returncode != 0:
-        _log(f"Dispatch failed: {rc.stderr.strip()[:200]}", "ERROR")
+        detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()[:500]
+        _log(f"Dispatch failed: {detail[:200]}", "ERROR")
         # Build a synthetic failure result so the Discord path still fires.
         suite_result = SuiteResult(
             status="failed",
-            tests=[{"name": "prod-smoke-dispatch", "status": "failed",
+            tests=[{"name": "prod-smoke-dispatch", "status": "dispatch_error",
                     "duration_seconds": 0,
-                    "error": f"Dispatch failed: {rc.stderr.strip()[:200]}"}],
+                    "error": f"Dispatch failed: {detail}"}],
         )
     else:
         # Find the new run ID
@@ -2808,7 +2884,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             _log("Could not find dispatched prod-smoke run", "ERROR")
             suite_result = SuiteResult(
                 status="failed",
-                tests=[{"name": "prod-smoke-dispatch", "status": "failed",
+                tests=[{"name": "prod-smoke-dispatch", "status": "dispatch_error",
                         "duration_seconds": 0,
                         "error": "Could not find dispatched workflow run"}],
             )
@@ -2903,11 +2979,12 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     _log(f"Archived hourly-prod run to {archive_path.relative_to(PROJECT_ROOT)}")
 
     s = result.summary
+    problem_count = _problem_count(s)
     print()
     print("=" * 60)
-    icon = "✓" if s["failed"] == 0 else "✗"
+    icon = "✓" if problem_count == 0 else "✗"
     print(f"  {icon} hourly-prod: {s['passed']}/{s['total']} passed, "
-          f"{s['failed']} failed")
+          f"{_problem_summary_label(s)}")
     print("=" * 60)
     print()
 
@@ -2989,7 +3066,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         if staged_root:
             shutil.rmtree(staged_root, ignore_errors=True)
 
-    return 1 if s["failed"] > 0 else 0
+    return 1 if problem_count > 0 else 0
 
 
 def run_dry_run_notify_mode(notification: NotificationService, mode: str) -> int:
@@ -3304,8 +3381,11 @@ class ReportGenerator:
         """
         total = len(tests)
         passed_tests = [t for t in tests if t.get("status") == "passed"]
-        failed_tests = [t for t in tests if t.get("status") == "failed"]
-        skipped_tests = [t for t in tests if t.get("status") not in ("passed", "failed")]
+        failed_tests = [t for t in tests if _is_problem_status(t.get("status", ""))]
+        skipped_tests = [
+            t for t in tests
+            if t.get("status") != "passed" and not _is_problem_status(t.get("status", ""))
+        ]
         passed = len(passed_tests)
         failed = len(failed_tests)
 
@@ -3744,11 +3824,12 @@ class TestOrchestrator:
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
-            _log(f"  {suite_label}: dispatch failed: {rc.stderr.strip()[:200]}", "ERROR")
+            detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()[:500]
+            _log(f"  {suite_label}: dispatch failed: {detail[:200]}", "ERROR")
             return SuiteResult(
                 status="failed",
-                tests=[{"name": f"{suite_label}-dispatch", "status": "failed",
-                        "duration_seconds": 0, "error": f"Dispatch failed: {rc.stderr.strip()[:200]}"}],
+                tests=[{"name": f"{suite_label}-dispatch", "status": "dispatch_error",
+                        "duration_seconds": 0, "error": f"Dispatch failed: {detail}"}],
             )
 
         # Find the new run ID
@@ -3766,7 +3847,7 @@ class TestOrchestrator:
             _log(f"  {suite_label}: could not find dispatched run", "ERROR")
             return SuiteResult(
                 status="failed",
-                tests=[{"name": f"{suite_label}-dispatch", "status": "failed",
+                tests=[{"name": f"{suite_label}-dispatch", "status": "dispatch_error",
                         "duration_seconds": 0, "error": "Could not find dispatched workflow run"}],
             )
 
@@ -3798,7 +3879,7 @@ class TestOrchestrator:
 
         # Recalculate overall status from actual test results
         if all_tests:
-            has_failures = any(t.get("status") == "failed" for t in all_tests)
+            has_failures = any(_is_problem_status(t.get("status", "")) for t in all_tests)
             overall_status = "failed" if has_failures else "passed"
 
         shutil.rmtree(artifact_dir, ignore_errors=True)
@@ -4082,7 +4163,7 @@ class TestOrchestrator:
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
         # Start claude analysis on failures (reuse helper)
-        if result.summary["failed"] > 0:
+        if _problem_count(result.summary) > 0:
             helper = PROJECT_ROOT / "scripts" / "_daily_runner_helper.py"
             if helper.is_file():
                 _log("Starting claude analysis for failures...")
@@ -4103,20 +4184,22 @@ class TestOrchestrator:
 
         print()
         print("=" * 60)
-        status_icon = "✓" if s["failed"] == 0 else "✗"
+        problem_count = _problem_count(s)
+        status_icon = "✓" if problem_count == 0 else "✗"
         print(f"  {status_icon} Summary")
         print("=" * 60)
         print(f"  Total: {s['total']}  Passed: {s['passed']}  Failed: {s['failed']}  "
-              f"Skipped: {s['skipped']}  Not started: {s.get('not_started', 0)}")
+              f"Dispatch errors: {s.get('dispatch_error', 0)}  Skipped: {s['skipped']}  "
+              f"Not started: {s.get('not_started', 0)}")
         print(f"  Duration: {dur_min}m {dur_sec}s")
         print(f"  Git: {result.git_sha}@{result.git_branch}")
 
-        if s["failed"] > 0:
+        if problem_count > 0:
             print()
-            print("  Failed tests:")
+            print("  Failed tests / dispatch errors:")
             for suite_name, suite_data in result.suites.items():
                 for t in suite_data.get("tests", []):
-                    if t.get("status") == "failed":
+                    if _is_problem_status(t.get("status", "")):
                         name = t.get("file", t.get("name", "?"))
                         error = (t.get("error") or "")[:120]
                         print(f"    [{suite_name}] {name}: {error}")
