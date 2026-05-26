@@ -3060,6 +3060,10 @@ referral_intro:
   context: Referral settings intro. Variables are referrerCredits and referredCredits.
   en: "Share your link with friends. After they make their first eligible purchase, they get {referredCredits} free credits and you get {referrerCredits} free credits."
   verified_by_human: []
+referral_qr_label:
+  context: Label above the QR code on the referral code settings page
+  en: "Share this referral QR code:"
+  verified_by_human: []
 referral_progress:
   context: Referral usage progress. Variables are count and max.
   en: "Successful referrals used: {count}/{max}"
