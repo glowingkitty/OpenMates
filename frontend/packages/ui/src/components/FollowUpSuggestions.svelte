@@ -21,6 +21,8 @@
 
   // Apps metadata for icon resolution
   let appsMetadata = $state(appSkillsStore.getState());
+  let isDismissing = $state(false);
+  let clickedSuggestionRaw = $state<string | null>(null);
 
   /**
    * Parsed suggestion: splits "[app_id-skill_id] body text" into parts.
@@ -110,8 +112,12 @@
 
   // Filtered and displayed suggestions based on input content.
   let filteredSuggestions = $derived.by(() => {
+    const visibleSuggestions = clickedSuggestionRaw
+      ? fullSuggestions.filter(suggestion => suggestion.raw !== clickedSuggestionRaw)
+      : fullSuggestions;
+
     if (!messageInputContent || messageInputContent.trim() === '') {
-      return fullSuggestions.slice(0, 3).map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
+      return visibleSuggestions.slice(0, 3).map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
     }
 
     // When user is typing, filter across the FULL pool (searching over body text)
@@ -119,7 +125,7 @@
     const searchTermLower = searchTerm.toLowerCase();
 
     // Search over body text (not the prefix) so prefix doesn't interfere with filtering
-    const allFiltered = fullSuggestions
+    const allFiltered = visibleSuggestions
       .map(parsed => {
         const lowerBody = parsed.body.toLowerCase();
         const matchIndex = lowerBody.indexOf(searchTermLower);
@@ -155,6 +161,12 @@
    * app skill is triggered on send.
    */
   function handleSuggestionClick(appId: string | null, subId: string | null, body: string) {
+    if (isDismissing) return;
+
+    const clickedSuggestion = filteredSuggestions.find(suggestion => suggestion.body === body);
+    clickedSuggestionRaw = clickedSuggestion?.raw ?? body;
+    isDismissing = true;
+
     // Build mention syntax for skill-prefixed suggestions (e.g. "@skill:web:search")
     const mentionSyntax = appId && subId ? `@skill:${appId}:${subId}` : undefined;
     onSuggestionClick(body, mentionSyntax);
@@ -163,12 +175,18 @@
 </script>
 
 {#if filteredSuggestions.length > 0}
-  <div class="suggestions-wrapper" data-testid="suggestions-wrapper" transition:fade={{ duration: 200 }}>
+  <div
+    class="suggestions-wrapper"
+    class:is-dismissing={isDismissing}
+    data-testid="suggestions-wrapper"
+    transition:fade={{ duration: 200 }}
+  >
     {#each filteredSuggestions as suggestion (suggestion.raw)}
       {@const highlighted = renderHighlightedText(suggestion)}
       <button
         class="suggestion-item"
         data-testid="follow-up-suggestion-item"
+        disabled={isDismissing}
         onmousedown={(event) => {
           event.preventDefault();
         }}
@@ -178,9 +196,6 @@
           handleSuggestionClick(suggestion.appId, suggestion.subId, suggestion.body);
         }}
       >
-        <svg class="suggestion-enter-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 10v4h7a4 4 0 0 0 4-4V4h-2v6a2 2 0 0 1-2 2H9V8l-5 5 5 5v-4" />
-        </svg>
         <span class="suggestion-text">
           {#if typeof highlighted === 'string'}
             {highlighted}
@@ -188,6 +203,9 @@
             <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
           {/if}
         </span>
+        <svg class="suggestion-enter-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 10v4h7a4 4 0 0 0 4-4V4h-2v6a2 2 0 0 1-2 2H9V8l-5 5 5 5v-4" />
+        </svg>
       </button>
     {/each}
   </div>
@@ -201,6 +219,12 @@
     align-items: flex-end;
     gap: 0.35rem;
     animation: fadeIn 200ms ease-out;
+    transition: opacity 180ms var(--easing-default);
+  }
+
+  .suggestions-wrapper.is-dismissing {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .suggestion-item {
@@ -246,6 +270,7 @@
 
   .suggestion-text {
     color: currentColor;
+    flex: 1 1 auto;
   }
 
   .suggestion-text .text-part,
