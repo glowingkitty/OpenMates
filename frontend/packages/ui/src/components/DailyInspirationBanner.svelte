@@ -44,7 +44,7 @@
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
-  const MOBILE_EMBED_ROTATION_INTERVAL_MS = 5000;
+  const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
 
@@ -87,9 +87,9 @@
   // Set by the IntersectionObserver mounted in onMount.
   let isBannerVisible = $state(false);
 
-  // On mobile, alternate between the assistant message and video preview instead
+  // On mobile, alternate between the assistant message and interactive preview instead
   // of squeezing both into the narrow banner width.
-  let showMobileEmbed = $state(false);
+  let showMobileCard = $state(false);
 
   // Touch gesture state for mobile carousel swipes.
   let touchStartX = $state(0);
@@ -202,20 +202,20 @@
     sendViewedEvent(id);
   });
 
-  // Mobile video loop: start on the assistant message, then alternate message ↔ embed.
+  // Mobile card loop: start on the assistant message, then alternate message and preview.
   $effect(() => {
-    if (!shouldCycleMobileEmbed) {
-      showMobileEmbed = false;
+    if (!shouldCycleMobileCard) {
+      showMobileCard = false;
       return;
     }
 
     void currentIndex;
-    void embedPreviewId;
-    showMobileEmbed = false;
+    void mobilePreviewKey;
+    showMobileCard = false;
 
     const interval = window.setInterval(() => {
-      showMobileEmbed = !showMobileEmbed;
-    }, MOBILE_EMBED_ROTATION_INTERVAL_MS);
+      showMobileCard = !showMobileCard;
+    }, MOBILE_CARD_ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
   });
@@ -259,14 +259,15 @@
    * a layout flash.
    */
   let hasAttachedVideo = $derived(!!current?.video?.youtube_id);
+  let hasInfoContent = $derived(current?.content_type === 'wiki' || current?.content_type === 'feature');
 
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
 
   /** Whether mobile should alternate between the assistant message and embed. */
-  let shouldCycleMobileEmbed = $derived(hasAttachedVideo && isMobileBannerLayout);
+  let shouldCycleMobileCard = $derived((hasAttachedVideo || hasInfoContent) && isMobileBannerLayout);
 
-  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileEmbed));
+  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -299,10 +300,11 @@
       : ''
   );
 
-  let hasInfoCard = $derived(!hasVideo && (current?.content_type === 'wiki' || current?.content_type === 'feature'));
   let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
   let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
   let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
+  let hasInfoCard = $derived(!hasVideo && hasInfoContent);
+  let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -523,8 +525,8 @@
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div
           class="banner-content"
-          class:mobile-embed-loop={shouldCycleMobileEmbed}
-          class:show-mobile-embed={shouldCycleMobileEmbed && showMobileEmbed}
+          class:mobile-card-loop={shouldCycleMobileCard}
+          class:show-mobile-card={shouldCycleMobileCard && showMobileCard}
         >
 
           <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
@@ -867,10 +869,10 @@
     align-items: center;
     justify-content: center;
     gap: var(--spacing-4);
-    padding: var(--spacing-8);
-    border-radius: var(--radius-8);
-    background: rgba(255, 255, 255, 0.18);
-    box-shadow: var(--shadow-lg);
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     text-align: center;
     color: white;
   }
@@ -886,11 +888,11 @@
   .banner-info-icon {
     width: 64px;
     height: 64px;
-    border-radius: var(--radius-6);
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.18);
+    background: transparent;
   }
 
   .banner-info-text h3,
@@ -1108,13 +1110,14 @@
       line-clamp: 4;
     }
 
-    .banner-content.mobile-embed-loop {
+    .banner-content.mobile-card-loop {
       position: relative;
       overflow: hidden;
     }
 
-    .banner-content.mobile-embed-loop .banner-left,
-    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+    .banner-content.mobile-card-loop .banner-left,
+    .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -1123,12 +1126,12 @@
         transform 420ms ease;
     }
 
-    .banner-content.mobile-embed-loop .banner-left {
+    .banner-content.mobile-card-loop .banner-left {
       opacity: 1;
       transform: translateY(0);
     }
 
-    .banner-content.mobile-embed-loop.show-mobile-embed .banner-left {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-left {
       opacity: 0;
       pointer-events: none;
       transform: translateY(-6px);
@@ -1141,7 +1144,7 @@
     .banner-info-card {
       width: 140px;
       min-width: 140px;
-      padding: var(--spacing-5);
+      padding: 0;
     }
 
     .banner-info-image,
@@ -1154,7 +1157,8 @@
       display: none;
     }
 
-    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+    .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
       opacity: 0;
       pointer-events: none;
@@ -1162,20 +1166,21 @@
       justify-content: center;
     }
 
-    .banner-content.mobile-embed-loop.show-mobile-embed .banner-embed-wrapper {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
+    .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
     }
 
-    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.embed-preview-container) {
+    .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {
       width: min(100%, 220px);
       height: 100%;
       max-width: 220px;
       margin: 0 auto;
     }
 
-    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
+    .banner-content.mobile-card-loop .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
       width: 100% !important;
       min-width: unset !important;
       max-width: unset !important;

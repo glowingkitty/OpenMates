@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v3:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v4:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -27,6 +27,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
+from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,10 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v3:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v4:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
+_DEFAULT_WIKI_COUNT = 3
 _DEFAULT_FEATURE_COUNT = 4
 
 # Supported languages (same as SUPPORTED_LANGUAGES in default_inspiration_tasks.py)
@@ -68,6 +70,11 @@ def get_cache_service(request: Request) -> CacheService:
 def _get_feature_id(item: Dict[str, Any]) -> str | None:
     feature = item.get("feature")
     return feature.get("feature_id") if isinstance(feature, dict) else None
+
+
+def _get_wiki_title(item: Dict[str, Any]) -> str | None:
+    wiki = item.get("wiki")
+    return wiki.get("wiki_title") if isinstance(wiki, dict) else None
 
 
 def _shuffle_daily_defaults(
@@ -196,8 +203,15 @@ async def get_default_inspirations(
     if not defaults:
         result = [
             insp.model_dump()
-            for insp in build_feature_inspirations(_DEFAULT_INSPIRATION_COUNT)
+            for insp in build_wiki_inspirations(_DEFAULT_WIKI_COUNT)
         ]
+        result.extend(
+            insp.model_dump()
+            for insp in build_feature_inspirations(
+                _DEFAULT_INSPIRATION_COUNT - len(result)
+            )
+        )
+        result = result[:_DEFAULT_INSPIRATION_COUNT]
         _shuffle_daily_defaults(result, date_str=today_str, lang=lang)
         return {"inspirations": result}
 
@@ -259,6 +273,20 @@ async def get_default_inspirations(
                 inspiration_obj[response_field] = raw_metadata
         result.append(inspiration_obj)
 
+    wiki_count = sum(1 for item in result if item.get("content_type") == "wiki")
+    if wiki_count < _DEFAULT_WIKI_COUNT:
+        existing_wiki_titles = {_get_wiki_title(item) for item in result}
+        for wiki_inspiration in build_wiki_inspirations(_DEFAULT_WIKI_COUNT):
+            wiki_title = wiki_inspiration.wiki.wiki_title if wiki_inspiration.wiki else None
+            if wiki_title in existing_wiki_titles:
+                continue
+            result.append(wiki_inspiration.model_dump())
+            wiki_count = sum(
+                1 for item in result if item.get("content_type") == "wiki"
+            )
+            if wiki_count >= _DEFAULT_WIKI_COUNT:
+                break
+
     feature_count = sum(1 for item in result if item.get("content_type") == "feature")
     if feature_count < _DEFAULT_FEATURE_COUNT:
         existing_feature_ids = {_get_feature_id(item) for item in result}
@@ -275,6 +303,16 @@ async def get_default_inspirations(
                 1 for item in result if item.get("content_type") == "feature"
             )
             if feature_count >= _DEFAULT_FEATURE_COUNT:
+                break
+
+    if len(result) < _DEFAULT_INSPIRATION_COUNT:
+        existing_wiki_titles = {_get_wiki_title(item) for item in result}
+        for wiki_inspiration in build_wiki_inspirations(_DEFAULT_INSPIRATION_COUNT):
+            wiki_title = wiki_inspiration.wiki.wiki_title if wiki_inspiration.wiki else None
+            if wiki_title in existing_wiki_titles:
+                continue
+            result.append(wiki_inspiration.model_dump())
+            if len(result) >= _DEFAULT_INSPIRATION_COUNT:
                 break
 
     if len(result) < _DEFAULT_INSPIRATION_COUNT:

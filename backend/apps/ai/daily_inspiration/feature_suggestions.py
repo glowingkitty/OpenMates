@@ -73,17 +73,8 @@ FEATURE_TIPS = [
         "icon": "mask",
         "title": "Incognito chats",
         "description": "Start temporary chats when you do not want them saved to history.",
-        "settings_path": "privacy/incognito",
+        "settings_path": "incognito/info",
         "phrase": "Need a throwaway conversation? Incognito mode keeps it out of history.",
-        "category": "openmates_official",
-    },
-    {
-        "feature_id": "connected-apps",
-        "icon": "plug",
-        "title": "Connected apps",
-        "description": "Review which app skills your mates can use and adjust them anytime.",
-        "settings_path": "app_store/all/apps",
-        "phrase": "Your mates can use apps for real tasks. Check which ones are available.",
         "category": "openmates_official",
     },
     {
@@ -95,15 +86,6 @@ FEATURE_TIPS = [
         "phrase": "OpenMates gives you privacy controls worth reviewing before you need them.",
         "category": "openmates_official",
     },
-    {
-        "feature_id": "keyboard-shortcuts",
-        "icon": "keyboard",
-        "title": "Faster navigation",
-        "description": "Use shortcuts and focused navigation to move through chats more quickly.",
-        "settings_path": "settings/shortcuts",
-        "phrase": "A few shortcuts can make OpenMates feel much faster.",
-        "category": "openmates_official",
-    },
 ]
 
 
@@ -111,7 +93,8 @@ def build_feature_inspirations(count: int = 4) -> List[DailyInspiration]:
     """Return up to ``count`` static feature inspiration objects."""
     now_ts = int(time.time())
     inspirations: List[DailyInspiration] = []
-    for tip in FEATURE_TIPS[:max(0, count)]:
+    linked_tips = [tip for tip in FEATURE_TIPS if tip.get("settings_path")]
+    for tip in linked_tips[:max(0, count)]:
         feature = DailyInspirationFeature(
             feature_id=tip["feature_id"],
             icon=tip["icon"],
