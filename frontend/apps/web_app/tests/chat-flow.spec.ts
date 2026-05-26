@@ -79,6 +79,7 @@ const LLM_QUICK_TIP_SLUGS = [
 	'travel-can-add-local-context',
 	'use-apps-for-better-results'
 ];
+const QUICK_TIP_CHAT_RESPONSE_MARKER = 'Kyoto and Osaka quick tip test';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -353,8 +354,8 @@ async function assertChatDecryptedCorrectly(
 	await expect(userMsg).toBeVisible({ timeout: 10000 });
 	await expect(assistantMsg).toBeVisible({ timeout: 10000 });
 
-	// Confirm assistant response still decrypted — must contain "Berlin".
-	await expect(assistantMsg).toContainText('Berlin', { timeout: 15000 });
+	// Confirm assistant response still decrypted.
+	await expect(assistantMsg).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 15000 });
 	logCheckpoint(`[${phase}] Messages: user + assistant visible and contain expected content.`);
 
 	// Check for error-state inline styles: opacity 0.7 + error border.
@@ -611,7 +612,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	const firstMessage = 'First write the exact phrase "Kyoto and Osaka quick tip test", then give one concise sentence about planning food, transit, and local events for a weekend trip.';
+	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then give one concise sentence about planning food, transit, and local events for a weekend trip.`;
 	await page.keyboard.type(firstMessage);
 	await takeStepScreenshot(page, '02-message-filled');
 
@@ -643,7 +644,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
 	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
+	await expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
 	const messageResponseMs = Date.now() - messageSendStartedAt;
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
 	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });
