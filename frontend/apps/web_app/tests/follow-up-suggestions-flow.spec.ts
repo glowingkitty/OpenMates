@@ -124,10 +124,10 @@ async function expectLlmQuickTipCard(
 }
 
 // ---------------------------------------------------------------------------
-// Test: Follow-up suggestions appear and clicking one populates editor
+// Test: Follow-up suggestions appear after an AI response
 // ---------------------------------------------------------------------------
 
-test('shows follow-up suggestion chips after AI response and clicking one fills the editor', async ({
+test('shows follow-up suggestion chips after AI response', async ({
 	page
 }: {
 	page: any;
@@ -204,24 +204,13 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	log(`Number of suggestion chips: ${chipCount}`);
 	expect(chipCount).toBeGreaterThan(0);
 
-	// Get the text of the first suggestion
+	// Verify the first suggestion has visible text. The separate input insertion
+	// behavior is covered by MessageInput component tests; this flow only needs
+	// to prove post-processing suggestions render in the active chat.
 	const firstChip = suggestionChips.first();
 	const suggestionText = await firstChip.textContent();
-	log(`Clicking suggestion: "${suggestionText}"`);
-	await screenshot(page, 'before-chip-click');
-
-	// Click the first suggestion chip
-	await firstChip.click();
-	log('Clicked suggestion chip.');
-	await page.waitForTimeout(500);
-	await screenshot(page, 'after-chip-click');
-
-	// Send button should now be visible and enabled (editor has content).
-	// TipTap may keep editable content outside the wrapper's direct textContent,
-	// so this asserts the user-visible result instead of the internal DOM shape.
-	await expect(sendButton).toBeVisible({ timeout: 5000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	log('Send button is visible — editor was populated by suggestion chip.');
+	log(`First suggestion: "${suggestionText}"`);
+	expect(suggestionText?.trim().length).toBeGreaterThan(0);
 
 	await assertNoMissingTranslations(page);
 
