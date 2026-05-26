@@ -5,13 +5,13 @@
   Uses UnifiedEmbedPreview so wiki Daily Inspirations look and behave like
   other embed previews while still opening the existing Wikipedia fullscreen.
   Data is passed in directly from the inspiration payload; no client fetch.
+  The article title lives in BasicInfosBar; the details area shows the longer
+  description/excerpt so the card does not duplicate the Study icon/title.
 -->
 
 <script lang="ts">
   import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   interface Props {
     id: string;
@@ -30,15 +30,11 @@
     title,
     wikiTitle,
     description = null,
-    thumbnailUrl = null,
     status = 'finished',
     isMobile = false,
     onFullscreen,
   }: Props = $props();
 
-  let proxiedThumbnail = $derived(
-    thumbnailUrl ? proxyImage(thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : '',
-  );
   let displayTitle = $derived(title || wikiTitle.replaceAll('_', ' '));
   let displayDescription = $derived(description || $text('embeds.wiki.source_label'));
 </script>
@@ -49,30 +45,16 @@
   skillId="study"
   skillIconName="study"
   {status}
-  skillName={$text('embeds.wiki.wikipedia')}
+  skillName={displayTitle}
   {isMobile}
   {onFullscreen}
-  showStatus={!!displayDescription}
-  customStatusText={displayDescription}
+  showStatus={true}
+  customStatusText={$text('embeds.wiki.wikipedia')}
   showSkillIcon={true}
-  hasFullWidthImage={!!proxiedThumbnail}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="wiki-preview-details" class:mobile={isMobileLayout} class:has-image={!!proxiedThumbnail}>
-      {#if proxiedThumbnail}
-        <img
-          class="wiki-preview-image"
-          src={proxiedThumbnail}
-          alt={displayTitle}
-          loading="lazy"
-          onerror={(e) => handleImageError(e.currentTarget)}
-        />
-      {:else}
-        <div class="wiki-preview-fallback" aria-hidden="true">
-          <span class="icon_rounded study"></span>
-        </div>
-        <div class="wiki-preview-title">{displayTitle}</div>
-      {/if}
+    <div class="wiki-preview-details" class:mobile={isMobileLayout}>
+      <p class="wiki-preview-description">{displayDescription}</p>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
@@ -88,49 +70,25 @@
     min-height: 0;
   }
 
-  .wiki-preview-details.has-image {
-    gap: 0;
-  }
-
-  .wiki-preview-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .wiki-preview-fallback {
-    width: 68px;
-    height: 68px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.18));
-  }
-
-  .wiki-preview-fallback :global(.icon_rounded) {
-    width: 60px;
-    height: 60px;
-  }
-
-  .wiki-preview-title {
+  .wiki-preview-description {
     max-width: 100%;
+    margin: 0;
     font-size: var(--font-size-sm);
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--color-grey-100);
-    text-align: center;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--color-grey-80);
+    text-align: left;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
-  .wiki-preview-details.mobile .wiki-preview-title {
+  .wiki-preview-details.mobile .wiki-preview-description {
     font-size: var(--font-size-xs);
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
   }
 
   :global(.unified-embed-preview .skill-icon[data-skill-icon="study"]),
