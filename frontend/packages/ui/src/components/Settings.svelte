@@ -2894,22 +2894,20 @@ changes to the documentation (to keep the documentation up to date).
         inset-inline-end: 58px;
         height: 42px;
         max-width: 185px;
-        min-width: 42px;
+        min-width: 24px;
         display: flex;
         align-items: center;
         gap: var(--spacing-3);
-        padding: 0 var(--spacing-5);
+        padding: 0;
         border: none;
         border-radius: var(--radius-full);
-        background: var(--color-button-primary);
-        color: var(--color-font-button);
-        box-shadow: var(--shadow-xs);
+        background: transparent;
+        color: var(--color-primary-end);
         cursor: pointer;
-        overflow: hidden;
+        overflow: visible;
         white-space: nowrap;
         transition:
             max-width var(--duration-slow) var(--easing-default),
-            padding var(--duration-slow) var(--easing-default),
             opacity var(--duration-normal) var(--easing-default),
             transform var(--duration-normal) var(--easing-default);
     }
@@ -2919,8 +2917,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .referral-cta.compact {
-        max-width: 42px;
-        padding-inline: 0;
+        max-width: 24px;
         justify-content: center;
     }
 
@@ -2928,7 +2925,7 @@ changes to the documentation (to keep the documentation up to date).
         width: 20px;
         height: 20px;
         flex: 0 0 20px;
-        background-color: currentColor;
+        background: var(--color-primary);
         -webkit-mask-image: url('@openmates/ui/static/icons/gift.svg');
         mask-image: url('@openmates/ui/static/icons/gift.svg');
         -webkit-mask-size: contain;
@@ -2942,11 +2939,17 @@ changes to the documentation (to keep the documentation up to date).
     .referral-cta-text {
         font-size: var(--font-size-small);
         font-weight: var(--font-weight-semibold);
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
         opacity: 1;
         transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .referral-cta.compact .referral-cta-text {
+        display: none;
         opacity: 0;
     }
 
