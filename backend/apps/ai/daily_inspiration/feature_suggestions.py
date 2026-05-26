@@ -42,9 +42,9 @@ FEATURE_TIPS = [
         "category": "openmates_official",
     },
     {
-        "feature_id": "settings-memories",
+        "feature_id": "memories",
         "icon": "heart",
-        "title": "Settings and memories",
+        "title": "Memories",
         "description": "Save preferences and memories so mates can help without repeated context.",
         "settings_path": "settings_memories",
         "phrase": "Repeating yourself gets old. Memories help OpenMates remember what matters.",

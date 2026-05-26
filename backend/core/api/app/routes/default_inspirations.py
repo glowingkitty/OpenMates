@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v2:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v3:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -16,6 +16,7 @@
 
 import json
 import logging
+import random
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
@@ -35,7 +36,7 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v2:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v3:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_FEATURE_COUNT = 4
@@ -67,6 +68,15 @@ def get_cache_service(request: Request) -> CacheService:
 def _get_feature_id(item: Dict[str, Any]) -> str | None:
     feature = item.get("feature")
     return feature.get("feature_id") if isinstance(feature, dict) else None
+
+
+def _shuffle_daily_defaults(
+    result: List[Dict[str, Any]],
+    *,
+    date_str: str,
+    lang: str,
+) -> None:
+    random.Random(f"default-inspirations:{date_str}:{lang}").shuffle(result)
 
 
 # ---- Endpoint ------------------------------------------------------------
@@ -156,6 +166,7 @@ async def get_default_inspirations(
     yesterday_str = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     defaults = None
+    selected_date_str = today_str
     for date_str in (today_str, yesterday_str):
         try:
             defaults = await directus_service.inspiration_defaults.get_defaults_for_date(
@@ -163,6 +174,7 @@ async def get_default_inspirations(
                 language=lang,
             )
             if defaults:
+                selected_date_str = date_str
                 if date_str == yesterday_str:
                     logger.info(
                         "[DefaultInspirations] No defaults for today (%s), "
@@ -186,6 +198,7 @@ async def get_default_inspirations(
             insp.model_dump()
             for insp in build_feature_inspirations(_DEFAULT_INSPIRATION_COUNT)
         ]
+        _shuffle_daily_defaults(result, date_str=today_str, lang=lang)
         return {"inspirations": result}
 
     # ---- Transform records to the DailyInspiration response shape ---------
@@ -279,6 +292,7 @@ async def get_default_inspirations(
                 break
 
     result = result[:_DEFAULT_INSPIRATION_COUNT]
+    _shuffle_daily_defaults(result, date_str=selected_date_str, lang=lang)
 
     # ---- Cache the response -----------------------------------------------
     try:

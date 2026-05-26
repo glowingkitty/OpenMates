@@ -69,6 +69,7 @@ changes to the documentation (to keep the documentation up to date).
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+    import { allAppsInitialFilter, type AllAppsFilterType } from '../stores/allAppsFilterStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
@@ -2345,7 +2346,17 @@ changes to the documentation (to keep the documentation up to date).
             setTimeout(() => {
                 // Strip deep-link parameters (e.g. "&usage") from the path before routing.
                 // The parameters remain in window.location.hash for sub-components to read.
-                const cleanPath = settingsPath.split('&')[0];
+                let cleanPath = settingsPath.split('&')[0];
+
+                const allAppsFilterMatch = cleanPath.match(/^(?:app_store|apps)\/all\/(.+)$/);
+                if (allAppsFilterMatch) {
+                    const filterValue = allAppsFilterMatch[1].replace(/-/g, '_') as AllAppsFilterType;
+                    const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
+                    if (validFilters.includes(filterValue)) {
+                        allAppsInitialFilter.set(filterValue);
+                    }
+                    cleanPath = 'app_store/all';
+                }
 
                 // Set window flag for deep-link parameters so sub-components can read them
                 // after the hash is cleaned. SettingsUsage reads __openmates_usage_deeplink.
