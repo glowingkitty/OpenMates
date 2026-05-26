@@ -469,8 +469,8 @@ async function deleteActiveChat(
 
 	try {
 		const sidebarToggle = page.getByTestId('sidebar-toggle');
-		if (await sidebarToggle.isVisible()) {
-			await sidebarToggle.click();
+		if (await sidebarToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await sidebarToggle.click({ timeout: 3000 });
 			await page.waitForTimeout(500);
 		}
 
@@ -493,7 +493,7 @@ async function deleteActiveChat(
 			const chatId = await activeChatItem.getAttribute('data-chat-id');
 			const chatTitle = await activeChatItem
 				.getByTestId('chat-title')
-				.textContent()
+				.textContent({ timeout: 1000 })
 				.catch(() => null);
 			logCheckpoint(
 				`Active chat: id="${chatId ?? 'unknown'}" title="${chatTitle ?? 'unknown'}"`
