@@ -8,8 +8,8 @@
 #    Runs in the same app-ai-worker context as the AI task.
 #
 # 2. generate_daily_inspirations (Celery task, scheduled by Beat)
-#    Runs once per day. Scans all active users and generates N new inspirations per user
-#    (where N = number of inspirations the user viewed the previous day, 1-3).
+#    Runs once per day. Scans all active users and generates a 10-item mixed set
+#    for users who viewed at least one inspiration the previous day.
 #    Users are processed sequentially to respect Brave and LLM rate limits.
 #
 # Delivery:
@@ -26,12 +26,18 @@
 import asyncio
 import hashlib
 import logging
+import random
 from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 
 logger = logging.getLogger(__name__)
+DAILY_VIDEO_COUNT = 3
+DAILY_WIKI_COUNT = 3
+DAILY_FEATURE_COUNT = 4
+DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT
 
 # Cache key to mark that a user has already received their first-run inspirations.
 # Prevents re-triggering on every paid request after the first one.
@@ -64,7 +70,7 @@ async def generate_and_deliver_inspirations_for_user(
 
     Args:
         user_id: User UUID
-        count: Number of inspirations to generate (1-3)
+        count: Number of video inspirations to generate (1-3)
         cache_service: CacheService instance
         secrets_manager: SecretsManager instance (must be initialized)
         task_id: Logging context
@@ -76,7 +82,9 @@ async def generate_and_deliver_inspirations_for_user(
     Returns:
         True if generation and delivery succeeded, False on error
     """
+    from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
     from backend.apps.ai.daily_inspiration.generator import generate_inspirations
+    from backend.apps.ai.daily_inspiration.wiki_generator import generate_wiki_inspirations
 
     logger.info(
         f"[DailyInspiration][{task_id}] Generating {count} inspiration(s) for user {user_id[:8]}... "
@@ -90,15 +98,26 @@ async def generate_and_deliver_inspirations_for_user(
         f"for user {user_id[:8]}..."
     )
 
-    # Run generation (language controls LLM phrase language + Brave search locale)
-    inspirations = await generate_inspirations(
+    # Run generation (language controls LLM phrase language + Brave search locale).
+    # Keep the expensive video pipeline capped at 3, then add cheaper wiki and
+    # static feature cards to reach the daily 10-item set.
+    video_inspirations = await generate_inspirations(
         user_id=user_id,
-        count=count,
+        count=min(count, DAILY_VIDEO_COUNT),
         topic_suggestions=topic_suggestions,
         secrets_manager=secrets_manager,
         task_id=task_id,
         language=language,
     )
+    wiki_inspirations = await generate_wiki_inspirations(
+        topic_suggestions,
+        secrets_manager,
+        count=DAILY_WIKI_COUNT,
+        language=language,
+        task_id=f"{task_id}_wiki",
+    )
+    feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT)
+    inspirations = video_inspirations + wiki_inspirations + feature_inspirations
 
     if not inspirations:
         logger.error(
@@ -106,13 +125,21 @@ async def generate_and_deliver_inspirations_for_user(
         )
         return False
 
+    # Randomize once per user per UTC day before delivery. The ordered list is
+    # then persisted/synced so every device sees the same daily order.
+    today_seed = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    random.Random(f"{user_id}:{today_seed}").shuffle(inspirations)
+    ordered_base_ts = int(datetime.now(timezone.utc).timestamp())
+    for idx, inspiration in enumerate(inspirations):
+        inspiration.generated_at = ordered_base_ts - idx
+
     # Serialize inspiration objects to dicts for delivery / cache storage
     serialized = [insp.model_dump() for insp in inspirations]
 
     # ── 0. Copy to inspiration pool (cleartext, no PII) ──────────────────────
     # Each generated inspiration is added to the shared pool so it can be used
     # as a default inspiration for users without recent paid requests.
-    # Deduplication by youtube_id prevents duplicates; pool is capped at 100.
+    # Video deduplication by youtube_id prevents duplicates; pool is capped at 500.
     try:
         from backend.core.api.app.services.directus.directus import DirectusService
         from backend.core.api.app.utils.encryption import EncryptionService
@@ -138,31 +165,30 @@ async def generate_and_deliver_inspirations_for_user(
 
         try:
             for insp in inspirations:
-                video = insp.video
-                if not video or not video.youtube_id:
-                    continue
                 try:
                     await directus_service.inspiration_pool.add_to_pool(
-                        youtube_id=video.youtube_id,
+                        youtube_id=insp.video.youtube_id if insp.video else None,
                         language=language,
                         phrase=insp.phrase,
                         title=insp.title or "",
                         assistant_response=insp.assistant_response or "",
                         category=insp.category,
                         content_type=insp.content_type,
-                        video_title=video.title,
-                        video_thumbnail_url=video.thumbnail_url,
-                        video_channel_name=video.channel_name,
-                        video_view_count=video.view_count,
-                        video_duration_seconds=video.duration_seconds,
-                        video_published_at=video.published_at,
+                        video_title=insp.video.title if insp.video else None,
+                        video_thumbnail_url=insp.video.thumbnail_url if insp.video else None,
+                        video_channel_name=insp.video.channel_name if insp.video else None,
+                        video_view_count=insp.video.view_count if insp.video else None,
+                        video_duration_seconds=insp.video.duration_seconds if insp.video else None,
+                        video_published_at=insp.video.published_at if insp.video else None,
+                        wiki_metadata=insp.wiki.model_dump() if insp.wiki else None,
+                        feature_metadata=insp.feature.model_dump() if insp.feature else None,
                         follow_up_suggestions=insp.follow_up_suggestions,
                         generated_at=insp.generated_at,
                     )
                 except Exception as pool_exc:
                     logger.warning(
                         f"[DailyInspiration][{task_id}] Failed to add inspiration to pool "
-                        f"(yt={video.youtube_id}): {pool_exc}"
+                        f"(type={insp.content_type}): {pool_exc}"
                     )
         finally:
             # Close the short-lived client we created (don't close shared instances)
@@ -323,7 +349,7 @@ async def trigger_first_run_inspirations(
     # ask_skill_task lightweight and avoid adding to its critical path.
     await generate_and_deliver_inspirations_for_user(
         user_id=user_id,
-        count=3,
+        count=DAILY_VIDEO_COUNT,
         cache_service=cache_service,
         secrets_manager=secrets_manager,
         task_id=task_id,
@@ -344,7 +370,7 @@ def generate_daily_inspirations(self):
 
     Scheduled by Beat (see celery_config.py beat_schedule).
     Active = made at least one paid request in the last 24 hours.
-    Count = number of inspirations the user viewed the previous day (1-3).
+    Count = if the user viewed any inspiration, generate the full 10-item mixed set.
     Users with 0 views get no new inspirations (cost optimization).
 
     Processing is sequential per user to respect API rate limits.
@@ -456,7 +482,7 @@ async def _generate_daily_inspirations_async(task: BaseServiceTask) -> Dict[str,
                 skipped += 1
                 continue
 
-            count_to_generate = min(viewed_count, 3)  # Cap at 3
+            count_to_generate = DAILY_VIDEO_COUNT
 
             success = await generate_and_deliver_inspirations_for_user(
                 user_id=user_id,

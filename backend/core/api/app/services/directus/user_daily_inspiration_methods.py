@@ -33,6 +33,9 @@ INSPIRATION_ALL_FIELDS = (
     "encrypted_category,"
     "encrypted_icon,"
     "encrypted_video_metadata,"
+    "encrypted_wiki_metadata,"
+    "encrypted_feature_metadata,"
+    "encrypted_follow_up_suggestions,"
     "is_opened,"
     "opened_chat_id,"
     "generated_at,"
@@ -69,7 +72,7 @@ class UserDailyInspirationMethods:
           daily_inspiration_id, encrypted_phrase, encrypted_assistant_response,
           encrypted_title, encrypted_category, generated_at, content_type
 
-        Optional: embed_id, encrypted_icon, is_opened, opened_chat_id
+        Optional: embed_id, encrypted_icon, encrypted_*_metadata, is_opened, opened_chat_id
 
         Returns the stored record dict, or None on failure.
         """
@@ -98,6 +101,9 @@ class UserDailyInspirationMethods:
                 "encrypted_category": inspiration.get("encrypted_category"),
                 "encrypted_icon": inspiration.get("encrypted_icon"),
                 "encrypted_video_metadata": inspiration.get("encrypted_video_metadata"),
+                "encrypted_wiki_metadata": inspiration.get("encrypted_wiki_metadata"),
+                "encrypted_feature_metadata": inspiration.get("encrypted_feature_metadata"),
+                "encrypted_follow_up_suggestions": inspiration.get("encrypted_follow_up_suggestions"),
                 "is_opened": inspiration.get("is_opened", False),
                 "opened_chat_id": inspiration.get("opened_chat_id"),
                 "generated_at": inspiration.get("generated_at", now_ts),

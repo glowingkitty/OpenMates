@@ -4,7 +4,7 @@
 #
 # GET /v1/default-inspirations?lang={code}
 #
-# Returns up to 3 default inspirations for the requested language, selected
+# Returns up to 10 default inspirations for the requested language, selected
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
@@ -25,6 +25,7 @@ from fastapi import HTTPException
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
+from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ async def get_default_inspirations(
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Return up to 3 default Daily Inspirations for the given language.
+    Return up to 10 default Daily Inspirations for the given language.
 
     The data comes from the daily_inspiration_defaults table, which is
     populated once per day by the daily selection Celery task.  Content is
@@ -174,7 +175,8 @@ async def get_default_inspirations(
             )
 
     if not defaults:
-        return {"inspirations": []}
+        result = [insp.model_dump() for insp in build_feature_inspirations(4)]
+        return {"inspirations": result}
 
     # ---- Transform records to the DailyInspiration response shape ---------
     result: List[Dict[str, Any]] = []
@@ -214,11 +216,40 @@ async def get_default_inspirations(
                 "view_count": record.get("video_view_count"),
                 "duration_seconds": record.get("video_duration_seconds"),
                 "published_at": record.get("video_published_at"),
-            },
+            } if youtube_id else None,
+            "wiki": None,
+            "feature": None,
             "generated_at": record.get("generated_at") or 0,
             "follow_up_suggestions": follow_up_suggestions,
         }
+        for metadata_field, response_field in (
+            ("wiki_metadata", "wiki"),
+            ("feature_metadata", "feature"),
+        ):
+            raw_metadata = record.get(metadata_field)
+            if isinstance(raw_metadata, str) and raw_metadata:
+                try:
+                    inspiration_obj[response_field] = json.loads(raw_metadata)
+                except (json.JSONDecodeError, TypeError):
+                    inspiration_obj[response_field] = None
+            elif isinstance(raw_metadata, dict):
+                inspiration_obj[response_field] = raw_metadata
         result.append(inspiration_obj)
+
+    feature_count = sum(1 for item in result if item.get("content_type") == "feature")
+    if feature_count < 4:
+        existing_feature_ids = {
+            ((item.get("feature") or {}) if isinstance(item.get("feature"), dict) else {}).get("feature_id")
+            for item in result
+        }
+        for feature_inspiration in build_feature_inspirations(4):
+            feature_id = feature_inspiration.feature.feature_id if feature_inspiration.feature else None
+            if feature_id in existing_feature_ids:
+                continue
+            result.append(feature_inspiration.model_dump())
+            if sum(1 for item in result if item.get("content_type") == "feature") >= 4:
+                break
+    result = result[:10]
 
     # ---- Cache the response -----------------------------------------------
     try:

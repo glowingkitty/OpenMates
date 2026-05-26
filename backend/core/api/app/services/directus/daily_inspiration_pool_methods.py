@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 COLLECTION = "daily_inspiration_pool"
-MAX_POOL_SIZE = 100
+MAX_POOL_SIZE = 500
 
 
 class DailyInspirationPoolMethods:
@@ -36,7 +36,7 @@ class DailyInspirationPoolMethods:
 
     async def add_to_pool(
         self,
-        youtube_id: str,
+        youtube_id: Optional[str],
         language: str,
         phrase: str,
         title: str,
@@ -49,22 +49,24 @@ class DailyInspirationPoolMethods:
         video_view_count: Optional[int] = None,
         video_duration_seconds: Optional[int] = None,
         video_published_at: Optional[str] = None,
+        wiki_metadata: Optional[Dict[str, Any]] = None,
+        feature_metadata: Optional[Dict[str, Any]] = None,
         follow_up_suggestions: Optional[List[str]] = None,
         generated_at: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Add an inspiration to the pool.  If an entry with the same youtube_id
-        already exists, skip (keep the existing one — it may already have
-        interactions).
+        Add an inspiration to the pool. Video entries deduplicate by youtube_id;
+        wiki and feature entries are intentionally allowed as separate rows so
+        daily defaults can include a mixed 10-card set.
 
         After insertion, enforces the MAX_POOL_SIZE cap.
 
         Returns the created/existing record, or None on failure.
         """
         try:
-            # Check for existing entry with same youtube_id (deduplication)
-            existing = await self._get_by_youtube_id(youtube_id)
-            if existing:
+            # Check for existing video entry with same youtube_id (deduplication)
+            existing = await self._get_by_youtube_id(youtube_id) if youtube_id else None
+            if existing and (content_type or "video") == "video":
                 logger.debug(
                     "[InspirationPool] Skipping duplicate youtube_id=%s (pool entry already exists)",
                     youtube_id,
@@ -86,6 +88,8 @@ class DailyInspirationPoolMethods:
                 "video_view_count": video_view_count,
                 "video_duration_seconds": video_duration_seconds,
                 "video_published_at": video_published_at,
+                "wiki_metadata": json.dumps(wiki_metadata or {}) if wiki_metadata else None,
+                "feature_metadata": json.dumps(feature_metadata or {}) if feature_metadata else None,
                 "follow_up_suggestions": json.dumps(follow_up_suggestions or []),
                 "interaction_count": 0,
                 "generated_at": generated_at or int(time.time()),
@@ -102,8 +106,9 @@ class DailyInspirationPoolMethods:
                 return None
 
             logger.info(
-                "[InspirationPool] Added pool entry: youtube_id=%s, lang=%s, category=%s",
+                "[InspirationPool] Added pool entry: youtube_id=%s, type=%s, lang=%s, category=%s",
                 youtube_id,
+                content_type,
                 language,
                 category,
             )

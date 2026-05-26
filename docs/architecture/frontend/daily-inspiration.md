@@ -14,11 +14,11 @@ key_files:
 
 # Daily Inspiration
 
-> Delivers up to 3 curated, video-based inspiration cards per day from independent creators, with zero LLM latency at display time.
+> Delivers a daily 10-card mixed inspiration set: 3 videos, 3 Wikipedia article prompts, and 4 OpenMates feature tips, with zero LLM latency at display time.
 
 ## Why This Exists
 
-Provides curiosity-driven content from independent educators, journalists, and documentary makers -- never from corporate channels. Each inspiration includes a YouTube video, a phrase, a pre-written assistant response, and follow-up suggestions so users can start a chat instantly.
+Provides curiosity-driven content from independent educators, journalists, documentary makers, and Wikipedia articles, plus static OpenMates feature tips. Content inspirations include a phrase, pre-written assistant response, and follow-up suggestions so users can start a chat instantly. Feature tips deep-link to settings instead of creating chats.
 
 ## How It Works
 
@@ -33,15 +33,18 @@ Runs in `app-ai-worker` Celery container:
 5. **YouTube Data API enrichment** -- view count, duration, published_at, made-for-kids status
 6. **Made-for-kids filter** -- rejects videos YouTube marks as Made for Kids before ranking or LLM selection
 7. **Sort by view count** -- top 20 candidates per slot
-8. **Main LLM call** -- single Mistral Small call per user for all slots; selects best video, writes phrase/title/assistant_response/category/follow_up_suggestions
+8. **Main LLM call** -- single Mistral Small call for the 3 video slots; selects best videos and writes phrase/title/assistant_response/category/follow_up_suggestions
+9. **Wiki generation** -- one cheap LLM call proposes Wikipedia article titles from the same recent topic pool, validates them via `batch_validate_topics()`, then fetches summaries through the Wikimedia provider
+10. **Feature tips** -- four static OpenMates feature cards from `feature_suggestions.py`, no LLM/API cost
+11. **Daily order** -- the 10-card set is shuffled once per user per UTC day before delivery and persisted in that order
 
 ### Generation Triggers
 
 | Trigger | When | Count | File |
 |---------|------|-------|------|
-| First paid request | After first paid request post-processing | 3 | `daily_inspiration_tasks.py` |
-| Scheduled daily | 06:00 UTC Celery Beat | min(viewed_count, 3) | `daily_inspiration_tasks.py` |
-| Default selection | 06:30 UTC Celery Beat | Top 3 per language | `default_inspiration_tasks.py` |
+| First paid request | After first paid request post-processing | 10 | `daily_inspiration_tasks.py` |
+| Scheduled daily | 06:00 UTC Celery Beat | 10 if viewed_count > 0 | `daily_inspiration_tasks.py` |
+| Default selection | 06:30 UTC Celery Beat | Mixed top 10 per language | `default_inspiration_tasks.py` |
 
 ### Delivery
 
@@ -51,7 +54,7 @@ Runs in `app-ai-worker` Celery container:
 
 ### Frontend
 
-- `DailyInspirationBanner.svelte` -- carousel of up to 3 cards
+- `DailyInspirationBanner.svelte` -- carousel of up to 10 cards
 - `dailyInspirationStore.ts` -- Svelte store for state/navigation
 - `dailyInspirationDB.ts` -- IndexedDB with AES-GCM encryption, 72h TTL
 - Chat creation: `handleStartChatFromInspiration()` in `ActiveChat.svelte`
@@ -61,7 +64,9 @@ Runs in `app-ai-worker` Celery container:
 ### Pydantic Models (`schemas.py`)
 
 - `DailyInspirationVideo` -- youtube_id, title, thumbnail_url, channel_name, view_count, duration_seconds, published_at
-- `DailyInspiration` -- inspiration_id, phrase, title, assistant_response, category, content_type, video, generated_at, follow_up_suggestions
+- `DailyInspirationWiki` -- title, wiki_title, description, thumbnail_url, wikidata_id, extract
+- `DailyInspirationFeature` -- feature_id, icon, title, description, settings_path
+- `DailyInspiration` -- inspiration_id, phrase, title, assistant_response, category, content_type, video, wiki, feature, generated_at, follow_up_suggestions
 
 ### Directus Tables
 
@@ -83,8 +88,9 @@ Runs in `app-ai-worker` Celery container:
 ## Edge Cases
 
 - **LLM classifier failure:** Fails open -- candidates proceed unfiltered rather than dropping all content
-- **Cost per inspiration:** ~$0.018 (Brave search + YouTube API + two Mistral Small calls)
-- **Per active user/month (3/day):** ~$1.60, absorbed by platform
+- **Video cost remains capped:** existing 3-video/day budget is unchanged
+- **Wiki cost:** one small LLM call plus free Wikimedia API requests
+- **Feature cost:** static/no external API calls
 
 ## Related Docs
 

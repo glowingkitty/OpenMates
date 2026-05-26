@@ -18,13 +18,14 @@
 //   are sent to the server, so the server never sees cleartext content
 //
 // TTL: Inspirations older than 3 days are pruned from IndexedDB on load.
-// The API stores up to 10 (about 3 days at 3/day).
+// The API stores up to 30 (about 3 days at 10/day).
 
 import { chatDB } from "./db";
 import type { DailyInspiration } from "../stores/dailyInspirationStore";
 import { getApiEndpoint } from "../config/api";
 
 const LOG_PREFIX = "[dailyInspirationDB]";
+const MAX_DAILY_INSPIRATIONS = 10;
 
 /** How long personalised inspirations are kept locally (72 hours in ms) */
 const INSPIRATION_TTL_MS = 72 * 60 * 60 * 1000;
@@ -61,6 +62,8 @@ export interface StoredDailyInspiration {
    * Optional — not present in older records or when content_type != "video".
    */
   encrypted_video_metadata: string | null;
+  encrypted_wiki_metadata: string | null;
+  encrypted_feature_metadata: string | null;
   /**
    * Encrypted JSON blob containing the follow-up suggestion strings (string[]).
    * Stored so the inspiration's topic-specific follow-up starters survive page reloads.
@@ -93,9 +96,15 @@ export async function saveInspirationToIndexedDB(
 
     const { encryptWithMasterKey } = await import("./cryptoService");
 
-    // Encrypt the text content fields and optional video metadata
+    // Encrypt the text content fields and optional rich metadata
     const videoMetadataJson = inspiration.video
       ? JSON.stringify(inspiration.video)
+      : null;
+    const wikiMetadataJson = inspiration.wiki
+      ? JSON.stringify(inspiration.wiki)
+      : null;
+    const featureMetadataJson = inspiration.feature
+      ? JSON.stringify(inspiration.feature)
       : null;
 
     // Use the short title for encrypted_title (falls back to phrase for older
@@ -108,6 +117,8 @@ export async function saveInspirationToIndexedDB(
       encrypted_title,
       encrypted_category,
       encrypted_video_metadata,
+      encrypted_wiki_metadata,
+      encrypted_feature_metadata,
       encrypted_follow_up_suggestions,
     ] = await Promise.all([
       encryptWithMasterKey(inspiration.phrase),
@@ -116,6 +127,12 @@ export async function saveInspirationToIndexedDB(
       encryptWithMasterKey(inspiration.category),
       videoMetadataJson
         ? encryptWithMasterKey(videoMetadataJson)
+        : Promise.resolve(null),
+      wikiMetadataJson
+        ? encryptWithMasterKey(wikiMetadataJson)
+        : Promise.resolve(null),
+      featureMetadataJson
+        ? encryptWithMasterKey(featureMetadataJson)
         : Promise.resolve(null),
       inspiration.follow_up_suggestions && inspiration.follow_up_suggestions.length > 0
         ? encryptWithMasterKey(JSON.stringify(inspiration.follow_up_suggestions))
@@ -147,6 +164,8 @@ export async function saveInspirationToIndexedDB(
       encrypted_category,
       encrypted_icon: null, // icon not currently used
       encrypted_video_metadata: encrypted_video_metadata ?? null,
+      encrypted_wiki_metadata: encrypted_wiki_metadata ?? null,
+      encrypted_feature_metadata: encrypted_feature_metadata ?? null,
       encrypted_follow_up_suggestions: encrypted_follow_up_suggestions ?? null,
     };
 
@@ -248,42 +267,37 @@ export async function loadInspirationsFromIndexedDB(): Promise<
     const decrypted: DailyInspiration[] = [];
     for (const record of fresh) {
       try {
-        // Decrypt phrase, category, assistant_response, title, and video metadata in parallel
-        const decryptPromises: Promise<string | null>[] = [
+        const [
+          phrase,
+          category,
+          assistantResponse,
+          videoMetadataJson,
+          wikiMetadataJson,
+          featureMetadataJson,
+          decryptedTitle,
+          followUpJson,
+        ] = await Promise.all([
           decryptWithMasterKey(record.encrypted_phrase),
           decryptWithMasterKey(record.encrypted_category),
           record.encrypted_assistant_response
             ? decryptWithMasterKey(record.encrypted_assistant_response)
             : Promise.resolve(null),
-        ];
-        if (record.encrypted_video_metadata) {
-          decryptPromises.push(
-            decryptWithMasterKey(record.encrypted_video_metadata),
-          );
-        }
-        // Also decrypt the title (may differ from phrase for newer inspirations)
-        const titlePromise = record.encrypted_title
-          ? decryptWithMasterKey(record.encrypted_title)
-          : Promise.resolve(null);
-        decryptPromises.push(titlePromise);
-        // Also decrypt follow-up suggestions if present (added later — optional)
-        const followUpPromise = (record as StoredDailyInspiration).encrypted_follow_up_suggestions
-          ? decryptWithMasterKey((record as StoredDailyInspiration).encrypted_follow_up_suggestions!)
-          : Promise.resolve(null);
-        decryptPromises.push(followUpPromise);
-
-        const results = await Promise.all(decryptPromises);
-        const phrase = results[0];
-        const category = results[1];
-        const assistantResponse = results[2];
-        // Layout: [phrase, category, assistant, ...optional video, title, ...optional follow_ups]
-        const hasVideoMeta = !!record.encrypted_video_metadata;
-        // title is always after optional video: index 3 (no video) or 4 (with video)
-        const titleIdx = hasVideoMeta ? 4 : 3;
-        const videoMetadataJson = hasVideoMeta ? results[3] : null;
-        const decryptedTitle = results[titleIdx];
-        // follow_up_suggestions is always last: after title
-        const followUpJson = results[titleIdx + 1] ?? null;
+          record.encrypted_video_metadata
+            ? decryptWithMasterKey(record.encrypted_video_metadata)
+            : Promise.resolve(null),
+          record.encrypted_wiki_metadata
+            ? decryptWithMasterKey(record.encrypted_wiki_metadata)
+            : Promise.resolve(null),
+          record.encrypted_feature_metadata
+            ? decryptWithMasterKey(record.encrypted_feature_metadata)
+            : Promise.resolve(null),
+          record.encrypted_title
+            ? decryptWithMasterKey(record.encrypted_title)
+            : Promise.resolve(null),
+          record.encrypted_follow_up_suggestions
+            ? decryptWithMasterKey(record.encrypted_follow_up_suggestions)
+            : Promise.resolve(null),
+        ]);
 
         if (!phrase || !category) {
           // This is unexpected here because we already confirmed the master key
@@ -312,6 +326,38 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           }
         }
 
+        let wiki:
+          | import("../stores/dailyInspirationStore").DailyInspirationWiki
+          | null = null;
+        if (wikiMetadataJson) {
+          try {
+            wiki = JSON.parse(
+              wikiMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationWiki;
+          } catch (parseErr) {
+            console.warn(
+              `${LOG_PREFIX} Failed to parse wiki metadata for inspiration ${record.inspiration_id} — continuing without wiki`,
+              parseErr,
+            );
+          }
+        }
+
+        let feature:
+          | import("../stores/dailyInspirationStore").DailyInspirationFeature
+          | null = null;
+        if (featureMetadataJson) {
+          try {
+            feature = JSON.parse(
+              featureMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationFeature;
+          } catch (parseErr) {
+            console.warn(
+              `${LOG_PREFIX} Failed to parse feature metadata for inspiration ${record.inspiration_id} — continuing without feature`,
+              parseErr,
+            );
+          }
+        }
+
         // Use decrypted title if it differs from phrase (newer inspirations
         // have a dedicated short title); fall back to undefined so the frontend
         // uses phrase as the chat title for older records.
@@ -328,6 +374,8 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           category,
           content_type: record.content_type,
           video,
+          wiki,
+          feature,
           generated_at: record.generated_at,
           embed_id: record.embed_id,
           is_opened: record.is_opened,
@@ -357,7 +405,7 @@ export async function loadInspirationsFromIndexedDB(): Promise<
     console.debug(
       `${LOG_PREFIX} Loaded ${decrypted.length} inspirations from IndexedDB`,
     );
-    return decrypted.slice(0, 3);
+    return decrypted.slice(0, MAX_DAILY_INSPIRATIONS);
   } catch (error) {
     if (
       error instanceof Error &&
@@ -494,6 +542,9 @@ export async function syncInspirationsToAPI(
         encrypted_category: r.encrypted_category,
         encrypted_icon: r.encrypted_icon ?? null,
         encrypted_video_metadata: r.encrypted_video_metadata ?? null,
+        encrypted_wiki_metadata: r.encrypted_wiki_metadata ?? null,
+        encrypted_feature_metadata: r.encrypted_feature_metadata ?? null,
+        encrypted_follow_up_suggestions: r.encrypted_follow_up_suggestions ?? null,
         is_opened: r.is_opened,
         opened_chat_id: r.opened_chat_id ?? null,
         generated_at: r.generated_at,
@@ -576,7 +627,7 @@ export async function markInspirationOpenedOnAPI(
  * Called during phased sync (phasedSyncComplete) when IndexedDB has no
  * personalised inspirations (fresh device or cleared browser data).
  *
- * Returns a list of decrypted DailyInspiration objects (newest first, max 3)
+  * Returns a list of decrypted DailyInspiration objects (newest first, max 10)
  * that the caller should push into the store.
  *
  * IMPORTANT: This should only be called when the user is authenticated
@@ -646,17 +697,12 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
 
         const encVideoMetadata =
           (record.encrypted_video_metadata as string | null) ?? null;
-
-        // Decrypt phrase, category, assistant_response, title, and optionally video metadata in parallel
-        const decryptPromises: Promise<string | null>[] = [
-          decryptWithMasterKey(encPhrase),
-          decryptWithMasterKey(encCategory),
-          decryptWithMasterKey(encAssistant),
-          decryptWithMasterKey(encTitle),
-        ];
-        if (encVideoMetadata) {
-          decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
-        }
+        const encWikiMetadata =
+          (record.encrypted_wiki_metadata as string | null) ?? null;
+        const encFeatureMetadata =
+          (record.encrypted_feature_metadata as string | null) ?? null;
+        const encFollowUpSuggestions =
+          (record.encrypted_follow_up_suggestions as string | null) ?? null;
 
         const [
           phrase,
@@ -664,7 +710,19 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           assistantResponse,
           decryptedTitle,
           videoMetadataJson,
-        ] = await Promise.all(decryptPromises);
+          wikiMetadataJson,
+          featureMetadataJson,
+          followUpJson,
+        ] = await Promise.all([
+          decryptWithMasterKey(encPhrase),
+          decryptWithMasterKey(encCategory),
+          decryptWithMasterKey(encAssistant),
+          decryptWithMasterKey(encTitle),
+          encVideoMetadata ? decryptWithMasterKey(encVideoMetadata) : Promise.resolve(null),
+          encWikiMetadata ? decryptWithMasterKey(encWikiMetadata) : Promise.resolve(null),
+          encFeatureMetadata ? decryptWithMasterKey(encFeatureMetadata) : Promise.resolve(null),
+          encFollowUpSuggestions ? decryptWithMasterKey(encFollowUpSuggestions) : Promise.resolve(null),
+        ]);
 
         if (!phrase || !category) {
           console.warn(
@@ -687,6 +745,32 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           }
         }
 
+        let wiki:
+          | import("../stores/dailyInspirationStore").DailyInspirationWiki
+          | null = null;
+        if (wikiMetadataJson) {
+          try {
+            wiki = JSON.parse(
+              wikiMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationWiki;
+          } catch {
+            // Non-fatal — wiki metadata is best-effort
+          }
+        }
+
+        let feature:
+          | import("../stores/dailyInspirationStore").DailyInspirationFeature
+          | null = null;
+        if (featureMetadataJson) {
+          try {
+            feature = JSON.parse(
+              featureMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationFeature;
+          } catch {
+            // Non-fatal — feature metadata is best-effort
+          }
+        }
+
         // Use decrypted title if it differs from phrase (newer inspirations
         // have a dedicated short title); fall back to undefined for older records.
         const titleValue =
@@ -702,10 +786,21 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           category,
           content_type: (record.content_type as string) || "video",
           video,
+          wiki,
+          feature,
           generated_at: record.generated_at as number,
           embed_id: (record.embed_id as string | null) ?? null,
           is_opened: (record.is_opened as boolean) ?? false,
           opened_chat_id: (record.opened_chat_id as string | null) ?? null,
+          follow_up_suggestions: (() => {
+            if (!followUpJson) return undefined;
+            try {
+              const parsed = JSON.parse(followUpJson);
+              return Array.isArray(parsed) ? (parsed as string[]) : undefined;
+            } catch {
+              return undefined;
+            }
+          })(),
         };
 
         decrypted.push(inspiration);
@@ -724,8 +819,9 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           encrypted_category: encCategory,
           encrypted_icon: (record.encrypted_icon as string | null) ?? null,
           encrypted_video_metadata: encVideoMetadata,
-          // follow_up_suggestions are not stored in Directus — set to null for these records
-          encrypted_follow_up_suggestions: null,
+          encrypted_wiki_metadata: encWikiMetadata,
+          encrypted_feature_metadata: encFeatureMetadata,
+          encrypted_follow_up_suggestions: encFollowUpSuggestions,
         };
 
         // Save to IndexedDB (non-blocking, non-fatal)
@@ -744,7 +840,7 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
     console.debug(
       `${LOG_PREFIX} Loaded ${decrypted.length} inspirations from API`,
     );
-    return decrypted.slice(0, 3);
+    return decrypted.slice(0, MAX_DAILY_INSPIRATIONS);
   } catch (error) {
     // TypeError: Failed to fetch — network error (e.g. auth cookie not yet
     // valid after WS reconnect, or the device is offline). This is transient
@@ -799,7 +895,7 @@ async function saveStoredInspirationToIndexedDB(
  *   3. Returns a decrypted DailyInspiration[] ready for the store.
  *
  * Any record that fails decryption is skipped (non-fatal).
- * Returns at most 3 inspirations (newest first).
+  * Returns at most 10 inspirations (newest first).
  */
 export async function processInspirationRecordsFromSync(
   records: Array<Record<string, unknown>>,
@@ -847,17 +943,12 @@ export async function processInspirationRecordsFromSync(
 
         const encVideoMetadata =
           (record.encrypted_video_metadata as string | null) ?? null;
-
-        // Decrypt phrase, category, assistant_response, title, and optionally video metadata in parallel
-        const decryptPromises: Promise<string | null>[] = [
-          decryptWithMasterKey(encPhrase),
-          decryptWithMasterKey(encCategory),
-          decryptWithMasterKey(encAssistant),
-          decryptWithMasterKey(encTitle),
-        ];
-        if (encVideoMetadata) {
-          decryptPromises.push(decryptWithMasterKey(encVideoMetadata));
-        }
+        const encWikiMetadata =
+          (record.encrypted_wiki_metadata as string | null) ?? null;
+        const encFeatureMetadata =
+          (record.encrypted_feature_metadata as string | null) ?? null;
+        const encFollowUpSuggestions =
+          (record.encrypted_follow_up_suggestions as string | null) ?? null;
 
         const [
           phrase,
@@ -865,7 +956,19 @@ export async function processInspirationRecordsFromSync(
           assistantResponse,
           decryptedTitle,
           videoMetadataJson,
-        ] = await Promise.all(decryptPromises);
+          wikiMetadataJson,
+          featureMetadataJson,
+          followUpJson,
+        ] = await Promise.all([
+          decryptWithMasterKey(encPhrase),
+          decryptWithMasterKey(encCategory),
+          decryptWithMasterKey(encAssistant),
+          decryptWithMasterKey(encTitle),
+          encVideoMetadata ? decryptWithMasterKey(encVideoMetadata) : Promise.resolve(null),
+          encWikiMetadata ? decryptWithMasterKey(encWikiMetadata) : Promise.resolve(null),
+          encFeatureMetadata ? decryptWithMasterKey(encFeatureMetadata) : Promise.resolve(null),
+          encFollowUpSuggestions ? decryptWithMasterKey(encFollowUpSuggestions) : Promise.resolve(null),
+        ]);
 
         if (!phrase || !category) {
           console.warn(
@@ -888,6 +991,32 @@ export async function processInspirationRecordsFromSync(
           }
         }
 
+        let wiki:
+          | import("../stores/dailyInspirationStore").DailyInspirationWiki
+          | null = null;
+        if (wikiMetadataJson) {
+          try {
+            wiki = JSON.parse(
+              wikiMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationWiki;
+          } catch {
+            // Non-fatal — wiki metadata is best-effort
+          }
+        }
+
+        let feature:
+          | import("../stores/dailyInspirationStore").DailyInspirationFeature
+          | null = null;
+        if (featureMetadataJson) {
+          try {
+            feature = JSON.parse(
+              featureMetadataJson,
+            ) as import("../stores/dailyInspirationStore").DailyInspirationFeature;
+          } catch {
+            // Non-fatal — feature metadata is best-effort
+          }
+        }
+
         // Use decrypted title if it differs from phrase (newer inspirations
         // have a dedicated short title); fall back to undefined for older records.
         const titleValue =
@@ -903,10 +1032,21 @@ export async function processInspirationRecordsFromSync(
           category,
           content_type: (record.content_type as string) || "video",
           video,
+          wiki,
+          feature,
           generated_at: record.generated_at as number,
           embed_id: (record.embed_id as string | null) ?? null,
           is_opened: (record.is_opened as boolean) ?? false,
           opened_chat_id: (record.opened_chat_id as string | null) ?? null,
+          follow_up_suggestions: (() => {
+            if (!followUpJson) return undefined;
+            try {
+              const parsed = JSON.parse(followUpJson);
+              return Array.isArray(parsed) ? (parsed as string[]) : undefined;
+            } catch {
+              return undefined;
+            }
+          })(),
         };
 
         decrypted.push(inspiration);
@@ -925,8 +1065,9 @@ export async function processInspirationRecordsFromSync(
           encrypted_category: encCategory,
           encrypted_icon: (record.encrypted_icon as string | null) ?? null,
           encrypted_video_metadata: encVideoMetadata,
-          // follow_up_suggestions are not stored in Directus — set to null for these records
-          encrypted_follow_up_suggestions: null,
+          encrypted_wiki_metadata: encWikiMetadata,
+          encrypted_feature_metadata: encFeatureMetadata,
+          encrypted_follow_up_suggestions: encFollowUpSuggestions,
         };
 
         saveStoredInspirationToIndexedDB(idbRecord).catch((err) => {
@@ -947,7 +1088,7 @@ export async function processInspirationRecordsFromSync(
     console.debug(
       `${LOG_PREFIX} Processed ${decrypted.length} inspirations from Phase 1 sync`,
     );
-    return decrypted.slice(0, 3);
+    return decrypted.slice(0, MAX_DAILY_INSPIRATIONS);
   } catch (error) {
     console.error(
       `${LOG_PREFIX} Failed to process Phase 1 inspiration records:`,

@@ -66,6 +66,18 @@ class DailyInspirationSyncItem(BaseModel):
         description="JSON blob of DailyInspirationVideo fields encrypted with master key. "
                     "Stored so the embed preview survives page reloads and cross-device sync.",
     )
+    encrypted_wiki_metadata: Optional[str] = Field(
+        None,
+        description="JSON blob of DailyInspirationWiki fields encrypted with master key.",
+    )
+    encrypted_feature_metadata: Optional[str] = Field(
+        None,
+        description="JSON blob of DailyInspirationFeature fields encrypted with master key.",
+    )
+    encrypted_follow_up_suggestions: Optional[str] = Field(
+        None,
+        description="JSON array of follow-up suggestions encrypted with master key.",
+    )
     is_opened: bool = Field(False, description="Whether user has started a chat from this inspiration")
     opened_chat_id: Optional[str] = Field(None, description="Hashed chat ID created from this inspiration")
     generated_at: int = Field(..., description="Unix timestamp when the inspiration was generated")
@@ -115,8 +127,8 @@ async def sync_daily_inspirations(
     if not body.inspirations:
         raise HTTPException(status_code=400, detail="No inspirations provided")
 
-    if len(body.inspirations) > 3:
-        raise HTTPException(status_code=400, detail="At most 3 inspirations per batch")
+    if len(body.inspirations) > 10:
+        raise HTTPException(status_code=400, detail="At most 10 inspirations per batch")
 
     user_id = current_user.id
     stored_count = 0
@@ -142,11 +154,11 @@ async def sync_daily_inspirations(
         user_id[:8],
     )
 
-    # Enforce cap of 3 records per user — delete oldest beyond the limit.
+    # Enforce cap of 30 records per user — roughly 3 days of 10 inspirations/day.
     # This prevents unbounded accumulation and ensures cross-device sync
     # always returns a consistent set of the 3 newest inspirations.
     deleted = await directus_service.user_daily_inspiration.enforce_max_records(
-        user_id=user_id, max_count=3
+        user_id=user_id, max_count=30
     )
     if deleted > 0:
         logger.info(

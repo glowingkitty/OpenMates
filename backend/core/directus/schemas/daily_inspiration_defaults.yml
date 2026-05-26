@@ -1,6 +1,6 @@
 # backend/core/directus/schemas/daily_inspiration_defaults.yml
 #
-# Stores the daily-selected "top 3" inspiration entries per language.
+# Stores the daily-selected "top 10" inspiration entries per language.
 # Populated once per day at 06:30 UTC by the daily defaults selection job.
 # Survives server restarts (Postgres-backed).
 #
@@ -30,7 +30,7 @@ daily_inspiration_defaults:
 
     position:
       type: integer
-      note: "Display order within the day (1, 2, or 3)."
+      note: "Display order within the day (1-10)."
       required: true
 
     pool_entry_id:
@@ -97,6 +97,14 @@ daily_inspiration_defaults:
       type: textfield
       note: "Copied from pool entry: publication date"
 
+    wiki_metadata:
+      type: textfield
+      note: "Copied from pool entry: DailyInspirationWiki JSON metadata"
+
+    feature_metadata:
+      type: textfield
+      note: "Copied from pool entry: DailyInspirationFeature JSON metadata"
+
     follow_up_suggestions:
       type: textfield
       note: "Copied from pool entry: JSON array of follow-up suggestions"
@@ -117,6 +125,6 @@ daily_inspiration_defaults:
   note: |
     Daily-selected default inspirations per language.
     Populated by the daily defaults selection job (06:30 UTC).
-    At most 20 languages × 3 entries = 60 rows per day.
+    At most 20 languages × 10 entries = 200 rows per day.
     Old dates are cleaned up automatically.
     Content is denormalized from daily_inspiration_pool to avoid JOINs.

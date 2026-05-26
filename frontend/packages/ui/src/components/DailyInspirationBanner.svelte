@@ -33,6 +33,7 @@
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
@@ -297,6 +298,17 @@
       ? `https://www.youtube.com/watch?v=${current.video.youtube_id}`
       : ''
   );
+
+  let hasInfoCard = $derived(!hasVideo && (current?.content_type === 'wiki' || current?.content_type === 'feature'));
+  let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
+  let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
+  let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
+  let InfoCardIconComponent = $derived.by(() => {
+    if (!current) return null;
+    if (current.content_type === 'wiki') return getLucideIcon('book-open');
+    if (current.feature?.icon) return getLucideIcon(current.feature.icon);
+    return CategoryIconComponent;
+  });
 
   // ─── Event handlers ─────────────────────────────────────────────────────────
 
@@ -567,6 +579,22 @@
                 onFullscreen={handleVideoEmbedFullscreen}
               />
             </div>
+          {:else if hasInfoCard}
+            <div class="banner-info-card" data-testid="daily-inspiration-info-card">
+              {#if infoCardImage}
+                <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+              {:else if InfoCardIconComponent}
+                <div class="banner-info-icon" aria-hidden="true">
+                  <InfoCardIconComponent size={42} color="white" />
+                </div>
+              {/if}
+              <div class="banner-info-text">
+                <h3>{infoCardTitle}</h3>
+                {#if infoCardSubtitle}
+                  <p>{infoCardSubtitle}</p>
+                {/if}
+              </div>
+            </div>
           {/if}
         </div>
       </div><!-- /.banner-inner -->
@@ -830,6 +858,59 @@
     align-items: center;
   }
 
+  .banner-info-card {
+    width: 220px;
+    min-width: 220px;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-8);
+    border-radius: var(--radius-8);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    color: white;
+  }
+
+  .banner-info-image {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: var(--radius-6);
+    box-shadow: var(--shadow-md);
+  }
+
+  .banner-info-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .banner-info-text h3,
+  .banner-info-text p {
+    margin: 0;
+  }
+
+  .banner-info-text h3 {
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .banner-info-text p {
+    margin-top: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    line-height: 1.25;
+    opacity: 0.9;
+  }
+
   /* Make the embed preview card fill the wrapper height and float right.
      Cap at 252px so the card doesn't over-stretch on tall (35vh) banners — at
      240px min-height the cap is never hit; on taller banners the card is
@@ -1055,6 +1136,22 @@
 
     .banner-embed-wrapper {
       width: 140px;
+    }
+
+    .banner-info-card {
+      width: 140px;
+      min-width: 140px;
+      padding: var(--spacing-5);
+    }
+
+    .banner-info-image,
+    .banner-info-icon {
+      width: 46px;
+      height: 46px;
+    }
+
+    .banner-info-text p {
+      display: none;
     }
 
     .banner-content.mobile-embed-loop .banner-embed-wrapper {

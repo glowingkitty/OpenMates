@@ -3,7 +3,7 @@
 # Celery task for selecting today's default daily inspirations from the pool.
 #
 # Runs daily at 06:30 UTC (30 min after personalized generation at 06:00).
-# For each language present in the pool, picks the top 3 entries by score
+# For each supported language, picks a 10-item mixed set by score
 # and writes them to the daily_inspiration_defaults table.
 #
 # Scoring formula:
@@ -12,7 +12,7 @@
 # This favors entries that are both popular (high interaction) and recent.
 # New entries with zero interactions still get a score > 0 via the "+1" term.
 #
-# If a language has fewer than 3 entries, remaining slots are filled from English.
+# If a language has too few entries, remaining slots are filled from English.
 #
 # After writing, old defaults (date < today) are cleaned up, and the
 # public Redis cache for /v1/default-inspirations is invalidated.
@@ -36,6 +36,8 @@ SUPPORTED_LANGUAGES = {
     "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it",
     "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv",
 }
+DEFAULT_TYPE_QUOTAS = {"video": 3, "wiki": 3, "feature": 4}
+DEFAULT_TOTAL_COUNT = sum(DEFAULT_TYPE_QUOTAS.values())
 
 
 def _score_pool_entry(entry: Dict[str, Any], now_ts: float) -> float:
@@ -70,7 +72,7 @@ def _pick_top_entries_with_exclusions(
     Strategy:
     1) Prefer entries whose IDs are NOT in excluded_pool_entry_ids.
     2) If fewer than max_count are available, fill remaining slots with excluded
-       entries to avoid returning fewer than 3 defaults.
+       entries to avoid returning fewer defaults than necessary.
     """
     selected: List[Dict[str, Any]] = []
     selected_ids: set[str] = set()
@@ -101,6 +103,38 @@ def _pick_top_entries_with_exclusions(
     return selected
 
 
+def _pick_mixed_defaults(
+    entries: List[Dict[str, Any]],
+    excluded_pool_entry_ids: set[str],
+    max_count: int = DEFAULT_TOTAL_COUNT,
+) -> List[Dict[str, Any]]:
+    """Pick the public default mix: 3 videos, 3 wiki articles, 4 features."""
+    selected: List[Dict[str, Any]] = []
+    selected_ids: set[str] = set()
+
+    for content_type, quota in DEFAULT_TYPE_QUOTAS.items():
+        typed_entries = [e for e in entries if (e.get("content_type") or "video") == content_type]
+        picked = _pick_top_entries_with_exclusions(typed_entries, excluded_pool_entry_ids, quota)
+        for entry in picked:
+            entry_id = _entry_id(entry)
+            if entry_id and entry_id not in selected_ids:
+                selected.append(entry)
+                selected_ids.add(entry_id)
+
+    if len(selected) >= max_count:
+        return selected[:max_count]
+
+    for entry in entries:
+        if len(selected) >= max_count:
+            break
+        entry_id = _entry_id(entry)
+        if entry_id and entry_id not in selected_ids:
+            selected.append(entry)
+            selected_ids.add(entry_id)
+
+    return selected[:max_count]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Celery task: select daily defaults
 # ─────────────────────────────────────────────────────────────────────────────
@@ -108,7 +142,7 @@ def _pick_top_entries_with_exclusions(
 @app.task(name="daily_inspiration.select_defaults", base=BaseServiceTask, bind=True)
 def select_daily_inspiration_defaults(self):
     """
-    Daily Celery task: select top 3 pool entries per language and write them
+    Daily Celery task: select the 10-item mixed default set per language and write it
     to the daily_inspiration_defaults table.
 
     Scheduled by Beat at 06:30 UTC (after the 06:00 personalized generation).
@@ -207,27 +241,36 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
                 reverse=True,
             )
 
-            # Pick top 3 while avoiding yesterday's defaults when possible.
-            selected = _pick_top_entries_with_exclusions(
+            # Pick the 10-item mixed set while avoiding yesterday's defaults when possible.
+            selected = _pick_mixed_defaults(
                 scored,
                 excluded_pool_entry_ids,
-                3,
+                DEFAULT_TOTAL_COUNT,
             )
 
-            if len(selected) < 3 and lang != "en":
+            if len(selected) < DEFAULT_TOTAL_COUNT and lang != "en":
                 # Fill remaining slots from English, avoiding duplicate youtube_ids
                 selected_yt_ids = {e.get("youtube_id") for e in selected}
+                selected_ids = {str(e.get("id", "") or "") for e in selected}
                 en_candidates = _pick_top_entries_with_exclusions(
                     en_scored,
                     excluded_pool_entry_ids,
                     len(en_scored),
                 )
                 for en_entry in en_candidates:
-                    if len(selected) >= 3:
+                    if len(selected) >= DEFAULT_TOTAL_COUNT:
                         break
-                    if en_entry.get("youtube_id") not in selected_yt_ids:
+                    en_id = str(en_entry.get("id", "") or "")
+                    en_youtube_id = en_entry.get("youtube_id")
+                    if en_id not in selected_ids and (not en_youtube_id or en_youtube_id not in selected_yt_ids):
                         selected.append(en_entry)
-                        selected_yt_ids.add(en_entry.get("youtube_id"))
+                        selected_ids.add(en_id)
+                        if en_youtube_id:
+                            selected_yt_ids.add(en_youtube_id)
+
+            random_seed = f"{today_str}:{lang}"
+            import random as _random
+            _random.Random(random_seed).shuffle(selected)
 
             logger.info(
                 "[DefaultsSelection][%s] lang=%s yesterday_excluded=%d selected=%d",
