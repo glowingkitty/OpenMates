@@ -40,6 +40,12 @@ const { expectNoFollowUpSuggestions } = require('./helpers/llm-eval');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
+const LLM_QUICK_TIP_SLUGS = [
+	'search-current-info-next-time',
+	'travel-can-add-local-context',
+	'use-apps-for-better-results'
+];
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
@@ -104,6 +110,20 @@ async function setFollowUpSuggestions(
 	}
 }
 
+async function expectLlmQuickTipCard(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+): Promise<void> {
+	const quickTipCard = page.getByTestId('quick-tip-card');
+	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
+
+	const slug = await quickTipCard.getAttribute('data-quick-tip-slug');
+	log(`Quick tip card visible with slug: ${slug}`);
+	expect(slug).toBeTruthy();
+	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
+	await expect(quickTipCard).toContainText(/tip/i);
+}
+
 // ---------------------------------------------------------------------------
 // Test: Follow-up suggestions appear and clicking one populates editor
 // ---------------------------------------------------------------------------
@@ -143,13 +163,15 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	}
 	await screenshot(page, 'new-chat-ready');
 
-	// Send a short factual question that reliably triggers follow-up suggestions
-	const message = 'What is the capital of Japan?';
+	// Send a travel-planning prompt that should make the postprocessor LLM choose
+	// a quick-tip slug. The chat is only one turn, so this cannot be the hardcoded
+	// long-chat quick tip.
+	const message = 'I am planning a weekend trip to Kyoto and Osaka with food, transit, and local event questions.';
 	log(`Sending: "${message}"`);
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type(withMockMarker(message, 'follow_up_suggestions'));
+	await page.keyboard.type(withMockMarker(message, 'quick_tip_travel_planning'));
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
@@ -160,6 +182,9 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
 	await screenshot(page, 'ai-response-received');
 	log('AI response received.');
+
+	await expectLlmQuickTipCard(page, log);
+	await screenshot(page, 'quick-tip-visible');
 
 	// Follow-up suggestions only appear when the message input is focused.
 	// Click the editor to focus it — this triggers the suggestions to render.

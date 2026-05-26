@@ -58,7 +58,12 @@
 </script>
 
 {#if activeTip}
-  <section class="quick-tip-card" data-testid="quick-tip-card" transition:fade={{ duration: 200 }}>
+  <section
+    class="quick-tip-card"
+    data-testid="quick-tip-card"
+    data-quick-tip-slug={activeTip.slug}
+    transition:fade={{ duration: 200 }}
+  >
     <div class="quick-tip-content">
       <p class="quick-tip-eyebrow">{$text('chat.quick_tips.eyebrow')}</p>
       <h3>{$text(activeTip.titleKey)}</h3>

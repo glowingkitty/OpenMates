@@ -1,0 +1,57 @@
+{
+  "fixture_id": "quick_tip_travel_planning",
+  "recorded_at": "2026-05-26T20:15:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "I am planning a weekend trip to Kyoto and Osaka with food, transit, and local event questions.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "travel",
+    "title": "Kyoto Osaka Weekend Plan",
+    "icon_names": ["map", "train"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User is planning a weekend trip to Kyoto and Osaka and asked about food, transit, and local events.",
+    "chat_tags": ["travel", "kyoto", "osaka", "local-events", "transit"],
+    "relevant_app_skills": [
+      {
+        "app_id": "travel",
+        "skill_id": "search-stays"
+      },
+      {
+        "app_id": "travel",
+        "skill_id": "search-connections"
+      },
+      {
+        "app_id": "events",
+        "skill_id": "search"
+      },
+      {
+        "app_id": "maps",
+        "skill_id": "search"
+      }
+    ],
+    "llm_response_temp": 0.7,
+    "complexity": "medium",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Kyoto Osaka Weekend Plan"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "travel",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "For a Kyoto and Osaka weekend, I would split the trip into one culture-heavy day and one food-and-city day. Use Kyoto for temples, quieter neighborhoods, and traditional food, then Osaka for Dotonbori, casual restaurants, and late-night energy. Next, local context would help: check current events, compare stays near transit, and map realistic train routes so the itinerary stays practical.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 92,
+    "completion_tokens": 86,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}
