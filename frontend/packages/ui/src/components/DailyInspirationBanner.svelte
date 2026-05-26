@@ -29,12 +29,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
-  import { getCategoryGradientColors } from '../utils/categoryUtils';
+  import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
+  import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
 
@@ -237,13 +238,19 @@
   /** Currently displayed inspiration. */
   let current = $derived(inspirations[currentIndex] ?? null);
 
+  /** Valid mate/category class to render. Public cached wiki cards may contain old unsupported categories. */
+  let displayCategory = $derived.by(() => {
+    if (!current) return 'general_knowledge';
+    return current.category in CATEGORY_GRADIENTS ? current.category : 'general_knowledge';
+  });
+
   /** Background gradient style string for the current card.
    *  Also emits --orb-color-a (start/outer) and --orb-color-b (end/inner) as
    *  CSS custom properties consumed by the living gradient orb animation — same
    *  technique as ChatHeader.svelte. */
   let gradientStyle = $derived.by(() => {
     if (!current) return '';
-    const colors = getCategoryGradientColors(current.category);
+    const colors = getCategoryGradientColors(displayCategory);
     if (!colors) {
       return [
         'background: linear-gradient(135deg, #1a237e, #3949ab)',
@@ -272,6 +279,7 @@
    */
   let hasAttachedVideo = $derived(!!current?.video?.youtube_id);
   let hasInfoContent = $derived(current?.content_type === 'wiki' || current?.content_type === 'feature');
+  let hasWikiContent = $derived(current?.content_type === 'wiki' && !!current.wiki);
   let isFeatureInspiration = $derived(current?.content_type === 'feature');
 
   /** Whether the banner is rendered in the narrow mobile layout. */
@@ -300,7 +308,7 @@
    */
   let CategoryIconComponent = $derived.by(() => {
     if (!current) return null;
-    const iconName = getValidIconName('', current.category);
+    const iconName = getValidIconName('', displayCategory);
     return getLucideIcon(iconName);
   });
 
@@ -316,7 +324,7 @@
   let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
   let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
   let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
-  let hasInfoCard = $derived(!hasVideo && hasInfoContent);
+  let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
@@ -567,7 +575,7 @@
             <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
             <div class="banner-phrase-row">
               <!-- Mate profile image with AI badge (uses global mates.css classes) -->
-              <div class="mate-profile banner-mate-profile {current.category}"></div>
+              <div class="mate-profile banner-mate-profile {displayCategory}"></div>
 
               <!-- Inspiration phrase -->
               <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
@@ -620,46 +628,36 @@
                 onFullscreen={handleVideoEmbedFullscreen}
               />
             </div>
+          {:else if hasWikiContent && current.wiki}
+            <div class="banner-embed-wrapper">
+              <WikipediaEmbedPreview
+                id={`wiki-${current.inspiration_id}`}
+                title={current.wiki.title}
+                wikiTitle={current.wiki.wiki_title || current.wiki.title}
+                description={current.wiki.description}
+                thumbnailUrl={current.wiki.thumbnail_url}
+                wikidataId={current.wiki.wikidata_id}
+                status="finished"
+                isMobile={false}
+                onFullscreen={() => handleInfoCardClick(new MouseEvent('click'))}
+              />
+            </div>
           {:else if hasInfoCard}
-            {#if current.content_type === 'wiki'}
-              <button
-                class="banner-info-card wiki-info-card"
-                data-testid="daily-inspiration-info-card"
-                onclick={handleInfoCardClick}
-                aria-label={infoCardTitle}
-                type="button"
-              >
-                {#if infoCardImage}
-                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
-                {:else if InfoCardIconComponent}
-                  <div class="banner-info-icon" aria-hidden="true">
-                    <InfoCardIconComponent size={42} color="white" />
-                  </div>
-                {/if}
-                <div class="banner-info-text">
-                  <h3>{infoCardTitle}</h3>
-                  {#if infoCardSubtitle}
-                    <p>{infoCardSubtitle}</p>
-                  {/if}
+            <div class="banner-info-card" data-testid="daily-inspiration-info-card">
+              {#if infoCardImage}
+                <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+              {:else if InfoCardIconComponent}
+                <div class="banner-info-icon" aria-hidden="true">
+                  <InfoCardIconComponent size={42} color="white" />
                 </div>
-              </button>
-            {:else}
-              <div class="banner-info-card" data-testid="daily-inspiration-info-card">
-                {#if infoCardImage}
-                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
-                {:else if InfoCardIconComponent}
-                  <div class="banner-info-icon" aria-hidden="true">
-                    <InfoCardIconComponent size={42} color="white" />
-                  </div>
+              {/if}
+              <div class="banner-info-text">
+                <h3>{infoCardTitle}</h3>
+                {#if infoCardSubtitle}
+                  <p>{infoCardSubtitle}</p>
                 {/if}
-                <div class="banner-info-text">
-                  <h3>{infoCardTitle}</h3>
-                  {#if infoCardSubtitle}
-                    <p>{infoCardSubtitle}</p>
-                  {/if}
-                </div>
               </div>
-            {/if}
+            </div>
           {/if}
         </div>
       </div><!-- /.banner-inner -->
@@ -946,17 +944,6 @@
     font: inherit;
     filter: none;
     margin: 0;
-  }
-
-  .banner-info-card.wiki-info-card {
-    cursor: pointer;
-    height: auto;
-    min-height: unset;
-  }
-
-  .banner-info-card.wiki-info-card:hover .banner-info-image,
-  .banner-info-card.wiki-info-card:hover .banner-info-icon {
-    transform: scale(1.04);
   }
 
   .banner-info-image {

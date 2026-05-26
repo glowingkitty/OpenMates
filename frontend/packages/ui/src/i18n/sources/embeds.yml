@@ -5307,6 +5307,56 @@ wiki.open_on_wikipedia:
   he: פתח בוויקיפדיה
   verified_by_human: []
 
+wiki.wikipedia:
+  context: Skill label shown on Wikipedia embed preview cards
+  en: Wikipedia
+  de: Wikipedia
+  zh: 维基百科
+  es: Wikipedia
+  fr: Wikipédia
+  pt: Wikipédia
+  ru: Википедия
+  ja: Wikipedia
+  ko: 위키백과
+  it: Wikipedia
+  tr: Vikipedi
+  vi: Wikipedia
+  id: Wikipedia
+  pl: Wikipedia
+  nl: Wikipedia
+  ar: ويكيبيديا
+  hi: विकिपीडिया
+  th: Wikipedia
+  cs: Wikipedie
+  sv: Wikipedia
+  he: ויקיפדיה
+  verified_by_human: []
+
+wiki.source_label:
+  context: Short source label shown on Wikipedia embed preview cards
+  en: Wikipedia article
+  de: Wikipedia-Artikel
+  zh: 维基百科文章
+  es: Artículo de Wikipedia
+  fr: Article Wikipédia
+  pt: Artigo da Wikipédia
+  ru: Статья Википедии
+  ja: Wikipedia記事
+  ko: 위키백과 문서
+  it: Articolo di Wikipedia
+  tr: Vikipedi maddesi
+  vi: Bài viết Wikipedia
+  id: Artikel Wikipedia
+  pl: Artykuł Wikipedii
+  nl: Wikipedia-artikel
+  ar: مقالة ويكيبيديا
+  hi: विकिपीडिया लेख
+  th: บทความ Wikipedia
+  cs: Článek Wikipedie
+  sv: Wikipedia-artikel
+  he: ערך בוויקיפדיה
+  verified_by_human: []
+
 wiki.loading:
   context: Loading state while fetching Wikipedia article data
   en: Loading...

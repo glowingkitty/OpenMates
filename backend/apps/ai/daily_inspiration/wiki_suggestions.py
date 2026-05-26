@@ -35,7 +35,7 @@ WIKI_TIPS = [
         "description": "Coordinated flock movement that creates living patterns in the sky.",
         "phrase": "Thousands of birds turn as one. No conductor is in charge.",
         "assistant_response": "A murmuration is a flock movement pattern where simple local reactions create large coordinated waves. Each bird responds to nearby neighbors, yet the whole group looks choreographed. Open it to explore how complex behavior can emerge from simple rules.",
-        "category": "nature",
+        "category": "science",
     },
     {
         "title": "Library of Alexandria",
@@ -59,7 +59,7 @@ WIKI_TIPS = [
         "description": "The tension between likely extraterrestrial life and no clear evidence.",
         "phrase": "If the universe is so large, why does it seem so quiet?",
         "assistant_response": "The Fermi paradox asks why we have not seen convincing evidence of extraterrestrial civilizations despite the scale and age of the universe. Possible answers range from rare life to communication limits to self-destruction risks. Open it to explore one of science's biggest open questions.",
-        "category": "space",
+        "category": "science",
     },
 ]
 

@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v4:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v5:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -26,6 +26,7 @@ from fastapi import HTTPException
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
+from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES
 from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
@@ -37,7 +38,7 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v4:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v5:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_WIKI_COUNT = 3
@@ -75,6 +76,12 @@ def _get_feature_id(item: Dict[str, Any]) -> str | None:
 def _get_wiki_title(item: Dict[str, Any]) -> str | None:
     wiki = item.get("wiki")
     return wiki.get("wiki_title") if isinstance(wiki, dict) else None
+
+
+def _normalize_category(category: Any) -> str:
+    if isinstance(category, str) and category in AVAILABLE_CATEGORIES:
+        return category
+    return "general_knowledge"
 
 
 def _shuffle_daily_defaults(
@@ -243,7 +250,7 @@ async def get_default_inspirations(
             "phrase": record.get("phrase") or "",
             "title": record.get("title") or "",
             "assistant_response": record.get("assistant_response") or "",
-            "category": record.get("category") or "",
+            "category": _normalize_category(record.get("category")),
             "content_type": record.get("content_type") or "video",
             "video": {
                 "youtube_id": youtube_id,
