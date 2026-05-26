@@ -41,6 +41,7 @@
   import { getLucideIcon, getValidIconName } from '../utils/categoryUtils';
 
   const BookOpen = getLucideIcon('book-open');
+  const LinkIcon = getLucideIcon('link');
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
@@ -96,6 +97,7 @@
   let touchStartY = $state(0);
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
+  let prefersTouchCta = $state(false);
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -141,6 +143,13 @@
   // Personalized inspirations (from WS/IndexedDB) are AI-generated content in the
   // user's language at creation time — they cannot be retranslated, so we skip.
   onMount(() => {
+    const pointerQuery = window.matchMedia('(pointer: coarse)');
+    const updatePointerCta = () => {
+      prefersTouchCta = pointerQuery.matches || navigator.maxTouchPoints > 0;
+    };
+    updatePointerCta();
+    pointerQuery.addEventListener('change', updatePointerCta);
+
     const handleLanguageChange = () => {
       const state = get(dailyInspirationStore);
       if (!state.isPersonalized) {
@@ -153,7 +162,10 @@
     // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
-    return () => window.removeEventListener('language-changed-complete', handleLanguageChange);
+    return () => {
+      pointerQuery.removeEventListener('change', updatePointerCta);
+      window.removeEventListener('language-changed-complete', handleLanguageChange);
+    };
   });
 
   // ─── Passive view tracking via IntersectionObserver ─────────────────────────
@@ -260,6 +272,7 @@
    */
   let hasAttachedVideo = $derived(!!current?.video?.youtube_id);
   let hasInfoContent = $derived(current?.content_type === 'wiki' || current?.content_type === 'feature');
+  let isFeatureInspiration = $derived(current?.content_type === 'feature');
 
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
@@ -445,6 +458,26 @@
     }
   }
 
+  function handleInfoCardClick(e: MouseEvent | KeyboardEvent) {
+    if (!current?.wiki) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const wikiTitle = current.wiki.wiki_title || current.wiki.title;
+    document.dispatchEvent(
+      new CustomEvent('wikifullscreen', {
+        detail: {
+          wikiTitle,
+          wikidataId: current.wiki.wikidata_id,
+          displayText: current.wiki.title || wikiTitle,
+          thumbnailUrl: current.wiki.thumbnail_url,
+          description: current.wiki.description,
+        },
+        bubbles: true,
+      }),
+    );
+  }
+
   /**
    * Send `inspiration_viewed` message to backend via WebSocket.
    * Only sent for authenticated users — guests have no WebSocket connection
@@ -540,13 +573,19 @@
               <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
             </div>
 
-            <!-- CTA: plain text + create icon — pinned to bottom of banner-left.
-                 Shows "Open chat" if user already started a chat from this inspiration,
-                 otherwise "Click to start chat". -->
+            <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
             <div class="banner-cta">
-              <span class="clickable-icon icon_create banner-cta-icon"></span>
+              {#if isFeatureInspiration}
+                <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
+              {:else}
+                <span class="clickable-icon icon_create banner-cta-icon"></span>
+              {/if}
               <span class="banner-cta-text">
-                {current.is_opened && current.opened_chat_id
+                {isFeatureInspiration
+                  ? (prefersTouchCta
+                    ? $text('daily_inspiration.tap_to_open_settings')
+                    : $text('daily_inspiration.click_to_open_settings'))
+                  : current.is_opened && current.opened_chat_id
                   ? $text('daily_inspiration.open_chat')
                   : $text('daily_inspiration.click_to_start_chat')}
               </span>
@@ -582,21 +621,45 @@
               />
             </div>
           {:else if hasInfoCard}
-            <div class="banner-info-card" data-testid="daily-inspiration-info-card">
-              {#if infoCardImage}
-                <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
-              {:else if InfoCardIconComponent}
-                <div class="banner-info-icon" aria-hidden="true">
-                  <InfoCardIconComponent size={42} color="white" />
-                </div>
-              {/if}
-              <div class="banner-info-text">
-                <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle}
-                  <p>{infoCardSubtitle}</p>
+            {#if current.content_type === 'wiki'}
+              <button
+                class="banner-info-card wiki-info-card"
+                data-testid="daily-inspiration-info-card"
+                onclick={handleInfoCardClick}
+                aria-label={infoCardTitle}
+                type="button"
+              >
+                {#if infoCardImage}
+                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+                {:else if InfoCardIconComponent}
+                  <div class="banner-info-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={42} color="white" />
+                  </div>
                 {/if}
+                <div class="banner-info-text">
+                  <h3>{infoCardTitle}</h3>
+                  {#if infoCardSubtitle}
+                    <p>{infoCardSubtitle}</p>
+                  {/if}
+                </div>
+              </button>
+            {:else}
+              <div class="banner-info-card" data-testid="daily-inspiration-info-card">
+                {#if infoCardImage}
+                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+                {:else if InfoCardIconComponent}
+                  <div class="banner-info-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={42} color="white" />
+                  </div>
+                {/if}
+                <div class="banner-info-text">
+                  <h3>{infoCardTitle}</h3>
+                  {#if infoCardSubtitle}
+                    <p>{infoCardSubtitle}</p>
+                  {/if}
+                </div>
               </div>
-            </div>
+            {/if}
           {/if}
         </div>
       </div><!-- /.banner-inner -->
@@ -837,6 +900,10 @@
     color: rgba(255, 255, 255, 0.85);
   }
 
+  .banner-cta-svg-icon {
+    flex-shrink: 0;
+  }
+
   /* ── Right column: embed preview card ──
      flex: 1 gives it exactly the same width as banner-left (50/50 split).
      margin-top: -15px pulls the embed flush with the top of the banner (past
@@ -870,11 +937,26 @@
     justify-content: center;
     gap: var(--spacing-4);
     padding: 0;
+    border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
     text-align: center;
     color: white;
+    font: inherit;
+    filter: none;
+    margin: 0;
+  }
+
+  .banner-info-card.wiki-info-card {
+    cursor: pointer;
+    height: auto;
+    min-height: unset;
+  }
+
+  .banner-info-card.wiki-info-card:hover .banner-info-image,
+  .banner-info-card.wiki-info-card:hover .banner-info-icon {
+    transform: scale(1.04);
   }
 
   .banner-info-image {
@@ -883,6 +965,7 @@
     object-fit: cover;
     border-radius: var(--radius-6);
     box-shadow: var(--shadow-md);
+    transition: transform var(--duration-fast) var(--easing-default);
   }
 
   .banner-info-icon {
@@ -893,6 +976,7 @@
     align-items: center;
     justify-content: center;
     background: transparent;
+    transition: transform var(--duration-fast) var(--easing-default);
   }
 
   .banner-info-text h3,

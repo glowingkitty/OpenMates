@@ -57,6 +57,56 @@ click_to_start_chat:
   he: "לחץ כדי להתחיל בצ'אט"
   verified_by_human: []
 
+click_to_open_settings:
+  context: Call-to-action text for feature Daily Inspiration banners on non-touch devices
+  en: Click to open settings
+  de: Klicken, um Einstellungen zu öffnen
+  zh: 点击打开设置
+  es: Clic para abrir ajustes
+  fr: Cliquez pour ouvrir les paramètres
+  pt: Clique para abrir as configurações
+  ru: Нажмите, чтобы открыть настройки
+  ja: クリックして設定を開く
+  ko: 클릭하여 설정 열기
+  it: Clicca per aprire le impostazioni
+  tr: Ayarları açmak için tıklayın
+  vi: Nhấp để mở cài đặt
+  id: Klik untuk membuka pengaturan
+  pl: Kliknij, aby otworzyć ustawienia
+  nl: Klik om instellingen te openen
+  ar: انقر لفتح الإعدادات
+  hi: सेटिंग खोलने के लिए क्लिक करें
+  th: คลิกเพื่อเปิดการตั้งค่า
+  cs: Klikněte pro otevření nastavení
+  sv: Klicka för att öppna inställningar
+  he: לחץ כדי לפתוח הגדרות
+  verified_by_human: []
+
+tap_to_open_settings:
+  context: Call-to-action text for feature Daily Inspiration banners on touch devices
+  en: Tap to open settings
+  de: Tippen, um Einstellungen zu öffnen
+  zh: 点按打开设置
+  es: Toca para abrir ajustes
+  fr: Touchez pour ouvrir les paramètres
+  pt: Toque para abrir as configurações
+  ru: Коснитесь, чтобы открыть настройки
+  ja: タップして設定を開く
+  ko: 탭하여 설정 열기
+  it: Tocca per aprire le impostazioni
+  tr: Ayarları açmak için dokunun
+  vi: Nhấn để mở cài đặt
+  id: Ketuk untuk membuka pengaturan
+  pl: Stuknij, aby otworzyć ustawienia
+  nl: Tik om instellingen te openen
+  ar: اضغط لفتح الإعدادات
+  hi: सेटिंग खोलने के लिए टैप करें
+  th: แตะเพื่อเปิดการตั้งค่า
+  cs: Klepněte pro otevření nastavení
+  sv: Tryck för att öppna inställningar
+  he: הקש כדי לפתוח הגדרות
+  verified_by_human: []
+
 next:
   context: Accessible label for the "next inspiration" navigation arrow button
   en: Next inspiration
