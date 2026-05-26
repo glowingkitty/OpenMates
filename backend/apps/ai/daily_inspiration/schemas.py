@@ -51,6 +51,10 @@ class DailyInspirationFeature(BaseModel):
     title: str = Field(..., description="Feature card title")
     description: str = Field(..., description="Short feature card description")
     settings_path: Optional[str] = Field(None, description="Settings deep-link path, if clickable")
+    requires_authentication: bool = Field(
+        default=True,
+        description="Whether the linked feature requires an authenticated account",
+    )
 
 
 class DailyInspiration(BaseModel):

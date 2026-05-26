@@ -18,6 +18,7 @@
 # public Redis cache for /v1/default-inspirations is invalidated.
 
 import asyncio
+import json
 import logging
 import time
 from datetime import datetime, timezone, timedelta
@@ -25,11 +26,12 @@ from typing import Any, Dict, List, Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
+from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
 
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v4:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v6:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
@@ -59,6 +61,31 @@ def _score_pool_entry(entry: Dict[str, Any], now_ts: float) -> float:
 def _entry_id(entry: Dict[str, Any]) -> str:
     """Return normalized pool entry ID as a string (or empty string)."""
     return str(entry.get("id", "") or "")
+
+
+def _feature_metadata(entry: Dict[str, Any]) -> Dict[str, Any]:
+    raw_metadata = entry.get("feature_metadata")
+    if isinstance(raw_metadata, dict):
+        return raw_metadata
+    if isinstance(raw_metadata, str) and raw_metadata:
+        try:
+            parsed = json.loads(raw_metadata)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _is_public_default_candidate(entry: Dict[str, Any]) -> bool:
+    if (entry.get("content_type") or "video") != "feature":
+        return True
+
+    feature = _feature_metadata(entry)
+    if not feature:
+        return False
+    if "requires_authentication" in feature:
+        return not bool(feature.get("requires_authentication"))
+    return not feature_requires_authentication(feature.get("feature_id"))
 
 
 def _pick_top_entries_with_exclusions(
@@ -109,6 +136,7 @@ def _pick_mixed_defaults(
     max_count: int = DEFAULT_TOTAL_COUNT,
 ) -> List[Dict[str, Any]]:
     """Pick the public default mix: 3 videos, 3 wiki articles, 4 features."""
+    entries = [entry for entry in entries if _is_public_default_candidate(entry)]
     selected: List[Dict[str, Any]] = []
     selected_ids: set[str] = set()
 

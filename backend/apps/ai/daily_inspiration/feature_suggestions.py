@@ -22,6 +22,7 @@ FEATURE_TIPS = [
         "settings_path": "account/export",
         "phrase": "Having a backup matters. OpenMates can export your data from settings.",
         "category": "openmates_official",
+        "requires_authentication": True,
     },
     {
         "feature_id": "custom-pii-detection",
@@ -31,6 +32,7 @@ FEATURE_TIPS = [
         "settings_path": "privacy/hide-personal-data",
         "phrase": "Want stronger privacy controls? Add custom data to PII detection.",
         "category": "openmates_official",
+        "requires_authentication": True,
     },
     {
         "feature_id": "focus-modes",
@@ -40,6 +42,7 @@ FEATURE_TIPS = [
         "settings_path": "app_store/all/focus_modes",
         "phrase": "Need a more focused answer? Try an OpenMates focus mode.",
         "category": "openmates_official",
+        "requires_authentication": False,
     },
     {
         "feature_id": "memories",
@@ -49,6 +52,7 @@ FEATURE_TIPS = [
         "settings_path": "settings_memories",
         "phrase": "Repeating yourself gets old. Memories help OpenMates remember what matters.",
         "category": "openmates_official",
+        "requires_authentication": False,
     },
     {
         "feature_id": "events-search",
@@ -58,6 +62,7 @@ FEATURE_TIPS = [
         "settings_path": "app_store/events/skill/search",
         "phrase": "Looking for something to do? OpenMates can search events across multiple sources.",
         "category": "openmates_official",
+        "requires_authentication": False,
     },
     {
         "feature_id": "web-video-skills",
@@ -67,6 +72,7 @@ FEATURE_TIPS = [
         "settings_path": "app_store/all/skills",
         "phrase": "OpenMates can do more than chat. App skills connect mates to useful sources.",
         "category": "openmates_official",
+        "requires_authentication": False,
     },
     {
         "feature_id": "incognito-mode",
@@ -76,6 +82,7 @@ FEATURE_TIPS = [
         "settings_path": "incognito/info",
         "phrase": "Need a throwaway conversation? Incognito mode keeps it out of history.",
         "category": "openmates_official",
+        "requires_authentication": True,
     },
     {
         "feature_id": "privacy-dashboard",
@@ -85,15 +92,33 @@ FEATURE_TIPS = [
         "settings_path": "privacy",
         "phrase": "OpenMates gives you privacy controls worth reviewing before you need them.",
         "category": "openmates_official",
+        "requires_authentication": False,
     },
 ]
 
 
-def build_feature_inspirations(count: int = 4) -> List[DailyInspiration]:
+def feature_requires_authentication(feature_id: str | None) -> bool:
+    """Return whether a feature tip is account-only. Unknown legacy IDs stay private."""
+    for tip in FEATURE_TIPS:
+        if tip["feature_id"] == feature_id:
+            return bool(tip.get("requires_authentication", True))
+    return True
+
+
+def build_feature_inspirations(
+    count: int = 4,
+    *,
+    include_authenticated_only: bool = True,
+) -> List[DailyInspiration]:
     """Return up to ``count`` static feature inspiration objects."""
     now_ts = int(time.time())
     inspirations: List[DailyInspiration] = []
-    linked_tips = [tip for tip in FEATURE_TIPS if tip.get("settings_path")]
+    linked_tips = [
+        tip
+        for tip in FEATURE_TIPS
+        if tip.get("settings_path")
+        and (include_authenticated_only or not tip.get("requires_authentication", True))
+    ]
     for tip in linked_tips[:max(0, count)]:
         feature = DailyInspirationFeature(
             feature_id=tip["feature_id"],
@@ -101,6 +126,7 @@ def build_feature_inspirations(count: int = 4) -> List[DailyInspiration]:
             title=tip["title"],
             description=tip["description"],
             settings_path=tip["settings_path"],
+            requires_authentication=tip.get("requires_authentication", True),
         )
         inspirations.append(
             DailyInspiration(

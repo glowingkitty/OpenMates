@@ -30,11 +30,11 @@ WIKI_TIPS = [
         "category": "science",
     },
     {
-        "title": "Murmuration",
-        "wiki_title": "Murmuration",
-        "description": "Coordinated flock movement that creates living patterns in the sky.",
-        "phrase": "Thousands of birds turn as one. No conductor is in charge.",
-        "assistant_response": "A murmuration is a flock movement pattern where simple local reactions create large coordinated waves. Each bird responds to nearby neighbors, yet the whole group looks choreographed. Open it to explore how complex behavior can emerge from simple rules.",
+        "title": "Collective animal behavior",
+        "wiki_title": "Collective_animal_behavior",
+        "description": "How groups of animals coordinate movement and decisions.",
+        "phrase": "Thousands of animals move as one. No conductor is in charge.",
+        "assistant_response": "Collective animal behavior explains how fish schools, bird flocks, and insect swarms coordinate through local interactions. Simple responses between neighbors can create large patterns that look choreographed. Open it to explore how complex behavior can emerge from simple rules.",
         "category": "science",
     },
     {

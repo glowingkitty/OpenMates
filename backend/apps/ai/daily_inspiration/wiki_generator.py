@@ -26,6 +26,10 @@ def _language_base(language: str) -> str:
     return (language or "en").lower().split("-")[0].split("_")[0]
 
 
+def _canonical_title_key(title: str) -> str:
+    return " ".join((title or "").replace("_", " ").lower().split())
+
+
 def _build_wiki_tool_definition(language: str) -> Dict[str, Any]:
     lang_base = _language_base(language)
     phrase_lang = "English" if lang_base == "en" else f"the user's language (ISO code: {lang_base})"
@@ -155,6 +159,14 @@ async def generate_wiki_inspirations(
         raw_title = str(raw.get("wiki_title", "")).strip()
         valid = valid_by_title.get(raw_title.lower()) or valid_by_original.get(raw_title.lower())
         if not valid:
+            continue
+        if _canonical_title_key(raw_title) != _canonical_title_key(valid.wiki_title):
+            logger.info(
+                "[DailyInspiration][%s] Skipping redirected wiki candidate %r -> %r",
+                task_id,
+                raw_title,
+                valid.wiki_title,
+            )
             continue
 
         summary = await fetch_page_summary(valid.wiki_title.replace(" ", "_"), language=lang_base)

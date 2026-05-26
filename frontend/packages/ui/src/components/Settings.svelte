@@ -301,11 +301,12 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested),
-            // app store (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
+            // privacy overview, app store (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
             // newsletter, support, report issue, and the pricing overview page.
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
+                    key === 'privacy' ||
                     key === 'ai' || key.startsWith('ai/') ||
                     key === 'settings_memories' ||
                     key === 'app_store' || key.startsWith('app_store/') ||
@@ -2289,7 +2290,7 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, account deletion, and mates
+            // For non-authenticated users, only allow app_store, interface, privacy overview, share settings, newsletter, support, report_issue, account deletion, and mates
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
@@ -2297,7 +2298,7 @@ changes to the documentation (to keep the documentation up to date).
             // Account deletion is allowed for uncompleted accounts via email link
             // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||

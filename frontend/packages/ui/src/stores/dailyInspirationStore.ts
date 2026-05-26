@@ -51,6 +51,7 @@ export interface DailyInspirationFeature {
   title: string;
   description: string;
   settings_path: string | null;
+  requires_authentication?: boolean;
 }
 
 export interface DailyInspiration {
