@@ -112,8 +112,15 @@ test.describe('Example chat clone-on-send', () => {
 		// Type a message in the TipTap editor
 		const editor = page.getByTestId('message-editor');
 		await expect(editor).toBeVisible({ timeout: 10000 });
-		await editor.click();
-		await page.keyboard.type('Show me more flight options');
+		const followUpMessage = 'Show me more flight options';
+		for (let attempt = 0; attempt < 2; attempt += 1) {
+			await editor.click({ force: true });
+			await page.keyboard.type(followUpMessage, { delay: 5 });
+			if (await editor.textContent({ timeout: 1000 }).then((text) => text?.includes(followUpMessage)).catch(() => false)) {
+				break;
+			}
+		}
+		await expect(editor).toContainText(followUpMessage, { timeout: 5000 });
 
 		// The send button only appears when the editor has content (hasContent reactive state).
 		const sendButton = page.locator('[data-action="send-message"]');
