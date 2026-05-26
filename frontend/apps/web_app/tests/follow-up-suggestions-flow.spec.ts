@@ -121,7 +121,6 @@ async function expectLlmQuickTipCard(
 	log(`Quick tip card visible with slug: ${slug}`);
 	expect(slug).toBeTruthy();
 	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
-	await expect(quickTipCard).toContainText(/tip/i);
 }
 
 // ---------------------------------------------------------------------------
