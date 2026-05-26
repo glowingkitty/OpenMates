@@ -162,15 +162,13 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	}
 	await screenshot(page, 'new-chat-ready');
 
-	// Send a travel-planning prompt that should make the postprocessor LLM choose
-	// a quick-tip slug. The chat is only one turn, so this cannot be the hardcoded
-	// long-chat quick tip.
-	const message = 'First write the exact phrase "Kyoto and Osaka quick tip test", then give one concise sentence about planning food, transit, and local events for a weekend trip.';
+	// Send a short factual question that reliably triggers follow-up suggestions
+	const message = 'What is the capital of Japan?';
 	log(`Sending: "${message}"`);
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.type(withMockMarker(message, 'follow_up_suggestions'));
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
@@ -178,13 +176,9 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	log('Message sent.');
 
 	// Wait for AI response
-	const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
-	await expect(assistantMessage).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
 	await screenshot(page, 'ai-response-received');
 	log('AI response received.');
-
-	await expectLlmQuickTipCard(page, log);
-	await screenshot(page, 'quick-tip-visible');
 
 	// Follow-up suggestions only appear when the message input is focused.
 	// Click the editor to focus it — this triggers the suggestions to render.
@@ -243,6 +237,69 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	}
 
 	log('Test complete.');
+});
+
+test('shows an LLM-selected quick tip card after a travel planning response', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('QUICK_TIP_CARD');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await newChatButton.click();
+		await page.waitForTimeout(1500);
+	}
+	await screenshot(page, 'quick-tip-new-chat-ready');
+
+	const message = 'First write the exact phrase "Kyoto and Osaka quick tip test", then give one concise sentence about planning food, transit, and local events for a weekend trip.';
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+	await messageEditor.click();
+	await page.keyboard.type(message);
+
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled();
+	await sendButton.click();
+	log('Sent travel planning message for LLM quick-tip selection.');
+
+	const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	await expect(assistantMessage).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
+	await expectLlmQuickTipCard(page, log);
+	await screenshot(page, 'llm-quick-tip-visible');
+
+	await assertNoMissingTranslations(page);
+
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	if (await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await activeChatItem.click({ button: 'right' });
+		const deleteButton = page.getByTestId('chat-context-delete');
+		await expect(deleteButton).toBeVisible({ timeout: 5000 });
+		await deleteButton.click();
+		await deleteButton.click();
+		log('Quick-tip test chat deleted.');
+	}
 });
 
 test('disables follow-up suggestions in settings and avoids proactive follow-up prompts', async ({
