@@ -3022,7 +3022,14 @@
 
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
 			if (activeChat) {
-				activeChat.loadChat(selectedChat, { scrollToTop });
+				await activeChat.loadChat(selectedChat, { scrollToTop });
+				window.dispatchEvent(
+					new CustomEvent('globalChatSelected', {
+						detail: { chat: selectedChat },
+						bubbles: true,
+						composed: true
+					})
+				);
 				return;
 			} else if (retries > 0) {
 				const delay = retries > 10 ? 50 : 100;

@@ -673,6 +673,7 @@
   class:is-medium-header={isMediumHeader}
   class:is-mobile-header={isMobileHeader}
   class:is-compact-teaser-header={isCompactTeaserHeader}
+  data-testid="chat-header-banner"
   style={bannerStyle}
   role="presentation"
   ontouchstart={handleHeaderTouchStart}

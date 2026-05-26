@@ -35,8 +35,28 @@ async function expectHeaderTitle(page: any, expectedTitle: string): Promise<void
 	expect(await page.evaluate(() => window.location.hash.includes('chat-id='))).toBe(true);
 }
 
+async function expectFirstUserMessageId(page: any): Promise<string> {
+	const firstUserMessage = page.getByTestId('message-user').first();
+	await expect(firstUserMessage).toBeVisible({ timeout: 12000 });
+	const messageId = await firstUserMessage.getAttribute('data-message-id');
+	expect(messageId, 'Expected first user message to expose a message id').toBeTruthy();
+	return messageId as string;
+}
+
+async function expectFirstUserMessageChanged(page: any, previousMessageId: string): Promise<string> {
+	await page.waitForFunction(
+		(before: string) => {
+			const firstUserMessage = document.querySelector('[data-testid="message-user"]');
+			return firstUserMessage?.getAttribute('data-message-id') !== before;
+		},
+		previousMessageId,
+		{ timeout: 12000 }
+	);
+	return expectFirstUserMessageId(page);
+}
+
 async function swipeHeader(page: any, startX: number, endX: number): Promise<void> {
-	const header = page.locator('.chat-header-banner');
+	const header = page.getByTestId('chat-header-banner');
 	await expect(header).toBeVisible({ timeout: 10000 });
 	await header.dispatchEvent('touchstart', {
 		touches: [{ identifier: 1, clientX: startX, clientY: 80 }]
@@ -85,20 +105,47 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 
 		await chatItems.nth(selectedIndex).click();
 		await expectHeaderTitle(page, selectedTitle);
+		const selectedFirstMessageId = await expectFirstUserMessageId(page);
 
 		await page.getByTestId('chat-header-previous').click();
 		await expectHeaderTitle(page, olderTitle);
+		const olderFirstMessageId = await expectFirstUserMessageChanged(page, selectedFirstMessageId);
 
 		await page.getByTestId('chat-header-next').click();
 		await expectHeaderTitle(page, selectedTitle);
+		await page.waitForFunction(
+			(expected: string) => {
+				const firstUserMessage = document.querySelector('[data-testid="message-user"]');
+				return firstUserMessage?.getAttribute('data-message-id') === expected;
+			},
+			selectedFirstMessageId,
+			{ timeout: 12000 }
+		);
 
 		await swipeHeader(page, 360, 240);
 		await expectHeaderTitle(page, olderTitle);
+		await page.waitForFunction(
+			(expected: string) => {
+				const firstUserMessage = document.querySelector('[data-testid="message-user"]');
+				return firstUserMessage?.getAttribute('data-message-id') === expected;
+			},
+			olderFirstMessageId,
+			{ timeout: 12000 }
+		);
 
 		await swipeHeader(page, 240, 360);
 		await expectHeaderTitle(page, selectedTitle);
+		await page.waitForFunction(
+			(expected: string) => {
+				const firstUserMessage = document.querySelector('[data-testid="message-user"]');
+				return firstUserMessage?.getAttribute('data-message-id') === expected;
+			},
+			selectedFirstMessageId,
+			{ timeout: 12000 }
+		);
 
 		await page.getByTestId('chat-header-next').click();
 		await expectHeaderTitle(page, newerTitle);
+		await expectFirstUserMessageChanged(page, selectedFirstMessageId);
 	});
 });
