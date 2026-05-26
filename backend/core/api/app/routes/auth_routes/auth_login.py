@@ -6,6 +6,7 @@ import base64
 import json
 import pyotp # Added for 2FA verification
 import os # For generating random bytes and environment detection
+from datetime import datetime, timezone
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
 from backend.core.api.app.services.directus import DirectusService
@@ -20,7 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_auth_client, get_cookie_domain
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_auth_client, get_cookie_domain, store_account_lifecycle_contact_email
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 # Import backup code verification and hashing utilities
@@ -1201,6 +1202,30 @@ async def finalize_login_session(
 
     user_id = user.get("id")
     if user_id:
+        try:
+            encrypted_email_address = user.get("encrypted_email_address")
+            if encrypted_email_address and login_data.email_encryption_key and login_data.hashed_email:
+                decrypted_email = await encryption_service.decrypt_with_email_key(
+                    encrypted_email_address,
+                    login_data.email_encryption_key,
+                )
+                if decrypted_email:
+                    await store_account_lifecycle_contact_email(
+                        directus_service,
+                        encryption_service,
+                        user_id=user_id,
+                        hashed_email=login_data.hashed_email,
+                        email=decrypted_email,
+                        verified_at=datetime.now(timezone.utc).isoformat(),
+                    )
+        except Exception as contact_email_err:
+            logger.error(
+                "Failed to store account lifecycle contact email during login for user %s: %s",
+                user_id[:6],
+                contact_email_err,
+                exc_info=True,
+            )
+
         # --- New Device Hash Handling ---
         logger.info(f"Checking device status for user {user_id[:6]}... with hash {current_device_hash[:8]}...")
 
