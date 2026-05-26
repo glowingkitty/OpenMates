@@ -135,6 +135,12 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	await checkoutFrame.locator('input[autocomplete="cc-csc"], input[name="cvc"], input[name="cardCvc"]').first().pressSequentially('123', { delay: 30 });
 	const nameInput = checkoutFrame.getByPlaceholder(/full name on card/i);
 	if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) await nameInput.pressSequentially('Referral Test User', { delay: 30 });
+	const addrInput = checkoutFrame.getByPlaceholder(/^address$/i);
+	if (await addrInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await addrInput.pressSequentially('123 Test St', { delay: 30 });
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(500);
+	}
 	const paymentSubmittedAt = new Date().toISOString();
 	await checkoutFrame.locator('button[type="submit"], button:has-text("Pay"), button:has-text("Subscribe")').first().click();
 	await page.waitForTimeout(3000);
