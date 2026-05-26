@@ -708,7 +708,6 @@ changes to the documentation (to keep the documentation up to date).
     
     let username = $derived($userProfile.username || '');
     let isInSignupMode = $derived($isInSignupProcess);
-    let demoProfileImageUrl = $state<string | null>(null);
     let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
 
     /**
@@ -720,7 +719,7 @@ changes to the documentation (to keep the documentation up to date).
      * displayable blob URL.
      */
     let resolvedProfileImageBlobUrl = $state<string | null>(null);
-    let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl || ($demoMode ? demoProfileImageUrl : null));
+    let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl);
     let referralCtaCompact = $state(false);
     let showReferralCta = $derived(
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
@@ -746,7 +745,6 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     onMount(() => {
-        demoProfileImageUrl = window.localStorage.getItem('demo_profile_image_url');
         setTimeout(() => {
             referralCtaCompact = true;
         }, 3000);
@@ -2587,7 +2585,7 @@ changes to the documentation (to keep the documentation up to date).
                 <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
                      new encrypted proxy endpoint works. Legacy https:// URLs are also
                      passed through by the profileImageService unchanged. -->
-                <div class="profile-picture" data-testid="profile-picture" data-demo-profile-image={$demoMode && !!demoProfileImageUrl ? 'true' : undefined} class:profile-picture-img={!!displayProfileImageUrl} class:language-icon-container={!displayProfileImageUrl}>
+                <div class="profile-picture" data-testid="profile-picture" class:profile-picture-img={!!displayProfileImageUrl} class:language-icon-container={!displayProfileImageUrl}>
                     {#if displayProfileImageUrl}
                         <img class="profile-picture-avatar" src={displayProfileImageUrl} alt="Profile" />
                     {:else}
