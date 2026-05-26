@@ -116,7 +116,7 @@
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
     import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
-    import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
+    import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
@@ -2080,6 +2080,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
         console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+        if (!$authStore.isAuthenticated && currentChat?.chat_id && isExampleChat(currentChat.chat_id)) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
         if (messageInputFieldRef) {
             await messageInputFieldRef.clearMessageField(false);
             messageInputFieldRef.setSuggestionText(suggestion);
@@ -6108,6 +6113,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleStartChatFromInspiration(inspiration: DailyInspiration) {
         console.info('[ActiveChat] Starting chat from daily inspiration:', inspiration.inspiration_id);
 
+        if (inspiration.content_type === 'feature') {
+            const settingsPath = inspiration.feature?.settings_path;
+            if (!settingsPath) {
+                console.debug('[ActiveChat] Feature inspiration has no settings path — no action taken');
+                return;
+            }
+            settingsMenuVisible.set(true);
+            panelState.openSettings();
+            await tick();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            settingsDeepLink.set(settingsPath);
+            dailyInspirationStore.markOpened(inspiration.inspiration_id);
+            if ($authStore.isAuthenticated) {
+                const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
+                await markInspirationOpenedInIndexedDB(inspiration.inspiration_id);
+                await markInspirationOpenedOnAPI(inspiration.inspiration_id);
+            }
+            return;
+        }
+
         // Unauthenticated users: open the signup screen (alpha disclaimer step) so they
         // can register and then start using inspirations.
         // Same pattern as handleOpenSignupInterface (message-input signup button).
@@ -6338,6 +6363,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // the embed card inline, exactly like embeds created by the URL metadata service.
                 const embedReference = createEmbedReferenceBlock('video', embedId, videoUrl);
                 messageContent = `${firstMessageText}\n\n${embedReference}`;
+            } else if (inspiration.wiki) {
+                const wikiTitle = inspiration.wiki.wiki_title || inspiration.wiki.title;
+                const wikiLink = `[${inspiration.wiki.title || wikiTitle}](wiki:${wikiTitle})`;
+                messageContent = `${firstMessageText}\n\n${wikiLink}`;
             }
 
             const encryptedContent = await encryptWithChatKey(messageContent, chatKey);
