@@ -119,7 +119,8 @@ def _reserve_default_slots(
     """Make room for missing quota items before final 10-item truncation."""
     current_count = sum(1 for item in result if item.get("content_type") == content_type)
     missing_count = max(0, target_count - current_count)
-    while missing_count > 0 and len(result) >= _DEFAULT_INSPIRATION_COUNT:
+    slots_to_remove = max(0, len(result) + missing_count - _DEFAULT_INSPIRATION_COUNT)
+    while slots_to_remove > 0:
         removable_index = next(
             (
                 idx
@@ -131,7 +132,7 @@ def _reserve_default_slots(
         if removable_index is None:
             return
         result.pop(removable_index)
-        missing_count -= 1
+        slots_to_remove -= 1
 
 
 # ---- Endpoint ------------------------------------------------------------
