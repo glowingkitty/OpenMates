@@ -135,7 +135,10 @@ class ChatDatabase {
   // Version 28: schema-healing bump. Re-runs migrations for clients whose local
   //             DB reached v27 but missed required stores after an interrupted
   //             Safari/iOS upgrade or blocked delete/open race.
-  private readonly VERSION = 28;
+  // Version 29: schema-healing bump for clients whose DB reached v28 without
+  //             chat_compression_checkpoints; opening the same version cannot
+  //             trigger onupgradeneeded, so affected browsers need a new bump.
+  private readonly VERSION = 29;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
