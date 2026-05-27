@@ -339,7 +339,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 	// ─── Step 7: Wait for "purchase successful" ───────────────────────────────────
 
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByRole('heading', { name: /purchase successful/i })).toBeVisible({ timeout: 120000 });
 	await screenshot(page, 'purchase-success');
 	log('Purchase confirmed successful.');
 
