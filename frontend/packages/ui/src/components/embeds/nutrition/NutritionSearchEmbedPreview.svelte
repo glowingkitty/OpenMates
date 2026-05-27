@@ -174,7 +174,7 @@
   {id}
   appId="nutrition"
   skillId="search_recipes"
-  skillIconName="nutrition"
+  skillIconName="search"
   {status}
   {skillName}
   {taskId}

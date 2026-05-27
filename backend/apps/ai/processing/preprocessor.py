@@ -71,6 +71,94 @@ FINANCIAL_REPO_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
+
+TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
+    "openmates_platform": "Questions about OpenMates itself, its features, mates, apps, skills, account, pricing, or onboarding.",
+    "general_misc": "True fallback only: miscellaneous requests that do not fit any specialized topic area.",
+    "software_development": "Programming, software architecture, APIs, databases, code implementation.",
+    "debugging_code": "Finding and fixing bugs, errors, stack traces, failing tests, regressions.",
+    "devops_infrastructure": "Deployment, CI/CD, Docker, servers, cloud infrastructure, observability.",
+    "data_ai_ml": "Machine learning, AI systems, data science, model evaluation, data pipelines.",
+    "cybersecurity": "Defensive security, vulnerability assessment, auth, encryption, privacy engineering.",
+    "maker_fabrication": "Hands-on fabrication, workshop projects, materials, tools, assembly, physical builds.",
+    "textiles_sewing": "Fabric, textiles, sewing, patterns, tailoring, garments, craft materials like muslin.",
+    "hobby_electronics": "Arduino, Raspberry Pi, sensors, hobby circuits, maker electronics.",
+    "professional_electrical_engineering": "Formal EE, PCB design, power systems, signal processing, industrial electronics.",
+    "mechanical_engineering": "Mechanical design, mechanisms, CAD, tolerances, physical engineering.",
+    "product_prototyping": "Turning product ideas into prototypes, MVP hardware, iteration plans.",
+    "graphic_design": "Visual design, layout, illustration, typography, posters, assets.",
+    "ui_ux_design": "UX flows, interface structure, wireframes, interaction design, usability.",
+    "branding_marketing_creative": "Brand identity, campaigns, creative marketing concepts, positioning visuals.",
+    "writing_editing": "Writing, rewriting, editing, emails, documents, tone, text drafting.",
+    "movies_tv_media": "Films, series, actors, episodes, recommendations, screen media.",
+    "music_audio": "Music, songs, audio production, sound design, podcast/audio topics.",
+    "business_strategy": "Business planning, operations, strategy, growth, partnerships.",
+    "startup_product": "Startup ideas, product-market fit, MVPs, product strategy, roadmaps.",
+    "marketing_sales": "Sales, funnels, lead generation, ad copy, CRM, marketing operations.",
+    "finance_investing": "Investing, budgets, personal finance, markets, financial analysis.",
+    "accounting_taxes": "Bookkeeping, invoices, tax preparation, accounting concepts.",
+    "legal_law": "Legal concepts, contracts, regulations, compliance, rights, law questions.",
+    "medical_health": "Medical symptoms, conditions, treatments, healthcare navigation.",
+    "fitness_nutrition": "Exercise, diet, nutrition, fitness plans, healthy habits.",
+    "mental_health_psychology": "Emotions, therapy-like support, psychology, stress, crisis, self-harm.",
+    "life_coaching_productivity": "Goals, habits, motivation, productivity, personal planning.",
+    "relationships_communication": "Interpersonal communication, relationships, conflict, social advice.",
+    "cooking_food": "Recipes, edible ingredients, kitchen techniques, meals, restaurants, food safety.",
+    "home_diy_repair": "Household repairs, home improvement, furniture fixing, practical home projects.",
+    "gardening_plants": "Plants, gardening, soil, plant diseases, growing food or flowers.",
+    "travel_local": "Trips, destinations, routes, local places, itineraries, tourism.",
+    "shopping_products": "Product comparison, choosing items, purchasing advice, consumer goods.",
+    "science": "Physics, chemistry, biology, astronomy, scientific explanation.",
+    "history": "Historical events, periods, people, civilizations, timelines.",
+    "politics_activism": "Politics, civic action, activism, campaigns, social movements.",
+    "education_learning": "Learning plans, studying, tutoring, explaining school topics.",
+    "language_translation": "Translation, grammar, language learning, wording across languages.",
+}
+
+TOPIC_AREA_TO_MATE_CATEGORY: Dict[str, str] = {
+    "openmates_platform": ONBOARDING_SUPPORT_CATEGORY,
+    "general_misc": "general_knowledge",
+    "software_development": "software_development",
+    "debugging_code": "software_development",
+    "devops_infrastructure": "software_development",
+    "data_ai_ml": "software_development",
+    "cybersecurity": "software_development",
+    "maker_fabrication": "maker_prototyping",
+    "textiles_sewing": "maker_prototyping",
+    "hobby_electronics": "maker_prototyping",
+    "mechanical_engineering": "maker_prototyping",
+    "product_prototyping": "maker_prototyping",
+    "professional_electrical_engineering": "electrical_engineering",
+    "graphic_design": "design",
+    "ui_ux_design": "design",
+    "branding_marketing_creative": "design",
+    "writing_editing": "general_knowledge",
+    "movies_tv_media": "movies_tv",
+    "music_audio": "general_knowledge",
+    "business_strategy": "business_development",
+    "startup_product": "business_development",
+    "marketing_sales": "marketing_sales",
+    "finance_investing": "finance",
+    "accounting_taxes": "finance",
+    "legal_law": "legal_law",
+    "medical_health": "medical_health",
+    "fitness_nutrition": "medical_health",
+    "mental_health_psychology": "life_coach_psychology",
+    "life_coaching_productivity": "life_coach_psychology",
+    "relationships_communication": "life_coach_psychology",
+    "cooking_food": "cooking_food",
+    "home_diy_repair": "maker_prototyping",
+    "gardening_plants": "science",
+    "travel_local": "general_knowledge",
+    "shopping_products": "general_knowledge",
+    "science": "science",
+    "history": "history",
+    "politics_activism": "activism",
+    "education_learning": "general_knowledge",
+    "language_translation": "general_knowledge",
+}
+
 
 def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
     """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
@@ -108,6 +196,58 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
                 skill_resolver_map[f"{base_variant}_{last_segment}"] = valid_skill
 
     return skill_resolver_map
+
+
+def _build_topic_areas_list() -> List[str]:
+    """Return topic areas in the same id: description format as mate categories."""
+    return [
+        f"{topic_area}: {description}"
+        for topic_area, description in sorted(TOPIC_AREA_DESCRIPTIONS.items())
+    ]
+
+
+def _normalize_topic_area(raw_topic_area: Any) -> Optional[str]:
+    """Accept bare topic IDs and defensive list/string variants from LLM output."""
+    topic_area = raw_topic_area
+    if isinstance(topic_area, list):
+        topic_area = topic_area[0] if topic_area else None
+    if not isinstance(topic_area, str):
+        return None
+
+    topic_area = topic_area.split(": ", 1)[0].strip()
+    if topic_area in TOPIC_AREA_DESCRIPTIONS:
+        return topic_area
+    return None
+
+
+def _resolve_category_from_topic_area(
+    *,
+    raw_topic_area: Any,
+    raw_topic_shift: Any,
+    previous_category: Optional[str],
+    available_category_ids: set[str],
+) -> Optional[str]:
+    """Map LLM topic classification to a stable mate category.
+
+    Topic areas are intentionally more granular than mates. The LLM picks a
+    topic; code owns the topic -> mate mapping and follow-up continuity rules.
+    """
+    topic_area = _normalize_topic_area(raw_topic_area)
+    if not topic_area:
+        return None
+
+    mapped_category = TOPIC_AREA_TO_MATE_CATEGORY.get(topic_area)
+    if not mapped_category or mapped_category not in available_category_ids:
+        return None
+
+    topic_shift = raw_topic_shift if isinstance(raw_topic_shift, str) else "unclear"
+    if previous_category and topic_shift in SAME_TOPIC_SHIFT_VALUES:
+        return previous_category
+
+    if previous_category and topic_area == "general_misc":
+        return previous_category
+
+    return mapped_category
 
 # ---------------------------------------------------------------------------
 # Onboarding trigger phrases — multilingual (all 20 supported locales).
@@ -653,6 +793,8 @@ class PreprocessingResult(BaseModel):
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
+    topic_area: Optional[str] = Field(None, description="Granular topic area used for deterministic mate routing.")
+    topic_shift: Optional[str] = Field(None, description="Whether the latest message continues or changes the chat topic.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
@@ -1233,7 +1375,7 @@ async def handle_preprocessing(
 
     if is_first_message:
         # --- First message: two-call split ---
-        # Call A (fast_preprocess_request_tool): title, category, icon_names, harmful_or_illegal,
+        # Call A (fast_preprocess_request_tool): title, topic_area, topic_shift, icon_names, harmful_or_illegal,
         #   misuse_risk, output_language.  Small schema → fast response → UI shown immediately.
         # Call B (preprocess_request_tool): routing fields (complexity, task_area, skills, etc.)
         #   + chat_summary + chat_tags.  Does NOT include title/category/icons/safety/language.
@@ -1255,12 +1397,18 @@ async def handle_preprocessing(
         logger.info(f"{log_prefix} Loaded fast_preprocess_request_tool (Call A) and preprocess_request_tool (Call B).")
     else:
         # --- Follow-up message: single call (same as before the split) ---
-        # Add category, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
+        # Add topic routing, harmful_or_illegal, misuse_risk, and output_language to the required list for Call B
         # (on first messages those come from Call A, but on follow-ups there is no Call A).
-        # Category is critical for follow-ups: without it, the LLM doesn't return a category and
-        # the system falls back to 'general_knowledge', losing the specialized mate from the first message.
+        # Topic routing is critical for follow-ups: without it, backend category derivation falls
+        # back to general_knowledge, losing the specialized mate from the first message.
         logger.info(f"{log_prefix} Follow-up message — single-call preprocessing (no Call A).")
-        follow_up_extra_required = ["category", "harmful_or_illegal", "misuse_risk", "output_language"]
+        follow_up_extra_required = [
+            "topic_area",
+            "topic_shift",
+            "harmful_or_illegal",
+            "misuse_risk",
+            "output_language",
+        ]
         required_list = tool_definition_for_llm.get("function", {}).get("parameters", {}).get("required", [])
         for field in follow_up_extra_required:
             if field not in required_list:
@@ -1316,7 +1464,7 @@ async def handle_preprocessing(
     # We also override a small number of categories with tighter, more precise hints
     # (especially 'onboarding_support' and 'general_knowledge') to prevent mis-routing.
     #
-    # Override map: category -> description string used in the {CATEGORIES_LIST} prompt.
+    # Override map: category -> description string used for category availability and guards.
     # Any category NOT in this map falls back to the description from the mate .md file.
     CATEGORY_DESCRIPTION_OVERRIDES: Dict[str, str] = {
         # 'onboarding_support' is the most mis-routed category. The override makes the
@@ -1395,7 +1543,7 @@ async def handle_preprocessing(
         )
 
     # Ensure 'general_knowledge' is always available as a fallback category.
-    # This is critical for category validation fallback logic.
+    # This is critical for topic_area -> category fallback logic.
     general_knowledge_present = any(item.startswith("general_knowledge:") for item in available_categories_list)
     if not general_knowledge_present:
         logger.warning(
@@ -1438,12 +1586,12 @@ async def handle_preprocessing(
             if len(filtered_categories) != len(available_categories_list):
                 available_categories_list = filtered_categories
                 logger.info(
-                    f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from CATEGORIES_LIST "
+                    f"{log_prefix} Removed '{ONBOARDING_SUPPORT_CATEGORY}' from selectable categories "
                     "because no onboarding trigger terms were found in user chat history."
                 )
         else:
             logger.debug(
-                f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in CATEGORIES_LIST "
+                f"{log_prefix} Keeping '{ONBOARDING_SUPPORT_CATEGORY}' in selectable categories "
                 "because onboarding trigger terms were found in user chat history."
             )
 
@@ -1582,7 +1730,7 @@ async def handle_preprocessing(
             )
 
     dynamic_context = {
-        "CATEGORIES_LIST": available_categories_list,
+        "TOPIC_AREAS_LIST": _build_topic_areas_list(),
         "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
         "AVAILABLE_FOCUS_MODES": available_focus_modes_list if available_focus_modes_list else [],
         "CURRENT_DATE_TIME": date_time_str,
@@ -1598,23 +1746,23 @@ async def handle_preprocessing(
         # Two-call parallel preprocessing for first messages.
         #
         # Call A (fast_preprocess_request_tool): small schema, fires and resolves
-        #   quickly.  Provides title, category, icon_names, safety scores, and
+        #   quickly.  Provides title, topic_area, topic_shift, icon_names, safety scores, and
         #   output_language.  Results are used to emit the title_generated event
         #   to the frontend before Call B even finishes.
         #
         # Call B (preprocess_request_tool): full routing / metadata schema without
-        #   the UI fields (no title, category, icons, safety, language).  Provides
+        #   the UI fields (no title, topic_area, topic_shift, icons, safety, language).  Provides
         #   complexity, task_area, skills, focus modes, memories, summary and tags.
         #
         # Both coroutines are awaited with asyncio.gather so they run in parallel
         # over the network and we wait for both before doing any further work.
         # -----------------------------------------------------------------------
-        # Call B: fast_tool only needs CATEGORIES_LIST and CURRENT_DATE_TIME.
+        # Call B: fast_tool only needs topic areas and CURRENT_DATE_TIME.
         # Call A (main tool): needs the full dynamic_context.
         # Include the user's UI language so the title is generated in the user's preferred language,
         # regardless of the language the user is chatting in (mirrors how chat_summary works).
         fast_dynamic_context = {
-            "CATEGORIES_LIST": available_categories_list,
+            "TOPIC_AREAS_LIST": _build_topic_areas_list(),
             "CURRENT_DATE_TIME": date_time_str,
             "USER_SYSTEM_LANGUAGE": user_system_language,
         }
@@ -1696,7 +1844,7 @@ async def handle_preprocessing(
             )
 
         # Merge the two result dicts: Call A fields take priority for the fields it owns
-        # (title, category, icon_names, harmful_or_illegal, misuse_risk, output_language),
+        # (title, topic_area, topic_shift, icon_names, harmful_or_illegal, misuse_risk, output_language),
         # Call B provides all routing/metadata fields.
         llm_analysis_args: Dict[str, Any] = {}
         llm_analysis_args.update(call_b_result.arguments)  # routing fields first
@@ -2127,156 +2275,39 @@ async def handle_preprocessing(
         llm_response_temp_val = 0.4
         llm_analysis_args["llm_response_temp"] = llm_response_temp_val
     
-    # --- Validate and potentially retry category selection ---
-    # The LLM should return a bare category ID (e.g. "science", "finance") — NOT the full
-    # "id: description" string from available_categories_list. We validate against
-    # available_category_ids (bare IDs only) to avoid incorrectly rejecting valid responses.
-    llm_category = llm_analysis_args.get("category")
-    validated_category = llm_category
+    # --- Derive mate category from topic_area ---
+    # The LLM no longer owns mate category selection. It classifies the message into a
+    # granular topic_area, and backend code maps that topic_area to the canonical mate category.
+    validated_category = _resolve_category_from_topic_area(
+        raw_topic_area=llm_analysis_args.get("topic_area"),
+        raw_topic_shift=llm_analysis_args.get("topic_shift"),
+        previous_category=previous_category,
+        available_category_ids=available_category_ids,
+    )
 
-    # Defensive strip: if the LLM returned the full "id: description" string instead of just
-    # the bare ID, extract the part before the first ": " so we don't needlessly retry.
-    if llm_category and ": " in llm_category:
-        stripped = llm_category.split(": ", 1)[0].strip()
-        if stripped in available_category_ids:
-            logger.debug(f"{log_prefix} LLM returned full category string, trimmed to bare ID: '{stripped}'")
-            llm_category = stripped
-            llm_analysis_args["category"] = stripped
-            validated_category = stripped
-
-    # Validate the returned category is a known bare ID
-    if llm_category and llm_category not in available_category_ids:
-        logger.warning(
-            f"{log_prefix} LLM returned invalid category '{llm_category}' which is not in available categories list: {available_categories_list}. "
-            f"Attempting retry..."
+    if validated_category:
+        logger.info(
+            f"{log_prefix} TOPIC_ROUTING: Derived category '{validated_category}' from "
+            f"topic_area='{llm_analysis_args.get('topic_area')}', "
+            f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
         )
-        
-        # Retry preprocessing once with a more explicit instruction about category validation.
-        # On first messages the category comes from Call A (fast_preprocess_request_tool), so we
-        # retry with that tool.  On follow-up messages it comes from the main tool (Call B).
-        try:
-            # Choose which tool definition to retry with based on message type.
-            # - First message: category came from Call A → retry with fast_tool_definition
-            # - Follow-up:     category came from the single Call B → retry with tool_definition_for_llm
-            retry_base_tool = fast_tool_definition if is_first_message else tool_definition_for_llm
-            retry_dynamic_ctx = (
-                {"CATEGORIES_LIST": available_categories_list, "CURRENT_DATE_TIME": date_time_str}
-                if is_first_message
-                else dynamic_context
-            )
-            retry_tool_definition = copy.deepcopy(retry_base_tool)
-            # Add a note in the category description emphasizing it MUST be from the list
-            category_desc = retry_tool_definition.get('function', {}).get('parameters', {}).get('properties', {}).get('category', {}).get('description', '')
-            retry_tool_definition['function']['parameters']['properties']['category']['description'] = (
-                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category ID from this list: {available_categories_list}. "
-                f"Return ONLY the short category ID (the part before the colon, e.g. 'science', 'finance', 'travel'). "
-                f"DO NOT return the full description string. DO NOT invent new categories. If unsure, use 'general_knowledge'."
-            )
-
-            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions (is_first_message={is_first_message})...")
-            # Pass the FULL dynamic_context so the retry LLM has all the info it needs.
-            # We only extract category from the retry result, but having complete context
-            # helps the LLM make a better decision. We also merge relevant_app_skills from the retry
-            # as a union with the first call's skills, since the retry may identify skills the first
-            # call missed (or vice versa).
-            retry_llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-                task_id=f"{request_data.chat_id}_{request_data.message_id}_retry",
-                model_id=preprocessing_model,
-                fallback_models=preprocessing_fallbacks,
-                message_history=sanitized_message_history,
-                tool_definition=retry_tool_definition,
-                secrets_manager=secrets_manager,
-                user_app_settings_and_memories_metadata=None if is_first_message else user_app_settings_and_memories_metadata,
-                dynamic_context=retry_dynamic_ctx,
-            )
-            
-            if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
-                logger.warning(
-                    f"{log_prefix} Retry preprocessing LLM call failed or returned no arguments. "
-                    f"Error: {retry_llm_call_result.error_message or 'No arguments returned'}. "
-                    f"Using 'general_knowledge' as fallback category."
-                )
-                validated_category = "general_knowledge"
-            else:
-                retry_category = retry_llm_call_result.arguments.get("category")
-                # Strip trailing description in case the LLM returned "science: Science expert..."
-                # instead of just "science" — extract only the bare ID before the first ": "
-                if retry_category and ": " in retry_category:
-                    retry_category = retry_category.split(": ", 1)[0].strip()
-                    logger.debug(f"{log_prefix} Retry category trimmed to bare ID: '{retry_category}'")
-                if retry_category and retry_category in available_category_ids:
-                    logger.info(f"{log_prefix} Retry successful! LLM returned valid category '{retry_category}'.")
-                    validated_category = retry_category
-                    # Update llm_analysis_args with the validated category for consistency
-                    llm_analysis_args["category"] = validated_category
-                else:
-                    # Retry also returned an invalid category (either None, empty, or not in available_category_ids)
-                    logger.warning(
-                        f"{log_prefix} Retry preprocessing also returned invalid category '{retry_category}' "
-                        f"(original invalid category was '{llm_category}'). "
-                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available category IDs: {sorted(available_category_ids)}. "
-                        f"Using 'general_knowledge' as fallback category."
-                    )
-                    validated_category = "general_knowledge"
-                    # Update llm_analysis_args with fallback category
-                    llm_analysis_args["category"] = validated_category
-                
-                # --- Merge relevant_app_skills from retry into first call's results ---
-                # The retry LLM may select different/additional skills compared to the first call.
-                # Since the first call returned an invalid category, it may also have had a suboptimal
-                # skill selection. We take the UNION of both to maximize coverage.
-                # This is safe because the skill validation logic downstream will filter out any
-                # invalid skills, and the main LLM decides which tools to actually invoke.
-                if retry_llm_call_result.arguments:
-                    retry_skills = retry_llm_call_result.arguments.get("relevant_app_skills")
-                    original_skills = llm_analysis_args.get("relevant_app_skills")
-                    if retry_skills and isinstance(retry_skills, list):
-                        if original_skills and isinstance(original_skills, list):
-                            # Union: combine both lists, preserving order (original first, then retry additions)
-                            original_set = set(original_skills)
-                            merged_skills = list(original_skills) + [s for s in retry_skills if s not in original_set]
-                            if len(merged_skills) > len(original_skills):
-                                logger.info(
-                                    f"{log_prefix} Merged relevant_app_skills from retry into first call results. "
-                                    f"Original: {original_skills}, Retry: {retry_skills}, Merged: {merged_skills}"
-                                )
-                                llm_analysis_args["relevant_app_skills"] = merged_skills
-                        elif not original_skills or not isinstance(original_skills, list):
-                            # First call had no skills, use retry's skills entirely
-                            logger.info(
-                                f"{log_prefix} Using relevant_app_skills from retry (first call had none): {retry_skills}"
-                            )
-                            llm_analysis_args["relevant_app_skills"] = retry_skills
-        except Exception as retry_exc:
-            logger.error(
-                f"{log_prefix} Exception during category validation retry: {retry_exc}. "
-                f"Using 'general_knowledge' as fallback category.",
-                exc_info=True
-            )
-            validated_category = "general_knowledge"
-            # Update llm_analysis_args with fallback category
-            llm_analysis_args["category"] = validated_category
-    elif not llm_category:
-        # Category is None or empty - use fallback
-        logger.warning(
-            f"{log_prefix} LLM did not provide a category in its response. "
-            f"Using 'general_knowledge' as fallback category."
-        )
-        validated_category = "general_knowledge"
-        # Update llm_analysis_args with fallback category
         llm_analysis_args["category"] = validated_category
     else:
-        # Category is valid
-        logger.debug(f"{log_prefix} Category '{validated_category}' is valid (exists in available categories list).")
+        logger.warning(
+            f"{log_prefix} TOPIC_ROUTING: Missing or unmapped topic_area "
+            f"'{llm_analysis_args.get('topic_area')}'. Using 'general_knowledge' fallback category."
+        )
+        validated_category = "general_knowledge"
+        llm_analysis_args["category"] = validated_category
 
     # --- Force onboarding_support when Welcome focus is active ---
     # When the user is in an onboarding conversation (openmates-welcome focus mode),
     # always route to the onboarding mate regardless of what the LLM selected.
-    # This overrides any LLM category selection or fallback logic above.
+    # This overrides topic_area-derived category selection above.
     if force_onboarding_category:
         if validated_category != ONBOARDING_SUPPORT_CATEGORY:
             logger.info(
-                f"{log_prefix} Overriding LLM category '{validated_category}' → "
+                f"{log_prefix} Overriding derived category '{validated_category}' → "
                 f"'{ONBOARDING_SUPPORT_CATEGORY}' because Welcome Onboarding focus is active."
             )
         validated_category = ONBOARDING_SUPPORT_CATEGORY
@@ -2916,6 +2947,8 @@ async def handle_preprocessing(
         rejection_reason=None,
         harmful_or_illegal_score=harmful_or_illegal_val,
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
+        topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
+        topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
         complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
         misuse_risk_score=misuse_risk_val,

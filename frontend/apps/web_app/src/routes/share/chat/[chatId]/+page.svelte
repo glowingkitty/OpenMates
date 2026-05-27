@@ -23,6 +23,7 @@
 		chatDB,
 		activeChatStore,
 		decryptShareKeyBlob,
+		handleMessageHighlightAddedImpl,
 		forcedLogoutInProgress,
 		resetForcedLogoutInProgress,
 		isLoggingOut,
@@ -31,7 +32,12 @@
 	} from '@repo/ui';
 	import { goto } from '$app/navigation';
 	import { getApiEndpoint } from '@repo/ui';
-	import { deriveParentByChildEmbeds, type ShareChatEmbedLike } from '../shareChatEmbedUtils';
+	import {
+		dedupeShareChatEmbeds,
+		deriveParentByChildEmbeds,
+		normalizeEmbedIds,
+		type ShareChatEmbedLike
+	} from '../shareChatEmbedUtils';
 
 	// CRITICAL: Configure shared chat mode IMMEDIATELY on script load (before any other code runs)
 	// This prevents chatDB.init() from blocking during shared chat access.
@@ -87,7 +93,19 @@
 		encrypted_sender_name?: string;
 		encrypted_category?: string;
 		encrypted_model_name?: string;
+		encrypted_pii_mappings?: string;
 		user_message_id?: string;
+	};
+
+	type ShareChatHighlight = {
+		id?: string;
+		chat_id?: string;
+		message_id?: string;
+		author_user_id?: string;
+		key_version?: number | null;
+		encrypted_payload?: string;
+		created_at?: number;
+		updated_at?: number;
 	};
 
 	type ShareChatEmbedKey = {
@@ -95,6 +113,17 @@
 		hashed_chat_id?: string;
 		hashed_embed_id?: string;
 		encrypted_embed_key?: string;
+	};
+
+	type ShareChatCodeRunOutput = {
+		id: string;
+		chat_id: string;
+		embed_id: string;
+		author_user_id: string;
+		key_version?: number | null;
+		encrypted_payload: string;
+		created_at: number;
+		updated_at: number;
 	};
 
 	/**
@@ -149,6 +178,8 @@
 		messages: Message[];
 		embeds: ShareChatEmbedLike[];
 		embed_keys: ShareChatEmbedKey[];
+		code_run_outputs: ShareChatCodeRunOutput[];
+		message_highlights: ShareChatHighlight[];
 	}> {
 		try {
 			const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
@@ -195,7 +226,9 @@
 					: Math.floor(Date.now() / 1000);
 
 			// Convert parsed messages to Message format
-			const messages: Message[] = parsedMessages.map((messageObj) => {
+			const messages: Message[] = parsedMessages.flatMap((messageObj) => {
+				const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
+				if (!messageId) return [];
 				const role =
 					messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user';
 				// Prefer client_message_id as the IDB key so that batchSaveMessages() can
@@ -205,8 +238,8 @@
 				// second copy is inserted under a different key → duplicate message in the chat.
 				// Fall back to `message_id` then `id` for non-owner viewers who have no prior
 				// local copy (so any stable ID is fine for them).
-				return {
-					message_id: messageObj.client_message_id || messageObj.message_id || messageObj.id,
+				return [{
+					message_id: messageId,
 					chat_id: data.chat_id,
 					role,
 					created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
@@ -216,8 +249,9 @@
 					encrypted_category: messageObj.encrypted_category,
 					encrypted_model_name: messageObj.encrypted_model_name, // Model name for assistant messages
 					user_message_id: messageObj.user_message_id,
+					encrypted_pii_mappings: messageObj.encrypted_pii_mappings,
 					client_message_id: messageObj.client_message_id
-				};
+				}];
 			});
 
 			// Get current user ID to check ownership
@@ -269,6 +303,8 @@
 				// If chat is from another user, ownership check will fail and chat will be read-only
 				// SHARING: Mark as shared by others and assign to shared_by_others group for sidebar
 				is_shared_by_others: true,
+				share_pii: data.share_pii ?? false,
+				share_highlights: data.share_highlights ?? true,
 				group_key: 'shared_by_others'
 			};
 
@@ -276,11 +312,51 @@
 				chat,
 				messages,
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
-				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[]
+				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
+				code_run_outputs: (data.code_run_outputs || []) as ShareChatCodeRunOutput[],
+				message_highlights: (data.message_highlights || []) as ShareChatHighlight[]
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
-			return { chat: null, messages: [], embeds: [], embed_keys: [] };
+			return { chat: null, messages: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [] };
+		}
+	}
+
+	async function validateSharedEmbedRefs(
+		chatId: string,
+		messages: Message[],
+		keyBytes: Uint8Array
+	): Promise<void> {
+		const { decryptWithChatKey, embedStore } = await import('@repo/ui');
+		const refs = new Set<string>();
+
+		for (const message of messages) {
+			if (!message.encrypted_content) continue;
+			const plaintext = await decryptWithChatKey(message.encrypted_content, keyBytes, {
+				chatId,
+				fieldName: 'shared_chat_embed_ref_validation'
+			});
+			if (!plaintext) continue;
+
+			for (const match of plaintext.matchAll(/embed:([A-Za-z0-9._-]+)/g)) {
+				refs.add(match[1]);
+			}
+		}
+
+		if (refs.size === 0) return;
+
+		const unresolved: string[] = [];
+		for (const ref of refs) {
+			const resolved = embedStore.resolveByRef(ref) || await embedStore.resolveByRefDeep(ref);
+			if (!resolved) unresolved.push(ref);
+		}
+
+		if (unresolved.length > 0) {
+			console.warn('[ShareChat] Unresolved embed refs after cold-load hydration:', {
+				chatId,
+				unresolved,
+				totalRefs: refs.size
+			});
 		}
 	}
 
@@ -395,7 +471,9 @@
 				chat: fetchedChat,
 				messages: fetchedMessages,
 				embeds: fetchedEmbeds,
-				embed_keys: fetchedEmbedKeys
+				embed_keys: fetchedEmbedKeys,
+				code_run_outputs: fetchedCodeRunOutputs,
+				message_highlights: fetchedMessageHighlights
 			} = await fetchChatFromServer(chatId);
 
 			if (!fetchedChat) {
@@ -458,6 +536,32 @@
 				console.debug(`[ShareChat] Stored ${fetchedMessages.length} messages`);
 			}
 
+			if (fetchedMessageHighlights.length > 0) {
+				for (const highlight of fetchedMessageHighlights) {
+					if (
+						!highlight.id ||
+						!highlight.chat_id ||
+						!highlight.message_id ||
+						!highlight.author_user_id ||
+						!highlight.encrypted_payload ||
+						highlight.created_at == null
+					) {
+						continue;
+					}
+
+					await handleMessageHighlightAddedImpl({
+						chat_id: highlight.chat_id,
+						message_id: highlight.message_id,
+						id: highlight.id,
+						author_user_id: highlight.author_user_id,
+						key_version: highlight.key_version ?? null,
+						encrypted_payload: highlight.encrypted_payload,
+						created_at: highlight.created_at
+					});
+				}
+				console.debug(`[ShareChat] Stored ${fetchedMessageHighlights.length} message highlights`);
+			}
+
 			// Process embed_keys first - unwrap them with chat key and store
 			// This is the wrapped key architecture: embed_keys contain AES(embed_key, chat_key)
 			// We unwrap to get embed_key, which is used to decrypt embed content
@@ -472,7 +576,7 @@
 				for (const keyEntry of fetchedEmbedKeys) {
 					try {
 						// Only process key entries for this chat (key_type='chat' with matching hashed_chat_id)
-						if (keyEntry.key_type === 'chat' && keyEntry.hashed_chat_id === hashedChatId) {
+						if (keyEntry.key_type === 'chat' && keyEntry.hashed_chat_id === hashedChatId && keyEntry.encrypted_embed_key) {
 							// Unwrap the embed key using the chat key
 							const embedKey = await unwrapEmbedKeyWithChatKey(
 								keyEntry.encrypted_embed_key,
@@ -503,16 +607,17 @@
 				}
 
 				// Also store the raw embed_keys entries in IndexedDB for future use
-				await embedStore.storeEmbedKeys(fetchedEmbedKeys);
+				await embedStore.storeEmbedKeys(fetchedEmbedKeys as unknown as Parameters<typeof embedStore.storeEmbedKeys>[0]);
 				console.debug(`[ShareChat] Stored ${fetchedEmbedKeys.length} embed keys`);
 			}
 
 			// Store embeds if any
-			if (fetchedEmbeds && fetchedEmbeds.length > 0) {
+			const uniqueFetchedEmbeds = dedupeShareChatEmbeds(fetchedEmbeds);
+			if (uniqueFetchedEmbeds.length > 0) {
 				// Ensure child embeds can resolve the parent key in shared-chat (non-auth) flows.
 				// The EmbedStore can reuse a parent's embed key for a child embed if `parent_embed_id` is stored.
 				// Some payloads include `parent_embed_id` directly; otherwise we can derive it from parent `embed_ids`.
-				const derivedParentByChild = deriveParentByChildEmbeds(fetchedEmbeds);
+				const derivedParentByChild = deriveParentByChildEmbeds(uniqueFetchedEmbeds);
 
 				// CRITICAL: Pre-cache embed keys for child embeds.
 				// putEncrypted tries to decrypt content to extract embed_ref, which requires
@@ -534,13 +639,13 @@
 				// Without this ordering, child embeds can't resolve their parent's key, so their
 				// content can't be decrypted and embed_ref never gets registered — causing
 				// "Loading preview..." stuck state in EmbedReferencePreview / EmbedPreviewLarge.
-				const parentEmbeds = fetchedEmbeds.filter(
+				const parentEmbeds = uniqueFetchedEmbeds.filter(
 					(e: ShareChatEmbedLike) =>
-						Array.isArray(e.embed_ids) && (e.embed_ids as unknown[]).length > 0
+						normalizeEmbedIds(e.embed_ids).length > 0
 				);
-				const childEmbeds = fetchedEmbeds.filter(
+				const childEmbeds = uniqueFetchedEmbeds.filter(
 					(e: ShareChatEmbedLike) =>
-						!Array.isArray(e.embed_ids) || (e.embed_ids as unknown[]).length === 0
+						normalizeEmbedIds(e.embed_ids).length === 0
 				);
 				const sortedEmbeds = [...parentEmbeds, ...childEmbeds];
 
@@ -558,8 +663,8 @@
 								status: embed.status || 'finished',
 								hashed_chat_id: embed.hashed_chat_id,
 								hashed_user_id: embed.hashed_user_id,
-								embed_ids: Array.isArray(embed.embed_ids) ? embed.embed_ids : undefined,
-								parent_embed_id: embed.parent_embed_id || derivedParentByChild.get(embed.embed_id)
+								embed_ids: normalizeEmbedIds(embed.embed_ids),
+								parent_embed_id: embed.parent_embed_id || (embed.embed_id ? derivedParentByChild.get(embed.embed_id) : undefined)
 							},
 							embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use'
 						);
@@ -568,9 +673,19 @@
 					}
 				}
 				console.debug(
-					`[ShareChat] Stored ${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`
+					`[ShareChat] Stored ${uniqueFetchedEmbeds.length}/${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`
 				);
 			}
+
+			if (fetchedCodeRunOutputs.length > 0) {
+				const { handleCodeRunOutputSyncedImpl } = await import('@repo/ui');
+				for (const output of fetchedCodeRunOutputs) {
+					await handleCodeRunOutputSyncedImpl(output);
+				}
+				console.debug(`[ShareChat] Stored ${fetchedCodeRunOutputs.length} code run outputs`);
+			}
+
+			await validateSharedEmbedRefs(chatId, fetchedMessages, keyBytes);
 
 			// NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage
 			// This allows unauthenticated users to reload the tab and still access the chat.

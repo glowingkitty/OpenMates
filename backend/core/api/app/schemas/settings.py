@@ -33,6 +33,16 @@ class DarkModeUpdateRequest(BaseModel):
             }
         }
 
+class UiFontUpdateRequest(BaseModel):
+    ui_font: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "ui_font": "figtree"
+            }
+        }
+
 class TimezoneUpdateRequest(BaseModel):
     """Request model for updating user's timezone setting."""
     timezone: str  # IANA timezone format, e.g., 'Europe/Berlin', 'America/New_York'
@@ -163,6 +173,10 @@ class AiModelDefaultsRequest(BaseModel):
         default=None,
         description="Whether AI chat follow-up suggestion chips and proactive next-step prompts are enabled. Omit to leave unchanged."
     )
+    quick_tips_enabled: Optional[bool] = Field(
+        default=None,
+        description="Whether AI chat product quick tip cards are enabled. Omit to leave unchanged."
+    )
     default_app_skill_models: Optional[dict[str, Optional[str]]] = Field(
         default=None,
         description="Default models for app skills keyed by 'app.skill'. Values use 'provider/model_id'; null clears that skill override."
@@ -174,12 +188,16 @@ class AiModelDefaultsRequest(BaseModel):
                 "default_ai_model_simple": "anthropic/claude-haiku-4-5-20251001",
                 "default_ai_model_complex": "anthropic/claude-opus-4-7",
                 "follow_up_suggestions_enabled": True,
+                "quick_tips_enabled": True,
                 "default_app_skill_models": {
                     "images.generate": "recraft/recraftv4_1_pro",
                     "images.generate_draft": "bfl/flux-2-klein"
                 }
             }
         }
+
+
+# Furry Mode interface preferences are disabled until any furry art is made by human artists.
 
 
 # ─── Storage Overview ─────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { proxyImage } from '../../../utils/imageProxy';
 
@@ -63,7 +64,8 @@
   }
 
   interface Props {
-    product: ShoppingResult;
+    data?: EmbedFullscreenRawData;
+    product?: ShoppingResult;
     embedId?: string;
     onClose: () => void;
     hasPreviousEmbed?: boolean;
@@ -73,7 +75,8 @@
   }
 
   let {
-    product,
+    data,
+    product: productProp,
     embedId,
     onClose,
     hasPreviousEmbed = false,
@@ -81,6 +84,86 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  function asString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+  }
+
+  function asNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
+  }
+
+  function asBoolean(value: unknown): boolean | undefined {
+    if (typeof value === 'boolean') return value;
+    if (value === 'true' || value === '1' || value === 1) return true;
+    if (value === 'false' || value === '0' || value === 0) return false;
+    return undefined;
+  }
+
+  function parseAttributes(content: Record<string, unknown>): ProductAttributes | undefined {
+    const raw = content.attributes;
+    if (!raw || typeof raw !== 'object') return undefined;
+    const attrs = raw as Record<string, unknown>;
+    return {
+      ...attrs,
+      is_organic: asBoolean(attrs.is_organic),
+      is_vegan: asBoolean(attrs.is_vegan),
+      is_vegetarian: asBoolean(attrs.is_vegetarian),
+      is_dairy_free: asBoolean(attrs.is_dairy_free),
+      is_gluten_free: asBoolean(attrs.is_gluten_free),
+      is_regional: asBoolean(attrs.is_regional),
+      is_new: asBoolean(attrs.is_new),
+    };
+  }
+
+  function productFromFullscreenData(rawData: EmbedFullscreenRawData | undefined, fallbackEmbedId: string | undefined): ShoppingResult {
+    const content = rawData?.decodedContent ?? {};
+    return {
+      embed_id: asString(content.embed_id) || fallbackEmbedId || '',
+      product_id: asString(content.product_id),
+      title: asString(content.title),
+      brand: asString(content.brand),
+      price_cents: asNumber(content.price_cents) ?? null,
+      price_eur: asString(content.price_eur) || null,
+      base_price: asString(content.base_price) || null,
+      unit: asString(content.unit) || null,
+      stock: asNumber(content.stock) ?? null,
+      availability: asString(content.availability) || null,
+      is_salable: asBoolean(content.is_salable) ?? null,
+      variation_id: asString(content.variation_id) || null,
+      color_child_item_ids: Array.isArray(content.color_child_item_ids)
+        ? (content.color_child_item_ids.filter((item) => typeof item === 'string') as string[])
+        : undefined,
+      was_price_cents: asNumber(content.was_price_cents) ?? null,
+      grammage: asString(content.grammage) || null,
+      purchase_url: asString(content.purchase_url) || asString(content.url),
+      image_url: asString(content.image_url) || null,
+      category_path: asString(content.category_path) || null,
+      price: asString(content.price) || null,
+      price_amount: asNumber(content.price_amount) ?? null,
+      old_price: asString(content.old_price) || null,
+      old_price_amount: asNumber(content.old_price_amount) ?? null,
+      currency_symbol: asString(content.currency_symbol) || null,
+      asin: asString(content.asin),
+      rating: asNumber(content.rating) ?? null,
+      reviews: asNumber(content.reviews) ?? null,
+      prime: asBoolean(content.prime) ?? null,
+      delivery: Array.isArray(content.delivery)
+        ? (content.delivery.filter((item) => typeof item === 'string') as string[])
+        : undefined,
+      bought_last_month: asString(content.bought_last_month) || null,
+      provider: asString(content.provider),
+      country: asString(content.country),
+      attributes: parseAttributes(content),
+    };
+  }
+
+  let product = $derived(productProp ?? productFromFullscreenData(data, embedId));
 
   function formatCents(value: number | null | undefined): string {
     if (value == null || value <= 0) return '';

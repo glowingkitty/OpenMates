@@ -12,6 +12,8 @@ try:
     from backend.apps.ai.processing.preprocessor import (
         _contains_onboarding_trigger_in_user_history,
         _contains_repo_search_intent_in_user_history,
+        _normalize_topic_area,
+        _resolve_category_from_topic_area,
         ONBOARDING_TRIGGER_PHRASES,
         translate_chat_summary,
     )
@@ -173,6 +175,74 @@ class TestContainsRepoSearchIntent:
         ]
         assert _contains_repo_search_intent_in_user_history(history) is False
 
+
+# ===========================================================================
+# Topic-area mate routing
+# ===========================================================================
+
+AVAILABLE_CATEGORY_IDS = {
+    "activism",
+    "business_development",
+    "cooking_food",
+    "design",
+    "electrical_engineering",
+    "finance",
+    "general_knowledge",
+    "history",
+    "legal_law",
+    "life_coach_psychology",
+    "maker_prototyping",
+    "medical_health",
+    "movies_tv",
+    "onboarding_support",
+    "science",
+    "software_development",
+}
+
+
+class TestTopicAreaMateRouting:
+    def test_normalizes_full_topic_string(self):
+        assert _normalize_topic_area("textiles_sewing: Fabric and sewing") == "textiles_sewing"
+
+    def test_routes_textiles_to_maker_not_cooking(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="textiles_sewing",
+            raw_topic_shift="noticeable_shift",
+            previous_category=None,
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "maker_prototyping"
+
+    def test_routes_food_to_cooking(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="cooking_food",
+            raw_topic_shift="noticeable_shift",
+            previous_category=None,
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "cooking_food"
+
+    def test_keeps_previous_category_for_same_topic_follow_up(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="writing_editing",
+            raw_topic_shift="same_topic",
+            previous_category="software_development",
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "software_development"
+
+    def test_keeps_previous_category_for_general_misc_follow_up(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="general_misc",
+            raw_topic_shift="noticeable_shift",
+            previous_category="maker_prototyping",
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "maker_prototyping"
+
+    def test_allows_clear_follow_up_topic_shift(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="cooking_food",
+            raw_topic_shift="noticeable_shift",
+            previous_category="software_development",
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+        ) == "cooking_food"
 
 @pytest.mark.anyio
 async def test_translate_chat_summary_uses_isolated_translation(monkeypatch):

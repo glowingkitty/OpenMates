@@ -2195,6 +2195,31 @@ test_run_summary.footer_note:
   he: "דוח זה נוצר על ידי מערכת הניטור האוטומטית היומית של בדיקות."
   verified_by_human: []
 
+daily_issue_digest.subject:
+  context: Subject for the admin daily issue digest email
+  en: "Daily Issue Digest"
+  de: "Daily Issue Digest"
+  zh: "Daily Issue Digest"
+  es: "Daily Issue Digest"
+  fr: "Daily Issue Digest"
+  pt: "Daily Issue Digest"
+  ru: "Daily Issue Digest"
+  ja: "Daily Issue Digest"
+  ko: "Daily Issue Digest"
+  it: "Daily Issue Digest"
+  tr: "Daily Issue Digest"
+  vi: "Daily Issue Digest"
+  id: "Daily Issue Digest"
+  pl: "Daily Issue Digest"
+  nl: "Daily Issue Digest"
+  ar: "Daily Issue Digest"
+  hi: "Daily Issue Digest"
+  th: "Daily Issue Digest"
+  cs: "Daily Issue Digest"
+  sv: "Daily Issue Digest"
+  he: "Daily Issue Digest"
+  verified_by_human: []
+
 test_run_started.title:
   context: Email subject/title for test run started notification (admin only)
   en: "Test Run Started"
@@ -8000,6 +8025,78 @@ ai_response_notification.open_chat_button:
   cs: Otevřít chat
   sv: Öppna chatt
   he: "פתיחת הצ'אט"
+  verified_by_human: []
+referral_reward.subject:
+  context: Email subject for referral reward notification
+  en: "Someone used your referral code"
+  de: "Someone used your referral code"
+  zh: "Someone used your referral code"
+  es: "Someone used your referral code"
+  fr: "Someone used your referral code"
+  pt: "Someone used your referral code"
+  ru: "Someone used your referral code"
+  ja: "Someone used your referral code"
+  ko: "Someone used your referral code"
+  it: "Someone used your referral code"
+  tr: "Someone used your referral code"
+  vi: "Someone used your referral code"
+  id: "Someone used your referral code"
+  pl: "Someone used your referral code"
+  nl: "Someone used your referral code"
+  ar: "Someone used your referral code"
+  hi: "Someone used your referral code"
+  th: "Someone used your referral code"
+  cs: "Someone used your referral code"
+  sv: "Someone used your referral code"
+  he: "Someone used your referral code"
+  verified_by_human: []
+referral_reward.header:
+  context: Header text in referral reward notification email body
+  en: Referral reward earned
+  de: Referral reward earned
+  zh: Referral reward earned
+  es: Referral reward earned
+  fr: Referral reward earned
+  pt: Referral reward earned
+  ru: Referral reward earned
+  ja: Referral reward earned
+  ko: Referral reward earned
+  it: Referral reward earned
+  tr: Referral reward earned
+  vi: Referral reward earned
+  id: Referral reward earned
+  pl: Referral reward earned
+  nl: Referral reward earned
+  ar: Referral reward earned
+  hi: Referral reward earned
+  th: Referral reward earned
+  cs: Referral reward earned
+  sv: Referral reward earned
+  he: Referral reward earned
+  verified_by_human: []
+referral_reward.description:
+  context: Referral reward notification body; {credits} is the awarded credit amount
+  en: "Someone used your referral code. You got {credits} free credits."
+  de: "Someone used your referral code. You got {credits} free credits."
+  zh: "Someone used your referral code. You got {credits} free credits."
+  es: "Someone used your referral code. You got {credits} free credits."
+  fr: "Someone used your referral code. You got {credits} free credits."
+  pt: "Someone used your referral code. You got {credits} free credits."
+  ru: "Someone used your referral code. You got {credits} free credits."
+  ja: "Someone used your referral code. You got {credits} free credits."
+  ko: "Someone used your referral code. You got {credits} free credits."
+  it: "Someone used your referral code. You got {credits} free credits."
+  tr: "Someone used your referral code. You got {credits} free credits."
+  vi: "Someone used your referral code. You got {credits} free credits."
+  id: "Someone used your referral code. You got {credits} free credits."
+  pl: "Someone used your referral code. You got {credits} free credits."
+  nl: "Someone used your referral code. You got {credits} free credits."
+  ar: "Someone used your referral code. You got {credits} free credits."
+  hi: "Someone used your referral code. You got {credits} free credits."
+  th: "Someone used your referral code. You got {credits} free credits."
+  cs: "Someone used your referral code. You got {credits} free credits."
+  sv: "Someone used your referral code. You got {credits} free credits."
+  he: "Someone used your referral code. You got {credits} free credits."
   verified_by_human: []
 storage_billing_failed_1.subject:
   context: Email subject for first storage billing failure (insufficient credits)

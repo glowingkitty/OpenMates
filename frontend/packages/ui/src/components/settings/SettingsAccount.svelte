@@ -136,7 +136,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
         dispatch('openSettings', {
             settingsPath: 'account/export',
             direction: 'forward',
-            icon: 'download',
+            icon: 'subsetting_icon download',
             title: $text('settings.account.export')
         });
     }
@@ -251,7 +251,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
 
 <SettingsItem
     type="submenu"
-    icon="download"
+    icon="subsetting_icon download"
     title={$text('settings.account.export')}
     onClick={navigateToExportData}
 />

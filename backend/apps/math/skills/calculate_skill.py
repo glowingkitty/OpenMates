@@ -42,6 +42,10 @@ class CalculateRequest(BaseModel):
         ...,
         description="Mathematical expression, equation, or operation to evaluate"
     )
+    title: Optional[str] = Field(
+        default=None,
+        description="Short human-readable title explaining what this calculation is for"
+    )
     mode: str = Field(
         default="auto",
         description="Evaluation mode: auto, numeric, symbolic, solve, simplify, diff, integrate, convert"
@@ -73,13 +77,15 @@ class CalculateResponse(BaseModel):
     - result_latex:     The result formatted as LaTeX (symbolic or numeric)
     - result_numeric:   Floating-point approximation (None for purely symbolic results)
     - result_str:       Human-readable string of the result
+    - expression_raw:    The original expression exactly as requested
+    - title:             Optional human-readable calculation title/context
     - steps:            Optional step-by-step breakdown (for solve/diff/integrate)
     - mode_used:        Which evaluation mode was actually applied
     - error:            Error message if computation failed
     
     When serialized for the frontend embed (via model_dump()), the short field names
     are used so the frontend MathCalculateEmbedPreview can read them directly:
-    - expression_latex → expression
+    - expression_raw   → expression
     - result_str       → result
     - mode_used        → mode
     These match the CalculateResult interface in MathCalculateEmbedPreview.svelte.
@@ -88,6 +94,8 @@ class CalculateResponse(BaseModel):
     result_latex: str = Field(default="", description="Result as LaTeX")
     result_numeric: Optional[float] = Field(None, description="Numeric approximation")
     result_str: str = Field(default="", description="Human-readable result string")
+    expression_raw: str = Field(default="", description="Original expression exactly as requested")
+    title: Optional[str] = Field(None, description="Human-readable calculation title/context")
     steps: List[CalculateStep] = Field(default_factory=list, description="Calculation steps")
     mode_used: str = Field(default="auto", description="Evaluation mode actually applied")
     error: Optional[str] = Field(None, description="Error message if computation failed")
@@ -104,7 +112,7 @@ class CalculateResponse(BaseModel):
         We keep the long-form fields too so nothing downstream breaks if it reads them.
         """
         base = super().model_dump(**kwargs)
-        base["expression"] = base.get("expression_latex", "")
+        base["expression"] = base.get("expression_raw") or base.get("expression_latex", "")
         base["result"] = base.get("result_str", "")
         base["mode"] = base.get("mode_used", "auto")
         return base
@@ -693,8 +701,11 @@ class CalculateSkill(BaseSkill):
         then returns a structured response with LaTeX-formatted expression and result.
         """
         expression = request.expression.strip()
+        title = request.title.strip() if request.title else None
+        if title == "":
+            title = None
         if not expression:
-            return CalculateResponse(error="Expression cannot be empty")
+            return CalculateResponse(title=title, error="Expression cannot be empty")
         
         logger.info(f"[math.calculate] Evaluating: mode={request.mode!r} expr={expression[:120]!r}")
         
@@ -721,12 +732,16 @@ class CalculateSkill(BaseSkill):
             logger.warning(f"[math.calculate] ValueError: {e}")
             return CalculateResponse(
                 expression_latex=expression,
+                expression_raw=expression,
+                title=title,
                 error=str(e),
             )
         except Exception as e:
             logger.error(f"[math.calculate] Unexpected error: {e}", exc_info=True)
             return CalculateResponse(
                 expression_latex=expression,
+                expression_raw=expression,
+                title=title,
                 error=f"Computation failed: {e}",
             )
         
@@ -742,6 +757,8 @@ class CalculateSkill(BaseSkill):
             result_latex=result_latex,
             result_numeric=result_numeric,
             result_str=result_str,
+            expression_raw=expression,
+            title=title,
             steps=steps,
             mode_used=mode_used,
         )

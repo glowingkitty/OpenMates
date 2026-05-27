@@ -40,7 +40,11 @@
             aria-label={$text(mate.name_translation_key)}
         >
             <!-- Profile image — uses existing .mate-profile CSS class from mates.css -->
-            <div class="mate-profile {mate.profile_class} mate-profile-settings"></div>
+            <div
+                class="mate-profile {mate.profile_class} mate-profile-settings"
+                data-testid="mate-profile-settings"
+                data-mate-id={mate.id}
+            ></div>
 
             <!-- Name + description text block -->
             <div class="mate-text">

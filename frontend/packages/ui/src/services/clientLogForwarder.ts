@@ -10,7 +10,9 @@
  *    user with an active debug log sharing session. Started when the user
  *    activates "Share Debug Logs" in settings. Logs are tagged with a
  *    debugging_id for support to query via `debug.py logs --debug-id <ID>`.
- * 3. **E2E test mode**: POST /e2e/client-logs — started when the app is loaded
+ * 3. **Default diagnostic mode**: POST /v1/client-logs — privacy-safe warn/error
+ *    telemetry for authenticated users unless they opt out in Privacy settings.
+ * 4. **E2E test mode**: POST /e2e/client-logs — started when the app is loaded
  *    with the `#e2e-debug={runId}&e2e-token={scopedToken}` hash param injected
  *    by the Playwright test runner. Uses a scoped HMAC token (NOT the internal
  *    service token). Works pre-login so login flow itself is captured.
@@ -121,10 +123,10 @@ class ClientLogForwarderService {
   private debugSessionId: string | null = null;
 
   /**
-   * When set, the forwarder runs in ephemeral mode for all authenticated users:
+   * When set, the forwarder runs in default diagnostic mode for all authenticated users:
    * - Uses POST /v1/client-logs with a random session_pseudonym
    * - No user_email or user_id sent — only the per-session UUID
-   * - Drops debug-level logs and deduplicates repeated messages
+   * - Sends warning/error logs only and deduplicates repeated messages
    * - Content-level sanitization strips PII (emails, UUIDs, base64, long strings)
    */
   private ephemeralMode: {
@@ -148,10 +150,11 @@ class ClientLogForwarderService {
   private readonly logListener = (entry: ConsoleLogEntry): void => {
     // Feed main queue (admin/debug/e2e modes)
     void this.enqueue(entry);
-    // Feed ephemeral buffer if active (with content sanitization + level filter)
+    // Feed privacy-safe diagnostic buffer if active (with content sanitization + level filter)
     if (this.ephemeralMode) {
-      // Drop debug-level logs in ephemeral mode (high volume, low debugging value)
-      if (entry.level === 'debug') return;
+      // Default telemetry only sends warnings/errors. Raw info/debug/log entries are
+      // too noisy and more likely to contain accidental content-bearing context.
+      if (entry.level !== 'warn' && entry.level !== 'error') return;
       // Apply content-level sanitization to strip PII
       const sanitizedMessage = logCollector.sanitizeContent(entry.message);
       this.ephemeralMode.buffer.push({
@@ -223,7 +226,7 @@ class ClientLogForwarderService {
   }
 
   /**
-   * Start forwarding in ephemeral mode for all authenticated users.
+   * Start forwarding privacy-safe warning/error diagnostics for authenticated users.
    * Logs are anonymized (content sanitization + random session UUID) and sent
    * to the /v1/client-logs endpoint. No user identity is included.
    *
@@ -255,7 +258,7 @@ class ClientLogForwarderService {
       () => void this.flushEphemeral(),
       EPHEMERAL_FLUSH_INTERVAL_MS,
     );
-    console.debug('[ClientLogForwarder] Ephemeral mode started');
+    console.debug('[ClientLogForwarder] Default diagnostics started');
   }
 
   /**

@@ -26,6 +26,7 @@
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore } from '../../../stores/embedPIIStore';
+  import { hydrateWikiLinks } from '../../../utils/embedLinkUtils';
   
   /**
    * Props for document embed preview
@@ -78,6 +79,7 @@
   let localPreviewPageUrls = $state<Record<string, string> | undefined>(undefined);
   let storeResolved = $state(false);
   let firstPageUrl = $state<string | undefined>(undefined);
+  let contentEl: HTMLDivElement | undefined = $state(undefined);
 
   // Initialize local state from props
   $effect(() => {
@@ -200,6 +202,20 @@
       });
   });
 
+  $effect(() => {
+    void sanitizedHtml;
+    if (!contentEl) return;
+    const raf = requestAnimationFrame(() => {
+      wikiLinkCleanup = hydrateWikiLinks(contentEl, { clickable: false });
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      wikiLinkCleanup?.();
+      wikiLinkCleanup = undefined;
+    };
+  });
+  let wikiLinkCleanup: (() => void) | undefined;
+
   /**
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
@@ -284,7 +300,7 @@
         <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
           <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
             <div class="doc-page">
-              <div class="doc-page-content">
+              <div class="doc-page-content" bind:this={contentEl}>
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
                 {@html sanitizedHtml}
               </div>

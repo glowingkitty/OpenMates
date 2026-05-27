@@ -31,6 +31,16 @@ export interface SocialMediaPostResult {
   fetched_comment_count?: number;
 }
 
+export interface SocialMediaCommentResult {
+  id?: string;
+  author?: string;
+  body?: string;
+  url?: string;
+  published_at?: string;
+  score?: number;
+  ups?: number;
+}
+
 export function transformToSocialPostResult(
   embedId: string,
   content: Record<string, unknown>,
@@ -54,14 +64,31 @@ export function transformToSocialPostResult(
     thumbnail_url: asString(content.thumbnail_url),
     external_url: asString(content.external_url),
     external_title: asString(content.external_title),
-    comments: Array.isArray(content.comments) ? content.comments : undefined,
+    comments: normalizeComments(content.comments),
     fetched_comment_count: asNumber(content.fetched_comment_count),
   };
 }
 
+export function normalizeComments(value: unknown): SocialMediaCommentResult[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      id: asString(item.id),
+      author: asString(item.author),
+      body: asString(item.body),
+      url: asString(item.url),
+      published_at: asString(item.published_at),
+      score: asNumber(item.score),
+      ups: asNumber(item.ups),
+    }))
+    .filter((comment) => Boolean(comment.body));
+}
+
 export function transformLegacySocialPosts(results: unknown[]): SocialMediaPostResult[] {
   const posts: SocialMediaPostResult[] = [];
-  for (const [groupIndex, item] of results.entries()) {
+  for (let groupIndex = 0; groupIndex < results.length; groupIndex += 1) {
+    const item = results[groupIndex];
     if (!item || typeof item !== 'object') continue;
     const group = item as Record<string, unknown>;
     const nestedPosts = Array.isArray(group.posts)
@@ -70,7 +97,8 @@ export function transformLegacySocialPosts(results: unknown[]): SocialMediaPostR
         ? group.results
         : null;
     if (nestedPosts) {
-      for (const [postIndex, post] of nestedPosts.entries()) {
+      for (let postIndex = 0; postIndex < nestedPosts.length; postIndex += 1) {
+        const post = nestedPosts[postIndex];
         if (!post || typeof post !== 'object') continue;
         posts.push(transformToSocialPostResult(`legacy-${groupIndex}-${postIndex}`, {
           platform: group.platform,
@@ -90,7 +118,7 @@ export function socialProviderLabel(provider: unknown): string {
   if (!value) return 'Social Media';
   return value
     .split(',')
-    .map((part) => part.trim().replace(/_/g, ' '))
+    .map((part) => providerName(part.trim()))
     .filter(Boolean)
     .join(', ');
 }
@@ -107,6 +135,21 @@ export function formatCount(value: number | undefined): string {
   return String(value);
 }
 
+export function formatPostedAt(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return value;
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diffSeconds < 60) return 'just now';
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(timestamp));
+}
+
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
@@ -117,4 +160,12 @@ function asNumber(value: unknown): number | undefined {
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function providerName(value: string): string {
+  const normalized = value.toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'reddit_json' || normalized === 'reddit_rss') return 'Reddit';
+  if (normalized === 'bluesky_public') return 'Bluesky';
+  if (normalized === 'mastodon_public') return 'Mastodon';
+  return value.replace(/_/g, ' ');
 }

@@ -1,0 +1,39 @@
+{
+  "fixture_id": "focus_career_followup",
+  "recorded_at": "2026-05-21T11:24:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "I'm particularly interested in transitioning to a product management role. What skills do I need and how should I prepare?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "life_coach_psychology",
+    "title": null,
+    "icon_names": null,
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "lisa",
+    "chat_summary": "User is exploring a career transition into product management.",
+    "chat_tags": ["career", "product management", "transition", "skills"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "medium",
+    "steps": [
+      {"step": "mate_selected", "data": {"mate_id": "lisa"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "life_coach_psychology",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "For a transition into product management, focus on three skill areas: customer discovery, product strategy, and execution. Start by practicing user interviews, writing simple product requirement docs, and learning how teams prioritize roadmaps. Your current career experience can still be useful if you frame it around problem-solving, stakeholder communication, and measurable outcomes.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 62,
+    "total_credits": 4,
+    "model_name": "Claude Sonnet"
+  }
+}

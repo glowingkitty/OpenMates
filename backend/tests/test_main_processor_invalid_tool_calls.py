@@ -11,6 +11,7 @@ from backend.apps.ai.processing.main_processor import (
     INVALID_TOOL_FALLBACK_MESSAGE,
     INVALID_TOOL_RESULT_REASON,
     _append_tool_call_turn_to_history,
+    _get_skill_execution_args,
 )
 
 
@@ -61,3 +62,29 @@ def test_invalid_tool_calls_are_hidden_protocol_bookkeeping() -> None:
 def test_invalid_tool_fallback_message_does_not_name_internal_tools() -> None:
     assert "travel-search_flights" not in INVALID_TOOL_FALLBACK_MESSAGE
     assert "tool" not in INVALID_TOOL_FALLBACK_MESSAGE.lower()
+
+
+def test_skill_execution_uses_placeholder_normalized_args() -> None:
+    parsed_args = {
+        "requests": [
+            {"id": "search_aethos", "query": "aethos"},
+            {"id": "search_foresight", "query": "foresight"},
+        ]
+    }
+    placeholder_args = {
+        "requests": [
+            {"id": 1, "query": "aethos"},
+            {"id": 2, "query": "foresight"},
+        ]
+    }
+
+    assert _get_skill_execution_args(
+        parsed_args,
+        {"multiple": True, "parsed_args": placeholder_args},
+    ) is placeholder_args
+
+
+def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> None:
+    parsed_args = {"requests": [{"id": "search_aethos", "query": "aethos"}]}
+
+    assert _get_skill_execution_args(parsed_args, {"multiple": True}) is parsed_args

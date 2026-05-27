@@ -30,6 +30,11 @@ logger = logging.getLogger(__name__)
 ASYNC_SKILL_CONTINUATION_TTL_SECONDS = 60 * 60 * 24
 ASYNC_SKILL_CONTINUATION_KEY_PREFIX = "async_skill_continuation"
 ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
+ASYNC_EMBED_REFERENCE_INSTRUCTION = (
+    "When referencing a specific completed result that has an embed_ref field, "
+    "link it with Markdown like [human-readable title](embed:the_embed_ref). "
+    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text."
+)
 celery_app = None
 
 
@@ -241,7 +246,8 @@ def _build_completed_tool_result_message(
     return (
         "An asynchronous tool call requested earlier in this conversation has completed. "
         "Use these completed tool results and the prior chat history to answer the user's original request now. "
-        "Do not ask the user to wait for this same tool result.\n\n"
+        "Do not ask the user to wait for this same tool result. "
+        f"{ASYNC_EMBED_REFERENCE_INSTRUCTION}\n\n"
         f"Completed tool result (TOON):\n{toon_encode(payload)}"
     )
 

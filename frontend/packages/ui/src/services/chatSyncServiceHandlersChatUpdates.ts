@@ -568,10 +568,17 @@ export async function handleNewChatMessageImpl(
       // instead of dropping it. Replay it now so encrypted_title/icon/category
       // get written and the sidebar exits "Processing..." state.
       try {
-        const { flushPendingTypingStartedForChat } = await import(
+        const {
+          flushPendingFinalizedEmbedsForChat,
+          flushPendingTypingStartedForChat,
+        } = await import(
           "./chatSyncServiceHandlersAI"
         );
         await flushPendingTypingStartedForChat(
+          serviceInstance,
+          payload.chat_id,
+        );
+        await flushPendingFinalizedEmbedsForChat(
           serviceInstance,
           payload.chat_id,
         );

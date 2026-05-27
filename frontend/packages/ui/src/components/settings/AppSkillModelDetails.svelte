@@ -22,8 +22,8 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
+    import { providersMetadata } from '../../data/providersMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import Icon from '../Icon.svelte';
     
@@ -173,6 +173,17 @@
             title: skill?.name_translation_key ? $text(skill.name_translation_key) : skillId
         });
     }
+
+    function handleProviderClick(providerId: string) {
+        const provider = providersMetadata[providerId];
+        if (!provider) return;
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/skill/${skillId}/provider/${provider.id}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: provider.name,
+        });
+    }
 </script>
 
 <div class="model-details">
@@ -194,10 +205,14 @@
                 <!-- Origin -->
                 <div class="info-row">
                     <span class="info-label">{$text('settings.app_store.skills.model_detail.origin')}</span>
-                    <span class="info-value">
+                    <button
+                        type="button"
+                        class="info-value info-value--button"
+                        onclick={() => handleProviderClick(model.provider_id)}
+                    >
                         <span class="country-flag">{getCountryFlag(model.country_origin)}</span>
                         {model.provider_name}
-                    </span>
+                    </button>
                 </div>
                 
                 <!-- Release date -->
@@ -265,8 +280,8 @@
                     {/if}
                 </div>
             </div>
-        {:else if model.pricing?.per_unit || model.pricing?.per_minute !== undefined}
-            <!-- Per-unit / per-minute pricing from model metadata (image/audio models) -->
+        {:else if model.pricing?.per_unit || model.pricing?.per_minute !== undefined || model.pricing?.per_second !== undefined}
+            <!-- Per-unit / duration pricing from model metadata (image/audio/video models) -->
             <div class="section">
                 <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
@@ -288,6 +303,14 @@
                             <span class="pricing-value">
                                 {model.pricing.per_minute} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
                                 {$text('settings.app_store.skills.model_detail.per_minute')}
+                            </span>
+                        </div>
+                    {:else if model.pricing?.per_second !== undefined}
+                        <div class="pricing-row">
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-value">
+                                {model.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                / second
                             </span>
                         </div>
                     {/if}
@@ -318,6 +341,14 @@
                                 {$text('settings.app_store.skills.model_detail.per_minute')}
                             </span>
                         </div>
+                    {:else if skill.pricing.per_second !== undefined}
+                        <div class="pricing-row">
+                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
+                            <span class="pricing-value">
+                                {skill.pricing.per_second} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} />
+                                / second
+                            </span>
+                        </div>
                     {:else if skill.pricing.fixed !== undefined}
                         <div class="pricing-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
@@ -336,15 +367,31 @@
                 <SettingsSectionHeading title={$text('common.provider')} icon="server" />
                 <div class="provider-list">
                     {#each model.servers as server (server.id)}
-                        <div class="provider-item">
-                            <div class="provider-icon-wrapper">
-                                <Icon name={getProviderIconName(server.id)} type="provider" size="32px" noAnimation={true} />
+                        {#if providersMetadata[server.id]}
+                            <button
+                                type="button"
+                                class="provider-item provider-item--clickable"
+                                onclick={() => handleProviderClick(server.id)}
+                            >
+                                <div class="provider-icon-wrapper">
+                                    <Icon name={getProviderIconName(server.id)} type="provider" size="32px" noAnimation={true} />
+                                </div>
+                                <div class="provider-info">
+                                    <span class="provider-name">{server.name}</span>
+                                    <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.app_store.skills.model_detail.servers').toLowerCase()}</span>
+                                </div>
+                            </button>
+                        {:else}
+                            <div class="provider-item">
+                                <div class="provider-icon-wrapper">
+                                    <Icon name={getProviderIconName(server.id)} type="provider" size="32px" noAnimation={true} />
+                                </div>
+                                <div class="provider-info">
+                                    <span class="provider-name">{server.name}</span>
+                                    <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.app_store.skills.model_detail.servers').toLowerCase()}</span>
+                                </div>
                             </div>
-                            <div class="provider-info">
-                                <span class="provider-name">{server.name}</span>
-                                <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.app_store.skills.model_detail.servers').toLowerCase()}</span>
-                            </div>
-                        </div>
+                        {/if}
                     {/each}
                 </div>
             </div>
@@ -405,6 +452,19 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+    }
+
+    .info-value--button {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: var(--color-primary-start);
+        cursor: pointer;
+        font: inherit;
+    }
+
+    .info-value--button:hover {
+        text-decoration: underline;
     }
     
     .country-flag {
@@ -484,10 +544,20 @@
         gap: var(--spacing-6);
         padding: var(--spacing-6) var(--spacing-8);
         border-radius: var(--radius-3);
+        border: 0;
+        width: 100%;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
         transition: background var(--duration-fast);
     }
     
-    .provider-item:hover {
+    .provider-item--clickable {
+        cursor: pointer;
+    }
+
+    .provider-item--clickable:hover {
         background: var(--color-grey-10);
     }
     

@@ -32,6 +32,7 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
+from backend.core.api.app.services.referral_service import ReferralService
 from fastapi.responses import StreamingResponse
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -170,6 +171,7 @@ class RedeemGiftCardResponse(BaseModel):
 
 class InvoiceResponse(BaseModel):
     id: str
+    order_id: Optional[str] = None
     date: str
     amount: str
     credits_purchased: int
@@ -260,6 +262,7 @@ class PaymentMethodCard(BaseModel):
     last4: str
     exp_month: int
     exp_year: int
+    country: Optional[str] = None
 
 class PaymentMethodInfo(BaseModel):
     id: str
@@ -337,6 +340,75 @@ def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
                 return None
     logger.warning(f"No pricing tier found for {credits_amount} credits.")
     return None
+
+
+async def _send_referral_reward_notifications(
+    *,
+    referral_reward_result,
+    referred_user_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> None:
+    """Notify both sides after referral promotional credits are awarded."""
+    if not referral_reward_result or not referral_reward_result.awarded:
+        return
+
+    try:
+        await manager.broadcast_to_user_specific_event(
+            user_id=referred_user_id,
+            event_name="user_notification",
+            payload={
+                "notification_type": "success",
+                "message": f"Your referral reward was applied. You got {referral_reward_result.referred_bonus} free credits.",
+                "duration": 15000,
+                "dedupe_key": f"referral_reward_referred:{referred_user_id}",
+            },
+        )
+    except Exception as exc:
+        logger.error("Failed to send referred-user referral notification: %s", exc, exc_info=True)
+
+    referrer_user_id = referral_reward_result.referrer_user_id
+    if not referrer_user_id:
+        return
+
+    try:
+        referrer_email = None
+        contact_rows = await directus_service.get_items(
+            "account_contact_emails",
+            {
+                "filter": {"user_id": {"_eq": referrer_user_id}},
+                "fields": "encrypted_email_address",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        contact_encrypted_email = (contact_rows[0] if contact_rows else {}).get("encrypted_email_address")
+        if contact_encrypted_email:
+            referrer_email = await encryption_service.decrypt_account_contact_email(contact_encrypted_email)
+
+        referrer_fields = await directus_service.get_user_fields_direct(
+            referrer_user_id,
+            ["encrypted_email_address", "language", "darkmode"],
+        )
+        encrypted_email = (referrer_fields or {}).get("encrypted_email_address")
+        if not referrer_email and encrypted_email:
+            referrer_email = await encryption_service.decrypt_account_contact_email(encrypted_email)
+        if not referrer_email:
+            logger.warning("Referral reward email skipped: referrer %s has no decryptable contact email", referrer_user_id)
+            return
+
+        app.send_task(
+            name="app.tasks.email_tasks.referral_reward_email_task.send_referral_reward_email",
+            kwargs={
+                "recipient_email": referrer_email,
+                "credits_awarded": referral_reward_result.referrer_bonus,
+                "language": (referrer_fields or {}).get("language") or "en",
+                "darkmode": bool((referrer_fields or {}).get("darkmode")),
+            },
+            queue="email",
+        )
+    except Exception as exc:
+        logger.error("Failed to queue referrer referral reward email: %s", exc, exc_info=True)
 
 def get_bonus_credits_for_tier(credits_amount: int) -> int:
     """
@@ -1862,6 +1934,43 @@ async def payment_webhook(
                     )
 
                 if directus_update_success:
+                    referral_reward_result = None
+                    if not is_gift_card:
+                        try:
+                            reward_payment_intent_id = managed_payment_intent_id or webhook_order_id
+                            payment_fingerprint = None
+                            if effective_order_provider in {"stripe", "stripe_managed"} and getattr(payment_service, "_stripe_provider", None):
+                                payment_fingerprint = await payment_service._stripe_provider.get_payment_method_fingerprint(reward_payment_intent_id)
+
+                            referral_service = ReferralService(directus_service, cache_service, encryption_service)
+                            referral_reward_result = await referral_service.reward_after_purchase(
+                                referred_user_id=user_id,
+                                referred_current_credits=new_total_credits_calculated,
+                                referred_vault_key_id=vault_key_id,
+                                order_id=webhook_order_id,
+                                purchase_amount_cents=calculated_amount_cents or 0,
+                                stripe_customer_id=(user_cache_data or {}).get("stripe_customer_id"),
+                                payment_method_fingerprint=payment_fingerprint,
+                            )
+                            if referral_reward_result.awarded and referral_reward_result.referred_new_total is not None:
+                                new_total_credits_calculated = referral_reward_result.referred_new_total
+                                await _send_referral_reward_notifications(
+                                    referral_reward_result=referral_reward_result,
+                                    referred_user_id=user_id,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service,
+                                )
+                                logger.info(
+                                    f"Referral reward applied for order {webhook_order_id}: "
+                                    f"referred_bonus={referral_reward_result.referred_bonus}, "
+                                    f"referrer_bonus={referral_reward_result.referrer_bonus}"
+                                )
+                        except Exception as referral_exc:
+                            logger.error(
+                                f"Referral reward processing failed for order {webhook_order_id}: {referral_exc}",
+                                exc_info=True,
+                            )
+
                     # Update server stats
                     try:
                         server_stats_service = request.app.state.server_stats_service
@@ -1876,6 +1985,10 @@ async def payment_webhook(
                             
                             # 3. Update liability (add credits)
                             await server_stats_service.update_liability(credits_purchased)
+                            if referral_reward_result and referral_reward_result.awarded:
+                                await server_stats_service.update_liability(
+                                    referral_reward_result.referred_bonus + referral_reward_result.referrer_bonus
+                                )
                             
                             # 4. If first purchase, increment finished signup
                             # We can check if last_opened was a signup path
@@ -2022,6 +2135,10 @@ async def payment_webhook(
                             
                             # 3. Liability Increase
                             await cache_service.update_liability(int(credits_purchased))
+                            if referral_reward_result and referral_reward_result.awarded:
+                                await cache_service.update_liability(
+                                    int(referral_reward_result.referred_bonus + referral_reward_result.referrer_bonus)
+                                )
                             
                             # 4. Finished Signup (if this is their first payment)
                             # We can approximate this by checking if they just completed signup
@@ -2049,6 +2166,21 @@ async def payment_webhook(
                                 event_name="user_credits_updated",
                                 payload={"credits": new_total_credits_calculated}
                             )
+                            if referral_reward_result and referral_reward_result.awarded and referral_reward_result.referrer_user_id:
+                                referrer_payload = {"credits": referral_reward_result.referrer_new_total}
+                                await cache_service.publish_event(
+                                    channel=f"user_updates::{referral_reward_result.referrer_user_id}",
+                                    event_data={
+                                        "event_for_client": "user_credits_updated",
+                                        "user_id_uuid": referral_reward_result.referrer_user_id,
+                                        "payload": referrer_payload,
+                                    },
+                                )
+                                await manager.broadcast_to_user_specific_event(
+                                    user_id=referral_reward_result.referrer_user_id,
+                                    event_name="user_credits_updated",
+                                    payload=referrer_payload,
+                                )
                             
                             logger.info(f"Published and broadcasted 'user_credits_updated' event for user {user_id}.")
                         except Exception as pub_exc:
@@ -2062,6 +2194,9 @@ async def payment_webhook(
                                 "credits_purchased": credits_purchased,
                                 "current_credits": new_total_credits_calculated,
                             }
+                            if referral_reward_result and referral_reward_result.awarded:
+                                payment_completed_payload["referral_reward_applied"] = True
+                                payment_completed_payload["referral_referred_bonus"] = referral_reward_result.referred_bonus
                             await cache_service.publish_event(
                                 channel=f"user_updates::{user_id}",
                                 event_data={
@@ -4629,6 +4764,7 @@ async def get_invoices(
 
                 processed_invoices.append(InvoiceResponse(
                     id=invoice["id"],
+                    order_id=invoice.get("order_id"),
                     date=formatted_date,
                     amount=amount,
                     credits_purchased=int(credits_purchased),
@@ -5980,6 +6116,26 @@ async def _handle_revolut_business_webhook(
             logger.error(f"Failed to update credits in Directus for bank transfer {order_id}")
             raise Exception("Directus credit update failed")
 
+        referral_reward_result = await ReferralService(
+            directus_service,
+            cache_service,
+            encryption_service,
+        ).reward_after_purchase(
+            referred_user_id=user_id,
+            referred_current_credits=new_total_credits,
+            referred_vault_key_id=vault_key_id,
+            order_id=order_id,
+            purchase_amount_cents=received_amount_cents,
+        )
+        if referral_reward_result.awarded and referral_reward_result.referred_new_total is not None:
+            new_total_credits = referral_reward_result.referred_new_total
+            await _send_referral_reward_notifications(
+                referral_reward_result=referral_reward_result,
+                referred_user_id=user_id,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            )
+
         # Update pending_bank_transfers record
         await _update_bank_transfer(order_id, {
             "status": "completed",
@@ -6020,6 +6176,10 @@ async def _handle_revolut_business_webhook(
                 await cache_service.increment_stat("income_eur_cents", int(income_cents))
             await cache_service.increment_stat("credits_sold", int(credits_amount))
             await cache_service.update_liability(int(credits_amount))
+            if referral_reward_result.awarded:
+                await cache_service.update_liability(
+                    int(referral_reward_result.referred_bonus + referral_reward_result.referrer_bonus)
+                )
             await cache_service.increment_stat("purchase_count")
             await cache_service.increment_json_stat("purchases_by_provider", "bank_transfer")
         except Exception as stats_err:
@@ -6040,27 +6200,42 @@ async def _handle_revolut_business_webhook(
                 event_name="user_credits_updated",
                 payload={"credits": new_total_credits},
             )
+            if referral_reward_result.awarded and referral_reward_result.referrer_user_id:
+                referrer_payload = {"credits": referral_reward_result.referrer_new_total}
+                await cache_service.publish_event(
+                    channel=f"user_updates::{referral_reward_result.referrer_user_id}",
+                    event_data={
+                        "event_for_client": "user_credits_updated",
+                        "user_id_uuid": referral_reward_result.referrer_user_id,
+                        "payload": referrer_payload,
+                    },
+                )
+                await manager.broadcast_to_user_specific_event(
+                    user_id=referral_reward_result.referrer_user_id,
+                    event_name="user_credits_updated",
+                    payload=referrer_payload,
+                )
             # Also broadcast payment_completed for frontend navigation
+            payment_completed_payload = {
+                "order_id": order_id,
+                "credits_purchased": credits_amount,
+                "current_credits": new_total_credits,
+            }
+            if referral_reward_result and referral_reward_result.awarded:
+                payment_completed_payload["referral_reward_applied"] = True
+                payment_completed_payload["referral_referred_bonus"] = referral_reward_result.referred_bonus
             await cache_service.publish_event(
                 channel=f"user_updates::{user_id}",
                 event_data={
                     "event_for_client": "payment_completed",
                     "user_id_uuid": user_id,
-                    "payload": {
-                        "order_id": order_id,
-                        "credits_purchased": credits_amount,
-                        "current_credits": new_total_credits,
-                    },
+                    "payload": payment_completed_payload,
                 }
             )
             await manager.broadcast_to_user_specific_event(
                 user_id=user_id,
                 event_name="payment_completed",
-                payload={
-                    "order_id": order_id,
-                    "credits_purchased": credits_amount,
-                    "current_credits": new_total_credits,
-                },
+                payload=payment_completed_payload,
             )
         except Exception as ws_err:
             logger.error(f"Error broadcasting payment events for bank transfer {order_id}: {ws_err}")

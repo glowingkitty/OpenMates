@@ -14,6 +14,9 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import type { OpenMatesSession } from "./storage.js";
 
+const UPLOAD_MAX_ATTEMPTS = 3;
+const UPLOAD_RETRY_DELAY_MS = 2_000;
+
 // ── Types (mirrors web app uploadService.ts) ───────────────────────────
 
 export interface FileVariantMetadata {
@@ -49,20 +52,17 @@ export interface UploadFileResponse {
 
 /**
  * Derive the upload server URL from the API URL.
- * api.openmates.org → upload.openmates.org
- * api.dev.openmates.org → upload.dev.openmates.org
+ * Both dev and prod API environments use upload.openmates.org, matching
+ * frontend/packages/ui/src/config/api.ts.
  */
 function getUploadUrl(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
-    // Replace "api." prefix with "upload."
-    url.hostname = url.hostname.replace(/^api\./, "upload.");
-    // Upload server uses HTTPS on port 443
-    url.port = "";
-    return url.origin;
+    if (url.hostname === "localhost") return "http://localhost:8001";
   } catch {
-    return "https://upload.openmates.org";
+    // Fall back to the shared cloud upload endpoint below.
   }
+  return "https://upload.openmates.org";
 }
 
 // ── Upload function ────────────────────────────────────────────────────
@@ -89,26 +89,43 @@ export async function uploadFile(
 
   const uploadUrl = `${getUploadUrl(session.apiUrl)}/v1/upload/file`;
 
-  // Build multipart form data manually for Node.js
-  // (native fetch supports FormData with Blob since Node 18)
-  const blob = new Blob([fileBytes]);
-  const formData = new FormData();
-  formData.append("file", blob, filename);
-
   // Construct cookie header from session
   const cookies: string[] = [];
   if (session.cookies?.auth_refresh_token) {
     cookies.push(`auth_refresh_token=${session.cookies.auth_refresh_token}`);
   }
 
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    body: formData,
-    headers: {
-      ...(cookies.length > 0 ? { Cookie: cookies.join("; ") } : {}),
-    },
-    signal: AbortSignal.timeout(10 * 60 * 1000), // 10-minute timeout
-  });
+  let response: Response | undefined;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= UPLOAD_MAX_ATTEMPTS; attempt++) {
+    try {
+      // Build multipart form data for each attempt because request bodies may
+      // be consumed even when the transport fails.
+      const blob = new Blob([fileBytes]);
+      const formData = new FormData();
+      formData.append("file", blob, filename);
+
+      response = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+        headers: {
+          ...(cookies.length > 0 ? { Cookie: cookies.join("; ") } : {}),
+        },
+        signal: AbortSignal.timeout(10 * 60 * 1000), // 10-minute timeout
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      if (attempt === UPLOAD_MAX_ATTEMPTS) break;
+      await new Promise((resolve) => setTimeout(resolve, UPLOAD_RETRY_DELAY_MS));
+    }
+  }
+
+  if (!response) {
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(message || "Upload request failed.");
+  }
 
   if (!response.ok) {
     const status = response.status;

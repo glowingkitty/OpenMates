@@ -297,16 +297,17 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// The app may require re-authentication before processing the payment.
 	// PaymentAuth supports OTP and passkey. We handle OTP here.
 
-	const authModal = page.locator('[data-testid="payment-auth-overlay"], [data-testid="auth-modal"]');
-	const authModalVisible = await authModal.isVisible({ timeout: 5000 }).catch(() => false);
+	const authModal = page.getByTestId('payment-auth-overlay');
+	const authModalVisible = await authModal
+		.waitFor({ state: 'visible', timeout: 10000 })
+		.then(() => true)
+		.catch(() => false);
 
 	if (authModalVisible) {
 		log('PaymentAuth modal appeared — entering OTP.');
 		await screenshot(page, 'auth-modal');
 
-		const authOtpInput = authModal
-			.locator('input[autocomplete="one-time-code"], input[type="text"]')
-			.first();
+		const authOtpInput = authModal.getByTestId('tfa-input');
 		await expect(authOtpInput).toBeVisible({ timeout: 5000 });
 
 		// Try OTP up to 3 times (TOTP window boundary tolerance)
@@ -338,7 +339,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 	// ─── Step 7: Wait for "purchase successful" ───────────────────────────────────
 
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByRole('heading', { name: /purchase successful/i })).toBeVisible({ timeout: 120000 });
 	await screenshot(page, 'purchase-success');
 	log('Purchase confirmed successful.');
 

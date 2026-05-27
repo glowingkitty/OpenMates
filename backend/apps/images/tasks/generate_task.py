@@ -42,7 +42,16 @@ from backend.shared.providers.recraft.recraft import (
     RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
-from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.billing_utils import (
+    MINIMUM_CREDITS_CHARGED,
+    calculate_total_credits,
+    ensure_credit_headroom,
+)
+from backend.shared.python_utils.generated_assets import (
+    build_download_url,
+    create_download_token,
+    index_generated_asset,
+)
 from backend.shared.python_utils.image_safety import (
     PipelineDecision,
     SafetyRejection,
@@ -50,12 +59,67 @@ from backend.shared.python_utils.image_safety import (
     get_strike_counter,
 )
 from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
+from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
 
 # Internal API configuration for billing calls
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "https://api.dev.openmates.org")
+
+
+async def _fetch_model_pricing_config(model_ref: Optional[str], log_prefix: str) -> Optional[Dict[str, Any]]:
+    if not model_ref or "/" not in model_ref:
+        return None
+
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+
+    provider_id, model_suffix = model_ref.split("/", 1)
+    endpoint = f"{INTERNAL_API_BASE_URL}/internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(endpoint, headers=headers)
+        if response.status_code == 200:
+            pricing_config = response.json()
+            logger.info(f"{log_prefix} Fetched pricing config for '{model_ref}': {pricing_config}")
+            return pricing_config
+        logger.warning(f"{log_prefix} Failed to fetch pricing for '{model_ref}': {response.status_code}")
+    return None
+
+
+def _resolve_image_billing_model_ref(
+    model_ref: Optional[str],
+    output_filetype: str,
+    quality: str,
+    has_reference_images: bool,
+) -> Optional[str]:
+    if output_filetype == "svg":
+        recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
+        return f"recraft/{recraft_model_id}"
+    if model_ref and "recraft" in model_ref:
+        recraft_model_id = RECRAFT_RASTER_MODEL_MAX if quality == "max" else RECRAFT_RASTER_MODEL_DEFAULT
+        return f"recraft/{recraft_model_id}"
+    if model_ref and ("bfl" in model_ref or "flux" in model_ref) and has_reference_images:
+        return "bfl/flux-2-klein-edit"
+    if model_ref:
+        return model_ref
+    return "bfl/flux-2-klein"
+
+
+async def _estimate_image_generation_credits(model_ref: Optional[str], log_prefix: str) -> int:
+    try:
+        pricing_config = await _fetch_model_pricing_config(model_ref, log_prefix)
+    except Exception as exc:
+        logger.warning(f"{log_prefix} Failed to estimate image credits for '{model_ref}': {exc}")
+        pricing_config = None
+
+    return (
+        calculate_total_credits(pricing_config=pricing_config, units_processed=1)
+        if pricing_config
+        else MINIMUM_CREDITS_CHARGED
+    )
 
 
 async def _charge_image_generation_credits(
@@ -83,19 +147,7 @@ async def _charge_image_generation_credits(
         if INTERNAL_API_SHARED_TOKEN:
             headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
 
-        # Fetch provider model pricing via internal API
-        pricing_config = None
-        if model_ref and "/" in model_ref:
-            provider_id, model_suffix = model_ref.split("/", 1)
-            endpoint = f"{INTERNAL_API_BASE_URL}/internal/config/provider_model_pricing/{provider_id}/{model_suffix}"
-            
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(endpoint, headers=headers)
-                if response.status_code == 200:
-                    pricing_config = response.json()
-                    logger.info(f"{log_prefix} Fetched pricing config for '{model_ref}': {pricing_config}")
-                else:
-                    logger.warning(f"{log_prefix} Failed to fetch pricing for '{model_ref}': {response.status_code}")
+        pricing_config = await _fetch_model_pricing_config(model_ref, log_prefix)
 
         # Calculate credits: flat fee per image (1 unit = 1 image)
         if pricing_config:
@@ -176,6 +228,17 @@ def _get_image_dimensions(image_bytes: bytes) -> Tuple[int, int]:
 def _hash_value(value: str) -> str:
     """Create SHA256 hash of a value for privacy protection."""
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+def _content_type_for_image_format(file_format: str) -> str:
+    normalized = (file_format or "").lower()
+    if normalized == "webp":
+        return "image/webp"
+    if normalized == "svg":
+        return "image/svg+xml"
+    if normalized in {"jpg", "jpeg"}:
+        return "image/jpeg"
+    return "image/png"
 
 
 # ---------------------------------------------------------------------------
@@ -653,6 +716,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         user_id = arguments.get("user_id")
         chat_id = arguments.get("chat_id")
         message_id = arguments.get("message_id")
+        external_request = bool(arguments.get("external_request"))
         aspect_ratio = arguments.get("aspect_ratio", "1:1")
         model_ref = arguments.get("full_model_reference")
         # output_filetype: "png", "jpg", or "svg" (defaults to "png" for backward compat)
@@ -671,6 +735,31 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Get embed_id from arguments (passed by the skill) or generate new one
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+
+        media_decision = validate_media_generation_request(
+            media_type="image",
+            prompt=str(prompt),
+            request_count=1,
+            style=style,
+        )
+        if not media_decision.allowed:
+            tool_response = media_decision.to_rejection_payload()
+            logger.warning(
+                "%s [MediaSafety] REJECTED category=%s reason=%s",
+                log_prefix,
+                media_decision.category,
+                media_decision.reason,
+            )
+            await _emit_safety_rejection_embed(
+                task,
+                embed_id=embed_id,
+                user_id=user_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_facing_message=str(tool_response["user_facing_message"]),
+                log_prefix=log_prefix,
+            )
+            return {"embed_id": embed_id, "status": "rejected", **tool_response}
 
         # 3b. Decrypt reference images (for image-to-image generation).
         # Reference image embed IDs were resolved by the skill layer (embed_ref → embed_id).
@@ -771,6 +860,20 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 "status": "rejected",
                 **tool_response,
             }
+
+        precheck_model_ref = _resolve_image_billing_model_ref(
+            model_ref,
+            output_filetype,
+            quality,
+            bool(reference_image_bytes_list),
+        )
+        estimated_credits = await _estimate_image_generation_credits(precheck_model_ref, log_prefix)
+        await ensure_credit_headroom(
+            user_id=user_id,
+            estimated_credits=estimated_credits,
+            log_prefix=log_prefix,
+            operation_name="image generation",
+        )
 
         # 4. Call Provider API
         #
@@ -1171,6 +1274,40 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # Format: https://{bucket_name}.{region}.your-objectstorage.com
         chatfiles_bucket = get_bucket_name('chatfiles')
         s3_base_url = f"https://{chatfiles_bucket}.{task._s3_service.base_domain}"
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        original_content_type = {
+            "svg": "image/svg+xml",
+            "jpg": "image/jpeg",
+        }.get(output_filetype, "image/png")
+        upload_record_stored = await index_generated_asset(
+            task,
+            user_id=user_id,
+            embed_id=embed_id,
+            media_type="image",
+            files_metadata=files_metadata,
+            s3_base_url=s3_base_url,
+            aes_key_b64=aes_key_b64,
+            nonce_b64=nonce_b64,
+            vault_wrapped_aes_key=encrypted_aes_key_vault,
+            created_at=now_ts,
+            content_hash_source=image_bytes if isinstance(image_bytes, bytes) else str(image_bytes).encode("utf-8"),
+            original_filename=f"openmates_generated_image_{embed_id[:8]}.{output_filetype}",
+            content_type=original_content_type,
+            log_prefix=log_prefix,
+            provenance_metadata={
+                "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",
+                "visual_watermark": False,
+                "provider_watermarking": "provider-dependent",
+            },
+        )
+        if not upload_record_stored:
+            for meta in files_metadata.values():
+                if isinstance(meta, dict) and meta.get("s3_key"):
+                    try:
+                        await task._s3_service.delete_file(bucket_key="chatfiles", file_key=meta["s3_key"])
+                    except Exception as cleanup_exc:
+                        logger.warning("%s Failed to clean generated image object: %s", log_prefix, cleanup_exc)
+            raise RuntimeError("Failed to index generated image in account storage")
         
         embed_content = {
             "app_id": "images",
@@ -1190,6 +1327,12 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Input reference image embed IDs (non-empty only for image-to-image generation).
             # Used by the frontend to display thumbnails of the source images above the prompt.
             "input_embed_ids": reference_image_embed_ids or [],
+            "provenance": {
+                "ai_generated": True,
+                "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",
+                "visual_watermark": False,
+                "provider_watermarking": "provider-dependent",
+            },
         }
         
         # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)
@@ -1222,7 +1365,6 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 2. Encrypt with chat master key (AES-256-GCM)
         # 3. Store encrypted in IndexedDB
         # 4. Send encrypted version back to server for Directus persistence
-        now_ts = int(datetime.now(timezone.utc).timestamp())
         # hashed_user_id already computed in step 5b (billing)
         
         # Use EmbedService.send_embed_data_to_client for standard WebSocket delivery
@@ -1258,12 +1400,28 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
 
         # 13. Prepare result for API response
         # This is what gets returned via task polling and REST API
+        rest_files_metadata = {
+            format_name: {
+                "width": meta["width"],
+                "height": meta["height"],
+                "size_bytes": meta["size_bytes"],
+                "format": meta["format"],
+                "mime_type": meta.get("mime_type") or _content_type_for_image_format(meta["format"]),
+                "download_url": build_download_url(
+                    base_url=PUBLIC_API_BASE_URL,
+                    asset_id=embed_id,
+                    variant=format_name,
+                    token=create_download_token(asset_id=embed_id, user_id=user_id, variant=format_name),
+                ),
+                "download_expires_at": int(datetime.now(timezone.utc).timestamp()) + 900,
+            }
+            for format_name, meta in files_metadata.items()
+        }
         result_data = {
             "embed_id": embed_id,
             "type": "image",
             "status": "finished",
-            "files": {
-                # Return file metadata without S3 keys (clients use embed_id to download)
+            "files": rest_files_metadata if external_request else {
                 format_name: {
                     "width": meta["width"],
                     "height": meta["height"],

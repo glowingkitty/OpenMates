@@ -378,6 +378,10 @@ class EmailTemplateService:
                     # Key uses underscores in YAML but template name uses hyphens.
                     subject_key = "email.backup_reminder.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "referral-reward":
+                    # Key uses underscores in YAML but template name uses hyphens.
+                    subject_key = "email.referral_reward.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

@@ -14,6 +14,7 @@ class UserResponse(BaseModel):
     consent_mates_default_settings: bool = False
     language: Optional[str] = 'en' # User's preferred language
     darkmode: bool = False # User's dark mode preference
+    ui_font: Optional[str] = 'lexend' # User's preferred web UI font
     invoice_counter: Optional[int] = None # Counter for invoice generation
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
     key_iv: Optional[str] = None # IV used for master key encryption (Web Crypto API)
@@ -36,6 +37,7 @@ class UserResponse(BaseModel):
     push_notification_subscription: Optional[str] = None # JSON string of browser PushSubscription
     push_notification_preferences: Optional[dict] = None # e.g. {"aiResponses": true}
     push_notification_banner_shown: bool = False # Whether the "Enable push?" banner has been dismissed
+    # Furry Mode is disabled until any furry art is made by human artists.
 
     class Config:
         json_schema_extra = {
@@ -52,6 +54,7 @@ class UserResponse(BaseModel):
                 "consent_mates_default_settings": False,
                 "language": "de", # Added example value
                 "darkmode": True, # Added example value
+                "ui_font": "figtree",
                 "invoice_counter": 5, # Added example value
                 "encrypted_key": "encrypted_master_key_example",
                 "salt": "salt_example",

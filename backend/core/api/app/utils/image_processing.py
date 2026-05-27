@@ -11,6 +11,7 @@
 
 import logging
 import io
+import os
 import xml.etree.ElementTree as ET
 from typing import Tuple, Dict, Any, Optional
 from PIL import Image
@@ -38,6 +39,16 @@ def _ensure_c2pa_credentials() -> Tuple[bytes, bytes, Any]:
     """
     global _C2PA_CERTS
     if _C2PA_CERTS:
+        return _C2PA_CERTS
+
+    cert_pem = os.getenv("OPENMATES_C2PA_SIGNING_CERT_PEM")
+    key_pem = os.getenv("OPENMATES_C2PA_SIGNING_KEY_PEM")
+    if cert_pem and key_pem:
+        key = serialization.load_pem_private_key(
+            key_pem.encode("utf-8"),
+            password=None,
+        )
+        _C2PA_CERTS = (cert_pem.encode("utf-8"), key_pem.encode("utf-8"), key)
         return _C2PA_CERTS
 
     # Generate EC key for ES256
@@ -367,8 +378,12 @@ def process_svg_for_storage(
             preview_img = img_cropped.resize((600, 400), Image.Resampling.LANCZOS)
 
         preview_io = io.BytesIO()
-        preview_img.save(preview_io, format="WEBP", quality=webp_quality)  # type: ignore[possibly-undefined]
-        results["preview_webp"] = preview_io.getvalue()
+        xmp_data = _generate_ai_xmp(metadata) if metadata else None
+        preview_img.save(preview_io, format="WEBP", quality=webp_quality, xmp=xmp_data)  # type: ignore[possibly-undefined]
+        preview_bytes = preview_io.getvalue()
+        if metadata:
+            preview_bytes = _apply_c2pa_signing(preview_bytes, metadata, "webp")
+        results["preview_webp"] = preview_bytes
 
         logger.info(
             f"SVG processed for storage: original={len(svg_bytes)}b, "

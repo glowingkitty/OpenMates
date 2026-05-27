@@ -145,6 +145,10 @@ class SearchProductsResponse(BaseModel):
         description="List of result groups, each with 'id' and 'results' array",
     )
     provider: str = Field(default="REWE")
+    providers: List[str] = Field(
+        default_factory=list,
+        description="Providers selected for the search request.",
+    )
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_inference: Optional[List[str]] = Field(
@@ -281,6 +285,29 @@ class SearchProductsSkill(BaseSkill):
         "baby": {AMAZON_PROVIDER},
     }
 
+    PROVIDER_DISPLAY_NAMES = {
+        REWE_PROVIDER: "REWE",
+        AMAZON_PROVIDER: "Amazon",
+        STOFFE_PROVIDER: "Stoffe.de",
+    }
+
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve the shopping provider before network search starts."""
+        provider, provider_error = cls._resolve_provider(
+            request.get("provider"),
+            cls._normalize_category(request.get("category")),
+            cls._normalize_country(request.get("country")),
+        )
+        if provider_error:
+            return {}
+
+        display_provider = cls.PROVIDER_DISPLAY_NAMES.get(provider, provider)
+        return {
+            "provider": display_provider,
+            "providers": [display_provider],
+        }
+
     async def execute(
         self,
         requests: List[Dict[str, Any]],
@@ -351,13 +378,21 @@ class SearchProductsSkill(BaseSkill):
         response_provider = (
             provider_values.pop() if len(provider_values) == 1 else "MULTI"
         )
+        selected_providers = [
+            self.PROVIDER_DISPLAY_NAMES.get(provider, provider)
+            for provider in sorted(provider_values or {response_provider})
+            if provider != "MULTI"
+        ]
 
         # 5. Build and return response
         return self._build_response_with_errors(
             response_class=SearchProductsResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider=response_provider,
+            provider=(
+                self.PROVIDER_DISPLAY_NAMES.get(response_provider, response_provider)
+            ),
+            providers=selected_providers,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )

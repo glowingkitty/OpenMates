@@ -56,6 +56,10 @@ from .handlers.websocket_handlers.inspiration_received_handler import handle_ins
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
 from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
 from .handlers.websocket_handlers.key_received_handler import handle_key_received  # Handler for key delivery acknowledgment (SYNC-01)
+from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
+    handle_get_compressed_chat_old_messages,
+    handle_store_chat_compression_checkpoint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -972,6 +976,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "chat_tags": redis_payload.get("chat_tags", []),
                         "harmful_response": redis_payload.get("harmful_response", 0.0),
                         "top_recommended_apps_for_user": redis_payload.get("top_recommended_apps_for_user", []),
+                        "quick_tip_slugs": redis_payload.get("quick_tip_slugs", []),
                     }
 
                     # OPE-265: Include updated title when post-processing detected conversation drift
@@ -2169,6 +2174,28 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     manager=manager,
                     user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "store_chat_compression_checkpoint":
+                await handle_store_chat_compression_checkpoint(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    manager=manager,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "get_compressed_chat_old_messages":
+                await handle_get_compressed_chat_old_messages(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    manager=manager,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,

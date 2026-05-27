@@ -2261,6 +2261,7 @@ async def get_server_stats(
                 "all_time_eur": stripe_summary.get("all_time_eur", 0.0),
                 "transactions": stripe_summary.get("transactions", 0),
                 "monthly": stripe_summary.get("monthly", []),
+                "daily": stripe_summary.get("daily", []),
                 "source": "stripe_balance_transactions",
             }
         else:
@@ -2344,12 +2345,45 @@ async def get_server_stats(
                     }
                 )
 
+        daily_resp = await directus_service._make_api_request(
+            "GET",
+            transfers_url,
+            params=[
+                *completed_filter.items(),
+                ("aggregate[sum]", "received_amount_cents"),
+                ("aggregate[count]", "id"),
+                ("groupBy[]", "year(completed_at)"),
+                ("groupBy[]", "month(completed_at)"),
+                ("groupBy[]", "day(completed_at)"),
+                ("sort[]", "year(completed_at)"),
+                ("sort[]", "month(completed_at)"),
+                ("sort[]", "day(completed_at)"),
+                ("limit", "-1"),
+            ],
+        )
+        daily = []
+        if daily_resp.status_code == 200:
+            for row in daily_resp.json().get("data", []) or []:
+                year = row.get("completed_at_year")
+                month = row.get("completed_at_month")
+                day = row.get("completed_at_day")
+                if year is None or month is None or day is None:
+                    continue
+                daily.append(
+                    {
+                        "date": f"{int(year):04d}-{int(month):02d}-{int(day):02d}",
+                        "revenue_eur": _directus_aggregate_value(row, "sum", "received_amount_cents") / 100.0,
+                        "transactions": _directus_aggregate_value(row, "count", "id"),
+                    }
+                )
+
         result["sections"]["bank_transfer_revenue"] = {
             "ytd_eur": ytd_cents / 100.0,
             "all_time_eur": all_time_cents / 100.0,
             "transfers": transfer_count,
             "ytd_transfers": ytd_count,
             "monthly": monthly,
+            "daily": daily,
             "source": "completed_pending_bank_transfers",
         }
     except Exception as e:
@@ -2381,6 +2415,8 @@ async def get_server_stats(
                     "messages": _safe_int(it.get("messages_sent")),
                     "embeds": _safe_int(it.get("embeds_created")),
                     "chats": _safe_int(it.get("chats_created")),
+                    "new_registrations": _safe_int(it.get("new_users_registered")),
+                    "completed_signups": _safe_int(it.get("new_users_finished_signup")),
                     "income_eur": _safe_int(it.get("income_eur_cents")) / 100.0,
                     "purchases": _safe_int(it.get("purchase_count")),
                     "credits_sold": _safe_int(it.get("credits_sold")),
@@ -2388,6 +2424,11 @@ async def get_server_stats(
                 }
                 for it in trend_items
             ]
+            for entry, item in zip(trend, trend_items):
+                if "usage_entries_created" in item:
+                    entry["usage_entries_created"] = _safe_int(item.get("usage_entries_created"))
+                if "deleted_accounts" in item:
+                    entry["deleted_accounts"] = _safe_int(item.get("deleted_accounts"))
 
             result["sections"]["engagement"] = {
                 "messages_sent": _safe_int(stats.get("messages_sent")),

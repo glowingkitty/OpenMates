@@ -80,7 +80,11 @@
   let aesNonce = $derived(typeof dc.aesNonce === 'string' ? dc.aesNonce : (typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined));
   let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'image');
   let src = $derived(typeof dc.src === 'string' ? dc.src : undefined);
-  let isAuthenticated = $derived(typeof dc.isAuthenticated === 'boolean' ? dc.isAuthenticated : true);
+  let isAuthenticated = $derived(
+    typeof dc.isAuthenticated === 'boolean'
+      ? dc.isAuthenticated
+      : (typeof dc.is_authenticated === 'boolean' ? dc.is_authenticated : true),
+  );
   let fileSize = $derived(typeof dc.fileSize === 'number' ? dc.fileSize : (typeof dc.file_size === 'number' ? dc.file_size : undefined));
   let fileType = $derived(typeof dc.fileType === 'string' ? dc.fileType : (typeof dc.file_type === 'string' ? dc.file_type : undefined));
   let aiDetection = $derived((typeof dc.aiDetection === 'object' && dc.aiDetection !== null ? dc.aiDetection : (typeof dc.ai_detection === 'object' && dc.ai_detection !== null ? dc.ai_detection : null)) as { ai_generated: number; provider: string } | null);
@@ -386,7 +390,13 @@
         <!-- Progressive: show blurred preview while full-res fetches -->
         <div class="image-wrapper progressive">
           <img src={previewImageUrl} alt={filename} class="full-image preview-placeholder" />
-          <div class="progressive-overlay">
+          {#if showAiBadge}
+            <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
+              <span class="ai-badge-icon"></span>
+              <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
+            </div>
+          {/if}
+          <div class="progressive-overlay" class:with-ai-badge={showAiBadge}>
             <div class="loading-spinner small"></div>
           </div>
         </div>
@@ -434,20 +444,26 @@
     max-width: 100%;
   }
 
-  /* AI generated badge: pill shown when SightEngine confirms image is AI-generated */
+  /* AI generated badge: starts as a label pill, then collapses to the icon. */
   .ai-badge {
     position: absolute;
     top: 12px;
     right: 12px;
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 5px 10px 5px 8px;
-    border-radius: var(--radius-8);
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
+    justify-content: center;
+    gap: var(--spacing-2);
+    height: 32px;
+    min-width: 32px;
+    max-width: 180px;
+    padding: 0 var(--spacing-5) 0 var(--spacing-4);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-70);
     pointer-events: none;
     flex-shrink: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    animation: collapseAiBadge 400ms var(--easing-default) 2400ms forwards;
   }
 
   .ai-badge-icon {
@@ -467,12 +483,31 @@
   }
 
   .ai-badge-label {
-    font-size: var(--font-size-xxs);
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     color: var(--color-grey-0);
     line-height: 1;
     white-space: nowrap;
+    max-width: 140px;
     letter-spacing: 0.01em;
+    overflow: hidden;
+    animation: hideAiBadgeLabel 250ms var(--easing-default) 2150ms forwards;
+  }
+
+  @keyframes hideAiBadgeLabel {
+    to {
+      max-width: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes collapseAiBadge {
+    to {
+      max-width: 32px;
+      padding: 0;
+      gap: 0;
+      border-radius: 50%;
+    }
   }
 
   .image-link {
@@ -515,6 +550,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .progressive-overlay.with-ai-badge {
+    top: 52px;
   }
 
   /* ==========================================================================

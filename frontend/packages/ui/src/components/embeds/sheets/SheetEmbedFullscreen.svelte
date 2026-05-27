@@ -36,7 +36,7 @@
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  import { replaceEmbedLinksInText, hydrateEmbedLinks, stripEmbedLinks } from '../../../utils/embedLinkUtils';
+  import { replaceInlineLinksInText, hydrateEmbedLinks, hydrateWikiLinks, stripEmbedLinks, stripWikiLinks } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
 
   /**
@@ -266,17 +266,21 @@
   
   const skillIconName = 'table';
   
-  // ── Embed inline link hydration ────────────────────────────
+  // ── Inline link hydration ────────────────────────────
   // After the table DOM renders, find placeholder spans and mount
-  // EmbedInlineLink Svelte components into them for interactivity.
+  // inline link Svelte components into them for interactivity.
   let tableContainerEl: HTMLDivElement | undefined = $state(undefined);
   let focusedCells = $state<Set<string>>(new Set());
   
   $effect(() => {
     // Re-run whenever displayRows or tableContainerEl changes
     void displayRows;
-    const cleanup = hydrateEmbedLinks(tableContainerEl);
-    return cleanup;
+    const cleanupEmbedLinks = hydrateEmbedLinks(tableContainerEl);
+    const cleanupWikiLinks = hydrateWikiLinks(tableContainerEl);
+    return () => {
+      cleanupEmbedLinks();
+      cleanupWikiLinks();
+    };
   });
 
   $effect(() => {
@@ -333,8 +337,8 @@
   async function handleCopy() {
     try {
       // Strip embed link markdown syntax before export so TSV contains clean text
-      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripEmbedLinks(h.content) }));
-      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripEmbedLinks(cell.content) })));
+      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripWikiLinks(stripEmbedLinks(h.content)) }));
+      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripWikiLinks(stripEmbedLinks(cell.content)) })));
       const tsv = tableToTSV(cleanHeaders, cleanRows);
       const clipResult = await copyToClipboard(tsv);
       if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
@@ -355,8 +359,8 @@
     try {
       const sheetName = renderTitle || 'Table';
       // Strip embed link markdown syntax before export so XLSX contains clean text
-      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripEmbedLinks(h.content) }));
-      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripEmbedLinks(cell.content) })));
+      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripWikiLinks(stripEmbedLinks(h.content)) }));
+      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripWikiLinks(stripEmbedLinks(cell.content)) })));
       const blob = await tableToXlsx(cleanHeaders, cleanRows, sheetName);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -517,11 +521,11 @@
                 <tr>
                   <td class="row-num">{rowIndex + 1}</td>
                   {#each row as cell, colIndex}
-                    {@const embedHtml = replaceEmbedLinksInText(cell.content)}
-                    {#if embedHtml}
-                      <!-- Cell contains embed links — render as HTML with placeholders -->
+                    {@const linkHtml = replaceInlineLinksInText(cell.content)}
+                    {#if linkHtml}
+                      <!-- Cell contains inline links — render as HTML with placeholders -->
                       <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{@html embedHtml}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{@html linkHtml}</td>
                     {:else}
                       <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{cell.content}</td>
                     {/if}

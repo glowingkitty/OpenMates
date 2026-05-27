@@ -1,0 +1,50 @@
+eyebrow:
+  context: Small label shown above a product quick tip in chat
+  en: "Quick tip"
+  de: "Kurztipp"
+  es: "Consejo rápido"
+cta_learn_more:
+  context: Generic CTA for quick tip cards that opens the related app or action
+  en: "Learn more"
+  de: "Mehr erfahren"
+  es: "Más información"
+shorter_chats_equal_better_responses.title:
+  context: Quick tip title for shorter topic-specific chats
+  en: "Shorter chats work better"
+  de: "Kürzere Chats funktionieren besser"
+  es: "Los chats más cortos funcionan mejor"
+shorter_chats_equal_better_responses.body:
+  context: Quick tip body explaining that shorter separate chats improve results and reduce credits
+  en: "You get better responses and save credits when you split topics into separate shorter chats."
+  de: "Du bekommst bessere Antworten und sparst Credits, wenn du Themen in separate, kürzere Chats aufteilst."
+  es: "Obtienes mejores respuestas y ahorras créditos cuando separas los temas en chats más cortos."
+search_current_info_next_time.title:
+  context: Quick tip title for using web search when information needs to be fresh
+  en: "Search when freshness matters"
+  de: "Suche, wenn Aktualität wichtig ist"
+  es: "Busca cuando la actualidad importe"
+search_current_info_next_time.body:
+  context: Quick tip body explaining that OpenMates can search for current information next time
+  en: "Next time you need current prices, events, news, product details, or recent facts, OpenMates can search the web for you."
+  de: "Wenn du das nächste Mal aktuelle Preise, Veranstaltungen, Nachrichten, Produktdetails oder neue Fakten brauchst, kann OpenMates für dich im Web suchen."
+  es: "La próxima vez que necesites precios actuales, eventos, noticias, detalles de productos o datos recientes, OpenMates puede buscar en la web por ti."
+travel_can_add_local_context.title:
+  context: Quick tip title for adding travel context after planning travel
+  en: "Add more travel context"
+  de: "Mehr Reisekontext hinzufügen"
+  es: "Añade más contexto de viaje"
+travel_can_add_local_context.body:
+  context: Quick tip body explaining that OpenMates can help with travel-related next steps
+  en: "After planning travel, OpenMates can also help find local places, events, stays, routes, and practical details for the same trip."
+  de: "Nach der Reiseplanung kann OpenMates auch lokale Orte, Veranstaltungen, Unterkünfte, Routen und praktische Details für dieselbe Reise finden."
+  es: "Después de planificar un viaje, OpenMates también puede ayudarte a encontrar lugares locales, eventos, alojamientos, rutas y detalles prácticos para el mismo viaje."
+use_apps_for_better_results.title:
+  context: Quick tip title for trying a specialized app
+  en: "Try an app for the next step"
+  de: "Nutze eine App für den nächsten Schritt"
+  es: "Prueba una app para el siguiente paso"
+use_apps_for_better_results.body:
+  context: Quick tip body explaining that OpenMates apps provide specialized tools
+  en: "When you know what you want to do next, OpenMates apps can give the AI better tools for tasks like coding, research, events, shopping, writing, or planning."
+  de: "Wenn du weißt, was du als Nächstes tun möchtest, geben OpenMates Apps der KI bessere Werkzeuge für Aufgaben wie Programmieren, Recherche, Events, Shopping, Schreiben oder Planen."
+  es: "Cuando sabes qué quieres hacer después, las apps de OpenMates dan a la IA mejores herramientas para tareas como programar, investigar, eventos, compras, escritura o planificación."

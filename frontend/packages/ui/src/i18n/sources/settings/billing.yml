@@ -3048,3 +3048,39 @@ bank_transfer_continue_hint:
   sv: Krediter läggs till automatiskt när överföringen mottagits (1-2 arbetsdagar).
   he: הזיכויים יתווספו אוטומטית עם קבלת ההעברה (1-2 ימי עסקים).
   verified_by_human: []
+get_free_credits:
+  context: Button label for opening referral code settings
+  en: Get free credits
+  verified_by_human: []
+referral_code:
+  context: Billing submenu title for the referral program
+  en: Referral code
+  verified_by_human: []
+referral_intro:
+  context: Referral settings intro. Variables are referrerCredits and referredCredits.
+  en: "Share your link with friends. After they make their first eligible purchase, they get {referredCredits} free credits and you get {referrerCredits} free credits."
+  verified_by_human: []
+referral_qr_label:
+  context: Label above the QR code on the referral code settings page
+  en: "Share this referral QR code:"
+  verified_by_human: []
+referral_progress:
+  context: Referral usage progress. Variables are count and max.
+  en: "Successful referrals used: {count}/{max}"
+  verified_by_human: []
+referral_conditions:
+  context: Small-print referral terms. Variables are minPurchase, days, and max.
+  en: "Conditions: rewards apply only after a referred user makes their first successful credit purchase of {minPurchase} or more within {days} days. Each account can use one referral code once. Each referrer can receive rewards for up to {max} successful referrals. Same payment customer or payment method is not eligible. Referral credits are promotional, non-transferable, non-refundable, and available only while referral budget remains."
+  verified_by_human: []
+referral_unavailable:
+  context: Message shown when no referral budget remains or the user reached the referral limit
+  en: Referral rewards are not available right now. They may return when a new referral budget is added.
+  verified_by_human: []
+referral_copied:
+  context: Success message after copying referral link
+  en: Referral link copied.
+  verified_by_human: []
+referral_copy_failed:
+  context: Error message when copying referral link fails
+  en: Could not copy referral link.
+  verified_by_human: []

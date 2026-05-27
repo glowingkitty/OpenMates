@@ -60,6 +60,42 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const consoleLogs: string[] = [];
 
+function parseChatIdFromSendOutput(output: string): string | undefined {
+	const match = output.match(/openmates chats send --chat ([a-f0-9]{8})\b/i);
+	return match?.[1];
+}
+
+async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 60_000): Promise<any> {
+	const startedAt = Date.now();
+	let lastResult: { code: number | null; stdout: string; stderr: string } | undefined;
+
+	while (Date.now() - startedAt < timeoutMs) {
+		lastResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		if (lastResult.code === 0 && lastResult.stdout.trim()) {
+			return JSON.parse(lastResult.stdout);
+		}
+
+		const listResult = await runCli(apiUrl, ['chats', 'list', '--json', '--limit', '20'], 30_000);
+		if (listResult.code === 0 && listResult.stdout.trim()) {
+			const listData = JSON.parse(listResult.stdout);
+			const chats: any[] = listData.chats ?? listData ?? [];
+			const fullChatId = chats.find((chat: any) => chat.id?.startsWith(chatId))?.id;
+			if (fullChatId) {
+				lastResult = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
+				if (lastResult.code === 0 && lastResult.stdout.trim()) {
+					return JSON.parse(lastResult.stdout);
+				}
+			}
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 2_000));
+	}
+
+	throw new Error(
+		`Timed out waiting for chat ${chatId}. Last stdout: ${lastResult?.stdout.slice(0, 500) ?? ''} Last stderr: ${lastResult?.stderr.slice(0, 500) ?? ''}`
+	);
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
@@ -119,6 +155,10 @@ function spawnCliLogin(apiUrl: string) {
 		process: child,
 		stdout,
 		stderr,
+		sendPin(pin: string) {
+			child.stdin.write(`${pin}\n`);
+			consoleLogs.push(`[CLI stdin] sent PIN: ${pin}`);
+		},
 		waitForToken(): Promise<string> {
 			return new Promise((resolve, reject) => {
 				const timeout = setTimeout(
@@ -127,7 +167,9 @@ function spawnCliLogin(apiUrl: string) {
 				);
 				const check = () => {
 					const out = stdout.join('');
-					const m = out.match(/openmates login confirm ([A-Z0-9]{6})/);
+					const m =
+						out.match(/openmates login confirm ([A-Z0-9]{6})/) ??
+						out.match(/[#?]pair=([A-Z0-9]{6})/);
 					if (m) {
 						clearTimeout(timeout);
 						resolve(m[1]);
@@ -229,11 +271,18 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 
 	if (token !== 'already') {
 		// Confirm via web app
-		await page.goto(`/pair-auth?token=${token}`);
-		const confirmBtn = page.getByRole('button', { name: /confirm|approve|allow/i });
-		await expect(confirmBtn).toBeVisible({ timeout: 10000 });
+		await page.goto(`${_baseUrl}/#pair=${token}`);
+		const confirmBtn = page.getByTestId('pair-allow-button');
+		await expect(confirmBtn).toBeVisible({ timeout: 15000 });
 		await confirmBtn.click();
 		logCheckpoint(`Pair-auth confirmed for token ${token}`);
+
+		const pinDisplay = page.getByTestId('pair-pin-display');
+		await expect(pinDisplay).toBeVisible({ timeout: 15000 });
+		const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
+		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+		cli.sendPin(pin);
+		logCheckpoint('Pair-auth PIN sent to CLI');
 	}
 
 	const { code, output } = await cli.waitForExit();
@@ -257,6 +306,7 @@ function writeTinyPng(destPath: string): void {
 // ── Main test ───────────────────────────────────────────────────────────────
 
 test('CLI file upload — text file with secret + image file', async ({ page }: any) => {
+	test.setTimeout(600_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://openmates.org';
@@ -295,7 +345,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 				'new',
 				`Analyse this code snippet @${textFilePath} and tell me what you see. Reply in one sentence.`
 			],
-			90_000 // longer timeout: AI needs to respond + file processed
+			180_000 // includes settings API rate-limit backoff + AI response time
 		);
 
 		logCheckpoint(`Text send exit code: ${textSendResult.code}`);
@@ -319,18 +369,16 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		expect(textSendResult.code).toBe(0);
 		expect(textSendResult.stdout.length).toBeGreaterThan(10);
 
-		// Get the chat ID from the most recent chat
-		const listResult = await runCli(apiUrl, ['chats', 'list', '--json', '--limit', '1'], 20_000);
-		expect(listResult.code).toBe(0);
-		const listData = JSON.parse(listResult.stdout);
-		const chatId: string = listData.chats?.[0]?.id ?? listData[0]?.id;
+		// Use the chat id emitted by this CLI invocation. Test accounts can have
+		// concurrent runs, so `chats list --limit 1` may point at another spec's chat.
+		const chatId = parseChatIdFromSendOutput(textSendResult.stdout);
 		expect(chatId).toBeTruthy();
 		logCheckpoint(`Chat ID: ${chatId}`);
 
 		// Show the chat and verify it has an embed reference (the code-code embed)
-		const showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
-		expect(showResult.code).toBe(0);
-		const showData = JSON.parse(showResult.stdout);
+		const showData = await waitForChatShow(apiUrl, chatId);
+		const fullChatId: string = showData.chat?.id;
+		expect(fullChatId).toMatch(/^[a-f0-9-]{36}$/);
 		const messages: any[] = showData.messages ?? [];
 		const userMessages = messages.filter((m: any) => m.role === 'user');
 		expect(userMessages.length).toBeGreaterThan(0);
@@ -369,10 +417,10 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 				'chats',
 				'send',
 				'--chat',
-				chatId,
+				fullChatId,
 				`What colour is this image? @${imagePath}`
 			],
-			90_000 // longer: upload + AI response
+			180_000 // includes upload + AI response time
 		);
 
 		logCheckpoint(`Image send exit code: ${imageSendResult.code}`);
@@ -388,10 +436,13 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		).toMatch(/uploaded|uploading|✓/i);
 
 		// Verify successful exit
-		expect(imageSendResult.code).toBe(0);
+		expect(
+			imageSendResult.code,
+			`Image send failed. stdout: ${imageSendResult.stdout.slice(0, 1000)} stderr: ${imageSendResult.stderr.slice(0, 1000)}`
+		).toBe(0);
 
 		// Verify the message contains an image embed reference
-		const showAfterImage = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		const showAfterImage = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
 		expect(showAfterImage.code).toBe(0);
 		const showAfterData = JSON.parse(showAfterImage.stdout);
 		const allMessages: any[] = showAfterData.messages ?? [];
@@ -402,7 +453,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		// ── Share link ────────────────────────────────────────────────────
 
 		logCheckpoint('Creating share link...');
-		const shareResult = await runCli(apiUrl, ['chats', 'share', chatId, '--json'], 20_000);
+		const shareResult = await runCli(apiUrl, ['chats', 'share', fullChatId, '--json'], 20_000);
 		expect(shareResult.code).toBe(0);
 		const shareData = JSON.parse(shareResult.stdout);
 
@@ -413,7 +464,7 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 
 		// ── Cleanup ────────────────────────────────────────────────────────
 
-		await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000);
+		await runCli(apiUrl, ['chats', 'delete', fullChatId, '--yes'], 20_000);
 		logCheckpoint('Chat deleted');
 		await runCli(apiUrl, ['logout'], 10_000);
 		logCheckpoint('Logged out');

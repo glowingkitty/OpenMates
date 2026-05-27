@@ -61,6 +61,10 @@ chats:
       type: text
       note: "[Encrypted] Array of up to 5 recommended app IDs for this specific chat, encrypted using chat-specific key. Generated during post-processing. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
 
+    encrypted_quick_tip_slugs:
+      type: text
+      note: "[Encrypted] Array of selected product quick tip slugs for this chat, encrypted using chat-specific key. UI copy is loaded client-side from translations. Must be TEXT not JSON since it's encrypted."
+
     encrypted_chat_key:
       type: string
       length: 512
@@ -105,6 +109,16 @@ chats:
       type: boolean
       default: false
       note: "Whether the user has opted-in to share this chat with the community for potential selection as a demo chat. When true, the chat appears in the admin review queue."
+
+    share_pii:
+      type: boolean
+      default: false
+      note: "Whether public shared-chat responses may include encrypted PII placeholder mappings. Defaults to false so shared viewers only see placeholders unless the owner explicitly opts in."
+
+    share_highlights:
+      type: boolean
+      default: true
+      note: "Whether public shared-chat responses may include encrypted highlight/comment rows. Defaults to true so annotations are part of the shared chat unless the owner opts out."
 
     last_disclaimer_type:
       type: string

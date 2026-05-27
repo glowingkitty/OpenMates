@@ -12,6 +12,7 @@
     import * as cryptoService from '../services/cryptoService';
     import { sessionExpiredWarning } from '../stores/uiStateStore';
     import { base64ToUint8Array } from '../services/cryptoService';
+    import { clearLastAuthMethod, getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
 
     const dispatch = createEventDispatcher();
 
@@ -53,6 +54,7 @@
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
     let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
+    let lastAuthMethod = $state<LastAuthMethod | null>(null);
 
     // Add debounce helper
     function debounce<T extends (...args: unknown[]) => void>(
@@ -114,6 +116,12 @@
     // Handle toggle changes and dispatch activity
     function handleToggleChange() {
         // Dispatch activity event when toggle is changed
+        dispatch('userActivity');
+    }
+
+    function handleClearLastAuthMethod() {
+        clearLastAuthMethod();
+        lastAuthMethod = null;
         dispatch('userActivity');
     }
 
@@ -274,6 +282,8 @@
     // Focus input when component mounts (if not touch device)
     import { onMount } from 'svelte';
     onMount(() => {
+        lastAuthMethod = getLastAuthMethod();
+
         // Clear the input field value when component mounts
         emailInputValue = '';
         
@@ -307,10 +317,15 @@
                     ariaLabel={$text('login.stay_logged_in')}
                     on:change={handleToggleChange}
                 />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in')}</label>
+                <label for="stayLoggedIn" class="agreement-text">{$text('login.stay_logged_in')}</label>
             </div>
 
             <!-- Passkey login button - second element -->
+            {#if lastAuthMethod === 'passkey'}
+                <div class="last-used-badge-wrapper">
+                    <span class="last-used-badge" data-testid="last-used-auth-method-passkey">{$text('login.last_used')}</span>
+                </div>
+            {/if}
             {#if isPasskeyLoading}
                 <button 
                     type="button"
@@ -349,6 +364,11 @@
             </div>
 
             <!-- Email field - fourth element -->
+            {#if lastAuthMethod === 'email'}
+                <div class="last-used-badge-wrapper email-last-used">
+                    <span class="last-used-badge" data-testid="last-used-auth-method-email">{$text('login.last_used')}</span>
+                </div>
+            {/if}
             <div class="input-group">
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>
@@ -392,6 +412,17 @@
                     {$text('common.continue')}
                 {/if}
             </button>
+
+            {#if lastAuthMethod}
+                <button
+                    type="button"
+                    class="clear-last-used-button"
+                    data-testid="clear-last-used-auth-method"
+                    onclick={handleClearLastAuthMethod}
+                >
+                    {$text('login.clear_last_used')}
+                </button>
+            {/if}
         </form>
     {/if}
 </div>
@@ -492,5 +523,41 @@
     /* Pair login button sits directly below the passkey button — reduce top margin */
     .passkey-button.pair-login-button {
         margin-top: -8px;
+    }
+
+    .last-used-badge-wrapper {
+        display: flex;
+        justify-content: center;
+        margin: var(--spacing-4) 0 calc(var(--spacing-4) * -1);
+    }
+
+    .last-used-badge-wrapper.email-last-used {
+        margin: 0 0 var(--spacing-4);
+    }
+
+    .last-used-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: var(--radius-full);
+        padding: var(--spacing-2) var(--spacing-5);
+        background: var(--color-primary-20);
+        color: var(--color-primary);
+        font-size: var(--font-size-xxs);
+        font-weight: 600;
+    }
+
+    .clear-last-used-button {
+        all: unset;
+        display: block;
+        margin: var(--spacing-8) auto 0;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        font-size: var(--font-size-small);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .clear-last-used-button:hover {
+        color: var(--color-primary);
     }
 </style>

@@ -6,6 +6,7 @@ provider_id: "anthropic"
 name: "Anthropic"
 description: "AI models and services from Anthropic, including Claude family models."
 logo_svg: "logos/anthropic.svg" # Path for UI, relative to a common logos directory
+privacy_policy: "https://www.anthropic.com/legal/privacy"
 
 models:
   - id: "claude-haiku-4-5-20251001" # Official model ID

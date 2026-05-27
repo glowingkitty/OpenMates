@@ -11,6 +11,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { socialProviderLabel } from './socialMediaEmbedUtils';
 
   interface Props {
     id: string;
@@ -44,7 +45,7 @@
 
   $effect(() => {
     localQuery = queryProp || 'Social media posts';
-    localProvider = providerProp || 'Social Media';
+    localProvider = socialProviderLabel(providerProp);
     localResultCount = resultCountProp || 0;
     localStatus = statusProp || 'processing';
     localTaskId = taskIdProp;
@@ -54,7 +55,7 @@
     if (isStatus(data.status)) localStatus = data.status;
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
-    if (typeof content.provider === 'string') localProvider = content.provider;
+    if (typeof content.provider === 'string') localProvider = socialProviderLabel(content.provider);
     if (typeof content.result_count === 'number') localResultCount = content.result_count;
     if (typeof content.error === 'string') errorMessage = content.error;
   }
@@ -68,7 +69,7 @@
   {id}
   appId="social_media"
   skillId="get-posts"
-  skillIconName="socialmedia"
+  skillIconName="search"
   status={localStatus}
   skillName="Get posts"
   {isMobile}

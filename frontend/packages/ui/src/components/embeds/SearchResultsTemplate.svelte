@@ -23,6 +23,7 @@
 -->
 
 <script lang="ts" generics="T extends { embed_id: string }">
+  /* eslint-disable no-undef -- Svelte generics are not visible to ESLint's base no-undef rule. */
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
@@ -158,6 +159,33 @@
     selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null
   );
 
+  let initialChildLookupComplete = $state(false);
+  let isOpeningInitialChild = $derived(
+    !!initialChildEmbedId && selectedIndex < 0 && !initialChildLookupComplete
+  );
+  let isDirectInitialChildOpen = $derived(!!initialChildEmbedId && selectedIndex >= 0);
+  let embedIdsForFullscreen = $derived(initialChildEmbedId ? [initialChildEmbedId] : embedIds);
+
+  function selectInitialChildFromResults(results: T[]): boolean {
+    if (!initialChildEmbedId || selectedIndex >= 0) return false;
+
+    const index = results.findIndex((result) => result.embed_id === initialChildEmbedId);
+    if (index < 0) return false;
+
+    selectedIndex = index;
+    initialChildLookupComplete = true;
+    return true;
+  }
+
+  function updateLoadedResults(results: T[]): void {
+    allResults = results;
+    onResultsLoaded?.(results);
+
+    if (initialChildEmbedId && !selectInitialChildFromResults(results)) {
+      initialChildLookupComplete = true;
+    }
+  }
+
   /**
    * Fallback population for consumers that only supply `legacyResults`
    * (no `embedIds`) — e.g. the app-store skill examples fixture flow.
@@ -179,7 +207,7 @@
     if (hasEmbedIds) return; // real-chat path handles allResults via callback
     if (!legacyResultTransformer) return;
     if (!legacyResults || legacyResults.length === 0) return;
-    allResults = legacyResultTransformer(legacyResults);
+    updateLoadedResults(legacyResultTransformer(legacyResults));
   });
 
   let errorText = $derived(errorMessageProp || $text('chat.an_error_occured'));
@@ -248,8 +276,9 @@
 </script>
 
 <!--
-  Overlay-based rendering: search results grid is ALWAYS mounted.
-  Child detail view renders as overlay on top via ChildEmbedOverlay.
+  Overlay-based rendering keeps the parent grid mounted for user-initiated
+  drilldown. Inline child deep-links use a lightweight shell to avoid mounting
+  a full search grid behind the child fullscreen.
 -->
 
 <UnifiedEmbedFullscreen
@@ -269,28 +298,25 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
-  {embedIds}
+  embedIds={embedIdsForFullscreen}
   {childEmbedTransformer}
   {legacyResults}
-  onChildrenLoaded={(children) => { allResults = children as T[]; onResultsLoaded?.(children as T[]); }}
+  onChildrenLoaded={(children) => updateLoadedResults(children as T[])}
   {initialChildEmbedId}
   onAutoOpenChild={(index, children) => {
-    allResults = children as T[];
-    onResultsLoaded?.(children as T[]);
+    updateLoadedResults(children as T[]);
     selectedIndex = index;
+    initialChildLookupComplete = true;
   }}
   {onEmbedDataUpdated}
   {embedHeaderCta}
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
-    <!-- Sync allResults when resolved list changes (enables sibling navigation) -->
-    <!-- Note: void suppresses text rendering — {expr} would print the array as "[object Object],..." -->
-    {#if results.length > 0 && results !== allResults}
-      {void (allResults = results)}
-    {/if}
 
-    {#if status === 'error'}
+    {#if isOpeningInitialChild || isDirectInitialChildOpen}
+      <div class="search-template-child-transition" data-testid="search-template-child-transition" aria-busy="true"></div>
+    {:else if status === 'error'}
       <div class="search-template-error">
         <div class="error-title">{$text('embeds.search_failed')}</div>
         <div class="error-message">{errorText}</div>
@@ -327,9 +353,13 @@
   {/snippet}
 </UnifiedEmbedFullscreen>
 
+{#if isOpeningInitialChild}
+  <div class="search-template-initial-child-shield" data-testid="search-template-initial-child-shield" aria-busy="true"></div>
+{/if}
+
 <!-- Child fullscreen overlay -->
 {#if selectedResult}
-  <ChildEmbedOverlay>
+  <ChildEmbedOverlay instant={!!initialChildEmbedId}>
     {@render childFullscreen({
       result: selectedResult,
       index: selectedIndex,
@@ -354,6 +384,19 @@
     padding: var(--spacing-12) var(--spacing-5);
     padding-bottom: 120px;
     grid-template-columns: repeat(auto-fill, minmax(var(--min-card-width, 280px), 1fr));
+  }
+
+  .search-template-child-transition {
+    min-height: 60vh;
+    width: 100%;
+  }
+
+  .search-template-initial-child-shield {
+    position: absolute;
+    inset: 0;
+    z-index: 101;
+    background: var(--color-grey-20);
+    border-radius: 17px;
   }
 
   /* Container query: narrow fullscreen -> single column */

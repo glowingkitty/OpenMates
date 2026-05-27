@@ -392,6 +392,122 @@ services:
       cms-setup:
         condition: service_completed_successfully
 
+  # Celery worker for Music app tasks
+  app-music-worker:
+    container_name: app-music-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      CELERY_QUEUES: "app_music"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-5}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9109"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_music \
+             --concurrency=${CELERY_AUTOSCALE_MAX} \
+             --max-tasks-per-child=20 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+
+  # Celery worker for Videos app tasks
+  app-videos-worker:
+    container_name: app-videos-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      CELERY_QUEUES: "app_videos"
+      CELERY_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_VIDEOS_AUTOSCALE_MIN:-1}"
+      CELERY_METRICS_PORT: "9110"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_videos \
+             --concurrency=${CELERY_VIDEOS_AUTOSCALE_MAX:-2} \
+             --max-tasks-per-child=10 \
+             --max-memory-per-child=1000000 \
+             --prefetch-multiplier=1"
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+
   app-pdf-worker:
     container_name: app-pdf-worker
     build:

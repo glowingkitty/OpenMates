@@ -192,7 +192,7 @@ describe("deriveWebOrigin", () => {
   });
 
   it("handles dev subdomain", () => {
-    assert.equal(deriveWebOrigin("https://api.dev.openmates.org"), "https://dev.openmates.org");
+    assert.equal(deriveWebOrigin("https://api.dev.openmates.org"), "https://app.dev.openmates.org");
   });
 
   it("falls back gracefully on invalid URL", () => {

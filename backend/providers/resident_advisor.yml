@@ -8,6 +8,7 @@ name: "Resident Advisor"
 description: "Global platform for electronic music events, clubs, DJs, and festival listings."
 logo_svg: "icons/resident_advisor.svg"
 region: "GB" # Resident Advisor HQ is in London, UK
+privacy_policy: "https://ra.co/privacy"
 
 # No API key required — uses web scraping
 no_api_key: true

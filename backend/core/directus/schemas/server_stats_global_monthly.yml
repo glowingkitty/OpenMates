@@ -75,6 +75,10 @@ server_stats_global_monthly:
       type: integer
       default: 0
 
+    deleted_accounts:
+      type: integer
+      default: 0
+
     # Token/Cost Tracking
     total_input_tokens:
       type: bigint

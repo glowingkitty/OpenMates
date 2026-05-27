@@ -533,10 +533,9 @@ async def _recreate_fixture_embeds(
             elif embed_type == "focus_mode_activation":
                 # Focus mode activation embeds are recreated from the fields
                 # inlined in the fixture JSON block (focus_id, app_id,
-                # focus_mode_name). The real flow would also schedule a
-                # Celery auto-confirm task after 5s, but mock replay is
-                # read-only — the frontend only needs the embed to render
-                # the activation UI for the spec to pass.
+                # focus_mode_name). Mock replay emits the activation event so
+                # frontend active-focus UI can be tested without starting a
+                # real continuation task.
                 focus_id = embed_meta.get("focus_id") or ref_fields.get("focus_id")
                 app_id = embed_meta.get("app_id") or ref_fields.get("app_id")
                 focus_mode_name = (
@@ -567,6 +566,16 @@ async def _recreate_fixture_embeds(
                     new_ref = fm_embed_data["embed_reference"]
                     new_block = f"```json\n{new_ref}\n```"
                     response = response[:match.start()] + new_block + response[match.end():]
+                    await cache_service.publish_event(
+                        f"user_cache_events:{request_data.user_id}",
+                        {
+                            "event_type": "focus_mode_activated",
+                            "payload": {
+                                "chat_id": request_data.chat_id,
+                                "focus_id": focus_id,
+                            },
+                        },
+                    )
                     logger.info(
                         f"[MOCK] Recreated focus_mode_activation embed: "
                         f"{old_embed_id} → {fm_embed_data['embed_id']}"

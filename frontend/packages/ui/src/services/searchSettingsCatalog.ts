@@ -245,6 +245,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "deutsch",
     ],
   },
+  // Furry Mode customization is disabled until any furry art is made by human artists.
   // Account — requires authentication (user account management)
   {
     path: "account",

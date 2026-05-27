@@ -3,6 +3,8 @@
 # including creating, updating, and deleting chat-related data in Directus and cache.
 import logging
 import asyncio
+import base64
+import binascii
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -18,6 +20,29 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 
 logger = logging.getLogger(__name__)
+
+MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
+
+
+def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: str) -> None:
+    """Reject non-client-encrypted payloads before they reach chat history."""
+    if not encrypted_content:
+        raise ValueError(
+            f"Message {message_id} is missing client-encrypted base64 content."
+        )
+
+    try:
+        decoded = base64.b64decode(encrypted_content, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(
+            f"Message {message_id} must contain client-encrypted base64 content."
+        ) from exc
+
+    if len(decoded) < MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES:
+        raise ValueError(
+            f"Message {message_id} client-encrypted base64 content is too short."
+        )
+
 
 async def _async_persist_chat_title_task(
     chat_id: str, encrypted_title: str, title_v: int, task_id: str,
@@ -354,6 +379,8 @@ async def _async_persist_new_chat_message_task(
         )
         encrypted_model_name = None  # Remove it for non-assistant messages
 
+    _validate_client_encrypted_chat_payload(message_id, encrypted_content)
+
     directus_service = DirectusService()
 
     try:
@@ -365,7 +392,6 @@ async def _async_persist_new_chat_message_task(
         if user_id:
             from backend.core.api.app.services.cache import CacheService
             import json
-            import base64
             cache_service = CacheService()
 
             try:
@@ -1714,7 +1740,8 @@ async def _async_persist_encrypted_chat_metadata(
                     for field in ("encrypted_title", "encrypted_icon", "encrypted_category",
                                   "encrypted_chat_summary", "encrypted_chat_tags",
                                   "encrypted_follow_up_request_suggestions",
-                                  "encrypted_top_recommended_apps_for_chat"):
+                                  "encrypted_top_recommended_apps_for_chat",
+                                  "encrypted_quick_tip_slugs"):
                         if field in update_fields:
                             rejected_metadata.append(field)
                             update_fields.pop(field)
@@ -1729,6 +1756,8 @@ async def _async_persist_encrypted_chat_metadata(
             metadata_fields = {
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
                 "encrypted_chat_summary", "encrypted_follow_up_request_suggestions", "encrypted_chat_key",
+                "encrypted_top_recommended_apps_for_chat",
+                "encrypted_quick_tip_slugs",
                 "updated_at"
             }
             
@@ -1804,6 +1833,8 @@ async def _async_persist_encrypted_chat_metadata(
                                 encrypted_chat_summary=fresh_chat_metadata.get("encrypted_chat_summary"),
                                 encrypted_chat_tags=fresh_chat_metadata.get("encrypted_chat_tags"),
                                 encrypted_follow_up_request_suggestions=fresh_chat_metadata.get("encrypted_follow_up_request_suggestions"),
+                                encrypted_top_recommended_apps_for_chat=fresh_chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
+                                encrypted_quick_tip_slugs=fresh_chat_metadata.get("encrypted_quick_tip_slugs"),
                                 encrypted_active_focus_id=fresh_chat_metadata.get("encrypted_active_focus_id"),
                                 last_message_timestamp=fresh_chat_metadata.get("last_message_timestamp")
                             )
@@ -1896,6 +1927,8 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_chat_summary=encrypted_metadata.get("encrypted_chat_summary"),
                         encrypted_chat_tags=encrypted_metadata.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+                        encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
+                        encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
                         last_message_timestamp=last_message
                     )
@@ -1962,6 +1995,8 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+                "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
+                "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
             }
 
             # CRITICAL: Add encrypted_chat_key ONLY if it exists (not None, not empty string)

@@ -135,7 +135,7 @@ export const routes = {
 
 // Privacy-policy links for every third-party provider referenced in the
 // privacy policy. Grouped to mirror shared/docs/privacy_policy.yml
-// provider_groups (Group A-K). When adding a new provider to a skill or
+// provider_groups. When adding a new provider to a skill or
 // app.yml, add its privacy-policy link here AND update:
 //   - shared/docs/privacy_policy.yml
 //   - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
@@ -162,29 +162,43 @@ export const privacyPolicyLinks = {
   cerebras: "https://www.cerebras.ai/privacy-policy",
   google: "https://policies.google.com/privacy",
   googleVertexMaas: "https://cloud.google.com/terms/cloud-privacy-notice",
+  googleVertexAi: "https://cloud.google.com/terms/cloud-privacy-notice", // verified 2026-05-21
   together: "https://www.together.ai/privacy",
   groq: "https://groq.com/privacy-policy",
+  alibaba:
+    "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy",
+  deepseek:
+    "https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html",
+  moonshot: "https://platform.kimi.ai/docs/agreement/userprivacy",
+  zai: "https://docs.z.ai/legal-agreement/privacy-policy",
 
   // Group D — Image generation
   fal: "https://fal.ai/legal/privacy-policy", // verified 2026-04-14
   recraft: "https://www.recraft.ai/privacy", // verified 2026-04-14
+  bfl: "https://blackforestlabs.ai/privacy-policy/",
 
-  // Group E — Code execution
+  // Group E — Code and developer tools
+  github:
+    "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+  context7: "https://upstash.com/trust/privacy.pdf", // Context7 is an Upstash project; verified 2026-05-24
   e2b: "https://e2b.dev/privacy", // verified 2026-05-19
 
   // Group F — Web, search, content retrieval
   brave: "https://brave.com/privacy/",
   firecrawl: "https://www.firecrawl.dev/privacy-policy",
   webshare: "https://www.webshare.io/privacy-policy",
-  googleMaps: "https://policies.google.com/privacy",
+  googleMaps: "https://privacy.google.com/",
+  youtube: "https://www.youtube.com/howyoutubeworks/privacy/",
 
   // Group G — Travel
   serpapi: "https://serpapi.com/legal#privacy-policy", // embedded in legal page — verified 2026-04-14
   flightradar24: "https://www.flightradar24.com/terms-and-conditions",
+  deutscheBahn: "https://int.bahn.de/en/privacy",
+  flix: "https://www.flixbus.com/privacy-policy",
 
   // Group H — Events
   meetup: "https://www.meetup.com/privacy/",
-  luma: "https://lu.ma/privacy",
+  luma: "https://lu.ma/privacy-policy",
   residentAdvisor: "https://ra.co/about/privacy",
 
   // Group I — Health
@@ -192,11 +206,28 @@ export const privacyPolicyLinks = {
   jameda: "https://www.jameda.de/datenschutz/",
 
   // Group J — Shopping
-  rewe: "https://www.rewe.de/datenschutz/",
-  amazon: "https://www.amazon.com/privacy",
+  rewe: "https://www.rewe.de/service/datenschutz/",
+  amazon:
+    "https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ", // verified via official search result 2026-05-24
 
-  // Group K — Community
+  // Group K — Electronics
+  tiWebench: "https://www.ti.com/legal/terms-conditions/privacy-policy.html",
+
+  // Group L — Mail
+  protonmail: "https://proton.me/legal/privacy",
+
+  // Group M — Home and housing
+  immoscout24: "https://www.immobilienscout24.de/agb/datenschutz.html",
+  kleinanzeigen: "https://themen.kleinanzeigen.de/datenschutzerklaerung/",
+  wgGesucht: "https://www.wg-gesucht.de/datenschutz.html",
+
+  // Group N — Community
   discord: "https://discord.com/privacy",
+
+  // Group O — Social media
+  reddit: "https://www.reddit.com/policies/privacy-policy",
+  bluesky: "https://bsky.social/about/support/privacy-policy",
+  mastodon: "https://joinmastodon.org/privacy-policy",
 } as const;
 
 // Update routes to include full URLs when needed

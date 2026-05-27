@@ -129,6 +129,19 @@ export interface Message {
   highlights?: MessageHighlight[];
 }
 
+export interface ChatCompressionCheckpoint {
+  id: string;
+  chat_id: string;
+  encrypted_summary?: string;
+  summary?: string;
+  compressed_up_to_timestamp: number;
+  compressed_message_count: number;
+  summary_token_estimate?: number;
+  key_version?: number | null;
+  created_at: number;
+  updated_at?: number;
+}
+
 /**
  * A single message annotation — yellow highlight on a text range or a whole embed,
  * optionally carrying a comment. Stored as its own row in the `message_highlights`
@@ -317,6 +330,7 @@ export interface Chat {
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
+  encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   candidate_encrypted_keys?: string[] | null; // Fallback encrypted_chat_key blobs rejected by injectKey (multi-tab race survivors). Tried in order when primary decryption fails.
   key_version?: number | null; // Monotonic version counter — incremented on key rotation. Used to match messages to the key that encrypted them.
@@ -340,6 +354,8 @@ export interface Chat {
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
   is_private?: boolean; // Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
+  share_pii?: boolean; // Whether public shared-chat responses may include encrypted PII mappings. Defaults to false.
+  share_highlights?: boolean; // Whether public shared-chat responses may include encrypted highlight/comment rows. Defaults to true.
   is_shared_by_others?: boolean; // Whether this chat was shared with the current user by someone else (user doesn't own this chat). Used for UI grouping.
 
   // Incognito mode field
@@ -770,6 +786,8 @@ export interface InitialSyncResponsePayload {
     messages?: Message[];
     is_shared?: boolean; // Whether this chat has been shared (share link generated)
     is_private?: boolean; // Whether this chat is private (not shared)
+    share_pii?: boolean;
+    share_highlights?: boolean;
     user_id?: string; // Owner/creator of the chat
   }>;
   server_chat_order: string[];
@@ -852,6 +870,7 @@ export interface BackgroundMessageSyncPayload {
   chats: Array<{
     chat_id: string;
     messages: (Message | string)[];
+    compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
     messages_v: number;
   }>;

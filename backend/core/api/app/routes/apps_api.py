@@ -434,6 +434,32 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
         if api_key and api_key.strip():
             logger.debug(f"API key found in environment variable '{env_var_name}' for provider '{provider_id}'")
             return True
+
+    # Google Lyria uses Vertex AI service-account credentials instead of an API key.
+    if provider_id == "google":
+        vertex_project_id = os.getenv("GOOGLE_VERTEX_PROJECT_ID")
+        vertex_service_account = os.getenv("GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON")
+        try:
+            if secrets_manager.vault_token and secrets_manager.vault_url:
+                vertex_project_id = vertex_project_id or await secrets_manager.get_secret(
+                    secret_path=vault_path,
+                    secret_key="project_id",
+                )
+                vertex_service_account = vertex_service_account or await secrets_manager.get_secret(
+                    secret_path=vault_path,
+                    secret_key="service_account_json",
+                )
+        except Exception as e:
+            logger.debug(f"Error checking Vault for provider '{provider_id}' Vertex credentials: {e}")
+
+        if (
+            vertex_project_id
+            and vertex_project_id.strip()
+            and vertex_service_account
+            and vertex_service_account.strip()
+        ):
+            logger.debug("Google Vertex credentials found for provider 'google'")
+            return True
     
     logger.debug(f"No API key found for provider '{provider_id}' (checked Vault and env vars: {env_var_names})")
     return False
@@ -635,6 +661,8 @@ async def get_skill_providers_with_pricing(
             pricing_dict['per_unit'] = skill.pricing.per_unit
         if skill.pricing.per_minute:
             pricing_dict['per_minute'] = skill.pricing.per_minute
+        if getattr(skill.pricing, 'per_second', None):
+            pricing_dict['per_second'] = skill.pricing.per_second
         if skill.pricing.fixed:
             pricing_dict['fixed'] = skill.pricing.fixed
         
@@ -722,6 +750,8 @@ async def call_app_skill(
         request_payload = {}
     request_payload['_user_id'] = user_info['user_id']
     request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
+    request_payload['_api_key_hash'] = user_info.get('api_key_hash')
+    request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
 
     registry = get_global_registry()
@@ -978,7 +1008,7 @@ def resolve_skill_provider_info(
         provider_id = skill.full_model_reference.split("/", 1)[0]
     elif skill.providers and len(skill.providers) > 0:
         pname = skill.providers[0].name
-        provider_id = pname.lower()
+        provider_id = pname.lower().replace(" ", "_")
         # Same name-to-ID mapping as main_processor.py
         if pname == "Google" and app_id == "maps":
             provider_id = "google_maps"

@@ -11,6 +11,8 @@ on:
     branches: [main, dev]
     paths:
       - 'frontend/packages/openmates-cli/**'
+      - 'scripts/prepare_cli_publish_version.mjs'
+      - 'shared/config/product_version.json'
       - '.github/workflows/publish-cli.yml'
   workflow_dispatch: {}
 
@@ -36,6 +38,9 @@ jobs:
 
       - name: Run CLI tests
         run: pnpm --filter openmates test
+
+      - name: Check product/CLI version alignment
+        run: node scripts/prepare_cli_publish_version.mjs --channel=check
 
       - uses: actions/upload-artifact@v4
         with:
@@ -66,33 +71,11 @@ jobs:
 
       - name: Bump prerelease version (dev only)
         if: github.ref == 'refs/heads/dev'
-        working-directory: frontend/packages/openmates-cli
-        run: |
-          # Base the bump on the highest published alpha, not package.json,
-          # so re-runs after an uncommitted version bump don't collide.
-          PUBLISHED=$(npm view openmates@alpha version 2>/dev/null || echo "")
-          if [ -n "$PUBLISHED" ]; then
-            npm version "$PUBLISHED" --no-git-tag-version --allow-same-version
-          fi
-          npm version prerelease --preid alpha --no-git-tag-version
+        run: node scripts/prepare_cli_publish_version.mjs --channel=dev
 
       - name: Bump to stable version (main only)
         if: github.ref == 'refs/heads/main'
-        working-directory: frontend/packages/openmates-cli
-        run: |
-          # Strip prerelease suffix (e.g. 0.9.0-alpha.5 → 0.9.0).
-          # If that base is already the published stable, bump patch instead so
-          # repeated merges to main produce 0.9.0 → 0.9.1 → 0.9.2 etc.
-          CURRENT=$(node -p "require('./package.json').version")
-          BASE="${CURRENT%%-*}"
-          LATEST=$(npm view openmates version 2>/dev/null || echo "0.0.0")
-          HIGHEST=$(printf '%s\n' "$BASE" "$LATEST" | sort -V | tail -1)
-          if [ "$BASE" != "$LATEST" ] && [ "$HIGHEST" = "$BASE" ]; then
-            npm version "$BASE" --no-git-tag-version --allow-same-version
-          else
-            npm version "$LATEST" --no-git-tag-version --allow-same-version
-            npm version patch --no-git-tag-version
-          fi
+        run: node scripts/prepare_cli_publish_version.mjs --channel=main
 
       - name: Publish to npm (stable)
         if: github.ref == 'refs/heads/main'

@@ -68,6 +68,8 @@
     query?: string;
     /** Provider name (e.g., 'REWE') */
     provider?: string;
+    /** Providers selected for the search request */
+    providers?: string[];
     /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Product results (for finished state) */
@@ -86,6 +88,7 @@
     id,
     query: queryProp,
     provider: providerProp,
+    providers: providersProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -96,7 +99,8 @@
 
   // Local reactive state — updated by handleEmbedDataUpdated when embed streams in
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('REWE');
+  let localProvider = $state<string>('');
+  let localProviders = $state<string[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<ProductResult[]>([]);
@@ -108,7 +112,8 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
-      localProvider = providerProp || 'REWE';
+      localProvider = providerProp || '';
+      localProviders = providersProp || [];
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -120,6 +125,7 @@
   // Derived display state
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
@@ -142,6 +148,7 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (Array.isArray(content.providers)) localProviders = content.providers as string[];
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
       if (content.results && Array.isArray(content.results)) {
@@ -153,17 +160,27 @@
   // Skill display info
   let skillName = $derived($text('common.search'));
   const skillIconName = 'search';
-  let providerLabel = $derived.by(() => {
-    const normalized = provider.trim().toUpperCase();
+  function shoppingProviderLabel(value: string): string {
+    const normalized = value.trim().toUpperCase();
     if (normalized === 'AMAZON') {
       const countryCode = (flatResults[0]?.country || '').toUpperCase();
       return countryCode ? `Amazon ${countryCode}` : 'Amazon';
     }
     if (normalized === 'REWE') return 'REWE';
-    return provider;
+    if (normalized === 'STOFFE.DE' || normalized === 'STOFFE_DE' || normalized === 'STOFFE') return 'Stoffe.de';
+    return value;
+  }
+
+  let providerLabel = $derived.by(() => {
+    if (providers.length > 0) {
+      const labels = providers.map(shoppingProviderLabel);
+      if (labels.length <= 2) return labels.join(', ');
+      return `${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+    }
+    return provider ? shoppingProviderLabel(provider) : '';
   });
 
-  let viaProvider = $derived(`${$text('embeds.via')} ${providerLabel}`);
+  let viaProvider = $derived(providerLabel ? `${$text('embeds.via')} ${providerLabel}` : '');
 
   /**
    * Flatten nested results if needed.
@@ -250,7 +267,9 @@
       <div class="ds-search-query">{query || $text('common.search')}</div>
 
       <!-- Provider subtitle (e.g., "via REWE") -->
-      <div class="ds-search-provider">{viaProvider}</div>
+      {#if viaProvider}
+        <div class="ds-search-provider">{viaProvider}</div>
+      {/if}
 
       <!-- Error state -->
       {#if status === 'error'}

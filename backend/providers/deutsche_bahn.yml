@@ -1,0 +1,10 @@
+# backend/providers/deutsche_bahn.yml
+#
+# Provider metadata for Deutsche Bahn train connections.
+
+provider_id: "deutsche_bahn"
+name: "Deutsche Bahn"
+description: "German railway provider for train schedules, fares, and connections."
+logo_svg: "logos/deutsche_bahn.svg"
+region: "EU"
+privacy_policy: "https://int.bahn.de/en/privacy"

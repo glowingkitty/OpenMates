@@ -9,6 +9,7 @@
   import { text } from '@repo/ui';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore } from '../../../stores/embedPIIStore';
+  import { hydrateWikiLinks, replaceWikiLinksInText } from '../../../utils/embedLinkUtils';
 
   interface Props {
     id: string;
@@ -39,6 +40,7 @@
   let localContent = $state('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
+  let bodyPreviewEl: HTMLDivElement | undefined = $state(undefined);
 
   $effect(() => {
     if (!storeResolved) {
@@ -82,6 +84,15 @@
     return lines.join('\n');
   });
 
+  let bodyPreviewHtml = $derived(replaceWikiLinksInText(bodyPreview));
+
+  $effect(() => {
+    void bodyPreviewHtml;
+    if (!bodyPreviewEl) return;
+    const cleanup = hydrateWikiLinks(bodyPreviewEl, { clickable: false });
+    return cleanup;
+  });
+
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (!data.decodedContent) {
       if (receiverProp || subjectProp || contentProp) {
@@ -123,7 +134,14 @@
 >
   {#snippet details(snippetProps)}
     <div class="mail-details" class:mobile={snippetProps.isMobile}>
-      <div class="mail-body-preview">{bodyPreview || $text('embeds.mail.empty_content')}</div>
+      <div class="mail-body-preview" bind:this={bodyPreviewEl}>
+        {#if bodyPreviewHtml}
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
+          {@html bodyPreviewHtml}
+        {:else}
+          {bodyPreview || $text('embeds.mail.empty_content')}
+        {/if}
+      </div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>

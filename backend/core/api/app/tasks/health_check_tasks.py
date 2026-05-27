@@ -15,6 +15,7 @@ from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.shared.testing.caching_http_transport import create_http_client
 from backend.apps.ai.utils.llm_utils import (
     PROVIDER_CLIENT_REGISTRY,
     _get_provider_client,
@@ -1441,7 +1442,7 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         start_time = time.time()
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with create_http_client("sightengine", timeout=10.0) as client:
                 # Send a 1×1 white JPEG as multipart bytes — no external URL dependency.
                 # This mirrors the exact call shape used in sightengine_service.check_all().
                 response = await client.post(

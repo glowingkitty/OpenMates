@@ -19,9 +19,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-import httpx
-
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.testing.caching_http_transport import create_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +188,7 @@ class SightengineSafetyClient:
 
         log_prefix = f"[SightengineSafety] [{stage}] [{filename[:30]}]"
         try:
-            async with httpx.AsyncClient(timeout=20) as client:
+            async with create_http_client("sightengine", timeout=20) as client:
                 resp = await client.post(
                     SIGHTENGINE_API_URL,
                     data={

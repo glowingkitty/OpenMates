@@ -57,6 +57,9 @@ class RedditRssComment(BaseModel):
     body: str = Field(description="Comment text with HTML removed.")
     url: str = Field(description="Canonical Reddit comment URL.")
     published_at: Optional[str] = Field(default=None, description="ISO timestamp from the feed.")
+    score: Optional[int] = Field(default=None, description="Reddit public score when available.")
+    ups: Optional[int] = Field(default=None, description="Reddit public upvote count when available.")
+    downs: Optional[int] = Field(default=None, description="Reddit public downvote count when available.")
 
 
 class RedditRssPost(BaseModel):
@@ -70,6 +73,13 @@ class RedditRssPost(BaseModel):
     author: Optional[str] = Field(default=None, description="Public Reddit username.")
     url: str = Field(description="Canonical Reddit post URL.")
     published_at: Optional[str] = Field(default=None, description="ISO timestamp from the feed.")
+    score: Optional[int] = Field(default=None, description="Reddit public score when available.")
+    ups: Optional[int] = Field(default=None, description="Reddit public upvote count when available.")
+    downs: Optional[int] = Field(default=None, description="Reddit public downvote count when available.")
+    upvote_ratio: Optional[float] = Field(default=None, description="Reddit public upvote ratio when available.")
+    num_comments: Optional[int] = Field(default=None, description="Reddit public comment count when available.")
+    like_count: Optional[int] = Field(default=None, description="Normalized like/upvote count for embeds.")
+    reply_count: Optional[int] = Field(default=None, description="Normalized comment/reply count for embeds.")
     comments: list[RedditRssComment] = Field(default_factory=list)
     fetched_comment_count: int = Field(default=0, description="Number of comments fetched from RSS for this post.")
 
@@ -162,7 +172,7 @@ async def fetch_subreddit_posts(
         result.rate_limited = True
         result.next_retry_after_seconds = exc.retry_after_seconds
         result.rate_limit = exc.rate_limit
-        result.warnings.append(f"Reddit RSS rate limit reached before fetching r/{subreddit}.")
+        result.warnings.append(f"Reddit rate limit reached before fetching r/{subreddit}.")
         return result
     except Exception as exc:
         logger.warning("Reddit RSS post fetch failed for r/%s: %s", subreddit, exc)
@@ -175,7 +185,7 @@ async def fetch_subreddit_posts(
                 skipped = len(posts) - index
                 result.comments_skipped_count += skipped
                 result.warnings.append(
-                    f"Skipped comments for {skipped} posts because the per-call Reddit RSS request budget was reached."
+                    f"Skipped comments for {skipped} posts because the per-call Reddit request budget was reached."
                 )
                 break
 
@@ -183,7 +193,7 @@ async def fetch_subreddit_posts(
                 skipped = len(posts) - index
                 result.comments_skipped_count += skipped
                 result.warnings.append(
-                    f"Skipped comments for {skipped} posts because Reddit RSS remaining budget is low."
+                    f"Skipped comments for {skipped} posts because Reddit remaining budget is low."
                 )
                 break
 
@@ -205,7 +215,7 @@ async def fetch_subreddit_posts(
                 result.rate_limit = exc.rate_limit
                 result.comments_skipped_count += skipped
                 result.warnings.append(
-                    f"Skipped comments for {skipped} posts because Reddit RSS is rate limited."
+                    f"Skipped comments for {skipped} posts because Reddit is rate limited."
                 )
                 break
             except Exception as exc:
@@ -246,7 +256,7 @@ async def search_reddit_posts(
         result.rate_limited = True
         result.next_retry_after_seconds = exc.retry_after_seconds
         result.rate_limit = exc.rate_limit
-        result.warnings.append("Reddit RSS rate limit reached before completing search.")
+        result.warnings.append("Reddit rate limit reached before completing search.")
     except Exception as exc:
         logger.warning("Reddit RSS search failed for %s: %s", search_query, exc)
         result.errors.append(f"Could not search Reddit for {search_query}: {exc}")

@@ -106,8 +106,6 @@ Supports both saved payment methods and new payment form
 
     // providerOverride: if the user explicitly switches mode from the saved-method view
     let savedMethodProviderOverride: 'stripe' | 'managed' | null = $state(null);
-    // True when backend says use_managed_payments (non-EU user → Checkout Session flow)
-    let isManaged = $state(false);
 
     // Bank transfer state
     let showBankTransfer = $state(false);
@@ -186,25 +184,14 @@ Supports both saved payment methods and new payment form
     });
 
     /**
-     * Detect the active payment mode from /config, then load saved payment methods
-     * if EU (PaymentIntent flow). Non-EU users use Checkout Sessions — Stripe handles
-     * saved methods internally, so we skip the list and show the payment form directly.
+     * Load saved payment methods before showing a new payment form.
+     * Managed payments remain the default for new purchases, but existing saved
+     * cards must still be offered so repeat purchases can reuse them.
      */
     async function detectProviderAndLoadMethods() {
         isLoadingPaymentMethods = true;
         try {
-            const configResponse = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
-            if (configResponse.ok) {
-                const config = await configResponse.json();
-                isManaged = !!config.use_managed_payments;
-            }
-
-            if (isManaged) {
-                // Non-EU: Checkout Session handles its own saved methods — skip list
-                showPaymentForm = true;
-            } else {
-                await checkPaymentMethods();
-            }
+            await checkPaymentMethods();
         } catch (error) {
             console.error('Error loading payment methods:', error);
             showPaymentForm = true;
@@ -266,7 +253,8 @@ Supports both saved payment methods and new payment form
         // Determine routing BEFORE auth so handleAuthSuccess knows what to do.
         // Non-EU cards use Checkout Sessions; EU cards use PaymentIntent.
         const selectedMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId);
-        pendingManagedPayment = !!(selectedMethod && !isEuCard(selectedMethod.card?.country));
+        const cardCountry = selectedMethod?.card?.country;
+        pendingManagedPayment = !!(cardCountry && !isEuCard(cardCountry));
 
         // Auth check applies to both EU and non-EU flows
         try {
@@ -377,6 +365,11 @@ Supports both saved payment methods and new payment form
             }
         } catch (error) {
             console.error('Error processing payment:', error);
+            if (error instanceof Error && error.message === 'non_eu_card_use_checkout') {
+                savedMethodProviderOverride = 'managed';
+                showPaymentForm = true;
+                return;
+            }
             // Never show raw Stripe/server error messages to users — use a generic translated message.
             // Technical details are logged to console above for debugging.
             alert($text('signup.payment_failed'));

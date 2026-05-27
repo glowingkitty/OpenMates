@@ -1,5 +1,5 @@
 # backend/shared/providers/reddit/__init__.py
 #
 # Reddit provider package for social-media discovery integrations.
-# The first provider implementation uses public RSS/Atom feeds only, so it
-# does not require OAuth credentials while Reddit Data API access is pending.
+# JSON endpoints are the primary read path for richer post metrics and sorting;
+# RSS/Atom remains as a low-volume fallback when JSON access fails.

@@ -80,6 +80,8 @@
     provider?: string;
     /** Providers that returned results, with display name and icon URL */
     providers?: ProviderInfo[];
+    /** Original requested trip legs, available before results exist */
+    legs?: SearchLeg[];
     /** Processing status - must match SkillExecutionStatus */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Connection results (for finished state) */
@@ -99,6 +101,7 @@
     query: queryProp,
     provider: providerProp,
     providers: providersProp,
+    legs: legsProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -111,6 +114,7 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('');
   let localProviders = $state<ProviderInfo[]>([]);
+  let localLegs = $state<SearchLeg[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<Array<ConnectionResult | SearchResultGroup>>([]);
@@ -125,6 +129,7 @@
       localQuery = queryProp || '';
       localProvider = providerProp || '';
       localProviders = providersProp || [];
+      localLegs = legsProp || [];
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -164,6 +169,7 @@
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
       if (Array.isArray(content.providers)) localProviders = content.providers as ProviderInfo[];
+      if (Array.isArray(content.legs)) localLegs = content.legs as SearchLeg[];
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
@@ -300,8 +306,10 @@
       }
     }
     const firstGroup = searchGroups[0];
-    const firstLeg = firstGroup?.legs?.[0];
-    const lastLeg = firstGroup?.legs?.[firstGroup.legs.length - 1];
+    const groupLegs = firstGroup?.legs || [];
+    const fallbackLegs = groupLegs.length > 0 ? groupLegs : localLegs;
+    const firstLeg = fallbackLegs[0];
+    const lastLeg = fallbackLegs[fallbackLegs.length - 1];
     if (firstLeg?.origin && lastLeg?.destination) {
       return `${firstLeg.origin} → ${lastLeg.destination}`;
     }
@@ -313,7 +321,8 @@
   let dateDisplay = $derived.by(() => {
     const firstDeparture = flatResults[0]?.departure;
     const firstGroupDate = searchGroups[0]?.legs?.[0]?.date;
-    const rawDate = firstDeparture || firstGroupDate;
+    const firstMetadataDate = localLegs[0]?.date;
+    const rawDate = firstDeparture || firstGroupDate || firstMetadataDate;
     if (!rawDate) return '';
     try {
       const date = new Date(rawDate);

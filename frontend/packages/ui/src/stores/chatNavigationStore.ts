@@ -399,19 +399,20 @@ async function selectChat(chat: Chat): Promise<void> {
   // Update local tracking immediately so rapid clicks work correctly
   currentChatId = chat.chat_id;
 
-  // Update the persistent activeChatStore (survives component unmount/remount)
-  activeChatStore.setActiveChat(chat.chat_id);
-
   // Dispatch window event for +page.svelte to call activeChat.loadChat()
-  // IMPORTANT: dispatch BEFORE any async work (chatSyncService) so the UI
-  // navigates immediately. On Safari iOS the async import + await can delay
-  // event dispatch enough to cause a race where the hash-change handler runs
-  // first and the event arrives too late or is ignored.
+  // IMPORTANT: dispatch before updating activeChatStore/hash or doing async
+  // persistence. The window event is what actually loads the chat content;
+  // the store/hash update only changes selection metadata. If the hash update
+  // wins the race first, unauthenticated example-chat navigation can update
+  // the tab/title while leaving ActiveChat on the previous conversation.
   window.dispatchEvent(
     new CustomEvent("chatHeaderNavigation", {
       detail: { chat, scrollToTop: true },
     }),
   );
+
+  // Update the persistent activeChatStore (survives component unmount/remount)
+  activeChatStore.setActiveChat(chat.chat_id);
 
   // Update hasPrev/hasNext for the new position
   const newIdx = chatList.findIndex((c) => c.chat_id === chat.chat_id);

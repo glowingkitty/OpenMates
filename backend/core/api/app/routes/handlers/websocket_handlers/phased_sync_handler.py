@@ -10,6 +10,9 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
+    get_latest_chat_compression_checkpoint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -276,6 +279,8 @@ async def _build_chat_details_from_cache(
         "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
         "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
         "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+        "encrypted_top_recommended_apps_for_chat": cached_list_item.encrypted_top_recommended_apps_for_chat,
+        "encrypted_quick_tip_slugs": cached_list_item.encrypted_quick_tip_slugs,
         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
         "last_message_timestamp": cached_list_item.last_message_timestamp,
         "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
@@ -305,6 +310,8 @@ def _build_chat_details_from_directus_metadata(
         "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
         "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
         "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
+        "encrypted_top_recommended_apps_for_chat": chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
+        "encrypted_quick_tip_slugs": chat_metadata.get("encrypted_quick_tip_slugs"),
         "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
         "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
         "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
@@ -980,6 +987,7 @@ async def _handle_phase3_sync(
 
         # Send messages + embeds in chunked batches of 10
         import hashlib
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
         BATCH_SIZE = 10
         total_messages_sent = 0
         total_embeds_sent = 0
@@ -1012,10 +1020,16 @@ async def _handle_phase3_sync(
 
                 server_ver = batch_versions.get(chat_id)
                 server_messages_v = server_ver.messages_v if server_ver else len(messages_data)
+                checkpoint = await get_latest_chat_compression_checkpoint(
+                    directus_service,
+                    chat_id,
+                    user_id_hash,
+                )
 
                 batch_data.append({
                     "chat_id": chat_id,
                     "messages": messages_data,
+                    "compression_checkpoints": [checkpoint] if checkpoint else [],
                     "server_message_count": len(messages_data),
                     "messages_v": max(server_messages_v, len(messages_data))
                 })

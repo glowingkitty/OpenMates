@@ -12,7 +12,7 @@ services:
     environment:
       PROD_WEB_URL: "https://openmates.org"
       PROD_API_URL: "https://api.openmates.org"
-      DEV_WEB_URL: "https://dev.openmates.org"
+      DEV_WEB_URL: "https://app.dev.openmates.org"
       DEV_API_URL: "https://api.dev.openmates.org"
       UPLOAD_URL: "${STATUS_UPLOAD_URL:-}"
       PREVIEW_URL: "${STATUS_PREVIEW_URL:-}"

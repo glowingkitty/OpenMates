@@ -5266,6 +5266,50 @@ providers.ai_models.groq.description:
   ru: Groq используется на стороне сервера для очистки внешнего контента (результатов поиска и извлеченных веб-страниц) перед его включением в ответы ИИ. Groq видит внешний контент, полученный нами от твоего имени, а не твои сообщения в чате, и никогда не узнает, какой именно пользователь запрашивал тот или иной фрагмент контента.
   he: "Groq משמשת בצד השרת לניקוי תוכן חיצוני (תוצאות חיפוש ודפי אינטרנט שנסרקו) לפני הכללתו בתגובות ה-AI. Groq רואה את התוכן החיצוני שאחזרנו עבורך, לא את הודעות הצ'אט שלך, ולעולם אינה יודעת איזה משתמש ביקש כל פיסת תוכן."
   verified_by_human: []
+providers.ai_models.alibaba.heading:
+  context: Heading for Alibaba provider entry
+  en: Alibaba Cloud (Qwen models)
+  verified_by_human: []
+providers.ai_models.alibaba.description:
+  context: Alibaba description
+  en: >-
+    Alibaba Cloud hosts Qwen-family models. Alibaba receives your chat messages
+    with PII placeholders already substituted client-side only when you select
+    an Alibaba-hosted model.
+  verified_by_human: []
+providers.ai_models.deepseek.heading:
+  context: Heading for DeepSeek provider entry
+  en: DeepSeek (reasoning models)
+  verified_by_human: []
+providers.ai_models.deepseek.description:
+  context: DeepSeek description
+  en: >-
+    DeepSeek provides DeepSeek-family reasoning models. DeepSeek receives your
+    chat messages with PII placeholders already substituted client-side only
+    when you select a DeepSeek model.
+  verified_by_human: []
+providers.ai_models.moonshot.heading:
+  context: Heading for Moonshot AI provider entry
+  en: Moonshot AI / Kimi (language models)
+  verified_by_human: []
+providers.ai_models.moonshot.description:
+  context: Moonshot AI description
+  en: >-
+    Moonshot AI provides Kimi-family models. Moonshot receives your chat
+    messages with PII placeholders already substituted client-side only when you
+    select a Moonshot-hosted Kimi model.
+  verified_by_human: []
+providers.ai_models.zai.heading:
+  context: Heading for Z.ai provider entry
+  en: Z.ai (GLM models)
+  verified_by_human: []
+providers.ai_models.zai.description:
+  context: Z.ai description
+  en: >-
+    Z.ai provides GLM-family models. Z.ai receives your chat messages with PII
+    placeholders already substituted client-side only when you select a Z.ai
+    model.
+  verified_by_human: []
 providers.image_generation.heading:
   context: Subheading for Group D providers (image generation)
   en: Image generation and editing (only when you use an image skill)
@@ -5420,15 +5464,70 @@ providers.image_generation.recraft.description:
   ru: Recraft обеспечивает работу навыков images.generate и images.vectorize, создавая векторные и растровые изображения и преобразуя растровые изображения в SVG. Recraft получает твои промпты, предпочтения по стилю и — при векторизации — твои исходные изображения.
   he: Recraft מפעילה את המיומנויות images.generate ו-images.vectorize, מייצרת תמונות וקטוריות ורסטר והופכת מפות סיביות (bitmaps) ל-SVG. Recraft מקבלת את ההנחיות שלך, העדפות סגנון, ובעת וקטוריזציה — את תמונות המקור שלך.
   verified_by_human: []
+providers.image_generation.bfl.heading:
+  context: Heading for Black Forest Labs provider entry
+  en: Black Forest Labs (FLUX image models)
+  verified_by_human: []
+providers.image_generation.bfl.description:
+  context: Black Forest Labs description
+  en: >-
+    Black Forest Labs powers draft image generation via FLUX models. BFL receives
+    your image generation prompts and, when editing, the source images you
+    provide.
+  verified_by_human: []
+providers.music_generation.heading:
+  context: Subheading for music generation providers
+  en: Music generation (only when you use a music skill)
+  verified_by_human: []
+providers.music_generation.description:
+  context: Description of music generation providers
+  en: >-
+    These providers are only used when you invoke a music generation skill. If
+    you never use the music app, none of your data is shared with them.
+  verified_by_human: []
+providers.music_generation.google_vertex_ai.heading:
+  context: Heading for Google Vertex AI music generation provider entry
+  en: Google Vertex AI (Lyria music generation)
+  verified_by_human: []
+providers.music_generation.google_vertex_ai.description:
+  context: Google Vertex AI music generation description
+  en: >-
+    Google Vertex AI hosts the Lyria models used by the music.generate skill.
+    Google receives your music generation prompts, optional lyrics, style
+    preferences, and generation settings only when you ask OpenMates to generate
+    music or background music.
+  verified_by_human: []
 providers.code_execution.heading:
-  context: Subheading for Group E providers (code execution)
-  en: Code execution (only when you run code)
+  context: Subheading for Group F providers (code and developer tools)
+  en: Code and developer tools (only when you use code skills)
   verified_by_human: []
 providers.code_execution.description:
-  context: Description of Group E
+  context: Description of Group F
   en: >-
-    This provider is only used when you run code in an isolated sandbox from the
-    code app. If you never run code, none of your data is shared with it.
+    These providers are only used when you invoke a code app skill, such as
+    searching public repositories or running code in an isolated sandbox. If you
+    never use the code app, none of your data is shared with them.
+  verified_by_human: []
+providers.code_execution.github.heading:
+  context: Heading for GitHub provider entry
+  en: GitHub (public repository search)
+  verified_by_human: []
+providers.code_execution.github.description:
+  context: GitHub description
+  en: >-
+    GitHub powers the code app's repository search skill. GitHub receives public
+    repository search queries without an OpenMates user identifier.
+  verified_by_human: []
+providers.code_execution.context7.heading:
+  context: Heading for Context7 provider entry
+  en: Context7 (programming documentation lookup)
+  verified_by_human: []
+providers.code_execution.context7.description:
+  context: Context7 description
+  en: >-
+    Context7 powers the code app's documentation lookup skill. Context7 receives
+    library names and documentation questions without an OpenMates user
+    identifier.
   verified_by_human: []
 providers.code_execution.e2b.heading:
   context: Heading for E2B provider entry
@@ -5700,6 +5799,17 @@ providers.web_and_search.google_maps.description:
   ko: Google Maps는 장소 검색 스킬을 구동합니다. Google은 장소 쿼리 텍스트와 지역화된 결과를 위한 대략적인 위치를 볼 수 있지만, 사용자 식별자는 볼 수 없습니다.
   ar: تدعم خرائط جوجل مهارة البحث عن الأماكن. ترى جوجل نص استعلامات الأماكن الخاصة بك وموقعاً تقريبياً للنتائج المحلية، ولكن بدون معرف مستخدم.
   verified_by_human: []
+providers.web_and_search.youtube.heading:
+  context: Heading for YouTube provider entry
+  en: YouTube (video transcripts)
+  verified_by_human: []
+providers.web_and_search.youtube.description:
+  context: YouTube description
+  en: >-
+    YouTube is queried when you ask OpenMates to retrieve a transcript for a
+    YouTube video. YouTube receives video URLs and requested transcript language
+    preferences without an OpenMates user identifier.
+  verified_by_human: []
 providers.travel.heading:
   context: Subheading for Group F providers (travel)
   en: Travel (only when you use a travel skill)
@@ -5852,6 +5962,28 @@ providers.travel.flightradar24.description:
   es: Flightradar24 proporciona datos reales de seguimiento de vuelos cuando preguntas por un número de vuelo específico. Recibe números de vuelo IATA y fechas de salida sin un identificador de usuario.
   ko: Flightradar24는 특정 편명을 문의할 때 실제 항공편 추적 데이터를 제공합니다. 사용자 식별자 없이 IATA 항공편 번호와 출발 날짜를 수신합니다.
   ar: يوفر Flightradar24 بيانات تتبع الرحلات الجوية الحقيقية عندما تسأل عن رقم رحلة معين. يتلقى أرقام رحلات IATA وتواريخ المغادرة بدون معرف مستخدم.
+  verified_by_human: []
+providers.travel.deutsche_bahn.heading:
+  context: Heading for Deutsche Bahn provider entry
+  en: Deutsche Bahn (train connections)
+  verified_by_human: []
+providers.travel.deutsche_bahn.description:
+  context: Deutsche Bahn description
+  en: >-
+    Deutsche Bahn provides train connection results when you search for rail
+    routes. Deutsche Bahn receives origin, destination, and date search details
+    without an OpenMates user identifier.
+  verified_by_human: []
+providers.travel.flix.heading:
+  context: Heading for Flix provider entry
+  en: FlixBus / FlixTrain (bus and train connections)
+  verified_by_human: []
+providers.travel.flix.description:
+  context: Flix description
+  en: >-
+    Flix provides intercity bus and rail connection results when you search for
+    FlixBus or FlixTrain routes. Flix receives origin, destination, and date
+    search details without an OpenMates user identifier.
   verified_by_human: []
 providers.events.heading:
   context: Subheading for Group G providers (events)
@@ -6362,6 +6494,173 @@ providers.shopping.amazon.description:
   ko: 실시간 제품 및 가격 데이터를 위해 아마존의 제품 카탈로그를 조회합니다. 아마존은 사용자 식별자 없이 검색 쿼리를 수신합니다.
   ar: يتم الاستعلام في كتالوج منتجات أمازون للحصول على بيانات المنتجات والأسعار المباشرة. تتلقى أمازون استعلامات البحث الخاصة بك دون معرف مستخدم.
   verified_by_human: []
+providers.electronics.heading:
+  context: Subheading for Group J providers (electronics)
+  en: Electronics (only when you use the electronics skill)
+  de: Elektronik (nur wenn du den Elektronik-Skill nutzt)
+  zh: Electronics (only when you use the electronics skill)
+  fr: Electronics (only when you use the electronics skill)
+  pt: Electronics (only when you use the electronics skill)
+  ru: Electronics (only when you use the electronics skill)
+  ja: Electronics (only when you use the electronics skill)
+  it: Electronics (only when you use the electronics skill)
+  tr: Electronics (only when you use the electronics skill)
+  vi: Electronics (only when you use the electronics skill)
+  id: Electronics (only when you use the electronics skill)
+  pl: Electronics (only when you use the electronics skill)
+  nl: Electronics (only when you use the electronics skill)
+  hi: Electronics (only when you use the electronics skill)
+  th: Electronics (only when you use the electronics skill)
+  cs: Electronics (only when you use the electronics skill)
+  sv: Electronics (only when you use the electronics skill)
+  he: Electronics (only when you use the electronics skill)
+  es: Electronics (only when you use the electronics skill)
+  ko: Electronics (only when you use the electronics skill)
+  ar: Electronics (only when you use the electronics skill)
+  verified_by_human: [en, de]
+providers.electronics.description:
+  context: Description of Group J
+  en: >-
+    These providers are only used when you invoke the electronics component
+    search skill for live component and reference-design lookups.
+  de: Diese Anbieter werden nur genutzt, wenn du den Elektronik-Komponentensuch-Skill für Live-Komponenten- und Referenzdesign-Abfragen aufrufst.
+  zh: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  fr: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  pt: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ru: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ja: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  it: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  tr: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  vi: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  id: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  pl: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  nl: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  hi: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  th: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  cs: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  sv: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  he: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  es: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ko: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  ar: These providers are only used when you invoke the electronics component search skill for live component and reference-design lookups.
+  verified_by_human: [en, de]
+providers.electronics.ti_webench.heading:
+  context: Heading for TI WEBENCH provider entry
+  en: Texas Instruments WEBENCH (US)
+  de: Texas Instruments WEBENCH (USA)
+  zh: Texas Instruments WEBENCH (US)
+  fr: Texas Instruments WEBENCH (US)
+  pt: Texas Instruments WEBENCH (US)
+  ru: Texas Instruments WEBENCH (US)
+  ja: Texas Instruments WEBENCH (US)
+  it: Texas Instruments WEBENCH (US)
+  tr: Texas Instruments WEBENCH (US)
+  vi: Texas Instruments WEBENCH (US)
+  id: Texas Instruments WEBENCH (US)
+  pl: Texas Instruments WEBENCH (US)
+  nl: Texas Instruments WEBENCH (US)
+  hi: Texas Instruments WEBENCH (US)
+  th: Texas Instruments WEBENCH (US)
+  cs: Texas Instruments WEBENCH (US)
+  sv: Texas Instruments WEBENCH (US)
+  he: Texas Instruments WEBENCH (US)
+  es: Texas Instruments WEBENCH (US)
+  ko: Texas Instruments WEBENCH (US)
+  ar: Texas Instruments WEBENCH (US)
+  verified_by_human: [en, de]
+providers.electronics.ti_webench.description:
+  context: TI WEBENCH description
+  en: >-
+    TI WEBENCH is queried for power converter component candidates and reference
+    design summaries. Texas Instruments receives the electrical requirements you
+    search for, such as input voltage, output voltage, output current,
+    temperature, isolation, and optimization goal, without a user identifier.
+  de: TI WEBENCH wird nach Kandidaten für Leistungswandler-Komponenten und Referenzdesign-Zusammenfassungen abgefragt. Texas Instruments erhält die elektrischen Anforderungen deiner Suche, zum Beispiel Eingangsspannung, Ausgangsspannung, Ausgangsstrom, Temperatur, Isolation und Optimierungsziel, ohne eine Benutzerkennung.
+  zh: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  fr: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  pt: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ru: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ja: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  it: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  tr: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  vi: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  id: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  pl: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  nl: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  hi: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  th: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  cs: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  sv: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  he: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  es: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ko: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  ar: TI WEBENCH is queried for power converter component candidates and reference design summaries. Texas Instruments receives the electrical requirements you search for, such as input voltage, output voltage, output current, temperature, isolation, and optimization goal, without a user identifier.
+  verified_by_human: [en, de]
+providers.mail.heading:
+  context: Subheading for Group L providers (mail)
+  en: Mail (only when you use mail skills)
+  verified_by_human: []
+providers.mail.description:
+  context: Description of Group L
+  en: >-
+    This provider is only used when you invoke mail skills against a connected
+    mailbox. If you never use the mail app, none of your data is shared with it.
+  verified_by_human: []
+providers.mail.protonmail.heading:
+  context: Heading for Proton Mail provider entry
+  en: Proton Mail (mail search)
+  verified_by_human: []
+providers.mail.protonmail.description:
+  context: Proton Mail description
+  en: >-
+    Proton Mail is queried when you search a connected Proton Mail mailbox.
+    Proton receives the mail search query and mailbox data needed to return
+    matching results.
+  verified_by_human: []
+providers.home.heading:
+  context: Subheading for Group M providers (home and housing)
+  en: Home and housing (only when you use housing search)
+  verified_by_human: []
+providers.home.description:
+  context: Description of Group M
+  en: >-
+    These providers are only used when you invoke the home app's housing search
+    skill. If you never search for housing, none of your data is shared with
+    them.
+  verified_by_human: []
+providers.home.immoscout24.heading:
+  context: Heading for ImmoScout24 provider entry
+  en: ImmoScout24 (German housing search)
+  verified_by_human: []
+providers.home.immoscout24.description:
+  context: ImmoScout24 description
+  en: >-
+    ImmoScout24 is queried when you search German housing listings. ImmoScout24
+    receives housing search queries, locations, filters, and listing pages
+    requested without an OpenMates user identifier.
+  verified_by_human: []
+providers.home.kleinanzeigen.heading:
+  context: Heading for Kleinanzeigen provider entry
+  en: Kleinanzeigen (German classified housing search)
+  verified_by_human: []
+providers.home.kleinanzeigen.description:
+  context: Kleinanzeigen description
+  en: >-
+    Kleinanzeigen is queried when you search German classified housing listings.
+    Kleinanzeigen receives housing search queries, locations, filters, and
+    listing pages requested without an OpenMates user identifier.
+  verified_by_human: []
+providers.home.wg_gesucht.heading:
+  context: Heading for WG-Gesucht provider entry
+  en: WG-Gesucht (German shared-apartment search)
+  verified_by_human: []
+providers.home.wg_gesucht.description:
+  context: WG-Gesucht description
+  en: >-
+    WG-Gesucht is queried when you search German shared-apartment or rental
+    listings. WG-Gesucht receives housing search queries, locations, filters,
+    and listing pages requested without an OpenMates user identifier.
+  verified_by_human: []
 providers.community.heading:
   context: Subheading for Group J providers (community)
   en: Community and developer channels (only if you choose to use them)
@@ -6490,6 +6789,49 @@ providers.community.discord.admin_access:
   cs: Administrátoři OpenMates s právy správce Discord serveru mohou číst všechny zprávy zveřejněné na Discord serveru OpenMates. Nesdílej na Discordu citlivé informace.
   sv: OpenMates-administratörer med administratörsrättigheter på Discord-servern kan läsa alla meddelanden som postas på OpenMates Discord-server. Dela inte känslig information på Discord.
   he: מנהלי OpenMates עם הרשאות ניהול בשרת הדיסקורד יכולים לקרוא את כל ההודעות המפורסמות בשרת הדיסקורד של OpenMates. אל תשתף/י מידע רגיש בדיסקורד.
+  verified_by_human: []
+providers.social_media.heading:
+  context: Subheading for Group M providers (social media)
+  en: Social media (only when you use social media skills)
+  verified_by_human: []
+providers.social_media.description:
+  context: Description of Group M
+  en: >-
+    These providers are only used when you invoke the social media app's
+    get-posts or search skills. They receive public profile, page, or search
+    queries without an OpenMates user identifier.
+  verified_by_human: []
+providers.social_media.reddit.heading:
+  context: Heading for Reddit provider entry
+  en: Reddit (public posts and discussions)
+  verified_by_human: []
+providers.social_media.reddit.description:
+  context: Reddit description
+  en: >-
+    Reddit is queried when you fetch or search public Reddit posts. Reddit
+    receives subreddit names, public post URLs, and search queries without an
+    OpenMates user identifier.
+  verified_by_human: []
+providers.social_media.bluesky.heading:
+  context: Heading for Bluesky provider entry
+  en: Bluesky (public posts and profile feeds)
+  verified_by_human: []
+providers.social_media.bluesky.description:
+  context: Bluesky description
+  en: >-
+    Bluesky is queried when you fetch or search public Bluesky posts. Bluesky
+    receives handles and search queries without an OpenMates user identifier.
+  verified_by_human: []
+providers.social_media.mastodon.heading:
+  context: Heading for Mastodon provider entry
+  en: Mastodon (public profile posts)
+  verified_by_human: []
+providers.social_media.mastodon.description:
+  context: Mastodon description
+  en: >-
+    Mastodon is queried when you fetch public Mastodon profile posts. The
+    relevant Mastodon server receives profile identifiers or public profile URLs
+    without an OpenMates user identifier.
   verified_by_human: []
 limitations_of_erasure.heading:
   context: Heading for the "what survives account deletion" section

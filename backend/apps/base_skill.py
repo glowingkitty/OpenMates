@@ -40,6 +40,9 @@ class UnitPricingConfig(BaseModel):
 class MinutePricingConfig(BaseModel):
     credits: float # Credits per minute
 
+class SecondPricingConfig(BaseModel):
+    credits: float # Credits per second
+
 class FixedPricingConfig(BaseModel):
     credits: float
 
@@ -57,6 +60,7 @@ class SkillPricing(BaseModel):
     tokens: Optional[TokenPricingConfig] = None
     per_unit: Optional[UnitPricingConfig] = None
     per_minute: Optional[MinutePricingConfig] = None
+    per_second: Optional[SecondPricingConfig] = None
     fixed: Optional[FixedPricingConfig] = None
 
     @validator('per_minute', pre=True, always=True)
@@ -66,6 +70,12 @@ class SkillPricing(BaseModel):
         MinutePricingConfig dict format, so that app.yml can use the shorthand
         ``per_minute: 3`` instead of ``per_minute: {credits: 3}``.
         """
+        if isinstance(v, (int, float)):
+            return {"credits": float(v)}
+        return v
+
+    @validator('per_second', pre=True, always=True)
+    def coerce_per_second(cls, v):
         if isinstance(v, (int, float)):
             return {"credits": float(v)}
         return v
@@ -144,6 +154,11 @@ class BaseSkill:
         """
         raise NotImplementedError("Each skill must implement the 'execute' method.")
 
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Return metadata that can be shown while a skill is still processing."""
+        return {}
+
     async def _get_effective_pricing_config(self) -> Optional[Dict[str, Any]]:
         """
         Determines the effective pricing configuration.
@@ -185,6 +200,7 @@ class BaseSkill:
         output_tokens: Optional[int] = None,
         units_processed: Optional[int] = None,
         duration_minutes: Optional[float] = None,
+        duration_seconds: Optional[float] = None,
     ) -> int:
         """
         Calculates credits for this skill execution.
@@ -200,7 +216,8 @@ class BaseSkill:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             units_processed=units_processed,
-            duration_minutes=duration_minutes
+            duration_minutes=duration_minutes,
+            duration_seconds=duration_seconds,
         )
         # Ensure that even if calculation results in 0 for a priced skill, it's at least 1.
         # The calculate_total_credits function itself should handle this with its MINIMUM_CREDITS_CHARGED.

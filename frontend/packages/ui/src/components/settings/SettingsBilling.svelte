@@ -10,6 +10,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import SettingsUsage from './SettingsUsage.svelte';
+    import { loadReferralStatus, referralStatus } from '../../services/referralService';
 
     const dispatch = createEventDispatcher();
     
@@ -55,7 +56,8 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         const iconMap: Record<string, string> = {
             'buy-credits': 'coins',
             'auto-topup': 'reload',
-            'invoices': 'document'
+            'invoices': 'document',
+            'referral-code': 'icon_gift'
         };
         const iconName = iconMap[path.split('/')[0]] || path.split('/')[0];
 
@@ -69,6 +71,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     onMount(() => {
         fetchSubscriptionDetails();
+        void loadReferralStatus();
     });
 </script>
 
@@ -117,6 +120,16 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         title: $text('common.gift_cards')
     })}
 />
+
+{#if $referralStatus?.available}
+    <!-- Referral Code Menu Item -->
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon icon_gift"
+        title={$text('settings.billing.referral_code')}
+        onClick={() => navigateToSubview('referral-code')}
+    />
+{/if}
 
 <!-- Divider before Usage -->
 <div class="section-divider"></div>

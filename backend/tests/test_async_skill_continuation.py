@@ -146,8 +146,8 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     task_id = await async_skill_continuation.dispatch_async_skill_continuation(
         cache_service=cache,
         async_task_id="async-task-1",
-        completed_results=[{"title": "A useful post", "url": "https://example.com/post"}],
-        request_metadata={"query": "privacy AI", "provider": "bluesky_public"},
+        completed_results=[{"title": "A useful post", "url": "https://example.com/post", "embed_ref": "useful-post-a1B"}],
+        request_metadata={"query": "privacy AI", "provider": "Bluesky"},
     )
 
     assert task_id == "continuation-task-1"
@@ -158,7 +158,9 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert request_payload["chat_id"] == "chat-1"
     assert request_payload["message_history"][-1]["role"] == "system"
     assert "Completed tool result" in request_payload["message_history"][-1]["content"]
+    assert "[human-readable title](embed:the_embed_ref)" in request_payload["message_history"][-1]["content"]
     assert "A useful post" in request_payload["message_history"][-1]["content"]
+    assert "useful-post-a1B" in request_payload["message_history"][-1]["content"]
     assert skill_config_payload["default_llms"]["preprocessing_model"] == "mistral/small"
     assert skill_config_payload["always_include_skills"] == ["web-search"]
     assert cache.deleted == [async_skill_continuation.async_skill_continuation_key("async-task-1")]
@@ -185,7 +187,7 @@ async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monke
         cache_service=cache,
         async_task_id="async-task-1",
         completed_results=[{"title": "A useful post", "url": "https://example.com/post"}],
-        request_metadata={"query": "privacy AI", "provider": "bluesky_public"},
+        request_metadata={"query": "privacy AI", "provider": "Bluesky"},
     )
 
     assert task_id is None

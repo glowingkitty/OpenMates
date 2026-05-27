@@ -1,0 +1,46 @@
+# backend/core/directus/schemas/referral_rewards.yml
+# Idempotency ledger for promotional referral credit grants. Each successful
+# referral creates one referrer row and one referred-user row.
+referral_rewards:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    attribution_id:
+      type: uuid
+      note: "Referral attribution that produced this reward."
+
+    campaign_id:
+      type: uuid
+      note: "Campaign budget used for this reward."
+
+    recipient_user_id_hash:
+      type: string
+      length: 512
+      note: "SHA-256 hash of the user who received promotional credits."
+
+    role:
+      type: string
+      length: 32
+      note: "referrer or referred."
+
+    credits_awarded:
+      type: integer
+      note: "Promotional credits awarded. Non-refundable."
+
+    order_id:
+      type: string
+      length: 255
+      note: "Payment provider order id that triggered this reward."
+
+    idempotency_key:
+      type: string
+      length: 255
+      unique: true
+      note: "Unique key preventing duplicate reward grants on webhook retries."
+
+    created_at:
+      type: datetime
+      note: "UTC timestamp when the reward was recorded."

@@ -131,6 +131,14 @@ export async function handleInitialSyncResponseImpl(
             serverChat.is_private !== undefined
               ? serverChat.is_private
               : undefined,
+          share_pii:
+            serverChat.share_pii !== undefined
+              ? serverChat.share_pii
+              : undefined,
+          share_highlights:
+            serverChat.share_highlights !== undefined
+              ? serverChat.share_highlights
+              : undefined,
         };
         return chat;
       }),

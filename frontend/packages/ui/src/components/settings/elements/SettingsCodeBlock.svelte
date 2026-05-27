@@ -14,11 +14,13 @@
         copyable = false,
         maxHeight = '',
         wrap = true,
+        dataTestid = '',
     }: {
         code: string;
         copyable?: boolean;
         maxHeight?: string;
         wrap?: boolean;
+        dataTestid?: string;
     } = $props();
 
     let copied = $state(false);
@@ -41,6 +43,7 @@
         class="code-container"
         class:wrap
         class:no-wrap={!wrap}
+        data-testid={dataTestid || undefined}
         style:max-height={maxHeight || undefined}
         style:overflow-y={maxHeight ? 'auto' : undefined}
     >

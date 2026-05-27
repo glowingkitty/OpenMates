@@ -26,6 +26,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
+from backend.shared.python_utils.media_generation_safety import (
+    validate_media_generation_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +162,14 @@ class GenerateSkill(BaseSkill):
             )
             return {"error": "Image generation service temporarily unavailable"}
 
+        batch_decision = validate_media_generation_request(
+            media_type="image",
+            prompt="",
+            request_count=len(requests),
+        )
+        if not batch_decision.allowed:
+            return batch_decision.to_rejection_payload()
+
         # Extract user context for the task
         user_id = kwargs.get("user_id")
         # vault key ID needed by the Celery task to decrypt reference image embeds
@@ -187,6 +198,19 @@ class GenerateSkill(BaseSkill):
                     f"Skipping image generation request: missing 'prompt' field. Req: {req}"
                 )
                 continue
+
+            prompt_decision = validate_media_generation_request(
+                media_type="image",
+                prompt=str(prompt),
+                request_count=1,
+                style=req.get("style"),
+            )
+            if not prompt_decision.allowed:
+                logger.warning(
+                    "Image generation request rejected by media safety gate: %s",
+                    prompt_decision.category,
+                )
+                return prompt_decision.to_rejection_payload()
 
             # Use placeholder embed_id if available (from main_processor),
             # otherwise generate a new one (backward compatibility / standalone usage).
@@ -250,6 +274,7 @@ class GenerateSkill(BaseSkill):
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,
                 "message_id": self._current_message_id,
+                "external_request": kwargs.get("external_request", False),
                 "app_id": self.app_id,
                 "skill_id": self.skill_id,
                 "full_model_reference": self.full_model_reference,

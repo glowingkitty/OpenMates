@@ -53,6 +53,7 @@ def send_test_run_summary(
     environment: str = "development",
     all_tests: List[Dict[str, Any]] = None,
     opencode_chat_url: str = None,
+    subject_override: str = None,
 ) -> bool:
     """
     Celery task to send a single daily test run summary email to the admin.
@@ -107,6 +108,7 @@ def send_test_run_summary(
                 environment=environment,
                 all_tests=all_tests,
                 opencode_chat_url=opencode_chat_url,
+                subject_override=subject_override,
             )
         )
         if result:
@@ -146,6 +148,7 @@ async def _async_send_test_run_summary(
     environment: str = "development",
     all_tests: List[Dict[str, Any]] = None,
     opencode_chat_url: str = None,
+    subject_override: str = None,
 ) -> bool:
     """
     Async implementation for sending the daily test run summary email.
@@ -172,7 +175,9 @@ async def _async_send_test_run_summary(
         environment_label = "Production" if environment == "production" else "Development"
 
         # Build email subject — matches the user-requested subject format exactly
-        if failed == 0:
+        if subject_override:
+            subject = subject_override
+        elif failed == 0:
             subject = "All tests successful"
         else:
             subject = f"Warning: {failed} of {total} tests failed!"

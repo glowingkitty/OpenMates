@@ -10,6 +10,7 @@
 //   - description: short description of the provider
 //   - logo_svg: icon path (e.g., "icons/anthropic.svg")
 //   - country: ISO 3166-1 alpha-2 country code (from 'region' or first model's 'country_origin')
+//   - privacy_policy: provider privacy-policy URL
 //
 // **Usage**: Run this script during the build process.
 // Generation script: frontend/packages/ui/scripts/generate-providers-metadata.js
@@ -113,6 +114,7 @@ function parseProviderYaml(providerId, filePath) {
       description: data.description || "",
       logo_svg: `icons/${providerId}.svg`,
       country,
+      privacy_policy: data.privacy_policy || "",
     };
   } catch (err) {
     console.error(
@@ -134,6 +136,7 @@ function generateTypeScript(providers) {
       lines.push(`        description: ${JSON.stringify(p.description)},`);
       lines.push(`        logo_svg: ${JSON.stringify(p.logo_svg)},`);
       lines.push(`        country: ${JSON.stringify(p.country)},`);
+      lines.push(`        privacy_policy: ${JSON.stringify(p.privacy_policy)},`);
       lines.push("    },");
       return lines.join("\n");
     })
@@ -165,6 +168,8 @@ export interface ProviderMetadata {
     logo_svg: string;
     /** ISO 3166-1 alpha-2 country code for provider origin, or "EU" */
     country: string;
+    /** Public provider privacy-policy URL */
+    privacy_policy: string;
 }
 
 /**
@@ -172,7 +177,7 @@ export interface ProviderMetadata {
  * Keyed by provider_id for O(1) lookup.
  */
 export const providersMetadata: Record<string, ProviderMetadata> = {
-${providers.map((p) => `    ${JSON.stringify(p.id)}: {\n        id: ${JSON.stringify(p.id)},\n        name: ${JSON.stringify(p.name)},\n        description: ${JSON.stringify(p.description)},\n        logo_svg: ${JSON.stringify(p.logo_svg)},\n        country: ${JSON.stringify(p.country)},\n    },`).join("\n")}
+${providers.map((p) => `    ${JSON.stringify(p.id)}: {\n        id: ${JSON.stringify(p.id)},\n        name: ${JSON.stringify(p.name)},\n        description: ${JSON.stringify(p.description)},\n        logo_svg: ${JSON.stringify(p.logo_svg)},\n        country: ${JSON.stringify(p.country)},\n        privacy_policy: ${JSON.stringify(p.privacy_policy)},\n    },`).join("\n")}
 };
 
 /**
@@ -181,6 +186,10 @@ ${providers.map((p) => `    ${JSON.stringify(p.id)}: {\n        id: ${JSON.strin
  */
 export function findProviderByName(name: string): ProviderMetadata | undefined {
     const lowerName = name.toLowerCase().trim();
+    const aliases: Record<string, string> = {
+        "flixbus / flixtrain": "flix",
+    };
+    if (aliases[lowerName]) return providersMetadata[aliases[lowerName]];
     return Object.values(providersMetadata).find(
         (p) => p.name.toLowerCase() === lowerName,
     );

@@ -32,7 +32,7 @@ import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startu
 from typing import Dict, List, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets  # noqa: E402
+from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, referrals, websockets  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -49,6 +49,7 @@ from backend.core.api.app.routes import creators  # noqa: E402 # Import creators
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
+from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
@@ -1306,6 +1307,7 @@ def create_app() -> FastAPI:
         app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
         app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - web app only
         app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - web app only
+        app.include_router(referrals.router, include_in_schema=False)  # Referral endpoints - web app only
         logger.info("Payment-related routes registered (payment enabled)")
     else:
         logger.info("Skipping payment-related routes (payment disabled - self-hosted mode)")
@@ -1336,6 +1338,7 @@ def create_app() -> FastAPI:
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
+    app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner

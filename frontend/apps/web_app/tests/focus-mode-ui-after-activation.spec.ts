@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -36,10 +35,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -135,6 +131,24 @@ async function waitForFocusModeEmbed(
 	return focusModeEmbed;
 }
 
+async function getActiveChatId(page: any): Promise<string> {
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
+	const chatId = await activeChatItem.getAttribute('data-chat-id');
+	expect(chatId).toBeTruthy();
+	return chatId as string;
+}
+
+async function waitForAssistantIdle(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	logCheckpoint('Waiting for assistant stream to be idle...');
+	await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 45000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Assistant stream idle and editor is visible.');
+}
+
 function setupPageListeners(page: any): void {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -184,7 +198,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	const careerMessage =
 		"I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?";
 
-	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_6'), logCheckpoint, takeStepScreenshot, 'ui-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_1'), logCheckpoint, takeStepScreenshot, 'ui-career');
 
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
@@ -196,10 +210,9 @@ test('focus mode UI elements work correctly after activation', async ({
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode has been activated!');
 
-	// Wait for AI streaming to fully complete
-	logCheckpoint('Waiting for AI streaming to complete (send button enabled)...');
-	await expect(page.locator('[data-action="send-message"]')).toBeEnabled({ timeout: 45000 });
-	logCheckpoint('Streaming complete — send button is enabled again.');
+	// Wait for AI streaming to fully complete. The send button only exists while
+	// the editor has content, so do not use it as an idle signal after a send.
+	await waitForAssistantIdle(page, logCheckpoint);
 
 	// Wait for sync to propagate encrypted_active_focus_id to IndexedDB
 	await page.waitForTimeout(3000);
@@ -217,7 +230,8 @@ test('focus mode UI elements work correctly after activation', async ({
 		await expect(bannerText).toBeVisible({ timeout: 5000 });
 		const bannerTextContent = await bannerText.textContent();
 		logCheckpoint(`Banner text: "${bannerTextContent}"`);
-		expect(bannerTextContent?.toLowerCase()).toContain('focus');
+		expect(bannerTextContent?.toLowerCase()).toContain('career');
+		await expect(banner).toContainText(/focus on/i);
 
 		await takeStepScreenshot(page, 'ui-banner-visible');
 	});
@@ -297,6 +311,18 @@ test('focus mode UI elements work correctly after activation', async ({
 	// CHECK 4: Follow-up persistence (test 4)
 	// ======================================================================
 	await test.step('Focus mode persists on follow-up messages', async () => {
+		await page.keyboard.press('Escape');
+		await page.getByTestId('active-chat-container').click({ position: { x: 20, y: 20 }, timeout: 2000 }).catch(() => undefined);
+		const sidebar = page.getByTestId('activity-history-wrapper');
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		if (
+			(await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) &&
+			(await sidebarToggle.isVisible({ timeout: 1000 }).catch(() => false))
+		) {
+			await sidebarToggle.click({ timeout: 2000 });
+			await page.waitForTimeout(500);
+		}
+
 		const allAssistantMessagesBefore = page.getByTestId('message-assistant');
 		const countBefore = await allAssistantMessagesBefore.count();
 		logCheckpoint(`Assistant messages before follow-up: ${countBefore}`);
@@ -305,7 +331,7 @@ test('focus mode UI elements work correctly after activation', async ({
 			"I'm particularly interested in transitioning to a product management role. " +
 			'What skills do I need and how should I prepare?';
 
-		await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_5'), logCheckpoint, takeStepScreenshot, 'ui-followup');
+		await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_followup'), logCheckpoint, takeStepScreenshot, 'ui-followup');
 
 		logCheckpoint('Waiting for follow-up assistant response...');
 		await expect(async () => {
@@ -344,13 +370,62 @@ test('focus mode UI elements work correctly after activation', async ({
 		const originalFocusId = await originalEmbed.first().getAttribute('data-focus-id');
 		expect(originalFocusId).toContain('career_insights');
 
-		// Wait for streaming to complete before next steps
-		await expect(page.locator('[data-action="send-message"]')).toBeEnabled({ timeout: 45000 });
+		// Wait for streaming to complete before next steps.
+		await waitForAssistantIdle(page, logCheckpoint);
 		await takeStepScreenshot(page, 'ui-followup-verified');
 	});
 
 	// ======================================================================
-	// CHECK 5: Details link (test 8)
+	// CHECK 5: Activation embed persists after reload + logout/login
+	// ======================================================================
+	await test.step('Focus activation embed persists after reload and re-login', async () => {
+		logCheckpoint('Opening sidebar to capture active chat id before reload/re-login...');
+		await ensureSidebarOpen(page, logCheckpoint);
+		const chatId = await getActiveChatId(page);
+		logCheckpoint(`Captured active chat id: ${chatId}`);
+
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+
+		logCheckpoint('Reloading current chat and checking persisted activation embed...');
+		await page.reload();
+		await page.waitForLoadState('load');
+		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+		await page.waitForTimeout(5000);
+
+		const reloadedEmbed = page.locator(SELECTORS.focusModeBarActivated);
+		await expect(reloadedEmbed.first()).toBeVisible({ timeout: 30000 });
+		await expect(page.getByText('chat.an_error_occured')).not.toBeVisible({ timeout: 1000 });
+		await expect(page.getByText('chat.an_error_occurred')).not.toBeVisible({ timeout: 1000 });
+		logCheckpoint('Activation embed persisted after reload without raw error keys.');
+		await takeStepScreenshot(page, 'ui-reload-persisted-embed');
+
+		logCheckpoint('Logging out to verify persisted embed survives a fresh login...');
+		const openSettingsBtn = page.getByRole('button', { name: /open settings menu/i });
+		await expect(openSettingsBtn).toBeVisible({ timeout: 10000 });
+		await openSettingsBtn.click();
+		const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
+		await expect(logoutItem).toBeVisible({ timeout: 5000 });
+		await logoutItem.click();
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
+		await takeStepScreenshot(page, 'ui-logged-out-before-relogin');
+
+		logCheckpoint('Logging back in and navigating to the same chat...');
+		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+		await page.waitForTimeout(8000);
+
+		const reloginEmbed = page.locator(SELECTORS.focusModeBarActivated);
+		await expect(reloginEmbed.first()).toBeVisible({ timeout: 30000 });
+		const persistedFocusId = await reloginEmbed.first().getAttribute('data-focus-id');
+		expect(persistedFocusId).toContain('career_insights');
+		await expect(page.getByText('chat.an_error_occured')).not.toBeVisible({ timeout: 1000 });
+		await expect(page.getByText('chat.an_error_occurred')).not.toBeVisible({ timeout: 1000 });
+		logCheckpoint('Activation embed persisted after re-login without raw error keys.');
+		await takeStepScreenshot(page, 'ui-relogin-persisted-embed');
+	});
+
+	// ======================================================================
+	// CHECK 6: Details link (test 8)
 	// ======================================================================
 	await test.step('Details link opens focus mode settings page', async () => {
 		logCheckpoint('Clicking activated embed to open context menu...');
@@ -402,7 +477,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	});
 
 	// ======================================================================
-	// CHECK 6: Stop button deactivates focus mode (test 7) — MUST BE LAST
+	// CHECK 7: Stop button deactivates focus mode (test 7) — MUST BE LAST
 	// ======================================================================
 	await test.step('Stop button deactivates focus mode', async () => {
 		logCheckpoint('Clicking activated embed to open context menu for Stop...');

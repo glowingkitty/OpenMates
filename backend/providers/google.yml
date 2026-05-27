@@ -6,6 +6,7 @@ provider_id: "google"
 name: "Google"
 description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
+privacy_policy: "https://privacy.google.com/"
 
 models:
   - id: "gemini-3-flash-preview"
@@ -191,6 +192,141 @@ models:
         price: 0.0011
         currency: USD
 
+  - id: "lyria-3-pro-preview"
+    name: "Lyria 3 Pro"
+    description: "Google's latest Lyria music generation model for longer, high-quality stereo tracks with vocal and lyric support in preview. OpenMates uses Vertex AI by default for Cloud data-governance controls."
+    country_origin: "US"
+    for_app_skill: "music.generate"
+    release_date: "2026-04-07"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "google"
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "lyria-3-pro-preview"
+        region: "global"
+    pricing:
+      per_unit:
+        credits: 120
+        unit_name: "song"
+    costs:
+      # Gemini Developer API pricing: $0.08 per song/request, verified 2026-05-22.
+      output_per_song:
+        price: 0.08
+        currency: USD
+
+  - id: "lyria-3-clip-preview"
+    name: "Lyria 3 Clip"
+    description: "Google Lyria 3 preview model for 30-second high-quality stereo music clips."
+    country_origin: "US"
+    for_app_skill: "music.generate"
+    release_date: "2026-04-07"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "google"
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "lyria-3-clip-preview"
+        region: "global"
+    pricing:
+      per_unit:
+        credits: 60
+        unit_name: "song"
+    costs:
+      # Gemini Developer API pricing: $0.04 per song/request, verified 2026-05-22.
+      output_per_song:
+        price: 0.04
+        currency: USD
+
+  - id: "lyria-002"
+    name: "Lyria 2"
+    description: "Documented Vertex AI Lyria predict model for 30-second instrumental WAV generation. Kept as an explicit fallback for Lyria 3 preview availability gaps."
+    country_origin: "US"
+    for_app_skill: "music.generate"
+    release_date: "2025-01-01"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "google"
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "lyria-002"
+        region: "us-central1"
+    pricing:
+      per_unit:
+        credits: 60
+        unit_name: "song"
+    costs:
+      output_per_song:
+        price: 0.04
+        currency: USD
+
+  - id: "veo-3.1-generate-preview"
+    name: "Veo 3.1"
+    description: "Google's latest Veo 3.1 preview model for high-fidelity short video generation with native audio. OpenMates stores generated videos encrypted and serves REST downloads through short-lived decrypted links."
+    country_origin: "US"
+    for_app_skill: "videos.generate"
+    release_date: "2026-01-01"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - video
+      - audio
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google Gemini API"
+        model_id: "veo-3.1-generate-preview"
+        region: "US"
+    pricing:
+      per_second: 600
+    costs:
+      # Gemini Developer API pricing: $0.40/sec for 720p and 1080p, $0.60/sec for 4k.
+      output_per_second:
+        price: 0.40
+        price_4k: 0.60
+        currency: USD
+
+  - id: "veo-3.1-fast-generate-preview"
+    name: "Veo 3.1 Fast"
+    description: "Faster Google Veo 3.1 preview model for short video generation."
+    country_origin: "US"
+    for_app_skill: "videos.generate"
+    release_date: "2026-01-01"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - video
+      - audio
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google Gemini API"
+        model_id: "veo-3.1-fast-generate-preview"
+        region: "US"
+    pricing:
+      per_second: 150
+    costs:
+      # Gemini Developer API pricing: $0.10/sec for 720p, $0.12/sec for 1080p, $0.30/sec for 4k.
+      output_per_second:
+        price: 0.10
+        price_1080p: 0.12
+        price_4k: 0.30
+        currency: USD
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
@@ -216,3 +352,8 @@ models:
 # Per-Unit Examples:
 # - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
 # - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
+#
+# Generated music/video intentionally uses a lower 1.5x margin:
+# - Lyria 3 Pro ($0.08/song): 120 credits per song
+# - Lyria 3 Clip ($0.04/song): 60 credits per song
+# - Veo 3.1 Standard 720p/1080p ($0.40/sec): 600 credits per second

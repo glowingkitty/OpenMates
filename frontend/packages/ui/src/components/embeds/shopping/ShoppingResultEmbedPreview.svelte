@@ -14,6 +14,7 @@
   import { proxyImage } from '../../../utils/imageProxy';
 
   const MAX_WIDTH_PREVIEW_IMAGE = 480;
+  const MAX_WIDTH_LARGE_PREVIEW_IMAGE = 960;
 
   interface ProductAttributes {
     [key: string]: unknown;
@@ -50,6 +51,7 @@
     prime?: boolean | null;
     status?: 'processing' | 'finished' | 'error';
     isMobile?: boolean;
+    variant?: 'small' | 'large';
     onFullscreen: () => void;
   }
 
@@ -77,6 +79,7 @@
     prime = null,
     status = 'finished',
     isMobile = false,
+    variant = 'small',
     onFullscreen,
   }: Props = $props();
 
@@ -137,7 +140,8 @@
   let displayOldPrice = $derived(getDisplayOldPrice());
   let onSale = $derived(hasSale());
   let tags = $derived(getTags());
-  let imageUrl = $derived(image_url ? proxyImage(image_url, MAX_WIDTH_PREVIEW_IMAGE) : '');
+  let imageProxyWidth = $derived(variant === 'large' ? MAX_WIDTH_LARGE_PREVIEW_IMAGE : MAX_WIDTH_PREVIEW_IMAGE);
+  let imageUrl = $derived(image_url ? proxyImage(image_url, imageProxyWidth) : '');
   let stockText = $derived(formatStock(stock));
   let colorCount = $derived(color_child_item_ids.length);
 
@@ -160,7 +164,7 @@
   showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="product-preview" class:mobile={isMobileLayout}>
+    <div class="product-preview" class:mobile={isMobileLayout} class:large={variant === 'large'}>
       <div class="product-content-row">
         <!-- Text content (left side) -->
         <div class="product-text">
@@ -292,6 +296,19 @@
     object-fit: contain;
     padding: var(--spacing-4);
     box-sizing: border-box;
+  }
+
+  .product-preview.large .product-text {
+    flex-basis: 45%;
+  }
+
+  .product-preview.large .product-preview-image {
+    height: 291px;
+    transform: none;
+  }
+
+  .product-preview.large .badge {
+    right: 8px;
   }
 
   .badge {

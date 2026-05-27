@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
-import type { PreprocessorStepResult } from "../types/chat";
+import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
 import { storeEmbed, markEmbedAsError } from "./embedResolver"; // Import storeEmbed and markEmbedAsError
@@ -138,6 +138,17 @@ import type {
 // Track which finalized embeds have already been processed to prevent duplicate key generation.
 // This Set is per-tab (in-memory). Cross-tab coordination uses BroadcastChannel below.
 const processedFinalizedEmbeds = new Set<string>();
+const pendingFinalizedEmbedsByChat = new Map<
+  string,
+  Map<string, EmbedDataPayload>
+>();
+const pendingFinalizedEmbedQueuedAtByChat = new Map<string, number>();
+const pendingFinalizedEmbedFlushTimersByChat = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
+const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
+const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
 
 // OPE-360: ai_typing_started payloads queued when the chat shell doesn't yet
 // exist on a secondary device. Flushed after the corresponding new_chat_message
@@ -182,6 +193,81 @@ export async function flushPendingTypingStartedForChat(
       error,
     );
   }
+}
+
+export async function flushPendingFinalizedEmbedsForChat(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+): Promise<void> {
+  const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
+  if (!pendingForChat) return;
+
+  console.info(
+    `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${chatId}`,
+  );
+  let processedThisPass = false;
+  do {
+    processedThisPass = false;
+    for (const [embedId, embedData] of Array.from(pendingForChat)) {
+      try {
+        await handleSendEmbedDataImpl(
+          serviceInstance,
+          embedData as unknown as SendEmbedDataPayload,
+        );
+        if (isEmbedAlreadyProcessed(embedId)) {
+          pendingForChat.delete(embedId);
+          processedThisPass = true;
+        }
+      } catch (error) {
+        console.warn(
+          `[ChatSyncService:AI] Failed to flush queued finalized embed ${embedData.embed_id} for chat ${chatId}:`,
+          error,
+        );
+      }
+    }
+  } while (processedThisPass && pendingForChat.size > 0);
+  if (pendingForChat.size === 0) {
+    pendingFinalizedEmbedsByChat.delete(chatId);
+    pendingFinalizedEmbedQueuedAtByChat.delete(chatId);
+  }
+}
+
+function schedulePendingFinalizedEmbedsFlush(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+): void {
+  if (pendingFinalizedEmbedFlushTimersByChat.has(chatId)) return;
+
+  const timer = setTimeout(() => {
+    pendingFinalizedEmbedFlushTimersByChat.delete(chatId);
+    void (async () => {
+      const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
+      if (!pendingForChat) return;
+
+      if (await chatDB.getChat(chatId)) {
+        await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
+      }
+
+      if (!pendingFinalizedEmbedsByChat.has(chatId)) return;
+      const queuedAt = pendingFinalizedEmbedQueuedAtByChat.get(chatId) ?? Date.now();
+      if (Date.now() - queuedAt >= PENDING_FINALIZED_EMBED_TTL_MS) {
+        pendingFinalizedEmbedsByChat.delete(chatId);
+        pendingFinalizedEmbedQueuedAtByChat.delete(chatId);
+        console.warn(
+          `[ChatSyncService:AI] Dropped queued finalized embed payloads for chat ${chatId} after waiting ${PENDING_FINALIZED_EMBED_TTL_MS}ms for the chat shell`,
+        );
+        return;
+      }
+
+      schedulePendingFinalizedEmbedsFlush(serviceInstance, chatId);
+    })().catch((error) => {
+      console.warn(
+        `[ChatSyncService:AI] Queued finalized embed retry failed for chat ${chatId}:`,
+        error,
+      );
+    });
+  }, PENDING_FINALIZED_EMBED_RETRY_MS);
+  pendingFinalizedEmbedFlushTimersByChat.set(chatId, timer);
 }
 
 // --- Cross-tab embed processing deduplication ---
@@ -607,8 +693,6 @@ async function processEmbedsFromContent(content: string): Promise<void> {
  */
 async function requestEmbedFromServer(embedId: string): Promise<void> {
   try {
-    const { webSocketService } = await import("./websocketService");
-
     // Check if embed already exists in local store
     const { embedStore } = await import("./embedStore");
     const existingEmbedRaw = await embedStore.get(`embed:${embedId}`);
@@ -625,9 +709,8 @@ async function requestEmbedFromServer(embedId: string): Promise<void> {
     }
 
     // Send request to server via WebSocket
-    await webSocketService.sendMessage("request_embed", {
-      embed_id: embedId,
-    });
+    const { requestEmbedFromServerOnce } = await import("./embedResolver");
+    await requestEmbedFromServerOnce(embedId, "ai-handler-recovery");
 
     console.debug(
       `[ChatSyncService:AI] Requested embed ${embedId} from server via WebSocket`,
@@ -1184,6 +1267,10 @@ export async function handleAITypingStartedImpl( // Changed to async
               );
               await flushPendingMessagesForChat(chatIdForRetry);
               await flushPendingSystemMessagesForChat(chatIdForRetry);
+              await flushPendingFinalizedEmbedsForChat(
+                serviceInstance,
+                chatIdForRetry,
+              );
             } else {
               console.debug(
                 `[ChatSyncService:AI] Delayed retry: key still not available for ${chatIdForRetry} — will arrive via encrypted_chat_metadata broadcast`,
@@ -1211,6 +1298,7 @@ export async function handleAITypingStartedImpl( // Changed to async
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
       await flushPendingSystemMessagesForChat(payload.chat_id);
+      await flushPendingFinalizedEmbedsForChat(serviceInstance, payload.chat_id);
       
       // Encrypt title if payload has one (only for new chats on first message)
       if (payload.title) {
@@ -1888,6 +1976,7 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
+    quick_tip_slugs?: string[]; // Optional: Product quick tip slugs selected during post-processing
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
   },
 ): Promise<void> {
@@ -1902,6 +1991,7 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatSummary: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
+    let encryptedQuickTipSlugs: string | null = null;
     let encryptedUpdatedTitle: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
@@ -2023,6 +2113,17 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
+    if (payload.quick_tip_slugs && payload.quick_tip_slugs.length > 0) {
+      encryptedQuickTipSlugs = await encryptArrayWithChatKey(
+        payload.quick_tip_slugs.slice(0, 2),
+        chatKey,
+      );
+      chat.encrypted_quick_tip_slugs = encryptedQuickTipSlugs;
+      console.debug(
+        `[ChatSyncService:AI] Saved ${payload.quick_tip_slugs.length} quick tip slug(s) for chat ${payload.chat_id}`,
+      );
+    }
+
     // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed
     if (payload.updated_chat_title) {
       encryptedUpdatedTitle = await encryptWithChatKey(
@@ -2044,6 +2145,7 @@ export async function handlePostProcessingCompletedImpl(
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
       encryptedTopRecommendedApps ||
+      encryptedQuickTipSlugs ||
       encryptedUpdatedTitle
     ) {
       await chatDB.updateChat(chat);
@@ -2074,6 +2176,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedChatSummary ||
       encryptedChatTags ||
       encryptedTopRecommendedApps ||
+      encryptedQuickTipSlugs ||
       encryptedUpdatedTitle
     ) {
       const { sendPostProcessingMetadataImpl } =
@@ -2091,6 +2194,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
+        encryptedQuickTipSlugs || "",
         encryptedUpdatedTitle || "",
         encryptedChatKeyForValidation,
       );
@@ -2115,6 +2219,7 @@ export async function handlePostProcessingCompletedImpl(
         chatId: payload.chat_id,
         taskId: payload.task_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
+        quickTipSlugs: payload.quick_tip_slugs || [],
         harmfulResponse: payload.harmful_response,
       },
     });
@@ -3146,8 +3251,10 @@ export async function handleSendEmbedDataImpl(
         );
         if (!existingKey) {
           const chatKey = await chatKeyManager.getKey(embedData.chat_id);
+          const hasLocalChat = !!(await chatDB.getChat(embedData.chat_id));
           if (
             chatKey &&
+            hasLocalChat &&
             (await ensureChatKeySafeForWrite(
               embedData.chat_id,
               chatKey,
@@ -3264,6 +3371,25 @@ export async function handleSendEmbedDataImpl(
       // ============================================================
       // FINALIZED STATUS (completed/etc): Full encryption and persistence
       // ============================================================
+      // Background WebSocket events can arrive before this tab has created the
+      // chat shell. Without the local chat record there is no encrypted_chat_key
+      // to validate against, so queue the plaintext payload until new_chat_message
+      // creates the shell and can safely flush it through this same handler.
+      if (embedData.chat_id && !(await chatDB.getChat(embedData.chat_id))) {
+        let pendingForChat = pendingFinalizedEmbedsByChat.get(embedData.chat_id);
+        if (!pendingForChat) {
+          pendingForChat = new Map<string, EmbedDataPayload>();
+          pendingFinalizedEmbedsByChat.set(embedData.chat_id, pendingForChat);
+          pendingFinalizedEmbedQueuedAtByChat.set(embedData.chat_id, Date.now());
+        }
+        pendingForChat.set(embedData.embed_id, embedData);
+        schedulePendingFinalizedEmbedsFlush(serviceInstance, embedData.chat_id);
+        console.warn(
+          `[ChatSyncService:AI] Queued finalized embed ${embedData.embed_id}; local chat ${embedData.chat_id} is not available yet`,
+        );
+        return;
+      }
+
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)
       if (isEmbedAlreadyProcessed(embedData.embed_id)) {
@@ -4596,6 +4722,7 @@ export function handleChatCompressionCompletedImpl(
     summary_token_estimate?: number;
     compressed_up_to_timestamp?: number;
     summary_message_id?: string;
+    summary_content?: string;
     error?: string;
   },
 ): void {
@@ -4616,5 +4743,71 @@ export function handleChatCompressionCompletedImpl(
 
   serviceInstance.dispatchEvent(
     new CustomEvent("chatCompressionCompleted", { detail: payload }),
+  );
+
+  if (!payload.error && payload.summary_content && payload.summary_message_id) {
+    void persistClientEncryptedCompressionCheckpoint(payload);
+  }
+}
+
+async function persistClientEncryptedCompressionCheckpoint(payload: {
+  chat_id: string;
+  task_id: string;
+  compressed_message_count?: number;
+  summary_token_estimate?: number;
+  compressed_up_to_timestamp?: number;
+  summary_message_id?: string;
+  summary_content?: string;
+}): Promise<void> {
+  if (!payload.summary_content || !payload.summary_message_id) return;
+  const chat = await chatDB.getChat(payload.chat_id);
+  if (!chat) return;
+  const chatKey = await chatKeyManager.getKey(payload.chat_id);
+  if (!chatKey) {
+    console.warn("[ChatSyncService:AI] Cannot persist compression checkpoint without chat key", payload.chat_id);
+    return;
+  }
+  const encryptedSummary = await encryptWithChatKey(payload.summary_content, chatKey);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const checkpoint: ChatCompressionCheckpoint = {
+    id: payload.summary_message_id,
+    chat_id: payload.chat_id,
+    encrypted_summary: encryptedSummary,
+    summary: payload.summary_content,
+    compressed_up_to_timestamp: payload.compressed_up_to_timestamp || 0,
+    compressed_message_count: payload.compressed_message_count || 0,
+    summary_token_estimate: payload.summary_token_estimate,
+    key_version: chat.key_version ?? null,
+    created_at: nowSeconds,
+    updated_at: nowSeconds,
+  };
+  await webSocketService.sendMessage("store_chat_compression_checkpoint", {
+    chat_id: payload.chat_id,
+    checkpoint_id: checkpoint.id,
+    encrypted_summary: encryptedSummary,
+    compressed_up_to_timestamp: checkpoint.compressed_up_to_timestamp,
+    compressed_message_count: checkpoint.compressed_message_count,
+    summary_token_estimate: checkpoint.summary_token_estimate,
+    key_version: checkpoint.key_version,
+    created_at: checkpoint.created_at,
+  });
+}
+
+export async function handleChatCompressionCheckpointStoredImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { chat_id: string; checkpoint: ChatCompressionCheckpoint },
+): Promise<void> {
+  const checkpoint = payload.checkpoint;
+  const chatKey = await chatKeyManager.getKey(payload.chat_id);
+  if (chatKey && checkpoint.encrypted_summary && !checkpoint.summary) {
+    checkpoint.summary = await decryptWithChatKey(checkpoint.encrypted_summary, chatKey) || undefined;
+  }
+  await chatDB.saveChatCompressionCheckpoint(checkpoint);
+  await chatDB.deleteMessagesForChatAtOrBefore(
+    payload.chat_id,
+    checkpoint.compressed_up_to_timestamp,
+  );
+  serviceInstance.dispatchEvent(
+    new CustomEvent("chatCompressionCheckpointStored", { detail: payload }),
   );
 }

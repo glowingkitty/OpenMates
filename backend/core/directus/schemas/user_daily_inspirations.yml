@@ -3,7 +3,7 @@
 # Stores received daily inspiration entries per user, encrypted client-side.
 #
 # Architecture:
-# - Each user receives up to 3 personalized daily inspirations per day
+# - Each user receives up to 10 personalized daily inspirations per day
 # - Inspirations are delivered via WebSocket and persisted here for sync across
 #   devices and sessions (solving the "appeared then vanished on reload" problem)
 # - All content fields are encrypted with the user's master key (AES-GCM 256)
@@ -64,6 +64,18 @@ user_daily_inspirations:
       type: text
       note: "[Encrypted] JSON blob with DailyInspirationVideo fields (youtube_id, title, thumbnail_url, etc.). Encrypted with user master key. Stored so embed preview survives page reloads and cross-device sync."
 
+    encrypted_wiki_metadata:
+      type: text
+      note: "[Encrypted] JSON blob with DailyInspirationWiki fields. Encrypted with user master key."
+
+    encrypted_feature_metadata:
+      type: text
+      note: "[Encrypted] JSON blob with DailyInspirationFeature fields. Encrypted with user master key."
+
+    encrypted_follow_up_suggestions:
+      type: text
+      note: "[Encrypted] JSON array of follow-up suggestions. Encrypted with user master key."
+
     is_opened:
       type: boolean
       default: false
@@ -79,7 +91,7 @@ user_daily_inspirations:
 
     content_type:
       type: string
-      note: "Content type identifier, currently always 'video'. Reserved for future types."
+      note: "Content type identifier: video, wiki, or feature."
 
     created_at:
       type: integer
@@ -105,12 +117,12 @@ user_daily_inspirations:
   notes: |
     User-specific daily inspiration entries received from the backend.
 
-    - Each user can have up to 3 active inspirations at a time (the current day's batch)
+    - Each user can have up to 30 active inspirations at a time (~3 days of 10/day)
     - Inspirations are encrypted client-side before syncing to this collection
     - The embed for the video is stored separately in the embeds collection
     - is_opened tracks whether a chat was started from this inspiration
     - Once opened, the inspiration is still shown in the carousel but not as the first/default
     - The next unopened inspiration becomes the default carousel display
-    - Inspirations should be soft-expired after ~7 days (frontend handles this)
+    - Inspirations should be soft-expired after ~3 days (frontend handles this)
     - On login, the client fetches all non-expired inspirations from this collection
       to restore the carousel state (critical for the "re-login hours later" use case)

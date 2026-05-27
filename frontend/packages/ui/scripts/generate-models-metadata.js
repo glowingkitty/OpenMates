@@ -148,6 +148,7 @@ function parseProviderYaml(providerId, filePath) {
       //   pricing.tokens.{input,output}.per_credit_unit  — token-based (AI ask)
       //   pricing.per_unit.{credits, unit_name}           — per-image/megapixel
       //   pricing.per_minute                              — per audio minute
+      //   pricing.per_second                              — per generated video second
       const pricing = {};
       if (model.pricing?.tokens?.input?.per_credit_unit) {
         pricing.input_tokens_per_credit =
@@ -165,6 +166,9 @@ function parseProviderYaml(providerId, filePath) {
       }
       if (model.pricing?.per_minute !== undefined) {
         pricing.per_minute = model.pricing.per_minute;
+      }
+      if (model.pricing?.per_second !== undefined) {
+        pricing.per_second = model.pricing.per_second;
       }
 
       const modelMetadata = {
@@ -344,7 +348,7 @@ export interface ModelPricingPerUnit {
 
 /**
  * Model pricing information.
- * Supports token-based, per-unit, and per-minute pricing shapes.
+ * Supports token-based, per-unit, per-minute, and per-second pricing shapes.
  */
 export interface ModelPricing {
     /** Number of input tokens per 1 credit (token-based models) */
@@ -355,6 +359,8 @@ export interface ModelPricing {
     per_unit?: ModelPricingPerUnit;
     /** Credits charged per minute of audio (audio transcription models) */
     per_minute?: number;
+    /** Credits charged per second of generated video */
+    per_second?: number;
 }
 
 /**

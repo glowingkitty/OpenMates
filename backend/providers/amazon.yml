@@ -8,6 +8,7 @@ name: "Amazon"
 description: "Amazon marketplace product search for products across multiple countries and categories."
 logo_svg: "icons/amazon.svg"
 region: "US" # Amazon HQ is in Seattle, US
+privacy_policy: "https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ" # verified via official search result 2026-05-24
 
 
 # API access

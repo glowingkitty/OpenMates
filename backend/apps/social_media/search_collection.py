@@ -14,11 +14,28 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from backend.shared.providers.bluesky.public import BlueskyPost, search_posts
+from backend.shared.providers.reddit.json import (
+    RedditCommentSort,
+    RedditSearchSort,
+    RedditTimeRange,
+    search_reddit_posts_json,
+)
 from backend.shared.providers.reddit.rss import RedditRssPost, search_reddit_posts
 
 SUPPORTED_SEARCH_PLATFORMS = {"bluesky", "reddit"}
 DEFAULT_SEARCH_PLATFORMS = ("bluesky", "reddit")
 DEFAULT_REQUEST_LIMIT = 10
+MAX_COMMENTS_PER_POST = 5
+BLUESKY_PROVIDER_NAME = "Bluesky"
+REDDIT_PROVIDER_NAME = "Reddit"
+BLUESKY_AUTH_REQUIRED_WARNING = (
+    "Bluesky topic search is currently unavailable without configured Bluesky app credentials. "
+    "Try fetching a specific Bluesky profile with Get posts, or configure Bluesky credentials for topic search."
+)
+REDDIT_PROXY_REQUIRED_WARNING = (
+    "Reddit search is currently unavailable because the Reddit proxy is not configured. "
+    "Try Bluesky search or ask an admin to configure Webshare proxy credentials."
+)
 
 
 class SearchRequestItem(BaseModel):
@@ -30,12 +47,24 @@ class SearchRequestItem(BaseModel):
         description="Social platform to search. Omit or use all to search every supported provider.",
     )
     query: str = Field(description="Topic or search query to find posts around.")
-    sort: str = Field(default="latest", description="Search sort. Bluesky supports latest/top; Reddit maps latest to new.")
+    page: Optional[str] = Field(default=None, description="Optional subreddit/page to restrict Reddit search to.")
+    sort: RedditSearchSort = Field(default=RedditSearchSort.LATEST, description="Search sort.")
+    time_range: Optional[RedditTimeRange] = Field(
+        default=None,
+        description="Reddit time filter for top/comments search: hour, day, week, month, year, all.",
+    )
     limit: int = Field(default=DEFAULT_REQUEST_LIMIT, ge=1, le=25, description="Number of posts to fetch.")
     author: Optional[str] = Field(
         default=None,
         description="Optional platform profile/handle filter. Currently only supported by Bluesky.",
     )
+    include_comments: bool = Field(default=False, description="Whether to fetch comments for returned posts when supported.")
+    comments_limit: int = Field(default=0, ge=0, le=MAX_COMMENTS_PER_POST, description="Comments to fetch per returned post when supported.")
+    comments_sort: RedditCommentSort = Field(default=RedditCommentSort.TOP, description="Reddit comment sort.")
+    min_score: Optional[int] = Field(default=None, ge=0, description="Minimum Reddit score/upvotes to include.")
+    min_comments: Optional[int] = Field(default=None, ge=0, description="Minimum Reddit comment count to include.")
+    exclude_stickied: bool = Field(default=True, description="Exclude stickied Reddit posts.")
+    exclude_nsfw: bool = Field(default=True, description="Exclude NSFW Reddit posts.")
 
 
 class SearchResponseItem(BaseModel):
@@ -78,11 +107,28 @@ async def collect_search_results(
     for index, raw_item in enumerate(requests, start=1):
         item = SearchRequestItem(**raw_item)
         request_id = item.id if item.id is not None else index
-        for platform in _requested_platforms(item.platform):
+        platforms = _requested_platforms(item.platform)
+        soft_skip_unavailable = len(platforms) > 1
+        for platform in platforms:
             if platform == "bluesky":
-                results.append(await _search_bluesky(request_id, item, secrets_manager))
+                results.append(
+                    await _search_bluesky(
+                        request_id,
+                        item,
+                        secrets_manager,
+                        soft_skip_unavailable=soft_skip_unavailable,
+                    )
+                )
             elif platform == "reddit":
-                results.append(await _search_reddit(request_id, item, reddit_proxy_url, reddit_proxy_warning))
+                results.append(
+                    await _search_reddit(
+                        request_id,
+                        item,
+                        reddit_proxy_url,
+                        reddit_proxy_warning,
+                        soft_skip_unavailable=soft_skip_unavailable,
+                    )
+                )
             else:
                 results.append(
                     SearchResponseItem(
@@ -103,14 +149,28 @@ def _requested_platforms(platform: Optional[str]) -> tuple[str, ...]:
     return (normalized,)
 
 
-async def _search_bluesky(request_id: Any, item: SearchRequestItem, secrets_manager: Any) -> SearchResponseItem:
+async def _search_bluesky(
+    request_id: Any,
+    item: SearchRequestItem,
+    secrets_manager: Any,
+    *,
+    soft_skip_unavailable: bool = False,
+) -> SearchResponseItem:
     bluesky_result = await search_posts(
         item.query,
-        sort=item.sort,
+        sort=item.sort.value,
         limit=item.limit,
         author=item.author,
+        include_comments=item.include_comments,
+        comments_limit=item.comments_limit,
         secrets_manager=secrets_manager,
     )
+    warnings = _clean_bluesky_warnings(
+        bluesky_result.warnings,
+        bluesky_result.errors,
+        soft_skip_unavailable=soft_skip_unavailable,
+    )
+    errors = _clean_bluesky_errors(bluesky_result.errors, soft_skip_unavailable=soft_skip_unavailable)
     return SearchResponseItem(
         id=request_id,
         platform=bluesky_result.platform,
@@ -118,10 +178,10 @@ async def _search_bluesky(request_id: Any, item: SearchRequestItem, secrets_mana
         sort=bluesky_result.sort,
         posts=bluesky_result.posts,
         results=bluesky_result.posts,
-        provider=bluesky_result.provider,
+        provider=BLUESKY_PROVIDER_NAME,
         request_count=bluesky_result.request_count,
-        warnings=bluesky_result.warnings,
-        errors=bluesky_result.errors,
+        warnings=warnings,
+        errors=errors,
     )
 
 
@@ -130,24 +190,50 @@ async def _search_reddit(
     item: SearchRequestItem,
     reddit_proxy_url: Optional[str],
     reddit_proxy_warning: Optional[str],
+    *,
+    soft_skip_unavailable: bool = False,
 ) -> SearchResponseItem:
     if not reddit_proxy_url:
-        error = reddit_proxy_warning or "Reddit RSS search requires Webshare proxy credentials."
+        message = reddit_proxy_warning or REDDIT_PROXY_REQUIRED_WARNING
         return SearchResponseItem(
             id=request_id,
             platform="reddit",
             query=item.query,
             sort=item.sort,
-            provider="reddit_rss",
-            errors=[error],
+            provider=REDDIT_PROVIDER_NAME,
+            warnings=[REDDIT_PROXY_REQUIRED_WARNING] if soft_skip_unavailable else [],
+            errors=[] if soft_skip_unavailable else [message],
         )
 
-    reddit_result = await search_reddit_posts(
+    reddit_result = await search_reddit_posts_json(
         item.query,
+        page=item.page,
         sort=item.sort,
+        time_range=item.time_range,
         limit=item.limit,
+        include_comments=item.include_comments,
+        comments_limit=item.comments_limit,
+        comments_sort=item.comments_sort,
+        min_score=item.min_score,
+        min_comments=item.min_comments,
+        exclude_stickied=item.exclude_stickied,
+        exclude_nsfw=item.exclude_nsfw,
         proxy_url=reddit_proxy_url,
     )
+    if reddit_result.errors and not reddit_result.posts:
+        fallback = await search_reddit_posts(
+            item.query,
+            sort=item.sort.value,
+            limit=item.limit,
+            proxy_url=reddit_proxy_url,
+        )
+        fallback.warnings = [
+            "Reddit temporarily used a fallback source.",
+            *reddit_result.warnings,
+            *[_clean_reddit_error(error, item.query) for error in reddit_result.errors],
+            *fallback.warnings,
+        ]
+        reddit_result = fallback
     return SearchResponseItem(
         id=request_id,
         platform=reddit_result.platform,
@@ -155,8 +241,47 @@ async def _search_reddit(
         sort=reddit_result.sort,
         posts=reddit_result.posts,
         results=reddit_result.posts,
-        provider="reddit_rss",
+        provider=REDDIT_PROVIDER_NAME,
         request_count=reddit_result.request_count,
         warnings=reddit_result.warnings,
-        errors=reddit_result.errors,
+        errors=[_clean_reddit_error(error, item.query) for error in reddit_result.errors],
     )
+
+
+def _clean_bluesky_warnings(warnings: list[str], errors: list[str], *, soft_skip_unavailable: bool) -> list[str]:
+    cleaned = [warning for warning in warnings if "SECRET__BLUESKY__" not in warning]
+    if any(_is_bluesky_auth_error(error) for error in errors):
+        cleaned.append(BLUESKY_AUTH_REQUIRED_WARNING)
+        if soft_skip_unavailable:
+            cleaned.append("Skipped Bluesky in the multi-platform search instead of returning a raw provider error.")
+    return list(dict.fromkeys(cleaned))
+
+
+def _clean_bluesky_errors(errors: list[str], *, soft_skip_unavailable: bool) -> list[str]:
+    cleaned: list[str] = []
+    for error in errors:
+        if _is_bluesky_auth_error(error):
+            if not soft_skip_unavailable:
+                cleaned.append(BLUESKY_AUTH_REQUIRED_WARNING)
+            continue
+        cleaned.append(_truncate_provider_error(error))
+    return list(dict.fromkeys(cleaned))
+
+
+def _is_bluesky_auth_error(error: str) -> bool:
+    return "HTTP 403" in error or "Forbidden" in error or "Bluesky topic search may require authentication" in error
+
+
+def _clean_reddit_error(error: str, query: str) -> str:
+    if (
+        "HTTP 403" in error
+        or "HTTP 429" in error
+        or "reddit.com" in error
+        or "Proxy Authentication Required" in error
+    ):
+        return f"Could not search Reddit for '{query}'. Reddit temporarily blocked or rate-limited the request; please try again later."
+    return _truncate_provider_error(error)
+
+
+def _truncate_provider_error(error: str) -> str:
+    return error if len(error) <= 240 else f"{error[:237]}..."

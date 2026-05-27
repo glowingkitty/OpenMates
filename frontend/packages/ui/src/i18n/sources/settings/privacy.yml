@@ -2352,7 +2352,7 @@ stability_logs_title:
   verified_by_human: []
 stability_logs_description:
   context: Description text explaining what anonymized stability logs collect — shown above the toggle
-  en: Help improve OpenMates by sharing anonymized error logs. No message content, chat titles, or personal data is included — only technical error information.
+  en: Send privacy-safe warning and error diagnostics when OpenMates breaks. No message content, chat titles, prompts, model responses, file names, emails, or personal data are included.
   de: Helfen Sie, OpenMates zu verbessern, indem Sie anonymisierte Fehlerprotokolle teilen. Keine Nachrichteninhalte, Chat-Titel oder persönliche Daten sind enthalten — nur technische Fehlerinformationen.
   zh: 通过分享匿名错误日志帮助改进 OpenMates。不包含任何消息内容、聊天标题或个人数据——仅包含技术错误信息。
   es: Ayuda a mejorar OpenMates compartiendo registros de errores anónimos. No se incluye contenido de mensajes, títulos de chat ni datos personales, solo información técnica de errores.
@@ -2376,7 +2376,7 @@ stability_logs_description:
   verified_by_human: []
 stability_logs_toggle_label:
   context: Label for the stability logs toggle switch
-  en: Help improve stability
+  en: Send essential diagnostics
   de: Stabilität verbessern helfen
   zh: 帮助提高稳定性
   es: Ayudar a mejorar la estabilidad
@@ -2400,7 +2400,7 @@ stability_logs_toggle_label:
   verified_by_human: []
 stability_logs_privacy_note:
   context: Privacy disclaimer shown below the stability logs toggle explaining that no personal data is collected
-  en: Only anonymized technical logs are collected. No message content, chat titles, names, or email addresses are ever included. Logs are automatically deleted after 48 hours unless an error occurred. You can disable this at any time.
+  en: Only sanitized technical warning/error details are collected, such as feature area, normalized route, browser/device info, status codes, and redacted error fingerprints. Logs are automatically deleted after 48 hours unless an error occurred. You can disable this at any time.
   de: Es werden nur anonymisierte technische Protokolle erfasst. Nachrichteninhalte, Chat-Titel, Namen oder E-Mail-Adressen sind niemals enthalten. Protokolle werden nach 48 Stunden automatisch gelöscht, es sei denn, ein Fehler ist aufgetreten. Sie können dies jederzeit deaktivieren.
   zh: 仅收集匿名化的技术日志。不包含任何消息内容、聊天标题、姓名或电子邮件地址。日志在 48 小时后自动删除，除非发生了错误。您可以随时禁用此功能。
   es: Solo se recopilan registros técnicos anonimizados. Nunca se incluye contenido de mensajes, títulos de chat, nombres o direcciones de correo electrónico. Los registros se eliminan automáticamente después de 48 horas a menos que haya ocurrido un error. Puedes desactivar esto en cualquier momento.

@@ -53,6 +53,7 @@ changes to the documentation (to keep the documentation up to date).
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
+    import { loadReferralStatus, referralStatus } from '../services/referralService';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -68,6 +69,7 @@ changes to the documentation (to keep the documentation up to date).
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+    import { allAppsInitialFilter, type AllAppsFilterType } from '../stores/allAppsFilterStore';
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
@@ -90,6 +92,27 @@ changes to the documentation (to keep the documentation up to date).
 
     // Create event dispatcher for forwarding events to parent components
     const dispatch = createEventDispatcher();
+
+    const SETTINGS_ROUTE_ICON_OVERRIDES: Record<string, string> = {
+        'account/export': 'download',
+        'app_store/all': 'app',
+        'privacy/hide-personal-data': 'anonym',
+        'privacy/share-debug-logs': 'privacy',
+    };
+
+    function getSettingsRouteIcon(settingsPath: string, providedIcon?: string): string {
+        const cleanPath = settingsPath.split('&')[0];
+        const exactOverride = SETTINGS_ROUTE_ICON_OVERRIDES[cleanPath];
+        if (exactOverride) return exactOverride;
+
+        if (cleanPath.startsWith('privacy/auto-deletion/')) return 'delete';
+
+        const cleanProvidedIcon = providedIcon?.trim();
+        if (cleanProvidedIcon && !cleanProvidedIcon.includes('/')) return cleanProvidedIcon;
+
+        const pathParts = cleanPath.split('/');
+        return pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
+    }
 
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
@@ -298,13 +321,15 @@ changes to the documentation (to keep the documentation up to date).
                 }
             }
             
-            // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), mates (browse only), share chat (for sharing demo chats),
+            // For non-authenticated users, include interface settings (top-level and nested),
+            // privacy overview, app store (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
             // newsletter, support, report issue, and the pricing overview page.
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
+                    key === 'privacy' ||
                     key === 'ai' || key.startsWith('ai/') ||
+                    key === 'settings_memories' ||
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
@@ -707,6 +732,7 @@ changes to the documentation (to keep the documentation up to date).
     
     let username = $derived($userProfile.username || '');
     let isInSignupMode = $derived($isInSignupProcess);
+    let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
 
     /**
      * Resolved blob URL (or legacy https:// URL) for the user's profile image.
@@ -717,6 +743,11 @@ changes to the documentation (to keep the documentation up to date).
      * displayable blob URL.
      */
     let resolvedProfileImageBlobUrl = $state<string | null>(null);
+    let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl);
+    let referralCtaCompact = $state(false);
+    let showReferralCta = $derived(
+        $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
+    );
 
     $effect(() => {
         const url = $userProfile.profile_image_url;
@@ -735,6 +766,12 @@ changes to the documentation (to keep the documentation up to date).
             }
         });
         return () => { cancelled = true; };
+    });
+
+    onMount(() => {
+        setTimeout(() => {
+            referralCtaCompact = true;
+        }, 3000);
     });
 
     // State to track active submenu view
@@ -1187,6 +1224,8 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath = 'ai';
             icon = 'ai';
         }
+
+        icon = getSettingsRouteIcon(settingsPath, icon);
 
         // --- Scroll position memory (All Apps only) ---
         // Save the scroll offset when leaving "All Apps" going forward, so pressing
@@ -1768,6 +1807,24 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    function openReferralSettings(event: MouseEvent) {
+        event.stopPropagation();
+        if (!isMenuVisible) {
+            isMenuVisible = true;
+            settingsMenuVisible.set(true);
+            panelState.openSettings();
+            lastProgrammaticOpenTime = Date.now();
+        }
+        handleOpenSettings(new CustomEvent('openSettings', {
+            detail: {
+                settingsPath: 'billing/referral-code',
+                direction: 'forward',
+                icon: 'icon_gift',
+                title: $text('settings.billing.referral_code')
+            }
+        }));
+    }
+
     // No more docking/undocking - we use two separate containers instead
    
     // Handler for profile click to show menu
@@ -1920,6 +1977,9 @@ changes to the documentation (to keep the documentation up to date).
                 paymentEnabled = true; // Default to enabled if check fails
             }
         })();
+        if ($authStore.isAuthenticated) {
+            void loadReferralStatus();
+        }
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
@@ -2107,6 +2167,14 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     $effect(() => {
+        if ($authStore.isAuthenticated && !isSelfHosted) {
+            void loadReferralStatus();
+        } else {
+            referralStatus.set(null);
+        }
+    });
+
+    $effect(() => {
         if (isMenuVisible) {
             scheduleHeaderChatDecorIconRefresh();
         }
@@ -2245,7 +2313,7 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, support, report_issue, account deletion, and mates
+            // For non-authenticated users, only allow app_store, interface, privacy overview, share settings, newsletter, support, report_issue, account deletion, and mates
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
@@ -2253,7 +2321,7 @@ changes to the documentation (to keep the documentation up to date).
             // Account deletion is allowed for uncompleted accounts via email link
             // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
@@ -2303,7 +2371,17 @@ changes to the documentation (to keep the documentation up to date).
             setTimeout(() => {
                 // Strip deep-link parameters (e.g. "&usage") from the path before routing.
                 // The parameters remain in window.location.hash for sub-components to read.
-                const cleanPath = settingsPath.split('&')[0];
+                let cleanPath = settingsPath.split('&')[0];
+
+                const allAppsFilterMatch = cleanPath.match(/^(?:app_store|apps)\/all\/(.+)$/);
+                if (allAppsFilterMatch) {
+                    const filterValue = allAppsFilterMatch[1].replace(/-/g, '_') as AllAppsFilterType;
+                    const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
+                    if (validFilters.includes(filterValue)) {
+                        allAppsInitialFilter.set(filterValue);
+                    }
+                    cleanPath = 'app_store/all';
+                }
 
                 // Set window flag for deep-link parameters so sub-components can read them
                 // after the hash is cleaned. SettingsUsage reads __openmates_usage_deeplink.
@@ -2312,15 +2390,7 @@ changes to the documentation (to keep the documentation up to date).
                     (window as any).__openmates_usage_deeplink = true;
                 }
 
-                // Determine the icon and title based on the path
-                // For nested paths like 'shared/share', use the last segment for icon
-                const pathParts = cleanPath.split('/');
-                // Map paths whose last segment doesn't match a real icon name
-                const deepLinkIconOverrides: Record<string, string> = {
-                    'app_store/all': 'app',
-                };
-                const icon = deepLinkIconOverrides[cleanPath]
-                    ?? (pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0]);
+                const icon = getSettingsRouteIcon(cleanPath);
                 
                 // Build translation key from full path
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
@@ -2508,7 +2578,20 @@ changes to the documentation (to keep the documentation up to date).
     	out:fade
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
-    	<div
+        {#if showReferralCta}
+            <button
+                type="button"
+                class="referral-cta"
+                class:compact={referralCtaCompact}
+                data-testid="referral-cta"
+                aria-label={$text('settings.billing.get_free_credits')}
+                onclick={openReferralSettings}
+            >
+                <span class="referral-cta-icon" aria-hidden="true"></span>
+                <span class="referral-cta-text">{$text('settings.billing.get_free_credits')}</span>
+            </button>
+        {/if}
+     	<div
 			id="settings-menu-toggle"
      		class="profile-container"
     		data-testid="profile-container"
@@ -2521,9 +2604,8 @@ changes to the documentation (to keep the documentation up to date).
     		aria-label={$text('settings.open_settings_menu')}
     		bind:this={profileContainer}
     	>
-            <!-- Show language icon when not logged in and menu is closed, user icon when menu is open -->
-            <!-- Show profile picture when user is logged in -->
-            {#if !$authStore.isAuthenticated}
+            <!-- Demo mode uses the same profile-container-wrapper as authenticated users so recordings show product UI, not capture-only overlays. -->
+            {#if !visuallyAuthenticated}
                 <div class="profile-picture language-icon-container">
                     <div class="clickable-icon" class:icon_settings={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
@@ -2531,11 +2613,11 @@ changes to the documentation (to keep the documentation up to date).
                 <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
                      new encrypted proxy endpoint works. Legacy https:// URLs are also
                      passed through by the profileImageService unchanged. -->
-                <div class="profile-picture" data-testid="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
-                    {#if resolvedProfileImageBlobUrl}
-                        <img class="profile-picture-avatar" src={resolvedProfileImageBlobUrl} alt="Profile" />
+                <div class="profile-picture" data-testid="profile-picture" class:profile-picture-img={!!displayProfileImageUrl} class:language-icon-container={!displayProfileImageUrl}>
+                    {#if displayProfileImageUrl}
+                        <img class="profile-picture-avatar" src={displayProfileImageUrl} alt="Profile" />
                     {:else}
-                        <div class="default-user-icon"></div>
+                        <div class="clickable-icon icon_settings"></div>
                     {/if}
                 </div>
             {/if}
@@ -2630,7 +2712,11 @@ changes to the documentation (to keep the documentation up to date).
                          Uses the same .mate-profile CSS class system as the chat header
                          (mates.css sets background-image per mate id class). -->
                     <div class="mate-detail-header-item">
-                        <div class="mate-profile {activeSubMenuIcon} mate-profile-header"></div>
+                        <div
+                            class="mate-profile {activeSubMenuIcon} mate-profile-header"
+                            data-testid="mate-profile-header"
+                            data-mate-id={activeSubMenuIcon}
+                        ></div>
                         <strong class="model-detail-title">{activeSubMenuTitle}</strong>
                     </div>
                 {:else}
@@ -2828,6 +2914,76 @@ changes to the documentation (to keep the documentation up to date).
         opacity: 1;
     }
 
+    .referral-cta {
+        position: absolute;
+        top: 4px;
+        inset-inline-end: 58px;
+        height: 42px;
+        max-width: 185px;
+        min-width: 24px;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-3);
+        padding: 0;
+        border: none;
+        border-radius: var(--radius-full);
+        background: transparent;
+        color: var(--color-primary-end);
+        cursor: pointer;
+        overflow: visible;
+        white-space: nowrap;
+        transition:
+            max-width var(--duration-slow) var(--easing-default),
+            opacity var(--duration-normal) var(--easing-default),
+            transform var(--duration-normal) var(--easing-default);
+    }
+
+    .referral-cta:hover {
+        transform: translateY(-1px);
+    }
+
+    .referral-cta.compact {
+        max-width: 24px;
+        justify-content: center;
+    }
+
+    .referral-cta-icon {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        background: var(--color-primary);
+        -webkit-mask-image: url('@openmates/ui/static/icons/gift.svg');
+        mask-image: url('@openmates/ui/static/icons/gift.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    .referral-cta-text {
+        font-size: var(--font-size-small);
+        font-weight: var(--font-weight-semibold);
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        opacity: 1;
+        transition: opacity var(--duration-normal) var(--easing-default);
+    }
+
+    .referral-cta.compact .referral-cta-text {
+        display: none;
+        opacity: 0;
+    }
+
+    .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     .profile-container.menu-open {
         opacity: 0;
         pointer-events: none;
@@ -2910,20 +3066,6 @@ changes to the documentation (to keep the documentation up to date).
         background-color: white;
     }
     
-    .default-user-icon {
-        width: 32px;
-        height: 32px;
-        -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
-        -webkit-mask-size: contain;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-image: url('@openmates/ui/static/icons/user.svg');
-        mask-size: contain;
-        mask-position: center;
-        mask-repeat: no-repeat;
-        background-color: var(--color-grey-60);
-    }
-
     .settings-menu {
         background-color: var(--color-grey-20);
         height: 100%;

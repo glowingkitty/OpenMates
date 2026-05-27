@@ -791,7 +791,7 @@
 
     // Handle payment completion notification from server
     // This is called when the webhook processes the payment and invoice is sent
-    function handlePaymentCompleted(payload: { order_id: string, credits_purchased: number, current_credits: number }) {
+    function handlePaymentCompleted(payload: { order_id: string, credits_purchased: number, current_credits: number, referral_reward_applied?: boolean, referral_referred_bonus?: number }) {
         console.log('[Payment] Received payment_completed notification from server:', payload);
         
         // Clear the timeout since we received confirmation
@@ -819,6 +819,13 @@
                 `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
                 5000
             );
+
+            if (payload.referral_reward_applied && payload.referral_referred_bonus) {
+                notificationStore.success(
+                    `Your referral reward was applied. You got ${payload.referral_referred_bonus} free credits.`,
+                    15000
+                );
+            }
             
             // If payment state is still processing, update to success
             // (This handles the case where timeout occurred and we're waiting for webhook)

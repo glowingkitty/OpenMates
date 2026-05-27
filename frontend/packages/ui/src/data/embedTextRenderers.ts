@@ -50,7 +50,7 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 import { renderWebSearch, renderWebRead, renderWebsite } from '../components/embeds/web/webEmbedText';
 import { renderTravelConnections, renderTravelStays, renderPriceCalendar, renderFlight, renderConnection, renderStay } from '../components/embeds/travel/travelEmbedText';
 import { renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch } from '../components/embeds/code/codeEmbedText';
-import { renderVideosSearch, renderVideoTranscript, renderVideo } from '../components/embeds/videos/videoEmbedText';
+import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderVideo } from '../components/embeds/videos/videoEmbedText';
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
 import { renderEventsSearch, renderEvent } from '../components/embeds/events/eventsEmbedText';
@@ -60,9 +60,11 @@ import { renderHomeSearch, renderListing } from '../components/embeds/home/homeE
 import { renderSheet } from '../components/embeds/sheets/sheetsEmbedText';
 import { renderPdf } from '../components/embeds/pdf/pdfEmbedText';
 import { renderRecording, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
+import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
+import { renderElectronicsSearch, renderElectronicsComponent } from '../components/embeds/electronics/electronicsEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
@@ -87,9 +89,11 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:web:read': renderWebRead,
 	'app:news:search': renderNewsSearch,
 	'app:shopping:search_products': renderShoppingSearch,
+	'app:electronics:search_components': renderElectronicsSearch,
 	'app:nutrition:search_recipes': renderNutritionSearch,
 	'app:events:search': renderEventsSearch,
 	'app:videos:search': renderVideosSearch,
+	'app:videos:generate': renderVideoGenerate,
 	'app:videos:get_transcript': renderVideoTranscript,
 	'app:maps:search': renderMapsSearch,
 	'app:code:search_repos': renderCodeRepoSearch,
@@ -101,6 +105,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:images:generate': renderImageGenerate,
 	'app:images:generate_draft': renderImageGenerate,
 	'app:images:search': renderImagesSearch,
+	'app:music:generate': renderMusicGenerate,
 	'app:health:search_appointments': renderHealthSearch,
 	'app:home:search': renderHomeSearch,
 	'app:mail:search': renderMailSearch,
@@ -133,6 +138,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
+	'electronics-component': renderElectronicsComponent,
 	'nutrition-recipe': renderNutritionRecipe,
 	'social-media-post': renderSocialMediaPost,
 	'focus-mode-activation': (c) => {

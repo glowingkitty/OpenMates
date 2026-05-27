@@ -48,6 +48,7 @@
   // Track if we're in the process of closing (for animation timing)
   let isClosing = $state(false);
   let lastDebugEmbedInspectionId = $state<string | null>(null);
+  const CHILD_EMBED_LOAD_CONCURRENCY = 4;
   
   /**
    * Context passed to the content snippet when child embeds are used
@@ -367,19 +368,37 @@
   
   /** Whether child embeds are currently being loaded */
   let isLoadingChildren = $state(false);
+  let childLoadGeneration = 0;
+  let lastChildLoadKey = '';
+  let isDestroyed = false;
+
+  function parseChildEmbedIds(): string[] {
+    if (typeof embedIds === 'string' && embedIds.trim()) {
+      return embedIds.split('|').map((id) => id.trim()).filter(Boolean);
+    }
+    if (Array.isArray(embedIds)) {
+      return embedIds.map((id) => id.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
+  function getChildLoadKey(): string {
+    return parseChildEmbedIds().join('|');
+  }
+
+  function isCurrentChildLoad(generation: number): boolean {
+    return !isDestroyed && generation === childLoadGeneration;
+  }
   
   /**
    * Load child embeds from embedStore
    * Parses embedIds, fetches each embed, decodes TOON content, and optionally transforms
    */
   async function loadChildEmbeds() {
-    // Parse embed_ids - can be pipe-separated string or array
-    let embedIdList: string[] = [];
-    if (typeof embedIds === 'string' && embedIds.trim()) {
-      embedIdList = embedIds.split('|').filter(id => id.trim());
-    } else if (Array.isArray(embedIds)) {
-      embedIdList = embedIds.filter(id => id && typeof id === 'string');
-    }
+    const generation = ++childLoadGeneration;
+    const embedIdList = parseChildEmbedIds();
+    const loadKey = embedIdList.join('|');
+    lastChildLoadKey = loadKey;
     
     // If no embed IDs, skip loading (use legacyResults if provided)
     if (embedIdList.length === 0) {
@@ -391,7 +410,11 @@
         embedIdsPropLength: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
         legacyResultsCount: legacyResults?.length || 0
       });
-      isLoadingChildren = false;
+      if (isCurrentChildLoad(generation)) {
+        loadedChildren = [];
+        isLoadingChildren = false;
+        onChildrenLoaded?.([]);
+      }
       return;
     }
     
@@ -402,18 +425,18 @@
       embedIdCount: embedIdList.length
     });
     
-    const children: unknown[] = [];
-    
-    for (const childEmbedId of embedIdList) {
+    async function loadOneChildEmbed(childEmbedId: string): Promise<unknown | null> {
       try {
+        if (!isCurrentChildLoad(generation)) return null;
         // Fetch embed using resolveEmbed which checks BOTH:
         // - Regular embedStore (for encrypted user embeds)
         // - exampleChatStore (for cleartext demo chat embeds)
         // This is critical for demo chats where embeds are stored separately.
         const embedData = await resolveEmbed(childEmbedId);
+        if (!isCurrentChildLoad(generation)) return null;
         if (!embedData) {
           console.warn('[UnifiedEmbedFullscreen] Child embed not found:', childEmbedId);
-          continue;
+          return null;
         }
         
         // Decode TOON content if needed
@@ -434,6 +457,7 @@
           // Content might already be decoded (e.g., from demo embeds)
           decodedContent = embedData.content as Record<string, unknown>;
         }
+        if (!isCurrentChildLoad(generation)) return null;
         
         // Debug: Log decoded content
         console.debug('[UnifiedEmbedFullscreen] Child embed decoded content:', {
@@ -445,38 +469,43 @@
         
         if (!decodedContent) {
           console.warn('[UnifiedEmbedFullscreen] Failed to decode child embed content:', childEmbedId);
-          continue;
+          return null;
         }
         
         // Transform or create raw ChildEmbed
         if (childEmbedTransformer) {
           // Use custom transformer
-          const transformed = childEmbedTransformer(childEmbedId, decodedContent);
-          children.push(transformed);
+          return childEmbedTransformer(childEmbedId, decodedContent);
         } else {
           // Return raw embed data object
-          const childEmbed = {
+          return {
             embed_id: childEmbedId,
             content: decodedContent,
             embed_type: embedData.type // Use 'type' from EmbedData (not 'embed_type')
           };
-          children.push(childEmbed);
         }
-        
-        console.debug('[UnifiedEmbedFullscreen] Loaded child embed:', childEmbedId);
       } catch (error) {
         console.error('[UnifiedEmbedFullscreen] Error loading child embed:', childEmbedId, error);
+        return null;
       }
     }
+
+    const children: unknown[] = [];
+    for (let start = 0; start < embedIdList.length; start += CHILD_EMBED_LOAD_CONCURRENCY) {
+      if (!isCurrentChildLoad(generation)) return;
+      const chunk = embedIdList.slice(start, start + CHILD_EMBED_LOAD_CONCURRENCY);
+      const loadedChunk = await Promise.all(chunk.map(loadOneChildEmbed));
+      if (!isCurrentChildLoad(generation)) return;
+      children.push(...loadedChunk.filter((child) => child !== null));
+    }
     
+    if (!isCurrentChildLoad(generation)) return;
     loadedChildren = children;
     isLoadingChildren = false;
     console.debug('[UnifiedEmbedFullscreen] Finished loading', children.length, 'child embeds');
 
     // Notify parent component that children finished loading (e.g. for map initialization)
-    if (children.length > 0 && onChildrenLoaded) {
-      onChildrenLoaded(children);
-    }
+    onChildrenLoaded?.(children);
     
     // Auto-open a specific child embed if initialChildEmbedId was set (inline badge click).
     // Fires at most once (guarded by _autoOpenChildFired) to prevent re-opening after close.
@@ -880,12 +909,15 @@
   // This guards against Svelte 5 timing issues where a parent component routes embedIds
   // through $state(undefined) → $effect → $derived, making it undefined at mount time.
   $effect(() => {
-    if (embedIds && loadedChildren.length === 0 && !isLoadingChildren) {
+    const loadKey = getChildLoadKey();
+    if (loadKey && loadKey !== lastChildLoadKey && !isLoadingChildren) {
       loadChildEmbeds();
     }
   });
 
   onDestroy(() => {
+    isDestroyed = true;
+    childLoadGeneration += 1;
     window.removeEventListener('globalChatSelected', handleChatSelected);
     
     // Clean up embed update listener

@@ -19,7 +19,7 @@ embed_types:
     fullscreen_component: social_media/SocialMediaGetPostsEmbedFullscreen.svelte
     child_preview_component: social_media/SocialMediaPostEmbedPreview.svelte
     child_fullscreen_component: social_media/SocialMediaPostEmbedFullscreen.svelte
-    icon: socialmedia
+    icon: search
     gradient_var: "--color-app-socialmedia"
     i18n_namespace: embeds.social_media.get_posts
     content_fields:
@@ -118,11 +118,11 @@ skills:
   - id: get-posts
     name_translation_key: app_skills.social_media.get_posts
     description_translation_key: app_skills.social_media.get_posts.description
-    icon_image: socialmedia.svg
+    icon_image: search.svg
     preprocessor_hint: >
       Fetch recent social media posts from one or more specific platform pages
-      or profiles. Supports Reddit subreddits through RSS feeds and Bluesky public
-      AppView profile feeds. Use for profile monitoring, community research, and
+      or profiles. Supports Reddit subreddits, Bluesky profile feeds, and
+      Mastodon public profiles. Use for profile monitoring, community research, and
       finding conversations to review manually. Costs 10 credits per request.
     stage: production
     pricing:
@@ -130,9 +130,11 @@ skills:
         credits: 10
         unit_name: request
     providers:
-      - name: Reddit RSS
+      - name: Reddit
         no_api_key: true
-      - name: Bluesky Public AppView
+      - name: Bluesky
+        no_api_key: true
+      - name: Mastodon
         no_api_key: true
     class_path: backend.apps.social_media.skills.get_posts.GetPostsSkill
     tool_schema:
@@ -143,7 +145,8 @@ skills:
           description: >
             Array of social post fetch requests. For Reddit, page is the subreddit
             name without r/ (for example: privacy, selfhosted, buildinpublic).
-            For Bluesky profile posts, page is the actor handle.
+            For Bluesky profile posts, page is the actor handle. For Mastodon,
+            page is user@instance or a public profile URL.
           items:
             type: object
             properties:
@@ -154,20 +157,32 @@ skills:
                 description: Social platform to fetch from.
                 enum:
                   - bluesky
+                  - mastodon
                   - reddit
                 default: reddit
               page:
                 type: string
-                description: Platform page/profile identifier. For Reddit, this is the subreddit name. For Bluesky, this is an actor handle for profile feeds.
+                description: Platform page/profile identifier. For Reddit, this is the subreddit name. For Bluesky, this is an actor handle for profile feeds. For Mastodon, use user@instance or a profile URL.
               sort:
                 type: string
-                description: Post listing sort. Reddit supports new/hot/rising/top. Bluesky profile feeds ignore this value.
+                description: Post listing sort. Reddit supports new/hot/rising/top/comments. Comments means most discussed in the selected time range. Bluesky and Mastodon profile feeds ignore this value.
                 enum:
                   - new
                   - hot
                   - rising
                   - top
+                  - comments
                 default: new
+              time_range:
+                type: string
+                description: Reddit time filter for top/comments sorts.
+                enum:
+                  - hour
+                  - day
+                  - week
+                  - month
+                  - year
+                  - all
               limit:
                 type: integer
                 description: Number of posts to fetch per page.
@@ -176,14 +191,48 @@ skills:
                 default: 10
               include_comments:
                 type: boolean
-                description: Whether to fetch comments for returned posts.
+                description: Whether to fetch comments/replies for returned posts when supported.
                 default: true
               comments_limit:
                 type: integer
-                description: Number of comments to fetch per post.
+                description: Number of comments/replies to fetch per post.
                 minimum: 0
-                maximum: 25
+                maximum: 5
                 default: 5
+              comments_sort:
+                type: string
+                description: Reddit comment sort. Bluesky and Mastodon ignore this value.
+                enum:
+                  - confidence
+                  - top
+                  - new
+                  - controversial
+                  - old
+                default: top
+              min_score:
+                type: integer
+                description: Minimum Reddit score/upvotes to include.
+                minimum: 0
+              min_comments:
+                type: integer
+                description: Minimum Reddit comment count to include.
+                minimum: 0
+              exclude_stickied:
+                type: boolean
+                description: Exclude stickied Reddit posts.
+                default: true
+              exclude_nsfw:
+                type: boolean
+                description: Exclude NSFW Reddit posts.
+                default: true
+              include_self_posts:
+                type: boolean
+                description: Include Reddit text/self posts.
+                default: true
+              include_link_posts:
+                type: boolean
+                description: Include Reddit link/media posts.
+                default: true
       required:
         - requests
   - id: search
@@ -194,18 +243,16 @@ skills:
       Search supported social platforms for recent public posts around a topic.
       Use this for topic monitoring and broad discovery across pages/profiles,
       not for monitoring a known profile; use Get posts for profile/page posts.
-      Omit platform to search every supported provider. Bluesky search may use
-      Vault credentials from kv/data/providers/bluesky; Reddit search uses the
-      provider-managed Webshare proxy when available. Costs 10 credits per request.
+      Omit platform to search every supported social platform. Costs 10 credits per request.
     stage: production
     pricing:
       per_unit:
         credits: 10
         unit_name: request
     providers:
-      - name: Bluesky Public AppView
+      - name: Bluesky
         no_api_key: true
-      - name: Reddit RSS
+      - name: Reddit
         no_api_key: true
     class_path: backend.apps.social_media.skills.search.SearchSkill
     tool_schema:
@@ -232,16 +279,30 @@ skills:
               query:
                 type: string
                 description: Topic or search query to find posts around.
+              page:
+                type: string
+                description: Optional subreddit/page to restrict Reddit search to, without r/.
               sort:
                 type: string
-                description: Search sort. Bluesky supports latest/top; Reddit maps latest to new.
+                description: Search sort. Bluesky supports latest/top. Reddit supports relevance/hot/top/new/comments/latest.
                 enum:
                   - latest
                   - top
                   - new
                   - hot
                   - relevance
+                  - comments
                 default: latest
+              time_range:
+                type: string
+                description: Reddit time filter for top/comments search.
+                enum:
+                  - hour
+                  - day
+                  - week
+                  - month
+                  - year
+                  - all
               limit:
                 type: integer
                 description: Number of posts to fetch per search.
@@ -251,6 +312,42 @@ skills:
               author:
                 type: string
                 description: Optional platform profile/handle filter. For Bluesky, this maps to the author filter.
+              include_comments:
+                type: boolean
+                description: Whether to fetch comments/replies for returned posts when supported.
+                default: false
+              comments_limit:
+                type: integer
+                description: Number of comments/replies to fetch per returned post when supported.
+                minimum: 0
+                maximum: 5
+                default: 0
+              comments_sort:
+                type: string
+                description: Reddit comment sort.
+                enum:
+                  - confidence
+                  - top
+                  - new
+                  - controversial
+                  - old
+                default: top
+              min_score:
+                type: integer
+                description: Minimum Reddit score/upvotes to include.
+                minimum: 0
+              min_comments:
+                type: integer
+                description: Minimum Reddit comment count to include.
+                minimum: 0
+              exclude_stickied:
+                type: boolean
+                description: Exclude stickied Reddit posts.
+                default: true
+              exclude_nsfw:
+                type: boolean
+                description: Exclude NSFW Reddit posts.
+                default: true
             required:
               - query
       required:

@@ -1,3 +1,19 @@
+generate:
+  context: Skill name for video generation
+  en: Generate
+  de: Generieren
+  verified_by_human:
+    - en
+    - de
+
+generate.description:
+  context: Description for generated video skill
+  en: Generate a short AI video from a text prompt.
+  de: Erstelle ein kurzes KI-Video aus einer Texteingabe.
+  verified_by_human:
+    - en
+    - de
+
 get_transcript:
   context: Skill name for get transcript
   en: Get Transcript

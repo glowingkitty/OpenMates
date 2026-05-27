@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,pinned"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,is_shared,is_private,pinned"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,pinned"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,pinned"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,is_shared,is_private,share_pii,share_highlights,pinned"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
 CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count"
@@ -36,12 +37,16 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "encrypted_chat_summary,"
     "encrypted_chat_tags,"
     "encrypted_follow_up_request_suggestions,"
+    "encrypted_top_recommended_apps_for_chat,"
+    "encrypted_quick_tip_slugs,"
     "encrypted_icon,"
     "encrypted_category,"
     "last_edited_overall_timestamp,"
     "pinned,"
     "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "share_pii,"
+    "share_highlights"
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
@@ -60,12 +65,16 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_chat_summary,"
     "encrypted_chat_tags,"
     "encrypted_follow_up_request_suggestions,"
+    "encrypted_top_recommended_apps_for_chat,"
+    "encrypted_quick_tip_slugs,"
     "encrypted_icon,"
     "encrypted_category,"
     "last_edited_overall_timestamp,"
     "pinned,"
     "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-    "is_private"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "is_private,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
+    "share_pii,"
+    "share_highlights"
 )
 
 # Fields for the new 'drafts' collection
@@ -167,7 +176,7 @@ class ChatMethods:
             logger.error(f"DB Fallback: Error fetching chat list item data for {chat_id}: {e}", exc_info=True)
             return None
 
-    async def get_chat_metadata(self, chat_id: str) -> Optional[Dict[str, Any]]:
+    async def get_chat_metadata(self, chat_id: str, admin_required: bool = False) -> Optional[Dict[str, Any]]:
         """
         Fetches metadata for a specific chat from Directus, excluding content.
         
@@ -192,7 +201,22 @@ class ChatMethods:
             'limit': 1
         }
         try:
-            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
+            response = await self.directus_service.get_items(
+                'chats',
+                params=params,
+                no_cache=True,
+                return_none_on_403=True,
+                admin_required=admin_required,
+            )
+            if response is None:
+                fallback_params = dict(params)
+                fallback_params['fields'] = CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS
+                response = await self.directus_service.get_items(
+                    'chats',
+                    params=fallback_params,
+                    no_cache=True,
+                    admin_required=admin_required,
+                )
             if response and isinstance(response, list) and len(response) > 0:
                 logger.info(f"Successfully fetched metadata for chat {chat_id}")
                 return response[0]
@@ -854,6 +878,40 @@ class ChatMethods:
         except Exception as e:
             logger.error(f"Error fetching messages for chats {chat_ids}: {e}", exc_info=True)
             return {}
+
+    async def get_messages_for_chat_before_timestamp(
+        self,
+        chat_id: str,
+        before_timestamp: int,
+        limit: int = 100,
+    ) -> List[str]:
+        """Fetch encrypted old messages for UI-only compressed-history expansion."""
+        params = {
+            'filter': {
+                'chat_id': {'_eq': chat_id},
+                'created_at': {'_lte': before_timestamp},
+            },
+            'fields': MESSAGE_ALL_FIELDS,
+            'sort': 'created_at',
+            'limit': limit,
+        }
+        try:
+            messages_from_db = await self.directus_service.get_items(
+                'messages',
+                params=params,
+                admin_required=True,
+            )
+            if not messages_from_db:
+                return []
+            for msg in messages_from_db:
+                msg['message_id'] = msg.get('client_message_id') or msg.get('id')
+            return [json.dumps(msg) for msg in messages_from_db]
+        except Exception as e:
+            logger.error(
+                f"Error fetching old messages for chat {chat_id} before {before_timestamp}: {e}",
+                exc_info=True,
+            )
+            return []
 
     async def get_all_user_drafts(self, user_id: str) -> Dict[str, Dict[str, Any]]:
         """

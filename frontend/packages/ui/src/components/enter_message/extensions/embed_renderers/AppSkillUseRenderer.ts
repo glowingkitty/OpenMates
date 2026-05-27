@@ -40,12 +40,15 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
@@ -128,11 +131,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
         // Request fresh embed data from the server (includes embed_keys for re-decryption).
         try {
-          const { webSocketService } =
-            await import("../../../../services/websocketService");
-          await webSocketService.sendMessage("request_embed", {
-            embed_id: embedId,
-          });
+          const { requestEmbedFromServerOnce } = await import(
+            "../../../../services/embedResolver"
+          );
+          await requestEmbedFromServerOnce(embedId, "app-skill-decryption-retry");
         } catch (requestError) {
           console.warn(
             "[AppSkillUseRenderer] Could not request embed from server after decryption failure:",
@@ -295,8 +297,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
-    // Determine status - prefer embedData status, then check knownErrorEmbeds (for error embeds
-    // that are intentionally never persisted to IndexedDB), then attrs.status, then 'processing'.
+    // Determine status. Decrypted content is authoritative when present: stored embed rows can
+    // retain a stale top-level error/processing status even after encrypted content finished.
+    // Then check knownErrorEmbeds (for error embeds that are intentionally never persisted to
+    // IndexedDB), then attrs.status, then 'processing'.
     // Without the knownErrorEmbeds check, error embeds show as "Completed" because:
     // 1. embedData is null (error embeds are never stored by design)
     // 2. attrs.status is 'finished' (set by the AI stream before the error signal arrived)
@@ -305,7 +309,19 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const isKnownError = statusEmbedId
       ? isEmbedKnownError(statusEmbedId)
       : false;
+    const decodedStatus =
+      decodedContent?.status === "processing" ||
+      decodedContent?.status === "finished" ||
+      decodedContent?.status === "error" ||
+      decodedContent?.status === "cancelled"
+        ? decodedContent.status
+        : null;
+    const hasFinishedDecodedContent =
+      decodedStatus === "finished" ||
+      (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
+      Boolean(decodedContent?.embed_ids);
     const status =
+      (hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       (isKnownError ? "error" : null) ||
       attrs.status ||
@@ -456,6 +472,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For shopping search_products, render shopping product search preview
       if (appId === "shopping" && skillId === "search_products") {
         return this.renderShoppingSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+      // For electronics search_components, render component search preview
+      if (appId === "electronics" && skillId === "search_components") {
+        return this.renderElectronicsSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -632,6 +657,36 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "music" && skillId === "generate") {
+        console.debug("[AppSkillUseRenderer] Rendering music generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderMusicGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "videos" && skillId === "generate") {
+        console.debug("[AppSkillUseRenderer] Rendering video generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderVideoGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For images/view skill, render image view preview with original embed fullscreen
       if (appId === "images" && skillId === "view") {
         console.debug("[AppSkillUseRenderer] Rendering images view for", {
@@ -736,7 +791,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const query =
       decodedContent?.query || (attrs as any).query || "Recent emails";
-    const provider = decodedContent?.provider || "Proton Mail Bridge";
+    const provider = decodedContent?.provider || "Proton Mail";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1193,7 +1248,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || embedData?.provider || "";
+    const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1206,6 +1261,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       ? decodedContent.providers
       : Array.isArray(embedData?.providers)
         ? embedData.providers
+        : Array.isArray((attrs as any).providers)
+          ? (attrs as any).providers
         : [];
 
     // Cleanup any existing mounted component
@@ -1475,7 +1532,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "REWE";
+    const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
+    const providers: string[] = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
+        : Array.isArray((attrs as any).providers)
+          ? (attrs as any).providers
+        : [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1512,6 +1576,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
+          providers,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,
@@ -1535,6 +1600,76 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render electronics search_components embed using Svelte component.
+   */
+  private renderElectronicsSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "Power converters";
+    const provider = decodedContent?.provider || "TI WEBENCH";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+    const embedIds = decodedContent?.embed_ids || embedData?.embed_ids;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(ElectronicsSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          embedIds,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted ElectronicsSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting ElectronicsSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
    * Render events search embed using Svelte component.
    * Event results are stored inline in the parent embed TOON — no child embeds needed.
    */
@@ -1545,8 +1680,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Meetup";
-    const providers: string[] = (decodedContent?.providers as string[]) || [];
+    const provider = decodedContent?.provider || (attrs as any).provider || "Meetup";
+    const providers: string[] = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray((attrs as any).providers)
+        ? (attrs as any).providers
+        : [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1617,8 +1756,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Multi";
-    const providers: string[] = (decodedContent?.providers as string[]) || [];
+    const provider = decodedContent?.provider || (attrs as any).provider || "Multi";
+    const providers: string[] = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray((attrs as any).providers)
+        ? (attrs as any).providers
+        : [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1800,6 +1943,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const resultCount = typeof decodedContent?.result_count === "number" ? decodedContent.result_count : 0;
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
+    this.prefetchChildEmbedRefs(decodedContent?.embed_ids || embedData?.embed_ids);
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1839,6 +1983,23 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       console.error(`[AppSkillUseRenderer] Error mounting ${label}:`, error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
+  }
+
+  private prefetchChildEmbedRefs(rawEmbedIds: unknown): void {
+    const embedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").map((id) => id.trim()).filter(Boolean)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+        : [];
+
+    if (embedIds.length === 0) return;
+
+    void Promise.all(
+      embedIds.slice(0, 50).map((embedId) => resolveEmbed(embedId).catch((error) => {
+        console.debug("[AppSkillUseRenderer] Failed to prefetch child embed ref:", embedId, error);
+        return null;
+      })),
+    );
   }
 
   /**
@@ -2227,7 +2388,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         </div>
         <div class="embed-text-content">
           <div class="embed-text-line">Video Transcript: ${this.escapeHtml(videoTitle)}</div>
-          <div class="embed-text-line">via YouTube Transcript API</div>
+          <div class="embed-text-line">via YouTube</div>
         </div>
         <div class="embed-extended-preview">
           <div class="video-transcript-preview">
@@ -2590,6 +2751,167 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         error,
       );
       // Fallback to generic skill rendering
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render generated music embeds with the dedicated audio player preview.
+   */
+  private renderMusicGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || "";
+    const mode = decodedContent?.mode || "background";
+    const model = decodedContent?.model || "";
+    const durationSeconds = decodedContent?.duration_seconds;
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(MusicGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          prompt,
+          mode,
+          model,
+          durationSeconds,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted MusicGenerateEmbedPreview component:",
+        {
+          embedId,
+          status,
+          prompt: prompt.substring(0, 30) + "...",
+        },
+      );
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting MusicGenerateEmbedPreview component:",
+        mountError,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render generated video embeds with the dedicated video player preview.
+   */
+  private renderVideoGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || "";
+    const model = decodedContent?.model || "";
+    const durationSeconds = decodedContent?.duration_seconds;
+    const resolution = decodedContent?.resolution || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(VideoGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          prompt,
+          model,
+          durationSeconds,
+          resolution,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting VideoGenerateEmbedPreview component:",
+        mountError,
+      );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
@@ -3416,15 +3738,23 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement,
   ): void {
-    const query = decodedContent?.query || (attrs as any).query || "";
+    const results = decodedContent?.results || [];
+    const title = decodedContent?.title || results[0]?.title || "";
+    const query =
+      decodedContent?.query ||
+      decodedContent?.expression ||
+      (attrs as any).query ||
+      results[0]?.expression ||
+      "";
+    const hasFinishedResult = Array.isArray(results) && results.length > 0;
     const status =
+      (hasFinishedResult ? "finished" : null) ||
       decodedContent?.status ||
       embedData?.status ||
       attrs.status ||
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -3452,6 +3782,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         props: {
           id: embedId,
           query,
+          title,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,

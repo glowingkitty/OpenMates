@@ -20,7 +20,6 @@
     import { matesMetadata } from '../../data/matesMetadata';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
 
     // Event dispatcher for Settings.svelte navigation
@@ -46,11 +45,14 @@
      * Full system prompt for this mate, resolved from the translation key.
      * Shown/hidden via the "Show full system prompt" toggle.
      */
-    let mateSystemPrompt = $derived(
+    let baseMateSystemPrompt = $derived(
         mate?.system_prompt_translation_key
             ? $text(mate.system_prompt_translation_key)
             : ''
     );
+
+    // Furry Mode prompt additions are disabled until any furry art is made by human artists.
+    let mateSystemPrompt = $derived(baseMateSystemPrompt);
 
     /**
      * Bullet-point process summary from process_translation_key.
@@ -163,7 +165,7 @@
                                     fill="currentColor"
                                 />
                             </svg>
-                            <pre class="instructions-text">{mateSystemPrompt}</pre>
+                            <pre class="instructions-text" data-testid="mate-system-prompt">{mateSystemPrompt}</pre>
                         </div>
                     {/if}
                     <button

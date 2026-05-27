@@ -45,7 +45,7 @@ def test_server_info_endpoint():
         assert "domain" in data
         assert "self_hosted" in data
         assert "edition" in data
-        assert "dev.openmates.org" in data["domain"]
+        assert "api.dev.openmates.org" in data["domain"]
 
 
 @pytest.mark.integration

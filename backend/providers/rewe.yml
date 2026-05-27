@@ -8,6 +8,7 @@ name: "REWE"
 description: "REWE German online supermarket with live grocery prices and product availability."
 logo_svg: "icons/rewe.svg"
 region: "EU" # REWE HQ is in Cologne, Germany
+privacy_policy: "https://www.rewe.de/service/datenschutz/"
 
 
 # API access

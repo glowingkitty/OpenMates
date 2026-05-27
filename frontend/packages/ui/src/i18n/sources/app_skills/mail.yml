@@ -1,5 +1,5 @@
 search:
-  context: Skill name for mail search (Proton Mail Bridge)
+  context: Skill name for mail search (Proton Mail)
   en: Search Mail
   de: E-Mails suchen
   zh: 搜索邮件
@@ -24,7 +24,7 @@ search:
   verified_by_human: [en, de]
 
 search.description:
-  context: Description for mail search skill (Proton Mail Bridge inbox search)
+  context: Description for mail search skill (Proton Mail inbox search)
   en: Search your Proton Mail inbox.
   de: Dein Proton-Mail-Postfach durchsuchen.
   zh: 搜索您的 Proton Mail 收件箱。

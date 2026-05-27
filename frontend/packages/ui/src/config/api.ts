@@ -171,6 +171,8 @@ export const apiEndpoints = {
       consent_mates: "/v1/settings/user/consent/mates", // Record consent for mates settings
       language: "/v1/settings/user/language", // Update user language
       darkmode: "/v1/settings/user/darkmode", // Update user dark mode preference
+      ui_font: "/v1/settings/user/ui-font", // Update user interface font preference
+      // Furry Mode interface preferences are disabled until any furry art is made by human artists.
       timezone: "/v1/settings/user/timezone", // Update user timezone (auto-detected or manual)
       username: "/v1/settings/user/username", // Update username (validated + encrypted server-side)
       requestEmailChangeCode: "/v1/settings/user/email/request-change-code", // Send code to a new login email
@@ -205,6 +207,10 @@ export const apiEndpoints = {
     debugSession: "/v1/settings/debug-session", // Create/get/delete user debug log sharing session
     debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
     clientLogsEphemeral: "/v1/client-logs", // Ephemeral anonymized console log forwarding for all authenticated users (48h retention)
+  },
+  referrals: {
+    status: "/v1/referrals/status", // Current user's referral code and campaign availability
+    capture: "/v1/referrals/capture", // Persist a captured URL fragment referral code for this user
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider

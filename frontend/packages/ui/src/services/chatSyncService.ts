@@ -426,7 +426,10 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
     webSocketService.on("new_chat_message", (payload) =>
-      chatUpdateHandlers.handleNewChatMessageImpl(this, payload),
+      chatUpdateHandlers.handleNewChatMessageImpl(
+        this,
+        payload as Parameters<typeof chatUpdateHandlers.handleNewChatMessageImpl>[1],
+      ),
     ); // Handler for new chat messages from other devices
     webSocketService.on("chat_message_added", (payload) =>
       chatUpdateHandlers.handleChatMessageReceivedImpl(
@@ -853,12 +856,18 @@ export class ChatSynchronizationService extends EventTarget {
     // Same pattern as "focus_mode_activated" below — see that comment for full explanation.
     webSocketService.on("request_app_settings_memories", (payload) => {
       import("./chatSyncServiceHandlersAppSettings").then((module) =>
-        module.handleRequestAppSettingsMemoriesImpl(this, payload),
+        module.handleRequestAppSettingsMemoriesImpl(
+          this,
+          payload as Parameters<typeof module.handleRequestAppSettingsMemoriesImpl>[1],
+        ),
       );
     });
     webSocketService.on("dismiss_app_settings_memories_dialog", (payload) => {
       import("./chatSyncServiceHandlersAppSettings").then((module) =>
-        module.handleDismissAppSettingsMemoriesDialogImpl(this, payload),
+        module.handleDismissAppSettingsMemoriesDialogImpl(
+          this,
+          payload as Parameters<typeof module.handleDismissAppSettingsMemoriesDialogImpl>[1],
+        ),
       );
     });
 
@@ -867,25 +876,43 @@ export class ChatSynchronizationService extends EventTarget {
     // so registering them inside a dynamic import .then() is safe here.
     import("./chatSyncServiceHandlersAppSettings").then((module) => {
       webSocketService.on("app_settings_memories_sync_ready", (payload) =>
-        module.handleAppSettingsMemoriesSyncReadyImpl(this, payload),
+        module.handleAppSettingsMemoriesSyncReadyImpl(
+          this,
+          payload as Parameters<typeof module.handleAppSettingsMemoriesSyncReadyImpl>[1],
+        ),
       );
       webSocketService.on("app_settings_memories_entry_synced", (payload) =>
-        module.handleAppSettingsMemoriesEntrySyncedImpl(this, payload),
+        module.handleAppSettingsMemoriesEntrySyncedImpl(
+          this,
+          payload as Parameters<typeof module.handleAppSettingsMemoriesEntrySyncedImpl>[1],
+        ),
       );
       webSocketService.on("app_settings_memories_entry_stored", (payload) =>
-        module.handleAppSettingsMemoriesEntryStoredImpl(this, payload),
+        module.handleAppSettingsMemoriesEntryStoredImpl(
+          this,
+          payload as Parameters<typeof module.handleAppSettingsMemoriesEntryStoredImpl>[1],
+        ),
       );
       webSocketService.on("system_message_confirmed", (payload) =>
-        module.handleSystemMessageConfirmedImpl(this, payload),
+        module.handleSystemMessageConfirmedImpl(
+          this,
+          payload as Parameters<typeof module.handleSystemMessageConfirmedImpl>[1],
+        ),
       );
       // Handle system messages broadcast from other devices (cross-device sync)
       webSocketService.on("new_system_message", (payload) =>
-        module.handleNewSystemMessageImpl(this, payload),
+        module.handleNewSystemMessageImpl(
+          this,
+          payload as Parameters<typeof module.handleNewSystemMessageImpl>[1],
+        ),
       );
       // Handle reminder fired events from server (scheduled reminder became due)
       // The server sends plaintext content; this handler encrypts with chat key and persists
       webSocketService.on("reminder_fired", (payload) =>
-        module.handleReminderFiredImpl(this, payload),
+        module.handleReminderFiredImpl(
+          this,
+          payload as Parameters<typeof module.handleReminderFiredImpl>[1],
+        ),
       );
 
       // Handle incoming webhook chats — external services POST to
@@ -912,14 +939,19 @@ export class ChatSynchronizationService extends EventTarget {
       // Handle user_notification events — server-initiated toasts with optional deep-link buttons.
       // Currently emitted by set_reminder_skill when the user has no email notifications active.
       webSocketService.on("user_notification", (payload) =>
-        module.handleUserNotificationImpl(payload),
+        module.handleUserNotificationImpl(
+          payload as Parameters<typeof module.handleUserNotificationImpl>[0],
+        ),
       );
 
       // Handle pending AI response events (AI completed while user was offline)
       // Delivered from the pending delivery queue on WebSocket reconnect
       // Contains plaintext AI response; handler encrypts with chat key and persists
       webSocketService.on("pending_ai_response", (payload) =>
-        module.handlePendingAIResponseImpl(this, payload),
+        module.handlePendingAIResponseImpl(
+          this,
+          payload as Parameters<typeof module.handlePendingAIResponseImpl>[1],
+        ),
       );
     });
 
@@ -930,8 +962,9 @@ export class ChatSynchronizationService extends EventTarget {
     // a race condition where the WebSocket event arrives before the dynamic import resolves.
     webSocketService.on("focus_mode_activated", async (payload) => {
       try {
-        const chatId = payload?.chat_id;
-        const focusId = payload?.focus_id;
+        const focusPayload = payload as { chat_id?: string; focus_id?: string };
+        const chatId = focusPayload.chat_id;
+        const focusId = focusPayload.focus_id;
         if (!chatId || !focusId) return;
         console.warn("[ChatSyncService] Focus mode activated:", {
           chatId,
@@ -1050,6 +1083,7 @@ export class ChatSynchronizationService extends EventTarget {
           chat_tags: string[];
           harmful_response: number;
           top_recommended_apps_for_user?: string[];
+          quick_tip_slugs?: string[];
         },
       ),
     );
@@ -1070,8 +1104,15 @@ export class ChatSynchronizationService extends EventTarget {
           summary_token_estimate?: number;
           compressed_up_to_timestamp?: number;
           summary_message_id?: string;
+          summary_content?: string;
           error?: string;
         },
+      ),
+    );
+    webSocketService.on("chat_compression_checkpoint_stored", (payload) =>
+      aiHandlers.handleChatCompressionCheckpointStoredImpl(
+        this,
+        payload as Parameters<typeof aiHandlers.handleChatCompressionCheckpointStoredImpl>[1],
       ),
     );
     webSocketService.on("post_processing_metadata_stored", (payload) =>
@@ -1120,8 +1161,9 @@ export class ChatSynchronizationService extends EventTarget {
 
     webSocketService.on("user_credits_updated", async (payload) => {
       try {
+        const creditsPayload = payload as { credits?: number };
         const credits: number =
-          typeof payload?.credits === "number" ? payload.credits : -1;
+          typeof creditsPayload.credits === "number" ? creditsPayload.credits : -1;
         if (credits < 0) return; // malformed payload — ignore
 
         // Update the userProfile store so credit displays stay in sync
@@ -1324,7 +1366,7 @@ export class ChatSynchronizationService extends EventTarget {
       this.clearCacheStatusRetry();
 
       if (this.cacheStatusServerChatCount > 0) {
-        console.error(
+        console.warn(
           `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
             `but server reports ${this.cacheStatusServerChatCount} chat(s). Keeping sync pending and retrying ` +
             `instead of marking an empty local DB as complete.`,

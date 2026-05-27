@@ -14,6 +14,21 @@ See docs/architecture/sync.md for the encryption model.
         DEFAULT_EXPORT_OPTIONS,
     } from '../../../services/accountExportService';
     import { authStore } from '../../../stores/authStore';
+    import SettingsButton from '../elements/SettingsButton.svelte';
+    import SettingsButtonGroup from '../elements/SettingsButtonGroup.svelte';
+    import SettingsCard from '../elements/SettingsCard.svelte';
+    import SettingsCheckboxList from '../elements/SettingsCheckboxList.svelte';
+    import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
+    import SettingsProgressBar from '../elements/SettingsProgressBar.svelte';
+    import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
+
+    type CheckboxOption = {
+        id: keyof ExportOptions;
+        label: string;
+        description?: string;
+        icon?: string;
+        checked: boolean;
+    };
 
     // ========================================================================
     // STATE
@@ -68,6 +83,54 @@ See docs/architecture/sync.md for the encryption model.
             default: return 'Processing...';
         }
     });
+
+    let exportCategoryOptions = $derived<CheckboxOption[]>([
+        {
+            id: 'includeChats',
+            label: $text('settings.account.export_includes_chats'),
+            description: $text('settings.account.export_includes_chats'),
+            icon: 'icon_chat',
+            checked: exportOptions.includeChats,
+        },
+        {
+            id: 'includeProfile',
+            label: $text('settings.account.export_includes_profile'),
+            description: $text('settings.account.export_includes_profile_desc'),
+            icon: 'icon_user',
+            checked: exportOptions.includeProfile,
+        },
+        {
+            id: 'includeSettings',
+            label: $text('settings.account.export_includes_settings'),
+            description: $text('settings.account.export_includes_settings_desc'),
+            icon: 'icon_settings',
+            checked: exportOptions.includeSettings,
+        },
+        {
+            id: 'includeUsage',
+            label: $text('settings.account.export_includes_usage'),
+            description: $text('settings.account.export_includes_usage_desc'),
+            icon: 'icon_task',
+            checked: exportOptions.includeUsage,
+        },
+        {
+            id: 'includeInvoices',
+            label: $text('settings.account.export_includes_invoices'),
+            description: $text('settings.account.export_includes_invoices'),
+            icon: 'icon_files',
+            checked: exportOptions.includeInvoices,
+        },
+    ]);
+
+    let chatFileOptions = $derived<CheckboxOption[]>([
+        {
+            id: 'includeChatFiles',
+            label: $text('settings.account.export_includes_chat_files'),
+            description: $text('settings.account.export_includes_chat_files_desc'),
+            icon: 'icon_files',
+            checked: exportOptions.includeChatFiles,
+        },
+    ]);
 
     // ========================================================================
     // HANDLERS
@@ -131,195 +194,111 @@ See docs/architecture/sync.md for the encryption model.
             includeProfile: false,
         };
     }
+
+    function updateExportOption(id: string, checked: boolean): void {
+        if (!(id in exportOptions)) return;
+
+        exportOptions = {
+            ...exportOptions,
+            [id]: checked,
+        };
+    }
 </script>
 
 <div class="export-account-container">
-    <!-- Header -->
-    <div class="export-header">
-        <h2>{$text('settings.account.export_title')}</h2>
-        <p class="description">{$text('settings.account.export_description')}</p>
-    </div>
+    <p class="description">{$text('settings.account.export_description')}</p>
 
     <!-- Selective Export Options -->
     {#if !isExporting && !successMessage}
-        <div class="select-section">
-            <div class="select-header">
-                <h3>{$text('settings.account.export_includes_title')}</h3>
-                <div class="select-all-controls">
-                    <button class="btn-link" onclick={selectAll} type="button">{$text('common.select_all')}</button>
-                    <span class="separator">·</span>
-                    <button class="btn-link" onclick={deselectAll} type="button">{$text('settings.account.export_deselect_all')}</button>
-                </div>
+        <SettingsSectionHeading
+            title={$text('settings.account.export_includes_title')}
+            icon="download"
+        />
+        <SettingsCard padding="sm">
+            <SettingsButtonGroup align="space-between">
+                <SettingsButton variant="ghost" size="sm" onClick={selectAll}>
+                    {$text('common.select_all')}
+                </SettingsButton>
+                <SettingsButton variant="ghost" size="sm" onClick={deselectAll}>
+                    {$text('settings.account.export_deselect_all')}
+                </SettingsButton>
+            </SettingsButtonGroup>
+            <div class="checkbox-block">
+                <SettingsCheckboxList
+                    options={exportCategoryOptions}
+                    onChange={updateExportOption}
+                />
+                {#if exportOptions.includeChats}
+                    <SettingsCheckboxList
+                        options={chatFileOptions}
+                        nested={true}
+                        onChange={updateExportOption}
+                    />
+                {/if}
             </div>
-
-            <ul class="export-options-list">
-                <li class="option-item">
-                    <label class="option-label">
-                        <input
-                            type="checkbox"
-                            class="option-checkbox"
-                            bind:checked={exportOptions.includeChats}
-                            disabled={isExporting}
-                        />
-                        <div class="option-icon icon_chat"></div>
-                        <div class="option-text">
-                            <span class="option-name">{$text('settings.account.export_includes_chats')}</span>
-                            <span class="option-desc">{$text('settings.account.export_includes_chats')}</span>
-                        </div>
-                    </label>
-                    {#if exportOptions.includeChats}
-                        <label class="option-label option-sub">
-                            <input
-                                type="checkbox"
-                                class="option-checkbox"
-                                bind:checked={exportOptions.includeChatFiles}
-                                disabled={isExporting}
-                            />
-                            <div class="option-icon icon_attachment"></div>
-                            <div class="option-text">
-                                <span class="option-name">{$text('settings.account.export_includes_chat_files')}</span>
-                                <span class="option-desc">{$text('settings.account.export_includes_chat_files_desc')}</span>
-                            </div>
-                        </label>
-                    {/if}
-                </li>
-
-                <li class="option-item">
-                    <label class="option-label">
-                        <input
-                            type="checkbox"
-                            class="option-checkbox"
-                            bind:checked={exportOptions.includeProfile}
-                            disabled={isExporting}
-                        />
-                        <div class="option-icon icon_user"></div>
-                        <div class="option-text">
-                            <span class="option-name">{$text('settings.account.export_includes_profile')}</span>
-                            <span class="option-desc">{$text('settings.account.export_includes_profile_desc')}</span>
-                        </div>
-                    </label>
-                </li>
-
-                <li class="option-item">
-                    <label class="option-label">
-                        <input
-                            type="checkbox"
-                            class="option-checkbox"
-                            bind:checked={exportOptions.includeSettings}
-                            disabled={isExporting}
-                        />
-                        <div class="option-icon icon_settings"></div>
-                        <div class="option-text">
-                            <span class="option-name">{$text('settings.account.export_includes_settings')}</span>
-                            <span class="option-desc">{$text('settings.account.export_includes_settings_desc')}</span>
-                        </div>
-                    </label>
-                </li>
-
-                <li class="option-item">
-                    <label class="option-label">
-                        <input
-                            type="checkbox"
-                            class="option-checkbox"
-                            bind:checked={exportOptions.includeUsage}
-                            disabled={isExporting}
-                        />
-                        <div class="option-icon icon_stats"></div>
-                        <div class="option-text">
-                            <span class="option-name">{$text('settings.account.export_includes_usage')}</span>
-                            <span class="option-desc">{$text('settings.account.export_includes_usage_desc')}</span>
-                        </div>
-                    </label>
-                </li>
-
-                <li class="option-item">
-                    <label class="option-label">
-                        <input
-                            type="checkbox"
-                            class="option-checkbox"
-                            bind:checked={exportOptions.includeInvoices}
-                            disabled={isExporting}
-                        />
-                        <div class="option-icon icon_document"></div>
-                        <div class="option-text">
-                            <span class="option-name">{$text('settings.account.export_includes_invoices')}</span>
-                            <span class="option-desc">{$text('settings.account.export_includes_invoices')}</span>
-                        </div>
-                    </label>
-                </li>
-            </ul>
-        </div>
+        </SettingsCard>
     {/if}
 
     <!-- GDPR Notice -->
-    <div class="gdpr-notice">
-        <div class="icon icon_info"></div>
+    <SettingsInfoBox type="info" icon="icon_question">
         <p>{$text('settings.account.export_gdpr_notice')}</p>
-    </div>
+    </SettingsInfoBox>
 
     <!-- Export Progress -->
     {#if isExporting && exportProgress}
-        <div class="progress-container">
-            <div class="progress-header">
-                <span class="phase-name">{phaseName()}</span>
-                <span class="progress-percent">{progressPercent}%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: {progressPercent}%"></div>
-            </div>
+        <SettingsCard>
+            <SettingsProgressBar value={progressPercent} label={phaseName()} showPercent={true} />
             {#if exportProgress.message}
                 <p class="progress-message">{exportProgress.message}</p>
             {/if}
             {#if exportProgress.currentItem}
                 <p class="current-item">{exportProgress.currentItem}</p>
             {/if}
-        </div>
+        </SettingsCard>
     {/if}
 
     <!-- Error Message -->
     {#if errorMessage}
-        <div class="error-message">
-            <div class="icon icon_error"></div>
+        <SettingsInfoBox type="error" icon="icon_warning">
             <span>{errorMessage}</span>
-        </div>
+        </SettingsInfoBox>
     {/if}
 
     <!-- Success Message -->
     {#if successMessage}
-        <div class="success-message">
-            <div class="icon icon_check"></div>
+        <SettingsInfoBox type="success" icon="icon_check">
             <span>{successMessage}</span>
-        </div>
+        </SettingsInfoBox>
     {/if}
 
     <!-- Action Buttons -->
-    <div class="action-buttons">
+    <SettingsButtonGroup align="left">
         {#if successMessage}
-            <button class="btn btn-secondary" onclick={resetState} type="button">
+            <SettingsButton variant="secondary" fullWidth={true} onClick={resetState}>
                 {$text('settings.account.export_another')}
-            </button>
+            </SettingsButton>
         {:else}
-            <button
-                class="btn btn-primary"
-                onclick={startExport}
+            <SettingsButton
+                variant="primary"
+                fullWidth={true}
+                onClick={startExport}
                 disabled={isExporting || !$authStore.isAuthenticated || !hasSelection}
-                type="button"
+                loading={isExporting}
             >
                 {#if isExporting}
-                    <span class="loading-spinner"></span>
                     {$text('settings.account.exporting')}
                 {:else}
-                    <div class="icon icon_download"></div>
+                    <span class="button-icon clickable-icon icon_download"></span>
                     {$text('settings.account.export_button')}
                 {/if}
-            </button>
+            </SettingsButton>
         {/if}
-    </div>
+    </SettingsButtonGroup>
 
     {#if !$authStore.isAuthenticated}
-        <div class="login-notice">
+        <SettingsInfoBox type="warning">
             <p>{$text('settings.account.export_login_required')}</p>
-        </div>
+        </SettingsInfoBox>
     {/if}
 </div>
 
@@ -329,213 +308,23 @@ See docs/architecture/sync.md for the encryption model.
         padding-bottom: 2rem;
     }
 
-    .export-header {
-        margin-bottom: 1.5rem;
-    }
-
-    .export-header h2 {
-        font-size: var(--font-size-h2);
-        font-weight: 700;
-        color: var(--color-font-primary);
-        margin: 0 0 0.5rem 0;
-    }
-
     .description {
+        padding: 0 0.625rem;
         color: var(--color-font-secondary);
         font-size: var(--font-size-p);
         line-height: 1.5;
-        margin: 0;
-    }
-
-    /* ── Select Section ──────────────────────────────────────────────────── */
-    .select-section {
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: var(--radius-5);
-        padding: 1.25rem;
         margin-bottom: 1.5rem;
     }
 
-    .select-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-    }
-
-    .select-header h3 {
-        font-size: var(--font-size-p);
-        font-weight: 600;
-        color: var(--color-font-primary);
-        margin: 0;
-    }
-
-    .select-all-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .separator {
-        color: var(--color-font-tertiary);
-    }
-
-    .btn-link {
-        background: none;
-        border: none;
-        padding: 0;
-        color: var(--color-primary);
-        font-size: var(--processing-details-font-size);
-        cursor: pointer;
-        text-decoration: underline;
-        text-underline-offset: 2px;
-    }
-
-    .btn-link:hover {
-        opacity: 0.8;
-    }
-
-    /* ── Export Options List ─────────────────────────────────────────────── */
-    .export-options-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
+    .checkbox-block {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .option-item {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .option-label {
-        display: flex;
-        align-items: flex-start;
         gap: 0.75rem;
-        cursor: pointer;
-        padding: 0.625rem 0.75rem;
-        border-radius: var(--radius-3);
-        transition: background var(--duration-fast);
+        margin-top: 0.75rem;
     }
 
-    .option-label:hover {
-        background: var(--color-grey-20);
-    }
-
-    .option-label.option-sub {
-        margin-left: 2rem;
-        background: var(--color-grey-0);
-        border: 1px solid var(--color-grey-25);
-    }
-
-    .option-label.option-sub:hover {
-        background: var(--color-grey-10);
-    }
-
-    .option-checkbox {
-        width: 1rem;
-        height: 1rem;
-        margin-top: 0.125rem;
-        cursor: pointer;
-        accent-color: var(--color-primary);
-        flex-shrink: 0;
-    }
-
-    .option-icon {
-        width: 1.125rem;
-        height: 1.125rem;
-        background: var(--color-font-secondary);
-        flex-shrink: 0;
-        margin-top: 0.125rem;
-    }
-
-    .option-text {
-        display: flex;
-        flex-direction: column;
-        gap: 0.125rem;
-    }
-
-    .option-name {
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        color: var(--color-font-primary);
-        line-height: 1.3;
-    }
-
-    .option-desc {
-        font-size: var(--processing-details-font-size);
-        color: var(--color-font-secondary);
-        line-height: 1.4;
-    }
-
-    /* ── GDPR Notice ─────────────────────────────────────────────────────── */
-    .gdpr-notice {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-        background: var(--color-info-light);
-        border: 1px solid var(--color-info);
-        border-radius: var(--radius-3);
-        padding: 1rem;
+    :global(.export-account-container .settings-card) {
         margin-bottom: 1.5rem;
-    }
-
-    .gdpr-notice .icon {
-        width: 1.25rem;
-        height: 1.25rem;
-        background: var(--color-info);
-        flex-shrink: 0;
-        margin-top: 0.125rem;
-    }
-
-    .gdpr-notice p {
-        color: var(--color-font-secondary);
-        font-size: var(--processing-details-font-size);
-        line-height: 1.5;
-        margin: 0;
-    }
-
-    /* ── Progress ────────────────────────────────────────────────────────── */
-    .progress-container {
-        background: var(--color-grey-10);
-        border-radius: var(--radius-5);
-        padding: 1.25rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .progress-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.75rem;
-    }
-
-    .phase-name {
-        font-weight: 600;
-        color: var(--color-font-primary);
-        font-size: var(--font-size-p);
-    }
-
-    .progress-percent {
-        color: var(--color-primary);
-        font-weight: 600;
-        font-size: var(--font-size-p);
-    }
-
-    .progress-bar {
-        height: 0.5rem;
-        background: var(--color-grey-20);
-        border-radius: 0.25rem;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: var(--color-primary);
-        border-radius: 0.25rem;
-        transition: width var(--duration-slow) var(--easing-default);
     }
 
     .progress-message {
@@ -553,127 +342,10 @@ See docs/architecture/sync.md for the encryption model.
         margin-bottom: 0;
     }
 
-    /* ── Messages ────────────────────────────────────────────────────────── */
-    .error-message {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem;
-        background: var(--color-danger-light);
-        border: 1px solid var(--color-danger);
-        border-radius: var(--radius-3);
-        margin-bottom: 1.25rem;
-    }
-
-    .error-message .icon {
-        width: 1.25rem;
-        height: 1.25rem;
-        background: var(--color-danger);
-        flex-shrink: 0;
-    }
-
-    .error-message span {
-        color: var(--color-danger);
-        font-size: var(--font-size-p);
-    }
-
-    .success-message {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem;
-        background: var(--color-success-light);
-        border: 1px solid var(--color-success);
-        border-radius: var(--radius-3);
-        margin-bottom: 1.25rem;
-    }
-
-    .success-message .icon {
-        width: 1.25rem;
-        height: 1.25rem;
-        background: var(--color-success);
-        flex-shrink: 0;
-    }
-
-    .success-message span {
-        color: var(--color-success);
-        font-size: var(--font-size-p);
-    }
-
-    /* ── Buttons ─────────────────────────────────────────────────────────── */
-    .action-buttons {
-        margin-top: 1.5rem;
-    }
-
-    .btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        width: 100%;
-        padding: 0.875rem 1.5rem;
-        border: none;
-        border-radius: var(--radius-3);
-        font-size: var(--button-font-size);
-        font-weight: 600;
-        cursor: pointer;
-        transition: background var(--duration-normal), opacity var(--duration-normal);
-    }
-
-    .btn-primary {
-        background: var(--color-primary);
-        color: var(--color-grey-0);
-    }
-
-    .btn-primary:hover:not(:disabled) {
-        background: var(--color-primary-dark);
-    }
-
-    .btn-primary:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .btn-secondary {
-        background: var(--color-grey-20);
-        color: var(--color-font-primary);
-    }
-
-    .btn-secondary:hover {
-        background: var(--color-grey-30);
-    }
-
-    .btn .icon {
+    .button-icon {
         width: 1.25rem;
         height: 1.25rem;
         background: var(--color-grey-0);
-    }
-
-    .loading-spinner {
-        width: 1.25rem;
-        height: 1.25rem;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top-color: var(--color-grey-0);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        flex-shrink: 0;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    .login-notice {
-        margin-top: 1rem;
-        padding: 0.75rem 1rem;
-        background: var(--color-warning-bg);
-        border: 1px solid var(--color-warning);
-        border-radius: var(--radius-3);
-    }
-
-    .login-notice p {
-        color: var(--color-font-secondary);
-        font-size: var(--processing-details-font-size);
-        margin: 0;
+        margin-right: 0.5rem;
     }
 </style>

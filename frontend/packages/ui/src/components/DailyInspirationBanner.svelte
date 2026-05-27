@@ -29,23 +29,27 @@
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
-  import { getCategoryGradientColors } from '../utils/categoryUtils';
+  import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
+  import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
 
   import { getLucideIcon, getValidIconName } from '../utils/categoryUtils';
 
   const BookOpen = getLucideIcon('book-open');
+  const LinkIcon = getLucideIcon('link');
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
-  const MOBILE_EMBED_ROTATION_INTERVAL_MS = 5000;
+  const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
+  const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -86,15 +90,19 @@
   // Set by the IntersectionObserver mounted in onMount.
   let isBannerVisible = $state(false);
 
-  // On mobile, alternate between the assistant message and video preview instead
+  // On mobile, alternate between the assistant message and interactive preview instead
   // of squeezing both into the narrow banner width.
-  let showMobileEmbed = $state(false);
+  let showMobileCard = $state(false);
 
   // Touch gesture state for mobile carousel swipes.
   let touchStartX = $state(0);
   let touchStartY = $state(0);
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
+  let prefersTouchCta = $state(false);
+  let visitCycleTargetIndexes = $state(new Map<string, number>());
+  let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
+  let manuallyNavigatedSetKeys = $state(new Set<string>());
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -140,6 +148,13 @@
   // Personalized inspirations (from WS/IndexedDB) are AI-generated content in the
   // user's language at creation time — they cannot be retranslated, so we skip.
   onMount(() => {
+    const pointerQuery = window.matchMedia('(pointer: coarse)');
+    const updatePointerCta = () => {
+      prefersTouchCta = pointerQuery.matches || navigator.maxTouchPoints > 0;
+    };
+    updatePointerCta();
+    pointerQuery.addEventListener('change', updatePointerCta);
+
     const handleLanguageChange = () => {
       const state = get(dailyInspirationStore);
       if (!state.isPersonalized) {
@@ -152,7 +167,10 @@
     // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
-    return () => window.removeEventListener('language-changed-complete', handleLanguageChange);
+    return () => {
+      pointerQuery.removeEventListener('change', updatePointerCta);
+      window.removeEventListener('language-changed-complete', handleLanguageChange);
+    };
   });
 
   // ─── Passive view tracking via IntersectionObserver ─────────────────────────
@@ -201,20 +219,20 @@
     sendViewedEvent(id);
   });
 
-  // Mobile video loop: start on the assistant message, then alternate message ↔ embed.
+  // Mobile card loop: start on the assistant message, then alternate message and preview.
   $effect(() => {
-    if (!shouldCycleMobileEmbed) {
-      showMobileEmbed = false;
+    if (!shouldCycleMobileCard) {
+      showMobileCard = false;
       return;
     }
 
     void currentIndex;
-    void embedPreviewId;
-    showMobileEmbed = false;
+    void mobilePreviewKey;
+    showMobileCard = false;
 
     const interval = window.setInterval(() => {
-      showMobileEmbed = !showMobileEmbed;
-    }, MOBILE_EMBED_ROTATION_INTERVAL_MS);
+      showMobileCard = !showMobileCard;
+    }, MOBILE_CARD_ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
   });
@@ -224,13 +242,19 @@
   /** Currently displayed inspiration. */
   let current = $derived(inspirations[currentIndex] ?? null);
 
+  /** Valid mate/category class to render. Public cached wiki cards may contain old unsupported categories. */
+  let displayCategory = $derived.by(() => {
+    if (!current) return 'general_knowledge';
+    return current.category in CATEGORY_GRADIENTS ? current.category : 'general_knowledge';
+  });
+
   /** Background gradient style string for the current card.
    *  Also emits --orb-color-a (start/outer) and --orb-color-b (end/inner) as
    *  CSS custom properties consumed by the living gradient orb animation — same
    *  technique as ChatHeader.svelte. */
   let gradientStyle = $derived.by(() => {
     if (!current) return '';
-    const colors = getCategoryGradientColors(current.category);
+    const colors = getCategoryGradientColors(displayCategory);
     if (!colors) {
       return [
         'background: linear-gradient(135deg, #1a237e, #3949ab)',
@@ -248,6 +272,34 @@
   /** Whether multiple inspirations are available (show arrows). */
   let hasMultiple = $derived(inspirations.length > 1);
 
+  /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
+  let inspirationSetKey = $derived.by(() => getInspirationSetKey(inspirations));
+
+  // Each time the banner is mounted on the web app / new chat screen, pick the
+  // next inspiration for the loaded result set. Later IndexedDB/server/WS writes
+  // can reset the store's currentIndex to 0, so remember the target for this
+  // page load and re-apply it without advancing the persisted cursor again.
+  $effect(() => {
+    if (inspirations.length <= 1) return;
+    if (!inspirationSetKey) return;
+    if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
+    if (visitCycleAppliedInspirations === inspirations) return;
+
+    let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
+    if (targetIndex === undefined || targetIndex >= inspirations.length) {
+      targetIndex = getNextVisitIndex(inspirationSetKey, inspirations.length);
+      visitCycleTargetIndexes = new Map([
+        ...visitCycleTargetIndexes,
+        [inspirationSetKey, targetIndex],
+      ]);
+    }
+
+    visitCycleAppliedInspirations = inspirations;
+    if (currentIndex !== targetIndex) {
+      dailyInspirationStore.goTo(targetIndex);
+    }
+  });
+
   /**
    * Whether to show a video embed for the current inspiration.
    * True when a video object is present (has a youtube_id) AND there is enough
@@ -258,14 +310,17 @@
    * a layout flash.
    */
   let hasAttachedVideo = $derived(!!current?.video?.youtube_id);
+  let hasInfoContent = $derived(current?.content_type === 'wiki' || current?.content_type === 'feature');
+  let hasWikiContent = $derived(current?.content_type === 'wiki' && !!current.wiki);
+  let isFeatureInspiration = $derived(current?.content_type === 'feature');
 
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
 
   /** Whether mobile should alternate between the assistant message and embed. */
-  let shouldCycleMobileEmbed = $derived(hasAttachedVideo && isMobileBannerLayout);
+  let shouldCycleMobileCard = $derived((hasAttachedVideo || hasInfoContent) && isMobileBannerLayout);
 
-  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileEmbed));
+  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -285,7 +340,7 @@
    */
   let CategoryIconComponent = $derived.by(() => {
     if (!current) return null;
-    const iconName = getValidIconName('', current.category);
+    const iconName = getValidIconName('', displayCategory);
     return getLucideIcon(iconName);
   });
 
@@ -298,6 +353,18 @@
       : ''
   );
 
+  let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
+  let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
+  let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
+  let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
+  let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
+  let InfoCardIconComponent = $derived.by(() => {
+    if (!current) return null;
+    if (current.content_type === 'wiki') return getLucideIcon('book-open');
+    if (current.feature?.icon) return getLucideIcon(current.feature.icon);
+    return CategoryIconComponent;
+  });
+
   // ─── Event handlers ─────────────────────────────────────────────────────────
 
   /**
@@ -307,6 +374,7 @@
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    markManualNavigation();
     dailyInspirationStore.previous();
   }
 
@@ -317,6 +385,7 @@
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    markManualNavigation();
     dailyInspirationStore.next();
   }
 
@@ -348,12 +417,21 @@
     e.preventDefault();
     touchSwipeHandled = true;
     suppressNextClick = true;
+    markManualNavigation();
 
     if (deltaX < 0) {
       dailyInspirationStore.next();
     } else {
       dailyInspirationStore.previous();
     }
+  }
+
+  function markManualNavigation() {
+    if (!inspirationSetKey) return;
+    manuallyNavigatedSetKeys = new Set([
+      ...manuallyNavigatedSetKeys,
+      inspirationSetKey,
+    ]);
   }
 
   function handleTouchEnd() {
@@ -429,6 +507,57 @@
       // Fallback: synthesise a mouse event so handleStartChat receives a MouseEvent
       handleStartChat(new MouseEvent('click'));
     }
+  }
+
+  function handleInfoCardClick(e: MouseEvent | KeyboardEvent) {
+    if (!current?.wiki) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const wikiTitle = current.wiki.wiki_title || current.wiki.title;
+    document.dispatchEvent(
+      new CustomEvent('wikifullscreen', {
+        detail: {
+          wikiTitle,
+          wikidataId: current.wiki.wikidata_id,
+          displayText: current.wiki.title || wikiTitle,
+          thumbnailUrl: current.wiki.thumbnail_url,
+          description: current.wiki.description,
+        },
+        bubbles: true,
+      }),
+    );
+  }
+
+  function getInspirationSetKey(items: DailyInspiration[]): string {
+    if (items.length === 0) return '';
+    return hashString(items.map((item) => item.inspiration_id).join('|'));
+  }
+
+  function getNextVisitIndex(setKey: string, count: number): number {
+    if (typeof window === 'undefined' || count <= 1) return 0;
+
+    const storageKey = `${VISIT_INDEX_STORAGE_PREFIX}${setKey}`;
+    try {
+      const rawValue = window.localStorage.getItem(storageKey);
+      const currentValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
+      const safeValue = Number.isFinite(currentValue) && currentValue >= 0 ? currentValue : 0;
+      const nextIndex = safeValue % count;
+
+      window.localStorage.setItem(storageKey, String((nextIndex + 1) % count));
+      return nextIndex;
+    } catch (err) {
+      console.error('[DailyInspirationBanner] Failed to persist visit cycling index:', err);
+      return 0;
+    }
+  }
+
+  function hashString(value: string): string {
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+      hash = (hash * 31 + value.charCodeAt(index)) % 2147483647;
+    }
+    return hash.toString(36);
   }
 
   /**
@@ -511,8 +640,8 @@
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div
           class="banner-content"
-          class:mobile-embed-loop={shouldCycleMobileEmbed}
-          class:show-mobile-embed={shouldCycleMobileEmbed && showMobileEmbed}
+          class:mobile-card-loop={shouldCycleMobileCard}
+          class:show-mobile-card={shouldCycleMobileCard && showMobileCard}
         >
 
           <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
@@ -520,19 +649,25 @@
             <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
             <div class="banner-phrase-row">
               <!-- Mate profile image with AI badge (uses global mates.css classes) -->
-              <div class="mate-profile banner-mate-profile {current.category}"></div>
+              <div class="mate-profile banner-mate-profile {displayCategory}"></div>
 
               <!-- Inspiration phrase -->
               <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
             </div>
 
-            <!-- CTA: plain text + create icon — pinned to bottom of banner-left.
-                 Shows "Open chat" if user already started a chat from this inspiration,
-                 otherwise "Click to start chat". -->
+            <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
             <div class="banner-cta">
-              <span class="clickable-icon icon_create banner-cta-icon"></span>
+              {#if isFeatureInspiration}
+                <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
+              {:else}
+                <span class="clickable-icon icon_create banner-cta-icon"></span>
+              {/if}
               <span class="banner-cta-text">
-                {current.is_opened && current.opened_chat_id
+                {isFeatureInspiration
+                  ? (prefersTouchCta
+                    ? $text('daily_inspiration.tap_to_open_settings')
+                    : $text('daily_inspiration.click_to_open_settings'))
+                  : current.is_opened && current.opened_chat_id
                   ? $text('daily_inspiration.open_chat')
                   : $text('daily_inspiration.click_to_start_chat')}
               </span>
@@ -566,6 +701,36 @@
                 isMobile={false}
                 onFullscreen={handleVideoEmbedFullscreen}
               />
+            </div>
+          {:else if hasWikiContent && current.wiki}
+            <div class="banner-embed-wrapper">
+              <WikipediaEmbedPreview
+                id={`wiki-${current.inspiration_id}`}
+                title={current.wiki.title}
+                wikiTitle={current.wiki.wiki_title || current.wiki.title}
+                description={current.wiki.description}
+                thumbnailUrl={current.wiki.thumbnail_url}
+                wikidataId={current.wiki.wikidata_id}
+                status="finished"
+                isMobile={false}
+                onFullscreen={() => handleInfoCardClick(new MouseEvent('click'))}
+              />
+            </div>
+          {:else if hasInfoCard}
+            <div class="banner-info-card" data-testid="daily-inspiration-info-card">
+              {#if infoCardImage}
+                <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+              {:else if InfoCardIconComponent}
+                <div class="banner-info-icon" aria-hidden="true">
+                  <InfoCardIconComponent size={42} color="white" />
+                </div>
+              {/if}
+              <div class="banner-info-text">
+                <h3>{infoCardTitle}</h3>
+                {#if infoCardSubtitle}
+                  <p>{infoCardSubtitle}</p>
+                {/if}
+              </div>
             </div>
           {/if}
         </div>
@@ -807,6 +972,10 @@
     color: rgba(255, 255, 255, 0.85);
   }
 
+  .banner-cta-svg-icon {
+    flex-shrink: 0;
+  }
+
   /* ── Right column: embed preview card ──
      flex: 1 gives it exactly the same width as banner-left (50/50 split).
      margin-top: -15px pulls the embed flush with the top of the banner (past
@@ -828,6 +997,65 @@
     justify-content: flex-end;
     /* Center embed card vertically so it doesn't pin to the top on tall banners */
     align-items: center;
+  }
+
+  .banner-info-card {
+    width: 220px;
+    min-width: 220px;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-4);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    text-align: center;
+    color: white;
+    font: inherit;
+    filter: none;
+    margin: 0;
+  }
+
+  .banner-info-image {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: var(--radius-6);
+    box-shadow: var(--shadow-md);
+    transition: transform var(--duration-fast) var(--easing-default);
+  }
+
+  .banner-info-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    transition: transform var(--duration-fast) var(--easing-default);
+  }
+
+  .banner-info-text h3,
+  .banner-info-text p {
+    margin: 0;
+  }
+
+  .banner-info-text h3 {
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .banner-info-text p {
+    margin-top: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    line-height: 1.25;
+    opacity: 0.9;
   }
 
   /* Make the embed preview card fill the wrapper height and float right.
@@ -1027,13 +1255,14 @@
       line-clamp: 4;
     }
 
-    .banner-content.mobile-embed-loop {
+    .banner-content.mobile-card-loop {
       position: relative;
       overflow: hidden;
     }
 
-    .banner-content.mobile-embed-loop .banner-left,
-    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+    .banner-content.mobile-card-loop .banner-left,
+    .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -1042,12 +1271,12 @@
         transform 420ms ease;
     }
 
-    .banner-content.mobile-embed-loop .banner-left {
+    .banner-content.mobile-card-loop .banner-left {
       opacity: 1;
       transform: translateY(0);
     }
 
-    .banner-content.mobile-embed-loop.show-mobile-embed .banner-left {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-left {
       opacity: 0;
       pointer-events: none;
       transform: translateY(-6px);
@@ -1057,7 +1286,24 @@
       width: 140px;
     }
 
-    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+    .banner-info-card {
+      width: 140px;
+      min-width: 140px;
+      padding: 0;
+    }
+
+    .banner-info-image,
+    .banner-info-icon {
+      width: 46px;
+      height: 46px;
+    }
+
+    .banner-info-text p {
+      display: none;
+    }
+
+    .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
       opacity: 0;
       pointer-events: none;
@@ -1065,20 +1311,21 @@
       justify-content: center;
     }
 
-    .banner-content.mobile-embed-loop.show-mobile-embed .banner-embed-wrapper {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
+    .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
     }
 
-    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.embed-preview-container) {
+    .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {
       width: min(100%, 220px);
       height: 100%;
       max-width: 220px;
       margin: 0 auto;
     }
 
-    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
+    .banner-content.mobile-card-loop .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
       width: 100% !important;
       min-width: unset !important;
       max-width: unset !important;

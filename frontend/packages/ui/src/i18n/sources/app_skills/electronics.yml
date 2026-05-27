@@ -1,0 +1,123 @@
+search_components:
+  context: Skill name for electronics component search
+  en: Search components
+  de: Komponenten suchen
+  zh: Search components
+  es: Search components
+  fr: Search components
+  pt: Search components
+  ru: Search components
+  ja: Search components
+  ko: Search components
+  it: Search components
+  tr: Search components
+  vi: Search components
+  id: Search components
+  pl: Search components
+  nl: Search components
+  ar: Search components
+  hi: Search components
+  th: Search components
+  cs: Search components
+  sv: Search components
+  he: Search components
+  verified_by_human: [en, de]
+search_components.description:
+  context: Description for electronics component search skill
+  en: Find electronic components and reference designs from power requirements.
+  de: Finde elektronische Komponenten und Referenzdesigns anhand von Leistungsanforderungen.
+  zh: Find electronic components and reference designs from power requirements.
+  es: Find electronic components and reference designs from power requirements.
+  fr: Find electronic components and reference designs from power requirements.
+  pt: Find electronic components and reference designs from power requirements.
+  ru: Find electronic components and reference designs from power requirements.
+  ja: Find electronic components and reference designs from power requirements.
+  ko: Find electronic components and reference designs from power requirements.
+  it: Find electronic components and reference designs from power requirements.
+  tr: Find electronic components and reference designs from power requirements.
+  vi: Find electronic components and reference designs from power requirements.
+  id: Find electronic components and reference designs from power requirements.
+  pl: Find electronic components and reference designs from power requirements.
+  nl: Find electronic components and reference designs from power requirements.
+  ar: Find electronic components and reference designs from power requirements.
+  hi: Find electronic components and reference designs from power requirements.
+  th: Find electronic components and reference designs from power requirements.
+  cs: Find electronic components and reference designs from power requirements.
+  sv: Find electronic components and reference designs from power requirements.
+  he: Find electronic components and reference designs from power requirements.
+  verified_by_human: [en, de]
+
+search_components.how_to_use.1:
+  context: Example instruction for electronics search components skill - buck converter
+  en: "**Find** a 12V to 3.3V buck converter for 3A output"
+  de: "**Finde** einen 12V-auf-3,3V-Abwärtswandler für 3A Ausgangsstrom"
+  zh: "**Find** a 12V to 3.3V buck converter for 3A output"
+  es: "**Find** a 12V to 3.3V buck converter for 3A output"
+  fr: "**Find** a 12V to 3.3V buck converter for 3A output"
+  pt: "**Find** a 12V to 3.3V buck converter for 3A output"
+  ru: "**Find** a 12V to 3.3V buck converter for 3A output"
+  ja: "**Find** a 12V to 3.3V buck converter for 3A output"
+  ko: "**Find** a 12V to 3.3V buck converter for 3A output"
+  it: "**Find** a 12V to 3.3V buck converter for 3A output"
+  tr: "**Find** a 12V to 3.3V buck converter for 3A output"
+  vi: "**Find** a 12V to 3.3V buck converter for 3A output"
+  id: "**Find** a 12V to 3.3V buck converter for 3A output"
+  pl: "**Find** a 12V to 3.3V buck converter for 3A output"
+  nl: "**Find** a 12V to 3.3V buck converter for 3A output"
+  ar: "**Find** a 12V to 3.3V buck converter for 3A output"
+  hi: "**Find** a 12V to 3.3V buck converter for 3A output"
+  th: "**Find** a 12V to 3.3V buck converter for 3A output"
+  cs: "**Find** a 12V to 3.3V buck converter for 3A output"
+  sv: "**Find** a 12V to 3.3V buck converter for 3A output"
+  he: "**Find** a 12V to 3.3V buck converter for 3A output"
+  verified_by_human: [en, de]
+
+search_components.how_to_use.2:
+  context: Example instruction for electronics search components skill - efficiency
+  en: "**Compare** efficient 24V to 5V power converters for 2A"
+  de: "**Vergleiche** effiziente 24V-auf-5V-Wandler für 2A"
+  zh: "**Compare** efficient 24V to 5V power converters for 2A"
+  es: "**Compare** efficient 24V to 5V power converters for 2A"
+  fr: "**Compare** efficient 24V to 5V power converters for 2A"
+  pt: "**Compare** efficient 24V to 5V power converters for 2A"
+  ru: "**Compare** efficient 24V to 5V power converters for 2A"
+  ja: "**Compare** efficient 24V to 5V power converters for 2A"
+  ko: "**Compare** efficient 24V to 5V power converters for 2A"
+  it: "**Compare** efficient 24V to 5V power converters for 2A"
+  tr: "**Compare** efficient 24V to 5V power converters for 2A"
+  vi: "**Compare** efficient 24V to 5V power converters for 2A"
+  id: "**Compare** efficient 24V to 5V power converters for 2A"
+  pl: "**Compare** efficient 24V to 5V power converters for 2A"
+  nl: "**Compare** efficient 24V to 5V power converters for 2A"
+  ar: "**Compare** efficient 24V to 5V power converters for 2A"
+  hi: "**Compare** efficient 24V to 5V power converters for 2A"
+  th: "**Compare** efficient 24V to 5V power converters for 2A"
+  cs: "**Compare** efficient 24V to 5V power converters for 2A"
+  sv: "**Compare** efficient 24V to 5V power converters for 2A"
+  he: "**Compare** efficient 24V to 5V power converters for 2A"
+  verified_by_human: [en, de]
+
+search_components.how_to_use.3:
+  context: Example instruction for electronics search components skill - AC/DC
+  en: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  de: "Welcher **AC/DC-Wandler** liefert 12V bei 2A aus Netzspannung?"
+  zh: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  es: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  fr: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  pt: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  ru: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  ja: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  ko: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  it: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  tr: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  vi: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  id: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  pl: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  nl: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  ar: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  hi: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  th: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  cs: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  sv: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  he: "What **AC/DC converter** can provide 12V at 2A from mains input?"
+  verified_by_human: [en, de]

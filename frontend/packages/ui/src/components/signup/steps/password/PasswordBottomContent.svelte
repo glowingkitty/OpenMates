@@ -29,6 +29,7 @@
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
     import { notificationStore } from '../../../../stores/notificationStore';
+    import { setLastAuthMethod } from '../../../../utils/lastAuthMethod';
     import { 
         isChunkLoadError, 
         logChunkLoadError, 
@@ -306,6 +307,7 @@
                 
                 // All validations passed - safe to advance to next step
                 console.log('[PasswordBottomContent] All validations passed, advancing to one_time_codes step');
+                setLastAuthMethod('email');
                 
                 // Continue to next step (OTP setup)
                 // The Signup component will update last_opened when this step change is processed

@@ -44,7 +44,7 @@ const sampleResults = [
 const defaultProps = {
   id: "preview-mail-search-1",
   query: "invoice",
-  provider: "Proton Mail Bridge",
+  provider: "Proton Mail",
   status: "finished" as const,
   results: sampleResults,
   isMobile: false,
@@ -57,7 +57,7 @@ export const variants = {
   processing: {
     id: "preview-mail-search-processing",
     query: "invoice",
-    provider: "Proton Mail Bridge",
+    provider: "Proton Mail",
     status: "processing" as const,
     results: [],
     isMobile: false,
@@ -67,7 +67,7 @@ export const variants = {
   recent: {
     id: "preview-mail-search-recent",
     query: "Recent emails",
-    provider: "Proton Mail Bridge",
+    provider: "Proton Mail",
     status: "finished" as const,
     results: sampleResults,
     isMobile: false,
@@ -77,7 +77,7 @@ export const variants = {
   empty: {
     id: "preview-mail-search-empty",
     query: "proton bridge xyz",
-    provider: "Proton Mail Bridge",
+    provider: "Proton Mail",
     status: "finished" as const,
     results: [],
     isMobile: false,

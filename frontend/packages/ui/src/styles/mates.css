@@ -162,6 +162,8 @@
   background-image: url("@openmates/ui/static/images/mates/onboarding_support.jpeg");
 }
 
+/* Furry Mode avatar overrides are disabled until any furry art is made by human artists. */
+
 /* Official OpenMates category - shows favicon instead of mate profile, no AI logo badge */
 .mate-profile.openmates_official {
   background-image: url("@openmates/ui/static/favicon.svg");

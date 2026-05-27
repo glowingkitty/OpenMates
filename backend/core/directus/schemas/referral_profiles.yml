@@ -1,0 +1,44 @@
+# backend/core/directus/schemas/referral_profiles.yml
+# Stable per-user referral codes. Codes are not encrypted because they are
+# public share tokens, but user ids are stored as hashes where possible.
+referral_profiles:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    user_id_hash:
+      type: string
+      length: 512
+      unique: true
+      note: "SHA-256 hash of the Directus user id that owns this referral code."
+
+    user_id:
+      type: uuid
+      note: "Directus user id for internal reward fulfillment. Never exposed to clients."
+
+    referral_code:
+      type: string
+      length: 32
+      unique: true
+      note: "Stable public referral code for this user. Generated once and never changed."
+
+    successful_referrals_count:
+      type: integer
+      default: 0
+      note: "Number of successful rewarded referrals for this referrer."
+
+    disabled_at:
+      type: datetime
+      nullable: true
+      note: "When set, this referral profile no longer accepts attributions."
+
+    created_at:
+      type: datetime
+      note: "UTC timestamp when the profile was created."
+
+    updated_at:
+      type: datetime
+      nullable: true
+      note: "UTC timestamp when the profile was last updated."

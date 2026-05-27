@@ -1,0 +1,522 @@
+title:
+  context: Title of an example chat where OpenMates drafts a building maintenance email while personal details remain placeholder-protected
+  en: "Drafting a maintenance email with private details protected"
+  de: "Eine Wartungs-E-Mail mit geschützten privaten Daten entwerfen"
+  zh: "在保护私人信息的同时起草维修邮件"
+  es: "Redactar un correo de mantenimiento con datos privados protegidos"
+  fr: "Rédiger un e-mail de maintenance avec des données privées protégées"
+  pt: "Redigir um e-mail de manutenção com dados privados protegidos"
+  ru: "Черновик письма в службу обслуживания с защитой личных данных"
+  ja: "個人情報を保護したままメンテナンスメールを下書き"
+  ko: "개인 정보를 보호하며 유지보수 이메일 초안 작성"
+  it: "Scrivere un'email di manutenzione proteggendo i dati privati"
+  tr: "Özel bilgiler korunurken bakım e-postası taslağı hazırlama"
+  vi: "Soạn email bảo trì khi thông tin riêng tư được bảo vệ"
+  id: "Menyusun email perawatan dengan detail pribadi terlindungi"
+  pl: "Tworzenie e-maila do administracji z ochroną danych prywatnych"
+  nl: "Een onderhoudsmail opstellen met beschermde privégegevens"
+  ar: "صياغة رسالة صيانة مع حماية التفاصيل الخاصة"
+  hi: "निजी विवरण सुरक्षित रखते हुए रखरखाव ईमेल का मसौदा"
+  th: "ร่างอีเมลแจ้งซ่อมโดยปกป้องข้อมูลส่วนตัว"
+  cs: "Návrh e-mailu správě domu s chráněnými soukromými údaji"
+  sv: "Skriv ett underhållsmejl med skyddade privata uppgifter"
+  he: "ניסוח אימייל תחזוקה תוך הגנה על פרטים פרטיים"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat about drafting an email for a broken heater using placeholders for email addresses and phone numbers
+  en: "OpenMates turns a tenant's broken-heater request into a professional email while keeping email addresses and phone numbers hidden behind private-detail placeholders."
+  de: "OpenMates verwandelt die Heizungsbeschwerde eines Mieters in eine professionelle E-Mail und hält E-Mail-Adressen sowie Telefonnummern hinter Platzhaltern verborgen."
+  zh: "OpenMates 将租户关于暖气故障的请求整理成专业邮件，同时用占位符隐藏邮箱地址和电话号码。"
+  es: "OpenMates convierte la solicitud de un inquilino sobre una calefacción averiada en un correo profesional mientras oculta correos y teléfonos tras marcadores privados."
+  fr: "OpenMates transforme la demande d'un locataire au sujet d'un chauffage en panne en e-mail professionnel, tout en masquant les e-mails et numéros derrière des espaces réservés privés."
+  pt: "OpenMates transforma o pedido de um inquilino sobre um aquecedor quebrado em um e-mail profissional, mantendo e-mails e telefones ocultos por placeholders privados."
+  ru: "OpenMates превращает просьбу жильца о сломанном отоплении в профессиональное письмо, скрывая адреса электронной почты и номера телефонов за приватными плейсхолдерами."
+  ja: "OpenMates は暖房故障に関する入居者の依頼を、メールアドレスや電話番号をプレースホルダーで隠したまま、丁寧なメールに整えます。"
+  ko: "OpenMates는 고장 난 난방 문제에 대한 세입자의 요청을 전문적인 이메일로 바꾸면서 이메일 주소와 전화번호를 비공개 플레이스홀더 뒤에 숨깁니다."
+  it: "OpenMates trasforma la richiesta di un inquilino su un termosifone rotto in un'email professionale, mantenendo email e numeri di telefono nascosti dietro segnaposto privati."
+  tr: "OpenMates, kiracının bozuk kalorifer talebini profesyonel bir e-postaya dönüştürürken e-posta adreslerini ve telefon numaralarını özel yer tutucularla gizler."
+  vi: "OpenMates biến yêu cầu của người thuê về máy sưởi bị hỏng thành một email chuyên nghiệp, đồng thời ẩn email và số điện thoại sau các placeholder riêng tư."
+  id: "OpenMates mengubah permintaan penyewa tentang pemanas rusak menjadi email profesional sambil menyembunyikan alamat email dan nomor telepon di balik placeholder detail pribadi."
+  pl: "OpenMates zmienia prośbę najemcy dotyczącą zepsutego ogrzewania w profesjonalny e-mail, ukrywając adresy e-mail i numery telefonów za prywatnymi placeholderami."
+  nl: "OpenMates zet het verzoek van een huurder over een kapotte verwarming om in een professionele e-mail en houdt e-mailadressen en telefoonnummers verborgen achter privé-placeholders."
+  ar: "يحوّل OpenMates طلب المستأجر بشأن عطل في التدفئة إلى رسالة مهنية مع إبقاء عناوين البريد وأرقام الهاتف مخفية خلف عناصر نائبة خاصة."
+  hi: "OpenMates खराब हीटर के बारे में किरायेदार के अनुरोध को पेशेवर ईमेल में बदलता है, जबकि ईमेल पते और फोन नंबर निजी placeholder के पीछे छिपे रहते हैं।"
+  th: "OpenMates เปลี่ยนคำขอของผู้เช่าเรื่องฮีตเตอร์เสียให้เป็นอีเมลแบบมืออาชีพ พร้อมซ่อนอีเมลและเบอร์โทรหลัง placeholder ส่วนตัว"
+  cs: "OpenMates převede žádost nájemníka o rozbitém topení na profesionální e-mail a ponechá e-mailové adresy i telefonní čísla skryté za soukromými placeholdery."
+  sv: "OpenMates gör en hyresgästs fråga om trasig värme till ett professionellt mejl och håller e-postadresser och telefonnummer dolda bakom privata platshållare."
+  he: "OpenMates הופך בקשה של דייר לגבי חימום מקולקל לאימייל מקצועי, תוך הסתרת כתובות אימייל ומספרי טלפון מאחורי מצייני מקום פרטיים."
+  verified_by_human: []
+
+user_message_1:
+  context: User asks OpenMates to write an email about a broken heater; private email addresses and phone number are represented as placeholders and must remain unchanged
+  en: "Write an email from my [EMAIL_1_.de] address to [EMAIL_2_com] to inform her about the broken heater in the building which is broken since May 15, asking for when it will be fixed and requesting a call back to my [PHONE_1_171] number."
+  de: "Schreibe eine E-Mail von meiner Adresse [EMAIL_1_.de] an [EMAIL_2_com], um sie über die defekte Heizung im Gebäude zu informieren, die seit dem 15. Mai kaputt ist. Frage, wann sie repariert wird, und bitte um einen Rückruf unter meiner Nummer [PHONE_1_171]."
+  zh: "请从我的 [EMAIL_1_.de] 地址给 [EMAIL_2_com] 写一封邮件，告知她楼里的暖气自 5 月 15 日起就坏了，询问什么时候能修好，并请她回拨我的 [PHONE_1_171] 电话。"
+  es: "Escribe un correo desde mi dirección [EMAIL_1_.de] a [EMAIL_2_com] para informarle de que la calefacción del edificio está averiada desde el 15 de mayo, preguntando cuándo se arreglará y solicitando que me llame al número [PHONE_1_171]."
+  fr: "Écris un e-mail depuis mon adresse [EMAIL_1_.de] à [EMAIL_2_com] pour l'informer que le chauffage de l'immeuble est en panne depuis le 15 mai, demander quand il sera réparé et solliciter un rappel à mon numéro [PHONE_1_171]."
+  pt: "Escreva um e-mail do meu endereço [EMAIL_1_.de] para [EMAIL_2_com] para informá-la sobre o aquecedor quebrado no prédio, que está quebrado desde 15 de maio, perguntando quando será consertado e pedindo uma ligação de volta para meu número [PHONE_1_171]."
+  ru: "Напиши письмо с моего адреса [EMAIL_1_.de] на [EMAIL_2_com], чтобы сообщить ей о сломанном отоплении в здании, которое не работает с 15 мая, спросить, когда его починят, и попросить перезвонить мне на номер [PHONE_1_171]."
+  ja: "私の [EMAIL_1_.de] アドレスから [EMAIL_2_com] 宛てにメールを書いてください。建物の暖房が5月15日から故障していることを伝え、いつ修理されるのかを尋ね、私の [PHONE_1_171] 番号へ折り返し電話を依頼してください。"
+  ko: "제 [EMAIL_1_.de] 주소에서 [EMAIL_2_com]로 이메일을 작성해 주세요. 건물의 난방기가 5월 15일부터 고장 났다는 점을 알리고, 언제 수리될지 묻고, 제 [PHONE_1_171] 번호로 전화 회신을 요청해 주세요."
+  it: "Scrivi un'email dal mio indirizzo [EMAIL_1_.de] a [EMAIL_2_com] per informarla del riscaldamento rotto nell'edificio, guasto dal 15 maggio, chiedendo quando verrà riparato e richiedendo una richiamata al mio numero [PHONE_1_171]."
+  tr: "[EMAIL_1_.de] adresimden [EMAIL_2_com] adresine, binadaki ısıtıcının 15 Mayıs'tan beri bozuk olduğunu bildiren, ne zaman tamir edileceğini soran ve [PHONE_1_171] numarama geri arama isteyen bir e-posta yaz."
+  vi: "Viết một email từ địa chỉ [EMAIL_1_.de] của tôi gửi đến [EMAIL_2_com] để thông báo về máy sưởi trong tòa nhà bị hỏng từ ngày 15 tháng 5, hỏi khi nào sẽ được sửa và yêu cầu gọi lại cho tôi theo số [PHONE_1_171]."
+  id: "Tulis email dari alamat [EMAIL_1_.de] saya ke [EMAIL_2_com] untuk memberitahukan bahwa pemanas di gedung rusak sejak 15 Mei, menanyakan kapan akan diperbaiki, dan meminta telepon balik ke nomor [PHONE_1_171] saya."
+  pl: "Napisz e-mail z mojego adresu [EMAIL_1_.de] do [EMAIL_2_com], aby poinformować ją, że ogrzewanie w budynku jest zepsute od 15 maja, zapytać, kiedy zostanie naprawione, i poprosić o oddzwonienie na mój numer [PHONE_1_171]."
+  nl: "Schrijf een e-mail vanaf mijn adres [EMAIL_1_.de] naar [EMAIL_2_com] om haar te informeren over de kapotte verwarming in het gebouw, die sinds 15 mei defect is, te vragen wanneer die wordt gerepareerd en om een terugbelverzoek naar mijn nummer [PHONE_1_171]."
+  ar: "اكتب رسالة بريد إلكتروني من عنواني [EMAIL_1_.de] إلى [EMAIL_2_com] لإبلاغها بأن التدفئة في المبنى معطلة منذ 15 مايو، والسؤال عن موعد إصلاحها، وطلب معاودة الاتصال بي على رقمي [PHONE_1_171]."
+  hi: "मेरे [EMAIL_1_.de] पते से [EMAIL_2_com] को ईमेल लिखें, जिसमें इमारत में 15 मई से खराब हीटर के बारे में बताया जाए, पूछा जाए कि इसे कब ठीक किया जाएगा, और मेरे [PHONE_1_171] नंबर पर कॉल बैक का अनुरोध किया जाए।"
+  th: "เขียนอีเมลจากที่อยู่ [EMAIL_1_.de] ของฉันถึง [EMAIL_2_com] เพื่อแจ้งเรื่องฮีตเตอร์ในอาคารเสียตั้งแต่วันที่ 15 พฤษภาคม ถามว่าจะซ่อมเมื่อไหร่ และขอให้โทรกลับมาที่หมายเลข [PHONE_1_171] ของฉัน"
+  cs: "Napiš e-mail z mé adresy [EMAIL_1_.de] na [EMAIL_2_com], ve kterém ji informuješ o rozbitém topení v budově, které nefunguje od 15. května, zeptáš se, kdy bude opraveno, a požádáš o zavolání zpět na mé číslo [PHONE_1_171]."
+  sv: "Skriv ett mejl från min adress [EMAIL_1_.de] till [EMAIL_2_com] för att informera henne om den trasiga värmen i byggnaden, som har varit trasig sedan 15 maj, fråga när den kommer att åtgärdas och be om återuppringning till mitt nummer [PHONE_1_171]."
+  he: "כתוב אימייל מהכתובת שלי [EMAIL_1_.de] אל [EMAIL_2_com] כדי לעדכן אותה על החימום המקולקל בבניין, שמקולקל מאז 15 במאי, לשאול מתי הוא יתוקן ולבקש שתחזור אליי למספר [PHONE_1_171]."
+  verified_by_human: []
+
+assistant_message_1:
+  context: Assistant drafts a professional email about the broken heater. Keep the JSON mail embed block and private-detail placeholders unchanged.
+  en: |
+    I'll draft an email for you about the broken heater. Here's a professional message:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **A few notes:**
+    - I've kept the tone professional but firm, given the urgency of a broken heater
+    - The email clearly states the problem, when it started, and what you need
+    - It requests both written information and a callback
+    - Feel free to personalize the recipient's name and your signature
+
+    Would you like me to adjust the tone (more formal/casual), add any additional details, or modify any part of the message?
+  de: |
+    Ich entwerfe dir eine E-Mail wegen der defekten Heizung. Hier ist eine professionelle Nachricht:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Ein paar Hinweise:**
+    - Ich habe den Ton professionell, aber bestimmt gehalten, da eine defekte Heizung dringend ist
+    - Die E-Mail nennt klar das Problem, seit wann es besteht und was du brauchst
+    - Sie bittet sowohl um schriftliche Informationen als auch um einen Rückruf
+    - Du kannst den Namen der Empfängerin und deine Signatur gern personalisieren
+
+    Möchtest du, dass ich den Ton anpasse (formeller/lockerer), weitere Details ergänze oder einen Teil der Nachricht ändere?
+  zh: |
+    我来为你起草一封关于暖气故障的邮件。这里是一封专业的邮件：
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **几点说明：**
+    - 鉴于暖气故障的紧急性，我保持了专业但坚定的语气
+    - 邮件清楚说明了问题、开始时间以及你的诉求
+    - 它同时请求书面信息和回电
+    - 你可以自行补充收件人姓名和你的签名
+
+    你想让我调整语气（更正式/更随意）、增加其他细节，或修改邮件的某一部分吗？
+  es: |
+    Te preparo un borrador de correo sobre la calefacción averiada. Aquí tienes un mensaje profesional:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Algunas notas:**
+    - He mantenido un tono profesional pero firme, dada la urgencia de una calefacción averiada
+    - El correo explica claramente el problema, cuándo empezó y qué necesitas
+    - Solicita tanto información por escrito como una llamada de vuelta
+    - Puedes personalizar el nombre de la destinataria y tu firma
+
+    ¿Quieres que ajuste el tono (más formal/informal), añada algún detalle o modifique alguna parte del mensaje?
+  fr: |
+    Je vais te rédiger un e-mail au sujet du chauffage en panne. Voici un message professionnel :
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Quelques remarques :**
+    - J'ai gardé un ton professionnel mais ferme, compte tenu de l'urgence d'un chauffage en panne
+    - L'e-mail indique clairement le problème, depuis quand il existe et ce dont tu as besoin
+    - Il demande à la fois des informations écrites et un rappel téléphonique
+    - Tu peux personnaliser le nom de la destinataire et ta signature
+
+    Veux-tu que j'ajuste le ton (plus formel/plus décontracté), que j'ajoute des détails ou que je modifie une partie du message ?
+  pt: |
+    Vou redigir um e-mail para você sobre o aquecedor quebrado. Aqui está uma mensagem profissional:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Algumas observações:**
+    - Mantive um tom profissional, mas firme, pela urgência de um aquecedor quebrado
+    - O e-mail informa claramente o problema, quando começou e o que você precisa
+    - Ele solicita tanto informações por escrito quanto uma ligação de retorno
+    - Você pode personalizar o nome da destinatária e sua assinatura
+
+    Quer que eu ajuste o tom (mais formal/casual), adicione mais detalhes ou modifique alguma parte da mensagem?
+  ru: |
+    Я подготовлю для вас письмо о сломанном отоплении. Вот профессиональный вариант:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Несколько замечаний:**
+    - Тон оставлен профессиональным, но настойчивым, учитывая срочность проблемы с отоплением
+    - В письме ясно указана проблема, когда она началась и что вам нужно
+    - В нем запрашивается как письменная информация, так и обратный звонок
+    - При желании можно персонализировать имя получателя и подпись
+
+    Хотите, чтобы я изменил тон (более официальный/более непринужденный), добавил детали или изменил какую-либо часть письма?
+  ja: |
+    暖房故障についてのメールを下書きします。こちらが丁寧な文面です。
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **補足:**
+    - 暖房故障は緊急性があるため、丁寧ながらもはっきりしたトーンにしています
+    - メールでは問題、発生時期、必要な対応を明確にしています
+    - 書面での回答と折り返し電話の両方を依頼しています
+    - 宛名と署名は自由に調整できます
+
+    トーンを変更したり（よりフォーマル/カジュアル）、詳細を追加したり、文面の一部を修正しましょうか？
+  ko: |
+    고장 난 난방기에 대한 이메일을 작성해 드릴게요. 전문적인 메시지는 다음과 같습니다:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **몇 가지 참고 사항:**
+    - 난방기 고장의 긴급성을 고려해 전문적이지만 단호한 어조를 유지했습니다
+    - 이메일은 문제, 시작 시점, 필요한 조치를 명확히 설명합니다
+    - 서면 정보와 전화 회신을 모두 요청합니다
+    - 수신자 이름과 서명은 자유롭게 개인화할 수 있습니다
+
+    어조를 조정하거나(더 공식적/더 편안하게), 추가 세부 정보를 넣거나, 메시지 일부를 수정할까요?
+  it: |
+    Preparo una bozza di email per il riscaldamento rotto. Ecco un messaggio professionale:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Alcune note:**
+    - Ho mantenuto un tono professionale ma deciso, vista l'urgenza di un riscaldamento rotto
+    - L'email indica chiaramente il problema, da quando è iniziato e cosa ti serve
+    - Richiede sia informazioni scritte sia una chiamata di ritorno
+    - Puoi personalizzare il nome della destinataria e la tua firma
+
+    Vuoi che modifichi il tono (più formale/informale), aggiunga dettagli o cambi qualche parte del messaggio?
+  tr: |
+    Bozuk ısıtıcı hakkında senin için bir e-posta taslağı hazırlayacağım. İşte profesyonel bir mesaj:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Birkaç not:**
+    - Bozuk bir ısıtıcının aciliyeti nedeniyle tonu profesyonel ama net tuttum
+    - E-posta sorunu, ne zaman başladığını ve neye ihtiyacın olduğunu açıkça belirtiyor
+    - Hem yazılı bilgi hem de geri arama talep ediyor
+    - Alıcının adını ve imzanı kişiselleştirebilirsin
+
+    Tonu değiştirmemi (daha resmi/daha gündelik), ek ayrıntılar eklememi veya mesajın herhangi bir bölümünü değiştirmemi ister misin?
+  vi: |
+    Tôi sẽ soạn một email cho bạn về máy sưởi bị hỏng. Đây là một nội dung chuyên nghiệp:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Một vài ghi chú:**
+    - Tôi giữ giọng văn chuyên nghiệp nhưng dứt khoát, vì máy sưởi bị hỏng là vấn đề khẩn cấp
+    - Email nêu rõ vấn đề, thời điểm bắt đầu và điều bạn cần
+    - Email yêu cầu cả thông tin bằng văn bản và cuộc gọi lại
+    - Bạn có thể cá nhân hóa tên người nhận và chữ ký của mình
+
+    Bạn muốn tôi điều chỉnh giọng văn (trang trọng/thân mật hơn), thêm chi tiết hay sửa phần nào của nội dung không?
+  id: |
+    Saya akan menyusun email untuk Anda tentang pemanas yang rusak. Berikut pesan yang profesional:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Beberapa catatan:**
+    - Saya menjaga nada tetap profesional tetapi tegas, mengingat urgensi pemanas yang rusak
+    - Email ini menjelaskan masalah, kapan mulai terjadi, dan apa yang Anda butuhkan
+    - Email ini meminta informasi tertulis dan panggilan balik
+    - Anda bisa menyesuaikan nama penerima dan tanda tangan Anda
+
+    Apakah Anda ingin saya menyesuaikan nada (lebih formal/santai), menambahkan detail, atau mengubah bagian tertentu dari pesan?
+  pl: |
+    Przygotuję dla Ciebie e-mail w sprawie zepsutego ogrzewania. Oto profesjonalna wiadomość:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Kilka uwag:**
+    - Zachowałem profesjonalny, ale stanowczy ton ze względu na pilność problemu z ogrzewaniem
+    - E-mail jasno opisuje problem, od kiedy trwa i czego potrzebujesz
+    - Prosi zarówno o informacje pisemne, jak i o telefon zwrotny
+    - Możesz spersonalizować imię odbiorczyni i swój podpis
+
+    Czy chcesz, żebym dostosował ton (bardziej formalny/swobodny), dodał szczegóły albo zmienił jakąś część wiadomości?
+  nl: |
+    Ik stel een e-mail voor je op over de kapotte verwarming. Hier is een professionele boodschap:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Een paar opmerkingen:**
+    - Ik heb de toon professioneel maar duidelijk gehouden, gezien de urgentie van een kapotte verwarming
+    - De e-mail vermeldt duidelijk het probleem, wanneer het begon en wat je nodig hebt
+    - Hij vraagt om zowel schriftelijke informatie als een terugbelverzoek
+    - Je kunt de naam van de ontvanger en je handtekening personaliseren
+
+    Wil je dat ik de toon aanpas (formeler/informeler), extra details toevoeg of een deel van het bericht wijzig?
+  ar: |
+    سأصيغ لك رسالة بريد إلكتروني بشأن التدفئة المعطلة. إليك رسالة مهنية:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **بعض الملاحظات:**
+    - أبقيت النبرة مهنية ولكن حازمة نظرًا لإلحاح مشكلة التدفئة المعطلة
+    - توضح الرسالة المشكلة بوضوح، ومتى بدأت، وما الذي تحتاجه
+    - تطلب الرسالة معلومات مكتوبة ومكالمة عودة
+    - يمكنك تخصيص اسم المستلمة وتوقيعك
+
+    هل تريد أن أعدل النبرة (أكثر رسمية/أكثر بساطة)، أو أضيف تفاصيل، أو أغير أي جزء من الرسالة؟
+  hi: |
+    मैं खराब हीटर के बारे में आपके लिए एक ईमेल का मसौदा तैयार करूँगा। यह एक पेशेवर संदेश है:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **कुछ नोट्स:**
+    - खराब हीटर की तात्कालिकता को देखते हुए मैंने स्वर पेशेवर लेकिन दृढ़ रखा है
+    - ईमेल समस्या, उसके शुरू होने का समय और आपकी ज़रूरत स्पष्ट रूप से बताता है
+    - यह लिखित जानकारी और कॉल बैक दोनों का अनुरोध करता है
+    - आप प्राप्तकर्ता का नाम और अपना हस्ताक्षर व्यक्तिगत बना सकते हैं
+
+    क्या आप चाहते हैं कि मैं स्वर बदलूँ (अधिक औपचारिक/सामान्य), अतिरिक्त विवरण जोड़ूँ, या संदेश का कोई हिस्सा बदलूँ?
+  th: |
+    ฉันจะร่างอีเมลเกี่ยวกับฮีตเตอร์เสียให้คุณ นี่คือข้อความแบบมืออาชีพ:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **หมายเหตุเล็กน้อย:**
+    - ฉันใช้โทนที่เป็นมืออาชีพแต่ชัดเจน เพราะฮีตเตอร์เสียเป็นเรื่องเร่งด่วน
+    - อีเมลระบุปัญหา เวลาที่เริ่มเกิดขึ้น และสิ่งที่คุณต้องการอย่างชัดเจน
+    - อีเมลขอทั้งข้อมูลเป็นลายลักษณ์อักษรและการโทรกลับ
+    - คุณสามารถปรับชื่อผู้รับและลายเซ็นของคุณได้
+
+    ต้องการให้ฉันปรับโทน (เป็นทางการขึ้น/เป็นกันเองขึ้น), เพิ่มรายละเอียด หรือแก้ไขส่วนใดของข้อความไหม?
+  cs: |
+    Připravím ti e-mail ohledně rozbitého topení. Tady je profesionální zpráva:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Několik poznámek:**
+    - Zachoval jsem profesionální, ale důrazný tón vzhledem k naléhavosti rozbitého topení
+    - E-mail jasně uvádí problém, kdy začal a co potřebuješ
+    - Žádá jak písemné informace, tak zpětné zavolání
+    - Jméno příjemkyně a podpis si můžeš upravit
+
+    Chceš, abych upravil tón (formálnější/neformálnější), přidal další detaily nebo změnil některou část zprávy?
+  sv: |
+    Jag skriver ett utkast till ett mejl om den trasiga värmen. Här är ett professionellt meddelande:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **Några kommentarer:**
+    - Jag har hållit tonen professionell men tydlig, eftersom trasig värme är brådskande
+    - Mejlet anger problemet, när det började och vad du behöver
+    - Det begär både skriftlig information och återuppringning
+    - Du kan anpassa mottagarens namn och din signatur
+
+    Vill du att jag justerar tonen (mer formell/ledig), lägger till fler detaljer eller ändrar någon del av meddelandet?
+  he: |
+    אנסח עבורך אימייל לגבי החימום המקולקל. הנה הודעה מקצועית:
+
+    ```json
+    {"type": "mail", "embed_id": "ec9c840d-75d8-4ab6-91ff-aa4a25ff4227"}
+    ```
+
+    **כמה הערות:**
+    - שמרתי על טון מקצועי אך תקיף, בגלל הדחיפות של חימום מקולקל
+    - האימייל מציין בבירור את הבעיה, מתי התחילה ומה אתה צריך
+    - הוא מבקש גם מידע בכתב וגם שיחת חזרה
+    - אפשר להתאים אישית את שם הנמענת ואת החתימה שלך
+
+    האם תרצה שאשנה את הטון (יותר רשמי/יותר קליל), אוסיף פרטים או אשנה חלק כלשהו מההודעה?
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion to send the generated email to maintenance
+  en: "[ai] Send this email to the maintenance team"
+  de: "[ai] Sende diese E-Mail an das Wartungsteam"
+  zh: "[ai] 将这封邮件发送给维修团队"
+  es: "[ai] Enviar este correo al equipo de mantenimiento"
+  fr: "[ai] Envoyer cet e-mail à l'équipe de maintenance"
+  pt: "[ai] Enviar este e-mail para a equipe de manutenção"
+  ru: "[ai] Отправить это письмо команде обслуживания"
+  ja: "[ai] このメールをメンテナンスチームに送る"
+  ko: "[ai] 이 이메일을 유지보수 팀에 보내기"
+  it: "[ai] Invia questa email al team di manutenzione"
+  tr: "[ai] Bu e-postayı bakım ekibine gönder"
+  vi: "[ai] Gửi email này cho đội bảo trì"
+  id: "[ai] Kirim email ini ke tim perawatan"
+  pl: "[ai] Wyślij ten e-mail do zespołu administracji"
+  nl: "[ai] Stuur deze e-mail naar het onderhoudsteam"
+  ar: "[ai] إرسال هذه الرسالة إلى فريق الصيانة"
+  hi: "[ai] यह ईमेल रखरखाव टीम को भेजें"
+  th: "[ai] ส่งอีเมลนี้ให้ทีมซ่อมบำรุง"
+  cs: "[ai] Poslat tento e-mail týmu údržby"
+  sv: "[ai] Skicka detta mejl till underhållsteamet"
+  he: "[ai] שלח את האימייל הזה לצוות התחזוקה"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion to modify the email with more details
+  en: "[ai] Modify the email to add more details"
+  de: "[ai] E-Mail ändern und mehr Details hinzufügen"
+  zh: "[ai] 修改邮件并添加更多细节"
+  es: "[ai] Modificar el correo para añadir más detalles"
+  fr: "[ai] Modifier l'e-mail pour ajouter plus de détails"
+  pt: "[ai] Modificar o e-mail para adicionar mais detalhes"
+  ru: "[ai] Изменить письмо и добавить больше деталей"
+  ja: "[ai] メールを修正して詳細を追加する"
+  ko: "[ai] 이메일을 수정해 세부 정보 추가"
+  it: "[ai] Modificare l'email per aggiungere dettagli"
+  tr: "[ai] Daha fazla ayrıntı eklemek için e-postayı değiştir"
+  vi: "[ai] Sửa email để thêm chi tiết"
+  id: "[ai] Ubah email untuk menambahkan detail"
+  pl: "[ai] Zmodyfikuj e-mail i dodaj więcej szczegółów"
+  nl: "[ai] Pas de e-mail aan om meer details toe te voegen"
+  ar: "[ai] تعديل الرسالة لإضافة مزيد من التفاصيل"
+  hi: "[ai] अधिक विवरण जोड़ने के लिए ईमेल संशोधित करें"
+  th: "[ai] แก้อีเมลเพื่อเพิ่มรายละเอียด"
+  cs: "[ai] Upravit e-mail a přidat další podrobnosti"
+  sv: "[ai] Ändra mejlet för att lägga till fler detaljer"
+  he: "[ai] שנה את האימייל כדי להוסיף פרטים"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion to ask what else should be discussed about the heater issue
+  en: "[ai] Explain what else I should ask about the heater issue"
+  de: "[ai] Erkläre, was ich zur Heizungsfrage noch fragen sollte"
+  zh: "[ai] 说明我还应询问哪些暖气问题"
+  es: "[ai] Explicar qué más debería preguntar sobre el problema de calefacción"
+  fr: "[ai] Expliquer ce que je devrais aussi demander sur le problème de chauffage"
+  pt: "[ai] Explicar o que mais eu deveria perguntar sobre o problema do aquecedor"
+  ru: "[ai] Объяснить, что еще стоит спросить о проблеме с отоплением"
+  ja: "[ai] 暖房の問題について他に何を聞くべきか説明する"
+  ko: "[ai] 난방 문제에 대해 또 무엇을 물어봐야 하는지 설명"
+  it: "[ai] Spiegare cos'altro dovrei chiedere sul problema del riscaldamento"
+  tr: "[ai] Isıtıcı sorunu hakkında başka ne sormam gerektiğini açıkla"
+  vi: "[ai] Giải thích tôi nên hỏi thêm gì về vấn đề máy sưởi"
+  id: "[ai] Jelaskan apa lagi yang perlu saya tanyakan tentang masalah pemanas"
+  pl: "[ai] Wyjaśnij, o co jeszcze zapytać w sprawie ogrzewania"
+  nl: "[ai] Leg uit wat ik nog meer moet vragen over het verwarmingsprobleem"
+  ar: "[ai] اشرح ما الذي ينبغي أن أسأل عنه أيضًا بشأن مشكلة التدفئة"
+  hi: "[ai] बताएं कि हीटर समस्या के बारे में मुझे और क्या पूछना चाहिए"
+  th: "[ai] อธิบายว่าฉันควรถามอะไรเพิ่มเติมเกี่ยวกับปัญหาฮีตเตอร์"
+  cs: "[ai] Vysvětlit, na co se ještě zeptat ohledně problému s topením"
+  sv: "[ai] Förklara vad mer jag bör fråga om värmeproblemet"
+  he: "[ai] הסבר מה עוד כדאי לשאול לגבי בעיית החימום"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion to write a follow-up email if maintenance does not respond
+  en: "[mail] Write a follow-up email if I don't hear back"
+  de: "[mail] Schreibe eine Folge-E-Mail, falls ich keine Antwort bekomme"
+  zh: "[mail] 如果没有回复，写一封跟进邮件"
+  es: "[mail] Escribir un correo de seguimiento si no recibo respuesta"
+  fr: "[mail] Rédiger un e-mail de relance si je n'ai pas de réponse"
+  pt: "[mail] Escrever um e-mail de acompanhamento se eu não receber resposta"
+  ru: "[mail] Написать последующее письмо, если мне не ответят"
+  ja: "[mail] 返事がない場合のフォローアップメールを書く"
+  ko: "[mail] 답장이 없을 경우 후속 이메일 작성"
+  it: "[mail] Scrivere un'email di follow-up se non ricevo risposta"
+  tr: "[mail] Yanıt alamazsam takip e-postası yaz"
+  vi: "[mail] Viết email nhắc lại nếu tôi không nhận được phản hồi"
+  id: "[mail] Tulis email tindak lanjut jika saya tidak mendapat balasan"
+  pl: "[mail] Napisz e-mail ponaglający, jeśli nie otrzymam odpowiedzi"
+  nl: "[mail] Schrijf een follow-up e-mail als ik niets terug hoor"
+  ar: "[mail] كتابة رسالة متابعة إذا لم أتلق ردًا"
+  hi: "[mail] जवाब न मिलने पर फॉलो-अप ईमेल लिखें"
+  th: "[mail] เขียนอีเมลติดตามผลหากไม่ได้รับการตอบกลับ"
+  cs: "[mail] Napsat následný e-mail, pokud nedostanu odpověď"
+  sv: "[mail] Skriv ett uppföljningsmejl om jag inte får svar"
+  he: "[mail] כתוב אימייל המשך אם לא אקבל תשובה"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion to escalate the unresolved heater issue
+  en: "[ai] Suggest how to escalate this issue if not resolved"
+  de: "[ai] Schlage vor, wie ich das Problem eskalieren kann, falls es nicht gelöst wird"
+  zh: "[ai] 建议如果问题未解决该如何升级处理"
+  es: "[ai] Sugerir cómo escalar este problema si no se resuelve"
+  fr: "[ai] Suggérer comment faire remonter ce problème s'il n'est pas résolu"
+  pt: "[ai] Sugerir como escalar este problema se não for resolvido"
+  ru: "[ai] Предложить, как эскалировать проблему, если ее не решат"
+  ja: "[ai] 解決しない場合にこの問題をどうエスカレーションするか提案する"
+  ko: "[ai] 해결되지 않을 경우 이 문제를 어떻게 에스컬레이션할지 제안"
+  it: "[ai] Suggerire come intensificare il problema se non viene risolto"
+  tr: "[ai] Çözülmezse bu sorunu nasıl üst seviyeye taşıyacağımı öner"
+  vi: "[ai] Gợi ý cách báo cáo lên cấp cao hơn nếu vấn đề không được giải quyết"
+  id: "[ai] Sarankan cara mengeskalasi masalah ini jika tidak terselesaikan"
+  pl: "[ai] Zasugeruj, jak eskalować tę sprawę, jeśli nie zostanie rozwiązana"
+  nl: "[ai] Stel voor hoe ik dit probleem kan escaleren als het niet wordt opgelost"
+  ar: "[ai] اقتراح كيفية تصعيد هذه المشكلة إذا لم تُحل"
+  hi: "[ai] यदि समस्या हल न हो तो इसे आगे कैसे बढ़ाएँ, सुझाव दें"
+  th: "[ai] แนะนำวิธี escalte ปัญหานี้หากยังไม่ได้รับการแก้ไข"
+  cs: "[ai] Navrhnout, jak problém eskalovat, pokud nebude vyřešen"
+  sv: "[ai] Föreslå hur jag kan eskalera frågan om den inte löses"
+  he: "[ai] הצע איך להסלים את הטיפול אם הבעיה לא תיפתר"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion to set a reminder in three days
+  en: "[reminder-set-reminder] Set a reminder to follow up in 3 days"
+  de: "[reminder-set-reminder] Erstelle eine Erinnerung zur Nachfrage in 3 Tagen"
+  zh: "[reminder-set-reminder] 设置 3 天后跟进的提醒"
+  es: "[reminder-set-reminder] Crear un recordatorio para hacer seguimiento en 3 días"
+  fr: "[reminder-set-reminder] Définir un rappel pour relancer dans 3 jours"
+  pt: "[reminder-set-reminder] Definir um lembrete para acompanhar em 3 dias"
+  ru: "[reminder-set-reminder] Поставить напоминание вернуться к вопросу через 3 дня"
+  ja: "[reminder-set-reminder] 3日後にフォローアップするリマインダーを設定"
+  ko: "[reminder-set-reminder] 3일 후 후속 확인 알림 설정"
+  it: "[reminder-set-reminder] Impostare un promemoria per ricontrollare tra 3 giorni"
+  tr: "[reminder-set-reminder] 3 gün sonra takip için hatırlatıcı ayarla"
+  vi: "[reminder-set-reminder] Đặt lời nhắc theo dõi sau 3 ngày"
+  id: "[reminder-set-reminder] Atur pengingat untuk menindaklanjuti dalam 3 hari"
+  pl: "[reminder-set-reminder] Ustaw przypomnienie o sprawdzeniu sprawy za 3 dni"
+  nl: "[reminder-set-reminder] Stel een herinnering in om over 3 dagen op te volgen"
+  ar: "[reminder-set-reminder] تعيين تذكير للمتابعة بعد 3 أيام"
+  hi: "[reminder-set-reminder] 3 दिनों में फॉलो अप करने के लिए रिमाइंडर सेट करें"
+  th: "[reminder-set-reminder] ตั้งเตือนให้ติดตามผลในอีก 3 วัน"
+  cs: "[reminder-set-reminder] Nastavit připomenutí pro kontrolu za 3 dny"
+  sv: "[reminder-set-reminder] Ställ in en påminnelse om att följa upp om 3 dagar"
+  he: "[reminder-set-reminder] קבע תזכורת למעקב בעוד 3 ימים"
+  verified_by_human: []

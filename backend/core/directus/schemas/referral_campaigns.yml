@@ -1,0 +1,78 @@
+# backend/core/directus/schemas/referral_campaigns.yml
+# Referral campaign budget records. Cloud admins create these rows to enable
+# referral rewards with an explicit promotional-credit budget. Self-hosted
+# servers have no active campaign unless their admin creates one intentionally.
+referral_campaigns:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    name:
+      type: string
+      length: 255
+      note: "Admin-facing campaign name."
+
+    is_active:
+      type: boolean
+      default: true
+      note: "Only active campaigns can accept new referral attributions or rewards."
+
+    cloud_only:
+      type: boolean
+      default: true
+      note: "When true, intended for OpenMates Cloud only; self-hosted admins can create their own non-cloud campaign."
+
+    credits_per_referrer:
+      type: integer
+      default: 2000
+      note: "Promotional credits awarded to the user whose code was used."
+
+    credits_per_referred_user:
+      type: integer
+      default: 2000
+      note: "Promotional credits awarded to the referred buyer."
+
+    max_total_credits:
+      type: integer
+      note: "Maximum promotional credits this campaign may award in total."
+
+    credits_awarded:
+      type: integer
+      default: 0
+      note: "Promotional credits already awarded from this campaign."
+
+    max_successful_referrals_per_user:
+      type: integer
+      default: 10
+      note: "Maximum successful referral rewards one referrer can receive."
+
+    min_purchase_amount_cents:
+      type: integer
+      default: 1000
+      note: "Minimum purchase amount in cents required to trigger referral rewards."
+
+    attribution_expires_days:
+      type: integer
+      default: 7
+      note: "How long a captured referral remains eligible after account attribution."
+
+    starts_at:
+      type: datetime
+      nullable: true
+      note: "Optional UTC campaign start. Null means already started."
+
+    ends_at:
+      type: datetime
+      nullable: true
+      note: "Optional UTC campaign end. Null means no scheduled end."
+
+    created_at:
+      type: datetime
+      note: "UTC timestamp when the campaign was created."
+
+    notes:
+      type: textfield
+      nullable: true
+      note: "Optional admin notes."

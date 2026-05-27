@@ -21,7 +21,7 @@
   import { text } from '@repo/ui';
   import { parseSheetEmbedContent, formatTableDimensions } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { stripEmbedLinks } from '../../../utils/embedLinkUtils';
+  import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks } from '../../../utils/embedLinkUtils';
   import { embedPIIStore } from '../../../stores/embedPIIStore';
   
   /**
@@ -164,6 +164,7 @@
    */
   const PREVIEW_CARD_WIDTH_STANDARD = 260;
   let measuredContainerWidth = $state(0);
+  let tableContainerEl: HTMLDivElement | undefined = $state(undefined);
   let columnBudget = $derived(
     isLargePreview && measuredContainerWidth > 0
       ? measuredContainerWidth - 20
@@ -218,6 +219,13 @@
       else if (typeof c.cols === 'number') localColCount = c.cols;
     }
   }
+
+  $effect(() => {
+    void previewRows;
+    if (!tableContainerEl) return;
+    const cleanup = hydrateWikiLinks(tableContainerEl, { clickable: false });
+    return cleanup;
+  });
 </script>
 
 <UnifiedEmbedPreview
@@ -251,7 +259,7 @@
         </div>
       {:else if status === 'finished' && parsedTable.headers.length > 0}
         <!-- Table preview — scrolls horizontally for wide tables -->
-        <div class="table-scroll">
+        <div class="table-scroll" bind:this={tableContainerEl}>
           <table class="preview-table" class:large-desktop={isLargeSnippet && !isMobileSnippet}>
             <colgroup>
               {#each visibleColWidths as w}
@@ -272,7 +280,14 @@
               {#each previewRows as row}
                 <tr>
                   {#each row.slice(0, visibleColCount) as cell}
-                    <td>{stripEmbedLinks(cell.content)}</td>
+                    {@const cleanCellContent = stripEmbedLinks(cell.content)}
+                    {@const wikiHtml = replaceWikiLinksInText(cleanCellContent)}
+                    {#if wikiHtml}
+                      <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
+                      <td>{@html wikiHtml}</td>
+                    {:else}
+                      <td>{cleanCellContent}</td>
+                    {/if}
                   {/each}
                   {#if hiddenColCount > 0}
                     <td class="more-cols-cell"></td>

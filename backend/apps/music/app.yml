@@ -1,3 +1,121 @@
-# todo
-# - add genius for getting song lyrics https://melaniewalsh.github.io/Intro-Cultural-Analytics/04-Data-Collection/07-Genius-API.html 
-# - add Musicbrainz.org for getting album, songs, artists details https://musicbrainz.org/doc/MusicBrainz_API
+name_translation_key: music
+description_translation_key: music.description
+icon_image: music.svg
+category: creative
+stage: production
+last_updated: "2026-05-21"
+embed_types:
+  - id: generate
+    category: app-skill-use
+    skill_id: generate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: music/MusicGenerateEmbedPreview.svelte
+    fullscreen_component: music/MusicGenerateEmbedFullscreen.svelte
+    icon: ai
+    gradient_var: "--color-app-music"
+    i18n_namespace: embeds.music.generate
+    content_fields:
+      - name: prompt
+        type: string
+        required: true
+      - name: model
+        type: string
+        required: true
+      - name: duration_seconds
+        type: number
+      - name: mode
+        type: string
+      - name: s3_base_url
+        type: string
+        required: true
+      - name: files
+        type: object
+        required: true
+      - name: aes_key
+        type: string
+        required: true
+      - name: aes_nonce
+        type: string
+        required: true
+instructions:
+  - instruction: |
+      When you use the music-generate tool, the result will confirm the track is being generated. Briefly acknowledge the request naturally (for example, "I'm creating that track now"). Do NOT output JSON, task IDs, embed IDs, or status codes.
+skills:
+  - id: generate
+    name_translation_key: app_skills.music.generate
+    description_translation_key: app_skills.music.generate.description
+    icon_image: ai.svg
+    api_config:
+      expose_get: true
+      expose_post: true
+    preprocessor_hint: >
+      Generate music from a text prompt, including full songs, instrumental tracks,
+      background music, loops, jingles, lyric-based songs, and soundtrack cues.
+      Use this when the user asks to create music or background music.
+      Do not use this to imitate the voice, vocals, cadence, or persona of a real
+      public figure, living artist, famous educator, or recognizable person. Use
+      original voices and styles only, and reject scams, spam, or detection evasion.
+    stage: production
+    class_path: backend.apps.music.skills.generate_skill.GenerateSkill
+    providers:
+      - Google
+    full_model_reference: google/lyria-3-pro-preview
+    pricing:
+      per_unit:
+        credits: 120
+        unit_name: track
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: |
+            REQUIRED: Array of music generation request objects. Each object must
+            include a prompt and can specify duration_seconds, mode, lyrics, style,
+            negative_prompt, seed, and model.
+          items:
+            type: object
+            properties:
+              prompt:
+                type: string
+                description: Text description of the music to generate.
+              mode:
+                type: string
+                enum: [song, instrumental, background, loop, jingle]
+                default: background
+                description: Desired music type.
+              lyrics:
+                type: string
+                description: Optional lyrics to include for vocal/song generation.
+              style:
+                type: string
+                description: Optional genre, mood, instrumentation, tempo, or production style.
+              duration_seconds:
+                type: integer
+                minimum: 3
+                maximum: 184
+                default: 30
+                description: Target duration in seconds. Lyria 3 Clip is 30s; Lyria 3 Pro supports longer tracks in preview.
+              negative_prompt:
+                type: string
+                description: Optional sounds, genres, instruments, or qualities to avoid.
+              seed:
+                type: integer
+                description: Optional seed for more reproducible output when supported.
+              model:
+                type: string
+                enum: [lyria-3-pro-preview, lyria-3-clip-preview, lyria-002]
+                default: lyria-3-pro-preview
+                description: Google Lyria model. Prefer lyria-3-pro-preview for latest quality.
+            required:
+              - prompt
+      required:
+        - requests
+    exclude_fields_for_llm:
+      - s3_base_url
+      - files
+      - aes_key
+      - aes_nonce
+      - vault_wrapped_aes_key

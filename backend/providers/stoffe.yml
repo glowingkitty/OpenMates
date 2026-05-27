@@ -1,0 +1,17 @@
+# backend/providers/stoffe.yml
+#
+# Configuration for Stoffe.de provider.
+# Used by the Shopping app for searching fabrics, sewing supplies, and patterns.
+
+provider_id: "stoffe"
+name: "Stoffe.de"
+description: "Stoffe.de fabric and sewing supply storefront with live product data."
+logo_svg: "icons/stoffe.svg"
+region: "EU" # Stoffe.de is operated from Germany
+privacy_policy: "https://www.stoffe.de/privacy-policy/" # verified 2026-05-25
+
+
+# API access
+# Stoffe.de product search uses the public plentymarkets storefront API.
+# The provider does not require an API key, cookies, or a proxy.
+# See backend/apps/shopping/providers/stoffe_provider.py for the shopping integration.

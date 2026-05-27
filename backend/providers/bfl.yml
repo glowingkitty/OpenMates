@@ -6,6 +6,7 @@ provider_id: "bfl"
 name: "Black Forest Labs"
 description: "High-performance image generation models including FLUX.2."
 logo_svg: "icons/blackforestlabs.svg"
+privacy_policy: "https://blackforestlabs.ai/privacy-policy/"
 
 models:
   - id: "flux-2-klein"

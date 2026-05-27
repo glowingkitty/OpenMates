@@ -6,6 +6,7 @@ provider_id: "alibaba"
 name: "Alibaba"
 description: "Alibaba Cloud AI - Qwen models"
 logo_svg: "logos/alibaba.svg"
+privacy_policy: "https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy"
 
 models:
   - id: "qwen3-235b-a22b-2507"

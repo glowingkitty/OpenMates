@@ -15,6 +15,10 @@ try:
         handle_postprocessing,
         sanitize_suggestions,
     )
+    from backend.apps.ai.processing.quick_tips import (
+        sanitize_quick_tip_slug,
+        select_hardcoded_quick_tip_slug,
+    )
     from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
@@ -292,6 +296,30 @@ class TestSanitizeSuggestions:
         assert result[2] == "[ai] No prefix but enough words here"
 
 
+class TestQuickTips:
+    def test_long_chat_selects_shorter_chats_tip(self):
+        history = [
+            {"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"}
+            for index in range(11)
+        ]
+        assert select_hardcoded_quick_tip_slug(history) == "shorter-chats-equal-better-responses"
+
+    def test_unknown_llm_slug_is_dropped(self):
+        class Logger:
+            def warning(self, *args, **kwargs):
+                pass
+
+        assert sanitize_quick_tip_slug("made-up-tip", ["web"], "test", Logger()) == ""
+
+    def test_app_specific_slug_requires_available_app(self):
+        class Logger:
+            def warning(self, *args, **kwargs):
+                pass
+
+        assert sanitize_quick_tip_slug("travel-can-add-local-context", ["web"], "test", Logger()) == ""
+        assert sanitize_quick_tip_slug("travel-can-add-local-context", ["travel"], "test", Logger()) == "travel-can-add-local-context"
+
+
 @pytest.mark.anyio
 async def test_postprocessing_translates_metadata_even_when_output_language_matches_ui(monkeypatch):
     """German-heavy history can produce German metadata even if output_language is misdetected as English."""
@@ -306,6 +334,7 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
                 "chat_summary": "Nutzer erstellt deutsche Bewerbungsunterlagen.",
                 "updated_chat_title": "Bewerbungsunterlagen erstellen",
                 "daily_inspiration_topic_suggestions": ["job applications", "cover letters", "career planning"],
+                "quick_tip_slug": "",
             }
         )
 
@@ -359,3 +388,86 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
         ("Nutzer erstellt deutsche Bewerbungsunterlagen.", "en"),
         ("Bewerbungsunterlagen erstellen", "en"),
     ]
+
+
+@pytest.mark.asyncio
+async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(monkeypatch):
+    captured_tool = {}
+
+    async def fake_call_preprocessing_llm(**kwargs):
+        captured_tool.update(kwargs["tool_definition"])
+        return LLMPreprocessingCallResult(
+            arguments={
+                "new_chat_request_suggestions": ["[ai] Explain another related concept"],
+                "harmful_response": 0.0,
+                "top_recommended_apps_for_user": [],
+                "chat_summary": "A concise summary.",
+                "updated_chat_title": "",
+                "daily_inspiration_topic_suggestions": ["learning science", "memory techniques", "study planning"],
+            }
+        )
+
+    async def fake_translate_chat_summary(task_id, summary, target_language, secrets_manager):
+        return summary
+
+    async def fake_translate_new_chat_suggestions(**kwargs):
+        return kwargs["suggestions"]
+
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.call_preprocessing_llm",
+        fake_call_preprocessing_llm,
+    )
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.translate_chat_summary",
+        fake_translate_chat_summary,
+    )
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.translate_new_chat_suggestions",
+        fake_translate_new_chat_suggestions,
+    )
+
+    base_tool = {
+        "type": "function",
+        "function": {
+            "name": "postprocess",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "follow_up_request_suggestions": {"type": "array"},
+                    "new_chat_request_suggestions": {"type": "array"},
+                    "quick_tip_slug": {"type": "string"},
+                    "chat_summary": {"type": "string"},
+                },
+                "required": [
+                    "follow_up_request_suggestions",
+                    "new_chat_request_suggestions",
+                    "quick_tip_slug",
+                    "chat_summary",
+                ],
+            },
+        },
+    }
+
+    result = await handle_postprocessing(
+        task_id="test-task",
+        user_message="Tell me something useful.",
+        assistant_response="Here is a useful answer.",
+        chat_summary="Existing summary",
+        chat_tags=["learning"],
+        message_history=[{"role": "user", "content": "Tell me something useful."}],
+        base_instructions={"postprocess_response_tool": base_tool},
+        secrets_manager=None,
+        cache_service=None,
+        available_app_ids=["ai"],
+        follow_up_suggestions_enabled=False,
+        quick_tips_enabled=False,
+    )
+
+    properties = captured_tool["function"]["parameters"]["properties"]
+    required = captured_tool["function"]["parameters"]["required"]
+    assert "follow_up_request_suggestions" not in properties
+    assert "quick_tip_slug" not in properties
+    assert "follow_up_request_suggestions" not in required
+    assert "quick_tip_slug" not in required
+    assert result.follow_up_request_suggestions == []
+    assert result.quick_tip_slugs == []

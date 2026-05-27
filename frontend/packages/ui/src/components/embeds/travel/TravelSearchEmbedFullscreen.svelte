@@ -94,6 +94,18 @@
     layovers?: LayoverData[];
   }
 
+  interface SearchLeg {
+    origin?: string;
+    destination?: string;
+    date?: string;
+  }
+
+  interface ProviderInfo {
+    id?: string;
+    name?: string;
+    icon_url?: string;
+  }
+
   /**
    * Connection result interface (transformed from child embeds)
    */
@@ -160,9 +172,12 @@
   // Local reactive state for streaming updates
   let localQuery = $state('');
   let localProvider = $state('');
+  let localProviders = $state<ProviderInfo[]>([]);
+  let localLegs = $state<SearchLeg[]>([]);
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let localResults = $state<unknown[]>([]);
+  let localResultCount = $state<number | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let storeResolved = $state(false);
   let localErrorMessage = $state('');
@@ -171,7 +186,10 @@
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
       localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '';
+      localProviders = Array.isArray(data.decodedContent?.providers) ? data.decodedContent.providers as ProviderInfo[] : [];
+      localLegs = Array.isArray(data.decodedContent?.legs) ? data.decodedContent.legs as SearchLeg[] : [];
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localResultCount = typeof data.decodedContent?.result_count === 'number' ? data.decodedContent.result_count : undefined;
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }
@@ -180,7 +198,13 @@
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
   let legacyResults = $derived(localResults);
-  let viaProvider = $derived(provider ? `${$text('embeds.via')} ${provider}` : '');
+  let providerLabel = $derived.by(() => {
+    const names = localProviders
+      .map((providerInfo) => providerInfo.name || providerInfo.id || '')
+      .filter(Boolean);
+    return names.length > 0 ? names.join(', ') : provider;
+  });
+  let viaProvider = $derived(providerLabel ? `${$text('embeds.via')} ${providerLabel}` : '');
 
   // Track loaded results for header derivation
   let headerResults = $state<ConnectionResult[]>([]);
@@ -194,15 +218,18 @@
       const first = headerResults[0];
       if (first.origin && first.destination) return `${first.origin} \u2192 ${first.destination}`;
     }
+    const firstLeg = localLegs[0];
+    const lastLeg = localLegs[localLegs.length - 1];
+    if (firstLeg?.origin && lastLeg?.destination) return `${firstLeg.origin} \u2192 ${lastLeg.destination}`;
     return query || '';
   });
 
   let headerDateDisplay = $derived.by(() => {
-    if (headerResults.length === 0) return '';
     const first = headerResults[0];
-    if (!first.departure) return '';
+    const rawDate = first?.departure || localLegs[0]?.date;
+    if (!rawDate) return '';
     try {
-      const date = new Date(first.departure);
+      const date = new Date(rawDate);
       return date.toLocaleDateString([], { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
     } catch { return ''; }
   });
@@ -220,9 +247,9 @@
   });
 
   let headerSubtitle = $derived.by(() => {
-    const count = headerResults.length;
+    const count = headerResults.length > 0 ? headerResults.length : localResultCount;
     const parts: string[] = [];
-    if (count > 0) {
+    if (count !== undefined) {
       const countLabel = count === 1
         ? `1 ${$text('embeds.connection')}`
         : `${count} ${$text('embeds.connections')}`;
@@ -503,8 +530,11 @@
     const content = data.decodedContent;
     if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
+    if (Array.isArray(content.providers)) localProviders = content.providers as ProviderInfo[];
+    if (Array.isArray(content.legs)) localLegs = content.legs as SearchLeg[];
     if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
+    if (typeof content.result_count === 'number') localResultCount = content.result_count;
     if (typeof content.error === 'string') localErrorMessage = content.error;
   }
 

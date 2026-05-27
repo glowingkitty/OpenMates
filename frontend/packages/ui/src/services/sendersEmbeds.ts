@@ -9,7 +9,6 @@
  * See docs/architecture/ for the embed encryption architecture.
  */
 import type { ChatSynchronizationService } from "./chatSyncService";
-import { webSocketService } from "./websocketService";
 import type { StoreEmbedPayload } from "../types/chat";
 
 /**
@@ -44,7 +43,8 @@ export async function sendRequestEmbed(
 		console.debug(
 			`[ChatSyncService:Senders] Requesting embed ${embed_id} from server`
 		);
-		await webSocketService.sendMessage("request_embed", { embed_id });
+		const { requestEmbedFromServerOnce } = await import("./embedResolver");
+		await requestEmbedFromServerOnce(embed_id, "chat-sync-sender");
 	} catch (error) {
 		console.error("[ChatSyncService:Senders] Error requesting embed:", error);
 		throw error;

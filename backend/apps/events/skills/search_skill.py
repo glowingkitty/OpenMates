@@ -76,6 +76,15 @@ _PROVIDER_ALIASES: Dict[str, str] = {
     "bphil": "berlin_philharmonic",
 }
 
+_PROVIDER_LABELS: Dict[str, str] = {
+    "meetup": "Meetup",
+    "luma": "Luma",
+    "google_events": "Google Events",
+    "resident_advisor": "Resident Advisor",
+    "siegessaeule": "Siegessäule",
+    "berlin_philharmonic": "Berlin Philharmonic",
+}
+
 # Platform-brand and generic filler words that narrow provider results unnecessarily.
 # Both Meetup and Luma use literal keyword matching — passing "meetup" to Meetup or
 # "luma" to Luma filters out any event that doesn't contain that word in its title,
@@ -263,6 +272,28 @@ class SearchSkill(BaseSkill):
     Execution model: direct async in app-events FastAPI container.
     No Celery dispatch — search completes in 1-5s, well within sync timeout.
     """
+
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve selected event providers before provider calls start."""
+        raw_providers = request.get("providers")
+        if isinstance(raw_providers, list) and raw_providers:
+            provider_ids = [
+                _PROVIDER_ALIASES.get(str(provider).lower().strip(), str(provider).lower().strip())
+                for provider in raw_providers
+            ]
+        else:
+            provider_choice = str(request.get("provider", "auto")).lower().strip()
+            provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
+            provider_ids = (
+                [provider_choice]
+                if provider_choice in _VALID_PROVIDERS and provider_choice != "auto"
+                else [provider_id for provider_id in _PROVIDER_LABELS]
+            )
+
+        providers = [provider_id for provider_id in provider_ids if provider_id in _PROVIDER_LABELS]
+        provider = providers[0] if len(providers) == 1 else "auto"
+        return {"provider": provider, "providers": providers}
 
     def __init__(
         self,

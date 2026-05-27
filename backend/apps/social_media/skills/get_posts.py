@@ -61,7 +61,7 @@ class GetPostsSkill(BaseSkill):
             return GetPostsResponse(error="Social media collection service temporarily unavailable")
 
         try:
-            request_items = [GetPostsRequestItem(**item).model_dump() for item in requests]
+            request_items = [GetPostsRequestItem(**item).model_dump(mode="json") for item in requests]
             placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
             task_ids: list[str] = []
             embed_ids: list[str] = []
@@ -77,6 +77,7 @@ class GetPostsSkill(BaseSkill):
                     "skill_id": self.skill_id,
                     "embed_id": embed_id,
                     "user_vault_key_id": kwargs.get("user_vault_key_id"),
+                    "external_request": kwargs.get("external_request", False),
                 }
                 task_id = await execute_skill_via_celery(
                     app_id=self.app_id,

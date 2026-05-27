@@ -191,8 +191,12 @@ export function deriveWebOrigin(apiUrl: string): string {
   try {
     const url = new URL(apiUrl);
     // api.openmates.org → https://openmates.org
-    // api.dev.openmates.org → https://dev.openmates.org
-    url.hostname = url.hostname.replace(/^api\./, "");
+    // api.dev.openmates.org → https://app.dev.openmates.org
+    if (url.hostname === "api.dev.openmates.org") {
+      url.hostname = "app.dev.openmates.org";
+    } else {
+      url.hostname = url.hostname.replace(/^api\./, "");
+    }
     url.port = "";
     return url.origin;
   } catch {

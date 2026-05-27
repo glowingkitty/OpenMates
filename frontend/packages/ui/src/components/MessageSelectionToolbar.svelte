@@ -42,6 +42,8 @@
   let left = $state(0);
   let top = $state(0);
   let placeBelow = $state(false);
+  let lastLeadingAction = '';
+  let lastLeadingActionAt = 0;
 
   function recompute() {
     if (!anchorRect) return;
@@ -79,6 +81,14 @@
     // registers at all.
     e.preventDefault();
     e.stopPropagation();
+    const now = Date.now();
+    if (e.type === 'click' && lastLeadingAction === action && now - lastLeadingActionAt < 500) {
+      return;
+    }
+    if (e.type === 'mousedown' || e.type === 'touchstart') {
+      lastLeadingAction = action;
+      lastLeadingActionAt = now;
+    }
     if (action === 'highlight') onHighlight();
     else onHighlightAndComment();
   }
@@ -118,6 +128,7 @@
       data-testid="message-selection-highlight"
       onmousedown={(e) => handle(e, 'highlight')}
       ontouchstart={(e) => handle(e, 'highlight')}
+      onclick={(e) => handle(e, 'highlight')}
     >
       <span class="clickable-icon icon_quote"></span>
       <span class="sel-btn-label">{$text('chats.context_menu.highlight')}</span>
@@ -129,6 +140,7 @@
       data-testid="message-selection-highlight-and-comment"
       onmousedown={(e) => handle(e, 'comment')}
       ontouchstart={(e) => handle(e, 'comment')}
+      onclick={(e) => handle(e, 'comment')}
     >
       <span class="clickable-icon icon_quote"></span>
       <span class="sel-btn-label">{$text('chats.context_menu.highlight_and_comment')}</span>

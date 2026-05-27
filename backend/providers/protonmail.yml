@@ -4,10 +4,11 @@
 # Used by the Mail app search skill to read a single admin mailbox via Bridge.
 
 provider_id: "protonmail"
-name: "Proton Mail Bridge"
+name: "Proton Mail"
 description: "Local Proton Mail Bridge IMAP connector for a single configured mailbox."
 logo_svg: "logos/mail.svg"
 region: "Local"
+privacy_policy: "https://proton.me/legal/privacy"
 
 # Bridge is configured via host/port/user/password secrets, not a single API key.
 # We keep provider availability controlled in app routes + skill auth checks.

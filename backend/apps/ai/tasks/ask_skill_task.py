@@ -1035,45 +1035,9 @@ async def _async_process_ai_skill_ask_task(
                             f"{len(new_cache_messages) - 1} recent)"
                         )
 
-                        # Persist compression summary to Directus for long-term storage.
-                        # The summary is vault-encrypted (server-side), stored with
-                        # encrypted_category so the sync layer can identify it.
-                        try:
-                            encrypted_category_value, _ = (
-                                await encryption_service_instance.encrypt_with_user_key(
-                                    COMPRESSION_SUMMARY_CATEGORY, user_vault_key_id
-                                )
-                            )
-                            now_ts_persist = int(time.time())
-                            celery_config.app.send_task(
-                                "app.tasks.persistence_tasks.persist_new_chat_message",
-                                kwargs={
-                                    "message_id": summary_message_id,
-                                    "chat_id": request_data.chat_id,
-                                    "hashed_user_id": request_data.user_id_hash,
-                                    "role": "system",
-                                    "encrypted_sender_name": None,
-                                    "encrypted_category": encrypted_category_value,
-                                    "encrypted_model_name": None,
-                                    "encrypted_content": encrypted_summary,
-                                    "created_at": summary_timestamp,
-                                    "new_chat_messages_version": None,
-                                    "new_last_edited_overall_timestamp": now_ts_persist,
-                                    "encrypted_chat_key": None,
-                                    "user_id": request_data.user_id,
-                                },
-                                queue="persistence",
-                            )
-                            logger.info(
-                                f"[Task ID: {task_id}] Dispatched Celery task to persist "
-                                f"compression summary {summary_message_id} to Directus"
-                            )
-                        except Exception as e_persist:
-                            # Non-fatal: summary is still in AI cache
-                            logger.warning(
-                                f"[Task ID: {task_id}] Failed to dispatch compression "
-                                f"summary persistence (non-fatal): {e_persist}"
-                            )
+                        # Compression summaries are server-readable context for AI only.
+                        # Directus chat history is client-encrypted zero-knowledge storage,
+                        # so server-encrypted summaries must never be persisted there.
 
                         # Update request_data.message_history with compressed version
                         # so preprocessing and main processing use the compressed history
@@ -1121,6 +1085,7 @@ async def _async_process_ai_skill_ask_task(
                                 "summary_token_estimate": compression_result.summary_token_estimate,
                                 "compressed_up_to_timestamp": compression_result.compressed_up_to_timestamp,
                                 "summary_message_id": summary_message_id,
+                                "summary_content": compression_result.summary_content,
                             }
                             await cache_service_instance.publish_event(
                                 compression_channel, compression_completed_payload
@@ -1995,6 +1960,7 @@ async def _async_process_ai_skill_ask_task(
             chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
+            quick_tips_enabled = (request_data.user_preferences or {}).get("quick_tips_enabled", True) is not False
 
             # Phase 1: Post-processing with category selection
             # OPE-265: Determine current chat title for post-processing title update evaluation.
@@ -2024,6 +1990,7 @@ async def _async_process_ai_skill_ask_task(
                 user_system_language=user_system_language,
                 current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
                 follow_up_suggestions_enabled=follow_up_suggestions_enabled,
+                quick_tips_enabled=quick_tips_enabled,
             )
 
 
@@ -2052,6 +2019,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
+                "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed

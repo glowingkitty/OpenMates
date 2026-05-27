@@ -22,6 +22,17 @@ from _claude_utils import run_claude_session
 
 # Maximum error snippet length per failed test entry (characters)
 MAX_ERROR_SNIPPET_LEN = 600
+ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
+ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
+
+
+def _is_essential_test_failure(test_entry: dict) -> bool:
+    """Return true when a failed test covers signup, login, or regular chat."""
+    searchable = " ".join(
+        str(test_entry.get(key, ""))
+        for key in ("file", "name", "suite")
+    ).lower()
+    return any(keyword in searchable for keyword in ESSENTIAL_TEST_KEYWORDS)
 
 
 def _load_last_run(results_dir: str) -> dict:
@@ -188,6 +199,7 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
                 failed_tests.append({
                     "suite": suite_name,
                     "name": test_entry.get("name", test_entry.get("file", "")),
+                    "file": test_entry.get("file", ""),
                     "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
                 })
 
@@ -198,6 +210,7 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
                 failed_tests.append({
                     "suite": "playwright_prod_smoke",
                     "name": test_entry.get("name", test_entry.get("file", "")),
+                    "file": test_entry.get("file", ""),
                     "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
                 })
 
@@ -210,6 +223,7 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
             all_tests.append({
                 "suite": suite_name,
                 "name": test_entry.get("name", test_entry.get("file", "")),
+                "file": test_entry.get("file", ""),
                 "status": test_entry.get("status", "unknown"),
                 "duration_seconds": test_entry.get("duration_seconds", 0),
             })
@@ -219,6 +233,7 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
             all_tests.append({
                 "suite": "playwright_prod_smoke",
                 "name": test_entry.get("name", test_entry.get("file", "")),
+                "file": test_entry.get("file", ""),
                 "status": test_entry.get("status", "unknown"),
                 "duration_seconds": test_entry.get("duration_seconds", 0),
             })
@@ -238,6 +253,27 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
         "failed_tests": failed_tests,
         "all_tests": all_tests,
     }
+
+
+def _dispatch_test_summary_email(
+    api_url: str,
+    internal_token: str,
+    payload: dict,
+    log_label: str,
+) -> None:
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        api_url,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Internal-Service-Token": internal_token,
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        resp.read()
+        print(f"[daily-runner] {log_label} email task dispatched successfully via internal API")
 
 
 def dispatch_email() -> None:
@@ -298,22 +334,32 @@ def dispatch_email() -> None:
     }
 
     try:
-        body = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            api_url,
-            data=body,
-            headers={
-                "Content-Type": "application/json",
-                "X-Internal-Service-Token": internal_token,
-            },
-            method="POST",
+        _dispatch_test_summary_email(api_url, internal_token, payload, "Summary")
+        print(
+            f"[daily-runner] Email task dispatched successfully via internal API "
+            f"(failed={normalized_payload['failed']}, total={normalized_payload['total']}, recipient={admin_email})"
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            resp.read()  # consume response body
-            print(
-                f"[daily-runner] Email task dispatched successfully via internal API "
-                f"(failed={normalized_payload['failed']}, total={normalized_payload['total']}, recipient={admin_email})"
-            )
+
+        essential_failed_tests = [
+            test for test in normalized_payload["failed_tests"]
+            if _is_essential_test_failure(test)
+        ]
+        if essential_failed_tests:
+            urgent_payload = {
+                **payload,
+                "subject_override": ESSENTIAL_FAILURE_SUBJECT,
+                "failed_tests": essential_failed_tests,
+                "failed": len(essential_failed_tests),
+                "passed": 0,
+                "skipped": 0,
+                "not_started": 0,
+                "total": len(essential_failed_tests),
+                "all_tests": [
+                    test for test in normalized_payload.get("all_tests", [])
+                    if _is_essential_test_failure(test) and test.get("status") == "failed"
+                ],
+            }
+            _dispatch_test_summary_email(api_url, internal_token, urgent_payload, "Urgent essential-flow")
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
         print(

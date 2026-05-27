@@ -9,6 +9,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
+    import { authStore } from '../../stores/authStore';
     import { personalDataStore } from '../../stores/personalDataStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
 
@@ -43,10 +44,15 @@ Based on Figma design: settings/privacy (node 1895:20576)
      * names, addresses, birthdays, custom entries, and auto-detection toggles.
      */
     function navigateToHidePersonalData() {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
         dispatch('openSettings', {
             settingsPath: 'privacy/hide-personal-data',
             direction: 'forward',
-            icon: 'privacy',
+            icon: 'anonym',
             title: $text('settings.privacy.hide_personal_data')
         });
     }
@@ -63,6 +69,11 @@ Based on Figma design: settings/privacy (node 1895:20576)
      * or immediately if the forwarder detects the profile change).
      */
     function toggleStabilityLogs(): void {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
         const newOptedOut = !($userProfile.console_log_forwarding_opted_out ?? false);
         updateProfile({ console_log_forwarding_opted_out: newOptedOut });
         // Immediately start/stop the forwarder for responsive UX
@@ -85,6 +96,11 @@ Based on Figma design: settings/privacy (node 1895:20576)
      * via the existing WebSocket profile sync flow.
      */
     function toggleDebugLogging(): void {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
         updateProfile({ debug_logging_opted_in: !debugLoggingEnabled });
     }
 
@@ -93,6 +109,11 @@ Based on Figma design: settings/privacy (node 1895:20576)
      * share browser console logs with the support team.
      */
     function navigateToShareDebugLogs() {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
         dispatch('openSettings', {
             settingsPath: 'privacy/share-debug-logs',
             direction: 'forward',
@@ -108,6 +129,11 @@ Based on Figma design: settings/privacy (node 1895:20576)
      * Navigate to the auto-deletion editing sub-page for a specific category.
      */
     function navigateToAutoDeletion(category: string) {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
         dispatch('openSettings', {
             settingsPath: `privacy/auto-deletion/${category}`,
             direction: 'forward',

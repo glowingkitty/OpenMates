@@ -1,0 +1,10 @@
+# backend/providers/reddit.yml
+#
+# Provider metadata for Reddit public social posts.
+
+provider_id: "reddit"
+name: "Reddit"
+description: "Public community posts and discussions from Reddit."
+logo_svg: "logos/reddit.svg"
+region: "US"
+privacy_policy: "https://www.reddit.com/policies/privacy-policy"

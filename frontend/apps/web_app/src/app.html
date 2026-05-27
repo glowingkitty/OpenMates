@@ -5,8 +5,9 @@
 		<!-- Prevent browser auto-translate which causes rendering bugs with dynamic text -->
 		<!-- Our app provides its own translations, so browser translate is not needed -->
 		<meta name="google" content="notranslate" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
-		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
+		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" data-openmates-favicon="primary" />
+		<link rel="alternate icon" type="image/png" href="%sveltekit.assets%/favicon.png" data-openmates-favicon="fallback" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" data-openmates-favicon="apple" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<!-- maximum-scale=5 allows users (and accessibility tools) to zoom up to 5x while still
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).

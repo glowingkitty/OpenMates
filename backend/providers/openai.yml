@@ -6,6 +6,7 @@ provider_id: "openai"
 name: "OpenAI"
 description: "AI models and services from OpenAI."
 logo_svg: "logos/openai.svg" # Path for UI, relative to a common logos directory
+privacy_policy: "https://openai.com/policies/privacy-policy/"
 
 models:
   - id: "gpt-image-2"

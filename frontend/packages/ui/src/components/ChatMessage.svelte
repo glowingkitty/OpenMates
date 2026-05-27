@@ -2043,12 +2043,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
                 // --- Math Calculate ---
                 if (appId === 'math' && skillId === 'calculate') {
-                  interface CalculateResult { expression?: string; result?: string; result_type?: string; mode?: string; steps?: string[]; error?: string; }
+                  interface CalculateResult { title?: string; expression?: string; result?: string; result_type?: string; mode?: string; steps?: string[]; error?: string; }
+                  const title = (decodedContent.title as string) || '';
                   const query = (decodedContent.query as string) || '';
                   const results = (decodedContent.results as CalculateResult[]) || [];
                   const lines: string[] = [];
+                  if (title) lines.push(`Title: ${title}`);
                   if (query) lines.push(`Expression: ${query}`);
                   for (const r of results) {
+                    if (r.title && r.title !== title) lines.push(`Title: ${r.title}`);
                     if (r.expression && r.expression !== query) lines.push(`  ${r.expression}`);
                     if (r.result) lines.push(`= ${r.result}${r.result_type ? ` (${r.result_type})` : ''}`);
                     if (r.error) lines.push(`Error: ${r.error}`);

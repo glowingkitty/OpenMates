@@ -17,8 +17,8 @@ from pydantic import BaseModel, Field
 from celery.result import AsyncResult
 
 from backend.core.api.app.tasks.celery_config import app as celery_app
-from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.routes.apps_api import SessionOrApiKeyAuth
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +45,12 @@ class TaskStatusResponse(BaseModel):
 async def get_task_status(
     task_id: str,
     request: Request,
-    user_info: Dict[str, Any] = ApiKeyAuth
+    user_info: Dict[str, Any] = SessionOrApiKeyAuth
 ):
     """
     Poll for the status and result of a long-running task.
     
-    Requires API key authentication.
+    Requires API key authentication or an authenticated session cookie.
     Rate limited to 60 requests per minute per API key.
     
     This endpoint is used for tasks that return a task ID immediately, 

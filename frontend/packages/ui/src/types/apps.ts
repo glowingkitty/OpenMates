@@ -70,6 +70,7 @@ export interface SkillPricing {
     unit_name?: string;
   };
   per_minute?: number;
+  per_second?: number;
   fixed?: number;
 }
 

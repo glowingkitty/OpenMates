@@ -46,7 +46,7 @@
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  import { hydrateEmbedLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
+  import { hydrateEmbedLinks, hydrateWikiLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
 
@@ -384,7 +384,7 @@
   });
 
   // =============================================
-  // Embed Inline Link Hydration
+  // Embed/Wiki Inline Link Hydration
   // =============================================
   $effect(() => {
     void sanitizedHtml;
@@ -392,6 +392,7 @@
     const raf = requestAnimationFrame(() => {
       if (!contentEl) return;
       embedLinkCleanup = hydrateEmbedLinks(contentEl);
+      wikiLinkCleanup = hydrateWikiLinks(contentEl);
     });
     return () => {
       cancelAnimationFrame(raf);
@@ -399,9 +400,14 @@
         embedLinkCleanup();
         embedLinkCleanup = undefined;
       }
+      if (wikiLinkCleanup) {
+        wikiLinkCleanup();
+        wikiLinkCleanup = undefined;
+      }
     };
   });
   let embedLinkCleanup: (() => void) | undefined;
+  let wikiLinkCleanup: (() => void) | undefined;
 
   // Highlight and scroll to text fragments opened from embed:ref#text=... links.
   $effect(() => {

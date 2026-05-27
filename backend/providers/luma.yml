@@ -13,6 +13,7 @@ name: "Luma"
 description: "Modern event platform for discovering and hosting in-person and online events, conferences, and meetups across 78 major cities worldwide."
 logo_svg: "logos/luma.svg"
 region: "US" # Luma HQ is in San Francisco, US
+privacy_policy: "https://lu.ma/privacy-policy"
 
 # API endpoint configuration
 # Luma uses an internal REST API discovered by reverse-engineering the luma.com web app.

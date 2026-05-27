@@ -81,7 +81,7 @@ class SearchResponse(BaseModel):
             "List of request results grouped by id. Each entry includes an id, query label, and mail result items."
         ),
     )
-    provider: str = Field(default="Proton Mail Bridge", description="Provider label")
+    provider: str = Field(default="Proton Mail", description="Provider label")
     suggestions_follow_up_requests: Optional[List[str]] = Field(
         None,
         description="Suggested follow-up actions",

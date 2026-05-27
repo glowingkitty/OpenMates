@@ -36,6 +36,7 @@
   import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
   import { sendRequestCodeRunOutputImpl, sendUpsertCodeRunOutputImpl } from '../../../services/sendersCodeRunOutputs';
   import { chatDB } from '../../../services/db';
+  import { isCodeRunSupported } from './codeRunSupport';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -324,8 +325,6 @@
   /** Whether preview mode is currently active (toggled by the preview button). */
   let previewActive = $state(false);
 
-  const RUNNABLE_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'node', 'typescript', 'ts', 'bash', 'sh', 'shell']);
-  const RUNNABLE_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.cjs', '.ts', '.sh']);
   const INSTALL_SNIPPET_LANGUAGES = new Set(['bash', 'sh', 'shell', 'terminal', 'console']);
   const PYTHON_PACKAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$/;
   const NPM_PACKAGE_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$/;
@@ -350,15 +349,7 @@
     events?: CodeRunEvent[];
   }
 
-  let isRunnable = $derived.by(() => {
-    const lang = renderLanguage.toLowerCase();
-    if (RUNNABLE_LANGUAGES.has(lang)) return true;
-    if (renderFilename) {
-      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
-      if (RUNNABLE_EXTENSIONS.has(ext)) return true;
-    }
-    return false;
-  });
+  let isRunnable = $derived.by(() => isCodeRunSupported(renderLanguage, renderFilename));
 
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
   const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
@@ -547,6 +538,22 @@
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to copy code run output:', error);
       notificationStore.error($text('app_skills.code.run.output_copy_failed'));
+    }
+  }
+
+  async function handleAskRunOutputFollowup() {
+    try {
+      const output = programRunOutputText();
+      if (!output) return;
+      const result = await copyToClipboard(output);
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      window.dispatchEvent(new CustomEvent('codeRunOutputFollowup', { detail: { output } }));
+      onShowChat?.();
+      onClose();
+      notificationStore.success($text('app_skills.code.run.followup_inserted'));
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to prepare code run output follow-up:', error);
+      notificationStore.error($text('app_skills.code.run.followup_failed'));
     }
   }
 
@@ -1219,6 +1226,7 @@
                       </div>
                     </div>
                     <div class="code-run-header-actions">
+                      <button class="code-run-again" onclick={handleAskRunOutputFollowup} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.ask_followup')}</button>
                       <button class="code-run-again" onclick={handleCopyRunOutput} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.copy_output')}</button>
                       <button class="code-run-stop" onclick={handleCancelRun} disabled={!runActive || runCancelRequested}>{runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}</button>
                       <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>

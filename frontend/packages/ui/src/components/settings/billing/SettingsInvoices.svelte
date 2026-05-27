@@ -16,6 +16,7 @@ Invoices Settings - View and download past invoices
     // Invoice interface
     interface Invoice {
         id: string;
+        order_id?: string | null;
         date: string;
         amount: string;
         credits_purchased: number;
@@ -27,6 +28,9 @@ Invoices Settings - View and download past invoices
         provider?: string | null;  // Payment provider/mode, e.g. stripe or stripe_managed.
     }
 
+    const PENDING_INVOICE_REFRESH_MS = 5000;
+    const PENDING_INVOICE_FALLBACK_MATCH_MS = 30000;
+
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
     let invoices: Invoice[] = $state([]);
@@ -36,6 +40,27 @@ Invoices Settings - View and download past invoices
     // Optimistic "processing" invoices — shown immediately after payment succeeds,
     // before the Celery task creates the real invoice in DB.
     let pendingInvoices: Invoice[] = $state([]);
+    let pendingInvoiceRefreshInterval: ReturnType<typeof setInterval> | null = null;
+
+    function stopPendingInvoiceRefresh() {
+        if (pendingInvoiceRefreshInterval) {
+            clearInterval(pendingInvoiceRefreshInterval);
+            pendingInvoiceRefreshInterval = null;
+        }
+    }
+
+    function ensurePendingInvoiceRefresh() {
+        if (pendingInvoiceRefreshInterval) return;
+        pendingInvoiceRefreshInterval = setInterval(() => {
+            if (pendingInvoices.length === 0) {
+                stopPendingInvoiceRefresh();
+                return;
+            }
+            if (!isLoading) {
+                fetchInvoices();
+            }
+        }, PENDING_INVOICE_REFRESH_MS);
+    }
 
     // Format date for display
     function formatDate(dateStr: string): string {
@@ -178,19 +203,33 @@ Invoices Settings - View and download past invoices
                 // Remove pending (optimistic) invoices that now have real DB counterparts.
                 // Match by order_id which is used as the invoice id for pending invoices.
                 if (pendingInvoices.length > 0) {
-                    const realIds = new Set(invoices.map(inv => inv.id));
+                    const realIds = new Set(invoices.flatMap(inv => [inv.id, inv.order_id].filter(Boolean) as string[]));
                     // Also match by date proximity — the real invoice may have a different ID
                     // but same credits_purchased amount within a 5-minute window
                     const now = Date.now();
                     pendingInvoices = pendingInvoices.filter(pending => {
                         // Remove if a real invoice with matching ID exists
                         if (realIds.has(pending.id)) return false;
-                        // Remove if pending invoice is older than 5 minutes (task should be done)
                         const pendingTime = new Date(pending.date).getTime();
+                        const hasMatchingReadyInvoice = invoices.some(invoice => {
+                            const sameAmount = String(invoice.amount) === String(pending.amount);
+                            const sameCredits = invoice.credits_purchased === pending.credits_purchased;
+                            const sameCurrency = (invoice.currency || 'eur').toLowerCase() === (pending.currency || 'eur').toLowerCase();
+                            const sameDate = formatDate(invoice.date) === formatDate(pending.date);
+                            return !!invoice.filename && sameAmount && sameCredits && sameCurrency && sameDate;
+                        });
+                        if (hasMatchingReadyInvoice && now - pendingTime > PENDING_INVOICE_FALLBACK_MATCH_MS) return false;
+                        // Remove if pending invoice is older than 5 minutes (task should be done)
                         if (now - pendingTime > 5 * 60 * 1000) return false;
                         // Keep — still waiting for the real invoice to appear
                         return true;
                     });
+
+                    if (pendingInvoices.length > 0) {
+                        ensurePendingInvoiceRefresh();
+                    } else {
+                        stopPendingInvoiceRefresh();
+                    }
                 }
                 
                 // Only mark invoices as ready on initial load (not after refresh)
@@ -578,6 +617,7 @@ Invoices Settings - View and download past invoices
         // Clean up websocket listeners
         webSocketService.off('credit_note_ready', handleCreditNoteReady);
         webSocketService.off('payment_completed', handlePaymentCompleted);
+        stopPendingInvoiceRefresh();
     });
 
     // Merge real invoices with pending (optimistic) ones for display.
@@ -601,6 +641,7 @@ Invoices Settings - View and download past invoices
         }
         pendingInvoices = [...pendingInvoices, {
             id: orderId,
+            order_id: orderId,
             date: new Date().toISOString(),
             amount: String(amountSmallestUnit),
             credits_purchased: creditsAmount,
@@ -610,6 +651,7 @@ Invoices Settings - View and download past invoices
             refunded_at: null,
             refund_status: null,
         }];
+        ensurePendingInvoiceRefresh();
     }
 </script>
 

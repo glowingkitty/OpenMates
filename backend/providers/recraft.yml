@@ -22,6 +22,7 @@ provider_id: "recraft"
 name: "Recraft"
 description: "State-of-the-art image generation for both raster (PNG/JPG) and vector (SVG) output. The only AI capable of producing true SVG vector graphics from text prompts."
 logo_svg: "icons/recraft.svg"
+privacy_policy: "https://www.recraft.ai/privacy" # verified 2026-05-24
 
 models:
   - id: "recraftv4_1"

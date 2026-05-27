@@ -68,6 +68,8 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
+    /** When true, shows a "Shared chat" badge/pill in the loaded header state. */
+    isSharedChat = false,
     /** MP4 URL for the in-place video player. On play-button click the video element
      *  is mounted inside the media frame and native browser fullscreen is requested.
      *  No video is loaded before the user clicks play. */
@@ -109,6 +111,8 @@
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
     isExampleChat?: boolean;
+    /** True when this chat is opened through a shared-chat link. */
+    isSharedChat?: boolean;
     /** MP4 URL — gates the play button in the media frame. The video is only
      *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
@@ -669,6 +673,7 @@
   class:is-medium-header={isMediumHeader}
   class:is-mobile-header={isMobileHeader}
   class:is-compact-teaser-header={isCompactTeaserHeader}
+  data-testid="chat-header-banner"
   style={bannerStyle}
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
@@ -773,7 +778,9 @@
           </div>
 
           {#if isExampleChat}
-            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {:else if isSharedChat}
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
           {/if}
 
           {#if !isIntroTeaserChat && showSummary}
@@ -919,7 +926,9 @@
               <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
               {#if isExampleChat}
-                <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+              {:else if isSharedChat}
+                <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
               {/if}
             </div>
           {/if}
@@ -1028,7 +1037,9 @@
           <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
           {#if isExampleChat}
-            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {:else if isSharedChat}
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
           {/if}
 
           <!-- Summary: fades in with max-height expand when available -->
@@ -1295,9 +1306,9 @@
     overflow: hidden;
   }
 
-  /* "Example chat" badge: semi-transparent pill below the title.
-     Helps unauthenticated users distinguish example chats from real ones. */
-  .example-chat-badge {
+  /* Chat kind badge: semi-transparent pill below the title. Reused for example
+     and shared chats so both states sit in the same place and visual style. */
+  .chat-kind-badge {
     display: inline-block;
     margin-top: 6px;
     padding: 3px 12px;
@@ -1567,19 +1578,6 @@
     to { opacity: 0; }
   }
 
-  .image-bubble-left {
-    left: calc(50% - 240px - 154px);
-    bottom: -42px;
-    --deco-rotate: -15deg;
-  }
-
-  .image-bubble-right {
-    right: calc(50% - 240px - 154px);
-    bottom: -42px;
-    --deco-rotate: 15deg;
-    animation-delay: 0.1s, -8s;
-  }
-
   .image-bubble:hover {
     --image-bubble-opacity: 1;
     scale: 1.12;
@@ -1648,6 +1646,19 @@
     .image-bubble {
       animation: decoEnter 0.6s ease-out 0.1s backwards !important;
     }
+  }
+
+  .image-bubble-left {
+    left: calc(50% - 240px - 154px);
+    bottom: -42px;
+    --deco-rotate: -15deg;
+  }
+
+  .image-bubble-right {
+    right: calc(50% - 240px - 154px);
+    bottom: -42px;
+    --deco-rotate: 15deg;
+    animation-delay: 0.1s, -8s;
   }
 
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */

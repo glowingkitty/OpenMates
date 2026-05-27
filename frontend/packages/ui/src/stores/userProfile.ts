@@ -18,6 +18,7 @@ export interface UserProfile {
   consent_recovery_key_stored_timestamp?: number; // Timestamp when user confirmed they stored recovery key
   language: string | null; // User's preferred language
   darkmode: boolean; // User's dark mode preference
+  ui_font: string | null; // User's preferred web UI font
   timezone: string | null; // User's timezone in IANA format (e.g., 'Europe/Berlin'). Auto-detected from browser, can be manually overridden.
   currency: string | null; // User's preferred currency
   encrypted_key?: string;
@@ -87,6 +88,10 @@ export interface UserProfile {
   // AI chat follow-up suggestion chips and proactive next-step prompts.
   // Synced cross-device via Directus + Redis cache with the AI model defaults endpoint.
   follow_up_suggestions_enabled?: boolean;
+  // AI product quick tip cards selected after assistant responses.
+  // Synced cross-device via Directus + Redis cache with the AI model defaults endpoint.
+  quick_tips_enabled?: boolean;
+  // Furry Mode is disabled until any furry art is made by human artists.
   // Total chat count as reported by the server during Phase 3 sync.
   // Stored in IndexedDB so it persists across sessions without a server round-trip.
   // Used by: ActiveChat.svelte overflow "+N" counter, SettingsAccountChats.svelte display.
@@ -120,6 +125,7 @@ export const defaultProfile: UserProfile = {
   consent_mates_default_settings: false,
   language: "en", // Default language
   darkmode: false, // Default dark mode
+  ui_font: "lexend", // Default web UI font
   timezone: null, // Auto-detected from browser on login, can be manually set
   currency: "EUR", // Default currency set to EUR
 };
@@ -147,6 +153,7 @@ export async function loadUserProfileFromDB(): Promise<void> {
         push_notification_banner_shown:
           profileFromDB.push_notification_banner_shown,
       });
+
     }
   } catch (error) {
     console.error("Failed to load user profile from database:", error);
@@ -201,6 +208,7 @@ export function updateProfile(profile: Partial<UserProfile>): void {
   if (merged.user_id || merged.username) {
     userDB.updateUserData(profile);
   }
+
 }
 
 // Add getter for components that need user data

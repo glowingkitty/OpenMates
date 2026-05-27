@@ -21,7 +21,6 @@
     import { providersMetadata } from '../../data/providersMetadata';
     import { appsMetadata } from '../../data/appsMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import Icon from '../Icon.svelte';
 
@@ -180,6 +179,18 @@
                         </span>
                     </div>
                 {/if}
+
+                {#if provider.privacy_policy}
+                    <div class="info-row">
+                        <span class="info-label">{$text('settings.privacy')}</span>
+                        <a
+                            class="info-link"
+                            href={provider.privacy_policy}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >{provider.privacy_policy}</a>
+                    </div>
+                {/if}
             </div>
         </div>
 
@@ -266,6 +277,14 @@
         color: var(--color-grey-100);
         font-size: 0.9rem;
         font-weight: 500;
+    }
+
+    .info-link {
+        color: var(--color-primary-start);
+        font-size: 0.9rem;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+        text-align: right;
     }
 
     .country-flag {

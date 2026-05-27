@@ -58,6 +58,8 @@
     alreadyActive?: boolean;
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
+    /** Callback when the countdown completes and the focus mode becomes active */
+    onActivate?: (focusId: string) => void;
     /** Callback when the user deactivates the focus mode via context menu */
     onDeactivate?: (focusId: string) => void;
     /** Callback to open focus mode details in settings */
@@ -77,6 +79,7 @@
     focusModeName,
     alreadyActive = false,
     onReject,
+    onActivate,
     onDeactivate: _onDeactivate,
     onDetails: _onDetails,
     onContextMenu: _onContextMenu,
@@ -84,22 +87,15 @@
 
   // These props are used by the renderer for context menu dispatch;
   // not directly referenced in this component's template.
-  void _onDeactivate;
-  void _onDetails;
+  $effect(() => { void _onDeactivate; void _onDetails; });
 
   // Countdown duration in seconds
   const COUNTDOWN_SECONDS = 4;
 
-  // Check if this embed was already activated or rejected in a previous mount.
-  // alreadyActive=true means the server/IndexedDB state confirms this focus mode
-  // is active on the chat, so we skip the countdown entirely (e.g., when revisiting a chat).
-  const wasAlreadyActivated = alreadyActive || activatedEmbedIds.has(id);
-  const wasAlreadyRejected = !alreadyActive && rejectedEmbedIds.has(id);
-
   // State
-  let countdownValue = $state(wasAlreadyActivated ? 0 : COUNTDOWN_SECONDS);
-  let isActivated = $state(wasAlreadyActivated);
-  let isRejected = $state(wasAlreadyRejected);
+  let countdownValue = $state(COUNTDOWN_SECONDS);
+  let isActivated = $state(false);
+  let isRejected = $state(false);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
   // Resolve the focus mode name — may be a translation key like "focus_modes.jobs_career_insights"
@@ -149,7 +145,7 @@
    * Start the countdown timer (only if not already activated)
    */
   function startCountdown() {
-    if (wasAlreadyActivated) return;
+    if (isActivated || isRejected) return;
     
     countdownValue = COUNTDOWN_SECONDS;
     countdownInterval = setInterval(() => {
@@ -160,6 +156,7 @@
         countdownInterval = null;
         isActivated = true;
         activatedEmbedIds.add(id);
+        onActivate?.(focusId);
       }
     }, 1000);
   }
@@ -293,6 +290,14 @@
   }
 
   onMount(() => {
+    // alreadyActive=true means the server/IndexedDB state confirms this focus mode
+    // is active on the chat, so we skip the countdown entirely when revisiting a chat.
+    const wasAlreadyActivated = alreadyActive || activatedEmbedIds.has(id);
+    const wasAlreadyRejected = !alreadyActive && rejectedEmbedIds.has(id);
+    countdownValue = wasAlreadyActivated ? 0 : COUNTDOWN_SECONDS;
+    isActivated = wasAlreadyActivated;
+    isRejected = wasAlreadyRejected;
+
     // Only start countdown if not already activated/rejected
     if (!wasAlreadyActivated && !wasAlreadyRejected) {
       startCountdown();

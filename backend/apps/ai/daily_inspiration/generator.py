@@ -21,7 +21,7 @@ import logging
 import random
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from backend.apps.ai.daily_inspiration.category_age_policy import (
     describe_policy_for_prompt,
@@ -114,46 +114,6 @@ def get_search_params_for_language(language: str) -> Dict[str, str]:
     """
     lang_base = (language or "en").lower().split("-")[0].split("_")[0]
     return _LANGUAGE_TO_SEARCH_PARAMS.get(lang_base, {"country": "us", "search_lang": "en"})
-
-
-def _find_age_compliant_fallback(
-    slot_candidates: List[Dict[str, Any]],
-    used_youtube_ids: set,
-    current_youtube_id: str,
-    category: str,
-) -> Optional[Dict[str, Any]]:
-    """
-    Find a same-slot fallback video that satisfies the category's age policy
-    and the content keyword filter.
-
-    The slot's candidate list is already sorted by view count descending, so
-    the first match is the best available fallback.
-
-    Args:
-        slot_candidates: Same-slot candidate universe from video_candidates_per_slot.
-        used_youtube_ids: IDs already used in this generation run (to avoid
-            duplicating a previous slot's video).
-        current_youtube_id: The ID the LLM originally picked (now rejected).
-        category: Resolved category (must exist in AVAILABLE_CATEGORIES).
-
-    Returns:
-        A candidate dict, or None if no eligible fallback exists.
-    """
-    for cand in slot_candidates:
-        cand_id = cand.get("youtube_id")
-        if not cand_id or cand_id == current_youtube_id or cand_id in used_youtube_ids:
-            continue
-        if not is_within_category_policy(category, cand.get("published_at")):
-            continue
-        # Re-run the keyword check on the fallback's metadata so we don't
-        # accidentally swap in a video that would have failed Layer 3.
-        if check_video_metadata(
-            title=cand.get("title", ""),
-            channel_name=cand.get("channel_name"),
-        ):
-            continue
-        return cand
-    return None
 
 
 def _build_tool_definition(language: str) -> Dict[str, Any]:
@@ -656,10 +616,10 @@ async def generate_inspirations(
             continue
 
         # ── Layer 5 (post-LLM): category-based video age policy (OPE-350) ────
-        # If the LLM picked a video that violates its chosen category's max-age
-        # cap, try to substitute another same-slot candidate. Drop the slot
-        # if no eligible fallback exists — we don't retry the LLM (too costly;
-        # next day's batch refills the pool).
+        # The phrase/title/assistant response were written for the exact video
+        # selected by the LLM. If that video violates the age policy, drop the
+        # slot instead of swapping in a fallback after text generation, because
+        # that creates mismatched cards (for example science text with a hiking video).
         category_resolved = category if category in AVAILABLE_CATEGORIES else "general_knowledge"
         if not is_within_category_policy(category_resolved, candidate.get("published_at")):
             cap_years = get_max_age_years(category_resolved)
@@ -672,30 +632,7 @@ async def generate_inspirations(
                 f"cap={cap_years}y age={age_str} "
                 f"video='{candidate.get('title', '')[:50]}'"
             )
-            fallback = _find_age_compliant_fallback(
-                slot_candidates=(
-                    video_candidates_per_slot[slot_idx]
-                    if slot_idx < len(video_candidates_per_slot)
-                    else []
-                ),
-                used_youtube_ids=used_youtube_ids,
-                current_youtube_id=youtube_id,
-                category=category_resolved,
-            )
-            if fallback is None:
-                logger.warning(
-                    f"[DailyInspiration][{task_id}] No age-compliant fallback for slot "
-                    f"{slot_idx} (category={category_resolved}) — dropping inspiration"
-                )
-                continue
-            logger.info(
-                f"[DailyInspiration][{task_id}] Age-policy fallback applied for slot "
-                f"{slot_idx}: category={category_resolved}, swapped "
-                f"{youtube_id} → {fallback['youtube_id']} "
-                f"(title='{fallback.get('title', '')[:50]}')"
-            )
-            candidate = fallback
-            youtube_id = fallback["youtube_id"]
+            continue
 
         video = DailyInspirationVideo(
             youtube_id=youtube_id,

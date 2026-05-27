@@ -1,0 +1,110 @@
+# backend/apps/electronics/app.yml
+#
+# Electronics app — component search and circuit-design assistance.
+#
+# The first production skill searches TI WEBENCH Power Designer for power
+# converter reference designs. Future providers can add categories such as
+# passives, connectors, semiconductors, JLCPCB/LCSC, Mouser, and Digi-Key.
+
+name_translation_key: electronics
+description_translation_key: electronics.description
+icon_image: pcbdesign.svg
+category: work
+last_updated: "2026-05-23"
+settings_and_memories: []
+instructions: []
+embed_types:
+  - id: search_components
+    category: app-skill-use
+    skill_id: search_components
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: component
+    child_frontend_type: electronics-component
+    groupable: false
+    preview_component: electronics/ElectronicsSearchEmbedPreview.svelte
+    fullscreen_component: electronics/ElectronicsSearchEmbedFullscreen.svelte
+    child_preview_component: electronics/ElectronicsComponentEmbedPreview.svelte
+    child_fullscreen_component: electronics/ElectronicsComponentEmbedFullscreen.svelte
+    icon: pcbdesign
+    gradient_var: "--color-app-electronics"
+    i18n_namespace: embeds.electronics.search_components
+skills:
+  - id: search_components
+    name_translation_key: electronics.search_components
+    description_translation_key: electronics.search_components.description
+    icon_image: pcbdesign.svg
+    preprocessor_hint: >
+      Use this skill when the user asks to find electronic components,
+      especially power converters or voltage regulators matching input voltage,
+      output voltage, output current, efficiency, BOM cost, footprint, or
+      topology requirements. Currently supports category power_converters via
+      Texas Instruments WEBENCH Power Designer.
+    stage: production
+    providers:
+      - name: Texas Instruments
+        no_api_key: true
+    class_path: |
+      backend.apps.electronics.skills.search_components.SearchComponentsSkill
+    pricing:
+      fixed: 5
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Component search requests. Use one request per distinct power rail
+            or component category.
+          items:
+            type: object
+            properties:
+              id:
+                description: Optional caller-supplied ID for correlating responses.
+              category:
+                type: string
+                enum: [power_converters]
+                description: Component category. Currently only power_converters is supported.
+              input_voltage_min:
+                type: number
+                description: Minimum input voltage in volts. For fixed input voltage, use the same value as input_voltage_max.
+              input_voltage_max:
+                type: number
+                description: Maximum input voltage in volts. For fixed input voltage, use the same value as input_voltage_min.
+              output_voltage:
+                type: number
+                description: Target output voltage in volts.
+              output_current_max:
+                type: number
+                description: Maximum output current in amps.
+              supply_type:
+                type: string
+                enum: [dc, ac]
+                default: dc
+                description: dc for DC/DC converters, ac for AC/DC converters.
+              isolated:
+                type: boolean
+                default: false
+                description: Whether the design should be isolated.
+              ambient_temp_c:
+                type: number
+                default: 30
+                description: Maximum ambient temperature in degrees Celsius.
+              optimization:
+                type: string
+                enum: [balanced, low_cost, high_efficiency, small_footprint]
+                default: balanced
+                description: Optimization goal for WEBENCH ranking.
+              max_results:
+                type: integer
+                default: 10
+                description: Maximum number of candidate components to return.
+            required:
+              - category
+              - input_voltage_min
+              - input_voltage_max
+              - output_voltage
+              - output_current_max
+      required:
+        - requests

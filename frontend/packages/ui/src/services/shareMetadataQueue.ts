@@ -16,6 +16,8 @@ export interface PendingOGMetadataUpdate {
   chat_id: string;
   title: string | null;
   summary: string | null;
+  share_pii?: boolean;
+  share_highlights?: boolean;
   created_at: number; // Unix timestamp
   retry_count: number; // Number of retry attempts
 }
@@ -117,6 +119,8 @@ class ShareMetadataQueueService {
     chatId: string,
     title: string | null,
     summary: string | null,
+    sharePii?: boolean,
+    shareHighlights?: boolean,
   ): Promise<void> {
     try {
       const update: PendingOGMetadataUpdate = {
@@ -124,6 +128,8 @@ class ShareMetadataQueueService {
         chat_id: chatId,
         title,
         summary,
+        share_pii: sharePii,
+        share_highlights: shareHighlights,
         created_at: Math.floor(Date.now() / 1000),
         retry_count: 0,
       };
@@ -307,6 +313,8 @@ class ShareMetadataQueueService {
             update.title,
             update.summary,
             true, // is_shared = true
+            update.share_pii,
+            update.share_highlights,
           );
 
           if (success) {
@@ -352,6 +360,8 @@ class ShareMetadataQueueService {
     title: string | null,
     summary: string | null,
     isShared: boolean = true,
+    sharePii?: boolean,
+    shareHighlights?: boolean,
   ): Promise<boolean> {
     try {
       const response = await fetch(getApiEndpoint("/v1/share/chat/metadata"), {
@@ -366,6 +376,8 @@ class ShareMetadataQueueService {
           title: title || null,
           summary: summary || null,
           is_shared: isShared, // Mark chat as shared on server
+          share_pii: sharePii,
+          share_highlights: shareHighlights,
         }),
         credentials: "include",
       });

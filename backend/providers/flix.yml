@@ -1,0 +1,10 @@
+# backend/providers/flix.yml
+#
+# Provider metadata for FlixBus and FlixTrain connections.
+
+provider_id: "flix"
+name: "Flix"
+description: "FlixBus and FlixTrain intercity bus and rail connections across Europe."
+logo_svg: "logos/flix.svg"
+region: "EU"
+privacy_policy: "https://www.flixbus.com/privacy-policy"

@@ -65,8 +65,7 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
-	withMockMarker
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
@@ -74,6 +73,13 @@ const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const { isSignupInterfaceVisible, openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+
+const LLM_QUICK_TIP_SLUGS = [
+	'search-current-info-next-time',
+	'travel-can-add-local-context',
+	'use-apps-for-better-results'
+];
+const QUICK_TIP_CHAT_RESPONSE_MARKER = 'Kyoto and Osaka quick tip test';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -212,6 +218,20 @@ function assertNoEncryptionErrors(
 	logCheckpoint(`[${phase}] ✅ No encryption errors detected.`);
 }
 
+async function assertLlmQuickTipCardVisible(
+	page: any,
+	logCheckpoint: (...args: any[]) => void,
+	phase: string
+): Promise<void> {
+	const quickTipCard = page.getByTestId('quick-tip-card');
+	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
+
+	const slug = await quickTipCard.getAttribute('data-quick-tip-slug');
+	logCheckpoint(`[${phase}] Quick tip card visible with slug: ${slug}`);
+	expect(slug).toBeTruthy();
+	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
+}
+
 /**
  * Ensure the sidebar (chats panel) is open.
  * The sidebar defaults to CLOSED — this helper clicks the menu toggle to open it
@@ -334,8 +354,8 @@ async function assertChatDecryptedCorrectly(
 	await expect(userMsg).toBeVisible({ timeout: 10000 });
 	await expect(assistantMsg).toBeVisible({ timeout: 10000 });
 
-	// Confirm assistant response still decrypted — must contain "Berlin".
-	await expect(assistantMsg).toContainText('Berlin', { timeout: 15000 });
+	// Confirm assistant response still decrypted.
+	await expect(assistantMsg).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 15000 });
 	logCheckpoint(`[${phase}] Messages: user + assistant visible and contain expected content.`);
 
 	// Check for error-state inline styles: opacity 0.7 + error border.
@@ -592,7 +612,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
+	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then give one concise sentence about planning food, transit, and local events for a weekend trip.`;
+	await page.keyboard.type(firstMessage);
 	await takeStepScreenshot(page, '02-message-filled');
 
 	// The send button only appears when the editor has content (hasContent reactive state).
@@ -602,7 +623,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	const messageSendStartedAt = Date.now();
 	await sendButton.click();
-	logChatCheckpoint('Sent message: "Capital of Germany?"');
+	logChatCheckpoint(`Sent message: "${firstMessage}"`);
 	await takeStepScreenshot(page, '03-message-sent');
 
 	// Wait for chat ID in URL
@@ -620,16 +641,19 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const otelFilePath = saveOtelTimeline(otelSpans, chatId, 'message-send');
 	logChatCheckpoint(`OTel timeline saved (${otelSpans.length} spans) to ${otelFilePath}`);
 
-	// Wait for assistant response containing "Berlin"
+	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
 	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toContainText('Berlin', { timeout: 45000 });
+	await expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
 	const messageResponseMs = Date.now() - messageSendStartedAt;
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
 	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });
 	expect(messageResponseMs, 'Chat response should avoid the previous 9s translation cold-start delay').toBeLessThan(30000);
 	await takeStepScreenshot(page, '04-response-received');
-	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
+	logChatCheckpoint('Confirmed travel-planning assistant response.');
+
+	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_initial_response');
+	await takeStepScreenshot(page, '04a-quick-tip-visible');
 
 	// CRITICAL: Verify exactly 2 messages in the DOM (1 user + 1 assistant).
 	// This catches the "for-everyone" demo message bleed-through bug where the
@@ -849,6 +873,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Verifying chat after tab reload...');
 	// Re-assert full decryption health
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_reload');
+	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_reload');
 	await takeStepScreenshot(page, '06-after-reload');
 
 	// Run inspectChat again to confirm client-side data survived the reload
@@ -965,6 +990,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	logChatCheckpoint('Verifying chat after re-login...');
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_relogin');
+	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_relogin');
 
 	// Run inspectChat a third time to confirm data is intact after full logout/login cycle
 	logChatCheckpoint('Running inspectChat after re-login...');

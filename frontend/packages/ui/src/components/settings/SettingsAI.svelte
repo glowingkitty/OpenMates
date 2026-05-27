@@ -45,6 +45,7 @@
     let defaultSimple = $derived($userProfile.default_ai_model_simple ?? null);
     let defaultComplex = $derived($userProfile.default_ai_model_complex ?? null);
     let followUpSuggestionsEnabled = $derived($userProfile.follow_up_suggestions_enabled !== false);
+    let quickTipsEnabled = $derived($userProfile.quick_tips_enabled !== false);
 
     let autoSelectEnabled = $derived(defaultSimple === null && defaultComplex === null);
     let manualModeEnabled = $state(false);
@@ -162,6 +163,40 @@
             console.error('[SettingsAI] Network error while saving follow-up suggestions setting:', err);
             updateProfile({ follow_up_suggestions_enabled: !nextValue });
             notificationStore.error($text('settings.ai_ask.ai_ask_settings.follow_up_suggestions_save_error'));
+        }
+    }
+
+    async function handleQuickTipsToggle(): Promise<void> {
+        const nextValue = !quickTipsEnabled;
+        updateProfile({ quick_tips_enabled: nextValue });
+
+        try {
+            const response = await fetch(getApiUrl() + apiEndpoints.settings.aiModelDefaults, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    default_ai_model_simple: defaultSimple,
+                    default_ai_model_complex: defaultComplex,
+                    quick_tips_enabled: nextValue,
+                }),
+                credentials: 'include',
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`[SettingsAI] Failed to save quick tips setting: ${response.status} – ${errorData?.detail ?? 'unknown error'}`);
+                updateProfile({ quick_tips_enabled: !nextValue });
+                notificationStore.error($text('settings.ai_ask.ai_ask_settings.quick_tips_save_error'));
+            } else {
+                notificationStore.success(
+                    nextValue
+                        ? $text('settings.ai_ask.ai_ask_settings.quick_tips_enabled')
+                        : $text('settings.ai_ask.ai_ask_settings.quick_tips_disabled')
+                );
+            }
+        } catch (err) {
+            console.error('[SettingsAI] Network error while saving quick tips setting:', err);
+            updateProfile({ quick_tips_enabled: !nextValue });
+            notificationStore.error($text('settings.ai_ask.ai_ask_settings.quick_tips_save_error'));
         }
     }
 
@@ -448,6 +483,33 @@
                 </div>
                 <p class="setting-description">
                     {$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions_description')}
+                </p>
+
+                <div class="setting-row">
+                    <div class="setting-left">
+                        <Icon name="ai" type="subsetting" size="24px" noAnimation={true} />
+                        <span class="setting-label">{$text('settings.ai_ask.ai_ask_settings.quick_tips')}</span>
+                    </div>
+                    <div class="setting-right">
+                        <div
+                            data-testid="quick-tips-toggle"
+                            onclick={handleQuickTipsToggle}
+                            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleQuickTipsToggle(); } }}
+                            role="button"
+                            tabindex="0"
+                            style="cursor: pointer;"
+                        >
+                            <div style="pointer-events: none;">
+                                <Toggle
+                                    checked={quickTipsEnabled}
+                                    ariaLabel={$text('settings.ai_ask.ai_ask_settings.quick_tips')}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="setting-description">
+                    {$text('settings.ai_ask.ai_ask_settings.quick_tips_description')}
                 </p>
 
                 {#if !isAutoSelectOn}

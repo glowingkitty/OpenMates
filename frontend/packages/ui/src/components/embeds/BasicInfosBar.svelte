@@ -154,6 +154,7 @@
     if (customStatusText) return customStatusText;
     if (status === 'processing') return $text('common.processing');
     if (status === 'cancelled') return $text('embeds.cancelled');
+    if (status === 'finished') return '';
     return $text('embeds.error');
   });
 
@@ -344,6 +345,24 @@
   .basic-infos-bar.desktop .app-icon-circle .icon_rounded::after {
     filter: brightness(0) invert(1);
   }
+
+  :global(.icon_rounded.social_media),
+  :global(.icon_rounded.socialmedia) {
+    background: var(--color-app-socialmedia);
+  }
+
+  :global(.icon_rounded.social_media::after),
+  :global(.icon_rounded.socialmedia::after) {
+    background-image: url('@openmates/ui/static/icons/socialmedia.svg');
+  }
+
+  :global(.icon_rounded.nutrition) {
+    background: var(--color-app-nutrition);
+  }
+
+  :global(.icon_rounded.nutrition::after) {
+    background-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
   
   /* Skill icon: 29x29px with color-grey-70, dynamically set icon via data attribute */
   .basic-infos-bar.desktop .skill-icon {
@@ -388,6 +407,11 @@
   .basic-infos-bar .skill-icon[data-skill-icon="image"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/image.svg');
     mask-image: url('@openmates/ui/static/icons/image.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="music"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/music.svg');
+    mask-image: url('@openmates/ui/static/icons/music.svg');
   }
   
   .basic-infos-bar .skill-icon[data-skill-icon="ai"] {

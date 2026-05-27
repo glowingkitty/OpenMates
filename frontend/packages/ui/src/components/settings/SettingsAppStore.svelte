@@ -192,6 +192,9 @@
         }
         return [];
     });
+    let hasPersonalizedTopRecommendedApps = $derived(
+        isAuthenticated && ($userProfile.top_recommended_apps?.filter(appId => apps[appId]).length ?? 0) > 0
+    );
     
     /**
      * Get most used apps as AppMetadata objects.
@@ -210,7 +213,9 @@
      */
     function getCategoryDisplayName(categoryKey: string): string {
         const translationMap: Record<string, string> = {
-            'top_picks': 'settings.app_store.categories.explore_discover',
+            'top_picks': hasPersonalizedTopRecommendedApps
+                ? 'settings.app_store.categories.top_picks'
+                : 'settings.app_store.categories.explore_discover',
             'most_used': 'settings.app_store.categories.most_used',
             'new_apps': 'settings.app_store.categories.new_apps',
             'for_work': 'settings.app_store.categories.for_work',

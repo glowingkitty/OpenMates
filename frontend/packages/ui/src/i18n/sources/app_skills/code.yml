@@ -87,10 +87,28 @@ run.copy_output:
   de: Ausgabe kopieren
   verified_by_human: [en, de]
 
+run.ask_followup:
+  context: Button to copy Code Run output and insert it into the message input as a code snippet for asking follow-up questions
+  en: Ask follow-up
+  de: Nachfrage stellen
+  verified_by_human: [en, de]
+
 run.output_copied:
   context: Toast shown after copying Code Run program output
   en: Program output copied to clipboard
   de: Programmausgabe in die Zwischenablage kopiert
+  verified_by_human: [en, de]
+
+run.followup_inserted:
+  context: Toast shown after Code Run output was copied and inserted into the message input as a code snippet
+  en: Program output added to the message input
+  de: Programmausgabe wurde zum Nachrichtenfeld hinzugefügt
+  verified_by_human: [en, de]
+
+run.followup_failed:
+  context: Toast shown when Code Run output could not be copied or inserted into the message input
+  en: Failed to add program output to the message input
+  de: Programmausgabe konnte nicht zum Nachrichtenfeld hinzugefügt werden
   verified_by_human: [en, de]
 
 run.output_copy_failed:

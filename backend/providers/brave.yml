@@ -8,6 +8,7 @@ name: "Brave Search"
 description: "Privacy-preserving web search API with independent index."
 logo_svg: "logos/brave.svg" # Path for UI, relative to a common logos directory
 region: "US" # Brave Search HQ is in San Francisco, US
+privacy_policy: "https://brave.com/privacy/browser/"
 
 # API endpoint configuration
 api_base_url: "https://api.search.brave.com/res/v1"
@@ -70,4 +71,3 @@ rate_limits:
 #       not the user-facing pricing
 pricing:
   per_request_credits: 10 # Always 10 credits per search request for users
-

@@ -291,6 +291,18 @@
 				quoteText: 'Interactive plot of f(x) = sin(x) and f(x) = cos(x) over [-2pi, 2pi].'
 			}
 		],
+		music: [
+			{
+				skillLabel: 'Generate',
+				appId: 'music',
+				previewPath: 'embeds/music/MusicGenerateEmbedPreview',
+				fullscreenPath: 'embeds/music/MusicGenerateEmbedFullscreen',
+				inlineLinkText: 'Ambient synth background loop',
+				quoteText:
+					'Generated music: a 30 second ambient synth background loop with soft pads and no drums.',
+				isAppSkill: true
+			}
+		],
 		events: [
 			{
 				skillLabel: 'Event',
@@ -459,6 +471,25 @@
 				inlineLinkText: 'Bio Vollmilch-Joghurt Naturell',
 				quoteText: 'Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR.'
 			}
+		],
+		electronics: [
+			{
+				skillLabel: 'Search Components',
+				appId: 'electronics',
+				previewPath: 'embeds/electronics/ElectronicsSearchEmbedPreview',
+				fullscreenPath: 'embeds/electronics/ElectronicsSearchEmbedFullscreen',
+				inlineLinkText: '12V to 3.3V buck converter',
+				quoteText: 'Found 10 TI WEBENCH buck converter designs. Top pick: TPS564257DRLR.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Component',
+				appId: 'electronics',
+				previewPath: 'embeds/electronics/ElectronicsComponentEmbedPreview',
+				fullscreenPath: 'embeds/electronics/ElectronicsComponentEmbedFullscreen',
+				inlineLinkText: 'TPS564257DRLR',
+				quoteText: 'TPS564257DRLR - Buck converter, 92.4% efficiency, 0.47 USD BOM.'
+			}
 		]
 	};
 
@@ -473,6 +504,7 @@
 		travel: 'travel',
 		maps: 'maps',
 		math: 'math',
+		music: 'music',
 		events: 'event',
 		reminder: 'reminder',
 		sheets: 'sheets',
@@ -481,6 +513,7 @@
 		mail: 'mail',
 		pdf: 'pdf',
 		shopping: 'shopping',
+		electronics: 'pcbdesign',
 		home: 'home',
 		nutrition: 'nutrition'
 	};
@@ -495,6 +528,7 @@
 		'travel',
 		'maps',
 		'math',
+		'music',
 		'events',
 		'reminder',
 		'sheets',
@@ -503,6 +537,7 @@
 		'mail',
 		'pdf',
 		'shopping',
+		'electronics',
 		'home',
 		'nutrition'
 	];
@@ -764,6 +799,7 @@
 	 */
 	const DIRECT_PROP_NAMES = new Set([
 		'product',
+		'component',
 		'recipe',
 	]);
 

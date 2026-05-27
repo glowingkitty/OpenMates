@@ -344,6 +344,51 @@ class SearchConnectionsSkill(BaseSkill):
         "Search for trains instead",
     ]
 
+    @classmethod
+    def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve selected transport providers before network search starts."""
+        transport_methods = request.get("transport_methods")
+        if not isinstance(transport_methods, list) or not transport_methods:
+            transport_methods = ["airplane"]
+
+        requested_providers = request.get("providers")
+        requested_ids = (
+            {
+                str(provider).strip().lower()
+                for provider in requested_providers
+                if str(provider).strip().lower() in VALID_PROVIDER_IDS
+            }
+            if isinstance(requested_providers, list)
+            else set()
+        )
+
+        selected_ids: list[str] = []
+        for method in transport_methods:
+            if method == "airplane":
+                selected_ids.append("google_flights")
+            elif method == "train":
+                selected_ids.extend(["deutsche_bahn", "flix"])
+            elif method == "bus":
+                selected_ids.append("flix")
+
+        if requested_ids:
+            selected_ids = [provider_id for provider_id in selected_ids if provider_id in requested_ids]
+
+        seen: set[str] = set()
+        providers: list[Dict[str, str]] = []
+        for provider_id in selected_ids:
+            if provider_id in seen or provider_id not in PROVIDER_REGISTRY:
+                continue
+            seen.add(provider_id)
+            providers.append({"id": provider_id, **PROVIDER_REGISTRY[provider_id]})
+
+        provider = providers[0]["name"] if len(providers) == 1 else ""
+        return {
+            "provider": provider,
+            "providers": providers,
+            "query": _request_query_summary(request),
+        }
+
     async def execute(
         self,
         requests: List[Dict[str, Any]],

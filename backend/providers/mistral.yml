@@ -6,6 +6,7 @@ provider_id: "mistral"
 name: "Mistral AI"
 description: "AI models and services from Mistral AI."
 logo_svg: "logos/mistral.svg" # Path for UI, relative to logos directory
+privacy_policy: "https://legal.mistral.ai/terms/privacy-policy" # verified 2026-05-24
 
 models:
   - id: "mistral-small-2506" # Official model ID — Mistral Small 3.2 (June 2025 pinned version)

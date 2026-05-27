@@ -64,7 +64,7 @@
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
     // Code embed service - creates proper embeds for pasted code/text
-    import { createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { createCodeEmbed, createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
 
@@ -1820,11 +1820,18 @@
         }
         window.addEventListener('docsMessagePrefill', handleDocsPrefill);
 
+        function handleCodeRunOutputFollowup(event: Event) {
+            const { output } = (event as CustomEvent<{ output?: string }>).detail ?? {};
+            void insertCodeRunOutputFollowup(output);
+        }
+        window.addEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
+
         return () => {
             cleanup();
             unsubscribeAiTyping();
             unsubscribeText();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
+            window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
         };
     });
  
@@ -3909,6 +3916,45 @@
         }
     }
 
+    async function insertCodeRunOutputFollowup(rawOutput: string | undefined) {
+        const output = sanitizeText(rawOutput || '').trimEnd();
+        if (!editor || editor.isDestroyed || !output.trim()) return;
+
+        try {
+            if (!$authStore.isAuthenticated) {
+                const embedId = generateUUID();
+                editor.commands.insertContent({
+                    type: 'embed',
+                    attrs: {
+                        id: embedId,
+                        type: 'code-code',
+                        status: 'finished',
+                        contentRef: `preview:code:${embedId}`,
+                        code: output,
+                        language: 'text',
+                        filename: 'run-output.txt',
+                        lineCount: output.split('\n').length,
+                    }
+                });
+                editor.commands.insertContent(' ');
+            } else {
+                const embedResult = await createCodeEmbed(output, 'text', 'run-output.txt');
+                updateOriginalMarkdown(editor);
+                const currentMarkdown = originalMarkdown || '';
+                originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
+                updateEditorFromMarkdown(editor, originalMarkdown);
+            }
+
+            editor.commands.focus('end');
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateOriginalMarkdown(editor);
+            lastEditorUpdateText = editor.getText();
+            triggerSaveDraft(currentChatId);
+        } catch (error) {
+            console.error('[MessageInput] Failed to insert code run output follow-up embed:', error);
+        }
+    }
+
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
@@ -3949,6 +3995,7 @@
 
     // --- Public API ---
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
+    export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);
@@ -4456,6 +4503,7 @@
         {#if showFocusPill}
             <div
                 class="focus-pill"
+                data-testid="focus-pill"
                 style="--focus-pill-gradient: var(--color-app-{activeFocusAppId}, linear-gradient(135deg, #5856d6, #a78bfa))"
                 transition:fade={{ duration: 200 }}
             >
@@ -4472,7 +4520,7 @@
                             aria-hidden="true"
                         ></span>
                     {/if}
-                    <span class="focus-pill-label">
+                    <span class="focus-pill-label" data-testid="focus-pill-label">
                         {#if activeFocusModeMetadata}
                             {$text(activeFocusModeMetadata.name_translation_key)}
                         {:else}

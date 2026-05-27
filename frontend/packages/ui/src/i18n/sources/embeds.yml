@@ -4272,6 +4272,117 @@ shopping.search_products:
   he: חיפוש
   verified_by_human: [en, de]
 
+electronics.search_components:
+  context: Electronics search components skill label shown in BasicInfosBar
+  en: Search components
+  de: Komponenten suchen
+  verified_by_human: [en, de]
+electronics.component:
+  context: Singular label for an electronics component result
+  en: component
+  de: Komponente
+  verified_by_human: [en, de]
+electronics.components:
+  context: Plural label for electronics component results
+  en: components
+  de: Komponenten
+  verified_by_human: [en, de]
+electronics.efficiency:
+  context: Electronics result metric label for converter efficiency
+  en: Efficiency
+  de: Effizienz
+  verified_by_human: [en, de]
+electronics.bom_cost:
+  context: Electronics result metric label for bill-of-materials cost
+  en: BOM cost
+  de: BOM-Kosten
+  verified_by_human: [en, de]
+electronics.bom_count:
+  context: Electronics result metric label for bill-of-materials part count
+  en: BOM parts
+  de: BOM-Teile
+  verified_by_human: [en, de]
+electronics.footprint:
+  context: Electronics result metric label for board footprint area
+  en: Footprint
+  de: Footprint
+  verified_by_human: [en, de]
+electronics.frequency:
+  context: Electronics result metric label for switching frequency
+  en: Frequency
+  de: Frequenz
+  verified_by_human: [en, de]
+electronics.output_current:
+  context: Electronics result metric label for maximum output current
+  en: Output current
+  de: Ausgangsstrom
+  verified_by_human: [en, de]
+electronics.output_ripple:
+  context: Electronics result metric label for output ripple voltage
+  en: Output ripple
+  de: Ausgangsripple
+  verified_by_human: [en, de]
+electronics.input_voltage:
+  context: Electronics result metric label for input voltage range
+  en: Input voltage
+  de: Eingangsspannung
+  verified_by_human: [en, de]
+electronics.output_voltage:
+  context: Electronics result metric label for output voltage range
+  en: Output voltage
+  de: Ausgangsspannung
+  verified_by_human: [en, de]
+electronics.topology:
+  context: Electronics result metric label for converter topology
+  en: Topology
+  de: Topologie
+  verified_by_human: [en, de]
+electronics.regulator_type:
+  context: Electronics result metric label for regulator type
+  en: Regulator type
+  de: Reglertyp
+  verified_by_human: [en, de]
+electronics.control_mode:
+  context: Electronics result metric label for regulator control mode
+  en: Control mode
+  de: Regelmodus
+  verified_by_human: [en, de]
+electronics.isolated:
+  context: Electronics result metric label for isolation support
+  en: Isolated
+  de: Isoliert
+  verified_by_human: [en, de]
+electronics.yes:
+  context: Boolean yes value in electronics embed details
+  en: Yes
+  de: Ja
+  verified_by_human: [en, de]
+electronics.no:
+  context: Boolean no value in electronics embed details
+  en: No
+  de: Nein
+  verified_by_human: [en, de]
+electronics.product_page:
+  context: Link label for a TI product page in electronics component embeds
+  en: Product page
+  de: Produktseite
+  verified_by_human: [en, de]
+electronics.datasheet:
+  context: Link label for a component datasheet in electronics component embeds
+  en: Datasheet
+  de: Datenblatt
+  verified_by_human: [en, de]
+electronics.performance:
+  context: Section title for performance metrics in electronics component embeds
+  en: Performance
+  de: Leistung
+  verified_by_human: [en, de]
+electronics.electrical:
+  context: Section title for electrical specifications in electronics component embeds
+  en: Electrical
+  de: Elektrisch
+  verified_by_human: [en, de]
+
 math.calculate:
   context: Math Calculate skill label shown in BasicInfosBar
   en: Calculate
@@ -4873,7 +4984,7 @@ home.search.results_count:
 
 nutrition.search_recipes:
   context: Nutrition recipe search skill label shown in embed preview
-  en: Recipe Search
+  en: Search Recipes
   de: Rezeptsuche
   zh: 食谱搜索
   es: Búsqueda de recetas
@@ -5196,6 +5307,56 @@ wiki.open_on_wikipedia:
   he: פתח בוויקיפדיה
   verified_by_human: []
 
+wiki.wikipedia:
+  context: Skill label shown on Wikipedia embed preview cards
+  en: Wikipedia
+  de: Wikipedia
+  zh: 维基百科
+  es: Wikipedia
+  fr: Wikipédia
+  pt: Wikipédia
+  ru: Википедия
+  ja: Wikipedia
+  ko: 위키백과
+  it: Wikipedia
+  tr: Vikipedi
+  vi: Wikipedia
+  id: Wikipedia
+  pl: Wikipedia
+  nl: Wikipedia
+  ar: ويكيبيديا
+  hi: विकिपीडिया
+  th: Wikipedia
+  cs: Wikipedie
+  sv: Wikipedia
+  he: ויקיפדיה
+  verified_by_human: []
+
+wiki.source_label:
+  context: Short source label shown on Wikipedia embed preview cards
+  en: Wikipedia article
+  de: Wikipedia-Artikel
+  zh: 维基百科文章
+  es: Artículo de Wikipedia
+  fr: Article Wikipédia
+  pt: Artigo da Wikipédia
+  ru: Статья Википедии
+  ja: Wikipedia記事
+  ko: 위키백과 문서
+  it: Articolo di Wikipedia
+  tr: Vikipedi maddesi
+  vi: Bài viết Wikipedia
+  id: Artikel Wikipedia
+  pl: Artykuł Wikipedii
+  nl: Wikipedia-artikel
+  ar: مقالة ويكيبيديا
+  hi: विकिपीडिया लेख
+  th: บทความ Wikipedia
+  cs: Článek Wikipedie
+  sv: Wikipedia-artikel
+  he: ערך בוויקיפדיה
+  verified_by_human: []
+
 wiki.loading:
   context: Loading state while fetching Wikipedia article data
   en: Loading...
@@ -5245,6 +5406,199 @@ wiki.article_not_found:
   sv: Artikel hittades inte
   he: הערך לא נמצא
   verified_by_human: []
+
+music_generate.generating:
+  context: Status text shown while generated music is being created
+  en: Generating music...
+  de: Musik wird generiert...
+  zh: Generating music...
+  es: Generating music...
+  fr: Generating music...
+  pt: Generating music...
+  ru: Generating music...
+  ja: Generating music...
+  ko: Generating music...
+  it: Generating music...
+  tr: Generating music...
+  vi: Generating music...
+  id: Generating music...
+  pl: Generating music...
+  nl: Generating music...
+  ar: Generating music...
+  hi: Generating music...
+  th: Generating music...
+  cs: Generating music...
+  sv: Generating music...
+  he: Generating music...
+  verified_by_human: [en, de]
+music_generate.loading:
+  context: Text shown while generated music audio is loading
+  en: Loading audio...
+  de: Audio wird geladen...
+  zh: Loading audio...
+  es: Loading audio...
+  fr: Loading audio...
+  pt: Loading audio...
+  ru: Loading audio...
+  ja: Loading audio...
+  ko: Loading audio...
+  it: Loading audio...
+  tr: Loading audio...
+  vi: Loading audio...
+  id: Loading audio...
+  pl: Loading audio...
+  nl: Loading audio...
+  ar: Loading audio...
+  hi: Loading audio...
+  th: Loading audio...
+  cs: Loading audio...
+  sv: Loading audio...
+  he: Loading audio...
+  verified_by_human: [en, de]
+music_generate.error:
+  context: Error title for generated music embeds
+  en: Music generation failed
+  de: Musikgenerierung fehlgeschlagen
+  zh: Music generation failed
+  es: Music generation failed
+  fr: Music generation failed
+  pt: Music generation failed
+  ru: Music generation failed
+  ja: Music generation failed
+  ko: Music generation failed
+  it: Music generation failed
+  tr: Music generation failed
+  vi: Music generation failed
+  id: Music generation failed
+  pl: Music generation failed
+  nl: Music generation failed
+  ar: Music generation failed
+  hi: Music generation failed
+  th: Music generation failed
+  cs: Music generation failed
+  sv: Music generation failed
+  he: Music generation failed
+  verified_by_human: [en, de]
+music_generate.prompt_label:
+  context: Label for generated music prompt
+  en: Prompt
+  de: Prompt
+  zh: Prompt
+  es: Prompt
+  fr: Prompt
+  pt: Prompt
+  ru: Prompt
+  ja: Prompt
+  ko: Prompt
+  it: Prompt
+  tr: Prompt
+  vi: Prompt
+  id: Prompt
+  pl: Prompt
+  nl: Prompt
+  ar: Prompt
+  hi: Prompt
+  th: Prompt
+  cs: Prompt
+  sv: Prompt
+  he: Prompt
+  verified_by_human: [en, de]
+music_generate.model_label:
+  context: Label for generated music model
+  en: Model
+  de: Modell
+  zh: Model
+  es: Model
+  fr: Model
+  pt: Model
+  ru: Model
+  ja: Model
+  ko: Model
+  it: Model
+  tr: Model
+  vi: Model
+  id: Model
+  pl: Model
+  nl: Model
+  ar: Model
+  hi: Model
+  th: Model
+  cs: Model
+  sv: Model
+  he: Model
+  verified_by_human: [en, de]
+music_generate.duration:
+  context: Label for generated music duration
+  en: Duration
+  de: Dauer
+  zh: Duration
+  es: Duration
+  fr: Duration
+  pt: Duration
+  ru: Duration
+  ja: Duration
+  ko: Duration
+  it: Duration
+  tr: Duration
+  vi: Duration
+  id: Duration
+  pl: Duration
+  nl: Duration
+  ar: Duration
+  hi: Duration
+  th: Duration
+  cs: Duration
+  sv: Duration
+  he: Duration
+  verified_by_human: [en, de]
+music_generate.generated_at:
+  context: Label for generated music creation timestamp
+  en: Generated
+  de: Generiert
+  zh: Generated
+  es: Generated
+  fr: Generated
+  pt: Generated
+  ru: Generated
+  ja: Generated
+  ko: Generated
+  it: Generated
+  tr: Generated
+  vi: Generated
+  id: Generated
+  pl: Generated
+  nl: Generated
+  ar: Generated
+  hi: Generated
+  th: Generated
+  cs: Generated
+  sv: Generated
+  he: Generated
+  verified_by_human: [en, de]
+music_generate.watermarking:
+  context: Label for generated music watermarking metadata
+  en: Watermarking
+  de: Wasserzeichen
+  zh: Watermarking
+  es: Watermarking
+  fr: Watermarking
+  pt: Watermarking
+  ru: Watermarking
+  ja: Watermarking
+  ko: Watermarking
+  it: Watermarking
+  tr: Watermarking
+  vi: Watermarking
+  id: Watermarking
+  pl: Watermarking
+  nl: Watermarking
+  ar: Watermarking
+  hi: Watermarking
+  th: Watermarking
+  cs: Watermarking
+  sv: Watermarking
+  he: Watermarking
+  verified_by_human: [en, de]
 
 wiki.source_wikipedia:
   context: Attribution text for Wikipedia content

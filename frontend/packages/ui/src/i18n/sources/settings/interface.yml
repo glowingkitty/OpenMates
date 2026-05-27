@@ -71,6 +71,13 @@ language:
   he: שפה
   verified_by_human: []
 
+customization:
+  context: Customization settings menu item in interface section
+  en: Customization
+  verified_by_human: []
+
+# Furry Mode strings are disabled until any furry art is made by human artists.
+
 dark_mode:
   context: Dark mode settings menu item in interface section — shown as the row title on the sub-page entry
   en: Dark mode
@@ -94,6 +101,141 @@ dark_mode:
   cs: Tmavý režim
   sv: Mörkt läge
   he: מצב כהה
+  verified_by_human: []
+
+font:
+  context: Font settings menu item in interface section
+  en: Font
+  verified_by_human: []
+
+font.lexend:
+  context: Interface font option using the OpenMates default Lexend Deca font
+  en: Lexend Deca
+  verified_by_human: []
+
+font.lexend.description:
+  context: Description for the default OpenMates interface font option
+  en: OpenMates default
+  verified_by_human: []
+
+font.figtree:
+  context: Interface font option using the Figtree font
+  en: Figtree
+  verified_by_human: []
+
+font.figtree.description:
+  context: Description for the Figtree interface font option
+  en: Friendly modern UI
+  verified_by_human: []
+
+font.rubik:
+  context: Interface font option using the Rubik font
+  en: Rubik
+  verified_by_human: []
+
+font.rubik.description:
+  context: Description for the Rubik interface font option
+  en: Rounded and readable
+  verified_by_human: []
+
+font.inter:
+  context: Interface font option using the Inter font
+  en: Inter
+  verified_by_human: []
+
+font.inter.description:
+  context: Description for the Inter interface font option
+  en: Neutral app interface
+  verified_by_human: []
+
+font.public_sans:
+  context: Interface font option using the Public Sans font
+  en: Public Sans
+  verified_by_human: []
+
+font.public_sans.description:
+  context: Description for the Public Sans interface font option
+  en: Clear professional style
+  verified_by_human: []
+
+font.atkinson:
+  context: Interface font option using the Atkinson Hyperlegible font
+  en: Atkinson Hyperlegible
+  verified_by_human: []
+
+font.atkinson.description:
+  context: Description for the Atkinson Hyperlegible interface font option
+  en: Designed for readability
+  verified_by_human: []
+
+font.ibm_plex_sans:
+  context: Interface font option using the IBM Plex Sans font
+  en: IBM Plex Sans
+  verified_by_human: []
+
+font.ibm_plex_sans.description:
+  context: Description for the IBM Plex Sans interface font option
+  en: Technical and balanced
+  verified_by_human: []
+
+font.source_serif:
+  context: Interface font option using the Source Serif font
+  en: Source Serif 4
+  verified_by_human: []
+
+font.source_serif.description:
+  context: Description for the Source Serif interface font option
+  en: Long-form reading
+  verified_by_human: []
+
+font.jetbrains_mono:
+  context: Interface font option using the JetBrains Mono font
+  en: JetBrains Mono
+  verified_by_human: []
+
+font.jetbrains_mono.description:
+  context: Description for the JetBrains Mono interface font option
+  en: Developer-focused mono
+  verified_by_human: []
+
+font.ibm_plex_mono:
+  context: Interface font option using the IBM Plex Mono font
+  en: IBM Plex Mono
+  verified_by_human: []
+
+font.ibm_plex_mono.description:
+  context: Description for the IBM Plex Mono interface font option
+  en: Clean fixed width
+  verified_by_human: []
+
+font.system:
+  context: Interface font option using the operating system UI font
+  en: System
+  verified_by_human: []
+
+font.system.description:
+  context: Description for the system interface font option
+  en: Uses your device's default UI font
+  verified_by_human: []
+
+font.serif:
+  context: Interface font option using a classic serif font stack
+  en: Serif
+  verified_by_human: []
+
+font.serif.description:
+  context: Description for the serif interface font option
+  en: Classic reading style
+  verified_by_human: []
+
+font.mono:
+  context: Interface font option using a monospace font stack
+  en: Mono
+  verified_by_human: []
+
+font.mono.description:
+  context: Description for the monospace interface font option
+  en: Code-like fixed width
   verified_by_human: []
 
 dark_mode.auto:

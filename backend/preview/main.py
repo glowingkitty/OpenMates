@@ -201,7 +201,7 @@ async def cors_middleware(request: Request, call_next):
     
     # Always set Vary: Origin so intermediate caches (CDN, Caddy, browser) know
     # that the response varies based on the requesting origin. This prevents a response
-    # cached for one origin (e.g., dev.openmates.org) from being served to another
+    # cached for one origin (e.g., app.dev.openmates.org) from being served to another
     # origin (e.g., openmates.org) with the wrong Access-Control-Allow-Origin header.
     response.headers["Vary"] = "Origin"
     

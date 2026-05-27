@@ -147,6 +147,8 @@ TASK_CONFIG = [
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
+    {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
+    {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks
     {'name': 'app_social_media', 'module': 'backend.apps.social_media.tasks'},  # Social media collection tasks
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
@@ -160,10 +162,11 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
-     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
-     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
-     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
-     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
+    {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
+    {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
+    {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
+    {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
  ]
 
 
@@ -1359,6 +1362,13 @@ app.conf.beat_schedule = {
         'task': 'ephemeral_logs.promote_error_sessions',
         'schedule': timedelta(seconds=900),  # Every 15 minutes
         'options': {'queue': 'persistence'},
+    },
+    # Daily issue digest - aggregates sanitized prod/dev errors, default client
+    # diagnostics, and latest test failures into email + OpenCode handoff files.
+    'daily-issue-digest-weekdays': {
+        'task': 'app.tasks.email_tasks.daily_issue_digest_task.send_daily_issue_digest',
+        'schedule': crontab(hour=8, minute=30, day_of_week='1-5'),  # Weekdays 08:30 UTC
+        'options': {'queue': 'email'},
     },
     # Daily Inspiration generation - generates personalized inspirations for active users.
     # Runs at 06:00 UTC (morning delivery before users start their day in most timezones).

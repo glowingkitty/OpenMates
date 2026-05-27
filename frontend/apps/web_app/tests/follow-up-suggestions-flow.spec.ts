@@ -40,6 +40,12 @@ const { expectNoFollowUpSuggestions } = require('./helpers/llm-eval');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
+const LLM_QUICK_TIP_SLUGS = [
+	'search-current-info-next-time',
+	'travel-can-add-local-context',
+	'use-apps-for-better-results'
+];
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
@@ -104,11 +110,24 @@ async function setFollowUpSuggestions(
 	}
 }
 
+async function expectLlmQuickTipCard(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+): Promise<void> {
+	const quickTipCard = page.getByTestId('quick-tip-card');
+	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
+
+	const slug = await quickTipCard.getAttribute('data-quick-tip-slug');
+	log(`Quick tip card visible with slug: ${slug}`);
+	expect(slug).toBeTruthy();
+	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
+}
+
 // ---------------------------------------------------------------------------
-// Test: Follow-up suggestions appear and clicking one populates editor
+// Test: Follow-up suggestions appear after an AI response
 // ---------------------------------------------------------------------------
 
-test('shows follow-up suggestion chips after AI response and clicking one fills the editor', async ({
+test('shows follow-up suggestion chips after AI response', async ({
 	page
 }: {
 	page: any;
@@ -185,28 +204,13 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	log(`Number of suggestion chips: ${chipCount}`);
 	expect(chipCount).toBeGreaterThan(0);
 
-	// Get the text of the first suggestion
+	// Verify the first suggestion has visible text. The separate input insertion
+	// behavior is covered by MessageInput component tests; this flow only needs
+	// to prove post-processing suggestions render in the active chat.
 	const firstChip = suggestionChips.first();
 	const suggestionText = await firstChip.textContent();
-	log(`Clicking suggestion: "${suggestionText}"`);
-	await screenshot(page, 'before-chip-click');
-
-	// Click the first suggestion chip
-	await firstChip.click();
-	log('Clicked suggestion chip.');
-	await page.waitForTimeout(500);
-	await screenshot(page, 'after-chip-click');
-
-	// Verify the editor was populated with the suggestion text
-	// The editor content should now have the suggestion text
-	const editorContent = await messageEditor.textContent();
-	log(`Editor content after chip click: "${editorContent}"`);
-	expect(editorContent).toBeTruthy();
-	expect(editorContent!.trim().length).toBeGreaterThan(0);
-
-	// Send button should now be visible (editor has content)
-	await expect(sendButton).toBeVisible({ timeout: 5000 });
-	log('Send button is visible — editor was populated by suggestion chip.');
+	log(`First suggestion: "${suggestionText}"`);
+	expect(suggestionText?.trim().length).toBeGreaterThan(0);
 
 	await assertNoMissingTranslations(page);
 
@@ -222,6 +226,69 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	}
 
 	log('Test complete.');
+});
+
+test('shows an LLM-selected quick tip card after a travel planning response', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('QUICK_TIP_CARD');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await newChatButton.click();
+		await page.waitForTimeout(1500);
+	}
+	await screenshot(page, 'quick-tip-new-chat-ready');
+
+	const message = 'First write the exact phrase "Kyoto and Osaka quick tip test", then give one concise sentence about planning food, transit, and local events for a weekend trip.';
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+	await messageEditor.click();
+	await page.keyboard.type(message);
+
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled();
+	await sendButton.click();
+	log('Sent travel planning message for LLM quick-tip selection.');
+
+	const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	await expect(assistantMessage).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
+	await expectLlmQuickTipCard(page, log);
+	await screenshot(page, 'llm-quick-tip-visible');
+
+	await assertNoMissingTranslations(page);
+
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	if (await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await activeChatItem.click({ button: 'right' });
+		const deleteButton = page.getByTestId('chat-context-delete');
+		await expect(deleteButton).toBeVisible({ timeout: 5000 });
+		await deleteButton.click();
+		await deleteButton.click();
+		log('Quick-tip test chat deleted.');
+	}
 });
 
 test('disables follow-up suggestions in settings and avoids proactive follow-up prompts', async ({

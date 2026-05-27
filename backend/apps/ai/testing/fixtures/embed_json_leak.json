@@ -1,0 +1,68 @@
+{
+  "fixture_id": "embed_json_leak",
+  "recorded_at": "2026-05-27T00:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Write me a numbered list of 3 code examples: 1) Hello World in Python, 2) Hello World in JavaScript, 3) Hello World in Bash. Show each as a code block.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "software_development",
+    "title": "Hello World code examples",
+    "icon_names": [
+      "code",
+      "terminal"
+    ],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini 3 Flash",
+    "mate_id": "sophia",
+    "chat_summary": "User requests Hello World examples in Python, JavaScript, and Bash.",
+    "chat_tags": [
+      "Python",
+      "JavaScript",
+      "Bash",
+      "Code Examples"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "software_development",
+    "model_name": "Gemini 3 Flash",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": [
+      "code",
+      "terminal"
+    ]
+  },
+  "response": "Here are three minimal Hello World examples, one for each language you requested.\n\n1. **Python**\n\n```json\n{\"type\": \"code\", \"embed_id\": \"1f690c04-2f44-4ee3-a16f-946f225ad111\"}\n```\n\n2. **JavaScript**\n\n```json\n{\"type\": \"code\", \"embed_id\": \"1f690c04-2f44-4ee3-a16f-946f225ad222\"}\n```\n\n3. **Bash**\n\n```json\n{\"type\": \"code\", \"embed_id\": \"1f690c04-2f44-4ee3-a16f-946f225ad333\"}\n```\n\nThese examples each print the same greeting using the standard output mechanism for the language.",
+  "embeds": {
+    "1f690c04-2f44-4ee3-a16f-946f225ad111": {
+      "type": "code",
+      "language": "python",
+      "filename": "hello.py",
+      "code_content": "print(\"Hello, World!\")\n"
+    },
+    "1f690c04-2f44-4ee3-a16f-946f225ad222": {
+      "type": "code",
+      "language": "javascript",
+      "filename": "hello.js",
+      "code_content": "console.log(\"Hello, World!\");\n"
+    },
+    "1f690c04-2f44-4ee3-a16f-946f225ad333": {
+      "type": "code",
+      "language": "bash",
+      "filename": "hello.sh",
+      "code_content": "#!/usr/bin/env bash\nprintf 'Hello, World!\\n'\n"
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3 Flash"
+  }
+}

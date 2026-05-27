@@ -25,11 +25,54 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
+const CYCLING_INSPIRATIONS = [
+	{
+		inspiration_id: 'cycling-inspiration-1',
+		phrase: 'Cycling inspiration one',
+		title: 'Cycling One',
+		category: 'science',
+		content_type: 'text',
+		video: null,
+		generated_at: 1760000000,
+		assistant_response: 'First cycling inspiration response.',
+		follow_up_suggestions: ['Explore the first idea']
+	},
+	{
+		inspiration_id: 'cycling-inspiration-2',
+		phrase: 'Cycling inspiration two',
+		title: 'Cycling Two',
+		category: 'biology',
+		content_type: 'text',
+		video: null,
+		generated_at: 1760000001,
+		assistant_response: 'Second cycling inspiration response.',
+		follow_up_suggestions: ['Explore the second idea']
+	},
+	{
+		inspiration_id: 'cycling-inspiration-3',
+		phrase: 'Cycling inspiration three',
+		title: 'Cycling Three',
+		category: 'technology',
+		content_type: 'text',
+		video: null,
+		generated_at: 1760000002,
+		assistant_response: 'Third cycling inspiration response.',
+		follow_up_suggestions: ['Explore the third idea']
+	}
+];
+
 function expectNoFullscreenChunkErrors(consoleErrors: string[]) {
 	const chunkErrors = consoleErrors.filter((error) =>
 		/dynamically imported module|chunk loading error|corrupted_content|fullscreen component/i.test(error)
 	);
 	expect(chunkErrors, `Unexpected fullscreen chunk error(s): ${chunkErrors.join('\n')}`).toEqual([]);
+}
+
+function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
+	const runtimeErrors = consoleErrors.filter((error) =>
+		/Cannot set properties of undefined \(setting 'el'\)|Cannot read properties of null \(reading 'querySelector'\)|messageHighlights] DB not initialized/i.test(error)
+	);
+	expect(runtimeErrors, `Unexpected welcome carousel runtime error(s): ${runtimeErrors.join('\n')}`).toEqual([]);
 }
 
 test.describe('Unauthenticated app load', () => {
@@ -168,6 +211,133 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] No missing translations detected');
 
 		console.log('[unauthenticated-load] All checks passed');
+	});
+
+	test('intro chat follow-up suggestion opens signup for unauthenticated users', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+
+		const followUpSuggestion = page.getByTestId('follow-up-suggestion-item').first();
+		await expect(followUpSuggestion).toBeVisible({ timeout: 10000 });
+		await followUpSuggestion.click();
+
+		await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });
+	});
+
+	test('daily inspiration banner cycles on each new app visit', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
+			(window as any).__defaultInspirationsFetchCount = 0;
+			const originalFetch = window.fetch.bind(window);
+			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+				if (url.includes('/v1/default-inspirations')) {
+					(window as any).__defaultInspirationsFetchCount += 1;
+					return new Response(JSON.stringify({ inspirations }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return originalFetch(input, init);
+			};
+		}, CYCLING_INSPIRATIONS);
+
+		async function openNewChatAndReadPhrase() {
+			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+			await page.waitForLoadState('networkidle');
+			await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+				timeout: 15000
+			});
+
+			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+			await expect(newChatButton).toBeVisible({ timeout: 10000 });
+			await newChatButton.click();
+
+			const phrase = page.getByTestId('daily-inspiration-phrase');
+			await expect(phrase).toHaveText(/Cycling inspiration (one|two|three)/, { timeout: 15000 });
+			return (await phrase.textContent())?.trim();
+		}
+
+		const firstPhrase = await openNewChatAndReadPhrase();
+		const secondPhrase = await openNewChatAndReadPhrase();
+		const fetchCountBeforeLanguageReload = await page.evaluate(
+			() => (window as any).__defaultInspirationsFetchCount
+		);
+		await page.evaluate(() => window.dispatchEvent(new Event('language-changed-complete')));
+		await page.waitForFunction(
+			(previousCount) => (window as any).__defaultInspirationsFetchCount > previousCount,
+			fetchCountBeforeLanguageReload
+		);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(
+			'Cycling inspiration two',
+			{ timeout: 3000 }
+		);
+		const thirdPhrase = await openNewChatAndReadPhrase();
+
+		expect(firstPhrase).toBe('Cycling inspiration one');
+		expect(secondPhrase).toBe('Cycling inspiration two');
+		expect(thirdPhrase).toBe('Cycling inspiration three');
+	});
+
+	test('desktop welcome carousel opens example chats without runtime errors', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 1440, height: 1000 });
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+
+		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		await expect(newChatButton).toBeVisible({ timeout: 10000 });
+		await newChatButton.click();
+
+		const giganticCard = page.locator(
+			'[data-testid="resume-chat-large-card"][data-chat-id="example-gigantic-airplanes"]'
+		);
+		await expect(giganticCard).toBeVisible({ timeout: 15000 });
+		expectNoWelcomeCarouselRuntimeErrors(consoleErrors);
+
+		await giganticCard.click();
+		await page.waitForFunction(
+			() => window.location.hash.includes('example-gigantic-airplanes'),
+			null,
+			{ timeout: 10000 }
+		);
+		await expect(page.getByTestId('mate-message-content').first()).toBeVisible({ timeout: 10000 });
+		expectNoWelcomeCarouselRuntimeErrors(consoleErrors);
 	});
 
 	test('example chat loads and fullscreen wiki, website, and image embeds open for unauthenticated users', async ({

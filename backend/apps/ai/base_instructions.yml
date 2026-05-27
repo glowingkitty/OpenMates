@@ -6,7 +6,7 @@
 # Two-phase preprocessing architecture:
 #
 # CALL A (fast_preprocess_request_tool) — first messages only, fired in parallel with Call B.
-#   Fields: title, category, icon_names, harmful_or_illegal, misuse_risk, output_language
+#   Fields: title, topic_area, topic_shift, icon_names, harmful_or_illegal, misuse_risk, output_language
 #   Purpose: Produce the UI-facing fields immediately so the frontend can show the chat title,
 #            mate selection and icons while the main analysis is still running.
 #            Safety scores are checked from Call A results first to allow fast rejection.
@@ -35,28 +35,28 @@ fast_preprocess_request_tool:
       to show the chat title and icons in the UI immediately.
 
       Detailed analysis guidance:
-      1.  **harmful_or_illegal**: Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
+      1.  **harmful_or_illegal**: Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by topic_area selection.**
           - Score from 0.0 (no harm to others/illegality) to 10.0 (extremely harmful to others/illegal). Requests >= 7.0 may be auto-rejected.
           - **Nuance for Harm Reduction**: Distinguish between requests for information aimed at harm reduction (e.g., "safer use practices for X substance," "understanding risks of Y activity") and requests for producing illegal items/substances or performing illegal acts. Harm reduction queries, if clearly for informational/safety purposes and not promoting illegal acts, should generally receive a lower harmful_or_illegal score than direct requests for illicit production/activity.
           - **Right to Repair & Device Ownership**: Requests about modifying, jailbreaking, rooting, unlocking, or repairing devices the user owns are NOT harmful. Users have the right to control their own hardware and software. This includes: jailbreaking phones/tablets, rooting Android devices, unlocking bootloaders, installing custom firmware/ROMs, bypassing manufacturer restrictions on owned devices, repairing hardware, and similar device ownership activities. These should score 0.0-1.0 unless there's clear intent to harm others (e.g., bypassing security to access someone else's device).
-      2.  **category**: Determine the primary subject matter or domain of the user's request by selecting the most appropriate category from the dynamically provided list.
-          - Each category below includes a description of exactly what it covers. Read each one carefully before deciding.
-          - Available categories:
-            {CATEGORIES_LIST}
-          - **Always prefer the most specific matching category.** Only use 'general_knowledge' when no other category is a clear fit — it is the fallback of last resort.
-          - **'onboarding_support' is strictly for questions about the OpenMates platform itself** (features, mates, apps, skills, account, pricing). ANY general user task — writing an email, drafting text, research, cooking, coding, travel planning, etc. — must never be classified as 'onboarding_support'.
-          - **Crisis/Self-Harm Handling**: If the request clearly implies self-harm or an immediate crisis, **you MUST select 'life_coach_psychology' as the category.** This is critical for routing the user to appropriate support. Such requests are not "harmful_or_illegal" in the sense of blocking, but require specialized handling.
-      3.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
+      2.  **topic_area**: Determine the user's specific topic area from the dynamically provided topic-area list.
+          - Available topic areas:
+            {TOPIC_AREAS_LIST}
+          - Choose the most specific topic area. Use 'general_misc' only when no specialized topic area fits.
+          - For fabric, sewing, textiles, patterns, tailoring, or muslin as material, choose 'textiles_sewing'.
+          - For edible food, recipes, ingredients, or kitchen technique, choose 'cooking_food'.
+      3.  **topic_shift**: For first messages, use 'noticeable_shift'. For follow-ups, use 'same_topic' unless the user clearly moves to a fundamentally different subject.
+      4.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk).
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
-      4.  **output_language**: Detect the language of the user's core request/instruction (NOT quoted text, code, or data).
+      5.  **output_language**: Detect the language of the user's core request/instruction (NOT quoted text, code, or data).
           - Analyze the user's LAST message to determine the language of their instruction or question.
           - If the user writes in German but quotes English text, the output_language is "de" (German).
           - If the user writes in English but includes Chinese characters as data, the output_language is "en" (English).
           - Use ISO 639-1 two-letter codes: "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv".
           - Default to "en" if the language cannot be determined.
-      5.  **title**: Generate a concise, relevant title for the user's first request (max 5-7 words). IMPORTANT: Always write the title in the user's UI language ({USER_SYSTEM_LANGUAGE}), even if the user wrote their message in a different language. The title language MUST match the UI language code, not the conversation language.
-      6.  **icon_names**: Choose 1-3 Lucide icon names that best represent the topic of the conversation.
+      6.  **title**: Generate a concise, relevant title for the user's first request (max 5-7 words). IMPORTANT: Always write the title in the user's UI language ({USER_SYSTEM_LANGUAGE}), even if the user wrote their message in a different language. The title language MUST match the UI language code, not the conversation language.
+      7.  **icon_names**: Choose 1-3 Lucide icon names that best represent the topic of the conversation.
           - Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', 'cpu', 'flask', 'music', 'camera', 'map', 'calculator', 'briefcase', 'leaf', 'film', 'plane', etc.
           - MUST provide at least one icon name — never return an empty array.
     parameters:
@@ -65,9 +65,13 @@ fast_preprocess_request_tool:
         harmful_or_illegal:
           type: "number"
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
-        category:
+        topic_area:
           type: "string"
-          description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category. Use 'general_knowledge' only as a last resort when nothing else fits. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
+          description: "Most specific topic area from {TOPIC_AREAS_LIST}. Use 'general_misc' only when no specialized topic area fits. For fabric, sewing, textiles, patterns, tailoring, or muslin as material, use 'textiles_sewing'. For edible food/recipes/ingredients/kitchen technique, use 'cooking_food'."
+        topic_shift:
+          type: "string"
+          enum: ["same_topic", "noticeable_shift", "unclear"]
+          description: "For first messages use 'noticeable_shift'. For follow-ups use 'same_topic' unless the latest message clearly changes to a fundamentally different subject; use 'unclear' when ambiguous."
         misuse_risk:
           type: "integer"
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
@@ -85,7 +89,8 @@ fast_preprocess_request_tool:
           minItems: 1
       required:
         - "harmful_or_illegal"
-        - "category"
+        - "topic_area"
+        - "topic_shift"
         - "misuse_risk"
         - "output_language"
         - "title"
@@ -186,23 +191,21 @@ preprocess_request_tool:
       # --- Follow-up message only (when title already exists) ---
       # The fields below are added to the required list on follow-up messages only.
       # On first messages, these come from the parallel fast_preprocess_request_tool call.
-       12. **category** (follow-up only): Re-evaluate the category for the current message in an ongoing conversation.
-          - Each category in {CATEGORIES_LIST} includes a description — read it to pick the most specific match.
-          - **Always prefer the most specific matching category.** Only fall back to 'general_knowledge' when no other category clearly fits.
-          - **'onboarding_support' is strictly for questions about the OpenMates platform itself** (features, mates, apps, skills, account, pricing). ANY general user task must never be classified as 'onboarding_support'.
-          - **CRITICAL: Default to the PREVIOUS category (provided as {PREVIOUS_CATEGORY}) unless the user's new message is CLEARLY about a very different topic.**
-          - Follow-up questions, clarifications, or continuations of the same topic should KEEP the previous category.
-          - Only change the category if the user explicitly shifts to a fundamentally different subject area (e.g., from coding to cooking, from history to mathematics).
-          - If in doubt, keep the previous category — consistency is better than unnecessary switches.
-          - **Crisis/Self-Harm Handling**: If the request clearly implies self-harm or an immediate crisis, **you MUST select 'life_coach_psychology'** regardless of previous category.
-          - If the category is unclear and there is no previous category, select 'general_knowledge'.
-      13. **harmful_or_illegal** (follow-up only): Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by category selection.**
+       12. **topic_area** (follow-up only): Select the most specific topic area from {TOPIC_AREAS_LIST}.
+          - Use 'general_misc' only when no specialized topic area fits.
+          - For fabric, sewing, textiles, patterns, tailoring, or muslin as material, choose 'textiles_sewing'.
+          - For edible food, recipes, ingredients, or kitchen technique, choose 'cooking_food'.
+       13. **topic_shift** (follow-up only): Decide whether the latest message changes subject compared with PREVIOUS category {PREVIOUS_CATEGORY}.
+          - Use 'same_topic' for follow-ups, clarifications, refinements, or ambiguous short replies.
+          - Use 'noticeable_shift' only when the user clearly moves to a fundamentally different subject.
+          - If in doubt, use 'same_topic' — consistency is better than unnecessary mate switches.
+      14. **harmful_or_illegal** (follow-up only): Assess the likelihood that the request or its intent is harmful **to others**, illegal, unethical, or promotes hate speech, discrimination, violence, or non-consensual activities. **Self-harm or crisis situations should NOT contribute to this score; they are handled by topic_area selection.**
           - Score from 0.0 (no harm to others/illegality) to 10.0 (extremely harmful to others/illegal). Requests >= 7.0 may be auto-rejected.
           - **Nuance for Harm Reduction**: Distinguish between requests for information aimed at harm reduction and requests for producing illegal items/substances. Harm reduction queries should generally receive a lower score than direct requests for illicit production/activity.
           - **Right to Repair & Device Ownership**: Jailbreaking, rooting, unlocking, or repairing owned devices should score 0.0-1.0 unless there's clear intent to harm others.
-      14. **misuse_risk** (follow-up only): Assess the likelihood that the request could be used to facilitate scams, hacking, or other malicious activities.
+      15. **misuse_risk** (follow-up only): Assess the likelihood that the request could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk). Consider intent.
-      15. **output_language** (follow-up only): Detect the ISO 639-1 two-letter language code of the user's core request/instruction (NOT quoted text, code, or data). Default to "en" if uncertain.
+      16. **output_language** (follow-up only): Detect the ISO 639-1 two-letter language code of the user's core request/instruction (NOT quoted text, code, or data). Default to "en" if uncertain.
     parameters:
       type: "object"
       properties:
@@ -257,9 +260,13 @@ preprocess_request_tool:
             type: "string"
           maxItems: 10
 
-        category:
+        topic_area:
           type: "string"
-          description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category; use 'general_knowledge' only as a last resort. On follow-ups, default to {PREVIOUS_CATEGORY} unless the topic has CLEARLY changed. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
+          description: "Most specific topic area from {TOPIC_AREAS_LIST}. Use 'general_misc' only when no specialized topic area fits. For fabric, sewing, textiles, patterns, tailoring, or muslin as material, use 'textiles_sewing'. For edible food/recipes/ingredients/kitchen technique, use 'cooking_food'."
+        topic_shift:
+          type: "string"
+          enum: ["same_topic", "noticeable_shift", "unclear"]
+          description: "For follow-ups, default to 'same_topic' unless the latest message clearly changes to a fundamentally different subject from {PREVIOUS_CATEGORY}. If ambiguous, use 'same_topic'. For first-message fallback use 'noticeable_shift'."
         harmful_or_illegal:
           type: "number"
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Device ownership activities (jailbreaking, rooting, right-to-repair) should score 0.0-1.0."
@@ -283,7 +290,7 @@ preprocess_request_tool:
         - "chat_summary"
         - "chat_tags"
 
-        # category, harmful_or_illegal, misuse_risk, output_language are added to required by Python
+        # topic_area, topic_shift, harmful_or_illegal, misuse_risk, output_language are added to required by Python
         # on follow-up messages (when is_first_message is False)
 
 base_embed_source_quote_instruction: |
@@ -388,7 +395,13 @@ postprocess_response_tool:
          - **NO BRANDS OR PRODUCTS**: Do NOT extract brand names, product names, app names, or commercial service names as topics — unless the user expressed deep, genuine curiosity about the underlying technology, science, or history behind that product (in which case capture the underlying concept, not the brand). Examples of what to avoid: "iPhone 16 review", "Notion productivity app", "Tesla Model Y". If the user discussed a brand passingly (e.g., "I use Notion"), ignore it — only capture substantive intellectual interests. Rephrase to the concept if needed: "note-taking knowledge graphs" instead of "Obsidian app".
          - **NO SENSITIVE CONTENT**: NEVER generate topics related to illegal drugs or substance abuse, explicit sexual content or pornography, graphic violence or gore, self-harm, or weapons/explosives. If the conversation touched such themes, either capture an adjacent educational angle (e.g. "addiction neuroscience" instead of "heroin use") or skip that topic and find a different interest the user expressed. The output must always be family-friendly and suitable for an educational inspiration feed.
          - **NO POLITICAL PARTIES OR ELECTORAL CONTENT**: NEVER extract a political party, political candidate, electoral campaign, or partisan ideology as a topic — in any country or language. If the conversation touched politics, capture the underlying policy, governance, or societal question instead — never the party or candidate. Examples to avoid: "Democratic Party platform", "Trump immigration policy", "Labour manifesto", "AfD views", "BJP campaign". Rephrase to the underlying concept: "universal healthcare economics" instead of "Labour health policy", "immigration economics" instead of any party's border stance. The goal is educational curiosity, not political advocacy.
-         - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
+          - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
+
+      7. **quick_tip_slug**: Select 0 or 1 product quick-tip slug from the available quick_tip_slug values in the system message.
+         - Return a slug only when the tip is timely, concrete, and useful for this exact conversation.
+         - Return an empty string when no quick tip fits.
+         - Do NOT write UI copy. Return only the existing slug.
+         - Do NOT invent slugs.
     parameters:
       type: "object"
       properties:
@@ -430,6 +443,9 @@ postprocess_response_tool:
             type: "string"
           minItems: 3
           maxItems: 3
+        quick_tip_slug:
+          type: "string"
+          description: "One existing quick-tip slug selected from the available quick_tip_slug values in the system message, or an empty string if no product tip fits. Never invent slugs and never write UI copy."
       required:
         - "follow_up_request_suggestions"
         - "new_chat_request_suggestions"
@@ -437,6 +453,7 @@ postprocess_response_tool:
         - "chat_summary"
         - "updated_chat_title"
         - "daily_inspiration_topic_suggestions"
+        - "quick_tip_slug"
 
 url_correction_tool:
   type: "function"

@@ -17,6 +17,7 @@ import type { Component } from "svelte";
 import SettingsInterface from "./SettingsInterface.svelte";
 import SettingsLanguage from "./interface/SettingsLanguage.svelte";
 import SettingsDarkMode from "./interface/SettingsDarkMode.svelte";
+import SettingsFont from "./interface/SettingsFont.svelte";
 
 // AI (replaces the old Chat settings entry — model selection, pricing, memories)
 import SettingsAI from "./SettingsAI.svelte";
@@ -71,6 +72,7 @@ import SettingsAutoTopUp from "./billing/SettingsAutoTopUp.svelte";
 import SettingsLowBalanceAutotopup from "./billing/autotopup/SettingsLowBalanceAutotopup.svelte";
 import SettingsMonthlyAutotopup from "./billing/autotopup/SettingsMonthlyAutotopup.svelte";
 import SettingsInvoices from "./billing/SettingsInvoices.svelte";
+import SettingsReferralCode from "./billing/SettingsReferralCode.svelte";
 
 // Gift Cards
 import SettingsGiftCards from "./giftcards/SettingsGiftCards.svelte";
@@ -160,6 +162,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
   "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
   "billing/invoices": SettingsInvoices,
+  "billing/referral-code": SettingsReferralCode,
   "billing/gift-cards": SettingsGiftCards,
   "billing/gift-cards/redeem": SettingsGiftCardsRedeem,
   "billing/gift-cards/redeemed": SettingsGiftCardsRedeemed,
@@ -180,6 +183,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,
   "interface/dark_mode": SettingsDarkMode,
+  "interface/font": SettingsFont,
+  // Furry Mode customization is disabled until any furry art is made by human artists.
   // Account
   account: SettingsAccount,
   "account/timezone": SettingsTimezone,

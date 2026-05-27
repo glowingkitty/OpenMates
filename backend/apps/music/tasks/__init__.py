@@ -1,0 +1,1 @@
+from .generate_task import generate_music_task as generate_music_task

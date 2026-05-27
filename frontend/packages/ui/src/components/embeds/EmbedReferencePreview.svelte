@@ -43,10 +43,31 @@
   // (e.g. cross-device sync hasn't finished decrypting/registering refs).
   let retryCount = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let deepResolvedEmbedId = $state<string | null>(null);
 
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
-    return embedId || embedStore.resolveByRef(embedRef) || null;
+    return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
+  });
+
+  $effect(() => {
+    void $embedRefIndexVersion;
+    const syncResolved = embedId || embedStore.resolveByRef(embedRef);
+    if (syncResolved) {
+      deepResolvedEmbedId = syncResolved;
+      return;
+    }
+
+    let cancelled = false;
+    embedStore.resolveByRefDeep(embedRef).then((repairedEmbedId) => {
+      if (!cancelled && repairedEmbedId) {
+        deepResolvedEmbedId = repairedEmbedId;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   /**
@@ -135,6 +156,7 @@
       footer: (decodedContent?.footer as string | null) || (data.footer as string | null) || undefined,
       filename: (data.filename as string | null) || null,
       language: (data.language as string | null) || null,
+      previewVariant: variant,
     } as EmbedNodeAttributes;
   }
 
@@ -172,16 +194,19 @@
 
     if (!resolvedEmbedId) {
       if (await renderInlineMailPreview()) return;
-      loading = true;
       // Retry ref resolution: during cross-device sync, the ref→ID index may
       // not be populated yet. Bump embedRefIndexVersion after a delay to
       // trigger $derived re-evaluation once eager decryption has registered refs.
       if (embedRef && retryCount < 3) {
+        loading = true;
         if (retryTimer) clearTimeout(retryTimer);
         retryTimer = setTimeout(() => {
           retryCount++;
           embedRefIndexVersion.update((n) => n + 1);
         }, 1000 * (retryCount + 1)); // 1s, 2s, 3s
+      } else {
+        loading = false;
+        errorText = 'Preview unavailable';
       }
       return;
     }

@@ -502,6 +502,10 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
+        if ("quick_tips_enabled" in userData) {
+          store.put(userData.quick_tips_enabled !== false, "quick_tips_enabled");
+        }
+        // Furry Mode persistence is disabled until any furry art is made by human artists.
       };
 
       lastOpenedRequest.onerror = () => {
@@ -655,6 +659,7 @@ class UserDatabaseService {
             "follow_up_suggestions_enabled",
           );
         }
+        // Furry Mode persistence is disabled until any furry art is made by human artists.
       };
 
       transaction.oncomplete = () => {
@@ -726,6 +731,7 @@ class UserDatabaseService {
         consent_mates_default_settings: false,
         language: "en", // Initialize language
         darkmode: false, // Initialize darkmode
+        ui_font: "lexend", // Initialize UI font
         currency: "", // Initialize currency
         timezone: null, // Required by UserProfile interface
       };
@@ -776,6 +782,7 @@ class UserDatabaseService {
       const disabledAiServersRequest = store.get("disabled_ai_servers");
       const defaultAppSkillModelsRequest = store.get("default_app_skill_models");
       const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
+      const quickTipsEnabledRequest = store.get("quick_tips_enabled");
       const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
@@ -1023,6 +1030,13 @@ class UserDatabaseService {
         profile.follow_up_suggestions_enabled =
           followUpSuggestionsEnabledRequest.result !== undefined
             ? !!followUpSuggestionsEnabledRequest.result
+            : true;
+      };
+
+      quickTipsEnabledRequest.onsuccess = () => {
+        profile.quick_tips_enabled =
+          quickTipsEnabledRequest.result !== undefined
+            ? !!quickTipsEnabledRequest.result
             : true;
       };
 
@@ -1412,6 +1426,10 @@ class UserDatabaseService {
           "follow_up_suggestions_enabled",
         );
       }
+      if (partialData.quick_tips_enabled !== undefined) {
+        store.put(!!partialData.quick_tips_enabled, "quick_tips_enabled");
+      }
+      // Furry Mode persistence is disabled until any furry art is made by human artists.
 
       // Handle AI model enable/disable preferences (device-local, persisted to IndexedDB)
       if (partialData.disabled_ai_models !== undefined) {

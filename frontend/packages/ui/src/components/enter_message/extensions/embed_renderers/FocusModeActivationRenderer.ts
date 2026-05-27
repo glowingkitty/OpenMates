@@ -23,10 +23,50 @@ import { mount, unmount } from "svelte";
 import FocusModeActivationEmbed from "../../../embeds/FocusModeActivationEmbed.svelte";
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
+import { chatKeyManager } from "../../../../services/encryption/ChatKeyManager";
+import { chatSyncService } from "../../../../services/chatSyncService";
 import { chatDB } from "../../../../services/db";
+import { webSocketService } from "../../../../services/websocketService";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+
+async function handleLocalFocusActivation(chatId: string, focusId: string): Promise<void> {
+  const chat = await chatDB.getChat(chatId);
+  if (!chat) return;
+
+  const chatKey = await chatKeyManager.getKey(chatId);
+  if (!chatKey) return;
+
+  const { ensureChatKeySafeForWrite } = await import(
+    "../../../../services/chatKeyWriteGuard"
+  );
+  const isSafe = await ensureChatKeySafeForWrite(
+    chatId,
+    chatKey,
+    "active focus id encryption",
+  );
+  if (!isSafe) return;
+
+  const { encryptWithChatKey } = await import(
+    "../../../../services/encryption/MessageEncryptor"
+  );
+  const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
+  chat.encrypted_active_focus_id = encryptedFocusId;
+  await chatDB.updateChat(chat);
+  chatMetadataCache.invalidateChat(chatId);
+
+  webSocketService.sendMessage("update_encrypted_active_focus_id", {
+    chat_id: chatId,
+    encrypted_active_focus_id: encryptedFocusId,
+  });
+
+  chatSyncService.dispatchEvent(
+    new CustomEvent("focusModeActivated", {
+      detail: { chat_id: chatId, focus_id: focusId },
+    }),
+  );
+}
 
 export class FocusModeActivationRenderer implements EmbedRenderer {
   type = "focus-mode-activation";
@@ -50,7 +90,9 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     // Check if this focus mode is already active on the current chat.
     // This prevents the countdown from replaying when the user revisits
     // a chat where a focus mode was previously activated.
-    let alreadyActive = false;
+    // Persisted/read-mode activation embeds are historical records and must not
+    // replay the first-time countdown when opening an existing or shared chat.
+    let alreadyActive = attrs.status === "finished";
     try {
       const chatId = activeChatStore.get();
       if (chatId) {
@@ -58,6 +100,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
         if (chat) {
           const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
           if (metadata?.activeFocusId === focusId) {
+            alreadyActive = true;
+          } else if (chat.encrypted_active_focus_id && !metadata?.activeFocusId) {
+            // Existing chats can render the saved activation embed before the chat key
+            // finishes decrypting activeFocusId. Treat the encrypted field as enough
+            // evidence to avoid replaying the first-time activation countdown.
             alreadyActive = true;
           }
         }
@@ -128,6 +175,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
                 },
               }),
             );
+          },
+          onActivate: (activatedFocusId: string) => {
+            const chatId = activeChatStore.get();
+            if (!chatId) return;
+            void handleLocalFocusActivation(chatId, activatedFocusId);
           },
           onDeactivate: (deactivatedFocusId: string) => {
             console.debug(

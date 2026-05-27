@@ -4,13 +4,15 @@
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+  import QuickTipsCard from './QuickTipsCard.svelte';
   import { fade } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
+  import type { QuickTipDefinition } from '../data/quickTips';
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
   // This should align with the global Message type from ../types/chat
-  import type { Message as GlobalMessage, MessageRole } from '../types/chat';
+  import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
   import { truncateTiptapContent } from '../utils/messageTruncation';
@@ -60,6 +62,7 @@
   import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
   import { chatDB } from '../services/db';
+  import { webSocketService } from '../services/websocketService';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -149,19 +152,39 @@
     return content.includes('"type":"focus_mode_activation"') || content.includes('"type": "focus_mode_activation"');
   }
 
+  const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
+
+  function isRawChatErrorMessage(content: unknown): boolean {
+    return typeof content === 'string' && RAW_CHAT_ERROR_KEYS.has(content.trim());
+  }
+
+  function normalizeRawChatErrorMessage(content: string): string {
+    return isRawChatErrorMessage(content) ? $text('chat.an_error_occured') : content;
+  }
+
   /**
-   * Merge consecutive assistant messages for display when the previous is a focus mode activation.
-   * Backend stores two messages (focus embed, then continuation text). We show one bubble.
+   * Merge short-delay assistant continuations for display.
+   * Backend may store two messages when async skills finish after the first turn
+   * (processing embeds first, continuation text later). We show one bubble.
    */
-  function mergeFocusContinuationForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
+  const ASSISTANT_CONTINUATION_MERGE_WINDOW_MS = 60_000;
+
+  function mergeAssistantContinuationsForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
     const result: GlobalMessage[] = [];
     for (let i = 0; i < incoming.length; i++) {
       const prev = result[result.length - 1];
       const curr = incoming[i];
-      if (
+      const isAssistantContinuation = Boolean(
         prev?.role === 'assistant' &&
         curr.role === 'assistant' &&
-        hasFocusModeActivationEmbed(prev.content)
+        !isRawChatErrorMessage(curr.content) &&
+        (
+          hasFocusModeActivationEmbed(prev.content) ||
+          messagesWithinMergeWindow(prev.created_at, curr.created_at)
+        )
+      );
+      if (
+        isAssistantContinuation
       ) {
         const prevContent = typeof prev.content === 'string' ? prev.content : '';
         const currContent = typeof curr.content === 'string' ? curr.content : '';
@@ -175,6 +198,15 @@
       }
     }
     return result;
+  }
+
+  function messagesWithinMergeWindow(previousCreatedAt: number | undefined, currentCreatedAt: number | undefined): boolean {
+    if (typeof previousCreatedAt !== 'number' || typeof currentCreatedAt !== 'number') return false;
+    return Math.abs(toMilliseconds(currentCreatedAt) - toMilliseconds(previousCreatedAt)) <= ASSISTANT_CONTINUATION_MERGE_WINDOW_MS;
+  }
+
+  function toMilliseconds(timestamp: number): number {
+    return timestamp < 1e12 ? timestamp * 1000 : timestamp;
   }
 
   /**
@@ -203,7 +235,7 @@
     let processedContent: unknown;
     
     if (typeof incomingMessage.content === 'string') {
-      let contentToProcess = incomingMessage.content;
+      let contentToProcess = normalizeRawChatErrorMessage(incomingMessage.content);
       
       // PII RESTORATION: Restore PII placeholders with original values before parsing
       // This applies to both user and assistant messages when mappings are available
@@ -511,6 +543,25 @@
   // --- Compression / forgotten messages ---
   // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
   let showForgottenMessages = $state(false);
+  let oldCompressedMessages = $state<GlobalMessage[]>([]);
+  let oldCompressedMessagesLoading = $state(false);
+
+  let latestCompressionCheckpoint = $derived.by(() => {
+    if (!compressionCheckpoints || compressionCheckpoints.length === 0) return null;
+    return [...compressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+  });
+
+  function makeCompressionSummaryMessage(checkpoint: ChatCompressionCheckpoint): InternalMessage {
+    return G_mapToInternalMessage({
+      message_id: checkpoint.id,
+      chat_id: checkpoint.chat_id,
+      role: 'system',
+      category: 'compression_summary',
+      content: checkpoint.summary || '',
+      created_at: checkpoint.created_at,
+      status: 'synced',
+    });
+  }
 
   /**
    * Find the index of the compression summary system message in the messages array.
@@ -518,6 +569,7 @@
    * "forgotten" (before summary) and "active" (summary + after) groups.
    */
   let compressionSummaryIndex = $derived.by(() => {
+    if (latestCompressionCheckpoint) return 0;
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (
@@ -536,11 +588,23 @@
 
   /** Messages before the compression summary (the "forgotten" ones). */
   let forgottenMessages = $derived.by(() => {
+    if (latestCompressionCheckpoint) {
+      return oldCompressedMessages.map((message) => G_mapToInternalMessage(message));
+    }
     if (!hasCompressionSummary) return [] as typeof messages;
     return messages.slice(0, compressionSummaryIndex);
   });
 
   let displayMessages = $derived.by(() => {
+    if (latestCompressionCheckpoint) {
+      const summaryMessage = makeCompressionSummaryMessage(latestCompressionCheckpoint);
+      const recentMessages = messages.filter(
+        (msg) => (msg.original_message?.created_at ?? 0) > latestCompressionCheckpoint.compressed_up_to_timestamp,
+      );
+      return showForgottenMessages
+        ? [...forgottenMessages, summaryMessage, ...recentMessages]
+        : [summaryMessage, ...recentMessages];
+    }
     // Start with either all messages or only post-summary messages
     let base = hasCompressionSummary && !showForgottenMessages
       ? messages.slice(compressionSummaryIndex)
@@ -562,6 +626,54 @@
       return true;
     });
   });
+
+  async function toggleForgottenMessages(): Promise<void> {
+    if (!latestCompressionCheckpoint) {
+      showForgottenMessages = !showForgottenMessages;
+      return;
+    }
+    if (!showForgottenMessages && oldCompressedMessages.length === 0) {
+      oldCompressedMessagesLoading = true;
+      await webSocketService.sendMessage('get_compressed_chat_old_messages', {
+        chat_id: latestCompressionCheckpoint.chat_id,
+        checkpoint_id: latestCompressionCheckpoint.id,
+        before_timestamp: latestCompressionCheckpoint.compressed_up_to_timestamp,
+        limit: 250,
+      });
+    }
+    showForgottenMessages = !showForgottenMessages;
+  }
+
+  async function handleOldMessagesResponse(payload: {
+    chat_id: string;
+    checkpoint_id: string;
+    messages?: Array<string | GlobalMessage>;
+  }): Promise<void> {
+    if (!latestCompressionCheckpoint || payload.checkpoint_id !== latestCompressionCheckpoint.id) return;
+    const prepared: GlobalMessage[] = [];
+    for (const item of payload.messages || []) {
+      let message = item as GlobalMessage;
+      if (typeof item === 'string') {
+        try {
+          message = JSON.parse(item) as GlobalMessage;
+        } catch {
+          continue;
+        }
+      }
+      if (!message.message_id && (message as GlobalMessage & { id?: string }).id) {
+        message.message_id = (message as GlobalMessage & { id?: string }).id!;
+      }
+      if (!message.chat_id) message.chat_id = payload.chat_id;
+      if (!message.status) message.status = 'delivered';
+      try {
+        prepared.push(await chatDB.decryptMessageFields(message, payload.chat_id));
+      } catch (error) {
+        console.warn('[ChatHistory] Failed to decrypt compressed old message', message.message_id, error);
+      }
+    }
+    oldCompressedMessages = prepared;
+    oldCompressedMessagesLoading = false;
+  }
 
   let debugChatCopied = $state(false);
   let debugChatCopyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -638,6 +750,7 @@
     onResend = undefined,
     isIncognito = false,
     isExampleChat = false,
+    isSharedChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
     videoTeaserMp4Url = null,
@@ -645,6 +758,8 @@
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
+    quickTipSlugs = [],
+    compressionCheckpoints = [],
     onSuggestionClick = undefined,
     canAnnotate = true,
   }: {
@@ -689,6 +804,8 @@
     /** True when the active chat is a pre-made example chat.
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
+    /** True when the active chat was opened from a shared-chat link. */
+    isSharedChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
      *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
@@ -707,8 +824,10 @@
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
     followUpSuggestions?: string[];
+    quickTipSlugs?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
+    compressionCheckpoints?: ChatCompressionCheckpoint[];
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -851,6 +970,16 @@
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
+
+  let showQuickTipsInHistory = $derived(
+    quickTipSlugs.length > 0 &&
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
+  );
+
+  function handleQuickTipAction(tip: QuickTipDefinition): void {
+    dispatch('quickTipAction', tip);
+  }
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
   // `processingPhase !== null` to know when AI processing is happening (affects scroll behaviour).
@@ -1082,7 +1211,7 @@
     const previousMessagesLength = messages.length;
     
     // Display merge: show focus activation + following assistant as one bubble
-    const mergedForDisplay = mergeFocusContinuationForDisplay(newMessagesArray);
+    const mergedForDisplay = mergeAssistantContinuationsForDisplay(newMessagesArray);
     
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message
@@ -1787,9 +1916,15 @@
     // But we still handle it as a fallback for non-demo chats
     window.addEventListener('language-changed-complete', handleLanguageChange);
 
+    const handleOldMessagesWsResponse = (payload: unknown) => {
+      void handleOldMessagesResponse(payload as { chat_id: string; checkpoint_id: string; messages?: Array<string | GlobalMessage> });
+    };
+    webSocketService.on('compressed_chat_old_messages_response', handleOldMessagesWsResponse);
+
     // Cleanup on component destroy
     return () => {
       window.removeEventListener('language-changed-complete', handleLanguageChange);
+      webSocketService.off('compressed_chat_old_messages_response', handleOldMessagesWsResponse);
     };
   });
 
@@ -1837,6 +1972,7 @@
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
                 {isExampleChat}
+                {isSharedChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
                 {videoTeaserMp4Url}
@@ -1874,11 +2010,11 @@
               <div class="forgotten-messages-toggle">
                 <button
                   class="forgotten-messages-btn"
-                  onclick={() => { showForgottenMessages = !showForgottenMessages; }}
+                  onclick={() => { void toggleForgottenMessages(); }}
                 >
                   {showForgottenMessages
                     ? $text('chat.compression.hide_forgotten')
-                    : $text('chat.compression.show_forgotten')}
+                    : (oldCompressedMessagesLoading ? $text('chat.compression.loading_messages') : $text('chat.compression.show_forgotten'))}
                   {#if !showForgottenMessages && forgottenMessages.length > 0}
                     <span class="forgotten-count">({forgottenMessages.length})</span>
                   {/if}
@@ -1894,7 +2030,7 @@
                      data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
-                         opacity: ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1))};
+                          opacity: ${latestCompressionCheckpoint && (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp ? 0.6 : (($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)))};
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}
@@ -1972,16 +2108,23 @@
             {/if}
             
             <!-- Follow-up suggestions shown after the last assistant message.
-                 Visible without requiring the user to focus the message input first.
-                 Passes chatCategory and chatIcon so the gradient card matches the ChatHeader style. -->
+                 Visible without requiring the user to focus the message input first. -->
+            {#if showQuickTipsInHistory}
+                <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
+                    <QuickTipsCard
+                        slugs={quickTipSlugs}
+                        category={chatCategory}
+                        on:action={(event) => handleQuickTipAction(event.detail)}
+                    />
+                </div>
+            {/if}
+
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
                 <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
                         messageInputContent=""
                         onSuggestionClick={onSuggestionClick}
-                        category={chatCategory}
-                        icon={chatIcon}
                     />
                 </div>
             {/if}
@@ -2147,26 +2290,22 @@
   }
 
 
-  /* Follow-up suggestions wrapper — shown inline in the chat history after the last
-     assistant message. Aligns with mate-message-content by matching the assistant
-     message layout: padding-inline-start offsets content to where the message bubble
-     starts (past the 60px avatar + 10px margin = ~80px), mirroring .message-align-left
-     from chat.css. On mobile (≤500px), avatar stacks above so offset is removed. */
+  /* Follow-up suggestions wrapper — shown inline below the chat history, aligned
+     to the right as quick user-response actions rather than assistant content. */
+  .quick-tips-wrapper,
   .follow-up-suggestions-wrapper {
     padding: 8px 0 14px;
-    /* Align with assistant message x-position while preserving right breathing room */
-    padding-inline-start: 75px;
+    padding-inline-start: 20px;
     padding-inline-end: 20px;
     box-sizing: border-box;
     width: 100%;
   }
 
-  /* When assistant messages are in mobile stacked layout (avatar stacks above),
-     the wrapper can go full-width since there's no side avatar offset. */
   @media (max-width: 500px) {
+    .quick-tips-wrapper,
     .follow-up-suggestions-wrapper {
-      padding-inline-start: 0;
-      padding-inline-end: 0;
+      padding-inline-start: 10px;
+      padding-inline-end: 10px;
     }
   }
 

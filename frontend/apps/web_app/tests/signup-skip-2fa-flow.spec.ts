@@ -301,6 +301,8 @@ test('completes signup with skipped 2FA, login with password, and delete account
 		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'logged-out');
+	await page.goto(getE2EDebugUrl('/'));
+	await page.waitForLoadState('load');
 
 	// Dismiss version banner again if it reappeared after logout
 	if (await versionBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -320,6 +322,13 @@ test('completes signup with skipped 2FA, login with password, and delete account
 		await loginTab.click();
 		await page.waitForTimeout(500);
 	}
+
+	await expect(page.getByTestId('last-used-auth-method-email')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('last-used-auth-method-passkey')).not.toBeVisible();
+	await page.getByTestId('clear-last-used-auth-method').click();
+	await expect(page.getByTestId('last-used-auth-method-email')).not.toBeVisible();
+	await expect(page.getByTestId('clear-last-used-auth-method')).not.toBeVisible();
+	logSignupCheckpoint('Verified and cleared email/password last-used hint.');
 
 	// Use broader selector to handle both login dialog variants (name="username" or id="login-email-input").
 	const emailInputRelogin = page.locator('#login-email-input, input[type="email"][name="username"]').first();

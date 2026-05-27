@@ -171,6 +171,35 @@ describe("parse_message assistant large promotion", () => {
     expect(firstNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
   });
 
+  it("renders focus mode activation before app skill previews", () => {
+    const markdown = [
+      '```json\n{"type":"app_skill_use","embed_id":"skill-1","app_id":"videos","skill_id":"transcript"}\n```',
+      '',
+      '```json\n{"type":"focus_mode_activation","embed_id":"focus-1","focus_id":"videos-analyze_video","app_id":"videos","focus_mode_name":"Analyze video"}\n```',
+      '',
+      'Here is the analysis.',
+    ].join("\n");
+
+    const doc = parseAssistant(markdown);
+    const firstNode = doc.content?.[0];
+    const secondNode = doc.content?.[1];
+
+    expect(firstNode?.type).toBe("paragraph");
+    expect(firstNode?.content?.[0]?.attrs?.type).toBe("focus-mode-activation");
+    expect(secondNode?.type).toBe("paragraph");
+    expect(secondNode?.content?.[0]?.attrs?.type).toBe("app-skill-use");
+  });
+
+  it("marks read-mode focus activation embeds as finished", () => {
+    const doc = parseAssistant(
+      '```json\n{"type":"focus_mode_activation","embed_id":"focus-1","focus_id":"videos-analyze_video","app_id":"videos","focus_mode_name":"Analyze video"}\n```',
+    );
+
+    const firstNode = doc.content?.[0];
+    expect(firstNode?.content?.[0]?.attrs?.type).toBe("focus-mode-activation");
+    expect(firstNode?.content?.[0]?.attrs?.status).toBe("finished");
+  });
+
   it("promotes a sheet embed surrounded by markdown headings", () => {
     const markdown = [
       "### Comparison Table",

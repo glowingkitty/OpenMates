@@ -87,9 +87,12 @@ export async function mergeServerChatWithLocal(
       encrypted_chat_tags: serverChat.encrypted_chat_tags,
       encrypted_top_recommended_apps_for_chat:
         serverChat.encrypted_top_recommended_apps_for_chat,
+      encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
+      share_pii: serverChat.share_pii,
+      share_highlights: serverChat.share_highlights,
       user_id: currentUserId,
     };
   }
@@ -153,12 +156,18 @@ export async function mergeServerChatWithLocal(
         ? localChat.encrypted_top_recommended_apps_for_chat
         : serverChat.encrypted_top_recommended_apps_for_chat ??
           localChat.encrypted_top_recommended_apps_for_chat,
+    encrypted_quick_tip_slugs:
+      keyMismatch
+        ? localChat.encrypted_quick_tip_slugs
+        : serverChat.encrypted_quick_tip_slugs ?? localChat.encrypted_quick_tip_slugs,
     encrypted_active_focus_id:
       keyMismatch
         ? localChat.encrypted_active_focus_id
         : serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
+    share_pii: serverChat.share_pii ?? localChat.share_pii,
+    share_highlights: serverChat.share_highlights ?? localChat.share_highlights,
   };
 
   if (keyMismatch) {

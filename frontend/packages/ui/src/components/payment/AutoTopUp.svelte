@@ -15,6 +15,10 @@ Matches the design from the signup flow screenshot.
 
     const _dispatch = createEventDispatcher();
 
+    type SubscriptionDetails = {
+        status?: string;
+    } | null;
+
     // Use Svelte 5 runes for props
     let {
         _purchasedCredits = 0,
@@ -44,7 +48,7 @@ Matches the design from the signup flow screenshot.
     
     // State for subscription details
     let hasActiveSubscription = $state(false);
-    let subscriptionDetails: any = $state(null);
+    let subscriptionDetails: SubscriptionDetails = $state(null);
 
     // Fetch subscription details to sync monthly toggle
     async function fetchSubscriptionDetails() {
@@ -160,6 +164,20 @@ Matches the design from the signup flow screenshot.
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
+    function formatTranslatedLines(value: string): string[] {
+        return value
+            .replace(/<\/?strong>/g, '')
+            .split('<br>');
+    }
+
+    let introTextLines = $derived(formatTranslatedLines($text('settings.billing.auto_topup_intro')));
+    let lowBalanceDescriptionLines = $derived(formatTranslatedLines(
+        $text('settings.billing.auto_topup_low_balance_description')
+            .replace('{lowbalancethreshold}', formatCredits(lowBalanceThreshold))
+            .replace('{credits}', formatCredits(lowBalanceAmount))
+            .replace('{price}', formatPrice(lowBalancePrice, currency))
+    ));
+
     // Load settings on mount
     onMount(async () => {
         isLoadingSettings = true;
@@ -230,7 +248,7 @@ Matches the design from the signup flow screenshot.
         try {
             // CRITICAL: Save low balance auto top-up settings if enabled
             // This ensures settings are persisted to backend (cache and Directus)
-            if (lowBalanceEnabled && lowBalanceAmount > 0) {
+            if (paymentMethodSaved && lowBalanceEnabled && lowBalanceAmount > 0) {
                 try {
                     const decryptedEmail = await getEmailDecryptedWithMasterKey();
                     if (!decryptedEmail) {
@@ -278,7 +296,7 @@ Matches the design from the signup flow screenshot.
                     console.error('[AutoTopUp] Error saving low balance settings:', error);
                     // Continue anyway - user can set up later in settings
                 }
-            } else if (!lowBalanceEnabled) {
+            } else if (!paymentMethodSaved || !lowBalanceEnabled) {
                 // If disabled, ensure settings are cleared (save with enabled=false)
                 try {
                     const response = await fetch(getApiUrl() + apiEndpoints.settings.autoTopUp.lowBalance, {
@@ -381,7 +399,9 @@ Matches the design from the signup flow screenshot.
 
 <!-- Introductory text - matches screenshot exactly -->
 <div class="intro-text">
-    {@html $text('settings.billing.auto_topup_intro')}
+    {#each introTextLines as line, index}
+        {#if index > 0}<br />{/if}{line}
+    {/each}
 </div>
 
 <!-- Low Balance Auto Top-Up Toggle -->
@@ -398,10 +418,9 @@ Matches the design from the signup flow screenshot.
     {/if}
     {#if lowBalanceEnabled}
         <div class="option-description">
-            {@html $text('settings.billing.auto_topup_low_balance_description')
-                .replace('{lowbalancethreshold}', formatCredits(lowBalanceThreshold))
-                .replace('{credits}', formatCredits(lowBalanceAmount))
-                .replace('{price}', formatPrice(lowBalancePrice, currency))}
+            {#each lowBalanceDescriptionLines as line, index}
+                {#if index > 0}<br />{/if}{line}
+            {/each}
         </div>
     {/if}
 </div>
@@ -459,48 +478,11 @@ Matches the design from the signup flow screenshot.
 </button>
 
 <style>
-    /* Match the container structure used in PaymentTopContent for payment form */
-    .separated-block {
-        position: relative;
-        width: 95%;
-        max-width: 400px;
-        height: 100%;
-        background-color: var(--color-grey-20);
-        border-radius: var(--radius-7);
-        padding: var(--spacing-8);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto; /* Allow scrolling if content exceeds container */
-        overflow-x: hidden;
-        box-sizing: border-box;
-    }
-
     .header-section {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: var(--spacing-6);
-    }
-
-    .icon-wrapper {
-        width: 40px;
-        height: 40px;
-        background-color: #1E3A8A; /* Dark blue background */
-        border-radius: var(--radius-3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .auto-topup-icon {
-        width: 24px;
-        height: 24px;
-        background-color: white;
-        mask-image: url('@openmates/ui/static/icons/reload.svg');
-        mask-size: contain;
-        mask-repeat: no-repeat;
-        mask-position: center;
     }
 
     .header-text {

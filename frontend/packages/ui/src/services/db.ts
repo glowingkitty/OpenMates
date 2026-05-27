@@ -23,6 +23,7 @@ import type {
   OfflineChange,
   NewChatSuggestion,
   StoreEmbedPayload,
+  ChatCompressionCheckpoint,
 } from "../types/chat";
 
 // Import extracted modules for delegation
@@ -106,6 +107,8 @@ class ChatDatabase {
     "pending_embed_share_updates";
   private readonly EMBEDS_STORE_NAME = "embeds";
   private readonly EMBED_KEYS_STORE_NAME = "embed_keys";
+  public readonly CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME =
+    "chat_compression_checkpoints";
 
   // Version incremented for various schema changes
   // Version 15: Added pinned field and index for chat pinning functionality
@@ -127,7 +130,12 @@ class ChatDatabase {
   //             upgrades or blocked logout/delete races.
   // Version 26: code_run_outputs store — encrypted sidecar rows for Code Run
   //             terminal output. Keeps run output out of canonical code embeds.
-  private readonly VERSION = 26;
+  // Version 27: chat_compression_checkpoints store — client-encrypted summaries
+  //             used for inference while old messages are evicted locally.
+  // Version 28: schema-healing bump. Re-runs migrations for clients whose local
+  //             DB reached v27 but missed required stores after an interrupted
+  //             Safari/iOS upgrade or blocked delete/open race.
+  private readonly VERSION = 28;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
@@ -147,6 +155,7 @@ class ChatDatabase {
     this.EMBED_DIFFS_STORE_NAME,
     this.CODE_RUN_OUTPUTS_STORE_NAME,
     this.DAILY_INSPIRATIONS_STORE_NAME,
+    this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
   ];
   private initializationPromise: Promise<void> | null = null;
 
@@ -781,6 +790,28 @@ class ChatDatabase {
       }
       if (!messagesStore.indexNames.contains("created_at")) {
         messagesStore.createIndex("created_at", "created_at", {
+          unique: false,
+        });
+      }
+    }
+
+    if (!db.objectStoreNames.contains(this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME)) {
+      const checkpointsStore = db.createObjectStore(
+        this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
+        { keyPath: "id" },
+      );
+      checkpointsStore.createIndex("chat_id", "chat_id", { unique: false });
+      checkpointsStore.createIndex("chat_id_created_at", ["chat_id", "created_at"], {
+        unique: false,
+      });
+      console.warn("[ChatDatabase] Created chat_compression_checkpoints store");
+    } else if (transaction) {
+      const checkpointsStore = transaction.objectStore(this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME);
+      if (!checkpointsStore.indexNames.contains("chat_id")) {
+        checkpointsStore.createIndex("chat_id", "chat_id", { unique: false });
+      }
+      if (!checkpointsStore.indexNames.contains("chat_id_created_at")) {
+        checkpointsStore.createIndex("chat_id_created_at", ["chat_id", "created_at"], {
           unique: false,
         });
       }
@@ -1472,6 +1503,65 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<void> {
     return messageOps.deleteMessage(this, message_id, transaction);
+  }
+
+  async deleteMessagesForChatAtOrBefore(
+    chat_id: string,
+    timestamp: number,
+  ): Promise<number> {
+    await this.init();
+    const transaction = await this.getTransaction(this.MESSAGES_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
+    const index = store.index("chat_id_created_at");
+    const range = IDBKeyRange.bound([chat_id, -Infinity], [chat_id, timestamp]);
+
+    return new Promise((resolve, reject) => {
+      let deleted = 0;
+      const request = index.openCursor(range);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) {
+          resolve(deleted);
+          return;
+        }
+        cursor.delete();
+        deleted += 1;
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveChatCompressionCheckpoint(
+    checkpoint: ChatCompressionCheckpoint,
+  ): Promise<void> {
+    await this.init();
+    const transaction = await this.getTransaction(
+      this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
+      "readwrite",
+    );
+    const store = transaction.objectStore(this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME);
+    return new Promise((resolve, reject) => {
+      const request = store.put(JSON.parse(JSON.stringify(checkpoint)));
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getChatCompressionCheckpoints(chat_id: string): Promise<ChatCompressionCheckpoint[]> {
+    await this.init();
+    const transaction = await this.getTransaction(
+      this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
+      "readonly",
+    );
+    const store = transaction.objectStore(this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME);
+    const index = store.index("chat_id_created_at");
+    const range = IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity]);
+    return new Promise((resolve, reject) => {
+      const request = index.getAll(range);
+      request.onsuccess = () => resolve((request.result || []) as ChatCompressionCheckpoint[]);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async cleanupDuplicateMessages(): Promise<void> {

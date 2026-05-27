@@ -2067,6 +2067,7 @@ async function sendMessageStreaming(
     try {
       const mentionCtx = await client.buildMentionContext();
       const parsed = parseMentions(params.message, mentionCtx);
+      finalMessage = parsed.processedMessage;
 
       // Report unresolved mentions as errors
       if (parsed.unresolved.length > 0) {
@@ -2229,7 +2230,6 @@ async function sendMessageStreaming(
         }
       }
 
-      finalMessage = parsed.processedMessage;
     } catch {
       // If mention resolution fails (e.g., network error), send as-is
       // The backend will receive the raw @tokens and ignore unknown ones

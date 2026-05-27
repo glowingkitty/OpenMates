@@ -50,6 +50,7 @@ RECIPE_FILTER_API_URL = "https://www.rewe.de/api/recipe-filter/graphql"
 
 # Recipe detail page base URL
 RECIPE_PAGE_BASE = "https://www.rewe.de/rezepte"
+REWE_BASE_URL = "https://www.rewe.de"
 
 # Dragonfly cache key prefix and TTL
 CACHE_KEY_PREFIX = "rewe_recipe:"
@@ -177,6 +178,23 @@ RECIPE_EXTRACT_PROMPT = (
     "instructions (step, text), nutrition (calories_kcal, protein_g, fat_g, carbs_g), "
     "recipe_url"
 )
+
+
+def _normalize_rewe_url(url: Optional[str]) -> Optional[str]:
+    """Return an absolute REWE/static URL suitable for the image proxy and CTAs."""
+    if not url:
+        return None
+    normalized = url.strip()
+    if normalized.startswith("//"):
+        return f"https:{normalized}"
+    if normalized.startswith("/"):
+        return f"{REWE_BASE_URL}{normalized}"
+    return normalized
+
+
+def _has_complete_recipe_details(recipe_data: Dict[str, Any]) -> bool:
+    """Detect old cache entries that only contain minimal title/URL data."""
+    return bool(recipe_data.get("image_url")) and bool(recipe_data.get("instructions"))
 
 
 # ---------------------------------------------------------------------------
@@ -427,6 +445,8 @@ async def _fetch_recipe_detail_firecrawl(
             extracted["recipe_url"] = url
         if not extracted.get("slug"):
             extracted["slug"] = slug
+        extracted["image_url"] = _normalize_rewe_url(extracted.get("image_url"))
+        extracted["recipe_url"] = _normalize_rewe_url(extracted.get("recipe_url")) or url
 
         logger.info("Firecrawl recipe detail extracted: %s (%d ingredients)",
                      extracted.get("title", "?"), len(extracted.get("ingredients", [])))
@@ -603,13 +623,13 @@ async def fetch_recipe_details(
             slug, cache_service=cache_service, directus_service=directus_service,
         )
 
-        if cached_data:
+        if cached_data and _has_complete_recipe_details(cached_data):
             recipe = REWERecipe(
                 uid=uid,
                 title=cached_data.get("title", title),
                 slug=slug,
-                recipe_url=cached_data.get("recipe_url", f"{RECIPE_PAGE_BASE}/{slug}/"),
-                image_url=cached_data.get("image_url"),
+                recipe_url=_normalize_rewe_url(cached_data.get("recipe_url")) or f"{RECIPE_PAGE_BASE}/{slug}/",
+                image_url=_normalize_rewe_url(cached_data.get("image_url")),
                 description=cached_data.get("description"),
                 prep_time_minutes=cached_data.get("prep_time_minutes"),
                 cook_time_minutes=cached_data.get("cook_time_minutes"),
@@ -629,6 +649,8 @@ async def fetch_recipe_details(
             )
             results.append(recipe)
             continue
+        if cached_data:
+            logger.info("REWE recipe cache incomplete, refetching details: %s", slug)
 
         # 2. Fetch via Firecrawl
         detail = await _fetch_recipe_detail_firecrawl(slug, secrets_manager)
@@ -654,8 +676,8 @@ async def fetch_recipe_details(
             uid=uid,
             title=detail.get("title", title),
             slug=slug,
-            recipe_url=detail.get("recipe_url", f"{RECIPE_PAGE_BASE}/{slug}/"),
-            image_url=detail.get("image_url"),
+            recipe_url=_normalize_rewe_url(detail.get("recipe_url")) or f"{RECIPE_PAGE_BASE}/{slug}/",
+            image_url=_normalize_rewe_url(detail.get("image_url")),
             description=detail.get("description"),
             prep_time_minutes=detail.get("prep_time_minutes"),
             cook_time_minutes=detail.get("cook_time_minutes"),

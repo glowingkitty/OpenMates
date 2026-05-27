@@ -30,6 +30,7 @@ import { injectTraceparent } from './tracing/wsSpans';
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
+import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 
 async function abortUnsafeKeyMismatch(
@@ -577,11 +578,17 @@ export async function sendNewMessageImpl(
 
 		if (missingEmbedIds.length > 0) {
 			const errorMessage = `Sorry, we can't send this message right now. Something went wrong while processing the embeds in your message. Please use the "Report Issue" button to let us know about this problem so we can help fix it.`;
+			const error = new Error(errorMessage);
 			console.error(
 				"[ChatSyncService:Senders] ❌ BLOCKED message send due to missing embeds:",
 				missingEmbedIds
 			);
-			throw new Error(errorMessage);
+			promptChatErrorReportConsent({
+				chatId: message.chat_id,
+				source: "send-message-missing-embeds",
+				error
+			});
+			throw error;
 		}
 
 		// Convert embeds to format expected by server (cleartext, will be encrypted server-side)
@@ -1491,6 +1498,7 @@ export async function sendEncryptedStoragePackage(
 				if (!chatKey) {
 					// IMPORTANT: Do NOT generate a new key for an existing chat.
 					// That would corrupt the chat for all devices.
+					const error = new Error("Chat encryption key mismatch prevented message storage");
 					try {
 						const { notificationStore } = await import("../stores/notificationStore");
 						notificationStore.error(
@@ -1500,6 +1508,11 @@ export async function sendEncryptedStoragePackage(
 					} catch {
 						// If notification import fails, still abort safely.
 					}
+					promptChatErrorReportConsent({
+						chatId: chat_id,
+						source: "send-message-chat-key-mismatch",
+						error
+					});
 					return;
 				}
 			}
@@ -1704,6 +1717,7 @@ export async function sendEncryptedStoragePackage(
 			encrypted_follow_up_suggestions?: string;
 			encrypted_new_chat_suggestions?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
+			encrypted_quick_tip_slugs?: string;
 			created_at: number;
 			encrypted_chat_key?: string;
 			versions: {

@@ -45,6 +45,18 @@ export function renderVideoTranscript(c: Record<string, unknown>): string {
 	return lines.join('\n');
 }
 
+/** app:videos:generate */
+export function renderVideoGenerate(c: Record<string, unknown>): string {
+	const prompt = str(c.prompt) ?? '';
+	const model = str(c.model) ?? 'Veo';
+	const resolution = str(c.resolution) ?? '';
+	const durationSeconds = typeof c.duration_seconds === 'number' ? `${c.duration_seconds}s` : '';
+	const lines: string[] = ['**Generated Video**'];
+	if (prompt) lines.push(trunc(prompt, 160));
+	lines.push([model, resolution, durationSeconds].filter(Boolean).join(' · '));
+	return lines.filter(Boolean).join('\n');
+}
+
 /** videos-video — individual video */
 export function renderVideo(c: Record<string, unknown>): string {
 	const title = str(c.title) ?? '';

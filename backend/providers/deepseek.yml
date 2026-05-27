@@ -6,6 +6,7 @@ provider_id: "deepseek"
 name: "DeepSeek"
 description: "DeepSeek AI - High-performance reasoning and agent models"
 logo_svg: "logos/deepseek.svg"
+privacy_policy: "https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html"
 
 models:
   - id: "deepseek-v4-pro"

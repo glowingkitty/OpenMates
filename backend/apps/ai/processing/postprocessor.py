@@ -7,6 +7,7 @@
 # Architecture context: Settings/memories suggestions were moved from post-processing
 # to inline deep links in the main AI response. See docs/architecture/app-skills.md.
 
+import copy
 import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
@@ -16,6 +17,11 @@ from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreproces
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+from backend.apps.ai.processing.quick_tips import (
+    build_quick_tip_context,
+    sanitize_quick_tip_slug,
+    select_hardcoded_quick_tip_slug,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +230,10 @@ class PostProcessingResult(BaseModel):
         default_factory=list,
         description="3 concise topic/interest phrases (in English) capturing what the user discussed or showed curiosity about"
     )
+    quick_tip_slugs: List[str] = Field(
+        default_factory=list,
+        description="0-1 product quick tip slugs selected from the backend registry; UI copy is loaded client-side from i18n"
+    )
 
 
 async def handle_postprocessing(
@@ -245,6 +255,7 @@ async def handle_postprocessing(
     user_system_language: str = "en",
     current_chat_title: Optional[str] = None,
     follow_up_suggestions_enabled: bool = True,
+    quick_tips_enabled: bool = True,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -277,6 +288,7 @@ async def handle_postprocessing(
         current_chat_title: The current decrypted chat title (if available). Passed to the LLM so it
             can decide whether the title still fits the conversation. None for new chats (first message).
         follow_up_suggestions_enabled: Whether active-chat follow-up suggestion chips should be returned.
+        quick_tips_enabled: Whether product quick-tip cards should be generated.
 
     Returns:
         PostProcessingResult with suggestions, summaries, and metadata
@@ -293,9 +305,22 @@ async def handle_postprocessing(
         return None
 
     # Get the post-processing tool definition from base_instructions
-    postprocess_tool = base_instructions.get("postprocess_response_tool")
+    postprocess_tool = copy.deepcopy(base_instructions.get("postprocess_response_tool"))
     if not postprocess_tool:
         raise RuntimeError("postprocess_response_tool not found in base_instructions.yml")
+
+    tool_parameters = postprocess_tool.get("function", {}).get("parameters", {})
+    tool_properties = tool_parameters.get("properties", {})
+    tool_required = tool_parameters.get("required", [])
+    if not follow_up_suggestions_enabled:
+        tool_properties.pop("follow_up_request_suggestions", None)
+        tool_required = [field for field in tool_required if field != "follow_up_request_suggestions"]
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled by user preference")
+    if not quick_tips_enabled:
+        tool_properties.pop("quick_tip_slug", None)
+        tool_required = [field for field in tool_required if field != "quick_tip_slug"]
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Quick tips disabled by user preference")
+    tool_parameters["required"] = tool_required
 
     # Build message history for post-processing LLM call
     # Include: system context + full chat history (truncated to 120k tokens) + latest assistant response
@@ -354,6 +379,8 @@ async def handle_postprocessing(
         "Do NOT generate suggestions without a prefix."
     )
 
+    quick_tip_context = build_quick_tip_context(available_app_ids) if quick_tips_enabled else ""
+
     # Memory prefixes are no longer used in suggestions — settings/memories suggestions
     # are now generated inline by the main AI processor as deep links in the response text.
     memory_prefix_context = ""
@@ -376,19 +403,21 @@ async def handle_postprocessing(
     # Follow-up suggestions should match the conversation language (output_language) so they
     # feel natural in context. New chat suggestions should use the user's system/UI language
     # so the welcome screen has a consistent language, regardless of individual chat languages.
-    language_instruction = (
-        f"\n\nLanguage instructions:\n"
-        f"- **follow_up_request_suggestions**: Generate in '{output_language}' (the conversation language).\n"
-        f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).\n"
-        f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).\n"
-        f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed."
-    )
+    language_lines = ["\n\nLanguage instructions:"]
+    if follow_up_suggestions_enabled:
+        language_lines.append(f"- **follow_up_request_suggestions**: Generate in '{output_language}' (the conversation language).")
+    language_lines.extend([
+        f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
+        f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).",
+        f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed.",
+    ])
+    language_instruction = "\n".join(language_lines)
 
     system_message = (
         f"Current date and time: {date_time_str}\n\n"
         "You are analyzing a conversation to generate helpful suggestions and an updated chat summary. "
         "The full conversation history is provided below. "
-        "Generate contextual follow-up suggestions that encourage deeper engagement and exploration. "
+        f"{'Generate contextual follow-up suggestions that encourage deeper engagement and exploration. ' if follow_up_suggestions_enabled else ''}"
         "Generate new chat suggestions that are related but explore new angles.\n\n"
         "CRITICAL — Action-verb style: Every suggestion body (the text after the [prefix]) MUST start with "
         "a strong action verb (Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, "
@@ -399,6 +428,7 @@ async def handle_postprocessing(
         f"{available_apps_context}"
         f"{skills_context}{focus_context}{memory_prefix_context}"
         f"{app_prefix_context}"
+        f"{quick_tip_context}"
         f"{title_context}"
         f"{language_instruction}"
     )
@@ -508,8 +538,8 @@ async def handle_postprocessing(
 
     # Sanitize follow-up suggestions: allow skill + focus + app-only prefixes (no memory —
     # memory suggestions are handled by the automated Phase 2 memory generation step)
-    raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
     if follow_up_suggestions_enabled:
+        raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
         sanitized_follow_up = sanitize_suggestions(
             suggestions=raw_follow_up,
             valid_skill_ids=valid_skill_ids,
@@ -520,8 +550,8 @@ async def handle_postprocessing(
             valid_app_ids=available_app_set,
         )
     else:
+        raw_follow_up = []
         sanitized_follow_up = []
-        logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled by user preference")
 
     # Sanitize new chat suggestions: allow skill + focus + app-only prefixes (NO memory)
     raw_new_chat = llm_result.arguments.get("new_chat_request_suggestions", [])
@@ -609,6 +639,24 @@ async def handle_postprocessing(
             f"topic suggestions generated (expected 3)"
         )
 
+    if not quick_tips_enabled:
+        quick_tip_slugs = []
+    else:
+        hardcoded_quick_tip_slug = select_hardcoded_quick_tip_slug(message_history)
+        if hardcoded_quick_tip_slug:
+            quick_tip_slugs = [hardcoded_quick_tip_slug]
+            logger.info(
+                f"[Task ID: {task_id}] [PostProcessor] Selected hardcoded quick tip: {hardcoded_quick_tip_slug}"
+            )
+        else:
+            sanitized_quick_tip_slug = sanitize_quick_tip_slug(
+                raw_slug=llm_result.arguments.get("quick_tip_slug", ""),
+                available_app_ids=available_app_ids,
+                task_id=task_id,
+                logger=logger,
+            )
+            quick_tip_slugs = [sanitized_quick_tip_slug] if sanitized_quick_tip_slug else []
+
     # Translate new chat suggestions into the user's system/UI language.
     #
     # Why: The main postprocessor call sees the full conversation history (potentially in any
@@ -639,6 +687,7 @@ async def handle_postprocessing(
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
+        quick_tip_slugs=quick_tip_slugs,
     )
 
     # Validate that we have the required number of suggestions
@@ -666,7 +715,8 @@ async def handle_postprocessing(
         f"{len(result.new_chat_request_suggestions)} new chat suggestions, "
         f"{len(result.top_recommended_apps_for_user)} app recommendations, "
 
-        f"{len(result.daily_inspiration_topic_suggestions)} daily inspiration topic suggestions"
+        f"{len(result.daily_inspiration_topic_suggestions)} daily inspiration topic suggestions, "
+        f"{len(result.quick_tip_slugs)} quick tips"
     )
 
     return result

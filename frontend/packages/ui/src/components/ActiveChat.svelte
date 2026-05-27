@@ -17,7 +17,7 @@
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
+    import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
@@ -116,7 +116,7 @@
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
     import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
-    import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
+    import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
@@ -198,6 +198,7 @@
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
+        sendCurrentMessage: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
     };
@@ -428,7 +429,9 @@
      * If user_id is not set, assume the user owns it (backwards compatibility).
      */
     async function checkChatOwnership() {
-        if (!currentChat || !$authStore.isAuthenticated) {
+        const chat = currentChat;
+
+        if (!chat || !$authStore.isAuthenticated) {
             // Non-authenticated users can always edit (demo chats)
             // No chat loaded means welcome screen
             chatOwnershipResolved = true;
@@ -436,7 +439,7 @@
         }
         
         // If chat has no user_id, assume it's owned (backwards compatibility)
-        if (!currentChat.user_id) {
+        if (!chat.user_id) {
             chatOwnershipResolved = true;
             return;
         }
@@ -453,6 +456,13 @@
                 return;
             }
         }
+
+        // The DB profile lookup above is async; the active chat may have changed while
+        // it was pending. Ignore stale ownership checks so a previous shared chat cannot
+        // mark a newly-created owned chat as read-only.
+        if (currentChat?.chat_id !== chat.chat_id || currentChat?.user_id !== chat.user_id) {
+            return;
+        }
         
         if (!currentUserId) {
             // Can't determine ownership, default to allowing (fail open for UX)
@@ -461,9 +471,9 @@
         }
         
         // Compare chat's user_id with current user's user_id
-        const isOwned = currentChat.user_id === currentUserId;
+        const isOwned = chat.user_id === currentUserId;
         chatOwnershipResolved = isOwned;
-        console.debug(`[ActiveChat] Chat ownership check: ${isOwned} for chat ${currentChat.chat_id} (chat.user_id: ${currentChat.user_id}, currentUserId: ${currentUserId})`);
+        console.debug(`[ActiveChat] Chat ownership check: ${isOwned} for chat ${chat.chat_id} (chat.user_id: ${chat.user_id}, currentUserId: ${currentUserId})`);
     }
     
     // Check ownership whenever chat or auth state changes
@@ -1268,6 +1278,36 @@
             console.error('[ActiveChat] Error navigating to focus mode details:', e);
         }
     }
+
+    async function handleQuickTipAction(event: CustomEvent) {
+        const tip = event.detail;
+        if (!tip?.ctaAction) return;
+
+        if (tip.ctaAction === 'new_chat') {
+            await handleNewChatClick();
+            return;
+        }
+
+        if (tip.ctaAction === 'open_app') {
+            try {
+                const { navigateToSettings } = await import('../stores/settingsNavigationStore');
+                const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
+                const { panelState } = await import('../stores/panelStateStore');
+                const settingsPath = tip.appId ? `app_store/${tip.appId}` : 'app_store';
+                navigateToSettings(settingsPath, 'App Store', 'app', '');
+                settingsDeepLink.set(settingsPath);
+                panelState.openSettings();
+            } catch (error) {
+                console.error('[ActiveChat] Error handling quick tip app navigation:', error);
+            }
+            return;
+        }
+
+        if (tip.ctaAction === 'send_prompt' && tip.prompt) {
+            messageInputFieldRef?.setSuggestionText(tip.prompt);
+            messageInputFieldRef?.focus();
+        }
+    }
     
     // Handler for Wikipedia fullscreen events (from WikiInlineLink).
     // Only one fullscreen can be open at a time — close any regular embed fullscreen
@@ -1280,6 +1320,7 @@
             displayText: string;
             thumbnailUrl?: string | null;
             description?: string | null;
+            hasChatContext?: boolean;
         };
         // Close any regular embed fullscreen first (mutual exclusivity)
         if (showEmbedFullscreen) {
@@ -1287,6 +1328,7 @@
             embedFullscreenData = null;
         }
         wikiFullscreenData = detail;
+        wikiFullscreenHasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
         showWikiFullscreen = true;
         console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
     }
@@ -1296,12 +1338,13 @@
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
-        const hasChatContext = detail.hasChatContext ?? !!currentChat?.chat_id;
+        const hasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
 
         // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
         if (showWikiFullscreen) {
             showWikiFullscreen = false;
             wikiFullscreenData = null;
+            wikiFullscreenHasChatContext = false;
         }
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
@@ -2045,6 +2088,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
+    const SUGGESTION_MENTION_INSERT_DELAY_MS = 0;
+
     // Handler for suggestion click - copies suggestion to message input.
     // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
     // body text first, then set pendingMentionStore so MessageInput inserts the
@@ -2072,6 +2117,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 messageInputFieldRef.setSuggestionText(suggestion);
                 messageInputFieldRef.focus();
             }
+        }
+    }
+
+    async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
+        console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+        if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
+        if (messageInputFieldRef) {
+            await messageInputFieldRef.clearMessageField(false);
+            messageInputFieldRef.setSuggestionText(suggestion);
+            if (mentionSyntax) {
+                pendingMentionStore.set(mentionSyntax);
+                await tick();
+                await new Promise(resolve => setTimeout(resolve, SUGGESTION_MENTION_INSERT_DELAY_MS));
+            } else {
+                await tick();
+            }
+            messageInputFieldRef.sendCurrentMessage();
         }
     }
 
@@ -2148,7 +2214,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
-        const { chatId, followUpSuggestions: newSuggestions } = event.detail;
+        const { chatId, followUpSuggestions: newSuggestions, quickTipSlugs: newQuickTipSlugs } = event.detail;
         console.info('[ActiveChat] 📬 Post-processing completed event received:', {
             chatId,
             currentChatId: currentChat?.chat_id,
@@ -2228,6 +2294,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } else {
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
+                    }
+
+                    if (freshChat.encrypted_quick_tip_slugs) {
+                        const chatKey = chatKeyManager.getKeySync(chatId);
+                        if (chatKey) {
+                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                            quickTipSlugs = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
+                        } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
+                            quickTipSlugs = newQuickTipSlugs;
+                        }
+                    } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
+                        quickTipSlugs = newQuickTipSlugs;
+                    } else {
+                        quickTipSlugs = [];
                     }
 
                 } else {
@@ -2736,6 +2816,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map((chat) => buildRecentChatMeta(chat))
             );
+            recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, metas.length);
             recentChats = metas;
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
@@ -2907,21 +2988,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
+            recentChatTiltStates = [];
+            nonAuthChatTiltStates = [];
             recentChats = [];
             priorityContinueItems = [];
             nonAuthRecentChats = [];
             return;
         }
         if (isAuth) {
+            nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
             recentChatsScrolledByUser = false;
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
+            recentChatTiltStates = [];
             recentChats = [];
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
-            nonAuthRecentChats = loadNonAuthRecentChats();
+            const metas = loadNonAuthRecentChats();
+            nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
+            nonAuthRecentChats = metas;
             centerFirstRecentChat();
         }
     });
@@ -4099,6 +4186,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    function reconcileRecentChatTiltStates(
+        existing: RecentChatTiltState[],
+        len: number,
+    ): RecentChatTiltState[] {
+        if (existing.length === len) return existing;
+        return Array.from({ length: len }, (_, index) => existing[index] ?? new RecentChatTiltState());
+    }
+
     // Use $state + $effect instead of $derived so that RecentChatTiltState instances
     // (which hold their own $state properties) are not created inside a derived context.
     // Creating $state-bearing objects inside $derived is a Svelte 5 edge case that can
@@ -4108,7 +4203,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const len = recentChats.length;
         if (recentChatTiltStates.length !== len) {
-            recentChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+            recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, len);
         }
     });
 
@@ -4117,7 +4212,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const len = nonAuthRecentChats.length;
         if (nonAuthChatTiltStates.length !== len) {
-            nonAuthChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+            nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, len);
         }
     });
 
@@ -4233,6 +4328,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    let quickTipSlugs = $state<string[]>([]);
     
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
@@ -4273,14 +4369,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // User can click this to temporarily hide the chat and show only the embed fullscreen
     let forceOverlayMode = $state(false);
     let fullscreenHasChatContext = $state(false);
+    let wikiFullscreenHasChatContext = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
     // Only use side-by-side when ultra-wide AND the fullscreen was opened from a chat.
-    let showSideBySideFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData))) && !forceOverlayMode);
+    let showSideBySideFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext))) && !forceOverlayMode);
 
     // Determine if we should show the "Show Chat" button in fullscreen embed views
     // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData))) && forceOverlayMode);
+    let showChatButtonInFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext))) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -4414,6 +4511,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+
+    async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
+        const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
+        const chatKey = await chatKeyManager.getKey(chatId);
+        if (!chatKey) return checkpoints;
+        const { decryptWithChatKey } = await import('../services/encryption/MessageEncryptor');
+        return Promise.all(checkpoints.map(async checkpoint => {
+            if (checkpoint.summary || !checkpoint.encrypted_summary) return checkpoint;
+            try {
+                return {
+                    ...checkpoint,
+                    summary: await decryptWithChatKey(checkpoint.encrypted_summary, chatKey) || undefined,
+                };
+            } catch {
+                return checkpoint;
+            }
+        }));
+    }
 
     let startNewChatPlaceholderMode = $derived(
         !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
@@ -5659,6 +5775,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
+        quickTipSlugs = [];
         
         // Hide settings/memories suggestions when user sends a new message
         // New suggestions will be generated during post-processing
@@ -6070,6 +6187,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleStartChatFromInspiration(inspiration: DailyInspiration) {
         console.info('[ActiveChat] Starting chat from daily inspiration:', inspiration.inspiration_id);
 
+        if (inspiration.content_type === 'feature') {
+            const settingsPath = inspiration.feature?.settings_path;
+            if (!settingsPath) {
+                console.debug('[ActiveChat] Feature inspiration has no settings path — no action taken');
+                return;
+            }
+            settingsMenuVisible.set(true);
+            panelState.openSettings();
+            await tick();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            settingsDeepLink.set(settingsPath);
+            dailyInspirationStore.markOpened(inspiration.inspiration_id, undefined, {
+                preserveCurrentIndex: true,
+            });
+            if ($authStore.isAuthenticated) {
+                const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
+                await markInspirationOpenedInIndexedDB(inspiration.inspiration_id);
+                await markInspirationOpenedOnAPI(inspiration.inspiration_id);
+            }
+            return;
+        }
+
         // Unauthenticated users: open the signup screen (alpha disclaimer step) so they
         // can register and then start using inspirations.
         // Same pattern as handleOpenSignupInterface (message-input signup button).
@@ -6300,6 +6439,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // the embed card inline, exactly like embeds created by the URL metadata service.
                 const embedReference = createEmbedReferenceBlock('video', embedId, videoUrl);
                 messageContent = `${firstMessageText}\n\n${embedReference}`;
+            } else if (inspiration.wiki) {
+                const wikiTitle = inspiration.wiki.wiki_title || inspiration.wiki.title;
+                const wikiLink = `[${inspiration.wiki.title || wikiTitle}](wiki:${wikiTitle})`;
+                messageContent = `${firstMessageText}\n\n${wikiLink}`;
             }
 
             const encryptedContent = await encryptWithChatKey(messageContent, chatKey);
@@ -7418,6 +7561,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // append messages from the wrong chat. The generation counter prevents stale completions
          // from overwriting currentMessages after a newer loadChat has started.
          const thisLoadGeneration = ++loadChatGeneration;
+         currentCompressionCheckpoints = [];
 
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
@@ -7469,6 +7613,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
              try {
                  const { getHighlightsForChat } = await import('../services/db/messageHighlights');
                  const { loadHighlightsForChat } = await import('../stores/messageHighlightsStore');
+                 await chatDB.init();
                  const rows = await getHighlightsForChat(chatDB, chat.chat_id);
                  loadHighlightsForChat(chat.chat_id, rows);
              } catch (err) {
@@ -7490,6 +7635,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (showWikiFullscreen) {
             showWikiFullscreen = false;
             wikiFullscreenData = null;
+            wikiFullscreenHasChatContext = false;
         }
         
         // CRITICAL: Close video player when switching chats (only if NOT in PiP mode)
@@ -7799,6 +7945,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
                 try {
                     newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                    currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                 } catch (error) {
                     // If database is unavailable (e.g., being deleted during logout), use empty messages
@@ -8064,6 +8211,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         } else {
             followUpSuggestions = [];
+        }
+
+        if (!isPublicChat(currentChat.chat_id) && currentChat.encrypted_quick_tip_slugs) {
+            try {
+                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
+                if (chatKey) {
+                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                    quickTipSlugs = await decryptArrayWithChatKey(currentChat.encrypted_quick_tip_slugs, chatKey) || [];
+                } else {
+                    quickTipSlugs = [];
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Failed to load quick tip slugs:', error);
+                quickTipSlugs = [];
+            }
+        } else {
+            quickTipSlugs = [];
         }
 
 
@@ -9696,8 +9860,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
+        const compressionCheckpointStoredHandler = (async (event: CustomEvent) => {
+            const { chat_id } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(chat_id);
+                currentMessages = await chatDB.getMessagesForChat(chat_id);
+                chatHistoryRef?.updateMessages(currentMessages);
+            }
+        }) as EventListenerCallback;
+
         chatSyncService.addEventListener('chatCompressionStarted', compressionStartedHandler);
         chatSyncService.addEventListener('chatCompressionCompleted', compressionCompletedHandler);
+        chatSyncService.addEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
@@ -10100,6 +10274,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('chatCompressionStarted', compressionStartedHandler);
             chatSyncService.removeEventListener('chatCompressionCompleted', compressionCompletedHandler);
+            chatSyncService.removeEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             // Remove thinking/reasoning event listeners
@@ -10793,9 +10968,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 bind:this={tilt.el}
                                                 class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={tilt?.hovering}
-                                                type="button"
-                                                style={cardStyle}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                 type="button"
+                                                 style={cardStyle}
+                                                 data-chat-id={meta.chat.chat_id}
+                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
+                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
@@ -10842,9 +11019,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <!-- Compact card for short or narrow viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
-                                                class="resume-chat-card" data-testid="resume-chat-card"
-                                                style={getResumeCardGradientStyle(gradientColors)}
-                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
+                                                 class="resume-chat-card" data-testid="resume-chat-card"
+                                                 style={getResumeCardGradientStyle(gradientColors)}
+                                                 data-chat-id={meta.chat.chat_id}
+                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
+                                                 onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
@@ -10886,17 +11065,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
+                           isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
                           canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
                            videoTeaserMp4Url={activeLocaleVideo?.teaser_mp4_url ?? activePublicChatMetadata?.video_teaser_mp4_url ?? null}
                            videoTeaserWebpUrl={activeLocaleVideo?.teaser_webp_url ?? activePublicChatMetadata?.video_teaser_webp_url ?? null}
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
-                         autoplayVideo={pendingAutoplayVideo}
-                         onResend={handleResendAfterCreditsRestored}
-                         followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
-                         onSuggestionClick={handleSuggestionClick}
-                         on:messagesChange={handleMessagesChange}
+                          autoplayVideo={pendingAutoplayVideo}
+                          onResend={handleResendAfterCreditsRestored}
+                           followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
+                           {quickTipSlugs}
+                           compressionCheckpoints={currentCompressionCheckpoints}
+                            onSuggestionClick={handleFollowUpSuggestionClick}
+                          on:quickTipAction={handleQuickTipAction}
+                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
                          on:scrollPositionUI={handleScrollPositionUI}
                          on:scrollPositionChanged={handleScrollPositionChanged}
@@ -11144,12 +11327,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
                                 description={wikiFullscreenData.description}
-                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
+                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}
                             />
                             {:else}
                                 <div class="embed-fullscreen-fallback">
                                     <div class="fullscreen-header">
-                                        <button onclick={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}>Close</button>
+                                        <button onclick={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}>Close</button>
                                     </div>
                                     <div class="fullscreen-content">
                                         <p>Fullscreen view could not be loaded. Please close this view and try again.</p>

@@ -32,6 +32,9 @@ embed_types:
     gradient_var: "--color-app-math"
     i18n_namespace: embeds.math.calculate
     content_fields:
+      - name: title
+        type: string
+        required: false
       - name: results
         type: array
         required: true
@@ -78,6 +81,12 @@ skills:
     tool_schema:
       type: object
       properties:
+        title:
+          type: string
+          description: >
+            A short human-readable title that explains why this calculation is
+            being made. This is shown in the embed preview, so prefer concise
+            context like "Bike time to the Moon" or "Monthly mortgage estimate".
         expression:
           type: string
           description: >

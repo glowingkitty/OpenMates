@@ -44,7 +44,7 @@ class DailyInspirationDefaultsMethods:
             language: Language code (e.g. 'en', 'de').
 
         Returns:
-            List of up to 3 default inspiration records, ordered by position.
+            List of up to 10 default inspiration records, ordered by position.
         """
         try:
             items = await self.directus_service.get_items(
@@ -57,7 +57,7 @@ class DailyInspirationDefaultsMethods:
                         ]
                     },
                     "sort": ["position"],
-                    "limit": 3,
+                    "limit": 10,
                 },
                 admin_required=True,
             )
@@ -89,7 +89,7 @@ class DailyInspirationDefaultsMethods:
         Args:
             date_str: Date string in YYYY-MM-DD format (UTC).
             language: Language code.
-            pool_entries: List of up to 3 pool entry dicts (from daily_inspiration_pool)
+            pool_entries: List of up to 10 pool entry dicts (from daily_inspiration_pool)
                           to store as today's defaults.
 
         Returns:
@@ -101,7 +101,7 @@ class DailyInspirationDefaultsMethods:
         now_iso = datetime.now(timezone.utc).isoformat()
         created = 0
 
-        for idx, entry in enumerate(pool_entries[:3]):
+        for idx, entry in enumerate(pool_entries[:10]):
             position = idx + 1
             payload: Dict[str, Any] = {
                 "date": date_str,
@@ -121,6 +121,8 @@ class DailyInspirationDefaultsMethods:
                 "video_view_count": entry.get("video_view_count"),
                 "video_duration_seconds": entry.get("video_duration_seconds"),
                 "video_published_at": entry.get("video_published_at"),
+                "wiki_metadata": entry.get("wiki_metadata"),
+                "feature_metadata": entry.get("feature_metadata"),
                 "follow_up_suggestions": entry.get("follow_up_suggestions", "[]"),
                 "generated_at": entry.get("generated_at", 0),
                 "created_at": now_iso,

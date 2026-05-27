@@ -3,7 +3,12 @@
 // Tests: (none yet)
 
 import DOMPurify, { type Config } from "dompurify";
-import { convertEmbedAnchorsToSpans, convertMarkdownEmbedLinksInHtml } from "../../../utils/embedLinkUtils";
+import {
+  convertEmbedAnchorsToSpans,
+  convertMarkdownEmbedLinksInHtml,
+  convertMarkdownWikiLinksInHtml,
+  convertWikiAnchorsToSpans,
+} from "../../../utils/embedLinkUtils";
 
 /**
  * DOMPurify configuration for document HTML sanitization
@@ -116,6 +121,11 @@ const SANITIZE_CONFIG: Config = {
     // Inline embed link placeholder attributes (set by convertEmbedAnchorsToSpans)
     "data-embed-ref",
     "data-display-text",
+    // Inline wiki link placeholder attributes
+    "data-wiki-title",
+    "data-wikidata-id",
+    "data-thumbnail-url",
+    "data-description",
   ],
   // Force all links to open in new tab
   ADD_ATTR: ["target"],
@@ -146,7 +156,9 @@ export function sanitizeDocumentHtml(html: string): string {
   // 2. convertMarkdownEmbedLinksInHtml: handles [text](embed:ref) markdown syntax
   //    that the AI may write inside blockquotes or other HTML text nodes
   let preprocessed = convertEmbedAnchorsToSpans(html);
+  preprocessed = convertWikiAnchorsToSpans(preprocessed);
   preprocessed = convertMarkdownEmbedLinksInHtml(preprocessed);
+  preprocessed = convertMarkdownWikiLinksInHtml(preprocessed);
 
   // Sanitize with DOMPurify (RETURN_TRUSTED_TYPE: false ensures string return)
   const sanitized = DOMPurify.sanitize(preprocessed, SANITIZE_CONFIG) as string;
@@ -273,61 +285,4 @@ export function extractPreviewText(
   if (words.length <= maxWords) return words.join(" ");
 
   return words.slice(0, maxWords).join(" ") + "...";
-}
-
-/**
- * Parse document embed content from decoded TOON data or raw attributes
- * Extracts all relevant fields for rendering
- *
- * @param content - Raw HTML content or decoded content object
- * @param hints - Optional hints (title from attributes, etc.)
- * @returns Parsed document content with all fields
- */
-export interface ParsedDocContent {
-  html: string;
-  title: string | undefined;
-  filename: string | undefined;
-  wordCount: number;
-  previewText: string;
-}
-
-function parseDocEmbedContent(
-  content: string | Record<string, unknown>,
-  hints?: { title?: string; filename?: string },
-): ParsedDocContent {
-  let html = "";
-  let title: string | undefined;
-  let filename: string | undefined;
-
-  if (typeof content === "string") {
-    html = content;
-  } else if (content && typeof content === "object") {
-    html = (content.html as string) || (content.code as string) || "";
-    title = (content.title as string) || undefined;
-    filename = (content.filename as string) || undefined;
-  }
-
-  // Extract title from content if not provided
-  if (!title) {
-    title = extractDocumentTitle(html) || hints?.title;
-  }
-
-  // Extract filename from content if not provided
-  if (!filename) {
-    filename =
-      extractDocumentFilename(html) ||
-      hints?.filename ||
-      (title ? generateFilenameFromTitle(title) : undefined);
-  }
-
-  const wordCount = countDocWords(html);
-  const previewText = extractPreviewText(html);
-
-  return {
-    html,
-    title,
-    filename,
-    wordCount,
-    previewText,
-  };
 }

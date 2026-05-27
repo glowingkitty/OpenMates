@@ -773,7 +773,32 @@
       {/key}
     </div>
     <div class="suggestions-scroll">
-      {#each visibleSuggestions as suggestion (suggestion.text)}
+      <!-- Existing chat search results (shown when user types a search query) -->
+      {#if chatSearchResults.length > 0}
+        {#each chatSearchResults as chatResult (chatResult.chatId)}
+          {@const IconComponent = getLucideIcon(chatResult.iconName)}
+          <div class="chat-result-wrapper">
+            <button
+              class="suggestion-card chat-result-card"
+              style="background: linear-gradient(135deg, {chatResult.gradientStart}, {chatResult.gradientEnd});"
+              onclick={() => onChatNavigate(chatResult.chatId)}
+            >
+              <span class="card-icon chat-result-icon">
+                <IconComponent size={24} color="white" />
+              </span>
+              <span class="card-text">{chatResult.title}</span>
+            </button>
+            {#if chatResult.dateLabel}
+              <span class="card-date">{chatResult.dateLabel}</span>
+            {/if}
+          </div>
+        {/each}
+      {/if}
+
+      {#each visibleSuggestions as suggestion, suggestionIndex (suggestion.text)}
+        {#if chatSearchResults.length > 0 && suggestionIndex === 0}
+          <div class="chat-results-divider"></div>
+        {/if}
         <button
           class="suggestion-card"
           style="background: {getAppCssGradient(suggestion.appId)};"
@@ -792,7 +817,7 @@
 
       <!-- Uploaded file search results from locally synced embeds -->
       {#if fileSearchResults.length > 0}
-        {#if visibleSuggestions.length > 0}
+        {#if chatSearchResults.length > 0 || visibleSuggestions.length > 0}
           <div class="chat-results-divider"></div>
         {/if}
         {#each fileSearchResults as fileResult (fileResult.embedId)}
@@ -808,31 +833,6 @@
               <span class="card-text">{fileResult.title}</span>
             </button>
             <span class="card-date">{fileResult.subtitle}</span>
-          </div>
-        {/each}
-      {/if}
-
-      <!-- Existing chat search results (shown when user types a search query) -->
-      {#if chatSearchResults.length > 0}
-        {#if visibleSuggestions.length > 0 || fileSearchResults.length > 0}
-          <div class="chat-results-divider"></div>
-        {/if}
-        {#each chatSearchResults as chatResult (chatResult.chatId)}
-          {@const IconComponent = getLucideIcon(chatResult.iconName)}
-          <div class="chat-result-wrapper">
-            <button
-              class="suggestion-card chat-result-card"
-              style="background: linear-gradient(135deg, {chatResult.gradientStart}, {chatResult.gradientEnd});"
-              onclick={() => onChatNavigate(chatResult.chatId)}
-            >
-              <span class="card-icon chat-result-icon">
-                <IconComponent size={24} color="white" />
-              </span>
-              <span class="card-text">{chatResult.title}</span>
-            </button>
-            {#if chatResult.dateLabel}
-              <span class="card-date">{chatResult.dateLabel}</span>
-            {/if}
           </div>
         {/each}
       {/if}

@@ -32,6 +32,31 @@ class DailyInspirationVideo(BaseModel):
     published_at: Optional[str] = Field(None, description="ISO 8601 publication date string")
 
 
+class DailyInspirationWiki(BaseModel):
+    """Wikipedia article metadata shown in a Daily Inspiration banner."""
+
+    title: str = Field(..., description="Display title for the article")
+    wiki_title: str = Field(..., description="Canonical Wikipedia title/slug")
+    description: Optional[str] = Field(None, description="Short Wikipedia/Wikidata description")
+    thumbnail_url: Optional[str] = Field(None, description="Article thumbnail URL")
+    wikidata_id: Optional[str] = Field(None, description="Wikidata QID, if available")
+    extract: Optional[str] = Field(None, description="Short article summary/extract")
+
+
+class DailyInspirationFeature(BaseModel):
+    """Static OpenMates feature tip metadata shown in a Daily Inspiration banner."""
+
+    feature_id: str = Field(..., description="Stable feature identifier")
+    icon: str = Field(..., description="Lucide/category icon name")
+    title: str = Field(..., description="Feature card title")
+    description: str = Field(..., description="Short feature card description")
+    settings_path: Optional[str] = Field(None, description="Settings deep-link path, if clickable")
+    requires_authentication: bool = Field(
+        default=True,
+        description="Whether the linked feature requires an authenticated account",
+    )
+
+
 class DailyInspiration(BaseModel):
     """
     A single Daily Inspiration item.
@@ -83,6 +108,14 @@ class DailyInspiration(BaseModel):
     video: Optional[DailyInspirationVideo] = Field(
         None,
         description="Enriched video metadata. Required when content_type='video'.",
+    )
+    wiki: Optional[DailyInspirationWiki] = Field(
+        None,
+        description="Wikipedia metadata. Required when content_type='wiki'.",
+    )
+    feature: Optional[DailyInspirationFeature] = Field(
+        None,
+        description="Static feature metadata. Required when content_type='feature'.",
     )
     generated_at: int = Field(..., description="Unix timestamp when this inspiration was generated")
     follow_up_suggestions: List[str] = Field(

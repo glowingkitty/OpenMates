@@ -17,6 +17,7 @@ class AppPricing(BaseModel):
     tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
     per_minute: Optional[int] = None # credits per minute
+    per_second: Optional[int] = None # credits per second
     fixed: Optional[int] = None # fixed credits per call
 
 class AppSkillApiConfig(BaseModel):
@@ -265,6 +266,7 @@ class AppYAML(BaseModel):
     )
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
+    category: Optional[str] = None
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
     memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias

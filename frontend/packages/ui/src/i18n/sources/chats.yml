@@ -120,6 +120,31 @@ context_menu.select:
   he: בחירה
   verified_by_human: []
 
+context_menu.open_new_tab:
+  context: Menu option to open a chat in a new browser tab
+  en: Open in new tab
+  de: In neuem Tab öffnen
+  zh: 在新标签页中打开
+  es: Abrir en una pestaña nueva
+  fr: Ouvrir dans un nouvel onglet
+  pt: Abrir em nova aba
+  ru: Открыть в новой вкладке
+  ja: 新しいタブで開く
+  ko: 새 탭에서 열기
+  it: Apri in una nuova scheda
+  tr: Yeni sekmede aç
+  vi: Mở trong thẻ mới
+  id: Buka di tab baru
+  pl: Otwórz w nowej karcie
+  nl: Openen in nieuw tabblad
+  ar: فتح في علامة تبويب جديدة
+  hi: नए टैब में खोलें
+  th: เปิดในแท็บใหม่
+  cs: Otevřít na nové kartě
+  sv: Öppna i ny flik
+  he: פתיחה בכרטיסייה חדשה
+  verified_by_human: []
+
 context_menu.downloading:
   context: Text shown on download button while chat download is in progress
   en: Downloading...
@@ -2840,4 +2865,204 @@ search_placeholder:
   cs: Hledat
   sv: Sök
   he: חפש
+  verified_by_human: []
+
+error_report_consent.title:
+  context: Title for a toast shown when chat processing fails and the user can send an issue report
+  en: Chat response failed
+  de: Chat response failed
+  zh: Chat response failed
+  es: Chat response failed
+  fr: Chat response failed
+  pt: Chat response failed
+  ru: Chat response failed
+  ja: Chat response failed
+  ko: Chat response failed
+  it: Chat response failed
+  tr: Chat response failed
+  vi: Chat response failed
+  id: Chat response failed
+  pl: Chat response failed
+  nl: Chat response failed
+  ar: Chat response failed
+  hi: Chat response failed
+  th: Chat response failed
+  cs: Chat response failed
+  sv: Chat response failed
+  he: Chat response failed
+  verified_by_human: []
+
+error_report_consent.message:
+  context: Primary text for chat error report consent toast
+  en: OpenMates can send a technical issue report to help diagnose this.
+  de: OpenMates can send a technical issue report to help diagnose this.
+  zh: OpenMates can send a technical issue report to help diagnose this.
+  es: OpenMates can send a technical issue report to help diagnose this.
+  fr: OpenMates can send a technical issue report to help diagnose this.
+  pt: OpenMates can send a technical issue report to help diagnose this.
+  ru: OpenMates can send a technical issue report to help diagnose this.
+  ja: OpenMates can send a technical issue report to help diagnose this.
+  ko: OpenMates can send a technical issue report to help diagnose this.
+  it: OpenMates can send a technical issue report to help diagnose this.
+  tr: OpenMates can send a technical issue report to help diagnose this.
+  vi: OpenMates can send a technical issue report to help diagnose this.
+  id: OpenMates can send a technical issue report to help diagnose this.
+  pl: OpenMates can send a technical issue report to help diagnose this.
+  nl: OpenMates can send a technical issue report to help diagnose this.
+  ar: OpenMates can send a technical issue report to help diagnose this.
+  hi: OpenMates can send a technical issue report to help diagnose this.
+  th: OpenMates can send a technical issue report to help diagnose this.
+  cs: OpenMates can send a technical issue report to help diagnose this.
+  sv: OpenMates can send a technical issue report to help diagnose this.
+  he: OpenMates can send a technical issue report to help diagnose this.
+  verified_by_human: []
+
+error_report_consent.secondary:
+  context: Secondary text for chat error report consent toast explaining chat context is explicit consent
+  en: You can include this chat's debug context only if you choose to report it.
+  de: You can include this chat's debug context only if you choose to report it.
+  zh: You can include this chat's debug context only if you choose to report it.
+  es: You can include this chat's debug context only if you choose to report it.
+  fr: You can include this chat's debug context only if you choose to report it.
+  pt: You can include this chat's debug context only if you choose to report it.
+  ru: You can include this chat's debug context only if you choose to report it.
+  ja: You can include this chat's debug context only if you choose to report it.
+  ko: You can include this chat's debug context only if you choose to report it.
+  it: You can include this chat's debug context only if you choose to report it.
+  tr: You can include this chat's debug context only if you choose to report it.
+  vi: You can include this chat's debug context only if you choose to report it.
+  id: You can include this chat's debug context only if you choose to report it.
+  pl: You can include this chat's debug context only if you choose to report it.
+  nl: You can include this chat's debug context only if you choose to report it.
+  ar: You can include this chat's debug context only if you choose to report it.
+  hi: You can include this chat's debug context only if you choose to report it.
+  th: You can include this chat's debug context only if you choose to report it.
+  cs: You can include this chat's debug context only if you choose to report it.
+  sv: You can include this chat's debug context only if you choose to report it.
+  he: You can include this chat's debug context only if you choose to report it.
+  verified_by_human: []
+
+error_report_consent.action:
+  context: Action button label for chat error report consent toast
+  en: Report issue
+  de: Report issue
+  zh: Report issue
+  es: Report issue
+  fr: Report issue
+  pt: Report issue
+  ru: Report issue
+  ja: Report issue
+  ko: Report issue
+  it: Report issue
+  tr: Report issue
+  vi: Report issue
+  id: Report issue
+  pl: Report issue
+  nl: Report issue
+  ar: Report issue
+  hi: Report issue
+  th: Report issue
+  cs: Report issue
+  sv: Report issue
+  he: Report issue
+  verified_by_human: []
+
+error_report_consent.submitting:
+  context: Toast text shown while automatic chat error issue report is being submitted
+  en: Sending issue report ...
+  de: Sending issue report ...
+  zh: Sending issue report ...
+  es: Sending issue report ...
+  fr: Sending issue report ...
+  pt: Sending issue report ...
+  ru: Sending issue report ...
+  ja: Sending issue report ...
+  ko: Sending issue report ...
+  it: Sending issue report ...
+  tr: Sending issue report ...
+  vi: Sending issue report ...
+  id: Sending issue report ...
+  pl: Sending issue report ...
+  nl: Sending issue report ...
+  ar: Sending issue report ...
+  hi: Sending issue report ...
+  th: Sending issue report ...
+  cs: Sending issue report ...
+  sv: Sending issue report ...
+  he: Sending issue report ...
+  verified_by_human: []
+
+error_report_consent.dismiss:
+  context: Dismiss button label for chat error report consent toast
+  en: Not now
+  de: Not now
+  zh: Not now
+  es: Not now
+  fr: Not now
+  pt: Not now
+  ru: Not now
+  ja: Not now
+  ko: Not now
+  it: Not now
+  tr: Not now
+  vi: Not now
+  id: Not now
+  pl: Not now
+  nl: Not now
+  ar: Not now
+  hi: Not now
+  th: Not now
+  cs: Not now
+  sv: Not now
+  he: Not now
+  verified_by_human: []
+
+error_report_consent.report_title:
+  context: Prefilled report issue title for chat processing failures
+  en: Chat response failed
+  de: Chat response failed
+  zh: Chat response failed
+  es: Chat response failed
+  fr: Chat response failed
+  pt: Chat response failed
+  ru: Chat response failed
+  ja: Chat response failed
+  ko: Chat response failed
+  it: Chat response failed
+  tr: Chat response failed
+  vi: Chat response failed
+  id: Chat response failed
+  pl: Chat response failed
+  nl: Chat response failed
+  ar: Chat response failed
+  hi: Chat response failed
+  th: Chat response failed
+  cs: Chat response failed
+  sv: Chat response failed
+  he: Chat response failed
+  verified_by_human: []
+
+error_report_consent.report_description:
+  context: Prefilled report issue description for chat processing failures
+  en: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  de: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  zh: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  es: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  fr: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  pt: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  ru: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  ja: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  ko: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  it: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  tr: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  vi: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  id: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  pl: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  nl: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  ar: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  hi: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  th: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  cs: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  sv: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  he: A chat processing error happened. I consent to include the current chat context for debugging this incident.
   verified_by_human: []

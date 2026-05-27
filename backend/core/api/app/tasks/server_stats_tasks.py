@@ -105,6 +105,7 @@ async def run_flush_server_stats(task: BaseServiceTask):
             "gift_cards_redeemed": daily_incremental.get("gift_cards_redeemed", 0),
             "subscription_creations": daily_incremental.get("subscription_creations", 0),
             "subscription_cancellations": daily_incremental.get("subscription_cancellations", 0),
+            "deleted_accounts": daily_incremental.get("deleted_accounts", 0),
             # Phase 6: Token/cost tracking
             "total_input_tokens": daily_incremental.get("total_input_tokens", 0),
             "total_output_tokens": daily_incremental.get("total_output_tokens", 0),
@@ -198,6 +199,7 @@ async def update_monthly_stats(task: BaseServiceTask, year_month: str):
             "gift_cards_redeemed": sum(_int(d.get("gift_cards_redeemed")) for d in dailies),
             "subscription_creations": sum(_int(d.get("subscription_creations")) for d in dailies),
             "subscription_cancellations": sum(_int(d.get("subscription_cancellations")) for d in dailies),
+            "deleted_accounts": sum(_int(d.get("deleted_accounts")) for d in dailies),
             # Phase 6: Token/cost tracking
             "total_input_tokens": sum(_int(d.get("total_input_tokens")) for d in dailies),
             "total_output_tokens": sum(_int(d.get("total_output_tokens")) for d in dailies),

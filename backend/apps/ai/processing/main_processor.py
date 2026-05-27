@@ -1,6 +1,8 @@
 # backend/apps/ai/processing/main_processor.py
 # Handles the main processing stage of AI skill requests.
 
+import importlib
+import inspect
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator, Tuple, Union
 import json
@@ -61,6 +63,8 @@ FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
     "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
     "unless clarification is necessary to answer safely and correctly."
 )
+
+# Furry Mode prompt styling is disabled until any furry art is made by human artists.
 
 
 def _resolve_app_skill_model_override(
@@ -125,11 +129,25 @@ INVALID_TOOL_RESULT_REASON = (
     "completed results. Do not mention unavailable internal tools to the user."
 )
 
+APP_FOCUS_MODES_NAMESPACE = "app_focus_modes"
+
 ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "search"),
     ("social_media", "get-posts"),
 }
+
+
+def _get_skill_execution_args(
+    parsed_args: Dict[str, Any],
+    placeholder_embed_data: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    if isinstance(placeholder_embed_data, dict):
+        placeholder_parsed_args = placeholder_embed_data.get("parsed_args")
+        if isinstance(placeholder_parsed_args, dict):
+            return placeholder_parsed_args
+
+    return parsed_args
 
 
 # Characters LLM providers use instead of the canonical hyphen in tool names.
@@ -140,6 +158,31 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
 # empty because Gemini 3 called 'web:search' and the strict string-match
 # allow-list rejected it even though 'web-search' was preselected.
 _TOOL_NAME_SEPARATORS = (":", "|", "_", ".")
+
+
+def _resolve_focus_mode_display_name(
+    translation_service: TranslationService,
+    translation_key: str,
+    fallback: str,
+    user_language: str,
+) -> str:
+    """Resolve app.yml focus-mode labels through the frontend app_focus_modes namespace."""
+    candidate_keys = []
+    if translation_key.startswith(f"{APP_FOCUS_MODES_NAMESPACE}."):
+        candidate_keys.append(translation_key)
+    else:
+        candidate_keys.append(f"{APP_FOCUS_MODES_NAMESPACE}.{translation_key}")
+        candidate_keys.append(translation_key)
+
+    for lang in (user_language, "en"):
+        if not lang:
+            continue
+        for candidate_key in candidate_keys:
+            translated = translation_service.get_nested_translation(candidate_key, lang=lang)
+            if translated and translated != candidate_key:
+                return translated
+
+    return fallback
 
 
 def _canonicalize_tool_name(name: str) -> str:
@@ -642,6 +685,51 @@ def _validate_skill_provider(
     return correct_provider
 
 
+async def _resolve_skill_preview_metadata(
+    *,
+    app_id: str,
+    skill_id: str,
+    request_metadata: Dict[str, Any],
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]],
+    log_prefix: str,
+) -> Dict[str, Any]:
+    """Resolve display metadata that is known before a skill executes."""
+    if not discovered_apps_metadata or app_id not in discovered_apps_metadata:
+        return {}
+
+    skill_def = None
+    for candidate in discovered_apps_metadata[app_id].skills or []:
+        if candidate.id == skill_id:
+            skill_def = candidate
+            break
+    if not skill_def or not skill_def.class_path:
+        return {}
+
+    try:
+        module_path, class_name = skill_def.class_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        skill_class = getattr(module, class_name)
+        resolver = getattr(skill_class, "resolve_preview_metadata", None)
+        if not callable(resolver):
+            return {}
+
+        resolved = resolver(dict(request_metadata))
+        if inspect.isawaitable(resolved):
+            resolved = await resolved
+        if not isinstance(resolved, dict):
+            return {}
+        return {key: value for key, value in resolved.items() if value not in (None, "", [])}
+    except Exception as exc:
+        logger.warning(
+            "%s Failed to resolve preview metadata for %s.%s: %s",
+            log_prefix,
+            app_id,
+            skill_id,
+            exc,
+        )
+        return {}
+
+
 async def _charge_skill_credits(
     task_id: str,
     request_data: AskSkillRequest,
@@ -706,8 +794,8 @@ async def _charge_skill_credits(
             # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
             # Use the first provider (most skills will have one primary provider)
             provider_name = skill_def.providers[0].name
-            # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
-            provider_id = provider_name.lower()
+            # Normalize provider name to provider_id format (provider YAML IDs use snake_case).
+            provider_id = provider_name.lower().replace(" ", "_")
             
             # Map provider names to provider IDs (handles cases like "Google" -> "google_maps" for maps app)
             # This matches the frontend mapping logic in generate-apps-metadata.js
@@ -834,9 +922,9 @@ async def _charge_skill_credits(
         if skill_def.full_model_reference and "/" in skill_def.full_model_reference:
             info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
         elif skill_def.providers and len(skill_def.providers) > 0:
-            # Re-use the same name-to-ID mapping as the pricing lookup
+            # Re-use the same name-to-ID mapping as the pricing lookup.
             pname = skill_def.providers[0].name
-            info_provider_id = pname.lower()
+            info_provider_id = pname.lower().replace(" ", "_")
             if pname == "Google" and app_id == "maps":
                 info_provider_id = "google_maps"
             elif pname in ("Brave", "Brave Search"):
@@ -1260,6 +1348,7 @@ async def handle_main_processing(
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     if selected_mate_config:
         prompt_parts.append(selected_mate_config.default_system_prompt)
+        # Furry Mode prompt styling is disabled until any furry art is made by human artists.
     # Insert creator_and_used_model_instruction right after the mate-specific prompt
     # This informs the user who created the assistant and which model (name and id) powers the response.
     try:
@@ -1523,6 +1612,7 @@ async def handle_main_processing(
         "maps-search", "events-search",
         "travel-search_connections", "travel-search_stays",
         "shopping-search_products",
+        "social_media-search", "social_media-get-posts",
         "web-read",  # Non-composite single-result skills also produce embed_refs
     }
     # Subset whose results contain quotable text (web/news search results with
@@ -1964,15 +2054,12 @@ async def handle_main_processing(
                     if fm_app_metadata and fm_app_metadata.focuses:
                         for fm_def in fm_app_metadata.focuses:
                             if fm_def.id == fm_mode_id:
-                                focus_mode_display_name = translation_service.get_nested_translation(
-                                    fm_def.name_translation_key, lang=user_language
-                                ) or ""
-                                if not focus_mode_display_name and user_language != "en":
-                                    focus_mode_display_name = translation_service.get_nested_translation(
-                                        fm_def.name_translation_key, lang="en"
-                                    ) or fm_def.name_translation_key
-                                elif not focus_mode_display_name:
-                                    focus_mode_display_name = fm_def.name_translation_key
+                                focus_mode_display_name = _resolve_focus_mode_display_name(
+                                    translation_service,
+                                    fm_def.name_translation_key,
+                                    fallback=fm_def.name_translation_key,
+                                    user_language=user_language,
+                                )
                                 break
                 except Exception:
                     pass
@@ -2287,6 +2374,7 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+        focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
         # so it carries over correctly from previous iterations
@@ -2415,7 +2503,16 @@ async def handle_main_processing(
                             f"tool_resolver_map. Skipping placeholder creation."
                         )
                         continue
-                    
+
+                    if app_id == "system" and skill_id == "activate_focus_mode":
+                        focus_activation_seen_this_turn = True
+                    elif focus_activation_seen_this_turn and app_id != "system":
+                        logger.info(
+                            f"{log_prefix} [FOCUS_EXCLUSIVITY] Suppressing inline placeholder for "
+                            f"'{tool_name}' because activate_focus_mode was already emitted in this turn."
+                        )
+                        continue
+                     
                     # === DEDUPLICATION CHECK (INLINE PLACEHOLDER PHASE) ===
                     # Check if this exact skill call was already executed in a previous iteration.
                     # If so, skip creating placeholder - the execution phase will also skip it.
@@ -2512,6 +2609,15 @@ async def handle_main_processing(
                                     )
                                     if validated_provider is not None:
                                         request_metadata["provider"] = validated_provider
+
+                                preview_metadata = await _resolve_skill_preview_metadata(
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    request_metadata=request_metadata,
+                                    discovered_apps_metadata=discovered_apps_metadata,
+                                    log_prefix=log_prefix,
+                                )
+                                request_metadata.update(preview_metadata)
                                 
                                 # Add request ID for later matching
                                 # ALWAYS auto-generate 1-indexed IDs - ignore any LLM-provided IDs
@@ -2627,6 +2733,15 @@ async def handle_main_processing(
                                 )
                                 if validated_provider is not None:
                                     metadata["provider"] = validated_provider
+
+                            preview_metadata = await _resolve_skill_preview_metadata(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                request_metadata=metadata,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                log_prefix=log_prefix,
+                            )
+                            metadata.update(preview_metadata)
                             
                             # Log final metadata for debugging
                             metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
@@ -3165,16 +3280,12 @@ async def handle_main_processing(
                                     if fm_app_metadata and fm_app_metadata.focuses:
                                         for fm_def in fm_app_metadata.focuses:
                                             if fm_def.id == fm_mode_id:
-                                                # Try user's language first, fallback to English
-                                                focus_mode_display_name = translation_service.get_nested_translation(
-                                                    fm_def.name_translation_key, lang=user_language
-                                                ) or ""
-                                                if not focus_mode_display_name and user_language != "en":
-                                                    focus_mode_display_name = translation_service.get_nested_translation(
-                                                        fm_def.name_translation_key, lang="en"
-                                                    ) or fm_def.name_translation_key
-                                                elif not focus_mode_display_name:
-                                                    focus_mode_display_name = fm_def.name_translation_key
+                                                focus_mode_display_name = _resolve_focus_mode_display_name(
+                                                    translation_service,
+                                                    fm_def.name_translation_key,
+                                                    fallback=fm_def.name_translation_key,
+                                                    user_language=user_language,
+                                                )
                                                 break
                                 except Exception:
                                     pass
@@ -3430,6 +3541,15 @@ async def handle_main_processing(
                                 if validated_provider is not None:
                                     metadata["provider"] = validated_provider
 
+                            preview_metadata = await _resolve_skill_preview_metadata(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                request_metadata=metadata,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                log_prefix=log_prefix,
+                            )
+                            metadata.update(preview_metadata)
+
                             # Create placeholder embed (fallback path)
                             placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
                                 app_id=app_id,
@@ -3500,7 +3620,7 @@ async def handle_main_processing(
                     # Detect this mismatch using the skill's tool_schema and normalize the arguments.
                     # See: https://github.com/anomalyco/OpenMates/issues/XXX (image generation 422 bug)
                     skill_arguments = _normalize_skill_arguments(
-                        arguments=parsed_args,
+                        arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
                         app_id=app_id,
                         skill_id=skill_id,
                         discovered_apps_metadata=discovered_apps_metadata,
@@ -3713,7 +3833,13 @@ async def handle_main_processing(
                     if async_result.get("task_id"):
                         async_task_ids.append(async_result.get("task_id"))
                     async_task_ids.extend(async_result.get("task_ids") or [])
-                    should_wait_inline = (app_id, skill_id) in ASYNC_SKILL_INLINE_WAIT_SKILLS
+                    # Inline waits are useful for a single async tool, but in a parallel
+                    # tool batch they block later tools and can leave their placeholders
+                    # stuck. Let the async continuation path handle multi-tool batches.
+                    should_wait_inline = (
+                        (app_id, skill_id) in ASYNC_SKILL_INLINE_WAIT_SKILLS
+                        and len(tool_calls_for_this_turn) == 1
+                    )
                     inline_wait_deadline = time.time() + ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else None
                     try:
                         from backend.apps.ai.tasks.async_skill_continuation import (
@@ -3929,6 +4055,10 @@ async def handle_main_processing(
                 # Extract query from input arguments if available (for search skills)
                 # This is used by frontend for preview display
                 if not is_async_skill and parsed_args and isinstance(parsed_args, dict):
+                    if "title" in parsed_args and isinstance(parsed_args["title"], str):
+                        title = parsed_args["title"].strip()
+                        if title:
+                            preview_data["title"] = title
                     # Try to extract query from various possible input structures
                     if "query" in parsed_args:
                         preview_data["query"] = parsed_args["query"]
@@ -4548,6 +4678,15 @@ async def handle_main_processing(
                                         }
                                         # Filter out None values
                                         placeholder_metadata = {k: v for k, v in placeholder_metadata.items() if v is not None}
+
+                                        final_preview_metadata = await _resolve_skill_preview_metadata(
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            request_metadata=placeholder_metadata,
+                                            discovered_apps_metadata=discovered_apps_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                        placeholder_metadata.update(final_preview_metadata)
                                         
                                         # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                         updated_embed_data = await embed_service.update_embed_with_results(
@@ -4605,6 +4744,15 @@ async def handle_main_processing(
                                         )
                                         if validated_provider is not None:
                                             single_request_metadata["provider"] = validated_provider
+
+                                    final_preview_metadata = await _resolve_skill_preview_metadata(
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        request_metadata=single_request_metadata,
+                                        discovered_apps_metadata=discovered_apps_metadata,
+                                        log_prefix=log_prefix,
+                                    )
+                                    single_request_metadata.update(final_preview_metadata)
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:

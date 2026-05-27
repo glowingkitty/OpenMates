@@ -58,9 +58,21 @@ export const variants = {
 
 	/** Processing state */
 	processing: {
-		query: 'Berlin -> Paris, 2026-04-01',
-		provider: 'Google',
+		provider: 'Google Flights',
+		providers: [{ id: 'google_flights', name: 'Google Flights', icon_url: 'https://www.google.com/favicon.ico' }],
+		legs: [{ origin: 'Berlin', destination: 'Paris', date: '2026-04-01' }],
 		status: 'processing' as const,
+		results: [],
+		onClose: () => {}
+	},
+
+	/** Finished empty state — header still shows route/date/providers */
+	empty: {
+		provider: 'Google Flights',
+		providers: [{ id: 'google_flights', name: 'Google Flights', icon_url: 'https://www.google.com/favicon.ico' }],
+		legs: [{ origin: 'Hamburg', destination: 'Vienna', date: '2026-04-03' }],
+		status: 'finished' as const,
+		result_count: 0,
 		results: [],
 		onClose: () => {}
 	},

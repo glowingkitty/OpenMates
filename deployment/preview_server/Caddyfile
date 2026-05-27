@@ -79,7 +79,7 @@ ${DEPLOY_PREVIEW_DOMAIN} {
 	}
 
 	# Valid requests from the openmates.org webapp family.
-	# Matches: openmates.org, dev.openmates.org, app.dev.openmates.org, etc.
+	# Matches: openmates.org, app.dev.openmates.org, etc.
 	# Self-hosters: replace with your own app domain regex.
 	@valid_referer expression {header.Referer}.matches("^https://([a-zA-Z0-9-]+\\.)*openmates\\.org(/.*)?$")
 	handle @valid_referer {

@@ -23,8 +23,11 @@
    * Result shape from the backend TOON content for math/calculate.
    */
   interface CalculateResult {
+    title?: string;
     expression?: string;
+    expression_latex?: string;
     result?: string;
+    result_latex?: string;
     result_type?: string;
     mode?: string;
   }
@@ -34,6 +37,8 @@
     id: string;
     /** Expression that was evaluated */
     query?: string;
+    /** Human-readable calculation title/context */
+    title?: string;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Calculation results */
@@ -51,6 +56,7 @@
   let {
     id,
     query: queryProp,
+    title: titleProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -61,6 +67,7 @@
 
   // ── Local state ─────────────────────────────────────────────────────────────
   let localQuery        = $state('');
+  let localTitle        = $state('');
   let localStatus       = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults      = $state<CalculateResult[]>([]);
   let localTaskId       = $state<string | undefined>(undefined);
@@ -68,6 +75,7 @@
 
   $effect(() => {
     localQuery       = queryProp || '';
+    localTitle       = titleProp || '';
     localStatus      = statusProp || 'processing';
     localResults     = resultsProp || [];
     localTaskId      = taskIdProp;
@@ -77,12 +85,14 @@
   let query       = $derived(localQuery);
   let status      = $derived(localStatus);
   let results     = $derived(localResults);
+  let title       = $derived(localTitle || results[0]?.title || '');
   let taskId      = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
 
   // ── Derived display ──────────────────────────────────────────────────────────
   // Primary result to show in the card (first result value)
   let primaryResult = $derived(results[0]?.result ?? '');
+  let displayExpression = $derived(query || results[0]?.expression || '');
   let skillName = $derived($text('embeds.math.calculate'));
 
   // ── Embed data update callback ───────────────────────────────────────────────
@@ -92,7 +102,9 @@
     }
     const c = data.decodedContent;
     if (!c) return;
+    if (typeof c.title === 'string') localTitle = c.title;
     if (typeof c.query === 'string') localQuery = c.query;
+    else if (typeof c.expression === 'string') localQuery = c.expression;
     if (Array.isArray(c.results)) localResults = c.results as CalculateResult[];
     if (typeof c.skill_task_id === 'string') localSkillTaskId = c.skill_task_id;
   }
@@ -128,15 +140,28 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="math-calculate-details" class:mobile={isMobileLayout}>
       <!-- Expression shown in processing and finished states -->
-      {#if query}
-        <div class="expression-text">{query}</div>
+      {#if title}
+        <div class="calculation-row">
+          <span class="calculation-label">Title</span>
+          <span class="title-text">{title}</span>
+        </div>
+      {/if}
+
+      {#if displayExpression}
+        <div class="calculation-row">
+          <span class="calculation-label">Expression</span>
+          <span class="expression-text">{displayExpression}</span>
+        </div>
       {/if}
 
       {#if status === 'error'}
         <div class="error-indicator">{$text('chat.an_error_occured')}</div>
       {:else if status === 'finished' && primaryResult}
         <!-- Show computed result prominently -->
-        <div class="result-value">{primaryResult}</div>
+        <div class="calculation-row result-row">
+          <span class="calculation-label">Result</span>
+          <span class="result-value">= {primaryResult}</span>
+        </div>
       {/if}
     </div>
   {/snippet}
@@ -159,6 +184,20 @@
 
   /* ── Expression ─────────────────────────────────────────────────────────── */
 
+  .calculation-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+  }
+
+  .calculation-label {
+    font-size: var(--font-size-xxs);
+    font-weight: 700;
+    color: var(--color-grey-60);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
   .expression-text {
     font-size: var(--font-size-small);
     font-weight: 400;
@@ -172,6 +211,19 @@
     text-overflow: ellipsis;
     word-break: break-all;
     font-family: 'Courier New', Courier, monospace;
+  }
+
+  .title-text {
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    color: var(--color-grey-100);
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* ── Result ─────────────────────────────────────────────────────────────── */
