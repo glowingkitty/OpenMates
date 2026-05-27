@@ -1943,6 +1943,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const resultCount = typeof decodedContent?.result_count === "number" ? decodedContent.result_count : 0;
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
+    this.prefetchChildEmbedRefs(decodedContent?.embed_ids || embedData?.embed_ids);
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1982,6 +1983,23 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       console.error(`[AppSkillUseRenderer] Error mounting ${label}:`, error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
+  }
+
+  private prefetchChildEmbedRefs(rawEmbedIds: unknown): void {
+    const embedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").map((id) => id.trim()).filter(Boolean)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+        : [];
+
+    if (embedIds.length === 0) return;
+
+    void Promise.all(
+      embedIds.slice(0, 50).map((embedId) => resolveEmbed(embedId).catch((error) => {
+        console.debug("[AppSkillUseRenderer] Failed to prefetch child embed ref:", embedId, error);
+        return null;
+      })),
+    );
   }
 
   /**

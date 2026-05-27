@@ -90,7 +90,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if url}
-      <EmbedHeaderCtaButton href={url} text={ctaText} />
+      <EmbedHeaderCtaButton href={url} label={ctaText} />
     {/if}
   {/snippet}
 
