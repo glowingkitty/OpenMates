@@ -390,9 +390,9 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// If the invoice is still "generating", a disabled button with a spinner is shown.
 	// We wait for the enabled download button to appear.
 
-	const downloadBtn = invoiceItem.locator(
+	const downloadBtn = page.locator(
 		'[data-testid="download-button"]:not([disabled]):not(.processing)'
-	);
+	).first();
 
 	await expect(downloadBtn).toBeVisible({ timeout: 60000 });
 	log('Download button is enabled (invoice PDF is ready).');

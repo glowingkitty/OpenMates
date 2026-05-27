@@ -712,6 +712,7 @@ Invoices Settings - View and download past invoices
                             <!-- When refunded, show Download Invoice and Download Credit Note buttons -->
                             <button
                                 class="download-button"
+                                data-testid="download-button"
                                 onclick={() => downloadInvoice(invoice)}
                                 title={invoiceDownloadLabel(invoice)}
                             >
@@ -722,6 +723,7 @@ Invoices Settings - View and download past invoices
                                 <!-- Only show download button when credit note PDF is ready -->
                                 <button
                                     class="download-button"
+                                    data-testid="download-button"
                                     onclick={() => downloadCreditNote(invoice)}
                                     title={creditNoteDownloadLabel(invoice)}
                                 >
@@ -745,6 +747,7 @@ Invoices Settings - View and download past invoices
                                 <!-- Invoice PDF is still being generated (optimistic/pending invoice) -->
                                 <button
                                     class="download-button processing"
+                                    data-testid="download-button"
                                     disabled
                                     title={$text('settings.billing.invoices_generating')}
                                 >
@@ -754,6 +757,7 @@ Invoices Settings - View and download past invoices
                             {:else}
                                 <button
                                     class="download-button"
+                                    data-testid="download-button"
                                     onclick={() => downloadInvoice(invoice)}
                                     title={invoiceDownloadLabel(invoice)}
                                 >
