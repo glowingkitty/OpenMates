@@ -141,10 +141,55 @@ class ReferralService:
         logger.error("Failed to create unique referral profile for user %s", user_id)
         return None
 
+    async def has_credit_purchase(self, user_id: str) -> bool:
+        """Return true when the user has at least one direct credit purchase invoice."""
+        user = await self.directus.get_user_fields_direct(user_id, ["vault_key_id"])
+        vault_key_id = user.get("vault_key_id") if user else None
+        if not vault_key_id:
+            logger.warning(
+                "Cannot check referral credit purchase eligibility without vault key for user %s",
+                user_id,
+            )
+            return False
+
+        user_id_hash = _sha256(user_id)
+        invoices = await self.directus.get_items(
+            "invoices",
+            {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "is_gift_card": {"_eq": False},
+                    "encrypted_credits_purchased": {"_nnull": True},
+                },
+                "fields": "id,encrypted_credits_purchased",
+                "sort": "-date",
+                "limit": 100,
+            },
+            admin_required=True,
+        )
+        for invoice in invoices or []:
+            try:
+                credits_purchased = await self._decrypt_credits(
+                    invoice.get("encrypted_credits_purchased"),
+                    vault_key_id,
+                )
+                if credits_purchased > 0:
+                    return True
+            except Exception as exc:
+                logger.warning(
+                    "Failed to decrypt referral eligibility invoice %s for user %s: %s",
+                    invoice.get("id"),
+                    user_id,
+                    exc,
+                    exc_info=True,
+                )
+        return False
+
     async def get_status(self, user_id: str) -> Dict[str, Any]:
         """Return frontend status for showing the referral CTA/settings page."""
         campaign = await self.get_active_campaign()
-        profile = await self.get_or_create_profile(user_id) if campaign else None
+        has_credit_purchase = await self.has_credit_purchase(user_id) if campaign else False
+        profile = await self.get_or_create_profile(user_id) if campaign and has_credit_purchase else None
         max_success = _safe_int(
             campaign.get("max_successful_referrals_per_user") if campaign else None,
             DEFAULT_MAX_SUCCESSFUL_REFERRALS,
@@ -159,6 +204,7 @@ class ReferralService:
         return {
             "available": bool(
                 campaign
+                and has_credit_purchase
                 and profile
                 and not profile.get("disabled_at")
                 and successful_count < max_success
@@ -205,6 +251,12 @@ class ReferralService:
         profile = profiles[0]
         if profile.get("disabled_at"):
             return {"accepted": False, "reason": "disabled_code"}
+
+        referrer_user_id = profile.get("user_id") or await self._find_user_id_by_hash(
+            profile.get("user_id_hash")
+        )
+        if not referrer_user_id or not await self.has_credit_purchase(referrer_user_id):
+            return {"accepted": False, "reason": "referrer_not_eligible"}
 
         referrer_hash = profile.get("user_id_hash")
         if referrer_hash == referred_hash:

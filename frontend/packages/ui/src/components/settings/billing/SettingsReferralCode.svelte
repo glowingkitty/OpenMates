@@ -12,9 +12,7 @@ for promotional referral credits.
     import { loadReferralStatus, referralStatus } from '../../../services/referralService';
     import { notificationStore } from '../../../stores/notificationStore';
     import {
-        SettingsButton,
         SettingsCard,
-        SettingsCodeBlock,
         SettingsInfoBox,
         SettingsLoadingState,
         SettingsPageContainer,
@@ -138,8 +136,6 @@ for promotional referral credits.
             </div>
         </SettingsCard>
 
-        <SettingsCodeBlock code={referralLink} wrap={false} dataTestid="referral-link" />
-
         <SettingsCard ariaLabel={$text('settings.billing.referral_qr_label')}>
             <div class="referral-qr-section">
                 <p class="referral-qr-label">{$text('settings.billing.referral_qr_label')}</p>
@@ -155,12 +151,13 @@ for promotional referral credits.
                         {@html qrCodeSvg}
                     {/if}
                 </button>
+                <p class="referral-link-text" data-testid="referral-link">{referralLink}</p>
             </div>
         </SettingsCard>
 
-        <SettingsButton dataTestid="copy-referral-link" onClick={copyReferralLink} fullWidth>
+        <button type="button" class="copy-referral-button" data-testid="copy-referral-link" onclick={copyReferralLink}>
             {$text('common.copy')}
-        </SettingsButton>
+        </button>
 
         <SettingsProgressBar
             value={progressPercent}
@@ -250,6 +247,27 @@ for promotional referral credits.
         display: block;
         width: 180px;
         height: 180px;
+    }
+
+    .referral-link-text {
+        width: 100%;
+        margin: 0;
+        color: var(--color-font-primary);
+        font-family: var(--font-family-mono, monospace);
+        font-size: var(--font-size-small);
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+        text-align: center;
+        user-select: text;
+    }
+
+    .copy-referral-button {
+        width: 100%;
+        margin: 0;
+        color: var(--color-font-button);
+        font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: var(--font-size-p);
+        font-weight: var(--font-weight-bold);
     }
 
     .referral-qr-fullscreen-overlay {
