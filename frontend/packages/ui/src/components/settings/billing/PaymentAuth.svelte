@@ -116,7 +116,7 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
                 timeout: initiateData.timeout,
                 userVerification: initiateData.userVerification as UserVerificationRequirement,
                 allowCredentials: initiateData.allowCredentials?.length > 0
-                    ? initiateData.allowCredentials.map((cred: any) => ({
+                    ? initiateData.allowCredentials.map((cred: { type: 'public-key'; id: string; transports?: string[] }) => ({
                         type: cred.type,
                         id: base64UrlToArrayBuffer(cred.id),
                         transports: cred.transports
@@ -261,8 +261,8 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
     }
 </script>
 
-<div class="auth-modal-overlay" role="presentation" onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>
-    <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1" use:focusTrap={{ onEscape: handleCancel }} onmousedown={(e) => e.stopPropagation()}>
+<div class="auth-modal-overlay" data-testid="payment-auth-overlay" role="presentation" onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>
+    <div class="auth-modal" data-testid="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1" use:focusTrap={{ onEscape: handleCancel }} onmousedown={(e) => e.stopPropagation()}>
         <div class="auth-header">
             <h3 id="auth-title">{$text('settings.billing.payment_auth_title')}</h3>
             <button class="close-btn" onclick={handleCancel} aria-label="Close">×</button>
