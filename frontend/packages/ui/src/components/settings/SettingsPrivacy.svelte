@@ -52,7 +52,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
         dispatch('openSettings', {
             settingsPath: 'privacy/hide-personal-data',
             direction: 'forward',
-            icon: 'privacy',
+            icon: 'anonym',
             title: $text('settings.privacy.hide_personal_data')
         });
     }
