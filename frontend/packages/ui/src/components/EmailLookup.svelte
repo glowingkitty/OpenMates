@@ -323,7 +323,7 @@
             <!-- Passkey login button - second element -->
             {#if lastAuthMethod === 'passkey'}
                 <div class="last-used-badge-wrapper">
-                    <span class="last-used-badge">{$text('login.last_used')}</span>
+                    <span class="last-used-badge" data-testid="last-used-auth-method-passkey">{$text('login.last_used')}</span>
                 </div>
             {/if}
             {#if isPasskeyLoading}
@@ -366,7 +366,7 @@
             <!-- Email field - fourth element -->
             {#if lastAuthMethod === 'email'}
                 <div class="last-used-badge-wrapper email-last-used">
-                    <span class="last-used-badge">{$text('login.last_used')}</span>
+                    <span class="last-used-badge" data-testid="last-used-auth-method-email">{$text('login.last_used')}</span>
                 </div>
             {/if}
             <div class="input-group">
@@ -417,6 +417,7 @@
                 <button
                     type="button"
                     class="clear-last-used-button"
+                    data-testid="clear-last-used-auth-method"
                     onclick={handleClearLastAuthMethod}
                 >
                     {$text('login.clear_last_used')}
