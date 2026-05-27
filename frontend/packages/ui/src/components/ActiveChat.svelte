@@ -2113,7 +2113,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
         console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
-        if (!$authStore.isAuthenticated && currentChat?.chat_id && isExampleChat(currentChat.chat_id)) {
+        if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
             window.dispatchEvent(new CustomEvent('openSignupInterface'));
             return;
         }
@@ -2807,6 +2807,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map((chat) => buildRecentChatMeta(chat))
             );
+            recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, metas.length);
             recentChats = metas;
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
@@ -2978,21 +2979,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
+            recentChatTiltStates = [];
+            nonAuthChatTiltStates = [];
             recentChats = [];
             priorityContinueItems = [];
             nonAuthRecentChats = [];
             return;
         }
         if (isAuth) {
+            nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
             recentChatsScrolledByUser = false;
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
+            recentChatTiltStates = [];
             recentChats = [];
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
-            nonAuthRecentChats = loadNonAuthRecentChats();
+            const metas = loadNonAuthRecentChats();
+            nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
+            nonAuthRecentChats = metas;
             centerFirstRecentChat();
         }
     });
@@ -4170,6 +4177,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    function reconcileRecentChatTiltStates(
+        existing: RecentChatTiltState[],
+        len: number,
+    ): RecentChatTiltState[] {
+        if (existing.length === len) return existing;
+        return Array.from({ length: len }, (_, index) => existing[index] ?? new RecentChatTiltState());
+    }
+
     // Use $state + $effect instead of $derived so that RecentChatTiltState instances
     // (which hold their own $state properties) are not created inside a derived context.
     // Creating $state-bearing objects inside $derived is a Svelte 5 edge case that can
@@ -4179,7 +4194,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const len = recentChats.length;
         if (recentChatTiltStates.length !== len) {
-            recentChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+            recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, len);
         }
     });
 
@@ -4188,7 +4203,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const len = nonAuthRecentChats.length;
         if (nonAuthChatTiltStates.length !== len) {
-            nonAuthChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+            nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, len);
         }
     });
 
@@ -7589,6 +7604,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
              try {
                  const { getHighlightsForChat } = await import('../services/db/messageHighlights');
                  const { loadHighlightsForChat } = await import('../stores/messageHighlightsStore');
+                 await chatDB.init();
                  const rows = await getHighlightsForChat(chatDB, chat.chat_id);
                  loadHighlightsForChat(chat.chat_id, rows);
              } catch (err) {
@@ -10943,9 +10959,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 bind:this={tilt.el}
                                                 class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={tilt?.hovering}
-                                                type="button"
-                                                style={cardStyle}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                 type="button"
+                                                 style={cardStyle}
+                                                 data-chat-id={meta.chat.chat_id}
+                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
+                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
@@ -10992,9 +11010,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <!-- Compact card for short or narrow viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
-                                                class="resume-chat-card" data-testid="resume-chat-card"
-                                                style={getResumeCardGradientStyle(gradientColors)}
-                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
+                                                 class="resume-chat-card" data-testid="resume-chat-card"
+                                                 style={getResumeCardGradientStyle(gradientColors)}
+                                                 data-chat-id={meta.chat.chat_id}
+                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
+                                                 onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}

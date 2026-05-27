@@ -68,6 +68,13 @@ function expectNoFullscreenChunkErrors(consoleErrors: string[]) {
 	expect(chunkErrors, `Unexpected fullscreen chunk error(s): ${chunkErrors.join('\n')}`).toEqual([]);
 }
 
+function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
+	const runtimeErrors = consoleErrors.filter((error) =>
+		/Cannot set properties of undefined \(setting 'el'\)|Cannot read properties of null \(reading 'querySelector'\)|messageHighlights] DB not initialized/i.test(error)
+	);
+	expect(runtimeErrors, `Unexpected welcome carousel runtime error(s): ${runtimeErrors.join('\n')}`).toEqual([]);
+}
+
 test.describe('Unauthenticated app load', () => {
 	const consoleLogs: string[] = [];
 	const consoleErrors: string[] = [];
@@ -206,6 +213,36 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] All checks passed');
 	});
 
+	test('intro chat follow-up suggestion opens signup for unauthenticated users', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+
+		const followUpSuggestion = page.getByTestId('follow-up-suggestion-item').first();
+		await expect(followUpSuggestion).toBeVisible({ timeout: 10000 });
+		await followUpSuggestion.click();
+
+		await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });
+	});
+
 	test('daily inspiration banner cycles on each new app visit', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -261,6 +298,46 @@ test.describe('Unauthenticated app load', () => {
 		expect(firstPhrase).toBe('Cycling inspiration one');
 		expect(secondPhrase).toBe('Cycling inspiration two');
 		expect(thirdPhrase).toBe('Cycling inspiration three');
+	});
+
+	test('desktop welcome carousel opens example chats without runtime errors', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 1440, height: 1000 });
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+
+		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		await expect(newChatButton).toBeVisible({ timeout: 10000 });
+		await newChatButton.click();
+
+		const giganticCard = page.locator(
+			'[data-testid="resume-chat-large-card"][data-chat-id="example-gigantic-airplanes"]'
+		);
+		await expect(giganticCard).toBeVisible({ timeout: 15000 });
+		expectNoWelcomeCarouselRuntimeErrors(consoleErrors);
+
+		await giganticCard.click();
+		await page.waitForFunction(
+			() => window.location.hash.includes('example-gigantic-airplanes'),
+			null,
+			{ timeout: 10000 }
+		);
+		await expect(page.getByTestId('mate-message-content').first()).toBeVisible({ timeout: 10000 });
+		expectNoWelcomeCarouselRuntimeErrors(consoleErrors);
 	});
 
 	test('example chat loads and fullscreen wiki, website, and image embeds open for unauthenticated users', async ({
