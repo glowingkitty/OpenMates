@@ -6170,7 +6170,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await tick();
             await new Promise(resolve => setTimeout(resolve, 100));
             settingsDeepLink.set(settingsPath);
-            dailyInspirationStore.markOpened(inspiration.inspiration_id);
+            dailyInspirationStore.markOpened(inspiration.inspiration_id, undefined, {
+                preserveCurrentIndex: true,
+            });
             if ($authStore.isAuthenticated) {
                 const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
                 await markInspirationOpenedInIndexedDB(inspiration.inspiration_id);

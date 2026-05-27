@@ -180,9 +180,14 @@ export const dailyInspirationStore = {
 
   /**
    * Mark a specific inspiration as opened (user has started a chat from it).
-   * The carousel remains visible; the next unopened becomes the default.
+   * The carousel remains visible; the next unopened becomes the default unless
+   * the caller is opening an in-place feature entry.
    */
-  markOpened: (inspirationId: string, openedChatId?: string): void => {
+  markOpened: (
+    inspirationId: string,
+    openedChatId?: string,
+    options: { preserveCurrentIndex?: boolean } = {},
+  ): void => {
     store.update((state) => {
       const updatedInspirations = state.inspirations.map((i) => {
         if (i.inspiration_id === inspirationId) {
@@ -198,7 +203,9 @@ export const dailyInspirationStore = {
         ...state,
         inspirations: updatedInspirations,
         // Move to the next unopened inspiration as the new default
-        currentIndex: preferredIndex(updatedInspirations),
+        currentIndex: options.preserveCurrentIndex
+          ? state.currentIndex
+          : preferredIndex(updatedInspirations),
       };
     });
   },
