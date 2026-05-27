@@ -8,7 +8,6 @@
 		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" data-openmates-favicon="primary" />
 		<link rel="alternate icon" type="image/png" href="%sveltekit.assets%/favicon.png" data-openmates-favicon="fallback" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" data-openmates-favicon="apple" />
-		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 		<!-- maximum-scale=5 allows users (and accessibility tools) to zoom up to 5x while still
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
@@ -142,9 +141,6 @@
 		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 		<meta http-equiv="Pragma" content="no-cache" />
 		<meta http-equiv="Expires" content="0" />
-		<!-- Safari-specific: Prevent HTML from being cached -->
-		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta name="mobile-web-app-capable" content="yes" />
 		<!-- Default SEO meta tags — overridden by <svelte:head> on SSR-enabled pages.
 			 These ensure crawlers see valid OG/Twitter tags even on client-only pages
 			 (homepage has ssr=false due to complex store dependencies). -->
