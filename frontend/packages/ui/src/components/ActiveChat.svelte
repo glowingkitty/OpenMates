@@ -1311,6 +1311,7 @@
             displayText: string;
             thumbnailUrl?: string | null;
             description?: string | null;
+            hasChatContext?: boolean;
         };
         // Close any regular embed fullscreen first (mutual exclusivity)
         if (showEmbedFullscreen) {
@@ -1318,6 +1319,7 @@
             embedFullscreenData = null;
         }
         wikiFullscreenData = detail;
+        wikiFullscreenHasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
         showWikiFullscreen = true;
         console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
     }
@@ -1327,12 +1329,13 @@
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
-        const hasChatContext = detail.hasChatContext ?? !!currentChat?.chat_id;
+        const hasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
 
         // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
         if (showWikiFullscreen) {
             showWikiFullscreen = false;
             wikiFullscreenData = null;
+            wikiFullscreenHasChatContext = false;
         }
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
@@ -4342,14 +4345,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // User can click this to temporarily hide the chat and show only the embed fullscreen
     let forceOverlayMode = $state(false);
     let fullscreenHasChatContext = $state(false);
+    let wikiFullscreenHasChatContext = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
     // Only use side-by-side when ultra-wide AND the fullscreen was opened from a chat.
-    let showSideBySideFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData))) && !forceOverlayMode);
+    let showSideBySideFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext))) && !forceOverlayMode);
 
     // Determine if we should show the "Show Chat" button in fullscreen embed views
     // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData))) && forceOverlayMode);
+    let showChatButtonInFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext))) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -7606,6 +7610,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (showWikiFullscreen) {
             showWikiFullscreen = false;
             wikiFullscreenData = null;
+            wikiFullscreenHasChatContext = false;
         }
         
         // CRITICAL: Close video player when switching chats (only if NOT in PiP mode)
@@ -11293,12 +11298,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
                                 description={wikiFullscreenData.description}
-                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
+                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}
                             />
                             {:else}
                                 <div class="embed-fullscreen-fallback">
                                     <div class="fullscreen-header">
-                                        <button onclick={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}>Close</button>
+                                        <button onclick={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}>Close</button>
                                     </div>
                                     <div class="fullscreen-content">
                                         <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
