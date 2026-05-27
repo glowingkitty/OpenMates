@@ -1,3 +1,18 @@
+// i18n exports
+// Keep this before component exports: several Svelte components import `text`
+// from the package barrel while the barrel is still evaluating.
+export * from "./src/i18n/setup";
+export * from "./src/i18n/types";
+export * from "./src/i18n/translations";
+export {
+  SUPPORTED_LANGUAGES,
+  LANGUAGE_CODES,
+  SUPPORTED_LOCALES,
+  getLanguageByCode,
+  isLanguageSupported,
+  isRtlLanguage,
+} from "./src/i18n/languages";
+
 // Components
 export { default as ChatHeader } from "./src/components/ChatHeader.svelte";
 export { default as ReadOnlyMessage } from "./src/components/ReadOnlyMessage.svelte";
@@ -48,19 +63,6 @@ export { default as OfflineIndicator } from "./src/components/OfflineIndicator.s
 // Types
 export * from "./src/types/chat";
 export type { EmbedType } from "./src/message_parsing/types";
-
-// i18n exports
-export * from "./src/i18n/setup";
-export * from "./src/i18n/types";
-export * from "./src/i18n/translations";
-export {
-  SUPPORTED_LANGUAGES,
-  LANGUAGE_CODES,
-  SUPPORTED_LOCALES,
-  getLanguageByCode,
-  isLanguageSupported,
-  isRtlLanguage,
-} from "./src/i18n/languages";
 
 // Stores
 export * from "./src/stores/theme";
