@@ -47,6 +47,7 @@
   const ChevronRight = getLucideIcon('chevron-right');
 
   const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
+  const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 30000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
@@ -237,6 +238,19 @@
     return () => window.clearInterval(interval);
   });
 
+  // Auto-rotate the carousel while the banner is actually visible. Reading
+  // currentIndex resets the timer after manual navigation or automatic advance.
+  $effect(() => {
+    if (!hasMultiple || !isBannerVisible) return;
+
+    void currentIndex;
+    const interval = window.setInterval(() => {
+      dailyInspirationStore.next();
+    }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  });
+
   // ─── Derived values ─────────────────────────────────────────────────────────
 
   /** Currently displayed inspiration. */
@@ -358,6 +372,7 @@
   let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
   let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
+  let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}`);
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -742,6 +757,18 @@
            of the full-width card, not constrained by the 680px inner width.
            z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
+        {#if isBannerVisible}
+          <div
+            class="carousel-progress"
+            style={`--carousel-progress-duration: ${INSPIRATION_AUTO_ROTATION_INTERVAL_MS}ms`}
+            aria-hidden="true"
+          >
+            {#key progressAnimationKey}
+              <div class="carousel-progress-fill"></div>
+            {/key}
+          </div>
+        {/if}
+
         <button
           class="carousel-arrow carousel-arrow-left"
           data-testid="daily-inspiration-previous"
@@ -1116,6 +1143,31 @@
     background-color: rgba(255, 255, 255, 0.18) !important;
     scale: none !important;
     filter: none !important;
+  }
+
+  .carousel-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: transparent;
+    pointer-events: none;
+    z-index: var(--z-index-dropdown-2);
+  }
+
+  .carousel-progress-fill {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: scaleX(0);
+    transform-origin: left center;
+    animation: carouselProgressFill var(--carousel-progress-duration) linear forwards;
+  }
+
+  @keyframes carouselProgressFill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
   }
 
   /* Position arrows at the outer edges, rounded on the inner edge only */
