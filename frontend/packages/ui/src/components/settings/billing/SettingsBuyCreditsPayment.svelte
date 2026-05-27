@@ -253,7 +253,8 @@ Supports both saved payment methods and new payment form
         // Determine routing BEFORE auth so handleAuthSuccess knows what to do.
         // Non-EU cards use Checkout Sessions; EU cards use PaymentIntent.
         const selectedMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId);
-        pendingManagedPayment = !!(selectedMethod && !isEuCard(selectedMethod.card?.country));
+        const cardCountry = selectedMethod?.card?.country;
+        pendingManagedPayment = !!(cardCountry && !isEuCard(cardCountry));
 
         // Auth check applies to both EU and non-EU flows
         try {
@@ -364,6 +365,11 @@ Supports both saved payment methods and new payment form
             }
         } catch (error) {
             console.error('Error processing payment:', error);
+            if (error instanceof Error && error.message === 'non_eu_card_use_checkout') {
+                savedMethodProviderOverride = 'managed';
+                showPaymentForm = true;
+                return;
+            }
             // Never show raw Stripe/server error messages to users — use a generic translated message.
             // Technical details are logged to console above for debugging.
             alert($text('signup.payment_failed'));
