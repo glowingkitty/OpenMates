@@ -92,11 +92,17 @@ class ChatSyncStatus(BaseModel):
     db_messages_v: Optional[int] = None
     # Actual number of embeds stored in the embeds collection (by hashed_chat_id)
     db_embed_count: Optional[int] = None
+    # Whether DB chat metadata contains encrypted quick-tip slugs (content is never returned)
+    db_has_encrypted_quick_tip_slugs: Optional[bool] = None
+    db_encrypted_quick_tip_slugs_length: Optional[int] = None
     # --- Redis cache state ---
     # True if a Redis cache entry exists for this chat
     cache_present: bool = False
     # messages_v stored in the Redis versions hash (what the cache thinks the version is)
     cache_messages_v: Optional[int] = None
+    # Whether Redis chat-list metadata contains encrypted quick-tip slugs (content is never returned)
+    cache_has_encrypted_quick_tip_slugs: Optional[bool] = None
+    cache_encrypted_quick_tip_slugs_length: Optional[int] = None
     # --- Consistency flags ---
     # True if db_message_count matches db_messages_v (DB is internally consistent)
     db_consistent: Optional[bool] = None
@@ -167,7 +173,7 @@ async def _get_chat_sync_status(
         chat_params = {
             "filter[id][_eq]": chat_id,
             "filter[hashed_user_id][_eq]": hashed_user_id,
-            "fields": "id,messages_v",
+            "fields": "id,messages_v,encrypted_quick_tip_slugs",
             "limit": 1,
         }
         chats = await directus_service.get_items("chats", chat_params, no_cache=True)
@@ -179,6 +185,13 @@ async def _get_chat_sync_status(
         chat = chats[0]
         db_messages_v_raw = chat.get("messages_v")
         db_messages_v = int(db_messages_v_raw) if db_messages_v_raw is not None else None
+        db_quick_tip_ciphertext = chat.get("encrypted_quick_tip_slugs")
+        db_has_encrypted_quick_tip_slugs = bool(db_quick_tip_ciphertext)
+        db_encrypted_quick_tip_slugs_length = (
+            len(db_quick_tip_ciphertext)
+            if isinstance(db_quick_tip_ciphertext, str) and db_quick_tip_ciphertext
+            else 0
+        )
 
         # Count actual messages for this chat
         message_count_params = {
@@ -219,6 +232,8 @@ async def _get_chat_sync_status(
         # Check Redis cache for this chat
         cache_present = False
         cache_messages_v: Optional[int] = None
+        cache_has_encrypted_quick_tip_slugs: Optional[bool] = None
+        cache_encrypted_quick_tip_slugs_length: Optional[int] = None
         try:
             client = await cache_service.client
             if client:
@@ -231,6 +246,17 @@ async def _get_chat_sync_status(
                     if raw_v is not None:
                         v_str = raw_v.decode("utf-8") if isinstance(raw_v, bytes) else str(raw_v)
                         cache_messages_v = int(v_str) if v_str.isdigit() else None
+
+                cached_chat = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                cache_quick_tip_ciphertext = (
+                    cached_chat.encrypted_quick_tip_slugs if cached_chat else None
+                )
+                cache_has_encrypted_quick_tip_slugs = bool(cache_quick_tip_ciphertext)
+                cache_encrypted_quick_tip_slugs_length = (
+                    len(cache_quick_tip_ciphertext)
+                    if isinstance(cache_quick_tip_ciphertext, str) and cache_quick_tip_ciphertext
+                    else 0
+                )
         except Exception as cache_err:
             logger.warning(
                 f"[debug_sync] Redis cache lookup failed for chat {chat_id}: {cache_err}"
@@ -251,8 +277,12 @@ async def _get_chat_sync_status(
             db_message_count=db_message_count,
             db_messages_v=db_messages_v,
             db_embed_count=db_embed_count,
+            db_has_encrypted_quick_tip_slugs=db_has_encrypted_quick_tip_slugs,
+            db_encrypted_quick_tip_slugs_length=db_encrypted_quick_tip_slugs_length,
             cache_present=cache_present,
             cache_messages_v=cache_messages_v,
+            cache_has_encrypted_quick_tip_slugs=cache_has_encrypted_quick_tip_slugs,
+            cache_encrypted_quick_tip_slugs_length=cache_encrypted_quick_tip_slugs_length,
             db_consistent=db_consistent,
             db_cache_consistent=db_cache_consistent,
         )

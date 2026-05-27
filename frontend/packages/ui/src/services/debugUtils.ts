@@ -1669,6 +1669,8 @@ type FieldDecryptResult = {
   success: boolean;
   /** First 40 chars of decrypted value (or error message) */
   preview: string;
+  /** Full decrypted value for non-sensitive diagnostics such as quick-tip slugs. */
+  value?: string;
 };
 
 /** Overall decryption report for a chat */
@@ -1759,6 +1761,7 @@ async function attemptChatDecryption(
     { field: "Icon", key: "encrypted_icon" },
     { field: "Summary", key: "encrypted_chat_summary" },
     { field: "Tags", key: "encrypted_chat_tags" },
+    { field: "Quick Tips", key: "encrypted_quick_tip_slugs" },
     {
       field: "Follow-up Suggestions",
       key: "encrypted_follow_up_request_suggestions",
@@ -1783,7 +1786,12 @@ async function attemptChatDecryption(
           decrypted.length > 40
             ? decrypted.substring(0, 40) + "..."
             : decrypted;
-        report.metadataFields.push({ field, success: true, preview });
+        report.metadataFields.push({
+          field,
+          success: true,
+          preview,
+          value: decrypted,
+        });
       } else {
         report.metadataFields.push({
           field,
@@ -1868,6 +1876,19 @@ async function attemptChatDecryption(
   }
 
   return report;
+}
+
+function parseQuickTipSlugs(value: string | undefined): string[] | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string");
+    }
+  } catch {
+    // Older/debug payloads may already be a single plaintext slug.
+  }
+  return value ? [value] : null;
 }
 
 /**
@@ -1955,6 +1976,13 @@ export async function inspectChat(
     (f) => !f.success,
   ).length;
   const msgDecryptTotal = decryptionReport.messageFields.length;
+  const encryptedQuickTips = chatMeta?.encrypted_quick_tip_slugs as
+    | string
+    | undefined;
+  const quickTipDecrypt = decryptionReport.metadataFields.find(
+    (f) => f.field === "Quick Tips",
+  );
+  const quickTipSlugs = parseQuickTipSlugs(quickTipDecrypt?.value);
 
   const healthSummary = buildClientChatHealthSummary({
     chatMeta,
@@ -2050,6 +2078,11 @@ export async function inspectChat(
       shortLabel: "Follow-up",
     },
     {
+      label: "Quick Tips",
+      key: "encrypted_quick_tip_slugs",
+      shortLabel: "Quick Tips",
+    },
+    {
       label: "Draft",
       key: "encrypted_draft_md",
       shortLabel: "Draft",
@@ -2098,6 +2131,25 @@ export async function inspectChat(
     lines.push(
       `    messages_v=${messagesV}  title_v=${titleV}  private=${chatMeta.is_private ?? false}  shared=${chatMeta.is_shared ?? false}  hidden=${chatMeta.is_hidden ?? false}  pinned=${chatMeta.pinned ?? false}`,
     );
+
+    lines.push("");
+    lines.push("QUICK TIPS");
+    if (!encryptedQuickTips) {
+      lines.push("  · No encrypted_quick_tip_slugs in local IndexedDB");
+    } else if (quickTipDecrypt?.success && quickTipSlugs) {
+      lines.push(
+        `  🟢 Local: ${quickTipSlugs.length} slug(s) decrypted from ${encryptedQuickTips.length} chars`,
+      );
+      lines.push(`     ${quickTipSlugs.join(", ")}`);
+    } else if (quickTipDecrypt) {
+      lines.push(
+        `  🔴 Local: encrypted_quick_tip_slugs present (${encryptedQuickTips.length} chars) but decrypt failed: ${quickTipDecrypt.preview}`,
+      );
+    } else {
+      lines.push(
+        `  🔴 Local: encrypted_quick_tip_slugs present (${encryptedQuickTips.length} chars) but chat key is unavailable`,
+      );
+    }
   } else {
     lines.push("  ❌ Chat NOT FOUND in IndexedDB");
   }
@@ -4154,8 +4206,12 @@ interface ServerChatSyncStatus {
   db_message_count?: number;
   db_messages_v?: number;
   db_embed_count?: number;
+  db_has_encrypted_quick_tip_slugs?: boolean;
+  db_encrypted_quick_tip_slugs_length?: number;
   cache_present: boolean;
   cache_messages_v?: number;
+  cache_has_encrypted_quick_tip_slugs?: boolean;
+  cache_encrypted_quick_tip_slugs_length?: number;
   db_consistent?: boolean;
   db_cache_consistent?: boolean;
 }
@@ -4264,11 +4320,25 @@ function formatServerChatSync(
   lines.push(
     `  DB: messages=${dbMsgCount}  messages_v=${dbMsgV}  embeds=${dbEmbedCount}`,
   );
+  lines.push(
+    `  DB Quick Tips: ${
+      serverStatus.db_has_encrypted_quick_tip_slugs
+        ? `PRESENT (${serverStatus.db_encrypted_quick_tip_slugs_length ?? "?"} chars)`
+        : "MISSING"
+    }`,
+  );
 
   // Cache state
   if (serverStatus.cache_present) {
     const cacheMsgV = serverStatus.cache_messages_v ?? "?";
     lines.push(`  Cache: PRESENT  messages_v=${cacheMsgV}`);
+    lines.push(
+      `  Cache Quick Tips: ${
+        serverStatus.cache_has_encrypted_quick_tip_slugs
+          ? `PRESENT (${serverStatus.cache_encrypted_quick_tip_slugs_length ?? "?"} chars)`
+          : "MISSING"
+      }`,
+    );
   } else {
     lines.push("  Cache: MISSING (chat not in Redis)");
   }
