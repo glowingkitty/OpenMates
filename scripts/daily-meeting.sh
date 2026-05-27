@@ -2,24 +2,22 @@
 # =============================================================================
 # OpenMates Daily Standup Meeting
 #
-# Orchestrates the daily meeting with Claude Code:
-# 1. Gathers data from 11 sources (nightly reports, git, tests, health, etc.)
-# 2. Starts the main meeting session with all data injected into the prompt
-# 3. Sends email with resume link (claude resume --dangerous <session-id>)
-# 4. Spawns auto-confirm timer (70 min) for priority confirmation
+# Starts the weekday daily meeting as a persisted OpenCode chat:
+# 1. Creates a new OpenCode session titled daily-meeting YYYY-MM-DD
+# 2. Lets the daily-meeting skill gather data inside that chat
+# 3. Sends an email with the OpenCode web deep link
 #
-# No subagents — the meeting session reads all data directly, avoiding
-# unnecessary summarization layers that add latency and failure risk.
+# No Claude launcher and no Zellij session are involved. OpenCode CLI-created
+# chats are stored in the same project session store used by the web app.
 #
 # Can be invoked manually or via /daily-meeting skill:
 #   ./scripts/daily-meeting.sh                    # run full meeting
-#   DRY_RUN=true ./scripts/daily-meeting.sh       # print prompt, skip claude
-#   MEETING_DATE=2026-03-26 ./scripts/daily-meeting.sh  # review specific date
 #
 # Env vars (sourced from .env automatically):
-#   INTERNAL_API_URL                  — base URL for internal API (default: http://localhost:8000)
-#   SECRET__ADMIN__DEBUG_CLI__API_KEY — admin API key for issue fetching
-#   INTERNAL_API_SHARED_TOKEN         — for email dispatch
+#   DAILY_MEETING_NOTIFY_EMAIL — recipient for the meeting-ready email
+#   OPENCODE_WEB_BASE_URL      — public OpenCode web base URL for deep links
+#   INTERNAL_API_SHARED_TOKEN  — for email dispatch
+#   INTERNAL_API_URL           — base URL for internal API (default: http://localhost:8000)
 # =============================================================================
 set -euo pipefail
 
@@ -47,22 +45,8 @@ if ! flock -n 200; then
   exit 0
 fi
 
-# Run the meeting
-if [[ "${DRY_RUN:-false}" == "true" ]]; then
-  python3 "$SCRIPT_DIR/_daily_meeting_helper.py" dry-run
-else
-  python3 "$SCRIPT_DIR/_daily_meeting_helper.py" run-meeting
-
-  # Spawn auto-confirm timer in background (70 minutes)
-  # This will apply priorities to Linear if the user doesn't join and confirm manually
-  AUTO_CONFIRM_DELAY=$((70 * 60))
-  (
-    sleep "$AUTO_CONFIRM_DELAY"
-    echo "[daily-meeting] Auto-confirm timer expired. Checking if priorities need confirmation..."
-    python3 "$SCRIPT_DIR/_daily_meeting_helper.py" auto-confirm
-  ) &
-  AUTO_CONFIRM_PID=$!
-  echo "[daily-meeting] Auto-confirm timer started (PID $AUTO_CONFIRM_PID, ${AUTO_CONFIRM_DELAY}s delay)"
-fi
+# Run the meeting. Weekday-only behavior is enforced in the Python helper too,
+# so a misconfigured cron entry does not create weekend chats.
+python3 "$SCRIPT_DIR/_opencode_daily_meeting.py"
 
 echo "[daily-meeting] Complete at $(date '+%Y-%m-%d %H:%M:%S %Z')"
