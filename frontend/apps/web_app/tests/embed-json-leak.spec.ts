@@ -34,7 +34,12 @@ const {
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
-const { startNewChat, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const {
+	startNewChat,
+	submitPasswordAndHandleOtp,
+	waitForAssistantMessage,
+	waitForChatReady
+} = require('./helpers/chat-test-helpers');
 
 /**
  * Embed JSON leak regression test: verify that raw JSON embed references like
@@ -131,11 +136,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
 	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(3000);
-
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
+	await waitForChatReady(page, logCheckpoint);
 
 	// ======================================================================
 	// STEP 2: Start a new chat
@@ -184,10 +185,11 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	logCheckpoint('Waiting for assistant response...');
 
 	// Wait for the assistant message to appear (use last() since demo messages may also exist)
-	const assistantMessages = page.getByTestId('message-assistant');
-	await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
-	logCheckpoint('Assistant response wrapper is visible.');
-
+	const lastAssistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		timeout: 120000,
+		logCheckpoint
+	});
 	// Wait for at least one code embed preview to appear in the chat
 	const codeEmbeds = page.getByTestId('message-assistant').locator('[data-testid="embed-preview"]');
 	logCheckpoint('Waiting for code embed previews to appear...');
@@ -233,7 +235,6 @@ test('code embeds render without raw JSON embed references leaking', async ({
 
 	// Get the full text content of the LAST assistant message (the one we triggered)
 	// Use .last() to skip any demo chat assistant messages
-	const lastAssistantMessage = assistantMessages.last();
 	const assistantProseMirror = lastAssistantMessage
 		.getByTestId('message-content')
 		.first();
