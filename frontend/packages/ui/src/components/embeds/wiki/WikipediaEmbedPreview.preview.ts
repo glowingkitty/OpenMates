@@ -8,7 +8,7 @@ const defaultProps = {
   title: 'Murmuration',
   wikiTitle: 'Murmuration',
   description: 'Coordinated flock movement that creates living patterns in the sky.',
-  thumbnailUrl: null,
+  thumbnailUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Brandenburger_Tor_abends.jpg/640px-Brandenburger_Tor_abends.jpg',
   wikidataId: null,
   status: 'finished' as const,
   isMobile: false,
@@ -37,5 +37,10 @@ export const variants = {
     ...defaultProps,
     id: 'preview-wiki-mobile',
     isMobile: true,
+  },
+  noImage: {
+    ...defaultProps,
+    id: 'preview-wiki-no-image',
+    thumbnailUrl: null,
   },
 };
