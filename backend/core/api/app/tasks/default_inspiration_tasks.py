@@ -31,7 +31,7 @@ from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requir
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v7:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v8:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
