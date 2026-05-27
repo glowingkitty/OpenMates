@@ -300,6 +300,50 @@ test.describe('Unauthenticated app load', () => {
 		expect(thirdPhrase).toBe('Cycling inspiration three');
 	});
 
+	test('daily inspiration banner auto-rotates for unauthenticated users', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
+			const originalFetch = window.fetch.bind(window);
+			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+				if (url.includes('/v1/default-inspirations')) {
+					return new Response(JSON.stringify({ inspirations }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return originalFetch(input, init);
+			};
+		}, CYCLING_INSPIRATIONS);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+
+		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		await expect(newChatButton).toBeVisible({ timeout: 10000 });
+		await newChatButton.click();
+
+		const phrase = page.getByTestId('daily-inspiration-phrase');
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+
+		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 25000 });
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(phrase).toHaveText('Cycling inspiration three', { timeout: 3000 });
+		await page.waitForTimeout(11000);
+		await expect(phrase).toHaveText('Cycling inspiration three');
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 14000 });
+	});
+
 	test('desktop welcome carousel opens example chats without runtime errors', async ({
 		page
 	}: {
