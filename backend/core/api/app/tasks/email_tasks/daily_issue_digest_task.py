@@ -4,7 +4,7 @@ Daily issue digest for production/dev reliability triage.
 
 Collects the top backend error clusters, privacy-safe client diagnostic clusters,
 and latest daily test failures, then writes durable handoff artifacts and emails
-SERVER_OWNER_EMAIL. The generated OpenCode prompt lets the owner approve a
+SERVER_OWNER_EMAIL or ADMIN_NOTIFY_EMAIL. The generated OpenCode prompt lets the owner approve a
 follow-up investigation/fix session without exposing raw user content.
 """
 
@@ -49,16 +49,19 @@ def send_daily_issue_digest(self) -> bool:
     """Entry point for Celery beat and manual dispatch."""
     logger.info("[DAILY_ISSUE_DIGEST] Starting daily issue digest")
     try:
-        return asyncio.run(_async_send_daily_issue_digest())
+        sent = asyncio.run(_async_send_daily_issue_digest())
+        if not sent:
+            raise RuntimeError("Daily issue digest was not sent")
+        return True
     except Exception as exc:
         logger.error(f"[DAILY_ISSUE_DIGEST] Task failed: {exc}", exc_info=True)
-        return False
+        raise
 
 
 async def _async_send_daily_issue_digest() -> bool:
-    admin_email = os.getenv("SERVER_OWNER_EMAIL")
+    admin_email = os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
     if not admin_email:
-        logger.error("[DAILY_ISSUE_DIGEST] SERVER_OWNER_EMAIL is not configured")
+        logger.error("[DAILY_ISSUE_DIGEST] SERVER_OWNER_EMAIL/ADMIN_NOTIFY_EMAIL is not configured")
         return False
 
     now = datetime.now(timezone.utc)
