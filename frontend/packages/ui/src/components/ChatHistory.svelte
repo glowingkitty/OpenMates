@@ -2112,8 +2112,8 @@
             {#if showQuickTipsInHistory}
                 <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
                     <QuickTipsCard
-                        chatId={currentChatId}
                         slugs={quickTipSlugs}
+                        category={chatCategory}
                         on:action={(event) => handleQuickTipAction(event.detail)}
                     />
                 </div>

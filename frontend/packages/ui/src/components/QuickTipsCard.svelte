@@ -10,49 +10,36 @@
   import { fade } from 'svelte/transition';
   import { text } from '@repo/ui';
   import { getQuickTip, type QuickTipDefinition } from '../data/quickTips';
+  import { getCategoryGradientColors } from '../utils/categoryUtils';
 
   let {
-    chatId,
     slugs = [],
+    category = null,
   }: {
-    chatId: string | null | undefined;
     slugs?: string[];
+    category?: string | null;
   } = $props();
 
   const dispatch = createEventDispatcher<{
     action: QuickTipDefinition;
   }>();
 
-  let dismissedSlugs = $state<Set<string>>(new Set());
-
-  function storageKey(slug: string): string | null {
-    return chatId ? `openmates:quick-tip-dismissed:${chatId}:${slug}` : null;
-  }
-
-  function isDismissed(slug: string): boolean {
-    const key = storageKey(slug);
-    if (!key || typeof localStorage === 'undefined') return dismissedSlugs.has(slug);
-    return dismissedSlugs.has(slug) || localStorage.getItem(key) === '1';
-  }
-
-  function dismiss(slug: string): void {
-    dismissedSlugs = new Set([...dismissedSlugs, slug]);
-    const key = storageKey(slug);
-    if (key && typeof localStorage !== 'undefined') {
-      localStorage.setItem(key, '1');
-    }
-  }
-
   let activeTip = $derived.by(() => {
     for (const slug of slugs) {
       const tip = getQuickTip(slug);
-      if (tip && !isDismissed(slug)) return tip;
+      if (tip) return tip;
     }
     return null;
   });
 
+  let gradientStyle = $derived.by(() => {
+    const colors = category ? getCategoryGradientColors(category) : null;
+    return colors
+      ? `background: linear-gradient(135deg, ${colors.start}, ${colors.end});`
+      : 'background: var(--color-primary);';
+  });
+
   function handleAction(tip: QuickTipDefinition): void {
-    dismiss(tip.slug);
     dispatch('action', tip);
   }
 </script>
@@ -62,6 +49,7 @@
     class="quick-tip-card"
     data-testid="quick-tip-card"
     data-quick-tip-slug={activeTip.slug}
+    style={gradientStyle}
     transition:fade={{ duration: 200 }}
   >
     <div class="quick-tip-content">
@@ -74,15 +62,6 @@
         </button>
       {/if}
     </div>
-    <button
-      class="quick-tip-dismiss"
-      type="button"
-      data-testid="quick-tip-dismiss"
-      aria-label={$text('common.close')}
-      onclick={() => dismiss(activeTip.slug)}
-    >
-      x
-    </button>
   </section>
 {/if}
 
@@ -93,8 +72,6 @@
     align-self: flex-end;
     overflow: hidden;
     border-radius: var(--radius-6);
-    padding: 1px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
     box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.16);
   }
 
@@ -110,8 +87,7 @@
 
   .quick-tip-content {
     position: relative;
-    border-radius: calc(var(--radius-6) - 1px);
-    padding: 1rem 3rem 1rem 1rem;
+    padding: 1rem;
     color: var(--color-grey-0);
   }
 
@@ -140,45 +116,12 @@
   }
 
   .quick-tip-cta {
-    all: unset;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     margin-top: 0.8rem;
-    min-height: 2rem;
-    padding: 0.35rem 0.75rem;
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.92);
-    color: var(--color-grey-100);
-    font-size: 0.84rem;
-    font-weight: 700;
-    box-shadow: 0 0.25rem 0.8rem rgba(0, 0, 0, 0.16);
   }
 
-  .quick-tip-cta:focus-visible,
-  .quick-tip-dismiss:focus-visible {
+  .quick-tip-cta:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.9);
     outline-offset: 2px;
-  }
-
-  .quick-tip-dismiss {
-    all: unset;
-    position: absolute;
-    top: 0.65rem;
-    right: 0.65rem;
-    z-index: 1;
-    display: grid;
-    place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 999px;
-    cursor: pointer;
-    color: var(--color-grey-0);
-    background: rgba(255, 255, 255, 0.16);
-    font-size: 1.25rem;
-    line-height: 1;
   }
 
   @media (max-width: 500px) {
