@@ -23,7 +23,10 @@ export default defineConfig({
 			manifestFilename: 'manifest.json',
 			scope: '/',
 			base: '/',
-			selfDestroying: false,
+			// Temporarily retire the Workbox service worker. Existing browser
+			// installations can otherwise keep serving stale/broken navigation
+			// handlers across deploys, which breaks normal app boot on real devices.
+			selfDestroying: true,
 			manifest: {
 				name: 'OpenMates - Your AI Team',
 				short_name: 'OpenMates',
