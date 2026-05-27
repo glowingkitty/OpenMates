@@ -101,6 +101,7 @@
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
   let visitCycleTargetIndexes = $state(new Map<string, number>());
+  let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -280,6 +281,7 @@
   $effect(() => {
     if (inspirations.length <= 1) return;
     if (!inspirationSetKey) return;
+    if (visitCycleAppliedInspirations === inspirations) return;
 
     let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
     if (targetIndex === undefined || targetIndex >= inspirations.length) {
@@ -290,6 +292,7 @@
       ]);
     }
 
+    visitCycleAppliedInspirations = inspirations;
     if (currentIndex !== targetIndex) {
       dailyInspirationStore.goTo(targetIndex);
     }
