@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v6:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v7:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -41,7 +41,7 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v6:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v7:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_WIKI_COUNT = 3
@@ -108,6 +108,30 @@ def _shuffle_daily_defaults(
     lang: str,
 ) -> None:
     random.Random(f"default-inspirations:{date_str}:{lang}").shuffle(result)
+
+
+def _reserve_default_slots(
+    result: List[Dict[str, Any]],
+    *,
+    content_type: str,
+    target_count: int,
+) -> None:
+    """Make room for missing quota items before final 10-item truncation."""
+    current_count = sum(1 for item in result if item.get("content_type") == content_type)
+    missing_count = max(0, target_count - current_count)
+    while missing_count > 0 and len(result) >= _DEFAULT_INSPIRATION_COUNT:
+        removable_index = next(
+            (
+                idx
+                for idx in range(len(result) - 1, -1, -1)
+                if result[idx].get("content_type") != content_type
+            ),
+            None,
+        )
+        if removable_index is None:
+            return
+        result.pop(removable_index)
+        missing_count -= 1
 
 
 # ---- Endpoint ------------------------------------------------------------
@@ -310,6 +334,11 @@ async def get_default_inspirations(
 
     wiki_count = sum(1 for item in result if item.get("content_type") == "wiki")
     if wiki_count < _DEFAULT_WIKI_COUNT:
+        _reserve_default_slots(
+            result,
+            content_type="wiki",
+            target_count=_DEFAULT_WIKI_COUNT,
+        )
         existing_wiki_titles = {_get_wiki_title(item) for item in result}
         for wiki_inspiration in build_wiki_inspirations(_DEFAULT_WIKI_COUNT):
             wiki_title = wiki_inspiration.wiki.wiki_title if wiki_inspiration.wiki else None
@@ -324,6 +353,11 @@ async def get_default_inspirations(
 
     feature_count = sum(1 for item in result if item.get("content_type") == "feature")
     if feature_count < _DEFAULT_FEATURE_COUNT:
+        _reserve_default_slots(
+            result,
+            content_type="feature",
+            target_count=_DEFAULT_FEATURE_COUNT,
+        )
         existing_feature_ids = {_get_feature_id(item) for item in result}
         for feature_inspiration in build_feature_inspirations(
             _DEFAULT_FEATURE_COUNT,
