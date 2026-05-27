@@ -301,6 +301,8 @@ test('completes signup with skipped 2FA, login with password, and delete account
 		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'logged-out');
+	await page.goto(getE2EDebugUrl('/'));
+	await page.waitForLoadState('load');
 
 	// Dismiss version banner again if it reappeared after logout
 	if (await versionBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
