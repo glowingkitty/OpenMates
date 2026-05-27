@@ -100,9 +100,9 @@
   // the user never clicks it (passive view tracking).
   let viewedIds = $state(new Set<string>());
 
-  // Whether the banner wrapper is currently intersecting the viewport.
-  // Set by the IntersectionObserver mounted in onMount.
-  let isBannerVisible = $state(false);
+  // Whether the banner wrapper is currently intersecting the viewport. Default
+  // to true so Safari/blocked IntersectionObserver does not stall the carousel.
+  let isBannerVisible = $state(true);
 
   // On mobile, alternate between the assistant message and interactive preview instead
   // of squeezing both into the narrow banner width.
@@ -213,7 +213,10 @@
   // Attach / detach the IntersectionObserver whenever the wrapper element is
   // mounted or unmounted (Svelte 5 $effect re-runs when bannerWrapperEl changes).
   $effect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
+    if (typeof IntersectionObserver === 'undefined') {
+      isBannerVisible = true;
+      return;
+    }
     if (!bannerWrapperEl) return;
 
     const observer = new IntersectionObserver(

@@ -85,6 +85,7 @@
 	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
+	let lastLoadedChatId = $state<string | null>(null);
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
@@ -478,7 +479,7 @@
 
 		// CRITICAL: During initial hash load, always process (store might be initialized from hash but chat not loaded)
 		// After initial load, skip if chat is already active in store (prevents unnecessary processing)
-		if (!isProcessingInitialHash && $activeChatStore === chatId) {
+		if (!isProcessingInitialHash && $activeChatStore === chatId && lastLoadedChatId === chatId) {
 			console.debug(
 				`[+page.svelte] Chat ${chatId} is already active (not initial load), skipping deep link processing`
 			);
@@ -495,6 +496,7 @@
 			if (exampleChatObj && activeChat) {
 				// Example chats are static — load directly (embed refs already registered on page load)
 				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo });
+				lastLoadedChatId = exampleChatObj.chat_id;
 
 				const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
 					detail: { chat: exampleChatObj },
@@ -541,6 +543,7 @@
 					const chat = convertDemoChatToChat(translatedChat);
 
 					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo });
+					lastLoadedChatId = chat.chat_id;
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 					const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -611,6 +614,7 @@
 				const loadSessionStorageChat = async (retries = 20): Promise<void> => {
 					if (activeChat) {
 						activeChat.loadChat(virtualChat, { scrollToLatestResponse });
+						lastLoadedChatId = virtualChat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -660,6 +664,7 @@
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
 						activeChat.loadChat(chat, { scrollToLatestResponse });
+						lastLoadedChatId = chat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -2859,9 +2864,20 @@
 		// window had already expired, causing programmatic hash clears (from clearActiveChat
 		// in handleNewChatClick) to be treated as real user navigation — triggering
 		// loadDemoWelcomeChat and overwriting the new-chat state just as the user sent a message.
+		const newHash = window.location.hash;
+		const hashChatIdMatch = newHash.match(/^#chat-id=([^&]+)/);
+		const hashChatId = hashChatIdMatch ? decodeURIComponent(hashChatIdMatch[1]) : null;
+
 		if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
-			console.debug('[+page.svelte] Ignoring programmatic hash update');
-			return;
+			if (!hashChatId || lastLoadedChatId === hashChatId) {
+				console.debug('[+page.svelte] Ignoring programmatic hash update');
+				return;
+			}
+
+			console.debug(
+				'[+page.svelte] Processing programmatic hash update because chat is not loaded yet:',
+				hashChatId
+			);
 		}
 
 		// CRITICAL: Ignore hash changes that are purely the embed opening on an already-active chat.
@@ -2876,7 +2892,6 @@
 		// the visible open→close→open glitch.
 		// Fix: if the new hash encodes a chat that is already active AND includes an embed-id,
 		// this is purely the embed opening — not a real navigation.  Skip it entirely.
-		const newHash = window.location.hash;
 		const combinedEmbedMatch = newHash.match(/^#chat-id=([^&]+)&embed-id=(.+)$/);
 		if (combinedEmbedMatch) {
 			const hashChatId = combinedEmbedMatch[1];
@@ -2906,6 +2921,7 @@
 			if (activeChat) {
 				console.debug('[+page.svelte] activeChat ready, loading chat:', selectedChat.chat_id);
 				activeChat.loadChat(selectedChat);
+				lastLoadedChatId = selectedChat.chat_id;
 				console.debug('[+page.svelte] ✅ Successfully called loadChat for:', selectedChat.chat_id);
 				return;
 			} else if (retries > 0) {
@@ -2962,6 +2978,7 @@
 				console.log('[+page.svelte] activeChat ready, loading demo chat:', selectedChat.chat_id);
 				try {
 					await activeChat.loadChat(selectedChat);
+					lastLoadedChatId = selectedChat.chat_id;
 					console.log(
 						'[+page.svelte] Successfully called loadChat for demo chat:',
 						selectedChat.chat_id
@@ -3023,6 +3040,7 @@
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
 			if (activeChat) {
 				await activeChat.loadChat(selectedChat, { scrollToTop });
+				lastLoadedChatId = selectedChat.chat_id;
 				window.dispatchEvent(
 					new CustomEvent('globalChatSelected', {
 						detail: { chat: selectedChat },
