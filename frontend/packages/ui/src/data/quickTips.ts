@@ -17,19 +17,21 @@ export interface QuickTipDefinition {
   promptKey?: string;
 }
 
+const LEARN_MORE_CTA_KEY = 'chat.quick_tips.cta_learn_more';
+
 export const QUICK_TIPS: Record<string, QuickTipDefinition> = {
   'shorter-chats-equal-better-responses': {
     slug: 'shorter-chats-equal-better-responses',
     titleKey: 'chat.quick_tips.shorter_chats_equal_better_responses.title',
     bodyKey: 'chat.quick_tips.shorter_chats_equal_better_responses.body',
-    ctaLabelKey: 'chat.quick_tips.shorter_chats_equal_better_responses.cta',
+    ctaLabelKey: LEARN_MORE_CTA_KEY,
     ctaAction: 'new_chat',
   },
   'search-current-info-next-time': {
     slug: 'search-current-info-next-time',
     titleKey: 'chat.quick_tips.search_current_info_next_time.title',
     bodyKey: 'chat.quick_tips.search_current_info_next_time.body',
-    ctaLabelKey: 'chat.quick_tips.search_current_info_next_time.cta',
+    ctaLabelKey: LEARN_MORE_CTA_KEY,
     ctaAction: 'open_app',
     appId: 'web',
   },
@@ -37,7 +39,7 @@ export const QUICK_TIPS: Record<string, QuickTipDefinition> = {
     slug: 'travel-can-add-local-context',
     titleKey: 'chat.quick_tips.travel_can_add_local_context.title',
     bodyKey: 'chat.quick_tips.travel_can_add_local_context.body',
-    ctaLabelKey: 'chat.quick_tips.travel_can_add_local_context.cta',
+    ctaLabelKey: LEARN_MORE_CTA_KEY,
     ctaAction: 'open_app',
     appId: 'travel',
   },
@@ -45,7 +47,7 @@ export const QUICK_TIPS: Record<string, QuickTipDefinition> = {
     slug: 'use-apps-for-better-results',
     titleKey: 'chat.quick_tips.use_apps_for_better_results.title',
     bodyKey: 'chat.quick_tips.use_apps_for_better_results.body',
-    ctaLabelKey: 'chat.quick_tips.use_apps_for_better_results.cta',
+    ctaLabelKey: LEARN_MORE_CTA_KEY,
     ctaAction: 'open_app',
   },
 };
