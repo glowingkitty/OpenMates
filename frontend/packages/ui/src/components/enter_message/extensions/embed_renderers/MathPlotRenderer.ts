@@ -92,11 +92,10 @@ export class MathPlotRenderer implements EmbedRenderer {
         // Ask the server to resend the embed's plaintext TOON content (with embed_keys
         // so the client can re-encrypt it correctly now that the chat key is loaded).
         try {
-          const { webSocketService } =
-            await import("../../../../services/websocketService");
-          await webSocketService.sendMessage("request_embed", {
-            embed_id: embedId,
-          });
+          const { requestEmbedFromServerOnce } = await import(
+            "../../../../services/embedResolver"
+          );
+          await requestEmbedFromServerOnce(embedId, "math-plot-decryption-retry");
         } catch (reqErr) {
           console.warn(
             "[MathPlotRenderer] Could not request embed after decryption failure:",

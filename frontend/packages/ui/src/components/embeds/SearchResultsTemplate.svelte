@@ -163,6 +163,8 @@
   let isOpeningInitialChild = $derived(
     !!initialChildEmbedId && selectedIndex < 0 && !initialChildLookupComplete
   );
+  let isDirectInitialChildOpen = $derived(!!initialChildEmbedId && selectedIndex >= 0);
+  let embedIdsForFullscreen = $derived(initialChildEmbedId ? [initialChildEmbedId] : embedIds);
 
   function selectInitialChildFromResults(results: T[]): boolean {
     if (!initialChildEmbedId || selectedIndex >= 0) return false;
@@ -274,8 +276,9 @@
 </script>
 
 <!--
-  Overlay-based rendering: search results grid is ALWAYS mounted.
-  Child detail view renders as overlay on top via ChildEmbedOverlay.
+  Overlay-based rendering keeps the parent grid mounted for user-initiated
+  drilldown. Inline child deep-links use a lightweight shell to avoid mounting
+  a full search grid behind the child fullscreen.
 -->
 
 <UnifiedEmbedFullscreen
@@ -295,7 +298,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
-  {embedIds}
+  embedIds={embedIdsForFullscreen}
   {childEmbedTransformer}
   {legacyResults}
   onChildrenLoaded={(children) => updateLoadedResults(children as T[])}
@@ -310,13 +313,8 @@
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
-    <!-- Sync allResults when resolved list changes (enables sibling navigation) -->
-    <!-- Note: void suppresses text rendering — {expr} would print the array as "[object Object],..." -->
-    {#if results.length > 0 && results !== allResults}
-      {void (allResults = results)}
-    {/if}
 
-    {#if isOpeningInitialChild}
+    {#if isOpeningInitialChild || isDirectInitialChildOpen}
       <div class="search-template-child-transition" data-testid="search-template-child-transition" aria-busy="true"></div>
     {:else if status === 'error'}
       <div class="search-template-error">

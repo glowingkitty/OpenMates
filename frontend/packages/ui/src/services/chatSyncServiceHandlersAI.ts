@@ -693,8 +693,6 @@ async function processEmbedsFromContent(content: string): Promise<void> {
  */
 async function requestEmbedFromServer(embedId: string): Promise<void> {
   try {
-    const { webSocketService } = await import("./websocketService");
-
     // Check if embed already exists in local store
     const { embedStore } = await import("./embedStore");
     const existingEmbedRaw = await embedStore.get(`embed:${embedId}`);
@@ -711,9 +709,8 @@ async function requestEmbedFromServer(embedId: string): Promise<void> {
     }
 
     // Send request to server via WebSocket
-    await webSocketService.sendMessage("request_embed", {
-      embed_id: embedId,
-    });
+    const { requestEmbedFromServerOnce } = await import("./embedResolver");
+    await requestEmbedFromServerOnce(embedId, "ai-handler-recovery");
 
     console.debug(
       `[ChatSyncService:AI] Requested embed ${embedId} from server via WebSocket`,

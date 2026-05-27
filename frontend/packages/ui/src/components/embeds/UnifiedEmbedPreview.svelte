@@ -38,7 +38,7 @@
   import BasicInfosBar from './BasicInfosBar.svelte';
   import Icon from '../Icon.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
-  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
   
   /**
@@ -264,15 +264,7 @@
           // Also handles the editor→read mode transition where the in-memory cache
           // may have been replaced with an encrypted IDB entry that hasn't decrypted yet.
           needsContentRecovery = true;
-          try {
-            const { webSocketService } = await import('../../services/websocketService');
-            console.info(
-              `[UnifiedEmbedPreview] Embed ${id} finished but TOON content missing, requesting from server`
-            );
-            await webSocketService.sendMessage('request_embed', { embed_id: id });
-          } catch (err) {
-            console.debug(`[UnifiedEmbedPreview] TOON recovery request failed for ${id}:`, err);
-          }
+          await requestEmbedFromServerOnce(id, 'preview-content-recovery');
         }
       }
     } catch (error) {
@@ -292,15 +284,7 @@
     // Only request if still processing and not a legacy/synthetic ID
     if (localStatus !== 'processing' || id.startsWith('legacy-')) return;
 
-    try {
-      const { webSocketService } = await import('../../services/websocketService');
-      console.info(
-        `[UnifiedEmbedPreview] Stale recovery: requesting embed ${id} from server (still processing after mount)`
-      );
-      await webSocketService.sendMessage('request_embed', { embed_id: id });
-    } catch (err) {
-      console.debug(`[UnifiedEmbedPreview] Stale recovery request failed for ${id}:`, err);
-    }
+    await requestEmbedFromServerOnce(id, 'preview-stale-recovery');
   }
 
   onMount(() => {

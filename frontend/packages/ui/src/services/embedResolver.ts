@@ -34,26 +34,113 @@ const knownErrorEmbeds = new Map<
   { status: string; timestamp: number }
 >();
 
+const EMBED_REQUEST_COOLDOWN_MS = 10_000;
+const SYNTHETIC_EMBED_PREFIXES = ["legacy-", "youtube-", "wiki-"];
+
+const requestedEmbeds = new Map<
+  string,
+  { requestedAt: number; promise: Promise<void> | null; reason: string }
+>();
+
+function normalizeEmbedId(embedId: string): string {
+  return embedId.startsWith("embed:") ? embedId.slice("embed:".length) : embedId;
+}
+
+function isSyntheticEmbedId(embedId: string): boolean {
+  return SYNTHETIC_EMBED_PREFIXES.some((prefix) => embedId.startsWith(prefix));
+}
+
 /**
  * Mark an embed as having an error/cancelled status.
  * Called from chatSyncServiceHandlersAI when an error embed is received.
  */
 export function markEmbedAsError(embedId: string, status: string): void {
-  knownErrorEmbeds.set(embedId, { status, timestamp: Date.now() });
+  const bareId = normalizeEmbedId(embedId);
+  knownErrorEmbeds.set(bareId, { status, timestamp: Date.now() });
+  requestedEmbeds.delete(bareId);
 }
 
 /**
  * Check if an embed is known to be in an error state.
  */
 export function isEmbedKnownError(embedId: string): boolean {
-  return knownErrorEmbeds.has(embedId);
+  return knownErrorEmbeds.has(normalizeEmbedId(embedId));
 }
 
 /**
  * Clear error state for an embed (e.g., if it gets retried and succeeds).
  */
 export function clearEmbedError(embedId: string): void {
-  knownErrorEmbeds.delete(embedId);
+  knownErrorEmbeds.delete(normalizeEmbedId(embedId));
+}
+
+/**
+ * Request embed data from the server with cross-component dedupe and cooldown.
+ * Heavy chats can mount multiple previews/fullscreens for the same missing ID;
+ * without this guard each mount can emit its own request_embed and amplify DOM
+ * churn with redundant send_embed_data responses.
+ */
+export async function requestEmbedFromServerOnce(
+  embedId: string,
+  reason: string,
+): Promise<boolean> {
+  const bareId = normalizeEmbedId(embedId);
+  if (!bareId || knownErrorEmbeds.has(bareId)) return false;
+
+  if (isSyntheticEmbedId(bareId)) {
+    console.debug(
+      `[embedResolver] Skipping server request for synthetic embed ${bareId} (${reason})`,
+    );
+    return false;
+  }
+
+  const isAuthenticated = get(authStore).isAuthenticated;
+  if (!isAuthenticated) {
+    console.debug(
+      "[embedResolver] User not authenticated, skipping WebSocket request for embed:",
+      bareId,
+    );
+    return false;
+  }
+
+  const now = Date.now();
+  const existing = requestedEmbeds.get(bareId);
+  if (existing?.promise) {
+    console.debug(
+      `[embedResolver] request_embed already in flight for ${bareId}; suppressing duplicate (${reason}, existing: ${existing.reason})`,
+    );
+    return false;
+  }
+  if (existing && now - existing.requestedAt < EMBED_REQUEST_COOLDOWN_MS) {
+    console.debug(
+      `[embedResolver] request_embed cooldown active for ${bareId}; suppressing duplicate (${reason})`,
+    );
+    return false;
+  }
+
+  try {
+    const { webSocketService } = await import("./websocketService");
+    console.warn(
+      `[embedResolver] Embed missing locally, requesting from server (${reason}):`,
+      bareId,
+    );
+
+    const promise = webSocketService.sendMessage("request_embed", {
+      embed_id: bareId,
+    });
+    requestedEmbeds.set(bareId, { requestedAt: now, promise, reason });
+
+    await promise;
+    requestedEmbeds.set(bareId, { requestedAt: now, promise: null, reason });
+    return true;
+  } catch (error) {
+    requestedEmbeds.delete(bareId);
+    const msg = error instanceof Error ? error.message : String(error);
+    const isAuthRelated = msg.includes("not connected") || msg.includes("not authenticated");
+    const logFn = isAuthRelated ? console.warn : console.error;
+    logFn("[embedResolver] Error requesting embed from server:", error);
+    return false;
+  }
 }
 
 // TOON decoder (will be imported when available)
@@ -215,9 +302,7 @@ export async function resolveEmbed(
     // already prefix the ID (e.g. handleInspirationEmbedFullscreen) would cause
     // embedStore.get() to look up "embed:embed:<uuid>" — a key that never exists —
     // resulting in a guaranteed cache miss and an unnecessary server round-trip.
-    const bareId = embed_id.startsWith("embed:")
-      ? embed_id.slice("embed:".length)
-      : embed_id;
+    const bareId = normalizeEmbedId(embed_id);
 
     // Check known failures before touching IndexedDB. Some stale encrypted rows
     // stay present locally after a key mismatch; retrying those WebCrypto decrypts
@@ -275,45 +360,7 @@ export async function resolveEmbed(
     // IMPORTANT: Only request via WebSocket if user is authenticated.
     // For unauthenticated users viewing demo chats, embeds will be available
     // once the example chat store finishes loading from server.
-    const isAuthenticated = get(authStore).isAuthenticated;
-    if (!isAuthenticated) {
-      console.debug(
-        "[embedResolver] User not authenticated, skipping WebSocket request for embed:",
-        bareId,
-      );
-    } else {
-      console.warn(
-        "[embedResolver] Embed not in EmbedStore or demo store, requesting from server (async):",
-        bareId,
-      );
-
-      try {
-        const { webSocketService } = await import("./websocketService");
-
-        // Request embed from server via WebSocket (non-blocking)
-        // Server will respond with send_embed_data event, which will store the embed
-        // The UI will automatically re-render when the embed is stored
-        webSocketService
-          .sendMessage("request_embed", {
-            embed_id: bareId,
-          })
-          .catch((error) => {
-            // Downgrade to warn when WebSocket is unavailable due to auth —
-            // expected on public pages like embed showcase and demo chats.
-            const msg = error?.message || String(error);
-            const isAuthRelated =
-              msg.includes("not connected") ||
-              msg.includes("not authenticated");
-            const logFn = isAuthRelated ? console.warn : console.error;
-            logFn(
-              "[embedResolver] Error requesting embed from server:",
-              error,
-            );
-          });
-      } catch (error) {
-        console.error("[embedResolver] Error setting up embed request:", error);
-      }
-    }
+    void requestEmbedFromServerOnce(bareId, "resolveEmbed-miss");
 
     // Return null for now - the embed will be available after server responds
     // The renderer should handle null gracefully and show a loading/error state

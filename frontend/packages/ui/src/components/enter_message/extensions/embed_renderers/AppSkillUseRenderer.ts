@@ -131,11 +131,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
         // Request fresh embed data from the server (includes embed_keys for re-decryption).
         try {
-          const { webSocketService } =
-            await import("../../../../services/websocketService");
-          await webSocketService.sendMessage("request_embed", {
-            embed_id: embedId,
-          });
+          const { requestEmbedFromServerOnce } = await import(
+            "../../../../services/embedResolver"
+          );
+          await requestEmbedFromServerOnce(embedId, "app-skill-decryption-retry");
         } catch (requestError) {
           console.warn(
             "[AppSkillUseRenderer] Could not request embed from server after decryption failure:",
