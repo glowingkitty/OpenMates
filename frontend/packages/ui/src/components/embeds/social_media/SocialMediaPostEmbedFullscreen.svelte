@@ -59,6 +59,7 @@
   let externalTitle = $derived(asString(dc.external_title));
   let comments = $derived(normalizeComments(dc.comments));
   let source = $derived(socialSourceLabel({ embed_id: embedId || '', platform, page }));
+  let ctaText = $derived(platform ? `Open on ${platform.charAt(0).toUpperCase()}${platform.slice(1)}` : 'Open post');
   let favicon = $derived(avatar ? proxyImage(avatar, MAX_WIDTH_FAVICON) : undefined);
   let isExpanded = $state(false);
   let shouldClampPost = $derived(body.length > LONG_POST_THRESHOLD && !isExpanded);
@@ -89,7 +90,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if url}
-      <EmbedHeaderCtaButton href={url} text="Open post" />
+      <EmbedHeaderCtaButton href={url} text={ctaText} />
     {/if}
   {/snippet}
 

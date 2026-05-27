@@ -27,7 +27,6 @@
     platform,
     page,
     title,
-    body,
     author,
     author_display_name,
     author_avatar_url,
@@ -47,7 +46,6 @@
   let image = $derived(media_url || thumbnail_url);
   let displayAuthor = $derived(author_display_name || author || page || platform || 'Social post');
   let source = $derived(socialSourceLabel({ embed_id: id, platform, page }));
-  let text = $derived(body || title || '');
   let postedAt = $derived(formatPostedAt(published_at));
 
   function handleStop() {
@@ -89,9 +87,6 @@
           </div>
         </div>
       </div>
-      {#if text}
-        <p class="post-body">{text}</p>
-      {/if}
       <div class="post-footer">
         <span>{formatCount(like_count)} likes</span>
         <span>{formatCount(reply_count)} comments</span>
@@ -168,18 +163,6 @@
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .post-body {
-    margin: 0;
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xs);
-    line-height: 1.35;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
