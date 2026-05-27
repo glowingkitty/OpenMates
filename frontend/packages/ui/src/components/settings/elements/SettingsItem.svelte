@@ -43,11 +43,17 @@
             handleClick();
         }
     }
+
+    let itemIconClass = $derived(
+        icon.includes('subsetting_icon')
+            ? `item-icon ${icon}`
+            : `item-icon icon settings_size ${icon}`
+    );
 </script>
 
 {#snippet itemContent()}
     {#if icon}
-        <span class="item-icon clickable-icon {icon}"></span>
+        <span class={itemIconClass}></span>
     {/if}
     <div class="item-text">
         <span class="item-title">{title}</span>
