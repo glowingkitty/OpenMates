@@ -40,14 +40,21 @@
   interface Props {
     /** Child content to render in the overlay (typically a fullscreen component) */
     children: Snippet;
+    /** Show immediately when the parent was only mounted as a routing shell. */
+    instant?: boolean;
   }
   
-  let { children }: Props = $props();
+  let { children, instant = false }: Props = $props();
   
   // Track animation state for opening
   let isAnimatingIn = $state(false);
   
   onMount(() => {
+    if (instant) {
+      isAnimatingIn = true;
+      return;
+    }
+
     // Trigger opening animation after mount
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -64,7 +71,7 @@
   The inner content (child fullscreen) handles its own close animation
   via its handleClose function which uses overlayRef
 -->
-<div class="child-embed-overlay" class:animating-in={isAnimatingIn}>
+<div class="child-embed-overlay" class:animating-in={isAnimatingIn} class:instant>
   {@render children()}
 </div>
 
@@ -94,5 +101,8 @@
   .child-embed-overlay.animating-in {
     opacity: 1;
   }
-</style>
 
+  .child-embed-overlay.instant {
+    transition: none;
+  }
+</style>
