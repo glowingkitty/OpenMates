@@ -261,6 +261,7 @@ class PaymentMethodCard(BaseModel):
     last4: str
     exp_month: int
     exp_year: int
+    country: Optional[str] = None
 
 class PaymentMethodInfo(BaseModel):
     id: str
