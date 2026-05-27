@@ -49,6 +49,7 @@
   const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
+  const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
+  let visitCycleAppliedKeys = $state(new Set<string>());
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -267,6 +269,23 @@
 
   /** Whether multiple inspirations are available (show arrows). */
   let hasMultiple = $derived(inspirations.length > 1);
+
+  /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
+  let inspirationSetKey = $derived.by(() => getInspirationSetKey(inspirations));
+
+  // Each time the banner is mounted on the web app / new chat screen, pick the
+  // next inspiration for the loaded result set. This runs again when hardcoded
+  // placeholders are replaced by IndexedDB/server/WS results, but only once per
+  // distinct set so manual carousel navigation is not overwritten.
+  $effect(() => {
+    if (inspirations.length <= 1) return;
+    if (!inspirationSetKey) return;
+    if (visitCycleAppliedKeys.has(inspirationSetKey)) return;
+
+    visitCycleAppliedKeys = new Set([...visitCycleAppliedKeys, inspirationSetKey]);
+    const nextVisitIndex = getNextVisitIndex(inspirationSetKey, inspirations.length);
+    dailyInspirationStore.goTo(nextVisitIndex);
+  });
 
   /**
    * Whether to show a video embed for the current inspiration.
@@ -484,6 +503,37 @@
         bubbles: true,
       }),
     );
+  }
+
+  function getInspirationSetKey(items: DailyInspiration[]): string {
+    if (items.length === 0) return '';
+    return hashString(items.map((item) => item.inspiration_id).join('|'));
+  }
+
+  function getNextVisitIndex(setKey: string, count: number): number {
+    if (typeof window === 'undefined' || count <= 1) return 0;
+
+    const storageKey = `${VISIT_INDEX_STORAGE_PREFIX}${setKey}`;
+    try {
+      const rawValue = window.localStorage.getItem(storageKey);
+      const currentValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
+      const safeValue = Number.isFinite(currentValue) && currentValue >= 0 ? currentValue : 0;
+      const nextIndex = safeValue % count;
+
+      window.localStorage.setItem(storageKey, String((nextIndex + 1) % count));
+      return nextIndex;
+    } catch (err) {
+      console.error('[DailyInspirationBanner] Failed to persist visit cycling index:', err);
+      return 0;
+    }
+  }
+
+  function hashString(value: string): string {
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+      hash = (hash * 31 + value.charCodeAt(index)) % 2147483647;
+    }
+    return hash.toString(36);
   }
 
   /**

@@ -25,6 +25,42 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
+const CYCLING_INSPIRATIONS = [
+	{
+		inspiration_id: 'cycling-inspiration-1',
+		phrase: 'Cycling inspiration one',
+		title: 'Cycling One',
+		category: 'science',
+		content_type: 'text',
+		video: null,
+		generated_at: 1760000000,
+		assistant_response: 'First cycling inspiration response.',
+		follow_up_suggestions: ['Explore the first idea']
+	},
+	{
+		inspiration_id: 'cycling-inspiration-2',
+		phrase: 'Cycling inspiration two',
+		title: 'Cycling Two',
+		category: 'biology',
+		content_type: 'text',
+		video: null,
+		generated_at: 1760000001,
+		assistant_response: 'Second cycling inspiration response.',
+		follow_up_suggestions: ['Explore the second idea']
+	},
+	{
+		inspiration_id: 'cycling-inspiration-3',
+		phrase: 'Cycling inspiration three',
+		title: 'Cycling Three',
+		category: 'technology',
+		content_type: 'text',
+		video: null,
+		generated_at: 1760000002,
+		assistant_response: 'Third cycling inspiration response.',
+		follow_up_suggestions: ['Explore the third idea']
+	}
+];
+
 function expectNoFullscreenChunkErrors(consoleErrors: string[]) {
 	const chunkErrors = consoleErrors.filter((error) =>
 		/dynamically imported module|chunk loading error|corrupted_content|fullscreen component/i.test(error)
@@ -168,6 +204,43 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] No missing translations detected');
 
 		console.log('[unauthenticated-load] All checks passed');
+	});
+
+	test('daily inspiration banner cycles on each new app visit', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.route('**/v1/default-inspirations**', async (route: any) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ inspirations: CYCLING_INSPIRATIONS })
+			});
+		});
+
+		async function openNewChatAndReadPhrase() {
+			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+			await page.waitForLoadState('networkidle');
+			await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+				timeout: 15000
+			});
+
+			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+			await expect(newChatButton).toBeVisible({ timeout: 10000 });
+			await newChatButton.click();
+
+			const phrase = page.getByTestId('daily-inspiration-phrase');
+			await expect(phrase).toHaveText(/Cycling inspiration (one|two|three)/, { timeout: 15000 });
+			return (await phrase.textContent())?.trim();
+		}
+
+		const firstPhrase = await openNewChatAndReadPhrase();
+		const secondPhrase = await openNewChatAndReadPhrase();
+		const thirdPhrase = await openNewChatAndReadPhrase();
+
+		expect(firstPhrase).toBe('Cycling inspiration one');
+		expect(secondPhrase).toBe('Cycling inspiration two');
+		expect(thirdPhrase).toBe('Cycling inspiration three');
 	});
 
 	test('example chat loads and fullscreen wiki, website, and image embeds open for unauthenticated users', async ({
