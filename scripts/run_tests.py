@@ -68,6 +68,8 @@ DOCKER_GRACE_MINUTES = 10  # skip smoke runs for 10 min after a restart
 # summary is re-posted even though nothing changed, so the Discord channel
 # doesn't go silent for hours during a prolonged outage.
 RENOTIFY_AFTER_TICKS = 3
+ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
+ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 GH_REPO = "glowingkitty/OpenMates"
@@ -1317,6 +1319,48 @@ class NotificationService:
         # notice if the whole pipeline goes quiet. Failures get a louder ping.
         self._send_summary_to_discord(result)
 
+        self.send_urgent_essential_failure_email(result)
+
+    def send_urgent_essential_failure_email(self, result: RunResult) -> None:
+        """Send a separate admin email when signup, login, or chat flow fails."""
+        essential_failed = self._essential_failed_tests(result)
+        if not essential_failed:
+            return
+
+        if not self.admin_email:
+            _log("ADMIN_NOTIFY_EMAIL not set — skipping urgent essential-flow email", "WARN")
+            return
+
+        urgent_result = RunResult(
+            run_id=result.run_id,
+            git_sha=result.git_sha,
+            git_branch=result.git_branch,
+            environment=result.environment,
+            duration_seconds=result.duration_seconds,
+            summary={
+                "total": len(essential_failed),
+                "passed": 0,
+                "failed": len(essential_failed),
+                "dispatch_error": 0,
+                "timeout": 0,
+                "result_unknown": 0,
+                "skipped": 0,
+                "not_started": 0,
+            },
+            suites=self._essential_failed_suites(result, essential_failed),
+        )
+
+        if self.brevo_api_key:
+            html = self._build_summary_html(urgent_result)
+            text = self._build_summary_text(urgent_result)
+            self._send_via_brevo(ESSENTIAL_FAILURE_SUBJECT, text, html)
+        elif self.internal_token:
+            payload = self._build_internal_api_payload(urgent_result)
+            payload["subject_override"] = ESSENTIAL_FAILURE_SUBJECT
+            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        else:
+            _log("No email credentials available — skipping urgent essential-flow email", "WARN")
+
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
         if not self.internal_token:
@@ -1379,6 +1423,39 @@ class NotificationService:
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
+
+    def _is_essential_test(self, test_entry: dict, suite_name: str = "") -> bool:
+        searchable = " ".join(
+            str(test_entry.get(key, ""))
+            for key in ("file", "name", "suite")
+        )
+        searchable = f"{suite_name} {searchable}".lower()
+        return any(keyword in searchable for keyword in ESSENTIAL_TEST_KEYWORDS)
+
+    def _essential_failed_tests(self, result: RunResult) -> list[tuple[str, dict]]:
+        essential_failed = []
+        for suite_name, suite_data in result.suites.items():
+            for test_entry in suite_data.get("tests", []):
+                if _is_problem_status(test_entry.get("status", "")) and self._is_essential_test(test_entry, suite_name):
+                    essential_failed.append((suite_name, test_entry))
+        return essential_failed
+
+    def _essential_failed_suites(
+        self,
+        result: RunResult,
+        essential_failed: list[tuple[str, dict]],
+    ) -> dict:
+        suites: dict = {}
+        for suite_name, test_entry in essential_failed:
+            if suite_name not in suites:
+                original_suite = result.suites.get(suite_name, {})
+                suites[suite_name] = {
+                    **original_suite,
+                    "status": "failed",
+                    "tests": [],
+                }
+            suites[suite_name]["tests"].append(test_entry)
+        return suites
 
     def _send_summary_to_discord(
         self,

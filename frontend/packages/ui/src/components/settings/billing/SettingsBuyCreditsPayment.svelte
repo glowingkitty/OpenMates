@@ -106,8 +106,6 @@ Supports both saved payment methods and new payment form
 
     // providerOverride: if the user explicitly switches mode from the saved-method view
     let savedMethodProviderOverride: 'stripe' | 'managed' | null = $state(null);
-    // True when backend says use_managed_payments (non-EU user → Checkout Session flow)
-    let isManaged = $state(false);
 
     // Bank transfer state
     let showBankTransfer = $state(false);
@@ -186,25 +184,14 @@ Supports both saved payment methods and new payment form
     });
 
     /**
-     * Detect the active payment mode from /config, then load saved payment methods
-     * if EU (PaymentIntent flow). Non-EU users use Checkout Sessions — Stripe handles
-     * saved methods internally, so we skip the list and show the payment form directly.
+     * Load saved payment methods before showing a new payment form.
+     * Managed payments remain the default for new purchases, but existing saved
+     * cards must still be offered so repeat purchases can reuse them.
      */
     async function detectProviderAndLoadMethods() {
         isLoadingPaymentMethods = true;
         try {
-            const configResponse = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
-            if (configResponse.ok) {
-                const config = await configResponse.json();
-                isManaged = !!config.use_managed_payments;
-            }
-
-            if (isManaged) {
-                // Non-EU: Checkout Session handles its own saved methods — skip list
-                showPaymentForm = true;
-            } else {
-                await checkPaymentMethods();
-            }
+            await checkPaymentMethods();
         } catch (error) {
             console.error('Error loading payment methods:', error);
             showPaymentForm = true;

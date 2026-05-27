@@ -45,6 +45,7 @@ const path = require('path');
 const AUDIT_DIR = path.resolve(process.cwd(), 'test-results', 'storage-audits');
 const STRICTLY_NECESSARY_THIRD_PARTY_COOKIES = [
 	{ name: 'm', domain: 'm.stripe.com' },
+	{ name: '__cf_bm', domain: 'hcaptcha.com' },
 	{ name: 'hmt_id', domain: 'api.hcaptcha.com' }
 ];
 
