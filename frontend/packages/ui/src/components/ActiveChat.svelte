@@ -429,7 +429,9 @@
      * If user_id is not set, assume the user owns it (backwards compatibility).
      */
     async function checkChatOwnership() {
-        if (!currentChat || !$authStore.isAuthenticated) {
+        const chat = currentChat;
+
+        if (!chat || !$authStore.isAuthenticated) {
             // Non-authenticated users can always edit (demo chats)
             // No chat loaded means welcome screen
             chatOwnershipResolved = true;
@@ -437,7 +439,7 @@
         }
         
         // If chat has no user_id, assume it's owned (backwards compatibility)
-        if (!currentChat.user_id) {
+        if (!chat.user_id) {
             chatOwnershipResolved = true;
             return;
         }
@@ -454,6 +456,13 @@
                 return;
             }
         }
+
+        // The DB profile lookup above is async; the active chat may have changed while
+        // it was pending. Ignore stale ownership checks so a previous shared chat cannot
+        // mark a newly-created owned chat as read-only.
+        if (currentChat?.chat_id !== chat.chat_id || currentChat?.user_id !== chat.user_id) {
+            return;
+        }
         
         if (!currentUserId) {
             // Can't determine ownership, default to allowing (fail open for UX)
@@ -462,9 +471,9 @@
         }
         
         // Compare chat's user_id with current user's user_id
-        const isOwned = currentChat.user_id === currentUserId;
+        const isOwned = chat.user_id === currentUserId;
         chatOwnershipResolved = isOwned;
-        console.debug(`[ActiveChat] Chat ownership check: ${isOwned} for chat ${currentChat.chat_id} (chat.user_id: ${currentChat.user_id}, currentUserId: ${currentUserId})`);
+        console.debug(`[ActiveChat] Chat ownership check: ${isOwned} for chat ${chat.chat_id} (chat.user_id: ${chat.user_id}, currentUserId: ${currentUserId})`);
     }
     
     // Check ownership whenever chat or auth state changes
