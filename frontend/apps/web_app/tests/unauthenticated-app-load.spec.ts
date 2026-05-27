@@ -211,10 +211,12 @@ test.describe('Unauthenticated app load', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 
 		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
+			(window as any).__defaultInspirationsFetchCount = 0;
 			const originalFetch = window.fetch.bind(window);
 			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 				if (url.includes('/v1/default-inspirations')) {
+					(window as any).__defaultInspirationsFetchCount += 1;
 					return new Response(JSON.stringify({ inspirations }), {
 						status: 200,
 						headers: { 'Content-Type': 'application/json' }
@@ -242,6 +244,18 @@ test.describe('Unauthenticated app load', () => {
 
 		const firstPhrase = await openNewChatAndReadPhrase();
 		const secondPhrase = await openNewChatAndReadPhrase();
+		const fetchCountBeforeLanguageReload = await page.evaluate(
+			() => (window as any).__defaultInspirationsFetchCount
+		);
+		await page.evaluate(() => window.dispatchEvent(new Event('language-changed-complete')));
+		await page.waitForFunction(
+			(previousCount) => (window as any).__defaultInspirationsFetchCount > previousCount,
+			fetchCountBeforeLanguageReload
+		);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(
+			'Cycling inspiration two',
+			{ timeout: 3000 }
+		);
 		const thirdPhrase = await openNewChatAndReadPhrase();
 
 		expect(firstPhrase).toBe('Cycling inspiration one');

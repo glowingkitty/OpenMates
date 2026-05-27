@@ -100,7 +100,7 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
-  let visitCycleAppliedKeys = $state(new Set<string>());
+  let visitCycleTargetIndexes = $state(new Map<string, number>());
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -274,17 +274,25 @@
   let inspirationSetKey = $derived.by(() => getInspirationSetKey(inspirations));
 
   // Each time the banner is mounted on the web app / new chat screen, pick the
-  // next inspiration for the loaded result set. This runs again when hardcoded
-  // placeholders are replaced by IndexedDB/server/WS results, but only once per
-  // distinct set so manual carousel navigation is not overwritten.
+  // next inspiration for the loaded result set. Later IndexedDB/server/WS writes
+  // can reset the store's currentIndex to 0, so remember the target for this
+  // page load and re-apply it without advancing the persisted cursor again.
   $effect(() => {
     if (inspirations.length <= 1) return;
     if (!inspirationSetKey) return;
-    if (visitCycleAppliedKeys.has(inspirationSetKey)) return;
 
-    visitCycleAppliedKeys = new Set([...visitCycleAppliedKeys, inspirationSetKey]);
-    const nextVisitIndex = getNextVisitIndex(inspirationSetKey, inspirations.length);
-    dailyInspirationStore.goTo(nextVisitIndex);
+    let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
+    if (targetIndex === undefined || targetIndex >= inspirations.length) {
+      targetIndex = getNextVisitIndex(inspirationSetKey, inspirations.length);
+      visitCycleTargetIndexes = new Map([
+        ...visitCycleTargetIndexes,
+        [inspirationSetKey, targetIndex],
+      ]);
+    }
+
+    if (currentIndex !== targetIndex) {
+      dailyInspirationStore.goTo(targetIndex);
+    }
   });
 
   /**
