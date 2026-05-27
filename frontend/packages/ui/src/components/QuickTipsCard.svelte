@@ -57,7 +57,7 @@
       <h3>{$text(activeTip.titleKey)}</h3>
       <p class="quick-tip-body">{$text(activeTip.bodyKey)}</p>
       {#if activeTip.ctaLabelKey && activeTip.ctaAction}
-        <button class="quick-tip-cta btn-secondary" type="button" data-testid="quick-tip-cta" onclick={() => handleAction(activeTip)}>
+        <button class="quick-tip-cta" type="button" data-testid="quick-tip-cta" onclick={() => handleAction(activeTip)}>
           {$text(activeTip.ctaLabelKey)}
         </button>
       {/if}
@@ -97,7 +97,7 @@
     align-items: center;
     max-width: 700px;
     padding: 1rem 3rem;
-    color: var(--color-grey-0);
+    color: #fff;
     text-align: center;
   }
 
@@ -108,7 +108,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.82;
-    color: var(--color-grey-0);
+    color: #fff;
   }
 
   h3 {
@@ -116,7 +116,7 @@
     font-size: clamp(1rem, 0.96rem + 0.25vw, 1.15rem);
     line-height: 1.2;
     font-weight: 800;
-    color: var(--color-grey-0);
+    color: #fff;
   }
 
   .quick-tip-body {
@@ -124,7 +124,7 @@
     font-size: 0.92rem;
     line-height: 1.45;
     opacity: 0.94;
-    color: var(--color-grey-0);
+    color: #fff;
   }
 
   .quick-tip-cta {
@@ -135,8 +135,21 @@
     height: auto;
     padding: 0.35rem 0.8rem;
     border-radius: var(--radius-full);
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
     font-size: 0.84rem;
     font-weight: 700;
+    filter: none;
+  }
+
+  .quick-tip-cta:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+  }
+
+  .quick-tip-cta:active {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
     filter: none;
   }
 

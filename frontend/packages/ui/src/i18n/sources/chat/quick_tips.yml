@@ -1,6 +1,6 @@
 eyebrow:
   context: Small label shown above a product quick tip in chat
-  en: "Quick Tips"
+  en: "Quick tip"
 shorter_chats_equal_better_responses.title:
   context: Quick tip title for shorter topic-specific chats
   en: "Shorter chats work better"
