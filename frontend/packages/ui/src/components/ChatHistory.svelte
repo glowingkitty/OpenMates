@@ -2301,12 +2301,6 @@
     width: 100%;
   }
 
-  .quick-tips-wrapper {
-    display: flex;
-    justify-content: flex-end;
-    padding-bottom: 6px;
-  }
-
   @media (max-width: 500px) {
     .quick-tips-wrapper,
     .follow-up-suggestions-wrapper {

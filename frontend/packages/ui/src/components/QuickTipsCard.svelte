@@ -57,7 +57,7 @@
       <h3>{$text(activeTip.titleKey)}</h3>
       <p class="quick-tip-body">{$text(activeTip.bodyKey)}</p>
       {#if activeTip.ctaLabelKey && activeTip.ctaAction}
-        <button class="quick-tip-cta" type="button" data-testid="quick-tip-cta" onclick={() => handleAction(activeTip)}>
+        <button class="quick-tip-cta btn-secondary" type="button" data-testid="quick-tip-cta" onclick={() => handleAction(activeTip)}>
           {$text(activeTip.ctaLabelKey)}
         </button>
       {/if}
@@ -68,11 +68,16 @@
 <style>
   .quick-tip-card {
     position: relative;
-    width: min(100%, 780px);
-    align-self: flex-end;
+    width: 100%;
+    height: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     overflow: hidden;
     border-radius: var(--radius-6);
-    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.16);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    user-select: none;
   }
 
   .quick-tip-card::before {
@@ -87,8 +92,13 @@
 
   .quick-tip-content {
     position: relative;
-    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 700px;
+    padding: 1rem 3rem;
     color: var(--color-grey-0);
+    text-align: center;
   }
 
   .quick-tip-eyebrow {
@@ -98,6 +108,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.82;
+    color: var(--color-grey-0);
   }
 
   h3 {
@@ -105,18 +116,28 @@
     font-size: clamp(1rem, 0.96rem + 0.25vw, 1.15rem);
     line-height: 1.2;
     font-weight: 800;
+    color: var(--color-grey-0);
   }
 
   .quick-tip-body {
     margin: 0.45rem 0 0;
-    max-width: 44rem;
     font-size: 0.92rem;
     line-height: 1.45;
     opacity: 0.94;
+    color: var(--color-grey-0);
   }
 
   .quick-tip-cta {
     margin-top: 0.8rem;
+    margin-right: 0;
+    min-width: 0;
+    min-height: 2rem;
+    height: auto;
+    padding: 0.35rem 0.8rem;
+    border-radius: var(--radius-full);
+    font-size: 0.84rem;
+    font-weight: 700;
+    filter: none;
   }
 
   .quick-tip-cta:focus-visible {
@@ -126,7 +147,12 @@
 
   @media (max-width: 500px) {
     .quick-tip-card {
-      width: 100%;
+      height: auto;
+      min-height: 170px;
+    }
+
+    .quick-tip-content {
+      padding: 1rem;
     }
   }
 </style>
