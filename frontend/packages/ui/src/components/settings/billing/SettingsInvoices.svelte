@@ -29,6 +29,7 @@ Invoices Settings - View and download past invoices
     }
 
     const PENDING_INVOICE_REFRESH_MS = 5000;
+    const PENDING_INVOICE_FALLBACK_MATCH_MS = 30000;
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
@@ -209,8 +210,16 @@ Invoices Settings - View and download past invoices
                     pendingInvoices = pendingInvoices.filter(pending => {
                         // Remove if a real invoice with matching ID exists
                         if (realIds.has(pending.id)) return false;
-                        // Remove if pending invoice is older than 5 minutes (task should be done)
                         const pendingTime = new Date(pending.date).getTime();
+                        const hasMatchingReadyInvoice = invoices.some(invoice => {
+                            const sameAmount = String(invoice.amount) === String(pending.amount);
+                            const sameCredits = invoice.credits_purchased === pending.credits_purchased;
+                            const sameCurrency = (invoice.currency || 'eur').toLowerCase() === (pending.currency || 'eur').toLowerCase();
+                            const sameDate = formatDate(invoice.date) === formatDate(pending.date);
+                            return !!invoice.filename && sameAmount && sameCredits && sameCurrency && sameDate;
+                        });
+                        if (hasMatchingReadyInvoice && now - pendingTime > PENDING_INVOICE_FALLBACK_MATCH_MS) return false;
+                        // Remove if pending invoice is older than 5 minutes (task should be done)
                         if (now - pendingTime > 5 * 60 * 1000) return false;
                         // Keep — still waiting for the real invoice to appear
                         return true;
