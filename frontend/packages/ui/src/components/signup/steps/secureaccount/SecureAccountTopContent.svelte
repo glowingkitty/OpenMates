@@ -17,6 +17,7 @@
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
     import { notificationStore } from '../../../../stores/notificationStore';
+    import { setLastAuthMethod } from '../../../../utils/lastAuthMethod';
     import { 
         isChunkLoadError, 
         logChunkLoadError, 
@@ -209,17 +210,18 @@
                 credential = await navigator.credentials.create({
                     publicKey: publicKeyCredentialCreationOptions
                 }) as PublicKeyCredential;
-            } catch (error: any) {
-                console.error('[Signup] WebAuthn credential creation failed:', error);
+            } catch (error: unknown) {
+                const webAuthnError = error instanceof Error ? error : new Error(String(error));
+                console.error('[Signup] WebAuthn credential creation failed:', webAuthnError);
                 // Check if it's a PRF-related error or user cancellation
-                if (error.name === 'NotSupportedError' || 
-                    error.message?.includes('PRF') || 
-                    error.message?.includes('prf') ||
-                    error.message?.toLowerCase().includes('extension')) {
+                if (webAuthnError.name === 'NotSupportedError' || 
+                    webAuthnError.message.includes('PRF') || 
+                    webAuthnError.message.includes('prf') ||
+                    webAuthnError.message.toLowerCase().includes('extension')) {
                     // PRF not supported - show error screen
                     console.error('[Signup] PRF-related error during credential creation:', {
-                        name: error.name,
-                        message: error.message
+                        name: webAuthnError.name,
+                        message: webAuthnError.message
                     });
                     dispatch('step', { step: 'passkey_prf_error' });
                     isRegisteringPasskey = false;
@@ -227,7 +229,7 @@
                     return;
                 }
                 // Check for user cancellation (NotAllowedError)
-                if (error.name === 'NotAllowedError') {
+                if (webAuthnError.name === 'NotAllowedError') {
                     console.log('[Signup] User cancelled passkey creation');
                     // Don't show error notification for user cancellation - just reset state
                     isRegisteringPasskey = false;
@@ -256,7 +258,7 @@
             // Step 4: Check PRF extension support (CRITICAL for zero-knowledge encryption)
             const clientExtensionResults = credential.getClientExtensionResults();
             console.log('[Signup] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf as any;
+            const prfResults = clientExtensionResults?.prf as { enabled?: boolean } | undefined;
             console.log('[Signup] PRF results:', prfResults);
             
             // CRITICAL: PRF must be enabled for zero-knowledge encryption
@@ -530,6 +532,7 @@
 
             // All validations passed - safe to advance to next step
             console.log('[SecureAccountTopContent] All validations passed, advancing to recovery_key step');
+            setLastAuthMethod('passkey');
             
             // Continue to next step (skip to recovery key for passkeys)
             // The Signup component will update last_opened when this step change is processed
@@ -578,17 +581,17 @@
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size secret"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.secure_your_account')}</h2>
+        <h2 class="signup-menu-title">{$text('signup.secure_your_account')}</h2>
     </div>
 
     <div class="options-container">
-        <p class="instruction-text">{@html $text('signup.how_to_login')}</p>
+        <p class="instruction-text">{$text('signup.how_to_login')}</p>
         
         <!-- Passkey Option -->
         <div class="option-wrapper">
             <div class="recommended-badge">
                 <div class="thumbs-up-icon"></div>
-                <span>{@html $text('signup.recommended')}</span>
+                <span>{$text('signup.recommended')}</span>
             </div>
             <button
                 id="signup-passkey-option"
@@ -603,7 +606,7 @@
                         <div class="clickable-icon icon_passkey" style="width: 30px; height: 30px"></div>
                     </div>
                     <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.passkey')}</h3>
+                        <h3 class="option-title">{$text('signup.passkey')}</h3>
                     </div>
                 </div>
                 <p class="option-description">
@@ -628,10 +631,10 @@
                     <div class="clickable-icon icon_password" style="width: 30px; height: 30px"></div>
                 </div>
                 <div class="option-content">
-                    <h3 class="option-title">{@html $text('common.password')}</h3>
+                    <h3 class="option-title">{$text('common.password')}</h3>
                 </div>
             </div>
-            <p class="option-description">{@html $text('signup.password_descriptor')}</p>
+            <p class="option-description">{$text('signup.password_descriptor')}</p>
         </button>
     </div>
 </div>

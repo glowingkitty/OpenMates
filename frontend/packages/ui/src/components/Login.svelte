@@ -3,9 +3,6 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, deviceVerificationReason, login, checkAuth, logout } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearSignupData } from '../stores/signupStore';
@@ -41,6 +38,7 @@
         CHUNK_ERROR_NOTIFICATION_DURATION 
     } from '../utils/chunkErrorHandler';
     import { notificationStore } from '../stores/notificationStore';
+    import { setLastAuthMethod } from '../utils/lastAuthMethod';
 
     /** PRF extension results from WebAuthn client */
     interface PRFExtensionResults {
@@ -82,12 +80,6 @@
     // New state variables for multi-step login flow using $state (Svelte 5 runes mode)
     type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code' | 'pair-initiate';
     let currentLoginStep = $state<LoginStep>('email'); // Start with email-only step
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
-    let availableLoginMethods = $state<string[]>([]); // Will be populated from server response
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
-
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let preferredLoginMethod = $state('password'); // Default to password
     let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
@@ -364,7 +356,6 @@
         currentLoginStep = 'email';
         
         // Clear login method state from email lookup
-        availableLoginMethods = [];
         preferredLoginMethod = 'password';
         tfaAppName = null;
         tfaEnabled = true; // Default to true for security (prevents user enumeration)
@@ -1103,6 +1094,7 @@
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
+            setLastAuthMethod('passkey');
             dispatch('loginSuccess', {
                 user: userData,
                 isMobile,
@@ -1688,6 +1680,7 @@
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
+            setLastAuthMethod('passkey');
             dispatch('loginSuccess', {
                 user: userData,
                 isMobile,
@@ -2272,12 +2265,12 @@
                 {/if}
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
-                        <h1><mark>{@html $text('login.login')}</mark></h1>
-                        <h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
+                        <h1><mark>{$text('login.login')}</mark></h1>
+                        <h2>{$text('login.to_chat_to_your')}<br><mark>{$text('login.digital_team_mates')}</mark></h2>
                         
                         <div class="form-container">
                             <p class="violation-message">
-                                {@html $text('settings.your_account_got_deleted')}
+                                {$text('settings.your_account_got_deleted')}
                             </p>
                         </div>
                     </div>
@@ -2305,8 +2298,8 @@
                             </div>
                         {/if}
                         
-                        <h1><mark>{@html $text('login.login')}</mark></h1>
-                        <h2>{@html $text('login.to_chat_to_your')}<br><mark>{@html $text('login.digital_team_mates')}</mark></h2>
+                        <h1><mark>{$text('login.login')}</mark></h1>
+                        <h2>{$text('login.to_chat_to_your')}<br><mark>{$text('login.digital_team_mates')}</mark></h2>
 
                         <div class="form-container">
                             {#if showVerifyDeviceView}
@@ -2346,11 +2339,11 @@
                                 </div>
                             {:else if $isCheckingAuth && !serverConnectionError}
                                 <div class="checking-auth" in:fade={{ duration: 200 }}>
-                                    <p>{@html $text('common.loading')}</p>
+                                    <p>{$text('common.loading')}</p>
                                 </div>
                             {:else if serverConnectionError}
                                 <div class="connection-error" in:fade={{ duration: 200 }}>
-                                    <p>{@html $text('login.cant_connect_to_server')}</p>
+                                    <p>{$text('login.cant_connect_to_server')}</p>
                                     <button 
                                         class="retry-button"
                                         onclick={() => {
@@ -2390,7 +2383,6 @@
                                                 onCancelPasskey={cancelPasskeyLogin}
                                                 onPairLoginClick={() => setLoginStep('pair-initiate')}
                                                 on:lookupSuccess={(e) => {
-                                                    availableLoginMethods = e.detail.availableLoginMethods;
                                                     preferredLoginMethod = e.detail.preferredLoginMethod;
                                                     stayLoggedIn = e.detail.stayLoggedIn;
                                                     tfaAppName = e.detail.tfa_app_name;
@@ -2439,6 +2431,7 @@
                                                     currentLoginStep = 'email';
                                                     // Reset account recovery mode on successful login
                                                     isInAccountRecoveryMode = false;
+                                                    setLastAuthMethod('email');
                                                     console.debug("[Login] [2/2] Re-dispatching loginSuccess to parent (ActiveChat)");
                                                     dispatch('loginSuccess', {
                                                         user: e.detail.user,

@@ -858,6 +858,54 @@ login_with_passkey:
   sv: Logga in med lösenordsnyckel
   he: התחברות עם מפתח גישה
   verified_by_human: []
+last_used:
+  context: Small badge shown above the login method last used on this browser
+  en: Last used
+  de: Zuletzt verwendet
+  zh: 上次使用
+  es: Usado por última vez
+  fr: Utilisé en dernier
+  pt: Usado por último
+  ru: Использовалось последним
+  ja: 前回使用
+  ko: 마지막 사용
+  it: Usato per ultimo
+  tr: Son kullanılan
+  vi: Dùng lần trước
+  id: Terakhir digunakan
+  pl: Ostatnio używane
+  nl: Laatst gebruikt
+  ar: آخر استخدام
+  hi: पिछली बार इस्तेमाल किया गया
+  th: ใช้ล่าสุด
+  cs: Naposledy použito
+  sv: Senast använd
+  he: שומש לאחרונה
+  verified_by_human: []
+clear_last_used:
+  context: Text link that clears the local browser hint for the last used login method
+  en: Clear "Last used"
+  de: "\"Zuletzt verwendet\" löschen"
+  zh: 清除“上次使用”
+  es: Borrar "Usado por última vez"
+  fr: Effacer « Utilisé en dernier »
+  pt: Limpar "Usado por último"
+  ru: Очистить «Использовалось последним»
+  ja: 「前回使用」をクリア
+  ko: '"마지막 사용" 지우기'
+  it: Cancella "Usato per ultimo"
+  tr: '"Son kullanılan"ı temizle'
+  vi: Xóa "Dùng lần trước"
+  id: Hapus "Terakhir digunakan"
+  pl: Wyczyść „Ostatnio używane”
+  nl: '"Laatst gebruikt" wissen'
+  ar: مسح "آخر استخدام"
+  hi: '"पिछली बार इस्तेमाल किया गया" हटाएँ'
+  th: ล้าง "ใช้ล่าสุด"
+  cs: Vymazat „Naposledy použito“
+  sv: Rensa "Senast använd"
+  he: נקה "שומש לאחרונה"
+  verified_by_human: []
 or:
   context: Divider text between passkey and email login options
   en: or
