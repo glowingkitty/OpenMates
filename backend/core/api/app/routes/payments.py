@@ -171,6 +171,7 @@ class RedeemGiftCardResponse(BaseModel):
 
 class InvoiceResponse(BaseModel):
     id: str
+    order_id: Optional[str] = None
     date: str
     amount: str
     credits_purchased: int
@@ -4763,6 +4764,7 @@ async def get_invoices(
 
                 processed_invoices.append(InvoiceResponse(
                     id=invoice["id"],
+                    order_id=invoice.get("order_id"),
                     date=formatted_date,
                     amount=amount,
                     credits_purchased=int(credits_purchased),
