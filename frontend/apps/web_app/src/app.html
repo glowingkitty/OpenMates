@@ -13,6 +13,45 @@
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+		<script>
+			(function () {
+				try {
+					if (!('serviceWorker' in navigator)) return;
+
+					var cleanupKey = 'openmates_sw_cleanup_v1';
+					var hadController = Boolean(navigator.serviceWorker.controller);
+
+					Promise.all([
+						navigator.serviceWorker.getRegistrations().then(function (registrations) {
+							return Promise.all(
+								registrations.map(function (registration) {
+									return registration.unregister();
+								})
+							);
+						}),
+						'caches' in window
+							? caches.keys().then(function (cacheNames) {
+									return Promise.all(
+										cacheNames.map(function (cacheName) {
+											return caches.delete(cacheName);
+										})
+									);
+								})
+							: Promise.resolve()
+					])
+						.then(function () {
+							if (!hadController || sessionStorage.getItem(cleanupKey) === 'done') return;
+							sessionStorage.setItem(cleanupKey, 'done');
+							window.location.replace(window.location.href);
+						})
+						.catch(function (error) {
+							console.warn('[app.html] Service worker cleanup failed:', error);
+						});
+				} catch (e) {
+					// Service worker cleanup must never block app startup.
+				}
+			})();
+		</script>
 		<!-- iOS Safari uses theme-color for the status bar and overscroll area.
 		     Keep this app-theme-driven instead of OS-media-driven so manual dark/light
 		     mode matches Safari chrome even when it differs from iOS appearance. -->
