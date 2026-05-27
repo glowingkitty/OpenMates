@@ -34,7 +34,7 @@ const {
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { startNewChat, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Embed JSON leak regression test: verify that raw JSON embed references like
@@ -140,41 +140,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	// ======================================================================
 	// STEP 2: Start a new chat
 	// ======================================================================
-	await page.waitForTimeout(1000);
-
-	const newChatButton = page.getByTestId('new-chat-button');
-	let clicked = false;
-	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		logCheckpoint('Found New Chat button via data-testid');
-		await newChatButton.click();
-		clicked = true;
-		await page.waitForTimeout(2000);
-	}
-
-	if (!clicked) {
-		// On welcome screen, type a space to trigger button, then retry
-		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await messageEditor.click();
-			await page.keyboard.type(' ');
-			await page.waitForTimeout(500);
-			const retryButton = page.getByTestId('new-chat-button');
-			if (await retryButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-				await retryButton.click();
-				clicked = true;
-				await page.waitForTimeout(2000);
-			}
-			// Clear the space
-			if (clicked) {
-				const newEditor = page.getByTestId('message-editor');
-				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
-					await newEditor.click();
-					await page.keyboard.press('Control+A');
-					await page.keyboard.press('Backspace');
-				}
-			}
-		}
-	}
-	logCheckpoint(clicked ? 'Started new chat.' : 'WARNING: Could not click new chat button.');
+	await startNewChat(page, logCheckpoint);
 
 	// ======================================================================
 	// STEP 3: Send a message that triggers code embeds
