@@ -210,13 +210,19 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.route('**/v1/default-inspirations**', async (route: any) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ inspirations: CYCLING_INSPIRATIONS })
-			});
-		});
+		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
+			const originalFetch = window.fetch.bind(window);
+			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+				if (url.includes('/v1/default-inspirations')) {
+					return new Response(JSON.stringify({ inspirations }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return originalFetch(input, init);
+			};
+		}, CYCLING_INSPIRATIONS);
 
 		async function openNewChatAndReadPhrase() {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
