@@ -35,6 +35,7 @@ AI_USER_PREFERENCE_FIELDS = [
     "default_ai_model_complex",
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
+    "quick_tips_enabled",
 ]
 
 
@@ -1456,6 +1457,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             logger.debug(
                 f"Including follow_up_suggestions_enabled={user_preferences_dict['follow_up_suggestions_enabled']} "
+                f"in AI request for user {user_id}"
+            )
+            quick_tips_enabled = user_data_for_prefs.get("quick_tips_enabled")
+            user_preferences_dict["quick_tips_enabled"] = (
+                True if quick_tips_enabled is None else bool(quick_tips_enabled)
+            )
+            logger.debug(
+                f"Including quick_tips_enabled={user_preferences_dict['quick_tips_enabled']} "
                 f"in AI request for user {user_id}"
             )
             # Furry Mode preferences are disabled until any furry art is made by human artists.

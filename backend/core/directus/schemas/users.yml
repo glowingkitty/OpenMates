@@ -397,6 +397,12 @@ directus_users:
       nullable: false
       note: "Whether follow-up suggestion chips and proactive next-step prompts are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
 
+    quick_tips_enabled:
+      type: boolean
+      default: true
+      nullable: false
+      note: "Whether post-response product quick tip cards are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
+
     # Furry Mode is disabled until any furry art is made by human artists.
 
     default_app_skill_models:

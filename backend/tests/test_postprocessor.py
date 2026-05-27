@@ -388,3 +388,86 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
         ("Nutzer erstellt deutsche Bewerbungsunterlagen.", "en"),
         ("Bewerbungsunterlagen erstellen", "en"),
     ]
+
+
+@pytest.mark.asyncio
+async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(monkeypatch):
+    captured_tool = {}
+
+    async def fake_call_preprocessing_llm(**kwargs):
+        captured_tool.update(kwargs["tool_definition"])
+        return LLMPreprocessingCallResult(
+            arguments={
+                "new_chat_request_suggestions": ["[ai] Explain another related concept"],
+                "harmful_response": 0.0,
+                "top_recommended_apps_for_user": [],
+                "chat_summary": "A concise summary.",
+                "updated_chat_title": "",
+                "daily_inspiration_topic_suggestions": ["learning science", "memory techniques", "study planning"],
+            }
+        )
+
+    async def fake_translate_chat_summary(task_id, summary, target_language, secrets_manager):
+        return summary
+
+    async def fake_translate_new_chat_suggestions(**kwargs):
+        return kwargs["suggestions"]
+
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.call_preprocessing_llm",
+        fake_call_preprocessing_llm,
+    )
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.translate_chat_summary",
+        fake_translate_chat_summary,
+    )
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.translate_new_chat_suggestions",
+        fake_translate_new_chat_suggestions,
+    )
+
+    base_tool = {
+        "type": "function",
+        "function": {
+            "name": "postprocess",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "follow_up_request_suggestions": {"type": "array"},
+                    "new_chat_request_suggestions": {"type": "array"},
+                    "quick_tip_slug": {"type": "string"},
+                    "chat_summary": {"type": "string"},
+                },
+                "required": [
+                    "follow_up_request_suggestions",
+                    "new_chat_request_suggestions",
+                    "quick_tip_slug",
+                    "chat_summary",
+                ],
+            },
+        },
+    }
+
+    result = await handle_postprocessing(
+        task_id="test-task",
+        user_message="Tell me something useful.",
+        assistant_response="Here is a useful answer.",
+        chat_summary="Existing summary",
+        chat_tags=["learning"],
+        message_history=[{"role": "user", "content": "Tell me something useful."}],
+        base_instructions={"postprocess_response_tool": base_tool},
+        secrets_manager=None,
+        cache_service=None,
+        available_app_ids=["ai"],
+        follow_up_suggestions_enabled=False,
+        quick_tips_enabled=False,
+    )
+
+    properties = captured_tool["function"]["parameters"]["properties"]
+    required = captured_tool["function"]["parameters"]["required"]
+    assert "follow_up_request_suggestions" not in properties
+    assert "quick_tip_slug" not in properties
+    assert "follow_up_request_suggestions" not in required
+    assert "quick_tip_slug" not in required
+    assert result.follow_up_request_suggestions == []
+    assert result.quick_tip_slugs == []

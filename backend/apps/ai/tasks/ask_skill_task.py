@@ -1960,6 +1960,7 @@ async def _async_process_ai_skill_ask_task(
             chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
+            quick_tips_enabled = (request_data.user_preferences or {}).get("quick_tips_enabled", True) is not False
 
             # Phase 1: Post-processing with category selection
             # OPE-265: Determine current chat title for post-processing title update evaluation.
@@ -1989,6 +1990,7 @@ async def _async_process_ai_skill_ask_task(
                 user_system_language=user_system_language,
                 current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
                 follow_up_suggestions_enabled=follow_up_suggestions_enabled,
+                quick_tips_enabled=quick_tips_enabled,
             )
 
 

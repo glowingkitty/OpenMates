@@ -341,6 +341,31 @@ ai_ask_settings.follow_up_suggestions_save_error:
   en: Could not save follow-up suggestions setting.
   de: Einstellung für Folgefragen-Vorschläge konnte nicht gespeichert werden.
 
+ai_ask_settings.quick_tips:
+  context: Label for quick tips toggle
+  en: Quick tips
+  de: Kurztipps
+
+ai_ask_settings.quick_tips_description:
+  context: Description for quick tips toggle
+  en: Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards.
+  de: Zeigt gelegentliche Produkttipps nach Antworten des Assistenten. Deaktiviere dies, wenn OpenMates keine Kurztipp-Karten generieren soll.
+
+ai_ask_settings.quick_tips_enabled:
+  context: Success toast when quick tips are enabled
+  en: Quick tips enabled.
+  de: Kurztipps aktiviert.
+
+ai_ask_settings.quick_tips_disabled:
+  context: Success toast when quick tips are disabled
+  en: Quick tips disabled.
+  de: Kurztipps deaktiviert.
+
+ai_ask_settings.quick_tips_save_error:
+  context: Error toast when quick tips preference cannot be saved
+  en: Could not save quick tips setting.
+  de: Einstellung für Kurztipps konnte nicht gespeichert werden.
+
 ai_ask_settings.manual_select_note:
   context: Note about manual model selection via @ mention
   en: You can always manually select a model using @mention in the chat.

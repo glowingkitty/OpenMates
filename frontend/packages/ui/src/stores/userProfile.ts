@@ -88,6 +88,9 @@ export interface UserProfile {
   // AI chat follow-up suggestion chips and proactive next-step prompts.
   // Synced cross-device via Directus + Redis cache with the AI model defaults endpoint.
   follow_up_suggestions_enabled?: boolean;
+  // AI product quick tip cards selected after assistant responses.
+  // Synced cross-device via Directus + Redis cache with the AI model defaults endpoint.
+  quick_tips_enabled?: boolean;
   // Furry Mode is disabled until any furry art is made by human artists.
   // Total chat count as reported by the server during Phase 3 sync.
   // Stored in IndexedDB so it persists across sessions without a server round-trip.

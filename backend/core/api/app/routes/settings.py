@@ -5128,13 +5128,16 @@ async def update_ai_model_defaults(
         update_data['default_app_skill_models'] = cleaned_app_skill_models
     if "follow_up_suggestions_enabled" in provided_fields and request_data.follow_up_suggestions_enabled is not None:
         update_data['follow_up_suggestions_enabled'] = request_data.follow_up_suggestions_enabled
+    if "quick_tips_enabled" in provided_fields and request_data.quick_tips_enabled is not None:
+        update_data['quick_tips_enabled'] = request_data.quick_tips_enabled
 
     logger.info(
         f"[AiModelDefaults] Updating default models for user {user_id}: "
         f"simple={request_data.default_ai_model_simple!r}, "
         f"complex={request_data.default_ai_model_complex!r}, "
         f"app_skill_models={cleaned_app_skill_models!r}, "
-        f"follow_up_suggestions_enabled={request_data.follow_up_suggestions_enabled!r}"
+        f"follow_up_suggestions_enabled={request_data.follow_up_suggestions_enabled!r}, "
+        f"quick_tips_enabled={request_data.quick_tips_enabled!r}"
     )
 
     try:
