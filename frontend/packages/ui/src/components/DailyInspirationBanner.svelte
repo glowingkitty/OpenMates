@@ -102,6 +102,7 @@
   let prefersTouchCta = $state(false);
   let visitCycleTargetIndexes = $state(new Map<string, number>());
   let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
+  let manuallyNavigatedSetKeys = $state(new Set<string>());
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -281,6 +282,7 @@
   $effect(() => {
     if (inspirations.length <= 1) return;
     if (!inspirationSetKey) return;
+    if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
     if (visitCycleAppliedInspirations === inspirations) return;
 
     let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
@@ -372,6 +374,7 @@
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    markManualNavigation();
     dailyInspirationStore.previous();
   }
 
@@ -382,6 +385,7 @@
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    markManualNavigation();
     dailyInspirationStore.next();
   }
 
@@ -413,12 +417,21 @@
     e.preventDefault();
     touchSwipeHandled = true;
     suppressNextClick = true;
+    markManualNavigation();
 
     if (deltaX < 0) {
       dailyInspirationStore.next();
     } else {
       dailyInspirationStore.previous();
     }
+  }
+
+  function markManualNavigation() {
+    if (!inspirationSetKey) return;
+    manuallyNavigatedSetKeys = new Set([
+      ...manuallyNavigatedSetKeys,
+      inspirationSetKey,
+    ]);
   }
 
   function handleTouchEnd() {
