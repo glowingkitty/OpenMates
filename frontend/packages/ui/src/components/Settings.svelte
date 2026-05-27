@@ -93,6 +93,27 @@ changes to the documentation (to keep the documentation up to date).
     // Create event dispatcher for forwarding events to parent components
     const dispatch = createEventDispatcher();
 
+    const SETTINGS_ROUTE_ICON_OVERRIDES: Record<string, string> = {
+        'account/export': 'download',
+        'app_store/all': 'app',
+        'privacy/hide-personal-data': 'anonym',
+        'privacy/share-debug-logs': 'privacy',
+    };
+
+    function getSettingsRouteIcon(settingsPath: string, providedIcon?: string): string {
+        const cleanPath = settingsPath.split('&')[0];
+        const exactOverride = SETTINGS_ROUTE_ICON_OVERRIDES[cleanPath];
+        if (exactOverride) return exactOverride;
+
+        if (cleanPath.startsWith('privacy/auto-deletion/')) return 'delete';
+
+        const cleanProvidedIcon = providedIcon?.trim();
+        if (cleanProvidedIcon && !cleanProvidedIcon.includes('/')) return cleanProvidedIcon;
+
+        const pathParts = cleanPath.split('/');
+        return pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
+    }
+
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
 
@@ -1203,6 +1224,8 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath = 'ai';
             icon = 'ai';
         }
+
+        icon = getSettingsRouteIcon(settingsPath, icon);
 
         // --- Scroll position memory (All Apps only) ---
         // Save the scroll offset when leaving "All Apps" going forward, so pressing
@@ -2367,15 +2390,7 @@ changes to the documentation (to keep the documentation up to date).
                     (window as any).__openmates_usage_deeplink = true;
                 }
 
-                // Determine the icon and title based on the path
-                // For nested paths like 'shared/share', use the last segment for icon
-                const pathParts = cleanPath.split('/');
-                // Map paths whose last segment doesn't match a real icon name
-                const deepLinkIconOverrides: Record<string, string> = {
-                    'app_store/all': 'app',
-                };
-                const icon = deepLinkIconOverrides[cleanPath]
-                    ?? (pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0]);
+                const icon = getSettingsRouteIcon(cleanPath);
                 
                 // Build translation key from full path
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
