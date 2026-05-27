@@ -39,6 +39,7 @@
 
 	let loaded = $state(false);
 	let { children } = $props();
+	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
 		{ key: 'fallback', rel: 'alternate icon', type: 'image/png', href: '/favicon.png' },
@@ -133,8 +134,26 @@
 		});
 		window.addEventListener('focus', ensureOpenMatesFavicons);
 
-		await waitLocale();
-		loaded = true;
+		initializeTheme();
+		initializeUiFont();
+		// Furry Mode is disabled until any furry art is made by human artists.
+		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
+
+		try {
+			await Promise.race([
+				waitLocale(),
+				new Promise((_, reject) =>
+					setTimeout(
+						() => reject(new Error('Translation startup timed out')),
+						TRANSLATION_STARTUP_TIMEOUT_MS
+					)
+				)
+			]);
+		} catch (error) {
+			console.warn('[Layout] Translation loading failed during startup:', error);
+		} finally {
+			loaded = true;
+		}
 
 		// =====================================================================
 		// Privacy-preserving first-party analytics beacon
@@ -200,11 +219,6 @@
 		// Load meta tags after translations are ready
 		await loadMetaTags();
 		ensureOpenMatesFavicons();
-
-		initializeTheme();
-		initializeUiFont();
-		// Furry Mode is disabled until any furry art is made by human artists.
-		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		// Initialize server status early to prevent UI flashing
 		// (e.g., legal chats briefly appearing on self-hosted instances)

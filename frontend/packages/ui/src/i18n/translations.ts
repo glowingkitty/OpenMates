@@ -1,8 +1,16 @@
+// Ensure register/init runs before any component uses the package-level text store.
+import './setup';
 import { _ } from 'svelte-i18n';
 import { derived, type Readable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-type TranslateFunction = (key: string, vars?: Record<string, any>) => string;
+type TranslateFunction = (key: string, vars?: Record<string, unknown>) => string;
+type SanitizerModule = {
+    sanitize: (
+        value: string,
+        config: { ALLOWED_TAGS: string[]; ALLOWED_ATTR: string[] }
+    ) => string;
+};
 
 /**
  * Missing-translation placeholder prefix.
@@ -38,7 +46,7 @@ const passThroughTranslate: TranslateFunction = (key: string) => missingPlacehol
 // Create an SSR-safe text store
 // During SSR: provides a placeholder function so missing keys are visible
 // On client: uses svelte-i18n with DOM Purify sanitization  
-let DOMPurify: any = null;
+let DOMPurify: SanitizerModule | null = null;
 if (browser && typeof window !== 'undefined') {
     // Only import DOMPurify on the client side
     import('dompurify').then(module => {
@@ -120,6 +128,6 @@ export const text: Readable<TranslateFunction> = browser
               fn(passThroughTranslate);
               return () => {}; // no-op unsubscribe
           }
-      } as any;
+      } satisfies Readable<TranslateFunction>;
 
 export type TextStore = Readable<TranslateFunction>;
