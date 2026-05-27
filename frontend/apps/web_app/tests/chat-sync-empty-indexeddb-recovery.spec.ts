@@ -3,8 +3,9 @@
  * Regression coverage for cold-boot chat sync recovery.
  * Recreates the production failure mode where iOS Safari/PWA has an empty local
  * chats IndexedDB while the server still has chats but Redis cache reports
- * `is_primed=false`. The UI must keep sync pending instead of finalizing an
- * empty chat list as the user's real state.
+ * `is_primed=false`. It also covers partial local schemas that are already at
+ * the previous current version, where IndexedDB would not rerun migrations
+ * unless the app ships a schema-healing version bump.
  */
 export {};
 
@@ -108,7 +109,7 @@ async function replaceLocalChatDbWithMissingStores(page: any): Promise<void> {
 		});
 
 		await new Promise<void>((resolve, reject) => {
-			const request = indexedDB.open('chats_db', 24);
+			const request = indexedDB.open('chats_db', 27);
 			request.onerror = () =>
 				reject(request.error ?? new Error('Failed to create partial chats_db'));
 			request.onupgradeneeded = () => {

@@ -132,7 +132,10 @@ class ChatDatabase {
   //             terminal output. Keeps run output out of canonical code embeds.
   // Version 27: chat_compression_checkpoints store — client-encrypted summaries
   //             used for inference while old messages are evicted locally.
-  private readonly VERSION = 27;
+  // Version 28: schema-healing bump. Re-runs migrations for clients whose local
+  //             DB reached v27 but missed required stores after an interrupted
+  //             Safari/iOS upgrade or blocked delete/open race.
+  private readonly VERSION = 28;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
