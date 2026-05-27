@@ -42,6 +42,17 @@
   function handleAction(tip: QuickTipDefinition): void {
     dispatch('action', tip);
   }
+
+  function handleCardAction(tip: QuickTipDefinition): void {
+    if (!tip.ctaLabelKey || !tip.ctaAction) return;
+    handleAction(tip);
+  }
+
+  function handleCardKeydown(event: KeyboardEvent, tip: QuickTipDefinition): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    handleCardAction(tip);
+  }
 </script>
 
 {#if activeTip}
@@ -49,7 +60,11 @@
     class="quick-tip-card"
     data-testid="quick-tip-card"
     data-quick-tip-slug={activeTip.slug}
+    role="button"
+    tabindex="0"
     style={gradientStyle}
+    onclick={() => handleCardAction(activeTip)}
+    onkeydown={(event) => handleCardKeydown(event, activeTip)}
     transition:fade={{ duration: 200 }}
   >
     <div class="quick-tip-content">
@@ -57,7 +72,15 @@
       <h3>{$text(activeTip.titleKey)}</h3>
       <p class="quick-tip-body">{$text(activeTip.bodyKey)}</p>
       {#if activeTip.ctaLabelKey && activeTip.ctaAction}
-        <button class="quick-tip-cta" type="button" data-testid="quick-tip-cta" onclick={() => handleAction(activeTip)}>
+        <button
+          class="quick-tip-cta"
+          type="button"
+          data-testid="quick-tip-cta"
+          onclick={(event) => {
+            event.stopPropagation();
+            handleAction(activeTip);
+          }}
+        >
           {$text(activeTip.ctaLabelKey)}
         </button>
       {/if}
@@ -78,6 +101,15 @@
     border-radius: var(--radius-6);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
     user-select: none;
+  }
+
+  .quick-tip-card[role='button'] {
+    cursor: pointer;
+  }
+
+  .quick-tip-card[role='button']:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
   }
 
   .quick-tip-card::before {
