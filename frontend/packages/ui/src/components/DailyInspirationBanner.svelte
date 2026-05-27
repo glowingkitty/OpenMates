@@ -47,10 +47,22 @@
   const ChevronRight = getLucideIcon('chevron-right');
 
   const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
-  const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 30000;
+  const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
+  const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
+    'export-data',
+    'incognito-mode',
+  ]);
+  const GUEST_ALLOWED_FEATURE_PATHS = new Set([
+    'app_store/all/focus_modes',
+    'app_store/events/skill/search',
+    'app_store/all/skills',
+    'privacy',
+    'privacy/hide-personal-data',
+    'settings_memories',
+  ]);
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -79,6 +91,7 @@
   // Mirror of the store – updated via subscription below
   let inspirations = $state<DailyInspiration[]>([]);
   let currentIndex = $state(0);
+  let isAuthenticated = $state(false);
 
   // Track which inspiration_ids we have already sent a `viewed` WS event for.
   // An entry is added as soon as the banner is visible in the viewport AND the
@@ -117,7 +130,7 @@
 
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
-  const unsubscribe = dailyInspirationStore.subscribe((state) => {
+  const unsubscribeDailyInspirations = dailyInspirationStore.subscribe((state) => {
     const wasHardcoded = inspirations.length > 0 &&
       inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
     const isNowReal = state.inspirations.length > 0 &&
@@ -140,7 +153,14 @@
     }
   });
 
-  onDestroy(unsubscribe);
+  const unsubscribeAuth = authStore.subscribe((state) => {
+    isAuthenticated = state.isAuthenticated;
+  });
+
+  onDestroy(() => {
+    unsubscribeDailyInspirations();
+    unsubscribeAuth();
+  });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
   // Default (non-personalized) inspirations are fetched from the server with a
@@ -253,8 +273,15 @@
 
   // ─── Derived values ─────────────────────────────────────────────────────────
 
+  let visibleInspirations = $derived.by(() => (
+    inspirations.filter((inspiration) => isDailyInspirationVisible(inspiration))
+  ));
+
   /** Currently displayed inspiration. */
-  let current = $derived(inspirations[currentIndex] ?? null);
+  let current = $derived.by(() => {
+    if (visibleInspirations.length === 0) return null;
+    return visibleInspirations[currentIndex % visibleInspirations.length] ?? null;
+  });
 
   /** Valid mate/category class to render. Public cached wiki cards may contain old unsupported categories. */
   let displayCategory = $derived.by(() => {
@@ -284,31 +311,31 @@
   });
 
   /** Whether multiple inspirations are available (show arrows). */
-  let hasMultiple = $derived(inspirations.length > 1);
+  let hasMultiple = $derived(visibleInspirations.length > 1);
 
   /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
-  let inspirationSetKey = $derived.by(() => getInspirationSetKey(inspirations));
+  let inspirationSetKey = $derived.by(() => getInspirationSetKey(visibleInspirations));
 
   // Each time the banner is mounted on the web app / new chat screen, pick the
   // next inspiration for the loaded result set. Later IndexedDB/server/WS writes
   // can reset the store's currentIndex to 0, so remember the target for this
   // page load and re-apply it without advancing the persisted cursor again.
   $effect(() => {
-    if (inspirations.length <= 1) return;
+    if (visibleInspirations.length <= 1) return;
     if (!inspirationSetKey) return;
     if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
-    if (visitCycleAppliedInspirations === inspirations) return;
+    if (visitCycleAppliedInspirations === visibleInspirations) return;
 
     let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
-    if (targetIndex === undefined || targetIndex >= inspirations.length) {
-      targetIndex = getNextVisitIndex(inspirationSetKey, inspirations.length);
+    if (targetIndex === undefined || targetIndex >= visibleInspirations.length) {
+      targetIndex = getNextVisitIndex(inspirationSetKey, visibleInspirations.length);
       visitCycleTargetIndexes = new Map([
         ...visitCycleTargetIndexes,
         [inspirationSetKey, targetIndex],
       ]);
     }
 
-    visitCycleAppliedInspirations = inspirations;
+    visitCycleAppliedInspirations = visibleInspirations;
     if (currentIndex !== targetIndex) {
       dailyInspirationStore.goTo(targetIndex);
     }
@@ -575,6 +602,17 @@
     return hash.toString(36);
   }
 
+  function isDailyInspirationVisible(inspiration: DailyInspiration): boolean {
+    if (inspiration.content_type !== 'feature') return true;
+    if (isAuthenticated) return true;
+
+    const feature = inspiration.feature;
+    if (!feature?.settings_path) return false;
+    if (AUTHENTICATED_ONLY_FEATURE_IDS.has(feature.feature_id)) return false;
+    if (feature.requires_authentication === true && !GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path)) return false;
+    return GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path);
+  }
+
   /**
    * Send `inspiration_viewed` message to backend via WebSocket.
    * Only sent for authenticated users — guests have no WebSocket connection
@@ -595,7 +633,7 @@
   }
 </script>
 
-{#if inspirations.length > 0 && current}
+{#if visibleInspirations.length > 0 && current}
   <!-- Outer wrapper for fade-in animation and full-width layout.
        bind:this lets the IntersectionObserver target this element to detect
        when the banner enters the viewport for passive view tracking. -->
