@@ -8,6 +8,7 @@ name: "Texas Instruments"
 description: "Semiconductor and embedded systems provider behind WEBENCH Power Designer reference-design search."
 logo_svg: "logos/texas_instruments.svg"
 region: "US"
+privacy_policy: "https://www.ti.com/legal/terms-conditions/privacy-policy.html"  # verified 2026-05-27
 
 pricing:
   per_request_credits: 5
