@@ -18,8 +18,18 @@
 				try {
 					if (!('serviceWorker' in navigator)) return;
 
-					var cleanupKey = 'openmates_sw_cleanup_v1';
+					var cleanupKey = 'openmates_sw_cleanup_v2';
+					var reloadKey = cleanupKey + '_reloaded';
 					var hadController = Boolean(navigator.serviceWorker.controller);
+					var cleanupDone = false;
+
+					try {
+						cleanupDone = localStorage.getItem(cleanupKey) === 'done';
+					} catch (e) {
+						cleanupDone = sessionStorage.getItem(cleanupKey) === 'done';
+					}
+
+					if (cleanupDone && !hadController) return;
 
 					Promise.all([
 						navigator.serviceWorker.getRegistrations().then(function (registrations) {
@@ -40,8 +50,14 @@
 							: Promise.resolve()
 					])
 						.then(function () {
-							if (!hadController || sessionStorage.getItem(cleanupKey) === 'done') return;
-							sessionStorage.setItem(cleanupKey, 'done');
+							try {
+								localStorage.setItem(cleanupKey, 'done');
+							} catch (e) {
+								sessionStorage.setItem(cleanupKey, 'done');
+							}
+
+							if (!hadController || sessionStorage.getItem(reloadKey) === 'done') return;
+							sessionStorage.setItem(reloadKey, 'done');
 							window.location.replace(window.location.href);
 						})
 						.catch(function (error) {
