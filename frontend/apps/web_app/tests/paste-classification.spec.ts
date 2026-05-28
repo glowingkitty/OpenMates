@@ -10,6 +10,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
+const { closeFullscreen } = require('./helpers/embed-test-helpers');
 
 async function openUnauthenticatedNewChat(page: any): Promise<any> {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -57,6 +58,11 @@ async function pasteIntoEditor(
 }
 
 async function clearEditor(page: any, editor: any): Promise<void> {
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	if (await fullscreenOverlay.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await closeFullscreen(page, fullscreenOverlay);
+	}
+
 	await editor.click();
 	await page.keyboard.press('Control+A');
 	await page.keyboard.press('Backspace');
