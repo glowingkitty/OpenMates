@@ -13,7 +13,7 @@
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
-    import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
+    import { createEventDispatcher, tick, onMount, onDestroy, untrack } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { panelState } from '../stores/panelStateStore'; // Added import
@@ -156,6 +156,10 @@
     type HiddenChatFlag = { is_hidden?: boolean | null };
 
     const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
+    const AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS = new Set([
+        'export-data',
+        'incognito-mode',
+    ]);
 
     function isOgExampleSharedChatCuttlefish(): boolean {
         if (typeof window === 'undefined') {
@@ -4498,9 +4502,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void resumeChatData;
         void showWelcome;
         void viewportHeight;
+        void messageInputFocused;
+        void isTouchEnvironment;
+        void isEffectivelyNarrow;
+        void chatSideEl;
+        void welcomeContentEl;
         // chatSideEl must be available (set after mount)
         if (chatSideEl) {
-            recalculateSuggestionsOverlap();
+            // The calculation updates suggestionsWouldOverlapWelcome; don't let that
+            // computed output become an input dependency of this measurement effect.
+            untrack(recalculateSuggestionsOverlap);
         }
     });
 
@@ -5984,6 +5995,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function handleMessagesChange(event: CustomEvent) {
         const { hasMessages } = event.detail;
+        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
+            showWelcome = false;
+            return;
+        }
         showWelcome = !hasMessages;
     }
 
@@ -6191,6 +6206,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const settingsPath = inspiration.feature?.settings_path;
             if (!settingsPath) {
                 console.debug('[ActiveChat] Feature inspiration has no settings path — no action taken');
+                return;
+            }
+            if (!$authStore.isAuthenticated && (
+                (inspiration.feature?.requires_authentication === true && settingsPath !== 'privacy/hide-personal-data') ||
+                AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS.has(inspiration.feature?.feature_id ?? '')
+            )) {
+                console.debug('[ActiveChat] Guest clicked authenticated-only feature inspiration – opening signup interface');
+                currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+                isInSignupProcess.set(true);
+                loginInterfaceOpen.set(true);
+                if ($panelState.isActivityHistoryOpen) {
+                    panelState.toggleChats();
+                }
                 return;
             }
             settingsMenuVisible.set(true);
