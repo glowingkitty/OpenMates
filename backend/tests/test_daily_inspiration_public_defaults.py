@@ -21,7 +21,7 @@ def test_public_feature_inspirations_exclude_authenticated_only_tips() -> None:
     feature_ids = [inspiration.feature.feature_id for inspiration in inspirations if inspiration.feature]
 
     assert "export-data" not in feature_ids
-    assert "custom-pii-detection" not in feature_ids
+    assert "custom-pii-detection" in feature_ids
     assert "incognito-mode" not in feature_ids
     assert "privacy-dashboard" in feature_ids
     assert all(

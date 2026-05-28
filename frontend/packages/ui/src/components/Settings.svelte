@@ -2321,11 +2321,12 @@ changes to the documentation (to keep the documentation up to date).
             // Account deletion is allowed for uncompleted accounts via email link
             // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'settings_memories', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
-                                     settingsPath.startsWith('app_store/') ||
-                                     settingsPath.startsWith('interface/') ||
-                                     settingsPath.startsWith('shared/share') ||
+                                      settingsPath.startsWith('app_store/') ||
+                                      settingsPath.startsWith('interface/') ||
+                                      settingsPath.startsWith('privacy/') ||
+                                      settingsPath.startsWith('shared/share') ||
                                      settingsPath.startsWith('support/') ||
                                      settingsPath.startsWith('report_issue/') ||
                                      settingsPath.startsWith('account/delete/') ||

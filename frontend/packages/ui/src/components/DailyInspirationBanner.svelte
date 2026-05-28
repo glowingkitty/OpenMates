@@ -115,6 +115,9 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
+  let isUserInteracting = $state(false);
+  let isOpeningInspiration = $state(false);
+  let progressRestartToken = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -191,13 +194,7 @@
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
 
-    const autoRotationInterval = window.setInterval(() => {
-      if (!isBannerVisible || visibleInspirations.length <= 1) return;
-      goToVisibleIndex(currentIndex + 1);
-    }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
-
     return () => {
-      window.clearInterval(autoRotationInterval);
       pointerQuery.removeEventListener('change', updatePointerCta);
       window.removeEventListener('language-changed-complete', handleLanguageChange);
     };
@@ -406,7 +403,7 @@
   let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
   let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
-  let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}`);
+  let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -441,6 +438,7 @@
   function handleTouchStart(e: TouchEvent) {
     if (!hasMultiple || e.touches.length !== 1) return;
 
+    isUserInteracting = true;
     const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
@@ -487,6 +485,8 @@
     touchStartX = 0;
     touchStartY = 0;
     touchSwipeHandled = false;
+    isUserInteracting = false;
+    restartProgressAnimation();
 
     if (suppressNextClick) {
       window.setTimeout(() => {
@@ -508,6 +508,7 @@
     }
 
     if (!current) return;
+    isOpeningInspiration = true;
 
     // Send viewed event if not already sent
     if (!viewedIds.has(current.inspiration_id)) {
@@ -516,6 +517,27 @@
     }
 
     onStartChat(current);
+  }
+
+  function handleInteractionStart() {
+    isUserInteracting = true;
+  }
+
+  function handleInteractionEnd() {
+    if (!isUserInteracting) return;
+    isUserInteracting = false;
+    restartProgressAnimation();
+  }
+
+  function restartProgressAnimation() {
+    progressRestartToken += 1;
+  }
+
+  function handleProgressAnimationEnd(e: AnimationEvent) {
+    if (e.animationName !== 'carouselProgressFill') return;
+    if (!isBannerVisible || visibleInspirations.length <= 1) return;
+    if (isUserInteracting || isOpeningInspiration) return;
+    goToVisibleIndex(currentIndex + 1);
   }
 
   /**
@@ -677,6 +699,10 @@
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
+      onpointerdown={handleInteractionStart}
+      onpointerup={handleInteractionEnd}
+      onpointercancel={handleInteractionEnd}
+      onpointerleave={handleInteractionEnd}
       ontouchstart={handleTouchStart}
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
@@ -830,7 +856,7 @@
             aria-hidden="true"
           >
             {#key progressAnimationKey}
-              <div class="carousel-progress-fill"></div>
+              <div class="carousel-progress-fill" onanimationend={handleProgressAnimationEnd}></div>
             {/key}
           </div>
         {/if}
