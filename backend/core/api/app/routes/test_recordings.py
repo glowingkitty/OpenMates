@@ -108,6 +108,49 @@ def _index_entry_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _manifest_from_artifact_meta(recordings_dir: Path, slug: str) -> dict[str, Any]:
+    bundle_dir = recordings_dir / slug
+    meta = _read_json_file(bundle_dir / "artifact-meta.json")
+    spec = meta.get("spec") or f"{slug}.spec.ts"
+    video_file = (meta.get("video_files") or [None])[0]
+    thumbnail_file = meta.get("thumbnail_file")
+    screenshot_files = meta.get("screenshot_files") or []
+
+    def key_for(file_name: Optional[str]) -> Optional[str]:
+        if not file_name:
+            return None
+        return f"latest/{slug}/{file_name}"
+
+    steps = []
+    for index, screenshot_file in enumerate(screenshot_files, start=1):
+        title = Path(screenshot_file).stem.replace("-", " ").title()
+        steps.append({
+            "index": index,
+            "type": "screenshot",
+            "title": title,
+            "screenshot_key": key_for(screenshot_file),
+            "screenshot_file": screenshot_file,
+        })
+
+    return {
+        "spec": spec,
+        "slug": slug,
+        "title": spec.replace(".spec.ts", "").replace(".test.ts", ""),
+        "status": "unknown",
+        "run_id": None,
+        "duration_seconds": 0,
+        "github_run_url": None,
+        "error": None,
+        "assets": {
+            "video_key": key_for(video_file),
+            "thumbnail_key": key_for(thumbnail_file),
+            "report_key": key_for("report.md") if (bundle_dir / "report.md").is_file() else None,
+            "screenshot_keys": [key for key in (key_for(path) for path in screenshot_files) if key],
+        },
+        "steps": steps,
+    }
+
+
 @router.get("", dependencies=[])
 @limiter.limit("30/minute")
 async def list_test_recordings(request: Request) -> dict[str, Any]:
@@ -123,9 +166,13 @@ async def list_test_recordings(request: Request) -> dict[str, Any]:
         if isinstance(item, dict) and item.get("slug"):
             tests_by_slug[item["slug"]] = item
 
-    for manifest_path in sorted(recordings_dir.glob("*/manifest.json")):
+    for bundle_dir in sorted(path for path in recordings_dir.iterdir() if path.is_dir()):
         try:
-            manifest = _read_json_file(manifest_path)
+            manifest = (
+                _read_json_file(bundle_dir / "manifest.json")
+                if (bundle_dir / "manifest.json").is_file()
+                else _manifest_from_artifact_meta(recordings_dir, bundle_dir.name)
+            )
         except HTTPException:
             continue
         slug = manifest.get("slug")
@@ -154,5 +201,10 @@ async def get_test_recording(slug: str, request: Request) -> dict[str, Any]:
     if not recordings_dir:
         raise HTTPException(status_code=404, detail="No test recordings available")
 
-    manifest = _read_json_file(recordings_dir / slug / "manifest.json")
+    manifest_path = recordings_dir / slug / "manifest.json"
+    manifest = (
+        _read_json_file(manifest_path)
+        if manifest_path.is_file()
+        else _manifest_from_artifact_meta(recordings_dir, slug)
+    )
     return _add_signed_asset_urls(request, manifest)

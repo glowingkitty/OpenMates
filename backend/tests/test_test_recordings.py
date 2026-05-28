@@ -92,6 +92,19 @@ def _write_manifest_only_fixture(root, slug: str = "daily-inspiration-chat-flow"
     (spec_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
 
+def _write_artifact_meta_only_fixture(root, slug: str = "chat-flow") -> None:
+    spec_dir = root / slug
+    spec_dir.mkdir(parents=True)
+    meta = {
+        "spec": f"{slug}.spec.ts",
+        "slug": slug,
+        "video_files": ["video.webm"],
+        "thumbnail_file": "thumbnail.png",
+        "screenshot_files": ["screenshots/01-home.png", "screenshots/02-chat.png"],
+    }
+    (spec_dir / "artifact-meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
 @pytest.mark.asyncio
 async def test_list_test_recordings_signs_latest_assets(tmp_path, monkeypatch):
     _write_recording_fixture(tmp_path)
@@ -127,6 +140,27 @@ async def test_list_test_recordings_includes_manifest_dirs_not_in_latest_index(t
     daily = next(test for test in response["tests"] if test["slug"] == "daily-inspiration-chat-flow")
     assert daily["assets"]["video_url"].startswith(
         "https://signed.example/dev-test-bucket/latest/daily-inspiration-chat-flow/video.webm"
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_and_detail_include_artifact_meta_only_recordings(tmp_path, monkeypatch):
+    _write_recording_fixture(tmp_path)
+    _write_artifact_meta_only_fixture(tmp_path, "legacy-video")
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setattr(test_recordings, "TEST_RECORDINGS_PATHS", [tmp_path])
+    monkeypatch.setattr(test_recordings, "get_bucket_name", lambda _key, _env: "dev-test-bucket")
+
+    response = await test_recordings.list_test_recordings(_fake_request())
+    assert "legacy-video" in {test["slug"] for test in response["tests"]}
+
+    detail = await test_recordings.get_test_recording("legacy-video", _fake_request())
+    assert detail["assets"]["video_url"].startswith(
+        "https://signed.example/dev-test-bucket/latest/legacy-video/video.webm"
+    )
+    assert len(detail["steps"]) == 2
+    assert detail["steps"][0]["screenshot_url"].startswith(
+        "https://signed.example/dev-test-bucket/latest/legacy-video/screenshots/01-home.png"
     )
 
 
