@@ -40,7 +40,9 @@ CORS_ENABLED_BUCKETS = [
     'openmates-chatfiles',
     'dev-openmates-chatfiles',
     'openmates-invoices',
-    'dev-openmates-invoices'
+    'dev-openmates-invoices',
+    'openmates-test-recordings',
+    'dev-openmates-test-recordings'
 ]
 
 # S3 bucket configurations
@@ -159,6 +161,14 @@ BUCKETS = {
         'max_size': 10 * 1024 * 1024,  # 10MB per log file / screenshot
         'access': 'private',
         'lifecycle_policy': 365,  # 1 year auto-delete (in days)
+    },
+    'test_recordings': {
+        'name': 'openmates-test-recordings',
+        'dev_name': 'dev-openmates-test-recordings',
+        'allowed_types': ['*/*'],
+        'max_size': 1024 * 1024 * 1024,  # 1GB per artifact for long videos
+        'access': 'private',
+        'lifecycle_policy': 30,  # latest objects are overwritten; stale keys expire
     }
 }
 
