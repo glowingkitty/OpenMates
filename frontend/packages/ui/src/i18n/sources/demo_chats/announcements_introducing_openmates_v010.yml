@@ -4,8 +4,8 @@
 
 title:
   context: 'Newsletter announcements/introducing-openmates-v010 — title'
-  en: 'OpenMates v0.10: More helpful chats, better privacy tools, easier payments'
-  de: 'OpenMates v0.10: Hilfreichere Chats, bessere Datenschutz-Tools, einfachere Zahlungen'
+  en: 'OpenMates v0.10: New apps, skills, providers & learning tools'
+  de: 'OpenMates v0.10: Neue Apps, Skills, Provider & Lernfunktionen'
   zh: ''
   es: ''
   fr: ''
@@ -28,8 +28,8 @@ title:
   verified_by_human: []
 description:
   context: 'Newsletter announcements/introducing-openmates-v010 — description'
-  en: 'A practical update focused on everyday use'
-  de: 'Ein praktisches Update für die tägliche Nutzung'
+  en: 'More useful things to do with OpenMates'
+  de: 'Mehr nützliche Dinge, die du mit OpenMates tun kannst'
   zh: ''
   es: ''
   fr: ''
@@ -55,7 +55,7 @@ message:
   en: |-
     Hey there,
     
-    OpenMates v0.10 was mostly about making the product feel more useful in normal day-to-day situations: clearer answers, smoother chats, better ways to learn, and more reliable ways to pay for usage credits.
+    OpenMates v0.10 was mostly about making the product feel more useful in normal day-to-day situations: clearer answers, smoother chats, more apps and providers, and better ways to learn and get things done.
     
     # ✨ The highlights
     
@@ -69,29 +69,33 @@ message:
     
     You can now highlight parts of assistant messages and keep notes on them. This makes longer answers much more useful: save the important paragraph, mark something you want to revisit, or keep a comment next to a specific claim or recommendation.
     
-    ## 3. Better public announcement and example pages
+    ## 3. New apps and app skills
     
-    Announcements, tips, legal pages and example chats became proper public chat pages. That means links to OpenMates content are easier to share, easier to open again, and better indexed by search engines.
+    OpenMates got more useful app skills across everyday categories. Travel searches became more practical with train connections and booking links, Events gained more useful event sources, Code became better at understanding repositories, and several embed types became clearer and easier to act on.
     
-    ## 4. Payments became more reliable and accessible
+    Instead of only answering from the model's memory, OpenMates can increasingly use dedicated tools: search, compare, summarize, create files, inspect source material, and show structured results directly in the chat.
     
-    OpenMates added SEPA bank transfers via Revolut Business and improved Stripe checkout for users outside the EU. The goal is simple: if you want to buy usage credits, the payment flow should work reliably instead of being the thing that gets in the way.
+    ## 4. More providers for real-world results
     
-    ## 5. Account email changes
+    v0.10 added and improved providers behind the scenes, for example for travel, events, payments, and content safety. This matters because a skill is only useful when the result is current, source-backed, and specific enough to use.
     
-    You can now change the email address connected to your account. This is one of those features that should not be exciting, but absolutely needs to work when you need it.
+    For users, the visible effect is simple: richer cards, better source attribution, more direct links, and fewer generic answers when a provider can return real data.
     
-    ## 6. Better onboarding and chat presentation
+    ## 5. Better embeds and previews
     
-    The intro chat got a more polished video/slideshow header, the chat header became more stable on mobile and Safari, and the new-chat experience was refined so it is clearer when you are continuing from a public example versus starting something private.
+    Embeds became more useful throughout the app. Search results, booking links, generated files, code outputs, images and public examples got clearer previews and fullscreen views, so you can inspect results without losing the conversation context.
     
-    ## 7. Early native Apple app work
+    ## 6. More useful examples and public pages
     
-    v0.10 also included a lot of foundation work for the iOS, iPadOS and macOS app: encrypted chat sync, native settings, follow-up suggestions, embeds, accessibility, and i18n. The web app remains the source of truth, but the native app work started catching up quickly.
+    Announcements, tips, legal pages and example chats became proper public chat pages. That makes it easier to share what OpenMates can do and to open useful examples again later.
+    
+    ## 7. Smoother signup and payment options
+    
+    OpenMates also added SEPA bank transfers via Revolut Business, improved Stripe checkout for users outside the EU, and added account email changes. These are not flashy features, but they make the basics less fragile when you actually want to use the product.
     
     # What this means for everyday use
     
-    OpenMates should feel more like a useful workspace now: answers can contain learning links, you can mark and revisit important parts, public examples are easier to share, and the account/payment basics are less fragile.
+    OpenMates should feel more like a useful workspace now: answers can contain learning links, you can mark and revisit important parts, more app skills can return real structured results, and public examples are easier to share.
     
     As always, a lot of the work was also invisible bug fixing and reliability improvements — especially around encrypted chat sync, embeds, signup, and Safari behavior.
     
@@ -102,7 +106,7 @@ message:
   de: |-
     Hallo,
     
-    OpenMates v0.10 drehte sich vor allem darum, das Produkt im Alltag nützlicher zu machen: klarere Antworten, flüssigere Chats, bessere Lernmöglichkeiten und zuverlässigere Wege, Nutzungsguthaben zu kaufen.
+    OpenMates v0.10 drehte sich vor allem darum, das Produkt im Alltag nützlicher zu machen: klarere Antworten, flüssigere Chats, mehr Apps und Provider sowie bessere Möglichkeiten zum Lernen und Erledigen konkreter Aufgaben.
     
     # ✨ Die Highlights
     
@@ -116,29 +120,33 @@ message:
     
     Du kannst jetzt wichtige Stellen in Antworten markieren und Notizen dazu speichern. Dadurch werden längere Antworten deutlich nützlicher: wichtige Absätze sichern, etwas für später markieren oder einen Kommentar direkt neben einer konkreten Empfehlung behalten.
     
-    ## 3. Bessere öffentliche Ankündigungs- und Beispielseiten
+    ## 3. Neue Apps und App-Skills
     
-    Ankündigungen, Tipps, rechtliche Seiten und Beispiel-Chats wurden zu richtigen öffentlichen Chat-Seiten. Links zu OpenMates-Inhalten lassen sich dadurch besser teilen, wieder öffnen und von Suchmaschinen erfassen.
+    OpenMates bekam mehr nützliche App-Skills für Alltagsaufgaben. Reisesuchen wurden mit Zugverbindungen und Buchungslinks praktischer, Events bekamen nützlichere Quellen, Code wurde besser beim Verstehen von Repositories, und mehrere Embed-Typen wurden klarer und leichter nutzbar.
     
-    ## 4. Zahlungen wurden zuverlässiger und zugänglicher
+    Statt nur aus dem Modellgedächtnis zu antworten, kann OpenMates immer häufiger gezielte Werkzeuge nutzen: suchen, vergleichen, zusammenfassen, Dateien erstellen, Quellen prüfen und strukturierte Ergebnisse direkt im Chat anzeigen.
     
-    OpenMates unterstützt jetzt SEPA-Überweisungen über Revolut Business und einen verbesserten Stripe-Checkout für Nutzer:innen außerhalb der EU. Ziel ist einfach: Wenn du Credits kaufen möchtest, soll die Zahlung zuverlässig funktionieren und nicht im Weg stehen.
+    ## 4. Mehr Provider für echte Ergebnisse
     
-    ## 5. Account-E-Mail ändern
+    v0.10 ergänzte und verbesserte Provider im Hintergrund, zum Beispiel für Reisen, Events, Zahlungen und Inhaltssicherheit. Das ist wichtig, weil ein Skill nur dann wirklich hilft, wenn die Ergebnisse aktuell, quellengestützt und konkret genug sind.
     
-    Du kannst jetzt die E-Mail-Adresse deines Accounts ändern. Nicht besonders spektakulär, aber extrem wichtig, wenn man es braucht.
+    Für Nutzer:innen heißt das sichtbar: bessere Karten, klarere Quellen, direktere Links und weniger generische Antworten, wenn ein Provider echte Daten liefern kann.
     
-    ## 6. Besseres Onboarding und bessere Chat-Darstellung
+    ## 5. Bessere Embeds und Vorschauen
     
-    Der Intro-Chat bekam einen polierteren Video-/Slideshow-Header, der Chat-Header wurde auf Mobile und Safari stabiler, und der Neue-Chat-Flow wurde klarer, besonders wenn du von öffentlichen Beispielen aus weiterarbeitest.
+    Embeds wurden in der App nützlicher. Suchergebnisse, Buchungslinks, generierte Dateien, Code-Ausgaben, Bilder und öffentliche Beispiele bekamen klarere Vorschauen und Vollbildansichten, sodass du Ergebnisse prüfen kannst, ohne den Chat-Kontext zu verlieren.
     
-    ## 7. Frühe native Apple-App-Arbeit
+    ## 6. Nützlichere Beispiele und öffentliche Seiten
     
-    v0.10 enthielt außerdem viel Grundlagenarbeit für die iOS-, iPadOS- und macOS-App: verschlüsselte Chat-Synchronisation, native Einstellungen, Follow-up-Vorschläge, Embeds, Barrierefreiheit und i18n. Die Web-App bleibt die visuelle Quelle der Wahrheit, aber die native App holte schnell auf.
+    Ankündigungen, Tipps, rechtliche Seiten und Beispiel-Chats wurden zu richtigen öffentlichen Chat-Seiten. Dadurch lässt sich besser teilen, was OpenMates kann, und nützliche Beispiele lassen sich später leichter wieder öffnen.
+    
+    ## 7. Stabilere Registrierung und Zahlungsoptionen
+    
+    OpenMates unterstützt außerdem SEPA-Überweisungen über Revolut Business, einen verbesserten Stripe-Checkout für Nutzer:innen außerhalb der EU und das Ändern der Account-E-Mail. Das sind keine auffälligen Features, machen aber die Grundlagen weniger fragil, wenn man das Produkt tatsächlich nutzen möchte.
     
     # Was das im Alltag bedeutet
     
-    OpenMates fühlt sich damit mehr wie ein nützlicher Arbeitsbereich an: Antworten enthalten Lernlinks, wichtige Stellen lassen sich markieren, öffentliche Beispiele sind besser teilbar und Account-/Zahlungsgrundlagen sind weniger fragil.
+    OpenMates fühlt sich damit mehr wie ein nützlicher Arbeitsbereich an: Antworten enthalten Lernlinks, wichtige Stellen lassen sich markieren, mehr App-Skills liefern echte strukturierte Ergebnisse und öffentliche Beispiele sind besser teilbar.
     
     Wie immer bestand ein großer Teil der Arbeit auch aus unsichtbaren Fehlerbehebungen und Stabilitätsverbesserungen, vor allem bei verschlüsselter Chat-Synchronisation, Embeds, Registrierung und Safari-Verhalten.
     
@@ -171,7 +179,7 @@ email_body:
   en: |-
     Hey there,
     
-    OpenMates v0.10 was mostly about making the product feel more useful in normal day-to-day situations: clearer answers, smoother chats, better ways to learn, and more reliable ways to pay for usage credits.
+    OpenMates v0.10 was mostly about making the product feel more useful in normal day-to-day situations: clearer answers, smoother chats, more apps and providers, and better ways to learn and get things done.
     
     [cta]
     
@@ -187,29 +195,33 @@ email_body:
     
     You can now highlight parts of assistant messages and keep notes on them. This makes longer answers much more useful: save the important paragraph, mark something you want to revisit, or keep a comment next to a specific claim or recommendation.
     
-    ## 3. Better public announcement and example pages
+    ## 3. New apps and app skills
     
-    Announcements, tips, legal pages and example chats became proper public chat pages. That means links to OpenMates content are easier to share, easier to open again, and better indexed by search engines.
+    OpenMates got more useful app skills across everyday categories. Travel searches became more practical with train connections and booking links, Events gained more useful event sources, Code became better at understanding repositories, and several embed types became clearer and easier to act on.
     
-    ## 4. Payments became more reliable and accessible
+    Instead of only answering from the model's memory, OpenMates can increasingly use dedicated tools: search, compare, summarize, create files, inspect source material, and show structured results directly in the chat.
     
-    OpenMates added SEPA bank transfers via Revolut Business and improved Stripe checkout for users outside the EU. The goal is simple: if you want to buy usage credits, the payment flow should work reliably instead of being the thing that gets in the way.
+    ## 4. More providers for real-world results
     
-    ## 5. Account email changes
+    v0.10 added and improved providers behind the scenes, for example for travel, events, payments, and content safety. This matters because a skill is only useful when the result is current, source-backed, and specific enough to use.
     
-    You can now change the email address connected to your account. This is one of those features that should not be exciting, but absolutely needs to work when you need it.
+    For users, the visible effect is simple: richer cards, better source attribution, more direct links, and fewer generic answers when a provider can return real data.
     
-    ## 6. Better onboarding and chat presentation
+    ## 5. Better embeds and previews
     
-    The intro chat got a more polished video/slideshow header, the chat header became more stable on mobile and Safari, and the new-chat experience was refined so it is clearer when you are continuing from a public example versus starting something private.
+    Embeds became more useful throughout the app. Search results, booking links, generated files, code outputs, images and public examples got clearer previews and fullscreen views, so you can inspect results without losing the conversation context.
     
-    ## 7. Early native Apple app work
+    ## 6. More useful examples and public pages
     
-    v0.10 also included a lot of foundation work for the iOS, iPadOS and macOS app: encrypted chat sync, native settings, follow-up suggestions, embeds, accessibility, and i18n. The web app remains the source of truth, but the native app work started catching up quickly.
+    Announcements, tips, legal pages and example chats became proper public chat pages. That makes it easier to share what OpenMates can do and to open useful examples again later.
+    
+    ## 7. Smoother signup and payment options
+    
+    OpenMates also added SEPA bank transfers via Revolut Business, improved Stripe checkout for users outside the EU, and added account email changes. These are not flashy features, but they make the basics less fragile when you actually want to use the product.
     
     # What this means for everyday use
     
-    OpenMates should feel more like a useful workspace now: answers can contain learning links, you can mark and revisit important parts, public examples are easier to share, and the account/payment basics are less fragile.
+    OpenMates should feel more like a useful workspace now: answers can contain learning links, you can mark and revisit important parts, more app skills can return real structured results, and public examples are easier to share.
     
     As always, a lot of the work was also invisible bug fixing and reliability improvements — especially around encrypted chat sync, embeds, signup, and Safari behavior.
     
@@ -220,7 +232,7 @@ email_body:
   de: |-
     Hallo,
     
-    OpenMates v0.10 drehte sich vor allem darum, das Produkt im Alltag nützlicher zu machen: klarere Antworten, flüssigere Chats, bessere Lernmöglichkeiten und zuverlässigere Wege, Nutzungsguthaben zu kaufen.
+    OpenMates v0.10 drehte sich vor allem darum, das Produkt im Alltag nützlicher zu machen: klarere Antworten, flüssigere Chats, mehr Apps und Provider sowie bessere Möglichkeiten zum Lernen und Erledigen konkreter Aufgaben.
     
     [cta]
     
@@ -236,29 +248,33 @@ email_body:
     
     Du kannst jetzt wichtige Stellen in Antworten markieren und Notizen dazu speichern. Dadurch werden längere Antworten deutlich nützlicher: wichtige Absätze sichern, etwas für später markieren oder einen Kommentar direkt neben einer konkreten Empfehlung behalten.
     
-    ## 3. Bessere öffentliche Ankündigungs- und Beispielseiten
+    ## 3. Neue Apps und App-Skills
     
-    Ankündigungen, Tipps, rechtliche Seiten und Beispiel-Chats wurden zu richtigen öffentlichen Chat-Seiten. Links zu OpenMates-Inhalten lassen sich dadurch besser teilen, wieder öffnen und von Suchmaschinen erfassen.
+    OpenMates bekam mehr nützliche App-Skills für Alltagsaufgaben. Reisesuchen wurden mit Zugverbindungen und Buchungslinks praktischer, Events bekamen nützlichere Quellen, Code wurde besser beim Verstehen von Repositories, und mehrere Embed-Typen wurden klarer und leichter nutzbar.
     
-    ## 4. Zahlungen wurden zuverlässiger und zugänglicher
+    Statt nur aus dem Modellgedächtnis zu antworten, kann OpenMates immer häufiger gezielte Werkzeuge nutzen: suchen, vergleichen, zusammenfassen, Dateien erstellen, Quellen prüfen und strukturierte Ergebnisse direkt im Chat anzeigen.
     
-    OpenMates unterstützt jetzt SEPA-Überweisungen über Revolut Business und einen verbesserten Stripe-Checkout für Nutzer:innen außerhalb der EU. Ziel ist einfach: Wenn du Credits kaufen möchtest, soll die Zahlung zuverlässig funktionieren und nicht im Weg stehen.
+    ## 4. Mehr Provider für echte Ergebnisse
     
-    ## 5. Account-E-Mail ändern
+    v0.10 ergänzte und verbesserte Provider im Hintergrund, zum Beispiel für Reisen, Events, Zahlungen und Inhaltssicherheit. Das ist wichtig, weil ein Skill nur dann wirklich hilft, wenn die Ergebnisse aktuell, quellengestützt und konkret genug sind.
     
-    Du kannst jetzt die E-Mail-Adresse deines Accounts ändern. Nicht besonders spektakulär, aber extrem wichtig, wenn man es braucht.
+    Für Nutzer:innen heißt das sichtbar: bessere Karten, klarere Quellen, direktere Links und weniger generische Antworten, wenn ein Provider echte Daten liefern kann.
     
-    ## 6. Besseres Onboarding und bessere Chat-Darstellung
+    ## 5. Bessere Embeds und Vorschauen
     
-    Der Intro-Chat bekam einen polierteren Video-/Slideshow-Header, der Chat-Header wurde auf Mobile und Safari stabiler, und der Neue-Chat-Flow wurde klarer, besonders wenn du von öffentlichen Beispielen aus weiterarbeitest.
+    Embeds wurden in der App nützlicher. Suchergebnisse, Buchungslinks, generierte Dateien, Code-Ausgaben, Bilder und öffentliche Beispiele bekamen klarere Vorschauen und Vollbildansichten, sodass du Ergebnisse prüfen kannst, ohne den Chat-Kontext zu verlieren.
     
-    ## 7. Frühe native Apple-App-Arbeit
+    ## 6. Nützlichere Beispiele und öffentliche Seiten
     
-    v0.10 enthielt außerdem viel Grundlagenarbeit für die iOS-, iPadOS- und macOS-App: verschlüsselte Chat-Synchronisation, native Einstellungen, Follow-up-Vorschläge, Embeds, Barrierefreiheit und i18n. Die Web-App bleibt die visuelle Quelle der Wahrheit, aber die native App holte schnell auf.
+    Ankündigungen, Tipps, rechtliche Seiten und Beispiel-Chats wurden zu richtigen öffentlichen Chat-Seiten. Dadurch lässt sich besser teilen, was OpenMates kann, und nützliche Beispiele lassen sich später leichter wieder öffnen.
+    
+    ## 7. Stabilere Registrierung und Zahlungsoptionen
+    
+    OpenMates unterstützt außerdem SEPA-Überweisungen über Revolut Business, einen verbesserten Stripe-Checkout für Nutzer:innen außerhalb der EU und das Ändern der Account-E-Mail. Das sind keine auffälligen Features, machen aber die Grundlagen weniger fragil, wenn man das Produkt tatsächlich nutzen möchte.
     
     # Was das im Alltag bedeutet
     
-    OpenMates fühlt sich damit mehr wie ein nützlicher Arbeitsbereich an: Antworten enthalten Lernlinks, wichtige Stellen lassen sich markieren, öffentliche Beispiele sind besser teilbar und Account-/Zahlungsgrundlagen sind weniger fragil.
+    OpenMates fühlt sich damit mehr wie ein nützlicher Arbeitsbereich an: Antworten enthalten Lernlinks, wichtige Stellen lassen sich markieren, mehr App-Skills liefern echte strukturierte Ergebnisse und öffentliche Beispiele sind besser teilbar.
     
     Wie immer bestand ein großer Teil der Arbeit auch aus unsichtbaren Fehlerbehebungen und Stabilitätsverbesserungen, vor allem bei verschlüsselter Chat-Synchronisation, Embeds, Registrierung und Safari-Verhalten.
     

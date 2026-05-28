@@ -162,6 +162,7 @@ INTRO_THUMBNAIL_PATH_TEMPLATE = (
 HERO_IMAGE_MAX_BYTES = 2_000_000
 HERO_IMAGE_CACHE: Dict[str, Optional[str]] = {}
 HEADER_ICON_MAX_BYTES = 30_000
+NEWSLETTER_HEADING_COLOR = "#4867CD"
 
 
 # ── Status bar ──────────────────────────────────────────────────────────────
@@ -375,13 +376,9 @@ def _local_header_icon_data_uri(icon: Dict[str, Any]) -> Optional[str]:
 
     content_type = "image/svg+xml" if path.suffix.lower() == ".svg" else "image/png"
     if content_type == "image/svg+xml":
-        color = str(
-            icon.get("color_dark") if icon.get("darkmode") else icon.get("color_light") or icon.get("color") or ""
-        ).strip()
-        if color:
-            svg_text = data.decode("utf-8")
-            svg_text = re.sub(r'fill="#[0-9a-fA-F]{3,8}"', f'fill="{color}"', svg_text)
-            data = svg_text.encode("utf-8")
+        svg_text = data.decode("utf-8")
+        svg_text = re.sub(r'fill="#[0-9a-fA-F]{3,8}"', f'fill="{NEWSLETTER_HEADING_COLOR}"', svg_text)
+        data = svg_text.encode("utf-8")
     encoded = base64.b64encode(data).decode("ascii")
     return f"data:{content_type};base64,{encoded}"
 
@@ -641,7 +638,7 @@ def build_context(
     video_url = _video_link_for_manifest(manifest, base_url)
     thumb_uri = _intro_thumbnail_data_uri(lang) if video.get("intro_fullscreen") else None
     hero = manifest.get("hero_image") or {}
-    header_icon = {**(manifest.get("header_icon") or {}), "darkmode": darkmode}
+    header_icon = manifest.get("header_icon") or {}
     hero_data_uri = _remote_image_data_uri(hero.get("url")) if hero.get("url") else None
     hero_link_url = hero.get("link_url") or manifest.get("cta_url")
     subtitle = (manifest.get("subtitle") or {}).get(lang)

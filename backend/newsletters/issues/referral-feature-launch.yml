@@ -22,7 +22,5 @@ hero_image: null
 header_icon:
   path: backend/core/api/templates/email/components/icons/gift.svg
   alt: Gift icon
-  color_light: '#ffffff'
-  color_dark: '#ffffff'
 published_at: '2026-05-28T12:28:19+00:00'
 sent_at: null

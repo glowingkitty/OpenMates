@@ -313,8 +313,8 @@ let _chatUpdatedFlushPending = false;
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.slice()
 			.sort((a, b) => {
-				const at = Date.parse(a.metadata.lastUpdated || '') || 0;
-				const bt = Date.parse(b.metadata.lastUpdated || '') || 0;
+				const at = Date.parse(a.metadata.publishedAt || a.metadata.lastUpdated || '') || 0;
+				const bt = Date.parse(b.metadata.publishedAt || b.metadata.lastUpdated || '') || 0;
 				return bt - at;
 			})
 			.slice(0, 3)
