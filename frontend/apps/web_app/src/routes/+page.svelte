@@ -100,6 +100,8 @@
 	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
 	const EDGE_SWIPE_COMPLETE_PROGRESS = 0.35;
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
+	const DEFAULT_GUEST_INTRO_CHAT_ID = 'demo-for-everyone';
+	const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -114,6 +116,31 @@
 	let edgeSwipeTouchStartHandler: ((event: TouchEvent) => void) | null = null;
 	let edgeSwipeTouchMoveHandler: ((event: TouchEvent) => void) | null = null;
 	let edgeSwipeTouchEndHandler: ((event: TouchEvent) => void) | null = null;
+
+	function shouldPrimeGuestIntroChatBeforeMount(): boolean {
+		if (!browser || window.location.pathname !== '/') return false;
+		if (window.location.hash) return false;
+
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('og') === '1' || params.get('media') === '1') return false;
+
+		try {
+			if (localStorage.getItem(STAY_LOGGED_IN_FLAG) === 'true') return false;
+			if (sessionStorage.getItem('sessionToken')) return false;
+			if (sessionStorage.getItem('openmates_shared_chat_redirect')) return false;
+		} catch (error) {
+			console.debug('[+page.svelte] Could not inspect auth hints before mount:', error);
+			return false;
+		}
+
+		return true;
+	}
+
+	// Prime the public intro chat before ActiveChat's first client render. This mirrors
+	// direct #chat-id loads and avoids painting the new-chat screen for guest visitors.
+	if (shouldPrimeGuestIntroChatBeforeMount()) {
+		activeChatStore.setWithoutHashUpdate(DEFAULT_GUEST_INTRO_CHAT_ID);
+	}
 
 	function clampEdgeSwipeProgress(value: number): number {
 		return Math.min(1, Math.max(0, value));
