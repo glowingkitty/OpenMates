@@ -8,6 +8,10 @@ import { matesMetadata } from "../../../data/matesMetadata";
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
+import {
+  isInternalHashLink,
+  isRenderableInternalHref,
+} from "../../../utils/internalLinkValidation";
 // Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
 // over the LaTeX formula preservation for TipTap's Mathematics extension.
@@ -28,23 +32,6 @@ const defaultLinkRender =
   ((tokens, idx, options, env, self) => {
     return self.renderToken(tokens, idx, options);
   });
-
-/**
- * Check if a href is an internal hash-based link
- * Internal links include:
- * - #chat-id= or /#chat-id= - Chat deep links
- * - #settings/ or /#settings/ - Settings deep links (including app store)
- */
-function isInternalHashLink(href: string): boolean {
-  if (!href) return false;
-  const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
-  return (
-    normalizedHref.startsWith("#chat-id=") ||
-    normalizedHref.startsWith("#settings") ||
-    normalizedHref.includes("#chat-id=") ||
-    normalizedHref.includes("#settings/")
-  );
-}
 
 md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
@@ -855,6 +842,10 @@ function convertNodeToTiptap(node: Node): any {
       const target = element.getAttribute("target");
 
       if (href) {
+        if (!isRenderableInternalHref(href)) {
+          return content;
+        }
+
         // Check if this is an internal hash-based link (chat or settings deep links)
         const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
         const isInternal = isInternalHashLink(href);
