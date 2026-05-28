@@ -50,7 +50,8 @@
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
-  const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
+  // Temporarily disabled with the visit-cycling effect below.
+  // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
     'export-data',
     'incognito-mode',
@@ -114,8 +115,9 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
-  let visitCycleTargetIndexes = $state(new Map<string, number>());
-  let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
+  // Temporarily disabled with the visit-cycling effect below.
+  // let visitCycleTargetIndexes = $state(new Map<string, number>());
+  // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
   let manuallyNavigatedSetKeys = $state(new Set<string>());
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
@@ -261,18 +263,19 @@
     return () => window.clearInterval(interval);
   });
 
-  // Auto-rotate the filtered carousel while the banner is actually visible.
-  // Reading currentIndex resets the timer after manual navigation or automatic advance.
-  $effect(() => {
-    if (!hasMultiple || !isBannerVisible) return;
-
-    void currentIndex;
-    const interval = window.setInterval(() => {
-      goToVisibleIndex(currentIndex + 1);
-    }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
-
-    return () => window.clearInterval(interval);
-  });
+  // Temporarily disabled for live regression testing: startup interactivity broke
+  // after daily inspiration cycling changes, so remove automatic movement while
+  // preserving manual arrow/swipe navigation.
+  // $effect(() => {
+  //   if (!hasMultiple || !isBannerVisible) return;
+  //
+  //   void currentIndex;
+  //   const interval = window.setInterval(() => {
+  //     goToVisibleIndex(currentIndex + 1);
+  //   }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
+  //
+  //   return () => window.clearInterval(interval);
+  // });
 
   // ─── Derived values ─────────────────────────────────────────────────────────
 
@@ -329,30 +332,28 @@
   /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
   let inspirationSetKey = $derived.by(() => getInspirationSetKey(visibleInspirations));
 
-  // Each time the banner is mounted on the web app / new chat screen, pick the
-  // next inspiration for the loaded result set. Later IndexedDB/server/WS writes
-  // can reset the store's currentIndex to 0, so remember the target for this
-  // page load and re-apply it without advancing the persisted cursor again.
-  $effect(() => {
-    if (visibleInspirations.length <= 1) return;
-    if (!inspirationSetKey) return;
-    if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
-    if (visitCycleAppliedInspirations === visibleInspirations) return;
-
-    let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
-    if (targetIndex === undefined || targetIndex >= visibleInspirations.length) {
-      targetIndex = getNextVisitIndex(inspirationSetKey, visibleInspirations.length);
-      visitCycleTargetIndexes = new Map([
-        ...visitCycleTargetIndexes,
-        [inspirationSetKey, targetIndex],
-      ]);
-    }
-
-    visitCycleAppliedInspirations = visibleInspirations;
-    if (currentIndex !== targetIndex) {
-      currentIndex = targetIndex;
-    }
-  });
+  // Temporarily disabled for live regression testing: this effect both depends on
+  // and writes carousel state, and is a likely source of Svelte effect-depth loops.
+  // $effect(() => {
+  //   if (visibleInspirations.length <= 1) return;
+  //   if (!inspirationSetKey) return;
+  //   if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
+  //   if (visitCycleAppliedInspirations === visibleInspirations) return;
+  //
+  //   let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
+  //   if (targetIndex === undefined || targetIndex >= visibleInspirations.length) {
+  //     targetIndex = getNextVisitIndex(inspirationSetKey, visibleInspirations.length);
+  //     visitCycleTargetIndexes = new Map([
+  //       ...visitCycleTargetIndexes,
+  //       [inspirationSetKey, targetIndex],
+  //     ]);
+  //   }
+  //
+  //   visitCycleAppliedInspirations = visibleInspirations;
+  //   if (currentIndex !== targetIndex) {
+  //     currentIndex = targetIndex;
+  //   }
+  // });
 
   /**
    * Whether to show a video embed for the current inspiration.
@@ -609,23 +610,24 @@
     currentIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
   }
 
-  function getNextVisitIndex(setKey: string, count: number): number {
-    if (typeof window === 'undefined' || count <= 1) return 0;
-
-    const storageKey = `${VISIT_INDEX_STORAGE_PREFIX}${setKey}`;
-    try {
-      const rawValue = window.localStorage.getItem(storageKey);
-      const currentValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
-      const safeValue = Number.isFinite(currentValue) && currentValue >= 0 ? currentValue : 0;
-      const nextIndex = safeValue % count;
-
-      window.localStorage.setItem(storageKey, String((nextIndex + 1) % count));
-      return nextIndex;
-    } catch (err) {
-      console.error('[DailyInspirationBanner] Failed to persist visit cycling index:', err);
-      return 0;
-    }
-  }
+  // Temporarily disabled with the visit-cycling effect above.
+  // function getNextVisitIndex(setKey: string, count: number): number {
+  //   if (typeof window === 'undefined' || count <= 1) return 0;
+  //
+  //   const storageKey = `${VISIT_INDEX_STORAGE_PREFIX}${setKey}`;
+  //   try {
+  //     const rawValue = window.localStorage.getItem(storageKey);
+  //     const currentValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
+  //     const safeValue = Number.isFinite(currentValue) && currentValue >= 0 ? currentValue : 0;
+  //     const nextIndex = safeValue % count;
+  //
+  //     window.localStorage.setItem(storageKey, String((nextIndex + 1) % count));
+  //     return nextIndex;
+  //   } catch (err) {
+  //     console.error('[DailyInspirationBanner] Failed to persist visit cycling index:', err);
+  //     return 0;
+  //   }
+  // }
 
   function hashString(value: string): string {
     let hash = 0;
