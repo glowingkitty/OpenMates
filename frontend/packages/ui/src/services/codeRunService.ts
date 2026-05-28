@@ -36,6 +36,25 @@ export interface CodeRunDependencyInstall {
   packages: string[];
 }
 
+export interface CodeRunDependencyVersionOption {
+  version: string;
+  released_at?: string | null;
+}
+
+export interface CodeRunDependencySuggestion {
+  ecosystem: 'python' | 'npm';
+  import_name: string;
+  package: string;
+  latest_version: string;
+  latest_released_at?: string | null;
+  versions: CodeRunDependencyVersionOption[];
+  source: string;
+}
+
+export interface CodeRunPrepareResponse {
+  dependency_suggestions: CodeRunDependencySuggestion[];
+}
+
 export class CodeRunStartError extends Error {
   constructor(
     message: string,
@@ -106,6 +125,32 @@ export async function startCodeRun(
       );
     }
     throw new CodeRunStartError(detail || `Code run failed to start (${response.status})`, response.status);
+  }
+
+  return response.json();
+}
+
+export async function prepareCodeRun(
+  chatId: string,
+  targetEmbedId: string,
+  clientFiles: CodeRunClientFile[] = [],
+  selectedEmbedIds?: string[],
+): Promise<CodeRunPrepareResponse> {
+  const response = await fetch(`${getApiUrl()}/v1/code/run/prepare`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      target_embed_id: targetEmbedId,
+      client_files: clientFiles,
+      ...(selectedEmbedIds ? { selected_embed_ids: selectedEmbedIds } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.detail || `Code run preparation failed (${response.status})`);
   }
 
   return response.json();

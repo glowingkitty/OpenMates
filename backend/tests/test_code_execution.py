@@ -27,6 +27,7 @@ from backend.core.api.app.routes.code_execution import (
     _collect_code_files,
     _dependency_installs_from_install_snippets,
     _execution_key,
+    _infer_import_packages,
     _merge_dependency_installs,
     _safe_filename,
     _validate_dependency_manifest,
@@ -498,6 +499,38 @@ def test_dependency_installs_ignore_complex_shell_snippets() -> None:
     ])
 
     assert installs == []
+
+
+def test_infer_import_packages_maps_python_imports_and_ignores_stdlib() -> None:
+    inferred = _infer_import_packages([
+        {
+            "path": "main.py",
+            "language": "python",
+            "content": "import os, json\nimport requests\nfrom sklearn.model_selection import train_test_split\nfrom PIL import Image\n",
+        }
+    ])
+
+    assert inferred == [
+        ("python", "requests", "requests", "main.py"),
+        ("python", "sklearn", "scikit-learn", "main.py"),
+        ("python", "PIL", "Pillow", "main.py"),
+    ]
+
+
+def test_infer_import_packages_normalizes_javascript_packages() -> None:
+    inferred = _infer_import_packages([
+        {
+            "path": "main.ts",
+            "language": "typescript",
+            "content": "import axios from 'axios';\nconst _ = require('lodash/fp');\nimport fs from 'node:fs';\nimport timers from 'timers/promises';\nimport local from './local';\nimport { createClient } from '@supabase/supabase-js';\n",
+        }
+    ])
+
+    assert inferred == [
+        ("npm", "axios", "axios", "main.ts"),
+        ("npm", "lodash/fp", "lodash", "main.ts"),
+        ("npm", "@supabase/supabase-js", "@supabase/supabase-js", "main.ts"),
+    ]
 
 
 def test_merge_dependency_installs_deduplicates_client_and_snippet_packages() -> None:

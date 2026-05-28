@@ -195,6 +195,30 @@ run.detected_install_command:
   de: Erkannter Installationsbefehl
   verified_by_human: [en, de]
 
+run.install_detected_package:
+  context: Code Run dependency checklist option for a package detected from an import statement
+  en: "Install {package}"
+  de: "{package} installieren"
+  verified_by_human: [en, de]
+
+run.detected_import_latest_release:
+  context: Subtitle for a dependency option detected from an import statement, with latest version and release date
+  en: "Detected from import {importName} · latest {version} released {releaseDate}"
+  de: "Aus Import {importName} erkannt · neueste Version {version}, veröffentlicht am {releaseDate}"
+  verified_by_human: [en, de]
+
+run.detected_import_latest:
+  context: Subtitle for a dependency option detected from an import statement, with latest version but no release date
+  en: "Detected from import {importName} · latest {version}"
+  de: "Aus Import {importName} erkannt · neueste Version {version}"
+  verified_by_human: [en, de]
+
+run.version:
+  context: Label for selecting a package version before a Code Run starts
+  en: Version
+  de: Version
+  verified_by_human: [en, de]
+
 run.stop:
   context: Button label for cancelling an active Code Run execution
   en: Stop
