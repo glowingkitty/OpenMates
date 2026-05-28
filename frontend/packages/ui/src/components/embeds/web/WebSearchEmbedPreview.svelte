@@ -489,14 +489,9 @@
               <!-- Child embeds are being fetched — show loading instead of confusing "0 results" -->
               <span class="no-results-text">{$text('common.loading')}</span>
             {:else}
-              <!-- Search completed but returned zero results — show clear indication.
-                   Prefer the query-specific variant when the query is known (OPE-405). -->
+              <!-- Search completed but returned zero results — the query is already shown above. -->
               <span class="no-results-text" data-testid="search-no-results-message">
-                {#if localQuery}
-                  {$text('embeds.search_no_results_for_query').replace('{query}', localQuery)}
-                {:else}
-                  {$text('embeds.search_no_results')}
-                {/if}
+                {$text('embeds.search_no_results')}
               </span>
             {/if}
           {:else}
@@ -653,4 +648,3 @@
     mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>
-
