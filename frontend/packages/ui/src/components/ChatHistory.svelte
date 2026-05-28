@@ -2120,7 +2120,7 @@
             {/if}
 
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
-                <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
+                <div class="follow-up-suggestions-wrapper" transition:fade={{ duration: 120 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
                         messageInputContent=""

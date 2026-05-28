@@ -238,6 +238,7 @@ test.describe('Unauthenticated app load', () => {
 		const followUpSuggestion = page.getByTestId('follow-up-suggestion-item').first();
 		await expect(followUpSuggestion).toBeVisible({ timeout: 10000 });
 		await followUpSuggestion.click();
+		await expect(page.getByTestId('follow-up-suggestion-item')).toHaveCount(0, { timeout: 1000 });
 
 		await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });

@@ -2093,6 +2093,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     const SUGGESTION_MENTION_INSERT_DELAY_MS = 0;
+    const FOLLOW_UP_SUGGESTION_KEY_SEPARATOR = '\u001f';
 
     // Handler for suggestion click - copies suggestion to message input.
     // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
@@ -2126,6 +2127,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
         console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+        dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
+
         if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
             window.dispatchEvent(new CustomEvent('openSignupInterface'));
             return;
@@ -4346,6 +4349,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    let dismissedFollowUpSuggestionsKey = $state<string | null>(null);
+
+    let followUpSuggestionsKey = $derived.by(() => {
+        if (!currentChat?.chat_id || followUpSuggestions.length === 0) return null;
+        return `${currentChat.chat_id}:${followUpSuggestions.join(FOLLOW_UP_SUGGESTION_KEY_SEPARATOR)}`;
+    });
+
     let quickTipSlugs = $state<string[]>([]);
     
     // Track settings/memories suggestions for the current chat
@@ -4728,7 +4738,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // assistant message without the user having to click the input first.
     let followUpSuggestionsEnabled = $derived($userProfile.follow_up_suggestions_enabled !== false);
     let showFollowUpSuggestions = $derived(
-        followUpSuggestionsEnabled && !showWelcome && followUpSuggestions.length > 0 && !(currentChat && isLegalChat(currentChat.chat_id))
+        followUpSuggestionsEnabled &&
+        !showWelcome &&
+        followUpSuggestions.length > 0 &&
+        followUpSuggestionsKey !== dismissedFollowUpSuggestionsKey &&
+        !(currentChat && isLegalChat(currentChat.chat_id))
     );
 
     // Load and refresh the active focus ID whenever the current chat changes.
