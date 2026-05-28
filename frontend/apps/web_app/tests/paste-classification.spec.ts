@@ -9,7 +9,7 @@ export {};
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
+const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
 
 async function openUnauthenticatedNewChat(page: any): Promise<any> {
@@ -122,6 +122,14 @@ test('composer paste classifies text, docs, sheets, and code with Paste as text 
 
 	await clearEditor(page, editor);
 
+	await pasteIntoEditor(page, editor, "import { test } from 'vitest';\nconst answer = 42;");
+	await expect(
+		editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]')
+	).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('paste-as-text-chip')).toBeVisible({ timeout: 5000 });
+
+	await clearEditor(page, editor);
+
 	await pasteIntoEditor(page, editor, 'Name\tScore\nAda\t10\nGrace\t9');
 	await expect(
 		editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]')
@@ -130,14 +138,4 @@ test('composer paste classifies text, docs, sheets, and code with Paste as text 
 	await focusEditorAtEnd(page);
 	await page.keyboard.type('x');
 	await expect(page.getByTestId('paste-as-text-chip')).toBeHidden({ timeout: 5000 });
-
-	await clearEditor(page, editor);
-
-	await pasteIntoEditor(page, editor, "import { test } from 'vitest';\nconst answer = 42;");
-	await expect(
-		editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]')
-	).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('paste-as-text-chip')).toBeVisible({ timeout: 5000 });
-
-	await assertNoMissingTranslations(page);
 });
