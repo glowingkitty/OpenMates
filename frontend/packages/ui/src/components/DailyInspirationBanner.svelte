@@ -190,7 +190,14 @@
     // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
+
+    const autoRotationInterval = window.setInterval(() => {
+      if (!isBannerVisible || visibleInspirations.length <= 1) return;
+      goToVisibleIndex(currentIndex + 1);
+    }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
+
     return () => {
+      window.clearInterval(autoRotationInterval);
       pointerQuery.removeEventListener('change', updatePointerCta);
       window.removeEventListener('language-changed-complete', handleLanguageChange);
     };
@@ -262,20 +269,6 @@
 
     return () => window.clearInterval(interval);
   });
-
-  // Temporarily disabled for live regression testing: startup interactivity broke
-  // after daily inspiration cycling changes, so remove automatic movement while
-  // preserving manual arrow/swipe navigation.
-  // $effect(() => {
-  //   if (!hasMultiple || !isBannerVisible) return;
-  //
-  //   void currentIndex;
-  //   const interval = window.setInterval(() => {
-  //     goToVisibleIndex(currentIndex + 1);
-  //   }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
-  //
-  //   return () => window.clearInterval(interval);
-  // });
 
   // ─── Derived values ─────────────────────────────────────────────────────────
 
