@@ -335,13 +335,22 @@ test.describe('Unauthenticated app load', () => {
 		const phrase = page.getByTestId('daily-inspiration-phrase');
 		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
 
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 25000 });
+		// Speed up the actual progress animation so this test verifies the
+		// animationend-driven carousel path without waiting for the 20s production duration.
+		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
+			el.style.setProperty('--carousel-progress-duration', '250ms');
+		});
+
+		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
 
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect(phrase).toHaveText('Cycling inspiration three', { timeout: 3000 });
-		await page.waitForTimeout(11000);
+		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
+			el.style.setProperty('--carousel-progress-duration', '250ms');
+		});
+		await page.waitForTimeout(500);
 		await expect(phrase).toHaveText('Cycling inspiration three');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 14000 });
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
 	});
 
 	test('desktop welcome carousel opens example chats without runtime errors', async ({

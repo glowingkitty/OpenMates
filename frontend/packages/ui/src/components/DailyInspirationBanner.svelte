@@ -852,6 +852,7 @@
         {#if isBannerVisible}
           <div
             class="carousel-progress"
+            data-testid="daily-inspiration-carousel-progress"
             style={`--carousel-progress-duration: ${INSPIRATION_AUTO_ROTATION_INTERVAL_MS}ms`}
             aria-hidden="true"
           >
