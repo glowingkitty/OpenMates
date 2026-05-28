@@ -10,8 +10,10 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const PAGES_DIR = '.svelte-kit/output/prerendered/pages';
+const SITEMAP_SERVER_ENTRY = '.svelte-kit/output/server/entries/endpoints/sitemap.xml/_server.ts.js';
 const MIN_TRANSCRIPT_WORDS = 120;
 
 function walkHtmlFiles(dir) {
@@ -105,6 +107,29 @@ function auditExamplePage(filePath) {
 	return errors.map((error) => `${relPath}: ${error}`);
 }
 
+async function auditSitemap(exampleFiles) {
+	if (!existsSync(SITEMAP_SERVER_ENTRY)) {
+		return [`Compiled sitemap endpoint missing: ${SITEMAP_SERVER_ENTRY}`];
+	}
+
+	const { GET } = await import(pathToFileURL(join(process.cwd(), SITEMAP_SERVER_ENTRY)).href);
+	const response = await GET({ url: new URL('https://openmates.org/sitemap.xml') });
+	const sitemapXml = await response.text();
+	const errors = [];
+
+	for (const filePath of exampleFiles) {
+		const slug = relative(join(PAGES_DIR, 'example'), filePath).replace(/\.html$/, '');
+		const entryPattern = new RegExp(
+			`<loc>https://openmates\\.org/example/${slug}</loc>\\s*<lastmod>\\d{4}-\\d{2}-\\d{2}</lastmod>`
+		);
+		if (!entryPattern.test(sitemapXml)) {
+			errors.push(`/example/${slug} missing from sitemap with lastmod`);
+		}
+	}
+
+	return errors;
+}
+
 if (!existsSync(PAGES_DIR)) {
 	throw new Error(`Prerender output missing: ${PAGES_DIR}`);
 }
@@ -119,6 +144,7 @@ if (exampleFiles.length === 0) {
 }
 
 const errors = exampleFiles.flatMap(auditExamplePage);
+errors.push(...(await auditSitemap(exampleFiles)));
 
 if (errors.length > 0) {
 	console.error('Example chat SEO audit failed:');
@@ -129,3 +155,7 @@ if (errors.length > 0) {
 }
 
 console.log(`Example chat SEO audit passed for ${exampleFiles.length} pages.`);
+// Importing the compiled SvelteKit sitemap endpoint also imports app-level
+// modules that register timers/WebSocket handlers. End explicitly so the audit
+// remains a deterministic build gate instead of hanging on open handles.
+process.exit(0);
