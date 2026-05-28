@@ -351,6 +351,13 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForTimeout(500);
 		await expect(phrase).toHaveText('Cycling inspiration three');
 		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+
+		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
+			el.style.setProperty('--carousel-progress-duration', '250ms');
+		});
+		await page.getByTestId('daily-inspiration-banner').click();
+		await page.waitForTimeout(500);
+		await expect(phrase).toHaveText('Cycling inspiration one');
 	});
 
 	test('desktop welcome carousel opens example chats without runtime errors', async ({

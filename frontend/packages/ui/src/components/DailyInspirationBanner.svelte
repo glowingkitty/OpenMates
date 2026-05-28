@@ -421,7 +421,9 @@
     e.stopPropagation();
     e.preventDefault();
     markManualNavigation();
+    resumeAutoRotation();
     goToVisibleIndex(currentIndex - 1);
+    restartProgressAnimation();
   }
 
   /**
@@ -432,7 +434,9 @@
     e.stopPropagation();
     e.preventDefault();
     markManualNavigation();
+    resumeAutoRotation();
     goToVisibleIndex(currentIndex + 1);
+    restartProgressAnimation();
   }
 
   function handleTouchStart(e: TouchEvent) {
@@ -467,8 +471,10 @@
     markManualNavigation();
 
     if (deltaX < 0) {
+      resumeAutoRotation();
       goToVisibleIndex(currentIndex + 1);
     } else {
+      resumeAutoRotation();
       goToVisibleIndex(currentIndex - 1);
     }
   }
@@ -519,14 +525,16 @@
     onStartChat(current);
   }
 
-  function handleInteractionStart() {
-    isUserInteracting = true;
+  function handleBannerPointerDown(e: PointerEvent) {
+    if (e.pointerType === 'touch') return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (target?.closest('.carousel-arrow, .banner-embed-wrapper')) return;
+    isOpeningInspiration = true;
   }
 
-  function handleInteractionEnd() {
-    if (!isUserInteracting) return;
+  function resumeAutoRotation() {
+    isOpeningInspiration = false;
     isUserInteracting = false;
-    restartProgressAnimation();
   }
 
   function restartProgressAnimation() {
@@ -699,10 +707,7 @@
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
-      onpointerdown={handleInteractionStart}
-      onpointerup={handleInteractionEnd}
-      onpointercancel={handleInteractionEnd}
-      onpointerleave={handleInteractionEnd}
+      onpointerdown={handleBannerPointerDown}
       ontouchstart={handleTouchStart}
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
@@ -849,7 +854,7 @@
            of the full-width card, not constrained by the 680px inner width.
            z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
-        {#if isBannerVisible}
+        {#if isBannerVisible && !isOpeningInspiration}
           <div
             class="carousel-progress"
             data-testid="daily-inspiration-carousel-progress"
