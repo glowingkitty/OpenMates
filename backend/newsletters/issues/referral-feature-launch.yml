@@ -1,0 +1,25 @@
+slug: referral-feature-launch
+kind: announcements
+category: updates_and_announcements
+demo_chat_category: news
+chat_id: announcements-referral-feature-launch
+subject:
+  en: Invite friends to OpenMates and get free credits
+  de: Lade Freund:innen zu OpenMates ein und erhalte Gratis-Credits
+title:
+  en: Invite friends and get free OpenMates credits
+  de: Lade Freund:innen ein und erhalte Gratis-Credits
+subtitle:
+  en: The new referral feature is now available
+  de: Die neue Empfehlungsfunktion ist jetzt verfügbar
+cta_url: https://openmates.org/#settings/billing/referral-code
+cta_text:
+  en: Open your referral code
+  de: Empfehlungscode öffnen
+body_i18n_key: demo_chats.announcements_referral_feature_launch.message
+video: null
+hero_image: null
+header_icon:
+  path: backend/core/api/templates/email/components/icons/gift.svg
+  alt: Gift icon
+sent_at: null

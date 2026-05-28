@@ -265,6 +265,7 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
         # URLs for a standalone thumbnail. Missing → no video in email.
         "video": _build_video_section(meta.get("video")) if meta.get("video") else None,
         "hero_image": meta.get("hero_image"),
+        "header_icon": meta.get("header_icon"),
         # Empty until send_newsletter.py broadcasts this issue. Prevents
         # accidental double-sends without an explicit --resend-confirm flag.
         "sent_at": None,
