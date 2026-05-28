@@ -1122,6 +1122,7 @@ class BatchRunner:
             copied_videos.append(video_name)
 
         copied_screenshots: list[str] = []
+        screenshot_records: list[dict[str, str]] = []
         for src in sorted(screenshot_sources, key=lambda p: p.name):
             target = screenshots_dest / src.name
             if target.exists():
@@ -1129,7 +1130,9 @@ class BatchRunner:
                 suffix = target.suffix
                 target = screenshots_dest / f"{stem}-{hashlib.sha1(str(src).encode()).hexdigest()[:8]}{suffix}"
             shutil.copy2(src, target)
-            copied_screenshots.append(f"screenshots/{target.name}")
+            copied_name = f"screenshots/{target.name}"
+            copied_screenshots.append(copied_name)
+            screenshot_records.append({"file": copied_name, "source": src.as_posix()})
 
         thumbnail = None
         step_screenshots = [p for p in copied_screenshots if "test-failed" not in p.lower()]
@@ -1150,6 +1153,7 @@ class BatchRunner:
             "slug": slug,
             "video_files": copied_videos,
             "screenshot_files": copied_screenshots,
+            "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
         }
         (dest / "artifact-meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -3666,6 +3670,7 @@ class TestRecordingPublisher:
         video_file = (artifact_meta.get("video_files") or [None])[0]
         thumbnail_file = artifact_meta.get("thumbnail_file")
         screenshot_files = artifact_meta.get("screenshot_files") or []
+        screenshot_records = artifact_meta.get("screenshot_records") or []
 
         safe_name = spec.replace("/", "-").replace("\\", "-")
         md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
@@ -3676,7 +3681,7 @@ class TestRecordingPublisher:
             report_file = "report.md"
             shutil.copy2(report_source, bundle_dir / report_file)
 
-        steps = self._build_steps(bundle_dir, test, slug)
+        steps = self._build_steps(bundle_dir, test, slug, screenshot_files, screenshot_records)
         assets = self._build_assets(slug, video_file, thumbnail_file, report_file, screenshot_files)
 
         return {
@@ -3703,29 +3708,56 @@ class TestRecordingPublisher:
         except (json.JSONDecodeError, OSError):
             return None
 
-    def _build_steps(self, bundle_dir: Path, test: dict, slug: str) -> list[dict]:
+    def _build_steps(
+        self,
+        bundle_dir: Path,
+        test: dict,
+        slug: str,
+        screenshot_files: list[str],
+        screenshot_records: list[dict],
+    ) -> list[dict]:
         step_log = self._read_json(bundle_dir / "step-log.json")
         if isinstance(step_log, list) and step_log:
             return self._steps_from_log(step_log, slug)
-        return self._steps_from_playwright(test)
+        playwright_steps = self._steps_from_playwright(test)
+        if playwright_steps:
+            return playwright_steps
+        json_steps = self._steps_from_playwright_json(
+            bundle_dir / "playwright.json", slug, screenshot_files, screenshot_records
+        )
+        if json_steps:
+            return json_steps
+        return self._steps_from_screenshots(slug, screenshot_files)
 
     @staticmethod
     def _steps_from_log(step_log: list[dict], slug: str) -> list[dict]:
         first_ts = None
         steps: list[dict] = []
+        noise_prefixes = ("Captured step screenshot", "Archived prior screenshots")
         for entry in step_log:
+            entry_type = entry.get("type", "checkpoint")
+            message = entry.get("message", "")
+            if entry_type == "checkpoint" and message.startswith(noise_prefixes):
+                continue
+
             timestamp = entry.get("timestamp")
             if timestamp and first_ts is None:
                 first_ts = timestamp
             video_time = _seconds_between(first_ts, timestamp) if first_ts and timestamp else None
+            screenshot = entry.get("screenshot")
+
+            if entry_type == "screenshot" and screenshot and steps:
+                steps[-1]["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}"
+                steps[-1]["screenshot_file"] = f"screenshots/{screenshot}"
+                continue
+
             step = {
-                "index": entry.get("index", len(steps) + 1),
-                "type": entry.get("type", "checkpoint"),
-                "title": entry.get("message", ""),
+                "index": len(steps) + 1,
+                "type": entry_type,
+                "title": message if message and not message.startswith(noise_prefixes) else f"Screenshot {len(steps) + 1}",
                 "timestamp": timestamp,
                 "video_time_seconds": video_time,
             }
-            screenshot = entry.get("screenshot")
             if screenshot:
                 step["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}"
                 step["screenshot_file"] = f"screenshots/{screenshot}"
@@ -3748,6 +3780,102 @@ class TestRecordingPublisher:
                 "error": step.get("error"),
             })
             elapsed += duration_s
+        return steps
+
+    @classmethod
+    def _steps_from_playwright_json(
+        cls,
+        playwright_json: Path,
+        slug: str,
+        screenshot_files: list[str],
+        screenshot_records: list[dict],
+    ) -> list[dict]:
+        data = cls._read_json(playwright_json)
+        if not isinstance(data, dict):
+            return []
+
+        results: list[dict] = []
+
+        def walk_suite(suite: dict) -> None:
+            for spec in suite.get("specs", []):
+                title = spec.get("title") or spec.get("file") or "Playwright test"
+                for test in spec.get("tests", []):
+                    for result in test.get("results", []):
+                        results.append({"title": title, "result": result})
+            for child in suite.get("suites", []):
+                walk_suite(child)
+
+        for suite in data.get("suites", []):
+            if isinstance(suite, dict):
+                walk_suite(suite)
+
+        if not results:
+            return []
+
+        first_start = next(
+            (item["result"].get("startTime") for item in results if item["result"].get("startTime")),
+            None,
+        )
+        steps = []
+        for index, item in enumerate(results, start=1):
+            result = item["result"]
+            duration_s = round(float(result.get("duration", 0)) / 1000, 2)
+            step: dict = {
+                "index": index,
+                "type": "playwright_test",
+                "title": item["title"],
+                "status": result.get("status"),
+                "duration_seconds": duration_s,
+                "timestamp": result.get("startTime"),
+                "video_time_seconds": _seconds_between(first_start, result.get("startTime")),
+            }
+            error = result.get("error")
+            if error:
+                step["error"] = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+            screenshot_file = cls._screenshot_for_playwright_result(
+                result, screenshot_files, screenshot_records, index - 1
+            )
+            if screenshot_file:
+                step["screenshot_file"] = screenshot_file
+                step["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/{screenshot_file}"
+            steps.append(step)
+        return steps
+
+    @staticmethod
+    def _screenshot_for_playwright_result(
+        result: dict,
+        screenshot_files: list[str],
+        screenshot_records: list[dict],
+        fallback_index: int,
+    ) -> Optional[str]:
+        attachment_path = None
+        for attachment in result.get("attachments", []):
+            if str(attachment.get("contentType", "")).startswith("image/"):
+                attachment_path = attachment.get("path")
+                break
+
+        if attachment_path:
+            for record in screenshot_records:
+                source = record.get("source", "") if isinstance(record, dict) else ""
+                if source == attachment_path or source.endswith(str(attachment_path).split("test-results/", 1)[-1]):
+                    return record.get("file")
+
+        if fallback_index < len(screenshot_files):
+            return screenshot_files[fallback_index]
+        return None
+
+    @staticmethod
+    def _steps_from_screenshots(slug: str, screenshot_files: list[str]) -> list[dict]:
+        steps = []
+        for index, screenshot_file in enumerate(screenshot_files, start=1):
+            label = Path(screenshot_file).stem.replace("-", " ").title()
+            steps.append({
+                "index": index,
+                "type": "screenshot",
+                "title": label,
+                "screenshot_file": screenshot_file,
+                "screenshot_key": f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/{screenshot_file}",
+            })
         return steps
 
     @staticmethod
