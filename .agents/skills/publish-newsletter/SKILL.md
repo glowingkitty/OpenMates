@@ -29,6 +29,19 @@ Or the user may just describe which newsletter to publish — infer the folder n
 
 ## Steps
 
+### Newsletter Content Rules
+
+Follow these rules before publishing or sending a test email:
+
+- The email/content header `title` in frontmatter must not contain `OpenMates`. `OpenMates` is fine in the `subject` and body text, but not in visible headings such as `OpenMates v0.11: ...` because it can cause email header formatting issues. Prefer `v0.11: Code tools, daily inspirations & new media providers`.
+- Announcements must emphasize useful features and practical daily-life/work use cases. Avoid centering the announcement around debugging, test fixes, or generic stability work.
+- Stability and performance work may be mentioned only briefly, using a short sentence like `Improved stability and performance in chat sync, embeds, and file previews.` Do not list debugging, E2E, or internal implementation details.
+- Do not duplicate standalone announcements. If a feature such as referrals has its own announcement/newsletter, remove it from the release announcement except for a very short cross-reference if the user explicitly asks.
+- Avoid vague headings such as `More creative media tools`. Name the actual user-facing additions: new models, new providers, new generation modes, new supported media types, or concrete workflows.
+- Do not call design-only changes new features. For example, if follow-up suggestions already existed and only the design changed, describe it as a design/presentation improvement or omit it.
+- Remove unclear claims such as `improved Stripe checkout` unless the user-facing change is specific and verifiable.
+- Announcement web-app posts should show `Published ...`, not `Started ...`, including older generated posts such as v0.9.
+
 ### 1. Resolve campaign folder
 
 List available campaigns and confirm the target folder:

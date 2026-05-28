@@ -744,6 +744,7 @@
     chatSummary = null,
     chatHeaderRenderKey = 0,
     chatCreatedAt = null,
+    chatTimeLabel = 'started',
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
     isCreditsRestored = false,
@@ -779,8 +780,10 @@
     chatSummary?: string | null;
     /** Incremented by ActiveChat when fullscreen layout changes require a clean header repaint. */
     chatHeaderRenderKey?: number;
-    /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
+    /** Unix timestamp in seconds of when the chat was created or published. */
     chatCreatedAt?: number | null;
+    /** Label variant for the timestamp line in the header banner. */
+    chatTimeLabel?: 'started' | 'published';
     /** True while the server is still generating the title/category/icon for a new chat.
      *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
@@ -1968,6 +1971,7 @@
                 icon={chatIcon}
                 summary={chatSummary}
                 {chatCreatedAt}
+                {chatTimeLabel}
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}

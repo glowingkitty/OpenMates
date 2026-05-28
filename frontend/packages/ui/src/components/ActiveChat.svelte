@@ -11122,8 +11122,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatIcon={activeChatDecryptedIcon}
                          chatSummary={activeChatDecryptedSummary}
                          {chatHeaderRenderKey}
-                          chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : activePublicChatCreatedAt}
-                         {isNewChatGeneratingTitle}
+                           chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : activePublicChatCreatedAt}
+                          chatTimeLabel={currentChat && isPublicChat(currentChat.chat_id) ? 'published' : 'started'}
+                          {isNewChatGeneratingTitle}
                          {isNewChatCreditsError}
                          {isCreditsRestored}
                           isIncognito={!!currentChat?.is_incognito}

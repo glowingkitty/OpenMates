@@ -418,7 +418,7 @@ def write_i18n_yml(inputs: Dict[str, Any]) -> Path:
     # complete for ``getNewsletterChatBySlug`` and the translation build.
     de = bodies.get("de") or bodies["en"]
     en = bodies["en"]
-    title_block = _block("title", en["subject"], de["subject"])
+    title_block = _block("title", en["title"], de["title"])
     description_block = _block(
         "description",
         en["subtitle"] or en["subject"],

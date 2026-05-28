@@ -987,6 +987,30 @@ header.started_date:
   sv: "Startad {date}, {time}"
   he: "התחיל ב-{date}, {time}"
   verified_by_human: []
+header.published_date:
+  context: Publication time shown in public announcement chat headers. {date} is YYYY/MM/DD, {time} is HH:MM
+  en: "Published {date}, {time}"
+  de: "Veröffentlicht {date}, {time}"
+  zh: "Published {date}, {time}"
+  es: "Published {date}, {time}"
+  fr: "Published {date}, {time}"
+  pt: "Published {date}, {time}"
+  ru: "Published {date}, {time}"
+  ja: "Published {date}, {time}"
+  ko: "Published {date}, {time}"
+  it: "Published {date}, {time}"
+  tr: "Published {date}, {time}"
+  vi: "Published {date}, {time}"
+  id: "Published {date}, {time}"
+  pl: "Published {date}, {time}"
+  nl: "Published {date}, {time}"
+  ar: "Published {date}, {time}"
+  hi: "Published {date}, {time}"
+  th: "Published {date}, {time}"
+  cs: "Published {date}, {time}"
+  sv: "Published {date}, {time}"
+  he: "Published {date}, {time}"
+  verified_by_human: []
 header.minutes_ago:
   context: Relative time shown in chat header banner when chat was created within last 10 minutes. {count} is the number of minutes
   en: "{count} min ago"
