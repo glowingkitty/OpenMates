@@ -384,6 +384,7 @@
     interface AutoConvertedPasteCandidate {
         embedId: string;
         text: string;
+        baselineText: string;
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
@@ -542,13 +543,9 @@
             return;
         }
 
-        const textAfterEmbed = editor.state.doc.textBetween(
-            match.pos + match.node.nodeSize,
-            editor.state.doc.content.size,
-            '\n',
-            '\n'
-        );
-        if (textAfterEmbed.trim().length > 0) {
+        const currentText = editor.getText().trim();
+        const baselineText = autoConvertedPasteCandidate.baselineText.trim();
+        if (currentText !== baselineText && currentText.length > baselineText.length) {
             autoConvertedPasteCandidate = null;
         }
     }
@@ -598,7 +595,7 @@
             try {
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 editor.commands.focus('end');
-                autoConvertedPasteCandidate = { embedId, text: originalText };
+                autoConvertedPasteCandidate = { embedId, text: originalText, baselineText: editor.getText() };
             } finally {
                 isConvertingEmbeds = false;
             }
@@ -655,7 +652,7 @@
 
         editor.commands.insertContent(' ');
         editor.commands.focus('end');
-        autoConvertedPasteCandidate = { embedId, text };
+        autoConvertedPasteCandidate = { embedId, text, baselineText: editor.getText() };
         hasContent = !isContentEmptyExceptMention(editor);
     }
 
