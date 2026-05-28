@@ -9,7 +9,9 @@
 //     - Each individual example chat SEO page (/example/{slug})
 //     - Intro chat SEO pages (/intro/{slug})
 //     - Public event pages (/events/{slug})
-//     - Documentation pages (/docs/{slug})
+//
+//   Documentation pages are intentionally excluded for now. Add /docs back to
+//   the sitemap once the docs web UI and content are cleaned up for public SEO.
 //
 //   Example chats are hardcoded in the frontend — no backend API calls needed.
 //
@@ -18,8 +20,6 @@
 
 import type { RequestHandler } from './$types';
 import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS, getAllOpenMatesEvents } from '@repo/ui';
-import docsData from '$lib/generated/docs-data.json';
-import type { DocFolder, DocStructure } from '$lib/types/docs';
 
 export const prerender = false; // SSR so the sitemap always reflects the current build
 
@@ -131,23 +131,9 @@ export const GET: RequestHandler = async ({ url }) => {
     <priority>0.8</priority>
   </url>`);
 
-	// Documentation pages from statically bundled docs-data.json
-	const docsUrls: string[] = [];
-	function collectDocSlugs(folder: DocFolder | DocStructure) {
-		for (const file of folder.files) {
-			docsUrls.push(`  <url>\n    <loc>${siteOrigin}/docs/${file.slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
-		}
-		for (const sub of folder.folders) {
-			collectDocSlugs(sub);
-		}
-	}
-	collectDocSlugs(docsData.structure as DocStructure);
-	docsUrls.unshift(`  <url>\n    <loc>${siteOrigin}/docs</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`);
-
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${staticUrls.join('\n')}
-${docsUrls.join('\n')}
 ${legalUrls.join('\n')}
 ${exampleUrls.join('\n')}
 ${newsletterUrls.join('\n')}

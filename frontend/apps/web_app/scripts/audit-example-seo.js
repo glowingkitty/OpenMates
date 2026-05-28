@@ -6,7 +6,7 @@
 // adding another parser dependency to the web app build.
 //
 // Fails on unresolved i18n keys, duplicate SEO tags, missing JSON-LD, missing
-// canonicals, or thin example transcript content.
+// canonicals, sitemap drift, or thin example transcript content.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -50,6 +50,10 @@ function assertCount(errors, label, html, pattern, expected) {
 	}
 }
 
+function graphNode(jsonLd, type) {
+	return jsonLd['@graph']?.find((node) => node?.['@type'] === type);
+}
+
 function auditExamplePage(filePath) {
 	const html = readFileSync(filePath, 'utf8');
 	const relPath = relative(process.cwd(), filePath);
@@ -90,14 +94,26 @@ function auditExamplePage(filePath) {
 	if (jsonLdMatch) {
 		try {
 			const jsonLd = JSON.parse(jsonLdMatch[1]);
-			if (jsonLd['@type'] !== 'Article') {
-				errors.push(`JSON-LD @type is ${jsonLd['@type']}, expected Article`);
+			const qaPage = graphNode(jsonLd, 'QAPage');
+			const breadcrumb = graphNode(jsonLd, 'BreadcrumbList');
+
+			if (!qaPage) {
+				errors.push('JSON-LD @graph is missing QAPage');
 			}
-			if (!jsonLd.headline || !jsonLd.description || !jsonLd.mainEntityOfPage?.['@id']) {
-				errors.push('JSON-LD is missing headline, description, or mainEntityOfPage @id');
+			if (!qaPage?.name || !qaPage?.description || !qaPage?.url || !qaPage?.['@id']) {
+				errors.push('QAPage JSON-LD is missing name, description, url, or @id');
 			}
-			if (!jsonLd.dateModified) {
-				errors.push('JSON-LD is missing dateModified');
+			if (!qaPage?.dateModified) {
+				errors.push('QAPage JSON-LD is missing dateModified');
+			}
+			if (!Array.isArray(qaPage?.mainEntity) || qaPage.mainEntity.length === 0) {
+				errors.push('QAPage JSON-LD is missing question/answer mainEntity entries');
+			}
+			if (!breadcrumb) {
+				errors.push('JSON-LD @graph is missing BreadcrumbList');
+			}
+			if (!Array.isArray(breadcrumb?.itemListElement) || breadcrumb.itemListElement.length < 3) {
+				errors.push('BreadcrumbList JSON-LD is missing expected hierarchy');
 			}
 		} catch (error) {
 			errors.push(`JSON-LD is not valid JSON: ${error.message}`);
@@ -125,6 +141,10 @@ async function auditSitemap(exampleFiles) {
 		if (!entryPattern.test(sitemapXml)) {
 			errors.push(`/example/${slug} missing from sitemap with lastmod`);
 		}
+	}
+
+	if (sitemapXml.includes('<loc>https://openmates.org/docs')) {
+		errors.push('/docs URLs should stay excluded from sitemap until docs are SEO-ready');
 	}
 
 	return errors;
