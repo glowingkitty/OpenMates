@@ -226,6 +226,15 @@
         return messageInputHasContent && draftState.currentChatId === chatId;
     }
 
+    function hasMeaningfulTiptapContent(node: unknown): boolean {
+        if (!node || typeof node !== 'object') return false;
+        const record = node as Record<string, unknown>;
+        if (record.type === 'text' && typeof record.text === 'string' && record.text.trim()) return true;
+        if (record.type === 'embed') return true;
+        const children = record.content;
+        return Array.isArray(children) && children.some(hasMeaningfulTiptapContent);
+    }
+
     type EmbedDecodedContent = Record<string, unknown> & {
         app_id?: string;
         skill_id?: string;
@@ -8526,7 +8535,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
-                            
+                            if (!hasMeaningfulTiptapContent(draftContentJSON) && shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                console.debug(`[ActiveChat] Preserving live draft for ${currentChat.chat_id}; decrypted draft parsed empty while upload is still finalizing`);
+                                return;
+                            }
+                             
                             setTimeout(() => {
                                 if (!messageInputFieldRef) return;
                                 // Pass the decrypted and parsed TipTap JSON content

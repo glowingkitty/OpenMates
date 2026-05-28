@@ -376,7 +376,7 @@
         }
     });
 
-    const PLACEHOLDER_CYCLE_MS = 4200;
+    const PLACEHOLDER_CYCLE_MS = 8000;
     const PLACEHOLDER_FADE_MS = 220;
     let placeholderCycleTimer: ReturnType<typeof setInterval> | null = null;
     let placeholderCycleFadeTimer: ReturnType<typeof setTimeout> | null = null;
