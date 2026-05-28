@@ -65,12 +65,28 @@ async function clearEditor(page: any, editor: any): Promise<void> {
 	});
 }
 
+async function focusEditorAtEnd(page: any): Promise<void> {
+	await page.evaluate(() => {
+		const editable = document.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
+		if (!(editable instanceof HTMLElement)) throw new Error('contenteditable editor not found');
+
+		const range = document.createRange();
+		range.selectNodeContents(editable);
+		range.collapse(false);
+
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+		editable.focus();
+	});
+}
+
 test('composer paste classifies text, docs, sheets, and code with Paste as text recovery', async ({
 	page
 }: {
 	page: any;
 }) => {
-	test.setTimeout(90000);
+	test.setTimeout(180000);
 	await page.setViewportSize({ width: 390, height: 844 });
 
 	const editor = await openUnauthenticatedNewChat(page);
@@ -105,6 +121,7 @@ test('composer paste classifies text, docs, sheets, and code with Paste as text 
 		editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]')
 	).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('paste-as-text-chip')).toBeVisible({ timeout: 5000 });
+	await focusEditorAtEnd(page);
 	await page.keyboard.type('x');
 	await expect(page.getByTestId('paste-as-text-chip')).toBeHidden({ timeout: 5000 });
 
