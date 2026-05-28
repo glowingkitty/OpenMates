@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from backend.apps.social_media import search_collection  # noqa: E402
 from backend.shared.providers.bluesky.public import BlueskyPost, BlueskyResult  # noqa: E402
+from backend.shared.providers.mastodon.public import MastodonPost, MastodonResult  # noqa: E402
 from backend.shared.providers.reddit.json import RedditSearchSort  # noqa: E402
 from backend.shared.providers.reddit.rss import RedditRssPost, RedditRssResult  # noqa: E402
 
@@ -149,8 +150,28 @@ async def test_collect_search_results_defaults_to_all_supported_platforms(monkey
             ],
         )
 
+    async def fake_search_mastodon_posts(query: str, **kwargs):
+        captured["mastodon_query"] = query
+        captured["mastodon_kwargs"] = kwargs
+        return MastodonResult(
+            page="mastodon.social",
+            sort="latest",
+            request_count=1,
+            posts=[
+                MastodonPost(
+                    id="mastodon-123",
+                    page="mastodon.social",
+                    title="Mastodon post",
+                    body="A Mastodon post about privacy AI.",
+                    author="openmates@mastodon.social",
+                    url="https://mastodon.social/@openmates/123",
+                )
+            ],
+        )
+
     monkeypatch.setattr(search_collection, "search_posts", fake_search_posts)
     monkeypatch.setattr(search_collection, "search_reddit_posts_json", fake_search_reddit_posts_json)
+    monkeypatch.setattr(search_collection, "search_mastodon_posts", fake_search_mastodon_posts)
 
     results = await search_collection.collect_search_results(
         [{"query": "privacy ai", "page": "privacy", "sort": "comments", "time_range": "week", "limit": 5}],
@@ -158,17 +179,21 @@ async def test_collect_search_results_defaults_to_all_supported_platforms(monkey
         reddit_proxy_url="http://user-rotate:pass@p.webshare.io:80/",
     )
 
-    assert [result.platform for result in results] == ["bluesky", "reddit"]
+    assert [result.platform for result in results] == ["bluesky", "mastodon", "reddit"]
     assert captured["bluesky_query"] == "privacy ai"
     assert captured["bluesky_kwargs"]["sort"] == "comments"
     assert captured["bluesky_kwargs"]["limit"] == 5
     assert isinstance(captured["bluesky_kwargs"]["secrets_manager"], FakeSecretsManager)
+    assert captured["mastodon_query"] == "privacy ai"
+    assert captured["mastodon_kwargs"]["instances"] == ["privacy"]
+    assert captured["mastodon_kwargs"]["limit"] == 5
     assert captured["reddit_query"] == "privacy ai"
     assert captured["reddit_kwargs"]["proxy_url"] == "http://user-rotate:pass@p.webshare.io:80/"
     assert captured["reddit_kwargs"]["page"] == "privacy"
     assert captured["reddit_kwargs"]["sort"] == RedditSearchSort.COMMENTS
     assert results[0].posts[0].author == "openmates.bsky.social"
-    assert results[1].posts[0].author == "/u/example"
+    assert results[1].posts[0].author == "openmates@mastodon.social"
+    assert results[2].posts[0].author == "/u/example"
 
 
 @pytest.mark.asyncio
@@ -209,11 +234,64 @@ async def test_collect_search_results_falls_back_to_rss_when_json_fails(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_collect_search_results_searches_mastodon_with_extra_instances(monkeypatch):
+    captured = {}
+
+    async def fake_search_mastodon_posts(query: str, **kwargs):
+        captured["query"] = query
+        captured["kwargs"] = kwargs
+        return MastodonResult(
+            page="mastodon.social, fosstodon.org",
+            sort="latest",
+            request_count=2,
+            posts=[
+                MastodonPost(
+                    id="mastodon-123",
+                    page="mastodon.social",
+                    title="Mastodon post",
+                    body="A Mastodon post about privacy AI.",
+                    author="openmates@mastodon.social",
+                    url="https://mastodon.social/@openmates/123",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(search_collection, "search_mastodon_posts", fake_search_mastodon_posts)
+
+    results = await search_collection.collect_search_results(
+        [
+            {
+                "platform": "mastodon",
+                "query": "privacy ai",
+                "page": "fosstodon.org",
+                "mastodon_instances": ["hachyderm.io"],
+                "sort": "top",
+                "limit": 5,
+                "include_comments": True,
+                "comments_limit": 2,
+            }
+        ]
+    )
+
+    assert captured["query"] == "privacy ai"
+    assert captured["kwargs"] == {
+        "instances": ["fosstodon.org", "hachyderm.io"],
+        "limit": 5,
+        "include_comments": True,
+        "comments_limit": 2,
+    }
+    assert results[0].provider == "Mastodon"
+    assert results[0].posts[0].platform == "mastodon"
+    assert "Mastodon public search returns instance-ranked recent results" in results[0].warnings[0]
+    assert results[0].errors == []
+
+
+@pytest.mark.asyncio
 async def test_collect_search_results_rejects_unsupported_platform():
-    results = await search_collection.collect_search_results([{"platform": "mastodon", "query": "privacy ai"}])
+    results = await search_collection.collect_search_results([{"platform": "threads", "query": "privacy ai"}])
 
     assert results[0].posts == []
-    assert results[0].errors == ["Unsupported social search platform: mastodon"]
+    assert results[0].errors == ["Unsupported social search platform: threads"]
 
 
 @pytest.mark.asyncio

@@ -252,6 +252,8 @@ skills:
     providers:
       - name: Bluesky
         no_api_key: true
+      - name: Mastodon
+        no_api_key: true
       - name: Reddit
         no_api_key: true
     class_path: backend.apps.social_media.skills.search.SearchSkill
@@ -263,6 +265,8 @@ skills:
           description: >
             Array of social post search requests. For Bluesky, query is the topic
             to search and author optionally restricts results to a specific handle.
+            For Mastodon, mastodon.social is searched by default and
+            mastodon_instances can add more public instances.
           items:
             type: object
             properties:
@@ -274,6 +278,7 @@ skills:
                 enum:
                   - all
                   - bluesky
+                  - mastodon
                   - reddit
                 default: all
               query:
@@ -281,10 +286,15 @@ skills:
                 description: Topic or search query to find posts around.
               page:
                 type: string
-                description: Optional subreddit/page to restrict Reddit search to, without r/.
+                description: Optional subreddit/page to restrict Reddit search to, without r/. For Mastodon, optionally provide one extra instance such as fosstodon.org.
+              mastodon_instances:
+                type: array
+                description: Optional additional Mastodon instances to search after mastodon.social, for example fosstodon.org or hachyderm.io.
+                items:
+                  type: string
               sort:
                 type: string
-                description: Search sort. Bluesky supports latest/top. Reddit supports relevance/hot/top/new/comments/latest.
+                description: Search sort. Bluesky supports latest/top. Reddit supports relevance/hot/top/new/comments/latest. Mastodon public search returns instance-ranked recent results and ignores sort.
                 enum:
                   - latest
                   - top

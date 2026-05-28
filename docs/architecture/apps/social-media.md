@@ -25,11 +25,18 @@ topic discovery across supported platforms.
 - Store Bluesky credentials via the normal `SECRET__*` migration convention:
   `SECRET__BLUESKY__IDENTIFIER` and `SECRET__BLUESKY__APP_PASSWORD` migrate to
   `kv/data/providers/bluesky` as `identifier` and `app_password`.
-- `mastodon_public` fetches public account statuses and status contexts through
-  unauthenticated Mastodon instance APIs.
+- `mastodon_public` fetches public account statuses, instance-local status
+  search results, and status contexts through unauthenticated Mastodon instance
+  APIs.
 - Mastodon `get-posts` accepts profile URLs or account IDs in `user@instance`
   format. Replies are fetched from `/api/v1/statuses/{id}/context` and may be
   incomplete because each instance only knows federated content it has received.
+- Mastodon `search` uses `/api/v2/search?type=statuses`, searches
+  `mastodon.social` by default, and accepts extra public instances via
+  `mastodon_instances`. When status search is empty, it falls back to the public
+  tag timeline for the normalized query (for example `open source` ->
+  `#opensource`). Results are instance-local and depend on each server's public
+  search configuration.
 
 ## Request Modes
 
@@ -39,9 +46,10 @@ topic discovery across supported platforms.
   `https://mastodon.social/@Gargron`.
 - `search` is for finding recent public posts around a topic. Callers pass
   `platform` and `query`, with optional provider filters such as Bluesky
-  `author`.
-- Mastodon is intentionally not part of broad `search` yet; instance-local
-  hashtag/full-text search semantics vary too much for the default search flow.
+  `author` or Mastodon `mastodon_instances`.
+- Mastodon broad search is intentionally instance-scoped rather than global;
+  `mastodon.social` is always searched first and extra instances can be added
+  when the user names communities to include.
 - Bluesky topic search may require an authenticated session in some environments;
   configure the Vault/env credentials above when unauthenticated search returns
   `403`.

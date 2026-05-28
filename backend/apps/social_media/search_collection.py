@@ -14,6 +14,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from backend.shared.providers.bluesky.public import BlueskyPost, search_posts
+from backend.shared.providers.mastodon.public import MastodonPost, search_posts as search_mastodon_posts
 from backend.shared.providers.reddit.json import (
     RedditCommentSort,
     RedditSearchSort,
@@ -22,8 +23,8 @@ from backend.shared.providers.reddit.json import (
 )
 from backend.shared.providers.reddit.rss import RedditRssPost, search_reddit_posts
 
-SUPPORTED_SEARCH_PLATFORMS = {"bluesky", "reddit"}
-DEFAULT_SEARCH_PLATFORMS = ("bluesky", "reddit")
+SUPPORTED_SEARCH_PLATFORMS = {"bluesky", "mastodon", "reddit"}
+DEFAULT_SEARCH_PLATFORMS = ("bluesky", "mastodon", "reddit")
 DEFAULT_REQUEST_LIMIT = 10
 MAX_COMMENTS_PER_POST = 5
 BLUESKY_PROVIDER_NAME = "Bluesky"
@@ -36,6 +37,7 @@ REDDIT_PROXY_REQUIRED_WARNING = (
     "Reddit search is currently unavailable because the Reddit proxy is not configured. "
     "Try Bluesky search or ask an admin to configure Webshare proxy credentials."
 )
+MASTODON_PROVIDER_NAME = "Mastodon"
 
 
 class SearchRequestItem(BaseModel):
@@ -48,6 +50,10 @@ class SearchRequestItem(BaseModel):
     )
     query: str = Field(description="Topic or search query to find posts around.")
     page: Optional[str] = Field(default=None, description="Optional subreddit/page to restrict Reddit search to.")
+    mastodon_instances: list[str] = Field(
+        default_factory=list,
+        description="Optional additional Mastodon instances to search. mastodon.social is always searched first.",
+    )
     sort: RedditSearchSort = Field(default=RedditSearchSort.LATEST, description="Search sort.")
     time_range: Optional[RedditTimeRange] = Field(
         default=None,
@@ -74,8 +80,8 @@ class SearchResponseItem(BaseModel):
     platform: str
     query: str
     sort: str
-    posts: list[BlueskyPost | RedditRssPost] = Field(default_factory=list)
-    results: list[BlueskyPost | RedditRssPost] = Field(default_factory=list)
+    posts: list[BlueskyPost | MastodonPost | RedditRssPost] = Field(default_factory=list)
+    results: list[BlueskyPost | MastodonPost | RedditRssPost] = Field(default_factory=list)
     provider: str = Field(default="")
     request_count: int = 0
     warnings: list[str] = Field(default_factory=list)
@@ -119,6 +125,8 @@ async def collect_search_results(
                         soft_skip_unavailable=soft_skip_unavailable,
                     )
                 )
+            elif platform == "mastodon":
+                results.append(await _search_mastodon(request_id, item))
             elif platform == "reddit":
                 results.append(
                     await _search_reddit(
@@ -183,6 +191,39 @@ async def _search_bluesky(
         warnings=warnings,
         errors=errors,
     )
+
+
+async def _search_mastodon(request_id: Any, item: SearchRequestItem) -> SearchResponseItem:
+    instances = _mastodon_instances_for_item(item)
+    mastodon_result = await search_mastodon_posts(
+        item.query,
+        instances=instances,
+        limit=item.limit,
+        include_comments=item.include_comments,
+        comments_limit=item.comments_limit,
+    )
+    warnings = list(mastodon_result.warnings)
+    if item.sort.value != "latest":
+        warnings.append("Mastodon public search returns instance-ranked recent results and ignores the requested sort.")
+    return SearchResponseItem(
+        id=request_id,
+        platform=mastodon_result.platform,
+        query=item.query,
+        sort=mastodon_result.sort,
+        posts=mastodon_result.posts,
+        results=mastodon_result.posts,
+        provider=MASTODON_PROVIDER_NAME,
+        request_count=mastodon_result.request_count,
+        warnings=warnings,
+        errors=mastodon_result.errors,
+    )
+
+
+def _mastodon_instances_for_item(item: SearchRequestItem) -> list[str]:
+    instances = list(item.mastodon_instances)
+    if item.page:
+        instances.insert(0, item.page)
+    return instances
 
 
 async def _search_reddit(
