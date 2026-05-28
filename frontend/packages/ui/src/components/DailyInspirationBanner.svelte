@@ -141,7 +141,7 @@
       isCrossfading = true;
       setTimeout(() => {
         inspirations = state.inspirations;
-        currentIndex = state.currentIndex;
+        currentIndex = getVisibleIndexForStoreIndex(state.inspirations, state.currentIndex);
         // Allow a frame for the DOM to update with new data before fading in
         requestAnimationFrame(() => {
           isCrossfading = false;
@@ -149,7 +149,7 @@
       }, 200); // Match the CSS fade-out duration
     } else {
       inspirations = state.inspirations;
-      currentIndex = state.currentIndex;
+      currentIndex = getVisibleIndexForStoreIndex(state.inspirations, state.currentIndex);
     }
   });
 
@@ -261,14 +261,14 @@
     return () => window.clearInterval(interval);
   });
 
-  // Auto-rotate the carousel while the banner is actually visible. Reading
-  // currentIndex resets the timer after manual navigation or automatic advance.
+  // Auto-rotate the filtered carousel while the banner is actually visible.
+  // Reading currentIndex resets the timer after manual navigation or automatic advance.
   $effect(() => {
     if (!hasMultiple || !isBannerVisible) return;
 
     void currentIndex;
     const interval = window.setInterval(() => {
-      dailyInspirationStore.next();
+      goToVisibleIndex(currentIndex + 1);
     }, INSPIRATION_AUTO_ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
@@ -316,6 +316,16 @@
   /** Whether multiple inspirations are available (show arrows). */
   let hasMultiple = $derived(visibleInspirations.length > 1);
 
+  $effect(() => {
+    if (visibleInspirations.length === 0) {
+      currentIndex = 0;
+      return;
+    }
+    if (currentIndex >= visibleInspirations.length) {
+      currentIndex = 0;
+    }
+  });
+
   /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
   let inspirationSetKey = $derived.by(() => getInspirationSetKey(visibleInspirations));
 
@@ -340,7 +350,7 @@
 
     visitCycleAppliedInspirations = visibleInspirations;
     if (currentIndex !== targetIndex) {
-      dailyInspirationStore.goTo(targetIndex);
+      currentIndex = targetIndex;
     }
   });
 
@@ -420,7 +430,7 @@
     e.stopPropagation();
     e.preventDefault();
     markManualNavigation();
-    dailyInspirationStore.previous();
+    goToVisibleIndex(currentIndex - 1);
   }
 
   /**
@@ -431,7 +441,7 @@
     e.stopPropagation();
     e.preventDefault();
     markManualNavigation();
-    dailyInspirationStore.next();
+    goToVisibleIndex(currentIndex + 1);
   }
 
   function handleTouchStart(e: TouchEvent) {
@@ -465,9 +475,9 @@
     markManualNavigation();
 
     if (deltaX < 0) {
-      dailyInspirationStore.next();
+      goToVisibleIndex(currentIndex + 1);
     } else {
-      dailyInspirationStore.previous();
+      goToVisibleIndex(currentIndex - 1);
     }
   }
 
@@ -577,6 +587,26 @@
   function getInspirationSetKey(items: DailyInspiration[]): string {
     if (items.length === 0) return '';
     return hashString(items.map((item) => item.inspiration_id).join('|'));
+  }
+
+  function getVisibleIndexForStoreIndex(items: DailyInspiration[], storeIndex: number): number {
+    const storeItem = items[storeIndex];
+    const visibleItems = items.filter((inspiration) => isDailyInspirationVisible(inspiration));
+    if (visibleItems.length === 0) return 0;
+    if (!storeItem) return 0;
+
+    const visibleIndex = visibleItems.findIndex(
+      (inspiration) => inspiration.inspiration_id === storeItem.inspiration_id,
+    );
+    return visibleIndex >= 0 ? visibleIndex : 0;
+  }
+
+  function goToVisibleIndex(nextIndex: number): void {
+    if (visibleInspirations.length === 0) {
+      currentIndex = 0;
+      return;
+    }
+    currentIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
   }
 
   function getNextVisitIndex(setKey: string, count: number): number {
