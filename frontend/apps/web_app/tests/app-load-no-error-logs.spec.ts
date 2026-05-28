@@ -4,9 +4,9 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 /**
  * Verifies that the deployed app root loads without browser error logs.
- * This guards against service worker bootstrap regressions that break first paint.
+ * This guards against app bootstrap regressions that break first paint.
  * Architecture context: docs/architecture/logging.md
- * Bug reference: workbox non-precached-url thrown during app bootstrap.
+ * Bug reference: stale service-worker navigation handler broke app bootstrap.
  * Test reference: run via scripts/run-tests.sh --suite playwright.
  */
 
@@ -32,14 +32,6 @@ test('app root loads without console errors', async ({ page }) => {
 
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
-	await page.evaluate(async () => {
-		if (!('serviceWorker' in navigator)) return;
-		try {
-			await navigator.serviceWorker.ready;
-		} catch {
-			// Ignore readiness timeouts for environments without active SW control.
-		}
-	});
 
 	await page.waitForTimeout(3000);
 

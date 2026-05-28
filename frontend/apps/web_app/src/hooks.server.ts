@@ -5,8 +5,23 @@
  */
 import type { Handle } from '@sveltejs/kit';
 
+const SEO_ROUTE_PREFIXES = ['/example', '/intro', '/legal', '/events', '/announcements', '/tips'];
+
+function isSeoRoute(pathname: string): boolean {
+	return SEO_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function stripDefaultSeoTags(html: string): string {
+	return html.replace(
+		/\n?\t*<!-- openmates-default-seo:start -->[\s\S]*?<!-- openmates-default-seo:end -->/,
+		''
+	);
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
-	const response = await resolve(event);
+	const response = await resolve(event, {
+		transformPageChunk: ({ html }) => (isSeoRoute(event.url.pathname) ? stripDefaultSeoTags(html) : html)
+	});
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

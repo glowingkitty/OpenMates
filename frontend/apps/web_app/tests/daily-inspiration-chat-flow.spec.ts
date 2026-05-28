@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -75,7 +74,6 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -140,6 +138,16 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await expect(inspirationBanner).toBeVisible({ timeout: 15000 });
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
+
+	// Feature inspirations open settings instead of creating a chat. Navigate to a
+	// chat-capable inspiration before testing the inspiration-chat regression flow.
+	const chatCta = page.getByText(/Click to start chat|Open chat/).first();
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		if (await chatCta.isVisible().catch(() => false)) break;
+		await page.getByTestId('daily-inspiration-next').click();
+		await page.waitForTimeout(300);
+	}
+	await expect(chatCta).toBeVisible({ timeout: 5000 });
 
 	// ── 9. Click the banner to create an inspiration chat ────────────────────
 	await inspirationBanner.click();

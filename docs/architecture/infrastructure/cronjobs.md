@@ -10,6 +10,7 @@ key_files:
   - scripts/nightly-code-structure.sh
   - scripts/daily-meeting.sh
   - scripts/update_obsidian_daily_note.py
+  - scripts/_opencode_daily_meeting.py
   - scripts/_daily_meeting_helper.py
   - scripts/_claude_utils.py
 ---
@@ -28,7 +29,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 | Schedule                      | Script                                 | Purpose                                   |
 |-------------------------------|----------------------------------------|-------------------------------------------|
-| on-demand                     | `daily-meeting.sh`                     | **Daily standup**: review, health, priorities |
+| `0 10 * * 1-5` UTC            | `daily-meeting.sh`                     | **Daily standup**: OpenCode chat + email link |
 | `*/2 * * * *`                 | `check-deploy-status.sh`               | Watch Vercel for build failures           |
 | `02:00 Mon-Fri`               | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
 | `02:00 Mon+Thu`               | `weekly-codebase-audit.sh`             | Top 5 improvement findings (plan only)    |
@@ -49,7 +50,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 ### Job Details
 
-**Daily standup meeting** (on-demand via `/daily-meeting` skill): Gathers data from 11 sources (nightly reports, git, tests, health, OpenObserve, server stats, user issues, session quality, milestone state) and starts a single interactive meeting session with all data injected directly into the prompt. No subagents — the meeting reads nightly cronjob reports as-is, avoiding redundant summarization. Queries Linear live via MCP tools. Proposes up to 10 daily priorities (goal: complete top 3). Auto-confirms after 70 min if user doesn't join. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. State: `scripts/.daily-meeting-state.json`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `INTERNAL_API_URL`, `SECRET__ADMIN__DEBUG_CLI__API_KEY`, `INTERNAL_API_SHARED_TOKEN`.
+**Daily standup meeting** (`10:00 UTC` weekdays): `daily-meeting.sh` creates a persisted OpenCode chat titled `daily-meeting YYYY-MM-DD`, asks the `daily-meeting` skill to gather data inline, and emails a deep link to the configured recipient. The OpenCode web URL is built as `${OPENCODE_WEB_BASE_URL}/${base64url(project_path)}/session/${session_id}`. No Claude launcher and no Zellij session are involved. The meeting remains interactive: it presents one agenda section at a time and saves `scripts/.daily-meeting-state.json` plus `scripts/.tmp/daily-meeting-summary-<date>.md` only after the user confirms priorities. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `DAILY_MEETING_NOTIFY_EMAIL` (or `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` fallback), `OPENCODE_WEB_BASE_URL`, `INTERNAL_API_SHARED_TOKEN`, `INTERNAL_API_URL`.
 
 **Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches a claude build-mode session with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
@@ -81,9 +82,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Agent trigger watcher** (`@reboot`): Polls `scripts/.agent-triggers/` every 5s for JSON trigger files from admin sidecar. Dispatches claude investigation; completed triggers moved to `done/`.
 
-### Claude CLI Dispatch
+### Agent CLI Dispatch
 
-All Python helpers use `scripts/_claude_utils.py:run_claude_session()` which invokes:
+Most background maintenance helpers use `scripts/_claude_utils.py:run_claude_session()` which invokes:
 
 ```bash
 claude -p "<message>" \
@@ -96,9 +97,11 @@ claude -p "<message>" \
 
 Session IDs are extracted from JSON output and logged for traceability.
 
+The daily standup is the exception: `scripts/_opencode_daily_meeting.py` invokes `opencode run --format json --title "daily-meeting <date>"` so the chat appears directly in OpenCode web. Cron should configure the public web base URL and recipient via environment, not source code.
+
 ### Manual Invocation
 
-All scripts support `--dry-run` (show prompt, skip claude) and `--force` (bypass guards):
+Most maintenance scripts support `--dry-run` (show prompt, skip agent) or `--force` (bypass guards):
 
 ```bash
 ./scripts/check-deploy-status.sh --dry-run
@@ -111,7 +114,7 @@ REVIEW_DATE=2026-03-17 bash scripts/nightly-workflow-review.sh
 
 1. Shell entrypoint in `scripts/` (source `.env`, header comment with schedule).
 2. Python helper in `scripts/_<name>_helper.py` if needed.
-3. Prompt template in `scripts/prompts/` if calling claude.
+3. Prompt template in `scripts/prompts/` if calling an agent with a large reusable prompt.
 4. Crontab entry via `crontab -e`.
 5. Update this doc.
 

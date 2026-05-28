@@ -47,9 +47,23 @@
   const ChevronRight = getLucideIcon('chevron-right');
 
   const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
+  const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
-  const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
+  // Temporarily disabled with the visit-cycling effect below.
+  // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
+  const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
+    'export-data',
+    'incognito-mode',
+  ]);
+  const GUEST_ALLOWED_FEATURE_PATHS = new Set([
+    'app_store/all/focus_modes',
+    'app_store/events/skill/search',
+    'app_store/all/skills',
+    'privacy',
+    'privacy/hide-personal-data',
+    'settings_memories',
+  ]);
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -78,6 +92,7 @@
   // Mirror of the store – updated via subscription below
   let inspirations = $state<DailyInspiration[]>([]);
   let currentIndex = $state(0);
+  let isAuthenticated = $state(false);
 
   // Track which inspiration_ids we have already sent a `viewed` WS event for.
   // An entry is added as soon as the banner is visible in the viewport AND the
@@ -86,9 +101,9 @@
   // the user never clicks it (passive view tracking).
   let viewedIds = $state(new Set<string>());
 
-  // Whether the banner wrapper is currently intersecting the viewport.
-  // Set by the IntersectionObserver mounted in onMount.
-  let isBannerVisible = $state(false);
+  // Whether the banner wrapper is currently intersecting the viewport. Default
+  // to true so Safari/blocked IntersectionObserver does not stall the carousel.
+  let isBannerVisible = $state(true);
 
   // On mobile, alternate between the assistant message and interactive preview instead
   // of squeezing both into the narrow banner width.
@@ -100,8 +115,12 @@
   let touchSwipeHandled = $state(false);
   let suppressNextClick = $state(false);
   let prefersTouchCta = $state(false);
-  let visitCycleTargetIndexes = $state(new Map<string, number>());
-  let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
+  let isUserInteracting = $state(false);
+  let isOpeningInspiration = $state(false);
+  let progressRestartToken = $state(0);
+  // Temporarily disabled with the visit-cycling effect below.
+  // let visitCycleTargetIndexes = $state(new Map<string, number>());
+  // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
   let manuallyNavigatedSetKeys = $state(new Set<string>());
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
@@ -116,7 +135,7 @@
 
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
-  const unsubscribe = dailyInspirationStore.subscribe((state) => {
+  const unsubscribeDailyInspirations = dailyInspirationStore.subscribe((state) => {
     const wasHardcoded = inspirations.length > 0 &&
       inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
     const isNowReal = state.inspirations.length > 0 &&
@@ -127,7 +146,7 @@
       isCrossfading = true;
       setTimeout(() => {
         inspirations = state.inspirations;
-        currentIndex = state.currentIndex;
+        currentIndex = getVisibleIndexForStoreIndex(state.inspirations, state.currentIndex);
         // Allow a frame for the DOM to update with new data before fading in
         requestAnimationFrame(() => {
           isCrossfading = false;
@@ -135,11 +154,18 @@
       }, 200); // Match the CSS fade-out duration
     } else {
       inspirations = state.inspirations;
-      currentIndex = state.currentIndex;
+      currentIndex = getVisibleIndexForStoreIndex(state.inspirations, state.currentIndex);
     }
   });
 
-  onDestroy(unsubscribe);
+  const unsubscribeAuth = authStore.subscribe((state) => {
+    isAuthenticated = state.isAuthenticated;
+  });
+
+  onDestroy(() => {
+    unsubscribeDailyInspirations();
+    unsubscribeAuth();
+  });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
   // Default (non-personalized) inspirations are fetched from the server with a
@@ -167,6 +193,7 @@
     // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
     // to ensure the svelte-i18n locale store is fully settled before re-fetching.
     window.addEventListener('language-changed-complete', handleLanguageChange);
+
     return () => {
       pointerQuery.removeEventListener('change', updatePointerCta);
       window.removeEventListener('language-changed-complete', handleLanguageChange);
@@ -192,7 +219,10 @@
   // Attach / detach the IntersectionObserver whenever the wrapper element is
   // mounted or unmounted (Svelte 5 $effect re-runs when bannerWrapperEl changes).
   $effect(() => {
-    if (typeof IntersectionObserver === 'undefined') return;
+    if (typeof IntersectionObserver === 'undefined') {
+      isBannerVisible = true;
+      return;
+    }
     if (!bannerWrapperEl) return;
 
     const observer = new IntersectionObserver(
@@ -239,8 +269,15 @@
 
   // ─── Derived values ─────────────────────────────────────────────────────────
 
+  let visibleInspirations = $derived.by(() => (
+    inspirations.filter((inspiration) => isDailyInspirationVisible(inspiration))
+  ));
+
   /** Currently displayed inspiration. */
-  let current = $derived(inspirations[currentIndex] ?? null);
+  let current = $derived.by(() => {
+    if (visibleInspirations.length === 0) return null;
+    return visibleInspirations[currentIndex % visibleInspirations.length] ?? null;
+  });
 
   /** Valid mate/category class to render. Public cached wiki cards may contain old unsupported categories. */
   let displayCategory = $derived.by(() => {
@@ -270,35 +307,43 @@
   });
 
   /** Whether multiple inspirations are available (show arrows). */
-  let hasMultiple = $derived(inspirations.length > 1);
+  let hasMultiple = $derived(visibleInspirations.length > 1);
 
-  /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
-  let inspirationSetKey = $derived.by(() => getInspirationSetKey(inspirations));
-
-  // Each time the banner is mounted on the web app / new chat screen, pick the
-  // next inspiration for the loaded result set. Later IndexedDB/server/WS writes
-  // can reset the store's currentIndex to 0, so remember the target for this
-  // page load and re-apply it without advancing the persisted cursor again.
   $effect(() => {
-    if (inspirations.length <= 1) return;
-    if (!inspirationSetKey) return;
-    if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
-    if (visitCycleAppliedInspirations === inspirations) return;
-
-    let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
-    if (targetIndex === undefined || targetIndex >= inspirations.length) {
-      targetIndex = getNextVisitIndex(inspirationSetKey, inspirations.length);
-      visitCycleTargetIndexes = new Map([
-        ...visitCycleTargetIndexes,
-        [inspirationSetKey, targetIndex],
-      ]);
+    if (visibleInspirations.length === 0) {
+      currentIndex = 0;
+      return;
     }
-
-    visitCycleAppliedInspirations = inspirations;
-    if (currentIndex !== targetIndex) {
-      dailyInspirationStore.goTo(targetIndex);
+    if (currentIndex >= visibleInspirations.length) {
+      currentIndex = 0;
     }
   });
+
+  /** Stable key for the currently loaded inspiration set, used for visit-time cycling. */
+  let inspirationSetKey = $derived.by(() => getInspirationSetKey(visibleInspirations));
+
+  // Temporarily disabled for live regression testing: this effect both depends on
+  // and writes carousel state, and is a likely source of Svelte effect-depth loops.
+  // $effect(() => {
+  //   if (visibleInspirations.length <= 1) return;
+  //   if (!inspirationSetKey) return;
+  //   if (manuallyNavigatedSetKeys.has(inspirationSetKey)) return;
+  //   if (visitCycleAppliedInspirations === visibleInspirations) return;
+  //
+  //   let targetIndex = visitCycleTargetIndexes.get(inspirationSetKey);
+  //   if (targetIndex === undefined || targetIndex >= visibleInspirations.length) {
+  //     targetIndex = getNextVisitIndex(inspirationSetKey, visibleInspirations.length);
+  //     visitCycleTargetIndexes = new Map([
+  //       ...visitCycleTargetIndexes,
+  //       [inspirationSetKey, targetIndex],
+  //     ]);
+  //   }
+  //
+  //   visitCycleAppliedInspirations = visibleInspirations;
+  //   if (currentIndex !== targetIndex) {
+  //     currentIndex = targetIndex;
+  //   }
+  // });
 
   /**
    * Whether to show a video embed for the current inspiration.
@@ -358,6 +403,7 @@
   let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
   let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
+  let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
   let InfoCardIconComponent = $derived.by(() => {
     if (!current) return null;
     if (current.content_type === 'wiki') return getLucideIcon('book-open');
@@ -375,7 +421,9 @@
     e.stopPropagation();
     e.preventDefault();
     markManualNavigation();
-    dailyInspirationStore.previous();
+    resumeAutoRotation();
+    goToVisibleIndex(currentIndex - 1);
+    restartProgressAnimation();
   }
 
   /**
@@ -386,12 +434,15 @@
     e.stopPropagation();
     e.preventDefault();
     markManualNavigation();
-    dailyInspirationStore.next();
+    resumeAutoRotation();
+    goToVisibleIndex(currentIndex + 1);
+    restartProgressAnimation();
   }
 
   function handleTouchStart(e: TouchEvent) {
     if (!hasMultiple || e.touches.length !== 1) return;
 
+    isUserInteracting = true;
     const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
@@ -420,9 +471,11 @@
     markManualNavigation();
 
     if (deltaX < 0) {
-      dailyInspirationStore.next();
+      resumeAutoRotation();
+      goToVisibleIndex(currentIndex + 1);
     } else {
-      dailyInspirationStore.previous();
+      resumeAutoRotation();
+      goToVisibleIndex(currentIndex - 1);
     }
   }
 
@@ -438,6 +491,8 @@
     touchStartX = 0;
     touchStartY = 0;
     touchSwipeHandled = false;
+    isUserInteracting = false;
+    restartProgressAnimation();
 
     if (suppressNextClick) {
       window.setTimeout(() => {
@@ -459,6 +514,7 @@
     }
 
     if (!current) return;
+    isOpeningInspiration = true;
 
     // Send viewed event if not already sent
     if (!viewedIds.has(current.inspiration_id)) {
@@ -467,6 +523,29 @@
     }
 
     onStartChat(current);
+  }
+
+  function handleBannerPointerDown(e: PointerEvent) {
+    if (e.pointerType === 'touch') return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (target?.closest('.carousel-arrow, .banner-embed-wrapper')) return;
+    isOpeningInspiration = true;
+  }
+
+  function resumeAutoRotation() {
+    isOpeningInspiration = false;
+    isUserInteracting = false;
+  }
+
+  function restartProgressAnimation() {
+    progressRestartToken += 1;
+  }
+
+  function handleProgressAnimationEnd(e: AnimationEvent) {
+    if (e.target !== e.currentTarget) return;
+    if (!isBannerVisible || visibleInspirations.length <= 1) return;
+    if (isUserInteracting || isOpeningInspiration) return;
+    goToVisibleIndex(currentIndex + 1);
   }
 
   /**
@@ -534,23 +613,44 @@
     return hashString(items.map((item) => item.inspiration_id).join('|'));
   }
 
-  function getNextVisitIndex(setKey: string, count: number): number {
-    if (typeof window === 'undefined' || count <= 1) return 0;
+  function getVisibleIndexForStoreIndex(items: DailyInspiration[], storeIndex: number): number {
+    const storeItem = items[storeIndex];
+    const visibleItems = items.filter((inspiration) => isDailyInspirationVisible(inspiration));
+    if (visibleItems.length === 0) return 0;
+    if (!storeItem) return 0;
 
-    const storageKey = `${VISIT_INDEX_STORAGE_PREFIX}${setKey}`;
-    try {
-      const rawValue = window.localStorage.getItem(storageKey);
-      const currentValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
-      const safeValue = Number.isFinite(currentValue) && currentValue >= 0 ? currentValue : 0;
-      const nextIndex = safeValue % count;
-
-      window.localStorage.setItem(storageKey, String((nextIndex + 1) % count));
-      return nextIndex;
-    } catch (err) {
-      console.error('[DailyInspirationBanner] Failed to persist visit cycling index:', err);
-      return 0;
-    }
+    const visibleIndex = visibleItems.findIndex(
+      (inspiration) => inspiration.inspiration_id === storeItem.inspiration_id,
+    );
+    return visibleIndex >= 0 ? visibleIndex : 0;
   }
+
+  function goToVisibleIndex(nextIndex: number): void {
+    if (visibleInspirations.length === 0) {
+      currentIndex = 0;
+      return;
+    }
+    currentIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+  }
+
+  // Temporarily disabled with the visit-cycling effect above.
+  // function getNextVisitIndex(setKey: string, count: number): number {
+  //   if (typeof window === 'undefined' || count <= 1) return 0;
+  //
+  //   const storageKey = `${VISIT_INDEX_STORAGE_PREFIX}${setKey}`;
+  //   try {
+  //     const rawValue = window.localStorage.getItem(storageKey);
+  //     const currentValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
+  //     const safeValue = Number.isFinite(currentValue) && currentValue >= 0 ? currentValue : 0;
+  //     const nextIndex = safeValue % count;
+  //
+  //     window.localStorage.setItem(storageKey, String((nextIndex + 1) % count));
+  //     return nextIndex;
+  //   } catch (err) {
+  //     console.error('[DailyInspirationBanner] Failed to persist visit cycling index:', err);
+  //     return 0;
+  //   }
+  // }
 
   function hashString(value: string): string {
     let hash = 0;
@@ -558,6 +658,17 @@
       hash = (hash * 31 + value.charCodeAt(index)) % 2147483647;
     }
     return hash.toString(36);
+  }
+
+  function isDailyInspirationVisible(inspiration: DailyInspiration): boolean {
+    if (inspiration.content_type !== 'feature') return true;
+    if (isAuthenticated) return true;
+
+    const feature = inspiration.feature;
+    if (!feature?.settings_path) return false;
+    if (AUTHENTICATED_ONLY_FEATURE_IDS.has(feature.feature_id)) return false;
+    if (feature.requires_authentication === true && !GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path)) return false;
+    return GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path);
   }
 
   /**
@@ -580,7 +691,7 @@
   }
 </script>
 
-{#if inspirations.length > 0 && current}
+{#if visibleInspirations.length > 0 && current}
   <!-- Outer wrapper for fade-in animation and full-width layout.
        bind:this lets the IntersectionObserver target this element to detect
        when the banner enters the viewport for passive view tracking. -->
@@ -596,6 +707,7 @@
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
+      onpointerdown={handleBannerPointerDown}
       ontouchstart={handleTouchStart}
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
@@ -742,6 +854,19 @@
            of the full-width card, not constrained by the 680px inner width.
            z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
+        {#if isBannerVisible && !isOpeningInspiration}
+          <div
+            class="carousel-progress"
+            data-testid="daily-inspiration-carousel-progress"
+            style={`--carousel-progress-duration: ${INSPIRATION_AUTO_ROTATION_INTERVAL_MS}ms`}
+            aria-hidden="true"
+          >
+            {#key progressAnimationKey}
+              <div class="carousel-progress-fill" onanimationend={handleProgressAnimationEnd}></div>
+            {/key}
+          </div>
+        {/if}
+
         <button
           class="carousel-arrow carousel-arrow-left"
           data-testid="daily-inspiration-previous"
@@ -1116,6 +1241,31 @@
     background-color: rgba(255, 255, 255, 0.18) !important;
     scale: none !important;
     filter: none !important;
+  }
+
+  .carousel-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: transparent;
+    pointer-events: none;
+    z-index: var(--z-index-dropdown-2);
+  }
+
+  .carousel-progress-fill {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: scaleX(0);
+    transform-origin: left center;
+    animation: carouselProgressFill var(--carousel-progress-duration) linear forwards;
+  }
+
+  @keyframes carouselProgressFill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
   }
 
   /* Position arrows at the outer edges, rounded on the inner edge only */

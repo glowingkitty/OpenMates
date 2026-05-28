@@ -33,8 +33,10 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import asyncio
 import hashlib
 import json
+import mimetypes
 import os
 import re
 import shutil
@@ -55,6 +57,7 @@ from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
+TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
 LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
@@ -82,6 +85,8 @@ PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min jo
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
+TEST_RECORDINGS_S3_PREFIX = "latest"
 
 # Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
@@ -185,6 +190,14 @@ def _problem_summary_label(summary: dict) -> str:
     if summary.get("result_unknown", 0):
         parts.append(f"{summary['result_unknown']} unknown")
     return ", ".join(parts) if parts else "all passed"
+
+
+def _test_recording_slug(spec_name: str) -> str:
+    """Return a stable URL/S3-safe slug for a Playwright spec file."""
+    slug = spec_name.replace(".spec.ts", "").replace(".test.ts", "")
+    slug = slug.replace("/", "-").replace("\\", "-")
+    slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", slug).strip("-._")
+    return slug or "unknown"
 
 
 def _print_flaky_report() -> None:
@@ -872,6 +885,7 @@ class BatchRunner:
 
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
+                self._persist_recording_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
 
                 # Collect screenshot paths relative to test-results/
@@ -1066,6 +1080,79 @@ class BatchRunner:
                 except ValueError:
                     video_paths.append(src.name)
         return sorted(video_paths)
+
+    @staticmethod
+    def _persist_recording_artifacts(spec: str, art_path: Path) -> None:
+        """Copy the latest video, screenshots, and raw metadata for /tests."""
+        slug = _test_recording_slug(spec)
+        dest = TEST_RECORDINGS_DIR / slug
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        screenshots_dest = dest / "screenshots"
+        screenshots_dest.mkdir(parents=True, exist_ok=True)
+
+        video_sources: list[Path] = []
+        screenshot_sources: list[Path] = []
+        raw_json_sources: list[Path] = []
+        step_log_source: Optional[Path] = None
+
+        for root, _dirs, files in os.walk(art_path):
+            root_path = Path(root)
+            if "previous_run" in root_path.parts:
+                continue
+            for fname in files:
+                src = root_path / fname
+                lower_name = fname.lower()
+                if lower_name.endswith((".webm", ".mp4")):
+                    video_sources.append(src)
+                elif lower_name.endswith((".png", ".webp")):
+                    screenshot_sources.append(src)
+                elif lower_name == "step-log.json":
+                    step_log_source = src
+                elif lower_name == "playwright.json":
+                    raw_json_sources.append(src)
+
+        copied_videos: list[str] = []
+        if video_sources:
+            # Playwright normally records one video per spec here; choose the
+            # largest if retries leave more than one candidate.
+            video_src = max(video_sources, key=lambda p: p.stat().st_size)
+            video_name = f"video{video_src.suffix.lower()}"
+            shutil.copy2(video_src, dest / video_name)
+            copied_videos.append(video_name)
+
+        copied_screenshots: list[str] = []
+        for src in sorted(screenshot_sources, key=lambda p: p.name):
+            target = screenshots_dest / src.name
+            if target.exists():
+                stem = target.stem
+                suffix = target.suffix
+                target = screenshots_dest / f"{stem}-{hashlib.sha1(str(src).encode()).hexdigest()[:8]}{suffix}"
+            shutil.copy2(src, target)
+            copied_screenshots.append(f"screenshots/{target.name}")
+
+        thumbnail = None
+        step_screenshots = [p for p in copied_screenshots if "test-failed" not in p.lower()]
+        thumbnail_candidates = step_screenshots or copied_screenshots
+        if thumbnail_candidates:
+            thumb_source_rel = thumbnail_candidates[len(thumbnail_candidates) // 2]
+            thumb_source = dest / thumb_source_rel
+            thumbnail = f"thumbnail{thumb_source.suffix.lower()}"
+            shutil.copy2(thumb_source, dest / thumbnail)
+
+        if step_log_source:
+            shutil.copy2(step_log_source, dest / "step-log.json")
+        if raw_json_sources:
+            shutil.copy2(raw_json_sources[0], dest / "playwright.json")
+
+        meta = {
+            "spec": spec,
+            "slug": slug,
+            "video_files": copied_videos,
+            "screenshot_files": copied_screenshots,
+            "thumbnail_file": thumbnail,
+        }
+        (dest / "artifact-meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -3524,6 +3611,230 @@ class ReportGenerator:
 
 
 # ---------------------------------------------------------------------------
+# TestRecordingPublisher — manifests + S3 upload for /tests
+# ---------------------------------------------------------------------------
+
+class TestRecordingPublisher:
+    """Builds latest Playwright recording manifests and uploads them to S3."""
+
+    INDEX_FILE = TEST_RECORDINGS_DIR / "index.json"
+
+    def publish(self, result: RunResult) -> None:
+        """Publish latest Playwright recording bundles for browser viewing."""
+        playwright_suite = result.suites.get("playwright")
+        if not isinstance(playwright_suite, dict):
+            return
+
+        tests = playwright_suite.get("tests", [])
+        if not tests:
+            return
+
+        TEST_RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+        manifests = []
+        for test in tests:
+            manifest = self._build_manifest(test, result)
+            if not manifest:
+                continue
+            slug = manifest["slug"]
+            bundle_dir = TEST_RECORDINGS_DIR / slug
+            (bundle_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2), encoding="utf-8"
+            )
+            manifests.append(self._index_entry(manifest))
+
+        index = {
+            "run_id": result.run_id,
+            "git_sha": result.git_sha,
+            "git_branch": result.git_branch,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "tests": sorted(manifests, key=lambda item: item["title"]),
+        }
+        self.INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
+        self._upload_latest_bundles()
+
+    def _build_manifest(self, test: dict, result: RunResult) -> Optional[dict]:
+        spec = test.get("file") or test.get("name")
+        if not spec:
+            return None
+
+        slug = _test_recording_slug(spec)
+        bundle_dir = TEST_RECORDINGS_DIR / slug
+        if not bundle_dir.is_dir():
+            return None
+
+        artifact_meta = self._read_json(bundle_dir / "artifact-meta.json") or {}
+        video_file = (artifact_meta.get("video_files") or [None])[0]
+        thumbnail_file = artifact_meta.get("thumbnail_file")
+        screenshot_files = artifact_meta.get("screenshot_files") or []
+
+        safe_name = spec.replace("/", "-").replace("\\", "-")
+        md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
+        report_dir = "failed" if test.get("status") == "failed" else "success"
+        report_source = ReportGenerator.REPORTS_DIR / report_dir / md_name
+        report_file = None
+        if report_source.is_file():
+            report_file = "report.md"
+            shutil.copy2(report_source, bundle_dir / report_file)
+
+        steps = self._build_steps(bundle_dir, test, slug)
+        assets = self._build_assets(slug, video_file, thumbnail_file, report_file, screenshot_files)
+
+        return {
+            "spec": spec,
+            "slug": slug,
+            "title": spec.replace(".spec.ts", ""),
+            "status": test.get("status", "unknown"),
+            "run_id": result.run_id,
+            "git_sha": result.git_sha,
+            "git_branch": result.git_branch,
+            "duration_seconds": test.get("duration_seconds", 0),
+            "github_run_url": test.get("github_run_url"),
+            "error": test.get("error"),
+            "assets": assets,
+            "steps": steps,
+        }
+
+    @staticmethod
+    def _read_json(path: Path) -> Optional[dict | list]:
+        if not path.is_file():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return None
+
+    def _build_steps(self, bundle_dir: Path, test: dict, slug: str) -> list[dict]:
+        step_log = self._read_json(bundle_dir / "step-log.json")
+        if isinstance(step_log, list) and step_log:
+            return self._steps_from_log(step_log, slug)
+        return self._steps_from_playwright(test)
+
+    @staticmethod
+    def _steps_from_log(step_log: list[dict], slug: str) -> list[dict]:
+        first_ts = None
+        steps: list[dict] = []
+        for entry in step_log:
+            timestamp = entry.get("timestamp")
+            if timestamp and first_ts is None:
+                first_ts = timestamp
+            video_time = _seconds_between(first_ts, timestamp) if first_ts and timestamp else None
+            step = {
+                "index": entry.get("index", len(steps) + 1),
+                "type": entry.get("type", "checkpoint"),
+                "title": entry.get("message", ""),
+                "timestamp": timestamp,
+                "video_time_seconds": video_time,
+            }
+            screenshot = entry.get("screenshot")
+            if screenshot:
+                step["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}"
+                step["screenshot_file"] = f"screenshots/{screenshot}"
+            steps.append(step)
+        return steps
+
+    @staticmethod
+    def _steps_from_playwright(test: dict) -> list[dict]:
+        steps = []
+        elapsed = 0.0
+        for idx, step in enumerate(test.get("steps") or [], start=1):
+            duration_s = round(float(step.get("duration_ms", 0)) / 1000, 2)
+            steps.append({
+                "index": idx,
+                "type": "playwright_step",
+                "title": step.get("title", ""),
+                "status": step.get("status"),
+                "duration_seconds": duration_s,
+                "video_time_seconds": round(elapsed, 2),
+                "error": step.get("error"),
+            })
+            elapsed += duration_s
+        return steps
+
+    @staticmethod
+    def _build_assets(
+        slug: str,
+        video_file: Optional[str],
+        thumbnail_file: Optional[str],
+        report_file: Optional[str],
+        screenshot_files: list[str],
+    ) -> dict:
+        def key_for(file_name: Optional[str]) -> Optional[str]:
+            if not file_name:
+                return None
+            return f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/{file_name}"
+
+        return {
+            "video_key": key_for(video_file),
+            "thumbnail_key": key_for(thumbnail_file),
+            "report_key": key_for(report_file),
+            "screenshot_keys": [key_for(path) for path in screenshot_files if key_for(path)],
+        }
+
+    @staticmethod
+    def _index_entry(manifest: dict) -> dict:
+        return {
+            "spec": manifest["spec"],
+            "slug": manifest["slug"],
+            "title": manifest["title"],
+            "status": manifest["status"],
+            "run_id": manifest["run_id"],
+            "duration_seconds": manifest["duration_seconds"],
+            "error": manifest.get("error"),
+            "assets": {
+                "thumbnail_key": manifest.get("assets", {}).get("thumbnail_key"),
+                "video_key": manifest.get("assets", {}).get("video_key"),
+            },
+        }
+
+    def _upload_latest_bundles(self) -> None:
+        try:
+            asyncio.run(self._upload_latest_bundles_async())
+        except Exception as e:
+            _log(f"Test recording S3 upload skipped/failed: {e}", "WARN")
+
+    async def _upload_latest_bundles_async(self) -> None:
+        try:
+            from backend.core.api.app.services.s3.service import S3UploadService
+            from backend.core.api.app.utils.secrets_manager import SecretsManager
+        except Exception as e:
+            raise RuntimeError(f"could not import S3 dependencies: {e}") from e
+
+        secrets_manager = SecretsManager()
+        await secrets_manager.initialize()
+        s3_service = S3UploadService(secrets_manager)
+        await s3_service.initialize()
+        if not s3_service.client:
+            raise RuntimeError("S3 service is unavailable")
+
+        uploaded = 0
+        for path in TEST_RECORDINGS_DIR.rglob("*"):
+            if not path.is_file():
+                continue
+            rel_path = path.relative_to(TEST_RECORDINGS_DIR).as_posix()
+            object_key = f"{TEST_RECORDINGS_S3_PREFIX}/{rel_path}"
+            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            await s3_service.upload_file(
+                TEST_RECORDINGS_BUCKET_KEY,
+                object_key,
+                path.read_bytes(),
+                content_type,
+            )
+            uploaded += 1
+        _log(f"Uploaded {uploaded} test recording artifact(s) to S3")
+
+
+def _seconds_between(first_iso: Optional[str], current_iso: Optional[str]) -> Optional[float]:
+    if not first_iso or not current_iso:
+        return None
+    try:
+        first = datetime.fromisoformat(first_iso.replace("Z", "+00:00"))
+        current = datetime.fromisoformat(current_iso.replace("Z", "+00:00"))
+        return max(0.0, round((current - first).total_seconds(), 2))
+    except ValueError:
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Local suite runners
 # ---------------------------------------------------------------------------
 
@@ -3844,6 +4155,7 @@ class TestOrchestrator:
             ResultAggregator.save(result)
             # Always generate MD reports (useful for single-spec debugging too)
             ReportGenerator().generate(result)
+            TestRecordingPublisher().publish(result)
             self._sync_obsidian_test_results()
 
         # Print summary

@@ -243,7 +243,11 @@ test.describe('Unauthenticated app load', () => {
 		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });
 	});
 
-	test('daily inspiration banner cycles on each new app visit', async ({ page }: { page: any }) => {
+	test('daily inspiration banner keeps a stable initial item across app visits', async ({
+		page
+	}: {
+		page: any;
+	}) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
@@ -289,15 +293,78 @@ test.describe('Unauthenticated app load', () => {
 			(previousCount) => (window as any).__defaultInspirationsFetchCount > previousCount,
 			fetchCountBeforeLanguageReload
 		);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(
-			'Cycling inspiration two',
-			{ timeout: 3000 }
-		);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText('Cycling inspiration one', {
+			timeout: 3000
+		});
 		const thirdPhrase = await openNewChatAndReadPhrase();
 
 		expect(firstPhrase).toBe('Cycling inspiration one');
-		expect(secondPhrase).toBe('Cycling inspiration two');
-		expect(thirdPhrase).toBe('Cycling inspiration three');
+		expect(secondPhrase).toBe('Cycling inspiration one');
+		expect(thirdPhrase).toBe('Cycling inspiration one');
+	});
+
+	test('daily inspiration banner auto-rotates for unauthenticated users', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
+			const originalFetch = window.fetch.bind(window);
+			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+				if (url.includes('/v1/default-inspirations')) {
+					return new Response(JSON.stringify({ inspirations }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return originalFetch(input, init);
+			};
+		}, CYCLING_INSPIRATIONS);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+
+		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		await expect(newChatButton).toBeVisible({ timeout: 10000 });
+		await newChatButton.click();
+
+		const phrase = page.getByTestId('daily-inspiration-phrase');
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+
+		// Speed up the actual progress animation so this test verifies the
+		// animationend-driven carousel path without waiting for the 20s production duration.
+		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
+			el.style.setProperty('--carousel-progress-duration', '250ms');
+		});
+
+		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(phrase).toHaveText('Cycling inspiration three', { timeout: 3000 });
+		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
+			el.style.setProperty('--carousel-progress-duration', '250ms');
+		});
+		await page.waitForTimeout(500);
+		await expect(phrase).toHaveText('Cycling inspiration three');
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+
+		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
+			el.style.setProperty('--carousel-progress-duration', '250ms');
+		});
+		await page.getByTestId('daily-inspiration-banner').click();
+		await page.waitForTimeout(500);
+		if (await phrase.isVisible().catch(() => false)) {
+			await expect(phrase).toHaveText('Cycling inspiration one');
+		} else {
+			await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 5000 });
+		}
 	});
 
 	test('desktop welcome carousel opens example chats without runtime errors', async ({

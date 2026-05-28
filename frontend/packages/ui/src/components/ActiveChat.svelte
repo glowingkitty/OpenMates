@@ -13,7 +13,7 @@
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
-    import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
+    import { createEventDispatcher, tick, onMount, onDestroy, untrack } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { panelState } from '../stores/panelStateStore'; // Added import
@@ -156,6 +156,10 @@
     type HiddenChatFlag = { is_hidden?: boolean | null };
 
     const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
+    const AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS = new Set([
+        'export-data',
+        'incognito-mode',
+    ]);
 
     function isOgExampleSharedChatCuttlefish(): boolean {
         if (typeof window === 'undefined') {
@@ -2375,7 +2379,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for message input height using $state
     let messageInputHeight = $state(0);
 
-    let showWelcome = $state(true);
+    function getInitialPublicChatFromStore(): Chat | null {
+        if (typeof window === 'undefined') return null;
+
+        const activeChatId = get(activeChatStore);
+        if (!activeChatId || !isPublicChat(activeChatId)) return null;
+
+        return getPublicChatForNavigation(activeChatId);
+    }
+
+    const initialPublicChat = getInitialPublicChatFromStore();
+    const initialPublicMessages = initialPublicChat
+        ? getDemoMessages(initialPublicChat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+        : [];
+
+    let showWelcome = $state(!initialPublicChat);
     let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
@@ -3423,11 +3441,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Cleared together with isNewChatCreditsError on resend, follow-up send, or chat switch.
     let isCreditsRestored = $state(false);
     // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
-    let activeChatDecryptedTitle = $state<string>('');
-    let activeChatDecryptedCategory = $state<string | null>(null);
-    let activeChatDecryptedIcon = $state<string | null>(null);
+    let activeChatDecryptedTitle = $state<string>(initialPublicChat?.title ?? '');
+    let activeChatDecryptedCategory = $state<string | null>(initialPublicChat?.category ?? null);
+    let activeChatDecryptedIcon = $state<string | null>(initialPublicChat?.icon?.split(',')[0]?.trim() || null);
     // Decrypted chat summary shown in the header below the title (available after post-processing).
-    let activeChatDecryptedSummary = $state<string | null>(null);
+    let activeChatDecryptedSummary = $state<string | null>(initialPublicChat?.chat_summary ?? null);
     // Bumped after closing embed fullscreen so ChatHeader remounts after layout classes settle.
     let chatHeaderRenderKey = $state(0);
     // Mate name captured from the mate_selected preprocessing step, used for the
@@ -4498,9 +4516,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void resumeChatData;
         void showWelcome;
         void viewportHeight;
+        void messageInputFocused;
+        void isTouchEnvironment;
+        void isEffectivelyNarrow;
+        void chatSideEl;
+        void welcomeContentEl;
         // chatSideEl must be available (set after mount)
         if (chatSideEl) {
-            recalculateSuggestionsOverlap();
+            // The calculation updates suggestionsWouldOverlapWelcome; don't let that
+            // computed output become an input dependency of this measurement effect.
+            untrack(recalculateSuggestionsOverlap);
         }
     });
 
@@ -4509,8 +4534,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
-    let currentChat = $state<Chat | null>(null);
-    let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let currentChat = $state<Chat | null>(initialPublicChat);
+    let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
 
     async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
@@ -5984,6 +6009,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function handleMessagesChange(event: CustomEvent) {
         const { hasMessages } = event.detail;
+        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
+            showWelcome = false;
+            return;
+        }
         showWelcome = !hasMessages;
     }
 
@@ -6191,6 +6220,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const settingsPath = inspiration.feature?.settings_path;
             if (!settingsPath) {
                 console.debug('[ActiveChat] Feature inspiration has no settings path — no action taken');
+                return;
+            }
+            if (!$authStore.isAuthenticated && (
+                (inspiration.feature?.requires_authentication === true && settingsPath !== 'privacy/hide-personal-data') ||
+                AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS.has(inspiration.feature?.feature_id ?? '')
+            )) {
+                console.debug('[ActiveChat] Guest clicked authenticated-only feature inspiration – opening signup interface');
+                currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+                isInSignupProcess.set(true);
+                loginInterfaceOpen.set(true);
+                if ($panelState.isActivityHistoryOpen) {
+                    panelState.toggleChats();
+                }
                 return;
             }
             settingsMenuVisible.set(true);

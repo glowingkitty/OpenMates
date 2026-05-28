@@ -92,6 +92,13 @@ class PushNotificationService {
           this.serviceWorkerRegistration,
         );
 
+        if (!this.serviceWorkerRegistration.pushManager) {
+          console.debug(
+            "[PushNotificationService] PushManager is not available in this browser",
+          );
+          return;
+        }
+
         // Check for existing subscription
         const subscription =
           await this.serviceWorkerRegistration.pushManager.getSubscription();
@@ -264,6 +271,13 @@ class PushNotificationService {
       } catch {
         return { success: false, error: "Service worker not available" };
       }
+    }
+
+    if (!this.serviceWorkerRegistration.pushManager) {
+      return {
+        success: false,
+        error: "Push notifications not supported by this browser",
+      };
     }
 
     try {

@@ -32,7 +32,7 @@ FEATURE_TIPS = [
         "settings_path": "privacy/hide-personal-data",
         "phrase": "Want stronger privacy controls? Add custom data to PII detection.",
         "category": "openmates_official",
-        "requires_authentication": True,
+        "requires_authentication": False,
     },
     {
         "feature_id": "focus-modes",

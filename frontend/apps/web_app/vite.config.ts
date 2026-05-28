@@ -1,73 +1,10 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import path from 'path';
 import { docsPlugin } from './scripts/vite-plugin-docs.js';
 
 export default defineConfig({
-	plugins: [
-		sveltekit(),
-		docsPlugin(),
-		SvelteKitPWA({
-			srcDir: './src',
-			mode: 'production',
-			// generateSW creates the service worker automatically.
-			// skipWaiting + clientsClaim ensure new SW activates immediately on deploy,
-			// preventing stale JS chunks from being served after Vercel deploys.
-			// The custom service-worker.ts is compiled by SvelteKit separately and
-			// handles push notifications — it coexists with the Workbox-generated SW.
-			strategies: 'generateSW',
-			// Output manifest.json (not default manifest.webmanifest) to match
-			// the <link rel="manifest"> in app.html and maintain compatibility
-			// with existing installed PWAs on user devices
-			manifestFilename: 'manifest.json',
-			scope: '/',
-			base: '/',
-			selfDestroying: false,
-			manifest: {
-				name: 'OpenMates - Your AI Team',
-				short_name: 'OpenMates',
-				description: 'Digital teammates with Apps for everyday tasks and learning',
-				theme_color: '#1a1a1a',
-				background_color: '#ffffff',
-				display: 'standalone',
-				scope: '/',
-				start_url: '/',
-				orientation: 'portrait-primary',
-				icons: [
-					{
-						src: '/icons/icon-192x192.png',
-						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'any maskable'
-					},
-					{
-						src: '/icons/icon-512x512.png',
-						sizes: '512x512',
-						type: 'image/png',
-						purpose: 'any maskable'
-					}
-				]
-			},
-			workbox: {
-				// CRITICAL: Disable navigateFallback — adapter-vercel does NOT prerender "/",
-				// so it is never in the precache manifest. Without this override the
-				// @vite-pwa/sveltekit plugin auto-sets navigateFallback to "/" which causes
-				// createHandlerBoundToURL("/") to throw "non-precached-url" on every page load.
-				navigateFallback: null,
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-				cleanupOutdatedCaches: true,
-				// Activate new SW immediately on deploy — prevents stale chunks
-				skipWaiting: true,
-				clientsClaim: true
-			},
-			devOptions: {
-				enabled: true,
-				type: 'module'
-			}
-		})
-	],
+	plugins: [sveltekit(), docsPlugin()],
 	resolve: {
 		alias: {
 			// Add new alias for UI package

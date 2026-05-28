@@ -1,12 +1,12 @@
 # backend/core/api/app/tasks/email_tasks/cron_session_email_task.py
 """
-Celery task for sending cron job session notification emails to admin.
+Celery task for sending cron job session notification emails to admins.
 
-Notifies the admin when an automated Claude Code session completes (or fails),
-so cron job results are visible without checking log files manually.
+Notifies maintainers when automated coding-agent sessions complete, fail, or
+are ready for review, so cron job results are visible without checking logs.
+The task supports both legacy Claude session IDs and OpenCode web deep links.
 
-Architecture: cron script → _claude_utils.py → POST /internal/dispatch-cron-session-email
-→ this task → EmailTemplateService (Brevo).
+Architecture: cron script → internal API → this task → EmailTemplateService.
 See docs/architecture/infrastructure/cronjobs.md
 """
 
@@ -37,6 +37,7 @@ def send_cron_session_notification(
     job_name: str,
     status: str,
     session_id: Optional[str] = None,
+    session_url: Optional[str] = None,
     duration_seconds: Optional[int] = None,
     context_summary: Optional[str] = None,
     exit_code: Optional[int] = None,
@@ -66,7 +67,7 @@ def send_cron_session_notification(
         result = asyncio.run(
             _async_send(
                 self, admin_email, job_type, job_name, status,
-                session_id, duration_seconds, context_summary, exit_code,
+                session_id, session_url, duration_seconds, context_summary, exit_code,
             )
         )
         if result:
@@ -86,6 +87,7 @@ async def _async_send(
     job_name: str,
     status: str,
     session_id: Optional[str],
+    session_url: Optional[str],
     duration_seconds: Optional[int],
     context_summary: Optional[str],
     exit_code: Optional[int],
@@ -112,6 +114,7 @@ async def _async_send(
         # Map status to display values
         status_color = {
             "completed": "#4CAF50",  # green
+            "ready": "#2196F3",      # blue
             "failed": "#F44336",     # red
             "timeout": "#FF9800",    # orange
         }.get(status, "#2196F3")
@@ -146,6 +149,7 @@ async def _async_send(
             "status": escape(status),
             "status_color": status_color,
             "session_id": escape(session_id) if session_id else None,
+            "session_url": escape(session_url) if session_url else None,
             "duration": duration_str,
             "context_summary": sanitized_context,
             "exit_code": exit_code,

@@ -58,6 +58,7 @@ from backend.core.api.app.routes import docs_routes  # noqa: E402 # Import docs 
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
+from backend.core.api.app.routes import test_recordings  # noqa: E402 # Dev-only Playwright recording browser API
 from backend.core.api.app.routers import webhooks as webhooks_router  # noqa: E402 # Webhook CRUD + incoming webhook handler
 from backend.core.api.app.routers import internal_tunnel  # noqa: E402 # Ephemeral tunnel management for CI
 from backend.core.api.app.services.directus import DirectusService  # noqa: E402
@@ -1351,6 +1352,7 @@ def create_app() -> FastAPI:
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
     app.include_router(notifications_router, include_in_schema=False)  # Native APNs device registration
     app.include_router(telemetry.router, include_in_schema=False)  # OTLP proxy for frontend browser traces (JWT auth, rate-limited)
+    app.include_router(test_recordings.router, include_in_schema=False)  # Dev-only Playwright test recording browser
     app.include_router(webhooks_router.router, include_in_schema=True)  # Webhook CRUD + incoming webhook handler (JWT + webhook key auth)
     app.include_router(internal_tunnel.router, include_in_schema=False)  # Ephemeral tunnel management for CI (HMAC auth)
     from backend.core.api.app.routes import usage_api

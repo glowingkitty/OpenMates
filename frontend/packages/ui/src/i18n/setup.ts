@@ -1,8 +1,9 @@
-import { register, init, getLocaleFromNavigator } from "svelte-i18n";
+import { register, init, addMessages, getLocaleFromNavigator } from "svelte-i18n";
 import { browser } from "$app/environment";
 import { isValidLocale } from "./types";
 import { LANGUAGE_CODES, isRtlLanguage } from "./languages";
 import { waitForTranslations } from "../stores/i18n";
+import enMessages from "./locales/en.json";
 
 /**
  * Dynamic locale import map using Vite's import.meta.glob
@@ -122,7 +123,9 @@ export function getDetectedBrowserLanguage(): string {
 // Register all supported locales from languages.json immediately when module loads
 // This ensures the i18n system is set up before any components try to use it
 // We use LANGUAGE_CODES from languages.json as the single source of truth
-LANGUAGE_CODES.forEach((locale) => {
+addMessages("en", enMessages);
+
+LANGUAGE_CODES.filter((locale) => locale !== "en").forEach((locale) => {
   register(locale, () => loadLocaleData(locale));
 });
 

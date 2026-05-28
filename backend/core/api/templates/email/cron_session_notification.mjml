@@ -54,16 +54,24 @@
           </mj-text>
           {% endif %}
 
+          {% if session_url %}
+          <mj-button href="{{ session_url }}" background-color="#2196F3" color="#ffffff" border-radius="8px" padding-bottom="15px">
+            {{ t.email.cron_session_notification.resume_hint.text }}
+          </mj-button>
+          {% endif %}
+
           {% if session_id %}
           <mj-text font-size="16px" padding-bottom="15px">
             <strong>{{ t.email.cron_session_notification.session_id_label.text }}:</strong><br/>
             <code style="background-color: {% if darkmode %}#2d2d2d{% else %}#f5f5f5{% endif %}; padding: 2px 6px; border-radius: 3px; font-size: 14px;">{{ session_id }}</code>
           </mj-text>
 
+          {% if not session_url %}
           <mj-text font-size="13px" padding-bottom="15px" font-style="italic">
             {{ t.email.cron_session_notification.resume_hint.text }}:<br/>
             <code style="background-color: {% if darkmode %}#2d2d2d{% else %}#f5f5f5{% endif %}; padding: 2px 6px; border-radius: 3px; font-size: 12px;">claude -p "continue" --resume {{ session_id }}</code>
           </mj-text>
+          {% endif %}
           {% endif %}
 
           {% if context_summary %}

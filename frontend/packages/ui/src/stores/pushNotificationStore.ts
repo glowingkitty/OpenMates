@@ -17,6 +17,11 @@ import { writable, derived, get } from "svelte/store";
 // Browser check for SSR safety
 const browser = typeof window !== "undefined";
 
+// Web push requires a service worker. The web app intentionally no longer
+// registers service workers because stale app-shell caches broke Safari/iOS
+// boot. Keep notification delivery on email/native channels instead.
+const WEB_PUSH_ENABLED = false;
+
 /**
  * Browser notification permission states
  */
@@ -99,6 +104,7 @@ function detectIsPWA(): boolean {
  * Check if push notifications are supported on this platform
  */
 function checkPushSupport(): boolean {
+  if (!WEB_PUSH_ENABLED) return false;
   if (!browser) return false;
 
   // Check for Notification API
@@ -357,10 +363,7 @@ export const pushNotificationStore = {
     // Banner was already shown in a previous session, don't show again
     if (state.bannerShownBefore) return false;
 
-    // iOS Safari (non-PWA): push is unsupported but becomes available after PWA install
-    if (!state.isSupported) {
-      return state.isIOS && !state.isPWA;
-    }
+    if (!state.isSupported) return false;
 
     // Already have permission decision, don't show
     if (state.permission === "granted" || state.permission === "denied") {
@@ -489,16 +492,6 @@ export const pushNotificationStore = {
 };
 
 /**
- * Derived store: Whether the user can receive push notifications
- * True if supported, permission granted, and enabled
- */
-const canReceivePushNotifications = derived(
-  pushNotificationStore,
-  ($store) =>
-    $store.isSupported && $store.permission === "granted" && $store.enabled,
-);
-
-/**
  * Derived store: Whether to show the permission banner
  *
  * Shows the banner when:
@@ -511,9 +504,8 @@ const canReceivePushNotifications = derived(
 export const shouldShowPushBanner = derived(
   pushNotificationStore,
   ($store) =>
-    ($store.isSupported
-      ? $store.permission === "default"
-      : $store.isIOS && !$store.isPWA) &&
+    $store.isSupported &&
+    $store.permission === "default" &&
     !$store.bannerDismissedThisSession &&
     !$store.bannerShownBefore,
 );
@@ -530,5 +522,5 @@ export const shouldShowPushBanner = derived(
  */
 export const requiresPWAInstall = derived(
   pushNotificationStore,
-  ($store) => $store.isIOS && !$store.isPWA,
+  () => false,
 );

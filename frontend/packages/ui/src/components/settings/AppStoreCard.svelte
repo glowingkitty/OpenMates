@@ -413,7 +413,7 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
-        color: var(--color-grey-0);
+        color: white;
         position: relative;
         overflow: hidden;
         box-sizing: border-box; /* Ensure padding is included in width/height */
@@ -575,7 +575,7 @@
         margin: 2px 0 0;
         font-size: var(--font-size-p);
         font-weight: 600;
-        color: var(--color-grey-100);
+        color: white;
         line-height: 1.2;
         flex: 1;
     }

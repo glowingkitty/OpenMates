@@ -2611,7 +2611,9 @@ class CronSessionNotificationPayload(BaseModel):
     job_type: str = Field(..., description="Job category: audit, security, redteam, dependabot, dead-code, deploy-fix, test-analysis, issues, workflow-review")
     job_name: str = Field(..., description="Human-readable session title")
     status: str = Field(..., description="Session outcome: completed, failed, or timeout")
-    session_id: Optional[str] = Field(None, description="Claude Code session UUID")
+    recipient_email: Optional[str] = Field(None, description="Optional notification recipient override for internal cron jobs")
+    session_id: Optional[str] = Field(None, description="AI coding session identifier")
+    session_url: Optional[str] = Field(None, description="Optional web URL for opening the session")
     duration_seconds: Optional[int] = Field(None, description="Session duration in seconds")
     context_summary: Optional[str] = Field(None, description="Brief description of what happened")
     exit_code: Optional[int] = Field(None, description="Process exit code")
@@ -2634,7 +2636,7 @@ async def dispatch_cron_session_email(
     """
     from backend.core.api.app.tasks.celery_config import app as celery_app
 
-    admin_email = os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
+    admin_email = payload.recipient_email or os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
     if not admin_email:
         logger.warning(
             "SERVER_OWNER_EMAIL/ADMIN_NOTIFY_EMAIL not configured — "
@@ -2651,6 +2653,7 @@ async def dispatch_cron_session_email(
                 payload.job_name,
                 payload.status,
                 payload.session_id,
+                payload.session_url,
                 payload.duration_seconds,
                 payload.context_summary,
                 payload.exit_code,

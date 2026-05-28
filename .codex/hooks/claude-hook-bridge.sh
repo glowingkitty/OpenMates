@@ -20,7 +20,7 @@ tool_name() {
 }
 
 tool_command() {
-  echo "$INPUT" | jq -r '.tool_input.command // .tool_input.patch // empty'
+  echo "$INPUT" | jq -r '.tool_input.command // .tool_input.patchText // .tool_input.patch // empty'
 }
 
 tool_file_path() {
@@ -135,6 +135,10 @@ case "$EVENT" in
 
     case "$TOOL" in
       apply_patch|Edit|Write)
+        if [ "$TOOL" = "apply_patch" ]; then
+          run_hook "e2e-encryption-guard.sh" "$INPUT" true
+        fi
+
         run_for_files "PreToolUse" true \
           "pre-edit-guard.sh" \
           "provider-registry-sync.sh" \

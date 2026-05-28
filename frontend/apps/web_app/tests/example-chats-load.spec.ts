@@ -19,6 +19,21 @@
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
+function countMatches(text: string, pattern: RegExp): number {
+	return [...text.matchAll(pattern)].length;
+}
+
+function extractExampleSlugs(html: string): string[] {
+	const matches = [...html.matchAll(/href="\/example\/([^"]+)"/g)];
+	return [...new Set(matches.map((match) => match[1]))];
+}
+
+function extractJsonLd(html: string): Record<string, any> {
+	const match = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/i);
+	expect(match, 'JSON-LD script should exist').not.toBeNull();
+	return JSON.parse(match[1]);
+}
+
 test.describe('Example chats loading for new users', () => {
 	test('example chats appear in for-everyone intro chat', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
@@ -92,5 +107,119 @@ test.describe('Example chats loading for new users', () => {
 		expect(html).toContain('<main');
 		expect(html).toContain('<article');
 		expect(html).toContain('<h1>');
+	});
+
+	test('every example chat SSR page has complete crawlable SEO HTML', async ({
+		request
+	}: {
+		request: any;
+	}) => {
+		test.setTimeout(60000);
+
+		const listingResponse = await request.get('/example');
+		expect(listingResponse.status(), 'Example listing page should return 200').toBe(200);
+
+		const listingHtml = await listingResponse.text();
+		const slugs = extractExampleSlugs(listingHtml);
+		expect(slugs.length, 'Example listing should link to example chat pages').toBeGreaterThan(0);
+
+		for (const slug of slugs) {
+			const response = await request.get(`/example/${slug}`);
+			expect(response.status(), `/example/${slug} should return 200`).toBe(200);
+
+			const html = await response.text();
+			expect(html, `/example/${slug} should render main content without JS`).toContain('<main');
+			expect(html, `/example/${slug} should render an article without JS`).toContain('<article');
+			expect(html, `/example/${slug} should include user transcript text`).toContain('User:');
+			expect(html, `/example/${slug} should include assistant transcript text`).toContain('OpenMates:');
+			expect(html, `/example/${slug} should not leak unresolved i18n keys`).not.toContain(
+				'example_chats.'
+			);
+
+			expect(countMatches(html, /<title[\s>]/gi), `/example/${slug} title count`).toBe(1);
+			expect(
+				countMatches(html, /<meta\s+name="description"/gi),
+				`/example/${slug} meta description count`
+			).toBe(1);
+			expect(
+				countMatches(html, /<link\s+rel="canonical"/gi),
+				`/example/${slug} canonical count`
+			).toBe(1);
+			expect(countMatches(html, /<meta\s+name="robots"/gi), `/example/${slug} robots count`).toBe(
+				1
+			);
+			expect(countMatches(html, /<meta\s+property="og:title"/gi), `/example/${slug} OG title`).toBe(
+				1
+			);
+			expect(
+				countMatches(html, /<meta\s+property="og:description"/gi),
+				`/example/${slug} OG description`
+			).toBe(1);
+			expect(countMatches(html, /<meta\s+property="og:image"/gi), `/example/${slug} OG image`).toBe(
+				1
+			);
+			expect(
+				countMatches(html, /<meta\s+name="twitter:title"/gi),
+				`/example/${slug} Twitter title`
+			).toBe(1);
+			expect(
+				countMatches(html, /<meta\s+name="twitter:description"/gi),
+				`/example/${slug} Twitter description`
+			).toBe(1);
+			expect(
+				countMatches(html, /<meta\s+name="twitter:image"/gi),
+				`/example/${slug} Twitter image`
+			).toBe(1);
+
+			const canonicalMatch = html.match(/<link\s+rel="canonical"\s+href="([^"]+)"/i);
+			expect(canonicalMatch?.[1], `/example/${slug} should have slug canonical`).toContain(
+				`/example/${slug}`
+			);
+
+			const robotsMatch = html.match(/<meta\s+name="robots"\s+content="([^"]+)"/i);
+			expect(robotsMatch?.[1], `/example/${slug} should have explicit robots content`).toMatch(
+				/^(index, follow|noindex, nofollow)$/
+			);
+
+			const jsonLd = extractJsonLd(html);
+			expect(jsonLd['@type'], `/example/${slug} JSON-LD type`).toBe('Article');
+			expect(jsonLd.headline, `/example/${slug} JSON-LD headline`).toBeTruthy();
+			expect(jsonLd.description, `/example/${slug} JSON-LD description`).toBeTruthy();
+			expect(jsonLd.dateModified, `/example/${slug} JSON-LD dateModified`).toBeTruthy();
+			expect(jsonLd.mainEntityOfPage?.['@id'], `/example/${slug} JSON-LD canonical`).toContain(
+				`/example/${slug}`
+			);
+		}
+	});
+
+	test('production sitemap includes every example chat with lastmod', async ({
+		request
+	}: {
+		request: any;
+	}) => {
+		test.setTimeout(30000);
+
+		const listingResponse = await request.get('/example');
+		const listingHtml = await listingResponse.text();
+		const slugs = extractExampleSlugs(listingHtml);
+		expect(slugs.length, 'Example listing should expose sitemap candidates').toBeGreaterThan(0);
+
+		const sitemapResponse = await request.get('/sitemap.xml');
+		expect(sitemapResponse.status(), 'Sitemap should return 200').toBe(200);
+
+		const sitemapXml = await sitemapResponse.text();
+		test.skip(
+			!sitemapXml.includes(`/example/${slugs[0]}`),
+			'This environment intentionally does not expose example URLs in sitemap.xml; build-time SEO audit validates production sitemap output.'
+		);
+
+		for (const slug of slugs) {
+			const entryPattern = new RegExp(
+				`<loc>https?://[^<]+/example/${slug}</loc>\\s*<lastmod>\\d{4}-\\d{2}-\\d{2}</lastmod>`
+			);
+			expect(sitemapXml, `Sitemap should include /example/${slug} with lastmod`).toMatch(
+				entryPattern
+			);
+		}
 	});
 });

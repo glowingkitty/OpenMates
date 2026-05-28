@@ -2,7 +2,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "apply_patch|Edit|Write",
         "hooks": [
           {
             "type": "command",
