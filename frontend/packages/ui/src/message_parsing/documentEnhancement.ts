@@ -5,6 +5,7 @@ import { EmbedNodeAttributes } from "./types";
 
 // Special marker to indicate a duplicate embed reference that should be removed from the document
 const DUPLICATE_EMBED_MARKER = Symbol("DUPLICATE_EMBED");
+const PROTOCOL_EMBED_MARKER = Symbol("PROTOCOL_EMBED");
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // TipTap document structure types (loosely typed to accommodate various node types)
@@ -58,12 +59,15 @@ export function enhanceDocumentWithEmbeds(
         node,
         embedNodes,
         renderedEmbedIds,
+        mode,
       );
 
-      // Check if this is a duplicate embed reference that should be removed
-      if (matchResult === DUPLICATE_EMBED_MARKER) {
+      if (
+        matchResult === DUPLICATE_EMBED_MARKER ||
+        matchResult === PROTOCOL_EMBED_MARKER
+      ) {
         console.debug(
-          "[enhanceDocumentWithEmbeds] Removing duplicate embed reference from document",
+          "[enhanceDocumentWithEmbeds] Removing internal embed reference from document",
         );
         return null; // Will be filtered out below
       }
@@ -408,7 +412,12 @@ function findMatchingEmbedForCodeBlock(
   codeBlockNode: TipTapNode,
   embedNodes: EmbedNodeAttributes[],
   renderedEmbedIds: Set<string>,
-): EmbedNodeAttributes | typeof DUPLICATE_EMBED_MARKER | null {
+  mode: "write" | "read",
+):
+  | EmbedNodeAttributes
+  | typeof DUPLICATE_EMBED_MARKER
+  | typeof PROTOCOL_EMBED_MARKER
+  | null {
   // Extract text content from the code block
   const codeText = codeBlockNode.content?.[0]?.text || "";
 
@@ -494,6 +503,9 @@ function findMatchingEmbedForCodeBlock(
             })),
           },
         );
+        if (mode === "read") {
+          return PROTOCOL_EMBED_MARKER;
+        }
       }
     }
   } catch {
