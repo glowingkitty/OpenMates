@@ -21,7 +21,9 @@
 
 	onMount(async () => {
 		try {
-			recording = await fetchTestRecording($page.params.slug);
+			const slug = $page.params.slug;
+			if (!slug) throw new Error('Missing test recording slug.');
+			recording = await fetchTestRecording(slug);
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to load test recording.';
 		} finally {
@@ -87,8 +89,7 @@
 			</section>
 		{/if}
 
-		<section class="content-grid">
-			<div class="steps-card">
+		<section class="steps-card">
 				<h2>Steps</h2>
 				{#if recording.steps?.length}
 					<ol class="steps">
@@ -117,24 +118,6 @@
 				{:else}
 					<p class="muted">No structured steps were available for this spec.</p>
 				{/if}
-			</div>
-
-			<div class="screenshots-card">
-				<h2>Screenshots</h2>
-				{#if recording.assets?.screenshot_urls?.length}
-					<div class="screenshots">
-						{#each recording.assets.screenshot_urls as screenshotUrl, index}
-							{#if screenshotUrl}
-								<a href={screenshotUrl} target="_blank" rel="noreferrer">
-									<img src={screenshotUrl} alt={`Screenshot ${index + 1}`} loading="lazy" />
-								</a>
-							{/if}
-						{/each}
-					</div>
-				{:else}
-					<p class="muted">No screenshots were uploaded for this spec.</p>
-				{/if}
-			</div>
 		</section>
 	{/if}
 </main>
@@ -194,7 +177,6 @@
 	.video-panel,
 	.error-block,
 	.steps-card,
-	.screenshots-card,
 	.state-card {
 		border: 1px solid var(--color-grey-20);
 		border-radius: 28px;
@@ -204,6 +186,8 @@
 
 	.video-panel {
 		overflow: hidden;
+		max-width: 1180px;
+		margin: 0 auto;
 		background: var(--color-grey-100);
 	}
 
@@ -214,6 +198,12 @@
 		display: block;
 	}
 
+	video {
+		max-height: min(56vh, 620px);
+		object-fit: contain;
+		background: var(--color-grey-100);
+	}
+
 	.no-video {
 		display: grid;
 		place-items: center;
@@ -222,7 +212,6 @@
 
 	.error-block,
 	.steps-card,
-	.screenshots-card,
 	.state-card {
 		padding: 22px;
 	}
@@ -246,10 +235,7 @@
 		white-space: pre-wrap;
 	}
 
-	.content-grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-		gap: 22px;
+	.steps-card {
 		margin-top: 22px;
 	}
 
@@ -265,7 +251,8 @@
 		overflow: hidden;
 		border: 1px solid var(--color-grey-15);
 		border-radius: 18px;
-		background: var(--color-grey-5, #f7f7f8);
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
 	}
 
 	.steps li.failed {
@@ -276,6 +263,7 @@
 		display: grid;
 		grid-template-columns: 64px 1fr;
 		gap: 12px;
+		align-items: start;
 		width: 100%;
 		padding: 14px;
 		border: 0;
@@ -315,20 +303,10 @@
 	.steps img {
 		display: block;
 		width: 100%;
+		max-height: 620px;
+		object-fit: contain;
 		border-top: 1px solid var(--color-grey-15);
-	}
-
-	.screenshots {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-		gap: 12px;
-	}
-
-	.screenshots img {
-		display: block;
-		width: 100%;
-		border-radius: 14px;
-		border: 1px solid var(--color-grey-15);
+		background: var(--color-grey-100);
 	}
 
 	.state-card {
@@ -341,8 +319,7 @@
 	}
 
 	@media (max-width: 920px) {
-		.header,
-		.content-grid {
+		.header {
 			display: flex;
 			flex-direction: column;
 		}
