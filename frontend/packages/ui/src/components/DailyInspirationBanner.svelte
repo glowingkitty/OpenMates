@@ -534,7 +534,7 @@
   }
 
   function handleProgressAnimationEnd(e: AnimationEvent) {
-    if (e.animationName !== 'carouselProgressFill') return;
+    if (e.target !== e.currentTarget) return;
     if (!isBannerVisible || visibleInspirations.length <= 1) return;
     if (isUserInteracting || isOpeningInspiration) return;
     goToVisibleIndex(currentIndex + 1);
