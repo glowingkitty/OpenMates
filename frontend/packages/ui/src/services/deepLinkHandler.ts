@@ -550,6 +550,10 @@ export function processSettingsDeepLink(
       path = path.replace(/\/focuses\//, "/focus/");
     }
 
+    if (path === "billing/referral_code") {
+      path = "billing/referral-code";
+    }
+
     handlers.setSettingsDeepLink(path);
 
     // Clear the hash after processing

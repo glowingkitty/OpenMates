@@ -1,0 +1,26 @@
+slug: introducing-openmates-v010
+kind: announcements
+category: updates_and_announcements
+demo_chat_category: news
+chat_id: announcements-introducing-openmates-v010
+subject:
+  en: 'OpenMates v0.10: More helpful chats, better privacy tools, easier payments'
+  de: 'OpenMates v0.10: Hilfreichere Chats, bessere Datenschutz-Tools, einfachere
+    Zahlungen'
+title:
+  en: 'OpenMates v0.10: More helpful chats, better privacy tools, easier payments'
+  de: 'OpenMates v0.10: Hilfreichere Chats, bessere Datenschutz-Tools, einfachere
+    Zahlungen'
+subtitle:
+  en: A practical update focused on everyday use
+  de: Ein praktisches Update für die tägliche Nutzung
+cta_url: https://openmates.org
+cta_text:
+  en: Open OpenMates
+  de: OpenMates öffnen
+body_i18n_key: demo_chats.announcements_introducing_openmates_v010.message
+video: null
+hero_image: null
+header_icon: null
+published_at: '2026-05-04T17:35:46+00:00'
+sent_at: null

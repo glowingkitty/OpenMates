@@ -20,7 +20,10 @@ export function convertDemoChatToChat(demoChat: DemoChat): Chat {
 	// Use timestamps from 7 days ago, with lower order numbers getting newer timestamps
 	// This ensures demo chats appear in the "Last 7 days" group and sort correctly
 	const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
-	const timestamp = sevenDaysAgo - (demoChat.metadata.order * 1000); // Subtract order (lower order = newer time)
+	const publishedAtMs = demoChat.metadata.publishedAt ? Date.parse(demoChat.metadata.publishedAt) : NaN;
+	const timestamp = Number.isFinite(publishedAtMs)
+		? publishedAtMs
+		: sevenDaysAgo - (demoChat.metadata.order * 1000); // Subtract order (lower order = newer time)
 
 	return {
 		chat_id: demoChat.chat_id,

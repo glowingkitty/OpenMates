@@ -38,6 +38,14 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const title = t(chat.title);
 	const summary = t(chat.description);
 	const messageBody = chat.messages[0] ? t(chat.messages[0].content) : '';
+	const publishedAt = chat.metadata.publishedAt ?? null;
+	const publishedDate = publishedAt
+		? new Intl.DateTimeFormat('en', {
+				dateStyle: 'long',
+				timeStyle: 'short',
+				timeZone: 'Europe/Berlin'
+			}).format(new Date(publishedAt))
+		: null;
 
 	const jsonLd = {
 		'@context': 'https://schema.org',
@@ -47,6 +55,8 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		keywords: chat.keywords.join(', '),
 		author: { '@type': 'Organization', name: 'OpenMates', url: siteOrigin },
 		publisher: { '@type': 'Organization', name: 'OpenMates', url: siteOrigin },
+		datePublished: publishedAt ?? undefined,
+		dateModified: chat.metadata.lastUpdated ?? publishedAt ?? undefined,
 		mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl }
 	};
 
@@ -55,6 +65,8 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		title,
 		summary,
 		messageBody,
+		publishedAt,
+		publishedDate,
 		keywords: chat.keywords,
 		video: {
 			mp4_url: chat.metadata.video_mp4_url ?? null,

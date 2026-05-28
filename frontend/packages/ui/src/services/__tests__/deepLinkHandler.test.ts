@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { parseDeepLink } from "../deepLinkHandler";
+vi.mock("$app/navigation", () => ({
+  replaceState: vi.fn(),
+}));
+
+import { parseDeepLink, processSettingsDeepLink } from "../deepLinkHandler";
 
 describe("parseDeepLink", () => {
   it("parses chat links with a bare autoplay-video flag", () => {
@@ -31,5 +35,18 @@ describe("parseDeepLink", () => {
         autoplayVideo: false,
       },
     });
+  });
+});
+
+describe("processSettingsDeepLink", () => {
+  it("keeps referral-code hyphenated for the billing settings route", () => {
+    const setSettingsDeepLink = vi.fn();
+
+    processSettingsDeepLink("#settings/billing/referral-code", {
+      openSettings: vi.fn(),
+      setSettingsDeepLink,
+    });
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith("billing/referral-code");
   });
 });

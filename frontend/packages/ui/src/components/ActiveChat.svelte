@@ -4601,6 +4601,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return getVideoForLocale(videoKey, $locale ?? 'en');
     });
 
+    let activePublicChatCreatedAt = $derived.by(() => {
+        const publishedAt = activePublicChatMetadata?.publishedAt;
+        if (!publishedAt) return null;
+        const timestampMs = Date.parse(publishedAt);
+        return Number.isFinite(timestampMs) ? Math.floor(timestampMs / 1000) : null;
+    });
+
     // Generation counter to prevent stale loadChat() completions from overwriting currentMessages.
     // Each loadChat() call increments this; if the counter has moved on by the time async work
     // completes, the stale call bails out instead of writing wrong messages into the view.
@@ -11115,7 +11122,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatIcon={activeChatDecryptedIcon}
                          chatSummary={activeChatDecryptedSummary}
                          {chatHeaderRenderKey}
-                         chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
+                          chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : activePublicChatCreatedAt}
                          {isNewChatGeneratingTitle}
                          {isNewChatCreditsError}
                          {isCreditsRestored}

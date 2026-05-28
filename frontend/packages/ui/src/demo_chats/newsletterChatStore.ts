@@ -18,6 +18,8 @@ import type { DemoChat } from "./types";
 // BEGIN_NEWSLETTER_IMPORTS
 import { announcementsIntroducingOpenmatesV09Chat } from "./data/announcements_introducing_openmates_v09";
 import { announcementsReferralFeatureLaunchChat } from "./data/announcements_referral_feature_launch";
+import { announcementsIntroducingOpenmatesV010Chat } from "./data/announcements_introducing_openmates_v010";
+import { announcementsIntroducingOpenmatesV011Chat } from "./data/announcements_introducing_openmates_v011";
 // END_NEWSLETTER_IMPORTS
 
 /** All newsletter demo chats, active + inactive. Filtered by helpers below. */
@@ -26,6 +28,8 @@ export const ALL_NEWSLETTER_CHATS: DemoChat[] = [
   // BEGIN_NEWSLETTER_REGISTRATIONS
   announcementsIntroducingOpenmatesV09Chat,
   announcementsReferralFeatureLaunchChat,
+  announcementsIntroducingOpenmatesV010Chat,
+  announcementsIntroducingOpenmatesV011Chat,
 // END_NEWSLETTER_REGISTRATIONS
 ];
 
