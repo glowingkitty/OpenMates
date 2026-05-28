@@ -384,7 +384,6 @@
     interface AutoConvertedPasteCandidate {
         embedId: string;
         text: string;
-        baselineText: string;
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
@@ -542,12 +541,6 @@
             autoConvertedPasteCandidate = null;
             return;
         }
-
-        const currentText = editor.getText().trim();
-        const baselineText = autoConvertedPasteCandidate.baselineText.trim();
-        if (currentText !== baselineText && currentText.length > baselineText.length) {
-            autoConvertedPasteCandidate = null;
-        }
     }
 
     async function replaceAutoConvertedPasteWithText() {
@@ -595,7 +588,7 @@
             try {
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 editor.commands.focus('end');
-                autoConvertedPasteCandidate = { embedId, text: originalText, baselineText: editor.getText() };
+                autoConvertedPasteCandidate = { embedId, text: originalText };
             } finally {
                 isConvertingEmbeds = false;
             }
@@ -652,7 +645,7 @@
 
         editor.commands.insertContent(' ');
         editor.commands.focus('end');
-        autoConvertedPasteCandidate = { embedId, text, baselineText: editor.getText() };
+        autoConvertedPasteCandidate = { embedId, text };
         hasContent = !isContentEmptyExceptMention(editor);
     }
 
@@ -1789,6 +1782,12 @@
                 // deferred handleClick (which uses setTimeout and may run after a
                 // re-render that destroyed the original <span>).
                 handleDOMEvents: {
+                    keydown: (_view, event) => {
+                        if (autoConvertedPasteCandidate && event.key.length === 1 && event.key.trim().length > 0) {
+                            autoConvertedPasteCandidate = null;
+                        }
+                        return false;
+                    },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
                         const piiEl = target.classList.contains('pii-highlight')
