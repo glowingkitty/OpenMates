@@ -36,6 +36,10 @@ from backend.core.api.app.utils.override_parser import UserOverrides
 
 # Import model selector for intelligent model selection based on leaderboard rankings
 from backend.apps.ai.utils.model_selector import ModelSelector
+from backend.apps.ai.processing.audio_recording_guard import (
+    AUDIO_TRANSCRIBE_SKILL_ID,
+    remove_audio_transcribe_for_transcribed_recordings,
+)
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -2909,6 +2913,17 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] 'web-read' already preselected by LLM — no override needed."
                 )
 
+    guarded_relevant_skills, removed_audio_transcribe = remove_audio_transcribe_for_transcribed_recordings(
+        validated_relevant_skills,
+        request_data.message_history,
+    )
+    if removed_audio_transcribe:
+        logger.info(
+            f"{log_prefix} [AUDIO_RECORDING_GUARD] Removed '{AUDIO_TRANSCRIBE_SKILL_ID}' from preselected skills: "
+            "web UI audio recording already includes transcript text. Use the transcript as user input; "
+            "do not re-transcribe already transcribed recordings."
+        )
+        validated_relevant_skills = guarded_relevant_skills
 
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.

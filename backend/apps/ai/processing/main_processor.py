@@ -45,6 +45,10 @@ from backend.core.api.app.services.translations import TranslationService
 
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
+from backend.apps.ai.processing.audio_recording_guard import (
+    AUDIO_TRANSCRIBE_SKILL_ID,
+    has_transcribed_web_audio_recording,
+)
 # Import skill executor
 from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
@@ -1799,6 +1803,19 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     )
+
+    audio_transcribe_blocked_by_recording = has_transcribed_web_audio_recording(request_data.message_history)
+    if audio_transcribe_blocked_by_recording:
+        original_tool_count = len(available_tools_for_llm)
+        available_tools_for_llm = [
+            tool for tool in available_tools_for_llm
+            if _canonicalize_tool_name(tool.get("function", {}).get("name", "")) != AUDIO_TRANSCRIBE_SKILL_ID
+        ]
+        if len(available_tools_for_llm) != original_tool_count:
+            logger.info(
+                f"{log_prefix} [AUDIO_RECORDING_GUARD] Removed '{AUDIO_TRANSCRIBE_SKILL_ID}' from main LLM tools: "
+                "web UI audio recording already includes transcript text."
+            )
     
     # --- Add focus mode tools if relevant ---
     # Focus modes are treated as special system tools that change the AI's behavior
@@ -2504,6 +2521,33 @@ async def handle_main_processing(
                         )
                         continue
 
+                    if (
+                        app_id == "audio"
+                        and skill_id == "transcribe"
+                        and audio_transcribe_blocked_by_recording
+                    ):
+                        logger.warning(
+                            f"{log_prefix} [AUDIO_RECORDING_GUARD] Rejecting '{tool_name}' before placeholder creation: "
+                            "web UI audio recording already has transcript text."
+                        )
+                        if tool_calls_for_this_turn and tool_calls_for_this_turn[-1] is chunk:
+                            tool_calls_for_this_turn.pop()
+                        rejection_tool_message = {
+                            "tool_call_id": chunk.tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": json.dumps({
+                                "status": "rejected",
+                                "reason": (
+                                    "This web app voice recording already has a transcript. "
+                                    "Use the transcript in the conversation; do not retry transcription."
+                                ),
+                            }),
+                        }
+                        hallucinated_tool_calls_this_turn.append((chunk, rejection_tool_message))
+                        hallucinated_rejections_this_turn += 1
+                        continue
+
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
                     elif focus_activation_seen_this_turn and app_id != "system":
@@ -3095,7 +3139,30 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
-                
+
+                if (
+                    app_id == "audio"
+                    and skill_id == "transcribe"
+                    and audio_transcribe_blocked_by_recording
+                ):
+                    logger.warning(
+                        f"{log_prefix} [AUDIO_RECORDING_GUARD] Refusing to execute '{tool_name}': "
+                        "web UI audio recording already has transcript text."
+                    )
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": (
+                                "This web app voice recording already has a transcript. "
+                                "Use the transcript in the conversation; do not retry transcription."
+                            ),
+                        }),
+                    })
+                    continue
+
                 # === SKILL CALL BUDGET CHECK ===
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
