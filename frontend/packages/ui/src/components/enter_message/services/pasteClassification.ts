@@ -165,6 +165,7 @@ function extractDelimitedTableAsMarkdown(text: string): string | null {
 
   const delimiter = lines.some((line) => line.includes("\t")) ? "\t" : ",";
   if (delimiter === "," && !lines.every((line) => line.includes(","))) return null;
+  if (delimiter === "," && lines.length < 3) return null;
 
   const rows = lines.map((line) => splitDelimitedRow(line, delimiter));
   const columnCount = rows[0]?.length || 0;

@@ -35,7 +35,9 @@ async function pasteIntoEditor(
 	await editor.click();
 	await page.evaluate(
 		({ text, html, vsCodeEditorData }: { text: string; html?: string; vsCodeEditorData?: string }) => {
-			const editorEl = document.querySelector('[data-testid="message-editor"]');
+			const editorEl =
+				document.querySelector('[data-testid="message-editor"] [contenteditable="true"]') ||
+				document.querySelector('[data-testid="message-editor"]');
 			if (!editorEl) throw new Error('message-editor not found');
 
 			const clipboardData = new DataTransfer();
