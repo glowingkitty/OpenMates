@@ -5820,6 +5820,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         // Hide follow-up suggestions until new ones are received
+        dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
         followUpSuggestions = [];
         quickTipSlugs = [];
         

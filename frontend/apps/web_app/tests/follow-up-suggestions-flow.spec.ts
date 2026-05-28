@@ -212,6 +212,20 @@ test('shows follow-up suggestion chips after AI response', async ({
 	log(`First suggestion: "${suggestionText}"`);
 	expect(suggestionText?.trim().length).toBeGreaterThan(0);
 
+	const assistantCountBeforeFollowUp = await page.getByTestId('message-assistant').count();
+	await messageEditor.click();
+	await page.keyboard.type(withMockMarker('Tell me one more concise fact.', 'manual_follow_up_hides_suggestions'));
+	await expect(sendButton).toBeEnabled();
+	await sendButton.click();
+	await expect(page.getByTestId('follow-up-suggestion-item')).toHaveCount(0, { timeout: 1000 });
+	log('Follow-up suggestions disappeared immediately after manually sending a follow-up.');
+
+	await expect(async () => {
+		const assistantCountAfterFollowUp = await page.getByTestId('message-assistant').count();
+		expect(assistantCountAfterFollowUp).toBeGreaterThan(assistantCountBeforeFollowUp);
+	}).toPass({ timeout: 120000, intervals: [2000, 3000, 5000] });
+	log('Assistant responded to manual follow-up.');
+
 	await assertNoMissingTranslations(page);
 
 	// Clean up: delete the chat
