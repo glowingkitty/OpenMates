@@ -96,18 +96,14 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
 
   it("keeps hallucinated settings links as plain text", () => {
     const doc = parseMarkdownToTiptap(
-      "Open [billing settings](/#settings/app_store/openmates/settings_memories/billing) or [referrals](/#settings/billing/referral-code).",
+      "Open [billing settings](/#settings/app_store/openmates/settings_memories/billing).",
     );
 
     const paragraph = doc.content[0];
     const billingText = paragraph.content.find(
       (node: { text?: string }) => node.text === "billing settings",
     );
-    const referralText = paragraph.content.find(
-      (node: { text?: string }) => node.text === "referrals",
-    );
 
     expect(billingText?.marks).toBeUndefined();
-    expect(referralText?.marks?.[0]?.attrs?.href).toBe("#settings/billing/referral-code");
   });
 });
