@@ -1089,7 +1089,9 @@ class BatchRunner:
         if dest.exists():
             shutil.rmtree(dest, ignore_errors=True)
         screenshots_dest = dest / "screenshots"
+        videos_dest = dest / "videos"
         screenshots_dest.mkdir(parents=True, exist_ok=True)
+        videos_dest.mkdir(parents=True, exist_ok=True)
 
         video_sources: list[Path] = []
         screenshot_sources: list[Path] = []
@@ -1113,13 +1115,17 @@ class BatchRunner:
                     raw_json_sources.append(src)
 
         copied_videos: list[str] = []
-        if video_sources:
-            # Playwright normally records one video per spec here; choose the
-            # largest if retries leave more than one candidate.
-            video_src = max(video_sources, key=lambda p: p.stat().st_size)
-            video_name = f"video{video_src.suffix.lower()}"
-            shutil.copy2(video_src, dest / video_name)
+        video_records: list[dict[str, str]] = []
+        for src in sorted(video_sources, key=lambda p: p.as_posix()):
+            parent_slug = _test_recording_slug(src.parent.name)
+            video_name = f"videos/{parent_slug}{src.suffix.lower()}"
+            target = dest / video_name
+            if target.exists():
+                target = videos_dest / f"{parent_slug}-{hashlib.sha1(src.as_posix().encode()).hexdigest()[:8]}{src.suffix.lower()}"
+                video_name = f"videos/{target.name}"
+            shutil.copy2(src, target)
             copied_videos.append(video_name)
+            video_records.append({"file": video_name, "source": src.as_posix()})
 
         copied_screenshots: list[str] = []
         screenshot_records: list[dict[str, str]] = []
@@ -1152,6 +1158,7 @@ class BatchRunner:
             "spec": spec,
             "slug": slug,
             "video_files": copied_videos,
+            "video_records": video_records,
             "screenshot_files": copied_screenshots,
             "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
@@ -3636,15 +3643,14 @@ class TestRecordingPublisher:
         TEST_RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
         manifests = []
         for test in tests:
-            manifest = self._build_manifest(test, result)
-            if not manifest:
-                continue
-            slug = manifest["slug"]
-            bundle_dir = TEST_RECORDINGS_DIR / slug
-            (bundle_dir / "manifest.json").write_text(
-                json.dumps(manifest, indent=2), encoding="utf-8"
-            )
-            manifests.append(self._index_entry(manifest))
+            for manifest in self._build_manifests(test, result):
+                slug = manifest["slug"]
+                bundle_dir = TEST_RECORDINGS_DIR / slug
+                bundle_dir.mkdir(parents=True, exist_ok=True)
+                (bundle_dir / "manifest.json").write_text(
+                    json.dumps(manifest, indent=2), encoding="utf-8"
+                )
+                manifests.append(self._index_entry(manifest))
 
         index = {
             "run_id": result.run_id,
@@ -3656,21 +3662,34 @@ class TestRecordingPublisher:
         self.INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
         self._upload_latest_bundles()
 
-    def _build_manifest(self, test: dict, result: RunResult) -> Optional[dict]:
+    def _build_manifests(self, test: dict, result: RunResult) -> list[dict]:
         spec = test.get("file") or test.get("name")
         if not spec:
-            return None
+            return []
 
         slug = _test_recording_slug(spec)
         bundle_dir = TEST_RECORDINGS_DIR / slug
         if not bundle_dir.is_dir():
-            return None
+            return []
 
         artifact_meta = self._read_json(bundle_dir / "artifact-meta.json") or {}
         video_file = (artifact_meta.get("video_files") or [None])[0]
+        video_records = artifact_meta.get("video_records") or []
         thumbnail_file = artifact_meta.get("thumbnail_file")
         screenshot_files = artifact_meta.get("screenshot_files") or []
         screenshot_records = artifact_meta.get("screenshot_records") or []
+
+        child_manifests = self._build_playwright_result_manifests(
+            bundle_dir=bundle_dir,
+            test=test,
+            result=result,
+            spec=spec,
+            spec_slug=slug,
+            video_records=video_records,
+            screenshot_records=screenshot_records,
+        )
+        if child_manifests:
+            return child_manifests
 
         safe_name = spec.replace("/", "-").replace("\\", "-")
         md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
@@ -3684,7 +3703,7 @@ class TestRecordingPublisher:
         steps = self._build_steps(bundle_dir, test, slug, screenshot_files, screenshot_records)
         assets = self._build_assets(slug, video_file, thumbnail_file, report_file, screenshot_files)
 
-        return {
+        return [{
             "spec": spec,
             "slug": slug,
             "title": spec.replace(".spec.ts", ""),
@@ -3697,7 +3716,7 @@ class TestRecordingPublisher:
             "error": test.get("error"),
             "assets": assets,
             "steps": steps,
-        }
+        }]
 
     @staticmethod
     def _read_json(path: Path) -> Optional[dict | list]:
@@ -3707,6 +3726,118 @@ class TestRecordingPublisher:
             return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return None
+
+    @classmethod
+    def _build_playwright_result_manifests(
+        cls,
+        *,
+        bundle_dir: Path,
+        test: dict,
+        result: RunResult,
+        spec: str,
+        spec_slug: str,
+        video_records: list[dict],
+        screenshot_records: list[dict],
+    ) -> list[dict]:
+        playwright_results = cls._playwright_results(bundle_dir / "playwright.json")
+        if len(playwright_results) <= 1 or not video_records:
+            return []
+
+        manifests = []
+        for index, item in enumerate(playwright_results, start=1):
+            video_file = cls._file_for_attachment(item.get("video_source"), video_records)
+            if not video_file:
+                continue
+            screenshot_file = cls._file_for_attachment(item.get("screenshot_source"), screenshot_records)
+            child_slug = f"{spec_slug}--{_test_recording_slug(item['title'])}"
+            screenshot_key = f"{TEST_RECORDINGS_S3_PREFIX}/{spec_slug}/{screenshot_file}" if screenshot_file else None
+            step = {
+                "index": 1,
+                "type": "playwright_test",
+                "title": item["title"],
+                "status": item.get("status"),
+                "duration_seconds": item.get("duration_seconds", 0),
+                "timestamp": item.get("timestamp"),
+                "video_time_seconds": 0,
+            }
+            if screenshot_file:
+                step["screenshot_file"] = screenshot_file
+                step["screenshot_key"] = screenshot_key
+            if item.get("error"):
+                step["error"] = item["error"]
+
+            manifests.append({
+                "spec": spec,
+                "slug": child_slug,
+                "title": item["title"],
+                "status": item.get("status") or test.get("status", "unknown"),
+                "run_id": result.run_id,
+                "git_sha": result.git_sha,
+                "git_branch": result.git_branch,
+                "duration_seconds": item.get("duration_seconds", 0),
+                "github_run_url": test.get("github_run_url"),
+                "error": item.get("error"),
+                "assets": {
+                    "video_key": f"{TEST_RECORDINGS_S3_PREFIX}/{spec_slug}/{video_file}",
+                    "thumbnail_key": screenshot_key,
+                    "report_key": None,
+                    "screenshot_keys": [screenshot_key] if screenshot_key else [],
+                },
+                "steps": [step],
+                "source_spec_slug": spec_slug,
+                "source_result_index": index,
+            })
+        return manifests
+
+    @classmethod
+    def _playwright_results(cls, playwright_json: Path) -> list[dict]:
+        data = cls._read_json(playwright_json)
+        if not isinstance(data, dict):
+            return []
+
+        results: list[dict] = []
+
+        def walk_suite(suite: dict) -> None:
+            for spec in suite.get("specs", []):
+                title = spec.get("title") or spec.get("file") or "Playwright test"
+                for playwright_test in spec.get("tests", []):
+                    for playwright_result in playwright_test.get("results", []):
+                        image_source = None
+                        video_source = None
+                        for attachment in playwright_result.get("attachments", []):
+                            content_type = str(attachment.get("contentType", ""))
+                            if content_type.startswith("image/") and not image_source:
+                                image_source = attachment.get("path")
+                            elif content_type.startswith("video/") and not video_source:
+                                video_source = attachment.get("path")
+                        error = playwright_result.get("error")
+                        results.append({
+                            "title": title,
+                            "status": playwright_result.get("status"),
+                            "duration_seconds": round(float(playwright_result.get("duration", 0)) / 1000, 2),
+                            "timestamp": playwright_result.get("startTime"),
+                            "screenshot_source": image_source,
+                            "video_source": video_source,
+                            "error": error.get("message", str(error)) if isinstance(error, dict) else error,
+                        })
+            for child in suite.get("suites", []):
+                walk_suite(child)
+
+        for suite in data.get("suites", []):
+            if isinstance(suite, dict):
+                walk_suite(suite)
+        return results
+
+    @staticmethod
+    def _file_for_attachment(attachment_path: Optional[str], records: list[dict]) -> Optional[str]:
+        if not attachment_path:
+            return None
+        attachment_suffix = str(attachment_path).split("test-results/", 1)[-1]
+        for record in records:
+            source = record.get("source", "") if isinstance(record, dict) else ""
+            if source == attachment_path or source.endswith(attachment_suffix):
+                return record.get("file")
+        return None
 
     def _build_steps(
         self,

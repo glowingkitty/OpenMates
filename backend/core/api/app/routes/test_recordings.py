@@ -151,6 +151,18 @@ def _manifest_from_artifact_meta(recordings_dir: Path, slug: str) -> dict[str, A
     }
 
 
+def _child_manifests_for_source(recordings_dir: Path, source_slug: str) -> list[dict[str, Any]]:
+    children = []
+    for manifest_path in sorted(recordings_dir.glob("*/manifest.json")):
+        try:
+            manifest = _read_json_file(manifest_path)
+        except HTTPException:
+            continue
+        if manifest.get("source_spec_slug") == source_slug:
+            children.append(manifest)
+    return children
+
+
 @router.get("", dependencies=[])
 @limiter.limit("30/minute")
 async def list_test_recordings(request: Request) -> dict[str, Any]:
@@ -176,6 +188,8 @@ async def list_test_recordings(request: Request) -> dict[str, Any]:
         except HTTPException:
             continue
         slug = manifest.get("slug")
+        if not (bundle_dir / "manifest.json").is_file() and _child_manifests_for_source(recordings_dir, bundle_dir.name):
+            continue
         if slug:
             tests_by_slug[slug] = _index_entry_from_manifest(manifest)
 
@@ -202,9 +216,9 @@ async def get_test_recording(slug: str, request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="No test recordings available")
 
     manifest_path = recordings_dir / slug / "manifest.json"
-    manifest = (
-        _read_json_file(manifest_path)
-        if manifest_path.is_file()
-        else _manifest_from_artifact_meta(recordings_dir, slug)
-    )
+    if manifest_path.is_file():
+        manifest = _read_json_file(manifest_path)
+    else:
+        child_manifests = _child_manifests_for_source(recordings_dir, slug)
+        manifest = child_manifests[0] if child_manifests else _manifest_from_artifact_meta(recordings_dir, slug)
     return _add_signed_asset_urls(request, manifest)

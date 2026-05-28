@@ -105,6 +105,28 @@ def _write_artifact_meta_only_fixture(root, slug: str = "chat-flow") -> None:
     (spec_dir / "artifact-meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
+def _write_split_child_fixture(root, source_slug: str = "unauthenticated-app-load") -> None:
+    _write_artifact_meta_only_fixture(root, source_slug)
+    child_slug = f"{source_slug}--first-child-test"
+    child_dir = root / child_slug
+    child_dir.mkdir(parents=True)
+    manifest = {
+        "spec": f"{source_slug}.spec.ts",
+        "slug": child_slug,
+        "title": "first child test",
+        "status": "passed",
+        "run_id": "run-3",
+        "source_spec_slug": source_slug,
+        "assets": {
+            "video_key": f"latest/{source_slug}/videos/first-child.webm",
+            "thumbnail_key": f"latest/{source_slug}/screenshots/01-home.png",
+            "screenshot_keys": [f"latest/{source_slug}/screenshots/01-home.png"],
+        },
+        "steps": [],
+    }
+    (child_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
 @pytest.mark.asyncio
 async def test_list_test_recordings_signs_latest_assets(tmp_path, monkeypatch):
     _write_recording_fixture(tmp_path)
@@ -161,6 +183,26 @@ async def test_list_and_detail_include_artifact_meta_only_recordings(tmp_path, m
     assert len(detail["steps"]) == 2
     assert detail["steps"][0]["screenshot_url"].startswith(
         "https://signed.example/dev-test-bucket/latest/legacy-video/screenshots/01-home.png"
+    )
+
+
+@pytest.mark.asyncio
+async def test_split_recordings_hide_parent_and_parent_detail_returns_first_child(tmp_path, monkeypatch):
+    _write_recording_fixture(tmp_path)
+    _write_split_child_fixture(tmp_path)
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setattr(test_recordings, "TEST_RECORDINGS_PATHS", [tmp_path])
+    monkeypatch.setattr(test_recordings, "get_bucket_name", lambda _key, _env: "dev-test-bucket")
+
+    response = await test_recordings.list_test_recordings(_fake_request())
+    slugs = {test["slug"] for test in response["tests"]}
+    assert "unauthenticated-app-load" not in slugs
+    assert "unauthenticated-app-load--first-child-test" in slugs
+
+    detail = await test_recordings.get_test_recording("unauthenticated-app-load", _fake_request())
+    assert detail["slug"] == "unauthenticated-app-load--first-child-test"
+    assert detail["assets"]["video_url"].startswith(
+        "https://signed.example/dev-test-bucket/latest/unauthenticated-app-load/videos/first-child.webm"
     )
 
 
