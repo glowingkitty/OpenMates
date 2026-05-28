@@ -2558,6 +2558,7 @@
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focusInput', handleFocusInput as EventListener);
+        window.addEventListener('recordingShortcut', handleRecordingShortcut as EventListener);
         // Deferred send: fires when an upload/transcription finishes so we can auto-dispatch
         // pending sends that were queued while embeds were in-flight.
         window.addEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
@@ -2706,6 +2707,7 @@
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('focusInput', handleFocusInput as EventListener);
+        window.removeEventListener('recordingShortcut', handleRecordingShortcut as EventListener);
         window.removeEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
@@ -3228,6 +3230,23 @@
             return;
         }
         
+        // The mic button starts a press-and-hold gesture. Letting it take focus
+        // blurs TipTap, and the delayed blur handler collapses the composer while
+        // recording is starting. Keep focus in the editor for this one control.
+        if (target.closest('[data-testid="record-audio-button"]')) {
+            event.preventDefault();
+            if (blurTimeoutId) {
+                clearTimeout(blurTimeoutId);
+                blurTimeoutId = null;
+            }
+            if (editor && !editor.isDestroyed) {
+                editor.commands.focus('end');
+            }
+            isMessageFieldFocused = true;
+            isFocused = true;
+            return;
+        }
+
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
@@ -3991,6 +4010,47 @@
             console.debug('[MessageInput] Editor focused successfully');
         } catch (error) {
             console.error('[MessageInput] Error focusing editor:', error);
+        }
+    }
+
+    type RecordingShortcutEvent = CustomEvent<{ action: 'start' | 'stop' | 'cancel' }>;
+
+    function getKeyboardRecordStartPosition(): { x: number; y: number } {
+        const recordButton = messageInputWrapper?.querySelector('[data-testid="record-audio-button"]') as HTMLElement | null;
+        const rect = recordButton?.getBoundingClientRect() ?? messageInputWrapper?.getBoundingClientRect();
+        if (rect) {
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+            };
+        }
+        return {
+            x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
+            y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0,
+        };
+    }
+
+    async function handleRecordingShortcut(event: RecordingShortcutEvent) {
+        if (startNewChatOnClick || !editor || editor.isDestroyed) return;
+
+        const action = event.detail.action;
+        if (action === 'start') {
+            if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            const position = getKeyboardRecordStartPosition();
+            const syntheticMouseDown = new MouseEvent('mousedown', {
+                button: 0,
+                clientX: position.x,
+                clientY: position.y,
+            });
+            handleRecordMouseDownLogic(syntheticMouseDown);
+            return;
+        }
+
+        await tick();
+        if (action === 'stop') {
+            handleRecordMouseUpLogic(recordAudioComponent);
+        } else {
+            handleRecordMouseLeaveLogic(recordAudioComponent);
         }
     }
 
@@ -4828,13 +4888,7 @@
     />
 </div>
 
-<!-- Keyboard Shortcuts Listener -->
-<!-- Audio recording shortcuts removed - feature not yet implemented:
-     - on:startRecording
-     - on:stopRecording
-     - on:cancelRecording
-     - on:insertSpace
--->
+<!-- Keyboard Shortcuts Listener: Shift+Enter focuses input; hold Space on chat surface records audio. -->
 <KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>
