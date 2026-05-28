@@ -91,6 +91,23 @@ def _add_signed_asset_urls(request: Request, item: dict[str, Any]) -> dict[str, 
     return item
 
 
+def _index_entry_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    assets = manifest.get("assets") or {}
+    return {
+        "spec": manifest.get("spec"),
+        "slug": manifest.get("slug"),
+        "title": manifest.get("title"),
+        "status": manifest.get("status", "unknown"),
+        "run_id": manifest.get("run_id"),
+        "duration_seconds": manifest.get("duration_seconds", 0),
+        "error": manifest.get("error"),
+        "assets": {
+            "thumbnail_key": assets.get("thumbnail_key"),
+            "video_key": assets.get("video_key"),
+        },
+    }
+
+
 @router.get("", dependencies=[])
 @limiter.limit("30/minute")
 async def list_test_recordings(request: Request) -> dict[str, Any]:
@@ -101,10 +118,26 @@ async def list_test_recordings(request: Request) -> dict[str, Any]:
         return {"run_id": None, "git_sha": None, "git_branch": None, "tests": []}
 
     index = _read_json_file(recordings_dir / "index.json")
-    tests = []
+    tests_by_slug = {}
     for item in index.get("tests", []):
-        if isinstance(item, dict):
-            tests.append(_add_signed_asset_urls(request, dict(item)))
+        if isinstance(item, dict) and item.get("slug"):
+            tests_by_slug[item["slug"]] = item
+
+    for manifest_path in sorted(recordings_dir.glob("*/manifest.json")):
+        try:
+            manifest = _read_json_file(manifest_path)
+        except HTTPException:
+            continue
+        slug = manifest.get("slug")
+        if slug:
+            tests_by_slug[slug] = _index_entry_from_manifest(manifest)
+
+    tests = [
+        _add_signed_asset_urls(request, dict(item))
+        for item in tests_by_slug.values()
+        if isinstance(item, dict)
+    ]
+    tests.sort(key=lambda item: (item.get("title") or item.get("slug") or ""))
     index["tests"] = tests
     return index
 

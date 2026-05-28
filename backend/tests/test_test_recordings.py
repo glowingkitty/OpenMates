@@ -73,6 +73,25 @@ def _write_recording_fixture(root, slug: str = "chat-flow") -> None:
     (spec_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
 
+def _write_manifest_only_fixture(root, slug: str = "daily-inspiration-chat-flow") -> None:
+    spec_dir = root / slug
+    spec_dir.mkdir(parents=True)
+    manifest = {
+        "spec": f"{slug}.spec.ts",
+        "slug": slug,
+        "title": slug,
+        "status": "passed",
+        "run_id": "run-2",
+        "duration_seconds": 12,
+        "assets": {
+            "thumbnail_key": f"latest/{slug}/thumbnail.png",
+            "video_key": f"latest/{slug}/video.webm",
+        },
+        "steps": [],
+    }
+    (spec_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
 @pytest.mark.asyncio
 async def test_list_test_recordings_signs_latest_assets(tmp_path, monkeypatch):
     _write_recording_fixture(tmp_path)
@@ -88,6 +107,26 @@ async def test_list_test_recordings_signs_latest_assets(tmp_path, monkeypatch):
     )
     assert response["tests"][0]["assets"]["video_url"].startswith(
         "https://signed.example/dev-test-bucket/latest/chat-flow/video.webm"
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_test_recordings_includes_manifest_dirs_not_in_latest_index(tmp_path, monkeypatch):
+    _write_recording_fixture(tmp_path)
+    _write_manifest_only_fixture(tmp_path)
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setattr(test_recordings, "TEST_RECORDINGS_PATHS", [tmp_path])
+    monkeypatch.setattr(test_recordings, "get_bucket_name", lambda _key, _env: "dev-test-bucket")
+
+    response = await test_recordings.list_test_recordings(_fake_request())
+
+    assert {test["slug"] for test in response["tests"]} == {
+        "chat-flow",
+        "daily-inspiration-chat-flow",
+    }
+    daily = next(test for test in response["tests"] if test["slug"] == "daily-inspiration-chat-flow")
+    assert daily["assets"]["video_url"].startswith(
+        "https://signed.example/dev-test-bucket/latest/daily-inspiration-chat-flow/video.webm"
     )
 
 

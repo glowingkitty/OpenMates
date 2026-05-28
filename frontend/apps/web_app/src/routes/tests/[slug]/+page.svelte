@@ -18,6 +18,7 @@
 	let errorMessage = $state('');
 	let isLoading = $state(true);
 	let videoElement: HTMLVideoElement | null = $state(null);
+	let enlargedScreenshot: { url: string; title: string } | null = $state(null);
 
 	onMount(async () => {
 		try {
@@ -35,6 +36,10 @@
 		if (!videoElement || step.video_time_seconds == null) return;
 		videoElement.currentTime = Math.max(0, step.video_time_seconds);
 		void videoElement.play();
+	}
+
+	function closeScreenshot() {
+		enlargedScreenshot = null;
 	}
 </script>
 
@@ -90,37 +95,48 @@
 		{/if}
 
 		<section class="steps-card">
-				<h2>Steps</h2>
-				{#if recording.steps?.length}
-					<ol class="steps">
-						{#each recording.steps as step (step.index)}
-							<li class:failed={step.status === 'failed' || Boolean(step.error)}>
-								<button class="step-main" type="button" onclick={() => jumpToStep(step)} disabled={step.video_time_seconds == null}>
-									<span class="step-time">{formatVideoTime(step.video_time_seconds)}</span>
-									<span>
-										<strong>{step.title}</strong>
-										{#if step.timestamp}
-											<small>{step.timestamp}</small>
-										{:else if step.duration_seconds != null}
-											<small>{formatDuration(step.duration_seconds)}</small>
-										{/if}
-									</span>
-								</button>
-								{#if step.screenshot_url}
+			<h2>Steps</h2>
+			{#if recording.steps?.length}
+				<ol class="steps">
+					{#each recording.steps as step (step.index)}
+						<li class:failed={step.status === 'failed' || Boolean(step.error)}>
+							<button class="step-link" type="button" onclick={() => jumpToStep(step)} disabled={step.video_time_seconds == null}>
+								<span class="step-time">{formatVideoTime(step.video_time_seconds)}</span>
+								<span class="step-copy">
+									<strong>{step.title}</strong>
+									{#if step.duration_seconds != null}
+										<small>{formatDuration(step.duration_seconds)}</small>
+									{/if}
+								</span>
+							</button>
+							{#if step.screenshot_url}
+								<button
+									class="step-thumbnail"
+									type="button"
+									onclick={() => (enlargedScreenshot = { url: step.screenshot_url!, title: step.title })}
+									aria-label={`Open screenshot for ${step.title}`}
+								>
 									<img src={step.screenshot_url} alt={`Screenshot for ${step.title}`} loading="lazy" />
-								{/if}
-								{#if step.error}
-									<pre>{step.error}</pre>
-								{/if}
-							</li>
-						{/each}
-					</ol>
-				{:else}
-					<p class="muted">No structured steps were available for this spec.</p>
-				{/if}
+								</button>
+							{/if}
+							{#if step.error}
+								<pre>{step.error}</pre>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			{:else}
+				<p class="muted">No structured steps were available for this spec.</p>
+			{/if}
 		</section>
 	{/if}
 </main>
+
+{#if enlargedScreenshot}
+	<button class="screenshot-lightbox" type="button" onclick={closeScreenshot} aria-label="Close screenshot preview">
+		<img src={enlargedScreenshot.url} alt={enlargedScreenshot.title} />
+	</button>
+{/if}
 
 <style>
 	.detail-page {
@@ -248,7 +264,8 @@
 	}
 
 	.steps li {
-		overflow: hidden;
+		overflow: visible;
+		padding: 14px;
 		border: 1px solid var(--color-grey-15);
 		border-radius: 18px;
 		background: var(--color-grey-10);
@@ -259,13 +276,14 @@
 		border-color: rgba(193, 51, 51, 0.35);
 	}
 
-	.step-main {
+	.step-link {
 		display: grid;
 		grid-template-columns: 64px 1fr;
 		gap: 12px;
 		align-items: start;
-		width: 100%;
-		padding: 14px;
+		width: fit-content;
+		max-width: 100%;
+		padding: 0;
 		border: 0;
 		background: transparent;
 		color: inherit;
@@ -274,7 +292,7 @@
 		cursor: pointer;
 	}
 
-	.step-main:disabled {
+	.step-link:disabled {
 		cursor: default;
 	}
 
@@ -289,24 +307,55 @@
 		font-weight: 800;
 	}
 
-	.step-main strong,
-	.step-main small {
+	.step-copy strong,
+	.step-copy small {
 		display: block;
 	}
 
-	.step-main small {
+	.step-copy small {
 		margin-top: 4px;
 		color: var(--color-font-secondary);
 		font-size: 12px;
 	}
 
-	.steps img {
+	.step-thumbnail {
+		display: block;
+		width: min(260px, 100%);
+		margin: 12px 0 0 76px;
+		padding: 0;
+		border: 1px solid var(--color-grey-20);
+		border-radius: 12px;
+		background: var(--color-grey-100);
+		cursor: zoom-in;
+		overflow: hidden;
+	}
+
+	.step-thumbnail img {
 		display: block;
 		width: 100%;
-		max-height: 620px;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+	}
+
+	.screenshot-lightbox {
+		position: fixed;
+		inset: 0;
+		z-index: 1000;
+		display: grid;
+		place-items: center;
+		padding: 32px;
+		border: 0;
+		background: rgba(0, 0, 0, 0.82);
+		cursor: zoom-out;
+	}
+
+	.screenshot-lightbox img {
+		display: block;
+		max-width: min(1400px, 96vw);
+		max-height: 92vh;
 		object-fit: contain;
-		border-top: 1px solid var(--color-grey-15);
-		background: var(--color-grey-100);
+		border-radius: 16px;
+		background: var(--color-grey-0);
 	}
 
 	.state-card {
@@ -322,6 +371,10 @@
 		.header {
 			display: flex;
 			flex-direction: column;
+		}
+
+		.step-thumbnail {
+			margin-left: 0;
 		}
 	}
 </style>

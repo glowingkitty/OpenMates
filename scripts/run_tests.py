@@ -3732,8 +3732,9 @@ class TestRecordingPublisher:
     @staticmethod
     def _steps_from_log(step_log: list[dict], slug: str) -> list[dict]:
         first_ts = None
-        steps: list[dict] = []
         noise_prefixes = ("Captured step screenshot", "Archived prior screenshots")
+        screenshot_steps: list[dict] = []
+        checkpoint_steps: list[dict] = []
         for entry in step_log:
             entry_type = entry.get("type", "checkpoint")
             message = entry.get("message", "")
@@ -3746,23 +3747,26 @@ class TestRecordingPublisher:
             video_time = _seconds_between(first_ts, timestamp) if first_ts and timestamp else None
             screenshot = entry.get("screenshot")
 
-            if entry_type == "screenshot" and screenshot and steps:
-                steps[-1]["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}"
-                steps[-1]["screenshot_file"] = f"screenshots/{screenshot}"
+            if entry_type == "screenshot" and screenshot:
+                screenshot_steps.append({
+                    "index": len(screenshot_steps) + 1,
+                    "type": "screenshot",
+                    "title": message or Path(screenshot).stem.replace("-", " ").title(),
+                    "timestamp": timestamp,
+                    "video_time_seconds": video_time,
+                    "screenshot_key": f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}",
+                    "screenshot_file": f"screenshots/{screenshot}",
+                })
                 continue
 
-            step = {
-                "index": len(steps) + 1,
+            checkpoint_steps.append({
+                "index": len(checkpoint_steps) + 1,
                 "type": entry_type,
-                "title": message if message and not message.startswith(noise_prefixes) else f"Screenshot {len(steps) + 1}",
+                "title": message if message and not message.startswith(noise_prefixes) else f"Step {len(checkpoint_steps) + 1}",
                 "timestamp": timestamp,
                 "video_time_seconds": video_time,
-            }
-            if screenshot:
-                step["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}"
-                step["screenshot_file"] = f"screenshots/{screenshot}"
-            steps.append(step)
-        return steps
+            })
+        return screenshot_steps or checkpoint_steps
 
     @staticmethod
     def _steps_from_playwright(test: dict) -> list[dict]:
