@@ -64,7 +64,8 @@
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
     // Code embed service - creates proper embeds for pasted code/text
-    import { createCodeEmbed, createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { createCodeEmbed, createCodeEmbedFromPastedText, createDocEmbed, createSheetEmbed, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { classifyPastedContent, plainTextToDocumentHtml, type PastedContentKind } from './services/pasteClassification';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
 
@@ -380,6 +381,13 @@
     let isUpdatingFromMarkdown = false;
     let isConvertingEmbeds = false;
 
+    interface AutoConvertedPasteCandidate {
+        embedId: string;
+        text: string;
+    }
+
+    let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
+
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
@@ -510,6 +518,145 @@
         if (editor && !editor.isDestroyed) {
             runHeavyParsing(editor);
         }
+    }
+
+    function findEmbedNodeById(editor: Editor, embedId: string): { node: ProseMirrorNode; pos: number } | null {
+        let result: { node: ProseMirrorNode; pos: number } | null = null;
+        editor.state.doc.descendants((node, pos) => {
+            const attrs = node.attrs ?? {};
+            const contentRef = typeof attrs.contentRef === 'string' ? attrs.contentRef : '';
+            if (attrs.id === embedId || contentRef.endsWith(embedId)) {
+                result = { node, pos };
+                return false;
+            }
+            return true;
+        });
+        return result;
+    }
+
+    function updateAutoConvertedPasteCandidateVisibility(editor: Editor) {
+        if (!autoConvertedPasteCandidate) return;
+        const match = findEmbedNodeById(editor, autoConvertedPasteCandidate.embedId);
+        if (!match) {
+            autoConvertedPasteCandidate = null;
+            return;
+        }
+
+        const textAfterEmbed = editor.state.doc.textBetween(
+            match.pos + match.node.nodeSize,
+            editor.state.doc.content.size,
+            '\n',
+            '\n'
+        );
+        if (textAfterEmbed.trim().length > 0) {
+            autoConvertedPasteCandidate = null;
+        }
+    }
+
+    async function replaceAutoConvertedPasteWithText() {
+        if (!autoConvertedPasteCandidate || !editor || editor.isDestroyed) return;
+        const candidate = autoConvertedPasteCandidate;
+        const match = findEmbedNodeById(editor, candidate.embedId);
+        if (!match) {
+            autoConvertedPasteCandidate = null;
+            return;
+        }
+
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: match.pos, to: match.pos + match.node.nodeSize })
+            .run();
+        editor.commands.insertContentAt(match.pos, candidate.text);
+        autoConvertedPasteCandidate = null;
+
+        await tick();
+        hasContent = !isContentEmptyExceptMention(editor);
+        updateOriginalMarkdown(editor);
+        lastEditorUpdateText = editor.getText();
+        triggerSaveDraft(currentChatId);
+    }
+
+    function appendPasteEmbedReference(embedReference: string, embedId: string, originalText: string) {
+        if (!editor || editor.isDestroyed) return;
+        updateOriginalMarkdown(editor);
+
+        if (originalMarkdown.includes(embedId)) {
+            console.debug('[MessageInput] Paste embed already in originalMarkdown, skipping duplicate insertion:', embedId);
+            return;
+        }
+
+        const currentMarkdown = originalMarkdown || '';
+        originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedReference;
+
+        const parsedDoc = parse_message(originalMarkdown, 'write', {
+            unifiedParsingEnabled: true
+        });
+
+        if (parsedDoc && parsedDoc.content) {
+            isConvertingEmbeds = true;
+            try {
+                editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                editor.commands.focus('end');
+                autoConvertedPasteCandidate = { embedId, text: originalText };
+            } finally {
+                isConvertingEmbeds = false;
+            }
+        }
+
+        hasContent = !isContentEmptyExceptMention(editor);
+    }
+
+    function insertPreviewPasteEmbed(kind: PastedContentKind, text: string, content: string, language?: string | null) {
+        if (!editor || editor.isDestroyed) return;
+        const embedId = generateUUID();
+
+        if (kind === 'document') {
+            editor.commands.insertContent({
+                type: 'embed',
+                attrs: {
+                    id: embedId,
+                    type: 'docs-doc',
+                    status: 'finished',
+                    contentRef: `preview:docs-doc:${embedId}`,
+                    code: content,
+                    wordCount: text.split(/\s+/).filter(Boolean).length,
+                }
+            });
+        } else if (kind === 'sheet') {
+            const rows = content.split('\n').filter((line) => line.trim().startsWith('|'));
+            const cols = Math.max(0, (rows[0]?.match(/\|/g) || []).length - 1);
+            editor.commands.insertContent({
+                type: 'embed',
+                attrs: {
+                    id: embedId,
+                    type: 'sheets-sheet',
+                    status: 'finished',
+                    contentRef: `preview:sheets-sheet:${embedId}`,
+                    code: content,
+                    rows: Math.max(0, rows.length - 2),
+                    cols,
+                }
+            });
+        } else {
+            editor.commands.insertContent({
+                type: 'embed',
+                attrs: {
+                    id: embedId,
+                    type: 'code-code',
+                    status: 'finished',
+                    contentRef: `preview:code:${embedId}`,
+                    code: content,
+                    language: language || 'text',
+                    lineCount: content.split('\n').length,
+                }
+            });
+        }
+
+        editor.commands.insertContent(' ');
+        editor.commands.focus('end');
+        autoConvertedPasteCandidate = { embedId, text };
+        hasContent = !isContentEmptyExceptMention(editor);
     }
 
     // --- Unified Parsing Handler ---
@@ -1497,133 +1644,65 @@
                             return true;
                         }
                         
-                        // Check for multi-line text - create a proper code embed for readability
-                        // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
-                        // and stored in EmbedStore (encrypted, synced to server)
-                        const isMultiLine = normalizedPasteText.includes('\n');
-                        const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
+                        const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+                        const htmlPasteText = event.clipboardData?.getData('text/html') || null;
+                        const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
+                        const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
+                        const pasteClassification = classifyPastedContent({
+                            text: normalizedPasteText,
+                            html: htmlPasteText,
+                            vsCodeLanguage,
+                            detectedLanguage,
+                        });
 
-                        if (isMultiLine && !isAlreadyCodeBlock) {
+                        if (pasteClassification.kind !== 'text') {
                             event.preventDefault();
                             event.stopPropagation();
-                            
-                            // Check for VS Code editor data to detect the programming language
-                            // VS Code includes a 'vscode-editor-data' MIME type with JSON containing the 'mode' (language)
-                            const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+
+                            const embedKind = pasteClassification.kind;
+                            const embedContent =
+                                embedKind === 'document'
+                                    ? (pasteClassification.documentHtml || plainTextToDocumentHtml(normalizedPasteText))
+                                    : embedKind === 'sheet'
+                                        ? (pasteClassification.sheetMarkdown || normalizedPasteText)
+                                        : normalizedPasteText;
+                            const language = vsCodeLanguage || detectedLanguage || 'text';
                             
                             if (!$authStore.isAuthenticated) {
                                 // Unauthenticated / demo mode: EmbedStore is unavailable (no encryption keys).
-                                // Insert a preview embed node with the code stored inline in the node `code`
-                                // attribute — GroupRenderer reads this directly without EmbedStore.
-                                const vsCodeLang = detectLanguageFromVSCode(vsCodeEditorData);
-                                const language = vsCodeLang || detectLanguageFromContent(normalizedPasteText) || 'text';
-                                const embedId = generateUUID();
-                                const lineCount = normalizedPasteText.split('\n').length;
-                                
-                                console.debug('[MessageInput] Demo mode — inserting inline code embed:', {
-                                    language, lineCount, embedId
-                                });
-                                
-                                editor.commands.insertContent({
-                                    type: 'embed',
-                                    attrs: {
-                                        id: embedId,
-                                        type: 'code-code',
-                                        status: 'finished',
-                                        // "preview:code:" prefix tells GroupRenderer to read code from item.code attr
-                                        contentRef: `preview:code:${embedId}`,
-                                        code: normalizedPasteText,
-                                        language,
-                                        lineCount,
-                                    }
-                                });
-                                editor.commands.insertContent(' ');
-                                editor.commands.focus('end');
-                                hasContent = !isContentEmptyExceptMention(editor);
+                                // Insert a preview embed node with content stored inline in node attrs.
+                                insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
                                 return true;
                             }
                             
                             // Authenticated path: create a proper embed in EmbedStore (async).
-                            // This follows the same pattern as URL embeds.
-                            // Pass VS Code editor data for automatic language detection.
                             // Mark hasContent immediately so the send button appears and the
                             // user understands their paste was accepted; also track the in-flight
                             // embed so handleSendMessage can defer sends until it resolves.
                             pendingPasteEmbedCount += 1;
                             hasContent = true;
-                            createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData }).then(async (embedResult) => {
-                                console.info('[MessageInput] Created code embed for pasted text:', {
+                            const createPasteEmbedPromise =
+                                embedKind === 'document'
+                                    ? createDocEmbed(embedContent)
+                                    : embedKind === 'sheet'
+                                        ? createSheetEmbed(embedContent)
+                                        : createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData });
+
+                            createPasteEmbedPromise.then(async (embedResult) => {
+                                console.info('[MessageInput] Created embed for pasted content:', {
                                     embed_id: embedResult.embed_id,
-                                    lineCount: normalizedPasteText.split('\n').length,
-                                    charCount: normalizedPasteText.length
+                                    kind: embedKind,
+                                    reason: pasteClassification.reason,
+                                    charCount: normalizedPasteText.length,
                                 });
-                                
-                                // Re-read originalMarkdown from the editor's current state to avoid
-                                // stale-closure race conditions. When the user pastes, deletes, and
-                                // pastes again quickly, multiple async promises can complete out of order.
-                                // Each promise must base its append on the CURRENT editor content — not
-                                // on the value of originalMarkdown that was captured when the paste fired.
-                                // Also guard against duplicate embed references (idempotency).
-                                updateOriginalMarkdown(editor);
-                                
-                                // Guard against duplicate: if this embed_id is already in originalMarkdown
-                                // (e.g. a previous resolution of the same paste already wrote it), skip.
-                                if (originalMarkdown.includes(embedResult.embed_id)) {
-                                    console.debug('[MessageInput] Code embed already in originalMarkdown, skipping duplicate insertion:', embedResult.embed_id);
-                                    return;
-                                }
-                                
-                                // Update originalMarkdown with the embed reference
-                                const currentMarkdown = originalMarkdown || '';
-                                originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
-                                
-                                // Parse and render the updated markdown with the embed reference
-                                const parsedDoc = parse_message(originalMarkdown, 'write', { 
-                                    unifiedParsingEnabled: true 
-                                });
-                                
-                                if (parsedDoc && parsedDoc.content) {
-                                    isConvertingEmbeds = true;
-                                    try {
-                                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
-                                        // Move cursor to end after inserting
-                                        editor.commands.focus('end');
-                                    } finally {
-                                        isConvertingEmbeds = false;
-                                    }
-                                }
-                                
-                                // Update hasContent state
-                                hasContent = !isContentEmptyExceptMention(editor);
-                                
-                                console.debug('[MessageInput] Inserted code embed reference:', {
-                                    embed_id: embedResult.embed_id,
-                                    originalMarkdownLength: originalMarkdown.length
-                                });
+
+                                appendPasteEmbedReference(embedResult.embedReference, embedResult.embed_id, normalizedPasteText);
                             }).catch((error) => {
-                                console.error('[MessageInput] Failed to create code embed, falling back to inline embed:', error);
+                                console.error('[MessageInput] Failed to create paste embed, falling back to inline embed:', error);
                                 // EmbedStore write failed (e.g. encryption keys not ready).
                                 // Fall back to the demo-mode inline embed so the user still sees
-                                // their code in a preview instead of getting an empty field.
-                                const vsCodeLangFallback = detectLanguageFromVSCode(vsCodeEditorData);
-                                const languageFallback = vsCodeLangFallback || detectLanguageFromContent(normalizedPasteText) || 'text';
-                                const embedIdFallback = generateUUID();
-                                const lineCountFallback = normalizedPasteText.split('\n').length;
-                                editor.commands.insertContent({
-                                    type: 'embed',
-                                    attrs: {
-                                        id: embedIdFallback,
-                                        type: 'code-code',
-                                        status: 'finished',
-                                        contentRef: `preview:code:${embedIdFallback}`,
-                                        code: normalizedPasteText,
-                                        language: languageFallback,
-                                        lineCount: lineCountFallback,
-                                    }
-                                });
-                                editor.commands.insertContent(' ');
-                                editor.commands.focus('end');
-                                hasContent = !isContentEmptyExceptMention(editor);
+                                // their pasted content in a preview instead of getting an empty field.
+                                insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
                             }).finally(() => {
                                 pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
                                 // If the user pressed Enter while the embed was being created,
@@ -2358,6 +2437,8 @@
         // depends on cursor position, not content.
         const currentText = editor.getText();
         const textActuallyChanged = currentText !== lastEditorUpdateText;
+
+        updateAutoConvertedPasteCandidateVisibility(editor);
         
         if (textActuallyChanged) {
             lastEditorUpdateText = currentText;
@@ -2375,6 +2456,7 @@
                 lastPIIText = '';
                 // Clear the URL ignore list — field is empty so start fresh
                 ignoredEmbedUrls = new Set();
+                autoConvertedPasteCandidate = null;
             }
         }
         
@@ -4611,6 +4693,18 @@
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
             </div>
         </div>
+
+        {#if autoConvertedPasteCandidate}
+            <button
+                class="paste-as-text-chip"
+                type="button"
+                data-testid="paste-as-text-chip"
+                onclick={replaceAutoConvertedPasteWithText}
+                transition:fade={{ duration: 160 }}
+            >
+                {$text('enter_message.press_and_hold_menu.paste_as_text')}
+            </button>
+        {/if}
 
         {#if showCamera}
             <!-- on:videorecorded removed — video recording disabled until upload support is added -->

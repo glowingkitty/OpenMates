@@ -592,6 +592,18 @@ export interface DocEmbedCreationResult {
 }
 
 /**
+ * Result of creating a sheet embed from pasted tabular content.
+ */
+export interface SheetEmbedCreationResult {
+  /** Unique identifier for the embed */
+  embed_id: string;
+  /** Embed type */
+  type: "sheets-sheet";
+  /** Markdown embed reference block to insert into message content */
+  embedReference: string;
+}
+
+/**
  * Creates a proper embed entry for a document_html block pasted or typed in the editor.
  *
  * Used when upgrading preview:docs-doc: nodes to real EmbedStore entries so they can
@@ -621,6 +633,7 @@ export async function createDocEmbed(
     type: "docs-doc",
     title: title || null,
     filename: filename || null,
+    html: content,
     code: content,
     word_count: wordCount,
     status: "finished",
@@ -665,5 +678,65 @@ export async function createDocEmbed(
     embed_id,
     type: "docs-doc",
     embedReference,
+  };
+}
+
+/**
+ * Creates a proper embed entry for pasted spreadsheet/table content.
+ *
+ * @param tableMarkdown Markdown table content
+ * @param title Optional table title
+ * @returns SheetEmbedCreationResult with embed_id and markdown reference
+ */
+export async function createSheetEmbed(
+  tableMarkdown: string,
+  title?: string,
+): Promise<SheetEmbedCreationResult> {
+  const embed_id = generateUUID();
+  const rows = tableMarkdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && line.endsWith("|"));
+  const headerLine = rows[0] || "";
+  const colCount = Math.max(0, (headerLine.match(/\|/g) || []).length - 1);
+  const rowCount = Math.max(0, rows.length - 2);
+
+  const embedContent = {
+    type: "sheet",
+    title: title || null,
+    table: tableMarkdown,
+    code: tableMarkdown,
+    row_count: rowCount,
+    col_count: colCount,
+    rows: rowCount,
+    cols: colCount,
+    status: "finished",
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch {
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const textPreview = title || `${rowCount} rows × ${colCount} columns`;
+  const now = Date.now();
+  const embedData = {
+    embed_id,
+    type: "sheets-sheet",
+    status: "finished",
+    content: toonContent,
+    text_preview: textPreview,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await embedStore.put(`embed:${embed_id}`, embedData, "sheets-sheet" as EmbedType);
+
+  return {
+    embed_id,
+    type: "sheets-sheet",
+    embedReference: createEmbedReferenceBlock("sheet", embed_id),
   };
 }

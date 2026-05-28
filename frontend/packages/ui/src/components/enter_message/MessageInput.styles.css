@@ -423,6 +423,26 @@
   flex-grow: 1;
 }
 
+.paste-as-text-chip {
+  position: absolute;
+  left: 1rem;
+  bottom: 54px;
+  z-index: 24;
+  border: 1px solid var(--color-grey-30, rgba(128, 128, 128, 0.3));
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-grey-0, #fff);
+  color: var(--color-font-primary, #111);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+  line-height: 1;
+  padding: var(--spacing-4, 0.5rem) var(--spacing-6, 0.75rem);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.paste-as-text-chip:hover {
+  background: var(--color-grey-10, #f5f5f5);
+}
+
 /* Tiptap ProseMirror base styles */
 :global(.ProseMirror) {
   outline: none !important;
