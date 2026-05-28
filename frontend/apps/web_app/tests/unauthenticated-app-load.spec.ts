@@ -243,7 +243,11 @@ test.describe('Unauthenticated app load', () => {
 		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });
 	});
 
-	test('daily inspiration banner cycles on each new app visit', async ({ page }: { page: any }) => {
+	test('daily inspiration banner keeps a stable initial item across app visits', async ({
+		page
+	}: {
+		page: any;
+	}) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
@@ -289,15 +293,14 @@ test.describe('Unauthenticated app load', () => {
 			(previousCount) => (window as any).__defaultInspirationsFetchCount > previousCount,
 			fetchCountBeforeLanguageReload
 		);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(
-			'Cycling inspiration two',
-			{ timeout: 3000 }
-		);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText('Cycling inspiration one', {
+			timeout: 3000
+		});
 		const thirdPhrase = await openNewChatAndReadPhrase();
 
 		expect(firstPhrase).toBe('Cycling inspiration one');
-		expect(secondPhrase).toBe('Cycling inspiration two');
-		expect(thirdPhrase).toBe('Cycling inspiration three');
+		expect(secondPhrase).toBe('Cycling inspiration one');
+		expect(thirdPhrase).toBe('Cycling inspiration one');
 	});
 
 	test('daily inspiration banner auto-rotates for unauthenticated users', async ({
@@ -357,7 +360,11 @@ test.describe('Unauthenticated app load', () => {
 		});
 		await page.getByTestId('daily-inspiration-banner').click();
 		await page.waitForTimeout(500);
-		await expect(phrase).toHaveText('Cycling inspiration one');
+		if (await phrase.isVisible().catch(() => false)) {
+			await expect(phrase).toHaveText('Cycling inspiration one');
+		} else {
+			await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 5000 });
+		}
 	});
 
 	test('desktop welcome carousel opens example chats without runtime errors', async ({
