@@ -221,6 +221,11 @@
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
 
+    function shouldPreserveLiveEmbedOnlyDraft(chatId: string): boolean {
+        const draftState = get(draftEditorUIState);
+        return messageInputHasContent && draftState.currentChatId === chatId;
+    }
+
     type EmbedDecodedContent = Record<string, unknown> & {
         app_id?: string;
         skill_id?: string;
@@ -8478,7 +8483,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 }
                             } else {
                                 // No embeds found in store, just set context
-                                if (messageInputFieldRef) {
+                                if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                    console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; EmbedStore has not caught up yet`);
+                                } else if (messageInputFieldRef) {
                                     setTimeout(() => {
                                         if (!messageInputFieldRef) return;
                                         messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
@@ -8488,7 +8495,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         } else {
                             // No embeds in store, just set context
                             console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
-                            if (messageInputFieldRef) {
+                            if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; draft restore would otherwise clear the active composer`);
+                            } else if (messageInputFieldRef) {
                                 setTimeout(() => {
                                     if (!messageInputFieldRef) return;
                                     messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
@@ -8498,7 +8507,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } catch (error) {
                         console.error(`[ActiveChat] Error reconstructing draft from EmbedStore:`, error);
                         // Fallback: just set context
-                        if (messageInputFieldRef) {
+                        if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                            console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id} after reconstruction error`);
+                        } else if (messageInputFieldRef) {
                             setTimeout(() => {
                                 if (!messageInputFieldRef) return;
                                 messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);

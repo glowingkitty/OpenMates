@@ -13,7 +13,7 @@
     import {
         initializeDraftService,
         cleanupDraftService,
-        setCurrentChatContext,
+        setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
         triggerSaveDraft,
         flushSaveDraft
@@ -34,7 +34,7 @@
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
-    import { messageInputPlaceholderOverride } from './extensions/Placeholder';
+    import { messageInputPlaceholderOverride, messageInputPlaceholderVariant } from './extensions/Placeholder';
 
     // Components
     import CameraView from './CameraView.svelte';
@@ -374,6 +374,67 @@
             clearTimeout(highlightTimeout ?? undefined);
             highlightTimeout = setTimeout(() => { highlightPressHold = false; }, 1500);
         }
+    });
+
+    const PLACEHOLDER_CYCLE_MS = 4200;
+    const PLACEHOLDER_FADE_MS = 220;
+    let placeholderCycleTimer: ReturnType<typeof setInterval> | null = null;
+    let placeholderCycleFadeTimer: ReturnType<typeof setTimeout> | null = null;
+    let showRecordingPlaceholderHint = $state(false);
+    let isPlaceholderFading = $state(false);
+
+    function isTouchInputDevice(): boolean {
+        if (typeof window === 'undefined') return false;
+        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    }
+
+    function getBasePlaceholderText(): string {
+        if (placeholderText) return placeholderText;
+        const variant = get(messageInputPlaceholderVariant);
+        const suffix = variant === 'followup' ? 'followup_' : '';
+        const deviceType = isTouchInputDevice() ? 'touch' : 'desktop';
+        return $text(`enter_message.placeholder.${suffix}${deviceType}`);
+    }
+
+    function updateCyclingPlaceholderText() {
+        if (showRecordingPlaceholderHint && !isTouchInputDevice()) {
+            messageInputPlaceholderOverride.set($text('enter_message.placeholder.record_shortcut_desktop'));
+        } else {
+            messageInputPlaceholderOverride.set(getBasePlaceholderText());
+        }
+    }
+
+    function startPlaceholderCycle() {
+        if (placeholderCycleTimer || isTouchInputDevice()) return;
+        updateCyclingPlaceholderText();
+        placeholderCycleTimer = setInterval(() => {
+            isPlaceholderFading = true;
+            clearTimeout(placeholderCycleFadeTimer ?? undefined);
+            placeholderCycleFadeTimer = setTimeout(() => {
+                showRecordingPlaceholderHint = !showRecordingPlaceholderHint;
+                updateCyclingPlaceholderText();
+                isPlaceholderFading = false;
+            }, PLACEHOLDER_FADE_MS);
+        }, PLACEHOLDER_CYCLE_MS);
+    }
+
+    function stopPlaceholderCycle() {
+        clearInterval(placeholderCycleTimer ?? undefined);
+        clearTimeout(placeholderCycleFadeTimer ?? undefined);
+        placeholderCycleTimer = null;
+        placeholderCycleFadeTimer = null;
+        showRecordingPlaceholderHint = false;
+        isPlaceholderFading = false;
+        messageInputPlaceholderOverride.set(null);
+    }
+
+    $effect(() => {
+        if (!editor || editor.isDestroyed || startNewChatOnClick || hasContent || isMessageFieldFocused) {
+            stopPlaceholderCycle();
+            return;
+        }
+        startPlaceholderCycle();
+        updateCyclingPlaceholderText();
     });
 
     // --- Original Markdown Tracking ---
@@ -1814,6 +1875,9 @@
 
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
+        if (!hasContent && !isMessageFieldFocused) {
+            startPlaceholderCycle();
+        }
 
         setupEventListeners();
 
@@ -2676,6 +2740,7 @@
     }
 
     function cleanup() {
+        stopPlaceholderCycle();
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
@@ -3520,6 +3585,8 @@
         // It does NOT need a pre-created blob URL — it creates its own internally.
         await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
         hasContent = true;
+        lastEditorUpdateText = editor.getText();
+        triggerSaveDraft(chatIdForRecording || currentChatId);
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
@@ -4224,7 +4291,7 @@
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
-        setCurrentChatContext(chatId, draftContent, version);
+        setDraftServiceCurrentChatContext(chatId, draftContent, version);
         
         // Reset text-change guard so next editor update processes fully after content swap
         lastEditorUpdateText = editor ? editor.getText() : '';
@@ -4251,6 +4318,9 @@
                 console.debug('[MessageInput] Skipped focus after setDraftContent (user must click to focus)');
             }
         }
+    }
+    export function setCurrentChatContext(chatId: string | null, content: Content | null, version: number) {
+        setDraftContent(chatId, content, version, false);
     }
     /**
      * Clears the message input field.
@@ -4616,6 +4686,7 @@
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
+        class:placeholder-fading={isPlaceholderFading}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -4894,6 +4965,10 @@
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    .message-field.placeholder-fading :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        opacity: 0;
+    }
 
     /* Edit message banner — shown above the editor when editing a previous message */
     .edit-banner {
