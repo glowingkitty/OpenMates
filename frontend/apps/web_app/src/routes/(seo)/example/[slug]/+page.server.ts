@@ -16,6 +16,45 @@ import { getExampleChatBySlug } from '@repo/ui';
 import { resolveExampleChatI18nKey as t } from '@repo/ui/src/demo_chats/resolveI18nServer';
 import { getSiteOrigin } from '$lib/backendUrl';
 
+const OG_IMAGE_URL = 'https://openmates.org/images/og-image.jpg';
+
+function getLastModifiedDate(chat: NonNullable<ReturnType<typeof getExampleChatBySlug>>): string {
+	const latestMessageTimestamp = Math.max(...chat.messages.map((message) => message.created_at), 0);
+	if (latestMessageTimestamp <= 0) return new Date().toISOString().split('T')[0];
+	return new Date(latestMessageTimestamp * 1000).toISOString().split('T')[0];
+}
+
+function toReadableMessageContent(role: string, content: string): string {
+	let displayContent = t(content);
+
+	if (role !== 'assistant') return displayContent;
+
+	const lines = displayContent.split('\n');
+	const textLines: string[] = [];
+	let inCodeBlock = false;
+
+	for (const line of lines) {
+		if (line.startsWith('```')) {
+			inCodeBlock = !inCodeBlock;
+			continue;
+		}
+		if (!inCodeBlock && line.trim()) {
+			textLines.push(line);
+		}
+	}
+
+	if (textLines.length > 0) {
+		displayContent = textLines.join('\n');
+	} else {
+		const queryMatches = [...displayContent.matchAll(/"query"\s*:\s*"([^"]+)"/g)];
+		if (queryMatches.length > 0) {
+			displayContent = queryMatches.map((match) => `Searched: ${match[1]}`).join('\n');
+		}
+	}
+
+	return displayContent;
+}
+
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const { slug } = params;
 
@@ -41,6 +80,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 
 	const title = t(chat.title);
 	const summary = t(chat.summary);
+	const lastModified = getLastModifiedDate(chat);
 
 	// Build JSON-LD structured data for rich search results
 	const jsonLd = {
@@ -48,6 +88,8 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		'@type': 'Article',
 		headline: title,
 		description: summary,
+		image: OG_IMAGE_URL,
+		dateModified: lastModified,
 		keywords: chat.keywords.join(', '),
 		author: {
 			'@type': 'Organization',
@@ -65,44 +107,10 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		}
 	};
 
-	// Translate and filter messages for SEO display
-	// User messages: resolve i18n keys. Assistant messages: extract query text from JSON tool calls.
 	const visibleMessages = chat.messages.map(msg => {
-		let displayContent = t(msg.content);
-
-		// For assistant messages that are only JSON tool calls, extract a human-readable summary
-		if (msg.role === 'assistant') {
-			const lines = msg.content.split('\n');
-			const textLines: string[] = [];
-			let inCodeBlock = false;
-
-			for (const line of lines) {
-				if (line.startsWith('```')) {
-					inCodeBlock = !inCodeBlock;
-					continue;
-				}
-				if (!inCodeBlock && line.trim()) {
-					textLines.push(line);
-				}
-			}
-
-			// If there are non-code text lines, use those
-			if (textLines.length > 0) {
-				displayContent = textLines.join('\n');
-			} else {
-				// All content is code blocks (tool calls) — extract queries for SEO
-				const queryMatches = [...msg.content.matchAll(/"query"\s*:\s*"([^"]+)"/g)];
-				if (queryMatches.length > 0) {
-					displayContent = queryMatches.map(m =>
-						`Searched: ${m[1]}`
-					).join('\n');
-				}
-			}
-		}
-
 		return {
 			role: msg.role,
-			content: displayContent
+			content: toReadableMessageContent(msg.role, msg.content)
 		};
 	});
 
@@ -115,7 +123,9 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		keywords: chat.keywords,
 		followUpSuggestions: chat.follow_up_suggestions.map(t),
 		messages: visibleMessages,
+		lastModified,
 		canonicalUrl,
+		ogImageUrl: OG_IMAGE_URL,
 		jsonLd: JSON.stringify(jsonLd),
 		isDevHost,
 		// The SPA deep link — redirects human browsers to the interactive chat view

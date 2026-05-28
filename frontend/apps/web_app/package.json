@@ -5,8 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "node scripts/process-docs.js && vite dev",
-		"build": "node scripts/process-docs.js && vite build",
+		"build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
 		"build:docs": "node scripts/process-docs.js",
+		"audit:seo": "node scripts/audit-example-seo.js",
 		"preview": "vite preview",
 		"test": "npm run test:integration && npm run test:unit",
 		"check-types": "tsc --noEmit",

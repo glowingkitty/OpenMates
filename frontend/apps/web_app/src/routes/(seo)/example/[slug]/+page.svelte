@@ -38,7 +38,7 @@
 	<meta property="og:url" content={data.canonicalUrl} />
 	<meta property="og:title" content="{data.title} — OpenMates" />
 	<meta property="og:description" content={data.summary || data.title} />
-	<meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+	<meta property="og:image" content={data.ogImageUrl} />
 	<meta property="og:site_name" content="OpenMates" />
 
 	<!-- Twitter Card -->
@@ -46,7 +46,7 @@
 	<meta name="twitter:url" content={data.canonicalUrl} />
 	<meta name="twitter:title" content="{data.title} — OpenMates" />
 	<meta name="twitter:description" content={data.summary || data.title} />
-	<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
+	<meta name="twitter:image" content={data.ogImageUrl} />
 
 	<!-- JSON-LD structured data -->
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -63,6 +63,7 @@
 			{#if data.keywords.length > 0}
 				<p class="keywords">{data.keywords.join(' · ')}</p>
 			{/if}
+			<p class="last-modified">Last updated: <time datetime={data.lastModified}>{data.lastModified}</time></p>
 		</header>
 
 		<!-- Chat conversation content — primary indexed content -->
@@ -128,6 +129,12 @@
 
 	.keywords {
 		font-size: 13px;
+		color: #999;
+		margin: 0 0 8px;
+	}
+
+	.last-modified {
+		font-size: 12px;
 		color: #999;
 		margin: 0 0 32px;
 	}

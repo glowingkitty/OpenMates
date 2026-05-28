@@ -34,11 +34,16 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { waitLocale } from 'svelte-i18n';
-	import { updated } from '$app/state';
+	import { page, updated } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
 
 	let loaded = $state(false);
 	let { children } = $props();
+	let isSeoRoute = $derived(
+		['/example', '/intro', '/legal', '/events', '/announcements', '/tips'].some((path) =>
+			page.url.pathname === path || page.url.pathname.startsWith(`${path}/`)
+		)
+	);
 	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -374,7 +379,7 @@
 	  - The `<main>` wrapper is always present; on SPA routes it's empty until
 	    hydration completes (same as before — the SPA mounts into the Svelte body div).
 -->
-{#if loaded}
+{#if loaded && !isSeoRoute}
 	<MetaTags />
 	<OfflineBanner />
 	<OfflineIndicator />

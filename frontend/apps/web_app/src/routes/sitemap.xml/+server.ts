@@ -28,6 +28,12 @@ export const prerender = false; // SSR so the sitemap always reflects the curren
 // see a consistent date that only advances on actual deployments.
 const BUILD_DATE = new Date().toISOString().split('T')[0];
 
+function getExampleChatLastModified(chat: ReturnType<typeof getAllExampleChatData>[number]): string {
+	const latestMessageTimestamp = Math.max(...chat.messages.map((message) => message.created_at), 0);
+	if (latestMessageTimestamp <= 0) return BUILD_DATE;
+	return new Date(latestMessageTimestamp * 1000).toISOString().split('T')[0];
+}
+
 export const GET: RequestHandler = async ({ url }) => {
 	const siteOrigin = url.origin;
 
@@ -97,6 +103,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const exampleUrls = exampleChats.map((chat) => {
 		return `  <url>
     <loc>${siteOrigin}/example/${chat.slug}</loc>
+    <lastmod>${getExampleChatLastModified(chat)}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>`;
