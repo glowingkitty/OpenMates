@@ -305,7 +305,7 @@ let _chatUpdatedFlushPending = false;
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Announcement chats — the 3 most recent Updates & Announcements
+		// 3. Announcement chats — the 10 most recent Updates & Announcements
 		// newsletter issues, shown under an "Announcements" section so users can
 		// always jump back to the latest product update. Hidden (via
 		// hidden_demo_chats) works the same as for intro/legal chats.
@@ -317,7 +317,7 @@ let _chatUpdatedFlushPending = false;
 				const bt = Date.parse(b.metadata.publishedAt || b.metadata.lastUpdated || '') || 0;
 				return bt - at;
 			})
-			.slice(0, 3)
+			.slice(0, 10)
 			.map(demo => translateDemoChat(demo))
 			.map(demo => {
 				const chat = convertDemoChatToChat(demo);
