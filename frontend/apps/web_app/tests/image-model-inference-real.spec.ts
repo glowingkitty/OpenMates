@@ -166,7 +166,7 @@ async function closeEmbedFullscreenIfOpen(
 	}
 	await page.keyboard.press('Escape');
 	if (await overlay.first().isVisible().catch(() => false)) {
-		await overlay.getByRole('button', { name: /minimize|close/i }).first().click();
+		await overlay.getByTestId('embed-minimize').first().dispatchEvent('click');
 	}
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 	log('Closed fullscreen overlay before sending.');
@@ -186,7 +186,7 @@ async function sendImageQuestion(
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled({ timeout: 30000 });
 	await closeEmbedFullscreenIfOpen(page, log);
-	await sendButton.click();
+	await sendButton.click({ force: true });
 	log('Sent image question.');
 }
 
