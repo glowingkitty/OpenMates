@@ -18,21 +18,29 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 async function openNewChat(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await newChatButton.click();
-		await page.waitForTimeout(1500);
-	}
+	await startNewChat(page, logCheckpoint);
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	logCheckpoint('New chat opened and editor ready.');
+}
+
+async function stopActiveResponseIfNeeded(
+	page: any,
+	logCheckpoint: (msg: string) => void
+): Promise<void> {
+	const stopButton = page.getByTestId('stop-processing-button');
+	if (await stopButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await stopButton.click();
+		await expect(stopButton).not.toBeVisible({ timeout: 15000 });
+		logCheckpoint('Stopped active assistant response before cleanup.');
+	}
 }
 
 async function attachFiles(
@@ -105,6 +113,7 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	expect(visibleTextOutsideEmbeds).not.toContain('"embed_id"');
 	log('Code embed rendered in sent message without raw JSON leakage.');
 
+	await stopActiveResponseIfNeeded(page, log);
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
