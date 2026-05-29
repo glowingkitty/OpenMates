@@ -107,6 +107,10 @@ class UserCacheMixin:
         "lookup_hashes",
     )
 
+    @staticmethod
+    def _is_signup_last_opened(value: Optional[str]) -> bool:
+        return isinstance(value, str) and value.startswith("/signup/")
+
     async def set_user(self, user_data: Dict, user_id: str = None, refresh_token: str = None, ttl: Optional[int] = None) -> bool:
         """Cache user data by user_id and optionally associate a refresh token."""
         try:
@@ -150,6 +154,23 @@ class UserCacheMixin:
                     logger.info(
                         f"set_user: preserved {len(preserved)} protected field(s) from existing cache "
                         f"for user {user_id[:8]}...: {preserved}"
+                    )
+
+                existing_last_opened = existing.get("last_opened")
+                incoming_last_opened = user_data.get("last_opened")
+                if (
+                    (
+                        existing.get("signup_completed")
+                        or (existing_last_opened and not self._is_signup_last_opened(existing_last_opened))
+                    )
+                    and self._is_signup_last_opened(incoming_last_opened)
+                ):
+                    user_data["last_opened"] = existing_last_opened or "/chat/new"
+                    user_data["signup_completed"] = True
+                    logger.info(
+                        "set_user: preserved completed signup state for user %s instead of caching stale %s",
+                        user_id[:8],
+                        incoming_last_opened,
                     )
 
             user_set_success = await self.set(user_cache_key, user_data, ttl=user_ttl)
