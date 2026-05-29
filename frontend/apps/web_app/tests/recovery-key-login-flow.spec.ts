@@ -138,8 +138,9 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 
 	await submitPasswordAndHandleOtp(page, OPENMATES_TEST_ACCOUNT_OTP_KEY, (msg: string) => logCheckpoint(msg));
 
-	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat|demo/, { timeout: 60000 });
+	// Wait for successful login - verify authenticated state
+	const authIndicator = page.locator('[data-authenticated="true"]');
+	await expect(authIndicator).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'logged-in');
 	logCheckpoint('Login successful with password + OTP.');
 
@@ -348,9 +349,10 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await recoverySubmitButton.click();
 	logCheckpoint('Submitted recovery key login.');
 
-	// Wait for successful login - redirect to chat
+	// Wait for successful login - verify authenticated state
 	// Recovery key login bypasses 2FA entirely, so it should go straight to chat
-	await page.waitForURL(/chat|demo/, { timeout: 60000 });
+	const authIndicatorRelogin = page.locator('[data-authenticated="true"]');
+	await expect(authIndicatorRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'login-success-recovery-key');
 	logCheckpoint('Login successful with recovery key! Test complete.');
 
