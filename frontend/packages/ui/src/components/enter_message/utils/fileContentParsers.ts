@@ -118,31 +118,43 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function getXmlDocument(xml: string): Document {
-  return new DOMParser().parseFromString(xml, "application/xml");
+function decodeXmlText(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
-function getElementsByLocalName(parent: ParentNode, localName: string): Element[] {
-  return Array.from(parent.getElementsByTagName("*")).filter(
-    (element) => element.localName === localName,
-  );
+function getXmlBlocks(xml: string, localName: string): string[] {
+  const pattern = new RegExp(`<(?:[\\w-]+:)?${localName}\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w-]+:)?${localName}>`, "gi");
+  return Array.from(xml.matchAll(pattern)).map((match) => match[1] || "");
 }
 
-function getDirectChildrenByLocalName(parent: Element | Document, localName: string): Element[] {
-  return Array.from(parent.children).filter((element) => element.localName === localName);
+function getXmlElements(xml: string, localName: string): Array<{ attrs: string; body: string }> {
+  const pattern = new RegExp(`<(?:[\\w-]+:)?${localName}\\b([^>]*)>([\\s\\S]*?)<\\/(?:[\\w-]+:)?${localName}>`, "gi");
+  return Array.from(xml.matchAll(pattern)).map((match) => ({
+    attrs: match[1] || "",
+    body: match[2] || "",
+  }));
 }
 
-function getTextFromDocxParagraph(paragraph: Element): string {
-  const parts: string[] = [];
-  for (const element of getElementsByLocalName(paragraph, "t")) {
-    parts.push(element.textContent || "");
-  }
+function getXmlStartTags(xml: string, localName: string): string[] {
+  const pattern = new RegExp(`<(?:[\\w-]+:)?${localName}\\b([^>]*)/?>`, "gi");
+  return Array.from(xml.matchAll(pattern)).map((match) => match[1] || "");
+}
 
-  if (parts.length > 0) {
-    return parts.join("");
-  }
+function getXmlAttribute(attrs: string, name: string): string | null {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = attrs.match(new RegExp(`(?:^|\\s)${escaped}="([^"]*)"`, "i"));
+  return match?.[1] || null;
+}
 
-  return paragraph.textContent?.trim() || "";
+function getTextFromDocxParagraph(paragraphXml: string): string {
+  const textRuns = getXmlBlocks(paragraphXml, "t").map(decodeXmlText);
+  if (textRuns.length > 0) return textRuns.join("");
+  return decodeXmlText(paragraphXml.replace(/<[^>]+>/g, "")).trim();
 }
 
 export async function docxArrayBufferToHtml(buffer: ArrayBuffer): Promise<string> {
@@ -150,8 +162,7 @@ export async function docxArrayBufferToHtml(buffer: ArrayBuffer): Promise<string
   const documentXml = await zip.file("word/document.xml")?.async("string");
   if (!documentXml) return "";
 
-  const xml = getXmlDocument(documentXml);
-  const paragraphs = getElementsByLocalName(xml, "p")
+  const paragraphs = getXmlBlocks(documentXml, "p")
     .map(getTextFromDocxParagraph)
     .map((text) => text.trim())
     .filter(Boolean);
@@ -170,18 +181,16 @@ function columnLettersToIndex(letters: string): number {
 
 function parseSharedStrings(xml: string | undefined): string[] {
   if (!xml) return [];
-  const doc = getXmlDocument(xml);
-  return getElementsByLocalName(doc, "si").map((item) =>
-    getElementsByLocalName(item, "t").map((textNode) => textNode.textContent || "").join(""),
+  return getXmlBlocks(xml, "si").map((item) =>
+    getXmlBlocks(item, "t").map(decodeXmlText).join(""),
   );
 }
 
 function getFirstWorksheetPath(zip: JSZip, workbookXml: string | undefined): string {
   if (!workbookXml) return "xl/worksheets/sheet1.xml";
 
-  const workbook = getXmlDocument(workbookXml);
-  const firstSheet = getElementsByLocalName(workbook, "sheet")[0];
-  const relationshipId = firstSheet?.getAttribute("r:id");
+  const firstSheet = getXmlStartTags(workbookXml, "sheet")[0];
+  const relationshipId = firstSheet ? getXmlAttribute(firstSheet, "r:id") : null;
   if (!relationshipId) return "xl/worksheets/sheet1.xml";
 
   const relsXml = zip.file("xl/_rels/workbook.xml.rels");
@@ -199,21 +208,20 @@ async function resolveWorksheetPath(zip: JSZip): Promise<string> {
   const relsXml = await zip.file("xl/_rels/workbook.xml.rels")?.async("string");
   if (!relsXml) return "xl/worksheets/sheet1.xml";
 
-  const rels = getXmlDocument(relsXml);
-  const relationship = getElementsByLocalName(rels, "Relationship").find(
-    (element) => element.getAttribute("Id") === relationshipIdOrPath,
+  const relationship = getXmlStartTags(relsXml, "Relationship").find(
+    (attrs) => getXmlAttribute(attrs, "Id") === relationshipIdOrPath,
   );
-  const target = relationship?.getAttribute("Target") || "worksheets/sheet1.xml";
+  const target = relationship ? getXmlAttribute(relationship, "Target") || "worksheets/sheet1.xml" : "worksheets/sheet1.xml";
   return target.startsWith("/") ? target.slice(1) : `xl/${target.replace(/^\.\.\//, "")}`;
 }
 
-function getCellValue(cell: Element, sharedStrings: string[]): string {
-  const type = cell.getAttribute("t");
+function getCellValue(cell: { attrs: string; body: string }, sharedStrings: string[]): string {
+  const type = getXmlAttribute(cell.attrs, "t");
   if (type === "inlineStr") {
-    return getElementsByLocalName(cell, "t").map((textNode) => textNode.textContent || "").join("");
+    return getXmlBlocks(cell.body, "t").map(decodeXmlText).join("");
   }
 
-  const value = getDirectChildrenByLocalName(cell, "v")[0]?.textContent || "";
+  const value = decodeXmlText(getXmlBlocks(cell.body, "v")[0] || "");
   if (type === "s") {
     return sharedStrings[Number(value)] || "";
   }
@@ -230,11 +238,10 @@ export async function xlsxArrayBufferToMarkdownTable(buffer: ArrayBuffer): Promi
   const sheetXml = await zip.file(worksheetPath)?.async("string");
   if (!sheetXml) return "";
 
-  const sheet = getXmlDocument(sheetXml);
-  const rows = getElementsByLocalName(sheet, "row").map((row) => {
+  const rows = getXmlBlocks(sheetXml, "row").map((row) => {
     const cells: string[] = [];
-    for (const cell of getDirectChildrenByLocalName(row, "c")) {
-      const cellRef = cell.getAttribute("r") || "";
+    for (const cell of getXmlElements(row, "c")) {
+      const cellRef = getXmlAttribute(cell.attrs, "r") || "";
       const match = cellRef.match(XLSX_CELL_REF_RE);
       const index = match ? columnLettersToIndex(match[1]) : cells.length;
       cells[index] = getCellValue(cell, sharedStrings);
