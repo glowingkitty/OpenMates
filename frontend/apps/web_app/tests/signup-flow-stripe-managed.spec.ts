@@ -388,6 +388,10 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 		refundLink: refundLink.slice(0, 120)
 	});
 
+	await page.getByRole('button', { name: /done/i }).click();
+	await page.getByTestId('icon-button-close').click();
+	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 10000 });
+
 	// Open settings to verify credit balance and delete the test account.
 	const settingsMenuButton = page.getByTestId('profile-container');
 	if (!(await page.locator('[data-testid="settings-menu"].visible').isVisible({ timeout: 2000 }).catch(() => false))) {
