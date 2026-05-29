@@ -2,10 +2,10 @@
 //
 // Lightweight client-side parsers for uploaded text-like files.
 // These intentionally avoid heavy document dependencies: they support simple
-// CSV/TSV and RFC822-style EML extraction so PII redaction can happen before
-// embed content leaves the browser.
-// Complex binary formats remain unsupported here unless parsed by a small,
-// explicitly reviewed dependency or the existing upload pipeline.
+// CSV/TSV, RFC822-style EML, and minimal Office Open XML extraction so PII
+// redaction can happen before embed content leaves the browser.
+
+import JSZip from "jszip";
 
 export interface ParsedEmailFile {
   receiver: string;
@@ -15,6 +15,7 @@ export interface ParsedEmailFile {
 }
 
 const EML_HEADER_SEPARATOR = /\r?\n\r?\n/;
+const XLSX_CELL_REF_RE = /^([A-Z]+)(\d+)$/i;
 
 function escapeMarkdownCell(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ").trim();
@@ -107,6 +108,148 @@ function stripHtml(html: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .trim();
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getXmlDocument(xml: string): Document {
+  return new DOMParser().parseFromString(xml, "application/xml");
+}
+
+function getElementsByLocalName(parent: ParentNode, localName: string): Element[] {
+  return Array.from(parent.getElementsByTagName("*")).filter(
+    (element) => element.localName === localName,
+  );
+}
+
+function getDirectChildrenByLocalName(parent: Element | Document, localName: string): Element[] {
+  return Array.from(parent.children).filter((element) => element.localName === localName);
+}
+
+function getTextFromDocxParagraph(paragraph: Element): string {
+  const parts: string[] = [];
+  for (const element of getElementsByLocalName(paragraph, "t")) {
+    parts.push(element.textContent || "");
+  }
+
+  if (parts.length > 0) {
+    return parts.join("");
+  }
+
+  return paragraph.textContent?.trim() || "";
+}
+
+export async function docxArrayBufferToHtml(buffer: ArrayBuffer): Promise<string> {
+  const zip = await JSZip.loadAsync(buffer);
+  const documentXml = await zip.file("word/document.xml")?.async("string");
+  if (!documentXml) return "";
+
+  const xml = getXmlDocument(documentXml);
+  const paragraphs = getElementsByLocalName(xml, "p")
+    .map(getTextFromDocxParagraph)
+    .map((text) => text.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length === 0) return "";
+  return paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("\n");
+}
+
+function columnLettersToIndex(letters: string): number {
+  let index = 0;
+  for (const char of letters.toUpperCase()) {
+    index = index * 26 + char.charCodeAt(0) - 64;
+  }
+  return index - 1;
+}
+
+function parseSharedStrings(xml: string | undefined): string[] {
+  if (!xml) return [];
+  const doc = getXmlDocument(xml);
+  return getElementsByLocalName(doc, "si").map((item) =>
+    getElementsByLocalName(item, "t").map((textNode) => textNode.textContent || "").join(""),
+  );
+}
+
+function getFirstWorksheetPath(zip: JSZip, workbookXml: string | undefined): string {
+  if (!workbookXml) return "xl/worksheets/sheet1.xml";
+
+  const workbook = getXmlDocument(workbookXml);
+  const firstSheet = getElementsByLocalName(workbook, "sheet")[0];
+  const relationshipId = firstSheet?.getAttribute("r:id");
+  if (!relationshipId) return "xl/worksheets/sheet1.xml";
+
+  const relsXml = zip.file("xl/_rels/workbook.xml.rels");
+  if (!relsXml) return "xl/worksheets/sheet1.xml";
+
+  // Relationship resolution happens in the caller after async file loading.
+  return relationshipId;
+}
+
+async function resolveWorksheetPath(zip: JSZip): Promise<string> {
+  const workbookXml = await zip.file("xl/workbook.xml")?.async("string");
+  const relationshipIdOrPath = getFirstWorksheetPath(zip, workbookXml);
+  if (relationshipIdOrPath.startsWith("xl/")) return relationshipIdOrPath;
+
+  const relsXml = await zip.file("xl/_rels/workbook.xml.rels")?.async("string");
+  if (!relsXml) return "xl/worksheets/sheet1.xml";
+
+  const rels = getXmlDocument(relsXml);
+  const relationship = getElementsByLocalName(rels, "Relationship").find(
+    (element) => element.getAttribute("Id") === relationshipIdOrPath,
+  );
+  const target = relationship?.getAttribute("Target") || "worksheets/sheet1.xml";
+  return target.startsWith("/") ? target.slice(1) : `xl/${target.replace(/^\.\.\//, "")}`;
+}
+
+function getCellValue(cell: Element, sharedStrings: string[]): string {
+  const type = cell.getAttribute("t");
+  if (type === "inlineStr") {
+    return getElementsByLocalName(cell, "t").map((textNode) => textNode.textContent || "").join("");
+  }
+
+  const value = getDirectChildrenByLocalName(cell, "v")[0]?.textContent || "";
+  if (type === "s") {
+    return sharedStrings[Number(value)] || "";
+  }
+  if (type === "b") {
+    return value === "1" ? "TRUE" : "FALSE";
+  }
+  return value;
+}
+
+export async function xlsxArrayBufferToMarkdownTable(buffer: ArrayBuffer): Promise<string> {
+  const zip = await JSZip.loadAsync(buffer);
+  const sharedStrings = parseSharedStrings(await zip.file("xl/sharedStrings.xml")?.async("string"));
+  const worksheetPath = await resolveWorksheetPath(zip);
+  const sheetXml = await zip.file(worksheetPath)?.async("string");
+  if (!sheetXml) return "";
+
+  const sheet = getXmlDocument(sheetXml);
+  const rows = getElementsByLocalName(sheet, "row").map((row) => {
+    const cells: string[] = [];
+    for (const cell of getDirectChildrenByLocalName(row, "c")) {
+      const cellRef = cell.getAttribute("r") || "";
+      const match = cellRef.match(XLSX_CELL_REF_RE);
+      const index = match ? columnLettersToIndex(match[1]) : cells.length;
+      cells[index] = getCellValue(cell, sharedStrings);
+    }
+    return cells.map((cell) => cell || "");
+  }).filter((row) => row.some((cell) => cell.trim().length > 0));
+
+  if (rows.length === 0) return "";
+  const maxCols = Math.max(...rows.map((row) => row.length));
+  const csvLike = rows.map((row) => {
+    const next = [...row];
+    while (next.length < maxCols) next.push("");
+    return next.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",");
+  }).join("\n");
+  return delimitedTextToMarkdownTable(csvLike, ",");
 }
 
 function extractMultipartBody(body: string, contentType: string): string {

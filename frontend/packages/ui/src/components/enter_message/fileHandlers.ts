@@ -1,6 +1,6 @@
 import type { Editor } from "@tiptap/core";
-import { insertCodeFile, insertDelimitedTableFile, insertEmailFile, insertImage, insertPDF } from "./embedHandlers"; // Only supported file types are accepted via the upload button
-import { isCodeOrTextFile, isDelimitedTableFile, isEmailFile } from "./utils"; // Import necessary utils
+import { insertCodeFile, insertDelimitedTableFile, insertEmailFile, insertImage, insertOfficeDocumentFile, insertOfficeSpreadsheetFile, insertPDF } from "./embedHandlers"; // Only supported file types are accepted via the upload button
+import { isCodeOrTextFile, isDelimitedTableFile, isEmailFile, isOfficeDocumentFile, isOfficeSpreadsheetFile } from "./utils"; // Import necessary utils
 
 // File size limits (consider moving to a config file later)
 const FILE_SIZE_LIMITS = {
@@ -67,6 +67,12 @@ export async function processFiles(
     } else if (isEmailFile(file.name)) {
       editor.commands.focus("end");
       await insertEmailFile(editor, file);
+    } else if (isOfficeDocumentFile(file.name)) {
+      editor.commands.focus("end");
+      await insertOfficeDocumentFile(editor, file);
+    } else if (isOfficeSpreadsheetFile(file.name)) {
+      editor.commands.focus("end");
+      await insertOfficeSpreadsheetFile(editor, file);
     } else if (isCodeOrTextFile(file.name)) {
       editor.commands.focus("end");
       await insertCodeFile(editor, file, isAuthenticated);

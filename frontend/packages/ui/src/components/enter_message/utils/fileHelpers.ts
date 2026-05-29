@@ -53,6 +53,16 @@ export function isEmailFile(filename: string): boolean {
     return extension === 'eml';
 }
 
+export function isOfficeDocumentFile(filename: string): boolean {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    return extension === 'docx';
+}
+
+export function isOfficeSpreadsheetFile(filename: string): boolean {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    return extension === 'xlsx';
+}
+
 /**
  * Gets the programming language from a filename.
  * @param filename The filename.

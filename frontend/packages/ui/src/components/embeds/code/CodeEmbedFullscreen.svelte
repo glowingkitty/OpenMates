@@ -24,7 +24,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
@@ -121,8 +121,10 @@
 
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
+  let includedOriginalCodeContent = $state<string | null>(null);
   let codeContent = $derived(
-      typeof dc.code === 'string' ? dc.code
+      includedOriginalCodeContent !== null ? includedOriginalCodeContent
+      : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
     );
@@ -152,8 +154,11 @@
   // chat header and embed fullscreen stay in sync. See OPE-400.
   /** Whether there are any PII mappings to apply (controls button visibility) */
   let embedPIIMappings = $state<PIIMapping[]>([]);
+  let originalPIIIncluded = $state(false);
   let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
   let hasPII = $derived(allPIIMappings.length > 0);
+  let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
+  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
 
   $effect(() => {
     if (!embedId) return;
@@ -167,6 +172,20 @@
   function togglePII() {
     if (!chatId) return;
     piiVisibilityStore.toggle(chatId);
+  }
+
+  async function includeOriginalPII() {
+    if (!embedId) return;
+    try {
+      const count = await includeOriginalPIIInDraftEmbed(embedId);
+      includedOriginalCodeContent = restorePIIInText(codeContent, embedPIIMappings);
+      embedPIIMappings = [];
+      originalPIIIncluded = true;
+      notificationStore.success($text('embeds.pii_include_original_success', { values: { count: String(count) } }));
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to include original PII:', error);
+      notificationStore.error($text('embeds.pii_include_original_failed'));
+    }
   }
 
   /**
@@ -1177,6 +1196,8 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  showPIIIncludeOriginal={canIncludeOriginalPII}
+  onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightRange}
 >
   {#snippet embedHeaderCta()}

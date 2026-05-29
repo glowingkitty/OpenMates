@@ -39,6 +39,8 @@
     showPIIToggle?: boolean;
     /** Whether PII is currently revealed (controls toggle visual state). */
     piiRevealed?: boolean;
+    /** Whether to show the pre-send action that keeps original PII in this embed. */
+    showPIIIncludeOriginal?: boolean;
 
     onClose: () => void;
     onShare?: () => void;
@@ -55,6 +57,7 @@
     onToggleDebug?: () => void;
     onShowChat?: () => void;
     onTogglePII?: () => void;
+    onIncludeOriginalPII?: () => void;
   }
 
   let {
@@ -69,6 +72,7 @@
     previewActive = false,
     showPIIToggle = false,
     piiRevealed = false,
+    showPIIIncludeOriginal = false,
     onClose,
     onShare,
     onCopy,
@@ -82,6 +86,7 @@
     onToggleDebug,
     onShowChat,
     onTogglePII,
+    onIncludeOriginalPII,
   }: Props = $props();
 </script>
 
@@ -212,6 +217,18 @@
           onclick={onTogglePII}
           aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
           title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+        ></button>
+      </div>
+    {/if}
+
+    {#if showPIIIncludeOriginal && onIncludeOriginalPII}
+      <div class="button-wrapper pii-include-original">
+        <button
+          data-testid="embed-pii-include-original"
+          class="clickable-icon icon_lock top-button"
+          onclick={onIncludeOriginalPII}
+          aria-label={$text('embeds.pii_include_original')}
+          title={$text('embeds.pii_include_original')}
         ></button>
       </div>
     {/if}

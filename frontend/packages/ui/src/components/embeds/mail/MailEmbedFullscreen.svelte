@@ -12,7 +12,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -66,18 +66,22 @@
   // ── Extract fields from data.decodedContent ─────────────────────────────────
 
   let dc = $derived(data.decodedContent);
-  let receiver = $derived(coerceString(dc.receiver));
-  let subject = $derived(coerceString(dc.subject));
-  let content = $derived(coerceString(dc.content));
-  let footer = $derived(coerceString(dc.footer));
+  let includedOriginalFields = $state<Record<string, string> | null>(null);
+  let receiver = $derived(includedOriginalFields?.receiver ?? coerceString(dc.receiver));
+  let subject = $derived(includedOriginalFields?.subject ?? coerceString(dc.subject));
+  let content = $derived(includedOriginalFields?.content ?? coerceString(dc.content));
+  let footer = $derived(includedOriginalFields?.footer ?? coerceString(dc.footer));
 
   // Single source of truth: read piiRevealed directly from the parent prop,
   // which itself is derived from piiVisibilityStore in ActiveChat. No local
   // duplicate state — toggling goes through the store so chat header and
   // embed fullscreen stay in sync (OPE-400).
   let embedPIIMappings = $state<PIIMapping[]>([]);
+  let originalPIIIncluded = $state(false);
   let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
   let hasPII = $derived(allPIIMappings.length > 0);
+  let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
+  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
 
   $effect(() => {
     if (!embedId) return;
@@ -122,6 +126,25 @@
       return;
     }
     piiVisibilityStore.toggle(chatId);
+  }
+
+  async function includeOriginalPII() {
+    if (!embedId) return;
+    try {
+      const count = await includeOriginalPIIInDraftEmbed(embedId);
+      includedOriginalFields = {
+        receiver: restorePIIInText(receiver, embedPIIMappings),
+        subject: restorePIIInText(subject, embedPIIMappings),
+        content: restorePIIInText(content, embedPIIMappings),
+        footer: restorePIIInText(footer, embedPIIMappings),
+      };
+      embedPIIMappings = [];
+      originalPIIIncluded = true;
+      notificationStore.success($text('embeds.pii_include_original_success', { values: { count: String(count) } }));
+    } catch (error) {
+      console.error('[MailEmbedFullscreen] Failed to include original PII:', error);
+      notificationStore.error($text('embeds.pii_include_original_failed'));
+    }
   }
 
   async function handleCopy() {
@@ -176,6 +199,8 @@
   showPIIToggle={hasPII}
   piiRevealed={piiRevealed}
   onTogglePII={togglePII}
+  showPIIIncludeOriginal={canIncludeOriginalPII}
+  onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!data.highlightQuoteText}
 >
   {#snippet embedHeaderCta()}

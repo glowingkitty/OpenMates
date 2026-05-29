@@ -284,6 +284,12 @@
      */
     onTogglePII?: () => void;
 
+    /** Show a pre-send action that restores original PII into the draft embed. */
+    showPIIIncludeOriginal?: boolean;
+
+    /** Callback when user chooses to include original PII in this draft embed. */
+    onIncludeOriginalPII?: () => void;
+
     /* ============================================
        Preview Toggle Props (for markdown/HTML render)
        ============================================ */
@@ -348,6 +354,8 @@
     showPIIToggle = false,
     piiRevealed = false,
     onTogglePII,
+    showPIIIncludeOriginal = false,
+    onIncludeOriginalPII,
     // Preview toggle props (for markdown/HTML render)
     showPreview = false,
     showRun = false,
@@ -1355,6 +1363,7 @@
       {previewActive}
       {showPIIToggle}
       {piiRevealed}
+      {showPIIIncludeOriginal}
       onClose={handleClose}
       onShare={handleShare}
       onCopy={handleCopy}
@@ -1364,6 +1373,7 @@
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}
+      {onIncludeOriginalPII}
       {onTogglePreview}
       showDebug={isAdminUser}
       debugActive={$chatDebugStore.rawTextMode}

@@ -7,11 +7,12 @@ import { uploadFileToServer } from "./services/uploadService";
 import { embedStore } from "../../services/embedStore";
 import {
   createCodeEmbed,
+  createDocEmbed,
   createMailEmbed,
   detectLanguageFromContent,
   createSheetEmbed,
 } from "./services/codeEmbedService";
-import { delimitedTextToMarkdownTable, parseEmlText } from "./utils/fileContentParsers";
+import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "./utils/fileContentParsers";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
 import { notificationStore } from "../../stores/notificationStore";
@@ -1031,6 +1032,85 @@ export async function insertEmailFile(
         status: "finished",
         contentRef: `embed:${result.embed_id}`,
         subject: parsedEmail.subject,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
+export async function insertOfficeDocumentFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let html: string;
+  try {
+    html = await docxArrayBufferToHtml(await file.arrayBuffer());
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to parse DOCX file content:", error);
+    return;
+  }
+
+  if (!html) {
+    console.warn("[EmbedHandlers] Empty DOCX file skipped:", file.name);
+    return;
+  }
+
+  const result = await createDocEmbed(html, file.name, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "docs-doc",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: file.name,
+        filename: file.name,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
+export async function insertOfficeSpreadsheetFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let tableMarkdown: string;
+  try {
+    tableMarkdown = await xlsxArrayBufferToMarkdownTable(await file.arrayBuffer());
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to parse XLSX file content:", error);
+    return;
+  }
+
+  if (!tableMarkdown) {
+    console.warn("[EmbedHandlers] Empty XLSX file skipped:", file.name);
+    return;
+  }
+
+  const result = await createSheetEmbed(tableMarkdown, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: file.name,
       },
     })
     .insertContent(" ")

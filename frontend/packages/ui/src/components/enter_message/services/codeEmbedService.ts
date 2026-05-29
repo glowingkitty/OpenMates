@@ -28,11 +28,12 @@
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
-import { encode as toonEncode } from "@toon-format/toon";
+import { decode as toonDecode, encode as toonEncode } from "@toon-format/toon";
 import {
   detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
+  restorePIIInText,
   type PIIMappingForStorage,
   type PIIDetectionOptions,
   type PersonalDataForDetection,
@@ -239,6 +240,87 @@ export async function loadEmbedPIIMappings(
     );
   }
   return [];
+}
+
+function encodeEmbedContent(content: Record<string, unknown>): string {
+  try {
+    return toonEncode(content);
+  } catch {
+    return JSON.stringify(content);
+  }
+}
+
+function decodeEmbedContent(content: unknown): Record<string, unknown> | null {
+  if (!content || typeof content !== "string") return null;
+  try {
+    const decoded = toonDecode(content, { strict: false });
+    return decoded && typeof decoded === "object" ? decoded as Record<string, unknown> : null;
+  } catch {
+    try {
+      const parsed = JSON.parse(content);
+      return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function isDraftEmbedData(embedData: Record<string, unknown>): boolean {
+  return !embedData.encrypted_content && !embedData.hashed_message_id;
+}
+
+function restorePIIFields(
+  decoded: Record<string, unknown>,
+  mappings: PIIMappingForStorage[],
+): Record<string, unknown> {
+  const restored = { ...decoded };
+  for (const key of ["code", "html", "table", "receiver", "subject", "content", "footer"]) {
+    if (typeof restored[key] === "string") {
+      restored[key] = restorePIIInText(restored[key] as string, mappings);
+    }
+  }
+  return restored;
+}
+
+export async function includeOriginalPIIInDraftEmbed(embedId: string): Promise<number> {
+  const mappings = await loadEmbedPIIMappings(embedId);
+  if (mappings.length === 0) return 0;
+
+  const contentRef = `embed:${embedId}`;
+  const embedData = await embedStore.get(contentRef) as Record<string, unknown> | undefined;
+  if (!embedData || typeof embedData !== "object") {
+    throw new Error("Draft embed not found");
+  }
+  if (!isDraftEmbedData(embedData)) {
+    throw new Error("Original PII can only be included before the embed is sent");
+  }
+
+  const decoded = decodeEmbedContent(embedData.content);
+  if (!decoded) {
+    throw new Error("Draft embed content could not be decoded");
+  }
+
+  await embedStore.put(
+    contentRef,
+    {
+      ...embedData,
+      content: encodeEmbedContent(restorePIIFields(decoded, mappings)),
+      updatedAt: Date.now(),
+    },
+    (embedData.type as EmbedType) || "code-code",
+  );
+
+  await embedStore.put(
+    `embed_pii:${embedId}`,
+    {
+      embed_id: embedId,
+      pii_mappings: [],
+      created_at: Date.now(),
+    },
+    "code-code" as EmbedType,
+  );
+
+  return mappings.length;
 }
 
 /**

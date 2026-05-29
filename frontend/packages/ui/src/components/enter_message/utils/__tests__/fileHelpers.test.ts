@@ -10,6 +10,8 @@ import {
   isCodeOrTextFile,
   isDelimitedTableFile,
   isEmailFile,
+  isOfficeDocumentFile,
+  isOfficeSpreadsheetFile,
 } from "../fileHelpers";
 
 describe("fileHelpers", () => {
@@ -26,6 +28,12 @@ describe("fileHelpers", () => {
     expect(isDelimitedTableFile("contacts.tsv")).toBe(true);
     expect(isEmailFile("message.eml")).toBe(true);
     expect(isCodeOrTextFile("message.eml")).toBe(false);
+  });
+
+  it("routes Office documents to client-side parsers", () => {
+    expect(isOfficeDocumentFile("brief.docx")).toBe(true);
+    expect(isOfficeSpreadsheetFile("contacts.xlsx")).toBe(true);
+    expect(isCodeOrTextFile("brief.docx")).toBe(false);
   });
 
   it("maps expanded language extensions", () => {
