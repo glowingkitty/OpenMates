@@ -78,6 +78,15 @@
     // while keeping 2FA optional (no-2FA users never see a confusing OTP prompt).
     let tfaRequiredState = $state(false);
 
+    function normalizePostSignupLoginUser(user: Record<string, unknown> | null | undefined): void {
+        const lastOpened = user?.last_opened;
+        if (typeof lastOpened === 'string' && (lastOpened.startsWith('/signup/') || lastOpened.startsWith('#signup/'))) {
+            user.last_opened = '/chat/new';
+            user.signup_completed = true;
+            console.debug('[PasswordAndTfaOtp] Normalized stale signup resume path after login:', lastOpened);
+        }
+    }
+
     // Input references using Svelte 5 runes
     let passwordInput: HTMLInputElement = $state();
     let tfaInput: HTMLInputElement = $state();
@@ -91,7 +100,7 @@
     // TFA app display logic using Svelte 5 runes
     let currentAppIndex = $state(0);
     let animationInterval: number | null = null;
-    let currentDisplayedApp = $state(previewMode ? previewTfaAppName : (tfaAppName || ''));
+    let currentDisplayedApp = $state('');
     const appNames = Object.keys(tfaAppIcons);
 
     // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
@@ -196,6 +205,7 @@
             const lookup_hash = await cryptoService.hashKey(password, userEmailSalt);
 
             // Prepare request body
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- login payload is extended conditionally below
             const requestBody: any = {
                 hashed_email,
                 lookup_hash,
@@ -239,6 +249,7 @@
             }
 
             const data = await response.json();
+            normalizePostSignupLoginUser(data.user);
             
             // Debug logging to understand response structure
             console.debug('[PasswordAndTfaOtp] Login response:', {
@@ -465,6 +476,7 @@
     // leaving the login dialog open despite a successful backend authentication.
     // The fix: dispatch loginSuccess immediately after critical crypto succeeds, then
     // run non-critical operations in a separate non-blocking block.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- login response shape is validated by backend schemas
     async function handleSuccessfulLogin(data: any) {
         console.debug('[PasswordAndTfaOtp] [1/5] handleSuccessfulLogin called with data:', {
             hasUser: !!data.user,
@@ -833,9 +845,9 @@
         <div class="check-2fa-container" class:hidden={isBackupMode}>
             <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
                 {#if isBackupMode}
-                    {@html $text('login.backup_code_is_single_use')}
+                    {$text('login.backup_code_is_single_use')}
                 {:else if currentDisplayedApp}
-                    <span class="app-name-inline">{@html $text('login.check_your_2fa_app').replace('{tfa_app}', '')}</span>
+                    <span class="app-name-inline">{$text('login.check_your_2fa_app').replace('{tfa_app}', '')}</span>
                     <span class="app-name-inline">
                         {#if tfaAppIconClass}
                             <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}" style="--icon-url: var(--icon-url-{tfaAppIconClass});"></span>
@@ -843,7 +855,7 @@
                         <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
                     </span>
                 {:else}
-                    {@html $text('login.check_your_2fa_app').replace('{tfa_app}', $text('login.your_tfa_app'))}
+                    {$text('login.check_your_2fa_app').replace('{tfa_app}', $text('login.your_tfa_app'))}
                 {/if}
             </p>
 
