@@ -153,6 +153,23 @@ async function attachImage(page: any, log: (message: string, metadata?: Record<s
 	const editorEmbed = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
 	await expect(editorEmbed.first()).toBeVisible({ timeout: 20000 });
 	await page.waitForTimeout(5000);
+	await closeEmbedFullscreenIfOpen(page, log);
+}
+
+async function closeEmbedFullscreenIfOpen(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void
+) {
+	const overlay = page.getByTestId('embed-fullscreen-overlay');
+	if (!(await overlay.first().isVisible().catch(() => false))) {
+		return;
+	}
+	await page.keyboard.press('Escape');
+	if (await overlay.first().isVisible().catch(() => false)) {
+		await overlay.getByRole('button', { name: /minimize|close/i }).first().click();
+	}
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+	log('Closed fullscreen overlay before sending.');
 }
 
 async function sendImageQuestion(
@@ -168,6 +185,7 @@ async function sendImageQuestion(
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled({ timeout: 30000 });
+	await closeEmbedFullscreenIfOpen(page, log);
 	await sendButton.click();
 	log('Sent image question.');
 }
