@@ -330,8 +330,8 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	logCheckpoint('Switched to recovery key login mode.');
 
 	// Wait for the recovery key input to appear
-	// EnterRecoveryKey.svelte renders an input with specific validation (24 chars)
-	const recoveryKeyInput = page.locator('input[type="text"]').first();
+	// EnterRecoveryKey.svelte uses type="password" with autocomplete="off" and monospace font
+	const recoveryKeyInput = page.locator('input[type="password"][autocomplete="off"]');
 	await expect(recoveryKeyInput).toBeVisible({ timeout: 10000 });
 
 	// Enter the recovery key
