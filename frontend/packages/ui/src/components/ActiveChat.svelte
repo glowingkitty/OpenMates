@@ -10473,7 +10473,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
         {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
             <div class="status-wrapper" transition:fade={fadeParams}>
-                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} paymentEnabled={paymentEnabled} isSelfHosted={isSelfHosted} />
+                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} isSelfHosted={isSelfHosted} />
             </div>
         {/if}
         

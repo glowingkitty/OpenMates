@@ -1,6 +1,6 @@
 /*
 @privacy-promise: cryptographic-erasure
-Purpose: Verifies password signup with skipped 2FA setup, re-login with password only, and account deletion via email OTP.
+Purpose: Verifies password signup, re-login with password only, and account deletion via email OTP.
 Architecture: Covers the signup route state machine and auth login flow from the deployed web app.
 Architecture Doc: See docs/architecture/app-skills.md for async auth-related flow context.
 Tests: N/A (this file is the Playwright E2E test entrypoint)
@@ -34,7 +34,6 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
-	fillStripeCardDetails,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -45,9 +44,8 @@ const {
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
-const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
-test('completes signup with skipped 2FA, login with password, and delete account via email OTP', async ({
+test('completes password signup, login with password, and delete account via email OTP', async ({
 	page,
 	context
 }: {
@@ -73,9 +71,9 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	// GHA runners are slower — increase from 360s to 480s for comfortable margin.
 	test.setTimeout(480000);
 
-	const logSignupCheckpoint = createSignupLogger('SIGNUP_SKIP_2FA_FLOW');
+	const logSignupCheckpoint = createSignupLogger('SIGNUP_PASSWORD_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
-		filenamePrefix: 'skip-2fa'
+		filenamePrefix: 'password-signup'
 	});
 
 	await archiveExistingScreenshots(logSignupCheckpoint);
@@ -167,118 +165,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await passwordInputs.nth(1).fill(signupPassword);
 
 	await page.locator('#signup-password-continue').click();
-	await takeStepScreenshot(page, 'one-time-codes');
-
-	const skipForNowButton = page.locator('#signup-nav-skip');
-	await expect(skipForNowButton).toBeVisible({ timeout: 10000 });
-	await skipForNowButton.click();
-
-	await expect(page.getByText(/be aware before skipping 2fa/i)).toBeVisible({ timeout: 10000 });
-	await takeStepScreenshot(page, 'skip-2fa-consent');
-
-	const skipConsentToggle = page.locator('#skip-2fa-consent-toggle');
-	await setToggleChecked(skipConsentToggle, true);
-	await expect(skipConsentToggle).toBeChecked();
-
-	await page.locator('#signup-skip-2fa-continue').click();
-	await takeStepScreenshot(page, 'recovery-key');
-	logSignupCheckpoint('Skipped 2FA and continued to recovery key step.');
-
-	const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
-	const [recoveryDownload] = await Promise.all([
-		page.waitForEvent('download'),
-		recoveryDownloadButton.click()
-	]);
-	expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
-
-	const recoveryConfirmToggle = page.locator('#confirm-storage-toggle-step5');
-	await setToggleChecked(recoveryConfirmToggle, true);
-
-	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
-		timeout: 10000
-	});
-
-	const lessCreditsButton = page.locator('#signup-credits-less');
-	if (await lessCreditsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await lessCreditsButton.click();
-	}
-
-	await page.getByRole('button', { name: /recovery key/i }).click();
-	await expect(page.getByText(/i stored the recovery key somewhere safe/i)).toBeVisible({ timeout: 10000 });
-	expect(
-		consoleLogs.some((log) => log.includes('indexOf is not a function') || log.includes('[UnhandledRejection]')),
-		'Signup credits back navigation must not throw the OPE-490 indexOf crash.'
-	).toBe(false);
-	await takeStepScreenshot(page, 'recovery-key-after-credits-back');
-
-	await setToggleChecked(recoveryConfirmToggle, true);
-	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
-		timeout: 10000
-	});
-	logSignupCheckpoint('Navigated from credits back to recovery key and forward again without crashing.');
-
-	await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
-	await takeStepScreenshot(page, 'payment-consent');
-	logSignupCheckpoint('Reached payment consent step.');
-
-	// The consent overlay appears on top of the payment form regardless of provider.
-	// It must be dismissed BEFORE clicking provider-switch buttons, because the overlay
-	// has pointer-events:all and blocks clicks to elements underneath (like switch-to-stripe).
-	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	const stripeIframe = page.locator('iframe[title="Secure payment input frame"]');
-
-	// Wait for the consent toggle or Stripe iframe to appear (payment step loaded)
-	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 10000 });
-
-	if (await consentToggle.count()) {
-		await setToggleChecked(consentToggle, true);
-		await expect(consentToggle).not.toBeAttached({ timeout: 10000 });
-		logSignupCheckpoint('Payment consent accepted.');
-	} else {
-		logSignupCheckpoint('No consent toggle — Stripe loaded directly (hosted invoice path).');
-	}
-
-	// GHA runners are in the US, so Stripe Managed Payments (Checkout Session) is auto-selected.
-	// Switch to Stripe EU card mode for this test.
-	// Now that consent overlay is dismissed, the switch button is clickable.
-	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
-	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await switchToStripeBtn.click();
-		logSignupCheckpoint('Switched from Managed Payments to Stripe EU card payment.');
-	}
-
-	// Wait for Stripe Payment Element card input to be visible inside the iframe.
-	// switchPaymentMode() tears down the Managed Payments checkout, fetches config,
-	// loads Stripe.js, creates a PaymentIntent, and mounts the Payment Element — all async.
-	const stripeFrameLocator = page.frameLocator('iframe[title="Secure payment input frame"]');
-	const cardInputWait = stripeFrameLocator
-		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
-		.first();
-	await cardInputWait.waitFor({ state: 'visible', timeout: 30000 });
-	logSignupCheckpoint('Stripe Payment Element loaded.');
-
-	await takeStepScreenshot(page, 'payment-form');
-
-	// Fill Stripe payment element with the test card.
-	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
-	logSignupCheckpoint('Filled Stripe card details.');
-
-	// Wait for Stripe to validate the card (buy button enabled).
-	const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
-	await expect(buyButton).toBeEnabled({ timeout: 10000 });
-
-	// Submit payment and wait for success.
-	await buyButton.click();
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
-	logSignupCheckpoint('Stripe payment completed successfully.');
-
-	const finishSetupButton = page.getByTestId('signup-finish-setup').first();
-	await expect(finishSetupButton).toBeVisible({ timeout: 10000 });
-	await expect(finishSetupButton).toBeEnabled({ timeout: 10000 });
-	await finishSetupButton.click({ force: true });
-	if (await finishSetupButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await finishSetupButton.evaluate((button: HTMLButtonElement) => button.click());
-	}
+	// Signup now finishes immediately after password account creation.
 	await expect(page.getByRole('button', { name: /logout/i }).or(page.getByTestId('profile-container'))).toBeVisible({
 		timeout: 30000
 	});
@@ -439,7 +326,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Account deleted and redirected to demo chat.');
 
 	logSignupCheckpoint(
-		'Skip-2FA signup + password login + email OTP account deletion flow completed successfully.',
+		'Password signup + password login + email OTP account deletion flow completed successfully.',
 		{ signupEmail }
 	);
 });

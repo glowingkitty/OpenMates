@@ -1047,6 +1047,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.new_device_email_task.send_new_device_email": "email",
     "app.tasks.email_tasks.backup_code_email_task.send_backup_code_used_email": "email",
     "app.tasks.email_tasks.recovery_key_email_task.send_recovery_key_used_email": "email",
+    "app.tasks.email_tasks.post_purchase_security_setup_email_task.send_post_purchase_security_setup_reminder": "email",
     "app.tasks.email_tasks.recovery_email_task.send_account_recovery_email": "email",
     "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
     "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",

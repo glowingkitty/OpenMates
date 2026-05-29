@@ -374,6 +374,9 @@ class EmailTemplateService:
                 elif template == "password-security-reminder":
                     subject_key = "email.password_security_reminder.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "post-purchase-security-setup":
+                    subject_key = "email.post_purchase_security_setup.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "backup-reminder":
                     # Key uses underscores in YAML but template name uses hyphens.
                     subject_key = "email.backup_reminder.subject"
@@ -410,6 +413,7 @@ class EmailTemplateService:
                 'signup_milestone', 'issue_report', 'issue_report_confirmation',
                 'community_share_notification',
                 'password-security-reminder',
+                'post-purchase-security-setup',
                 'incomplete-signup-deletion-reminder', 'incomplete-signup-account-deleted',
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',

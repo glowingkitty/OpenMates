@@ -237,6 +237,41 @@ password_security_reminder.open_passkey_settings:
   sv: Lägg till nyckelkod
   he: הוסף מפתח גישה
   verified_by_human: []
+post_purchase_security_setup.subject:
+  context: Subject line for post-purchase account security setup reminder
+  en: Secure your OpenMates account
+  de: Sichere dein OpenMates-Konto
+  verified_by_human: []
+post_purchase_security_setup.header:
+  context: Header in post-purchase account security setup reminder email
+  en: Secure your account
+  de: Sichere dein Konto
+  verified_by_human: []
+post_purchase_security_setup.description:
+  context: Intro paragraph in post-purchase account security setup reminder email
+  en: You now have credits in your account. Please take a moment to protect access to your encrypted chats and settings.
+  de: Du hast jetzt Guthaben in deinem Konto. Bitte nimm dir kurz Zeit, den Zugriff auf deine verschlüsselten Chats und Einstellungen zu schützen.
+  verified_by_human: []
+post_purchase_security_setup.recovery_key_reason:
+  context: Explains why the recovery key should be set up after purchase
+  en: Set up a recovery key so you do not lose access if you lose your login method.
+  de: Richte einen Wiederherstellungsschlüssel ein, damit du den Zugriff nicht verlierst, falls deine Login-Methode verloren geht.
+  verified_by_human: []
+post_purchase_security_setup.twofa_reason:
+  context: Explains why password users should set up OTP 2FA and backup codes
+  en: If you use password login, add OTP 2FA and save backup codes to protect your account.
+  de: Wenn du Passwort-Login nutzt, füge OTP-2FA hinzu und speichere Backup-Codes, um dein Konto zu schützen.
+  verified_by_human: []
+post_purchase_security_setup.open_recovery_key_settings:
+  context: Button label for opening recovery key settings from post-purchase reminder email
+  en: Set up recovery key
+  de: Wiederherstellungsschlüssel einrichten
+  verified_by_human: []
+post_purchase_security_setup.open_2fa_settings:
+  context: Button label for opening 2FA settings from post-purchase reminder email
+  en: Set up 2FA
+  de: 2FA einrichten
+  verified_by_human: []
 incomplete_signup_deletion_reminder.subject_14d:
   context: Subject for incomplete signup deletion reminder sent 14 days before deletion
   en: Complete your OpenMates signup before your account is deleted

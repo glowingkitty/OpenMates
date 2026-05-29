@@ -410,6 +410,26 @@ async def _send_referral_reward_notifications(
     except Exception as exc:
         logger.error("Failed to queue referrer referral reward email: %s", exc, exc_info=True)
 
+
+def _queue_post_purchase_security_setup_reminder(user_id: str, order_id: str) -> None:
+    """Queue the delayed security setup reminder after credits are purchased."""
+    try:
+        app.send_task(
+            name="app.tasks.email_tasks.post_purchase_security_setup_email_task.send_post_purchase_security_setup_reminder",
+            kwargs={"user_id": user_id, "order_id": order_id},
+            queue="email",
+            countdown=20,
+        )
+        logger.info("Queued post-purchase security setup reminder for user %s order %s", user_id[:8], order_id)
+    except Exception as exc:
+        logger.error(
+            "Failed to queue post-purchase security setup reminder for user %s order %s: %s",
+            user_id[:8],
+            order_id,
+            exc,
+            exc_info=True,
+        )
+
 def get_bonus_credits_for_tier(credits_amount: int) -> int:
     """
     Get bonus credits for a subscription tier.
@@ -2213,6 +2233,8 @@ async def payment_webhook(
                             logger.info(f"Published and broadcasted 'payment_completed' event for user {user_id}.")
                         except Exception as pub_exc:
                             logger.error(f"Failed to publish 'payment_completed' event for user {user_id}: {pub_exc}", exc_info=True)
+
+                        _queue_post_purchase_security_setup_reminder(user_id, webhook_order_id)
 
                     # Dispatch invoice task for both regular purchases and gift cards
                     # Fetch sender details for invoice via SecretsManager
@@ -6237,6 +6259,7 @@ async def _handle_revolut_business_webhook(
                 event_name="payment_completed",
                 payload=payment_completed_payload,
             )
+            _queue_post_purchase_security_setup_reminder(user_id, order_id)
         except Exception as ws_err:
             logger.error(f"Error broadcasting payment events for bank transfer {order_id}: {ws_err}")
 

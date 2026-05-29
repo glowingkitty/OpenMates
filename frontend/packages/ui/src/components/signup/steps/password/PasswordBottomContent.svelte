@@ -306,12 +306,13 @@
                 }
                 
                 // All validations passed - safe to advance to next step
-                console.log('[PasswordBottomContent] All validations passed, advancing to one_time_codes step');
+                console.log('[PasswordBottomContent] All validations passed, completing signup');
                 setLastAuthMethod('email');
                 
-                // Continue to next step (OTP setup)
+                // Finish signup immediately. Password users are reminded to add OTP 2FA
+                // and save backup codes after their first credit purchase.
                 // The Signup component will update last_opened when this step change is processed
-                dispatch('step', { step: 'one_time_codes' });
+                dispatch('step', { step: 'completion' });
             } else {
                 console.error('Password setup failed:', data.message);
                 notificationStore.error(data.message || 'Failed to create account. Please try again.', 8000);

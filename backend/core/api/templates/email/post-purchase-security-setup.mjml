@@ -1,0 +1,59 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.post_purchase_security_setup.subject.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/warning.png" align="center" css-class="email-icon-50" />
+
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ t.email.post_purchase_security_setup.header.text }}</mark>
+          </mj-text>
+
+          <mj-text font-size="18px" padding-bottom="14px">
+            {{ t.email.post_purchase_security_setup.description.text }}
+          </mj-text>
+
+          {% if needs_recovery_key %}
+          <mj-text font-size="16px" align="left" padding-bottom="4px">
+            • {{ t.email.post_purchase_security_setup.recovery_key_reason.text }}
+          </mj-text>
+          {% endif %}
+
+          {% if needs_2fa %}
+          <mj-text font-size="16px" align="left" padding-bottom="4px">
+            • {{ t.email.post_purchase_security_setup.twofa_reason.text }}
+          </mj-text>
+          {% endif %}
+
+          {% if needs_recovery_key %}
+          <mj-button href="{{ recovery_key_settings_url }}" background-color="#4f46e5" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="10px 26px">
+            {{ t.email.post_purchase_security_setup.open_recovery_key_settings.text }}
+          </mj-button>
+          {% endif %}
+
+          {% if needs_2fa %}
+          <mj-button href="{{ twofa_settings_url }}" background-color="#0f766e" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="10px 26px">
+            {{ t.email.post_purchase_security_setup.open_2fa_settings.text }}
+          </mj-button>
+          {% endif %}
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -140,8 +140,7 @@
     function getCurrentStepSequence(): string[] {
         return getSignupStepSequence({
             loginMethod: $signupStore.loginMethod,
-            isSelfHosted,
-            paymentEnabled
+            isSelfHosted
         });
     }
 
