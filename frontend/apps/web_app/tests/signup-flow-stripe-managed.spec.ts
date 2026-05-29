@@ -251,16 +251,14 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	await page.getByRole('menuitem', { name: /billing/i }).click();
 	await page.getByRole('menuitem', { name: /buy credits/i }).click();
 	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
-	await takeStepScreenshot(page, 'payment-tier-selected');
-	logSignupCheckpoint('Selected payment tier from Settings billing.');
+	await takeStepScreenshot(page, 'payment-consent');
+	logSignupCheckpoint('Reached payment consent step.');
 
-	// Settings billing does not show the signup refund-consent overlay. Keep this
-	// optional so the same spec survives if consent is reintroduced later.
+	// First purchase from Settings must collect the limited refund consent.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	if (await consentToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
-		await setToggleChecked(consentToggle, true);
-		logSignupCheckpoint('Payment consent accepted.');
-	}
+	await expect(consentToggle).toBeVisible({ timeout: 10000 });
+	await setToggleChecked(consentToggle, true);
+	logSignupCheckpoint('Payment consent accepted.');
 
 	// GHA runners are in the US → Stripe Managed Payments (Embedded Checkout) is auto-selected.
 	// This test stays on Managed Payments — do NOT click 'switch-to-stripe'.

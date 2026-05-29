@@ -106,9 +106,8 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	await page.getByRole('menuitem', { name: /buy credits/i }).click();
 	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	if (await consentToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
-		await setToggleChecked(consentToggle, true);
-	}
+	await expect(consentToggle).toBeVisible({ timeout: 10000 });
+	await setToggleChecked(consentToggle, true);
 	await page.waitForSelector('#checkout iframe', { state: 'attached', timeout: 30000 });
 	await page.waitForTimeout(3000);
 	await screenshot(page, 'referral-payment-form');
