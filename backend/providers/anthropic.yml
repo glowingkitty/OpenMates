@@ -229,7 +229,7 @@ models:
 
   - id: "claude-opus-4-8" # Official Claude API model ID
     name: "Claude Opus 4.8"
-    description: "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Supported on the Claude API and Amazon Bedrock."
+    description: "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Supported via the direct Claude API."
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-05-28"
@@ -254,11 +254,6 @@ models:
         name: "Anthropic API"
         model_id: "claude-opus-4-8"
         region: "US"
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "anthropic.claude-opus-4-8" # Active in eu-central-1 per AWS Bedrock model card
-        aws_region: "eu-central-1"
-        region: "EU"
     pricing: # Same token pricing as Opus 4.7 per Anthropic model overview
       tokens:
         input:
