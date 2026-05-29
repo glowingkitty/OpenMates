@@ -29,6 +29,7 @@ const IMAGE_FIXTURE = path.resolve(
 
 const PROMPT = 'Evaluate the design and give recommendations for improvements.';
 const TRIALS = [1, 2, 3];
+const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-pro'];
 
 type ModelCase = {
 	provider: string;
@@ -104,6 +105,17 @@ const MODELS: ModelCase[] = [
 	}
 ];
 
+const fullMatrix = process.env.IMAGE_MODEL_FULL_MATRIX === '1';
+const selectedLabels = new Set(
+	(process.env.IMAGE_MODEL_LABELS
+		? process.env.IMAGE_MODEL_LABELS.split(',').map((label: string) => label.trim()).filter(Boolean)
+		: fullMatrix
+			? MODELS.map((model) => model.label)
+			: DEFAULT_SMOKE_MODEL_LABELS)
+);
+const activeModels = MODELS.filter((model) => selectedLabels.has(model.label));
+const activeTrials = TRIALS;
+
 function modelDirective(model: { provider: string; model: string }): string {
 	return `@ai-model:${model.model}:${model.provider}`;
 }
@@ -176,8 +188,8 @@ async function waitForImageViewAndResponse(page: any, log: (message: string, met
 
 test.describe.configure({ mode: 'parallel' });
 
-for (const model of MODELS) {
-	for (const trial of TRIALS) {
+for (const model of activeModels) {
+	for (const trial of activeTrials) {
 		test(`real image inference ${model.label} trial ${trial}`, async ({ page }: { page: any }, testInfo: any) => {
 			test.slow();
 			test.setTimeout(420000);
