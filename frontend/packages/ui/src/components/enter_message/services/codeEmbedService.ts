@@ -59,6 +59,11 @@ export interface CodeEmbedCreationResult {
   piiRedactedCount: number;
 }
 
+export interface EmbedRedactionResult {
+  redactedContent: string;
+  piiMappings: PIIMappingForStorage[];
+}
+
 /**
  * Build PII detection options from the user's current privacy settings.
  * Respects the master toggle and per-category toggles in personalDataStore.
@@ -166,6 +171,47 @@ async function storeEmbedPIIMappings(
   }
 }
 
+export function redactEmbedContent(content: string): EmbedRedactionResult {
+  let redactedContent = content;
+  let piiMappings: PIIMappingForStorage[] = [];
+
+  const detectionOptions = buildCodePIIDetectionOptions();
+  if (!detectionOptions || content.length < 6) {
+    return { redactedContent, piiMappings };
+  }
+
+  try {
+    const piiMatches = detectPII(content, detectionOptions);
+    if (piiMatches.length === 0) {
+      return { redactedContent, piiMappings };
+    }
+
+    redactedContent = replacePIIWithPlaceholders(content, piiMatches);
+    piiMappings = createPIIMappingsForStorage(piiMatches);
+  } catch (error) {
+    console.error("[codeEmbedService] PII detection failed for embed content:", error);
+  }
+
+  return { redactedContent, piiMappings };
+}
+
+function redactEmbedFields<T extends Record<string, string>>(
+  fields: T,
+): { redactedFields: T; piiMappings: PIIMappingForStorage[] } {
+  const entries = Object.entries(fields) as Array<[keyof T, string]>;
+  const separator = "\n\u0000OPENMATES_FIELD_SEPARATOR\u0000\n";
+  const combined = entries.map(([, value]) => value).join(separator);
+  const { redactedContent, piiMappings } = redactEmbedContent(combined);
+  const parts = redactedContent.split(separator);
+  const redactedFields = { ...fields };
+
+  entries.forEach(([key], index) => {
+    redactedFields[key] = (parts[index] ?? "") as T[keyof T];
+  });
+
+  return { redactedFields, piiMappings };
+}
+
 /**
  * Load PII mappings for an embed from separate storage.
  * Returns an empty array if no mappings exist (embed has no PII, or mappings lost).
@@ -227,46 +273,10 @@ export async function createCodeEmbed(
     filename: filename || "none",
   });
 
-  // ── PII Detection & Redaction ────────────────────────────────────────────
-  // Detect sensitive data in the code content and replace with placeholders.
-  // This ensures the LLM/server only ever sees redacted code.
-  let codeContent = content;
-  let piiMappingsForStorage: PIIMappingForStorage[] = [];
-
-  const detectionOptions = buildCodePIIDetectionOptions();
-  if (detectionOptions && content.length >= 6) {
-    try {
-      const piiMatches = detectPII(content, detectionOptions);
-
-      if (piiMatches.length > 0) {
-        console.debug(
-          "[codeEmbedService] Detected PII in code embed, redacting:",
-          piiMatches.map((m) => ({
-            type: m.type,
-            placeholder: m.placeholder,
-            // Don't log the actual match value for security
-            matchLength: m.match.length,
-          })),
-        );
-
-        // Replace PII originals with placeholders in the code
-        codeContent = replacePIIWithPlaceholders(content, piiMatches);
-
-        // Create storage mappings ({placeholder, original, type}) for owner-side restoration
-        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
-
-        console.info(
-          `[codeEmbedService] Redacted ${piiMatches.length} PII item(s) in code embed ${embed_id}`,
-        );
-      }
-    } catch (error) {
-      console.error(
-        "[codeEmbedService] PII detection failed for code embed:",
-        error,
-      );
-      // Continue with unredacted content — log the failure but don't block the embed
-    }
-  }
+  const {
+    redactedContent: codeContent,
+    piiMappings: piiMappingsForStorage,
+  } = redactEmbedContent(content);
 
   // ── Build TOON Content ───────────────────────────────────────────────────
   // The TOON content contains the REDACTED code (with placeholders).
@@ -629,13 +639,16 @@ export async function createDocEmbed(
     filename: filename || "none",
   });
 
+  const { redactedContent, piiMappings } = redactEmbedContent(content);
+  const redactedWordCount = redactedContent.split(/\s+/).filter((w) => w.trim()).length;
+
   const embedContent = {
     type: "docs-doc",
     title: title || null,
     filename: filename || null,
-    html: content,
-    code: content,
-    word_count: wordCount,
+    html: redactedContent,
+    code: redactedContent,
+    word_count: redactedWordCount,
     status: "finished",
   };
 
@@ -646,7 +659,7 @@ export async function createDocEmbed(
     toonContent = JSON.stringify(embedContent);
   }
 
-  const textPreview = title || filename || `Document (${wordCount} words)`;
+  const textPreview = title || filename || `Document (${redactedWordCount} words)`;
   const now = Date.now();
   const embedData = {
     embed_id,
@@ -672,6 +685,10 @@ export async function createDocEmbed(
     console.error("[codeEmbedService] Failed to store doc embed:", error);
   }
 
+  if (piiMappings.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappings);
+  }
+
   const embedReference = createEmbedReferenceBlock("docs-doc", embed_id);
 
   return {
@@ -693,7 +710,8 @@ export async function createSheetEmbed(
   title?: string,
 ): Promise<SheetEmbedCreationResult> {
   const embed_id = generateUUID();
-  const rows = tableMarkdown
+  const { redactedContent, piiMappings } = redactEmbedContent(tableMarkdown);
+  const rows = redactedContent
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.startsWith("|") && line.endsWith("|"));
@@ -704,8 +722,8 @@ export async function createSheetEmbed(
   const embedContent = {
     type: "sheet",
     title: title || null,
-    table: tableMarkdown,
-    code: tableMarkdown,
+    table: redactedContent,
+    code: redactedContent,
     row_count: rowCount,
     col_count: colCount,
     rows: rowCount,
@@ -734,9 +752,81 @@ export async function createSheetEmbed(
 
   await embedStore.put(`embed:${embed_id}`, embedData, "sheets-sheet" as EmbedType);
 
+  if (piiMappings.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappings);
+  }
+
   return {
     embed_id,
     type: "sheets-sheet",
     embedReference: createEmbedReferenceBlock("sheet", embed_id),
+  };
+}
+
+export interface MailEmbedCreationResult {
+  embed_id: string;
+  type: "mail-email";
+  embedReference: string;
+}
+
+export async function createMailEmbed(
+  fields: {
+    receiver?: string;
+    subject?: string;
+    content?: string;
+    footer?: string;
+  },
+  filename?: string,
+): Promise<MailEmbedCreationResult> {
+  const embed_id = generateUUID();
+  const { redactedFields, piiMappings } = redactEmbedFields({
+    receiver: fields.receiver || "",
+    subject: fields.subject || "",
+    content: fields.content || "",
+    footer: fields.footer || "",
+  });
+
+  const embedContent = {
+    type: "mail-email",
+    app_id: "mail",
+    skill_id: "email",
+    receiver: redactedFields.receiver,
+    subject: redactedFields.subject,
+    content: redactedFields.content,
+    footer: redactedFields.footer,
+    filename: filename || null,
+    status: "finished",
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch {
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const now = Date.now();
+  await embedStore.put(
+    `embed:${embed_id}`,
+    {
+      embed_id,
+      type: "mail-email",
+      status: "finished",
+      content: toonContent,
+      text_preview: redactedFields.subject || filename || "Email",
+      createdAt: now,
+      updatedAt: now,
+    },
+    "mail-email" as EmbedType,
+  );
+
+  if (piiMappings.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappings);
+  }
+
+  return {
+    embed_id,
+    type: "mail-email",
+    embedReference: createEmbedReferenceBlock("mail-email", embed_id),
   };
 }

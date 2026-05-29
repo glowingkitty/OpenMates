@@ -25,20 +25,32 @@ export function isVideoFile(file: File): boolean {
  * @returns True if the filename suggests a code or text file, false otherwise.
  */
 export function isCodeOrTextFile(filename: string): boolean {
-    if (filename.toLowerCase() === 'dockerfile') {
+    const lower = filename.toLowerCase();
+    if (['dockerfile', 'makefile', 'rakefile', 'gemfile'].includes(lower)) {
         return true;
     }
 
     const codeExtensions = [
-        'py', 'js', 'ts', 'html', 'css', 'json', 'svelte',
-        'java', 'cpp', 'c', 'h', 'hpp', 'rs', 'go', 'rb', 'php', 'swift',
-        'kt', 'txt', 'md', 'xml', 'yaml', 'yml', 'sh', 'bash',
-        'sql', 'vue', 'jsx', 'tsx', 'scss', 'less', 'sass',
-        'dockerfile'
+        'py', 'js', 'mjs', 'cjs', 'ts', 'html', 'css', 'json', 'jsonl', 'svelte',
+        'java', 'cpp', 'cc', 'cxx', 'c', 'h', 'hpp', 'hh', 'hxx', 'rs', 'go', 'rb',
+        'php', 'swift', 'kt', 'kts', 'cs', 'scala', 'r', 'pl', 'pm', 'lua', 'dart',
+        'txt', 'md', 'mdx', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf', 'env',
+        'log', 'sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd', 'sql', 'vue', 'jsx',
+        'tsx', 'scss', 'less', 'sass', 'dockerfile'
     ];
 
     const extension = filename.split('.').pop()?.toLowerCase();
     return extension ? codeExtensions.includes(extension) : false;
+}
+
+export function isDelimitedTableFile(filename: string): boolean {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    return extension === 'csv' || extension === 'tsv';
+}
+
+export function isEmailFile(filename: string): boolean {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    return extension === 'eml';
 }
 
 /**
@@ -47,36 +59,68 @@ export function isCodeOrTextFile(filename: string): boolean {
  * @returns The programming language (e.g., "python", "javascript") or "plaintext" if no language is detected.
  */
 export function getLanguageFromFilename(filename: string): string {
-    if (filename.toLowerCase() === 'dockerfile') {
+    const lower = filename.toLowerCase();
+    if (lower === 'dockerfile') {
         return 'dockerfile';
+    }
+    if (lower === 'makefile') {
+        return 'makefile';
     }
 
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     const languageMap: { [key: string]: string } = {
         'py': 'python',
         'js': 'javascript',
+        'mjs': 'javascript',
+        'cjs': 'javascript',
         'ts': 'typescript',
         'html': 'html',
         'css': 'css',
         'json': 'json',
+        'jsonl': 'jsonl',
         'svelte': 'svelte',
         'java': 'java',
         'cpp': 'cpp',
+        'cc': 'cpp',
+        'cxx': 'cpp',
         'c': 'c',
         'h': 'c',
         'hpp': 'cpp',
+        'hh': 'cpp',
+        'hxx': 'cpp',
         'rs': 'rust',
         'go': 'go',
         'rb': 'ruby',
         'php': 'php',
         'swift': 'swift',
         'kt': 'kotlin',
+        'kts': 'kotlin',
+        'cs': 'csharp',
+        'scala': 'scala',
+        'r': 'r',
+        'pl': 'perl',
+        'pm': 'perl',
+        'lua': 'lua',
+        'dart': 'dart',
+        'txt': 'plaintext',
         'md': 'markdown',
+        'mdx': 'markdown',
         'xml': 'xml',
         'yaml': 'yaml',
         'yml': 'yaml',
+        'toml': 'toml',
+        'ini': 'ini',
+        'cfg': 'ini',
+        'conf': 'ini',
+        'env': 'dotenv',
+        'log': 'log',
         'sh': 'bash',
         'bash': 'bash',
+        'zsh': 'zsh',
+        'fish': 'fish',
+        'ps1': 'powershell',
+        'bat': 'batch',
+        'cmd': 'batch',
         'sql': 'sql',
         'vue': 'vue',
         'jsx': 'javascript',

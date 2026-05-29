@@ -7,8 +7,11 @@ import { uploadFileToServer } from "./services/uploadService";
 import { embedStore } from "../../services/embedStore";
 import {
   createCodeEmbed,
+  createMailEmbed,
   detectLanguageFromContent,
+  createSheetEmbed,
 } from "./services/codeEmbedService";
+import { delimitedTextToMarkdownTable, parseEmlText } from "./utils/fileContentParsers";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
 import { notificationStore } from "../../stores/notificationStore";
@@ -958,6 +961,82 @@ export async function insertCodeFile(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+}
+
+export async function insertDelimitedTableFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let fileContent: string;
+  try {
+    fileContent = await file.text();
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to read table file content:", error);
+    return;
+  }
+
+  const delimiter = file.name.toLowerCase().endsWith(".tsv") ? "\t" : ",";
+  const tableMarkdown = delimitedTextToMarkdownTable(fileContent, delimiter);
+  if (!tableMarkdown) {
+    console.warn("[EmbedHandlers] Empty table file skipped:", file.name);
+    return;
+  }
+
+  const result = await createSheetEmbed(tableMarkdown, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: file.name,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
+export async function insertEmailFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let fileContent: string;
+  try {
+    fileContent = await file.text();
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to read email file content:", error);
+    return;
+  }
+
+  const parsedEmail = parseEmlText(fileContent);
+  const result = await createMailEmbed(parsedEmail, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "mail-email",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        subject: parsedEmail.subject,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
 }
 
 /**

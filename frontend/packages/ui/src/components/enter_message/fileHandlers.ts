@@ -1,6 +1,6 @@
 import type { Editor } from "@tiptap/core";
-import { insertCodeFile, insertImage, insertPDF } from "./embedHandlers"; // Only images, PDFs, and code/text files are accepted via the upload button
-import { isCodeOrTextFile } from "./utils"; // Import necessary utils
+import { insertCodeFile, insertDelimitedTableFile, insertEmailFile, insertImage, insertPDF } from "./embedHandlers"; // Only supported file types are accepted via the upload button
+import { isCodeOrTextFile, isDelimitedTableFile, isEmailFile } from "./utils"; // Import necessary utils
 
 // File size limits (consider moving to a config file later)
 const FILE_SIZE_LIMITS = {
@@ -61,6 +61,12 @@ export async function processFiles(
           "[FileHandlers] PDF upload requires authentication — skipping in demo mode",
         );
       }
+    } else if (isDelimitedTableFile(file.name)) {
+      editor.commands.focus("end");
+      await insertDelimitedTableFile(editor, file);
+    } else if (isEmailFile(file.name)) {
+      editor.commands.focus("end");
+      await insertEmailFile(editor, file);
     } else if (isCodeOrTextFile(file.name)) {
       editor.commands.focus("end");
       await insertCodeFile(editor, file, isAuthenticated);

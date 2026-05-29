@@ -12,6 +12,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -74,12 +75,23 @@
   // which itself is derived from piiVisibilityStore in ActiveChat. No local
   // duplicate state — toggling goes through the store so chat header and
   // embed fullscreen stay in sync (OPE-400).
-  let hasPII = $derived(piiMappings.length > 0);
+  let embedPIIMappings = $state<PIIMapping[]>([]);
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let hasPII = $derived(allPIIMappings.length > 0);
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function applyPIIMode(value: string): string {
     if (!value || !hasPII) return value;
-    if (piiRevealed) return restorePIIInText(value, piiMappings);
-    return replacePIIOriginalsWithPlaceholders(value, piiMappings);
+    if (piiRevealed) return restorePIIInText(value, allPIIMappings);
+    return replacePIIOriginalsWithPlaceholders(value, allPIIMappings);
   }
 
   let safeReceiver = $derived(applyPIIMode(receiver));

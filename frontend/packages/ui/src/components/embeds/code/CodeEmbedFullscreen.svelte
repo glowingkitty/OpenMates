@@ -24,6 +24,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
@@ -150,7 +151,18 @@
   // the parent (ActiveChat); togglePII() writes back to the same store so the
   // chat header and embed fullscreen stay in sync. See OPE-400.
   /** Whether there are any PII mappings to apply (controls button visibility) */
-  let hasPII = $derived(piiMappings.length > 0);
+  let embedPIIMappings = $state<PIIMapping[]>([]);
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let hasPII = $derived(allPIIMappings.length > 0);
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function togglePII() {
     if (!chatId) return;
@@ -164,9 +176,9 @@
   let piiProcessedCodeContent = $derived.by(() => {
     if (!hasPII || !codeContent) return codeContent;
     if (piiRevealed) {
-      return restorePIIInText(codeContent, piiMappings);
+      return restorePIIInText(codeContent, allPIIMappings);
     } else {
-      return replacePIIOriginalsWithPlaceholders(codeContent, piiMappings);
+      return replacePIIOriginalsWithPlaceholders(codeContent, allPIIMappings);
     }
   });
 

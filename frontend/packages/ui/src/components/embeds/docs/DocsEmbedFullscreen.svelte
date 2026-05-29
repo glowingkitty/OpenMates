@@ -42,6 +42,7 @@
     generateFilenameFromTitle
   } from './docsEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -151,7 +152,18 @@
   // Single source of truth: piiRevealed flows down from piiVisibilityStore
   // via the parent (ActiveChat); togglePII() writes back to the same store.
   /** Whether there are any PII mappings to apply (controls button visibility) */
-  let hasPII = $derived(piiMappings.length > 0);
+  let embedPIIMappings = $state<PIIMapping[]>([]);
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let hasPII = $derived(allPIIMappings.length > 0);
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function togglePII() {
     if (!chatId) return;
@@ -164,9 +176,9 @@
   let piiProcessedHtml = $derived.by(() => {
     if (!hasPII || !htmlContent) return htmlContent;
     if (piiRevealed) {
-      return restorePIIInText(htmlContent, piiMappings);
+      return restorePIIInText(htmlContent, allPIIMappings);
     } else {
-      return replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
+      return replacePIIOriginalsWithPlaceholders(htmlContent, allPIIMappings);
     }
   });
 
