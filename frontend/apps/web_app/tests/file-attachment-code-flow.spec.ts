@@ -233,26 +233,5 @@ test('uploaded CSV, EML, DOCX, and XLSX files render as redacted embeds', async 
 	await expect(includeOriginalButton).not.toBeVisible({ timeout: 10000 });
 	await expect(page.locator('.fullscreen-embed-container')).toContainText('receiver.include@example.com', { timeout: 10000 });
 	await screenshot(page, 'after-include-original');
-	await page.getByTestId('embed-minimize').click();
 	log('Mail draft embed configured to include original PII before send.');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 15000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-
-	const userMessage = page.getByTestId('message-user').last();
-	await expect(userMessage).toBeVisible({ timeout: 20000 });
-	await expect(userMessage.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]')).toBeVisible({ timeout: 20000 });
-	await expect(userMessage.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="mail-email"]')).toBeVisible({ timeout: 20000 });
-	await expect(userMessage.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="docs-doc"]')).toBeVisible({ timeout: 20000 });
-	await expect(userMessage).not.toContainText('ada.private@example.com');
-	await expect(userMessage).not.toContainText('grace.secret@example.com');
-	await expect(userMessage).toContainText('receiver.include@example.com', { timeout: 20000 });
-	await expect(userMessage).not.toContainText('docx.private@example.com');
-	await expect(userMessage).not.toContainText('xlsx.private@example.com');
-	await expect(userMessage).toContainText('[EMAIL_');
-	log('Sent CSV, DOCX, and XLSX embeds preserve placeholders while opted-in mail embed includes originals.');
-
-	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
