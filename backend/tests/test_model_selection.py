@@ -240,6 +240,30 @@ class TestModelSelector:
         # Should only select from available models
         assert result.primary_model_id in available
 
+    def test_select_models_excludes_provider_ids(self, mock_leaderboard_data, monkeypatch):
+        """Should exclude all models from blocked providers."""
+        from backend.apps.ai.utils import model_selector
+
+        monkeypatch.setattr(
+            model_selector,
+            "_auto_select_cache",
+            {
+                model["model_id"]: True
+                for model in mock_leaderboard_data["rankings"]
+            },
+        )
+
+        selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
+        result = selector.select_models(
+            task_area="general",
+            complexity="complex",
+            excluded_provider_ids={"google"},
+        )
+
+        assert not result.primary_model_id.startswith("google/")
+        assert result.secondary_model_id is None or not result.secondary_model_id.startswith("google/")
+        assert "google" in result.selection_reason.lower()
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Override Parser Tests

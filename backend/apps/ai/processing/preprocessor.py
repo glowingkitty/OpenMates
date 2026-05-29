@@ -61,6 +61,9 @@ ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
+IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-sonnet-4-6"
+IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Sonnet 4.6"
+IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
 
 REPO_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
@@ -76,6 +79,19 @@ FINANCIAL_REPO_PATTERN = re.compile(
 )
 
 SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
+
+
+def _message_history_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
+    """Return True when chat history contains a user-uploaded image embed."""
+    for msg in request_data.message_history:
+        content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
+        if isinstance(content, str) and "app_id: images" in content and "skill_id: upload" in content:
+            return True
+    return False
+
+
+def _is_google_model(model_ref: Optional[str]) -> bool:
+    return bool(model_ref and model_ref.startswith("google/"))
 
 TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
     "openmates_platform": "Questions about OpenMates itself, its features, mates, apps, skills, account, pricing, or onboarding.",
@@ -2053,6 +2069,13 @@ async def handle_preprocessing(
             f"China-origin models will be excluded from selection."
         )
 
+    has_image_upload_embed = _message_history_has_image_upload_embed(request_data)
+    if has_image_upload_embed:
+        logger.info(
+            f"{log_prefix} IMAGE_MODEL_GUARD: Detected uploaded image embed in chat history. "
+            f"Google/Gemini text models will be excluded from main chat inference."
+        )
+
     # Initialize model selection variables
     selected_llm_for_main_id: Optional[str] = None
     selected_llm_for_main_name: Optional[str] = None
@@ -2115,6 +2138,17 @@ async def handle_preprocessing(
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
+            if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
+                logger.warning(
+                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
+                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
+                )
+                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
+                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
+                model_selection_reason = (
+                    f"Image upload guard: replaced user override {override_model_id} "
+                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
+                )
         elif override_provider:
             # User provided model + provider (e.g., @ai-model:claude-opus-4-5:anthropic)
             selected_llm_for_main_id = f"{override_provider}/{override_model_id}"
@@ -2125,6 +2159,17 @@ async def handle_preprocessing(
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
+            if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
+                logger.warning(
+                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
+                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
+                )
+                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
+                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
+                model_selection_reason = (
+                    f"Image upload guard: replaced user override {override_provider}/{override_model_id} "
+                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
+                )
         else:
             # User provided only model_id without provider prefix - try to resolve the provider
             logger.info(
@@ -2142,6 +2187,17 @@ async def handle_preprocessing(
                     f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
                     f"Full model ID: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
                 )
+                if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
+                    logger.warning(
+                        f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
+                        f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
+                    )
+                    selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
+                    selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
+                    model_selection_reason = (
+                        f"Image upload guard: replaced user override {resolved_provider}/{override_model_id} "
+                        f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
+                    )
             else:
                 # Could not resolve provider - this will fail billing preflight, but let it proceed
                 # so the error message is clear about the missing provider
@@ -2178,6 +2234,17 @@ async def handle_preprocessing(
                 f"({user_default_key}={user_default_model}, complexity={complexity_val}). "
                 f"Name: {selected_llm_for_main_name}"
             )
+            if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
+                logger.warning(
+                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing Google user default "
+                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
+                )
+                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
+                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
+                model_selection_reason = (
+                    f"Image upload guard: replaced user default {user_default_model} "
+                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
+                )
 
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:
@@ -2200,6 +2267,7 @@ async def handle_preprocessing(
                     complexity=complexity_val,
                     china_related=china_related,
                     user_unhappy=user_unhappy_val,
+                    excluded_provider_ids=IMAGE_CHAT_EXCLUDED_PROVIDER_IDS if has_image_upload_embed else None,
                     log_prefix=log_prefix
                 )
 
@@ -2768,7 +2836,8 @@ async def handle_preprocessing(
     #   website embeds: "type": "website" (raw ref) or [WEBSITE EMBED (URL fallback)
     if not user_requested_skills_only:
         # Single pass over message history — collect embed types in one scan
-        has_image_upload_embed = False
+        # Reuse the earlier image-upload detection used for model selection, then
+        # keep scanning for the other deterministic tool-forcing rules.
         has_pdf_embed = False
         has_video_embed = False
         has_website_embed = False

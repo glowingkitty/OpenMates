@@ -239,6 +239,7 @@ class ModelSelector:
         user_unhappy: bool = False,
         required_input_type: Optional[str] = None,
         available_model_ids: Optional[List[str]] = None,
+        excluded_provider_ids: Optional[set[str]] = None,
         log_prefix: str = ""
     ) -> ModelSelectionResult:
         """
@@ -258,6 +259,7 @@ class ModelSelector:
             user_unhappy: If True, use premium models to improve response quality
             required_input_type: Required input type (e.g., "image" for vision)
             available_model_ids: If provided, only select from these models
+            excluded_provider_ids: Provider IDs to exclude from selection
             log_prefix: Prefix for log messages
 
         Returns:
@@ -284,6 +286,19 @@ class ModelSelector:
 
         if china_related:
             reasons.append("CN models excluded (China-sensitive content)")
+
+        if excluded_provider_ids:
+            before_count = len(ranked_models)
+            ranked_models = [
+                m for m in ranked_models
+                if m.get("provider_id") not in excluded_provider_ids
+            ]
+            filtered_count = before_count - len(ranked_models)
+            if filtered_count > 0:
+                reasons.append(
+                    f"Excluded {filtered_count} model(s) from providers: "
+                    f"{', '.join(sorted(excluded_provider_ids))}"
+                )
 
         # Step 2: Filter by available models if specified
         if available_model_ids:

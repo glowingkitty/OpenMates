@@ -17,7 +17,11 @@ from toon_format import encode
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.apps.ai.processing.preprocessor import (
+    IMAGE_CHAT_SAFE_MODEL_ID,
+    IMAGE_CHAT_SAFE_MODEL_NAME,
+    PreprocessingResult,
+)
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
@@ -1319,6 +1323,31 @@ async def handle_main_processing(
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
             # Continue without app settings/memories - don't fail the entire request
 
+    # Validate and apply final model guard before prompt construction so the
+    # creator/model instruction and actual inference model cannot diverge.
+    if not preprocessing_results.selected_main_llm_model_id:
+        error_msg = (
+            f"{log_prefix} Cannot proceed with main processing: selected_main_llm_model_id is None. "
+            f"This usually indicates preprocessing failed (rejection_reason: {preprocessing_results.rejection_reason}). "
+            f"Main processing requires a valid model_id."
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    if (
+        preprocessing_results.relevant_app_skills
+        and "images-view" in preprocessing_results.relevant_app_skills
+        and preprocessing_results.selected_main_llm_model_id.startswith("google/")
+    ):
+        logger.warning(
+            f"{log_prefix} IMAGE_MODEL_GUARD: Final safety reroute from "
+            f"'{preprocessing_results.selected_main_llm_model_id}' to '{IMAGE_CHAT_SAFE_MODEL_ID}' "
+            f"because images-view is preselected."
+        )
+        preprocessing_results.selected_main_llm_model_id = IMAGE_CHAT_SAFE_MODEL_ID
+        preprocessing_results.selected_main_llm_model_name = IMAGE_CHAT_SAFE_MODEL_NAME
+        preprocessing_results.selected_secondary_model_id = None
+
     prompt_parts = []
     now_utc = datetime.datetime.now(datetime.timezone.utc)
 
@@ -2187,17 +2216,6 @@ async def handle_main_processing(
         )
         yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
         return
-
-    # Validate that we have a model_id before proceeding with main processing
-    # This prevents crashes when preprocessing fails and model_id is None
-    if not preprocessing_results.selected_main_llm_model_id:
-        error_msg = (
-            f"{log_prefix} Cannot proceed with main processing: selected_main_llm_model_id is None. "
-            f"This usually indicates preprocessing failed (rejection_reason: {preprocessing_results.rejection_reason}). "
-            f"Main processing requires a valid model_id."
-        )
-        logger.error(error_msg)
-        raise ValueError(error_msg)
 
     # === BUILD MODEL FALLBACK LIST ===
     # Create ordered list of models to try: primary -> secondary -> fallback
