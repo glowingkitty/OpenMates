@@ -227,16 +227,15 @@ models:
         price: 0.50
         currency: USD
 
-  - id: "claude-opus-4-8" # OpenMates canonical ID for OpenRouter's Claude Opus 4.8 model
+  - id: "claude-opus-4-8" # Official Claude API model ID
     name: "Claude Opus 4.8"
-    description: "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Added from OpenRouter's model catalog; uses OpenRouter until direct Anthropic infrastructure is confirmed."
+    description: "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Supported on the Claude API and Amazon Bedrock."
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-05-28"
     allow_auto_select: true
     external_ids:
-      lmarena: "claude-opus-4.8"
-      openrouter: "anthropic/claude-opus-4.8"
+      lmarena: "claude-opus-4-8"
     search_aliases:
       - "opus 4.8"
       - "claude 4.8 opus"
@@ -249,13 +248,18 @@ models:
     output_types:
       - text
     reasoning: true
-    default_server: "openrouter"
+    default_server: "anthropic"
     servers:
-      - id: "openrouter"
-        name: "OpenRouter API"
-        model_id: "anthropic/claude-opus-4.8"
+      - id: "anthropic"
+        name: "Anthropic API"
+        model_id: "claude-opus-4-8"
         region: "US"
-    pricing: # Same token pricing as Opus 4.7 from OpenRouter catalog
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "anthropic.claude-opus-4-8" # Active in eu-central-1 per AWS Bedrock model card
+        aws_region: "eu-central-1"
+        region: "EU"
+    pricing: # Same token pricing as Opus 4.7 per Anthropic model overview
       tokens:
         input:
           per_credit_unit: 70
