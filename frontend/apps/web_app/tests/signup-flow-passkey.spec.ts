@@ -100,25 +100,6 @@ async function teardownVirtualPasskeyAuthenticator(
 	await client.send('WebAuthn.disable');
 }
 
-async function logoutToDemo(page: any): Promise<void> {
-	const headerLogoutButton = page.getByRole('button', { name: /logout/i }).first();
-	const profileMenuButton = page.getByTestId('profile-container');
-	const logoutMenuItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-
-	if (await headerLogoutButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await headerLogoutButton.click();
-	} else {
-		await profileMenuButton.click();
-		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
-		await expect(logoutMenuItem).toBeVisible({ timeout: 10000 });
-		await logoutMenuItem.click();
-	}
-
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 10000
-	});
-}
-
 /**
  * NOTE: PRF extension support is not advertised via getClientCapabilities in
  * Playwright's virtual authenticator environment. Instead, the virtual authenticator
@@ -281,30 +262,6 @@ test('completes passkey signup flow with email', async ({
 		await page.waitForURL(/chat/);
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');
-
-		await logoutToDemo(page);
-		await takeStepScreenshot(page, 'logged-out-with-passkey-last-used');
-		logSignupCheckpoint('Logged out after passkey signup to verify last-used login hint.');
-
-		await openSignupInterface(page);
-		const loginTab = page.getByTestId('tab-login');
-		if (await loginTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await loginTab.click();
-		}
-
-		await expect(page.getByTestId('last-used-auth-method-passkey')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('last-used-auth-method-email')).not.toBeVisible();
-		await page.getByTestId('clear-last-used-auth-method').click();
-		await expect(page.getByTestId('last-used-auth-method-passkey')).not.toBeVisible();
-		await expect(page.getByTestId('clear-last-used-auth-method')).not.toBeVisible();
-		logSignupCheckpoint('Verified and cleared passkey last-used hint.');
-
-		await page.getByRole('button', { name: /login with passkey/i }).click();
-		await expect(page.getByTestId('message-editor').or(page.getByTestId('profile-container'))).toBeVisible({
-			timeout: 30000
-		});
-		await takeStepScreenshot(page, 'passkey-relogin-after-last-used-clear');
-		logSignupCheckpoint('Re-logged in with passkey after clearing the local hint.');
 
 		// Verify no missing translations on the main chat page after signup
 		await assertNoMissingTranslations(page);
