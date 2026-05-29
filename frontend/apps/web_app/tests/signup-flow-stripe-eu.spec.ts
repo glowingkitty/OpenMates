@@ -252,15 +252,16 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	await page.getByRole('menuitem', { name: /billing/i }).click();
 	await page.getByRole('menuitem', { name: /buy credits/i }).click();
 	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
-	await takeStepScreenshot(page, 'payment-consent');
-	logSignupCheckpoint('Reached payment consent step.');
+	await takeStepScreenshot(page, 'payment-tier-selected');
+	logSignupCheckpoint('Selected payment tier from Settings billing.');
 
-	// Payment step: consent to limited refund to reveal payment form.
-	// The consent overlay must be dismissed BEFORE switching providers, because
-	// it covers the payment area with pointer-events:all.
+	// Settings billing does not show the signup refund-consent overlay. Keep this
+	// optional so the same spec survives if consent is reintroduced later.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await setToggleChecked(consentToggle, true);
-	logSignupCheckpoint('Payment consent accepted.');
+	if (await consentToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await setToggleChecked(consentToggle, true);
+		logSignupCheckpoint('Payment consent accepted.');
+	}
 
 	// GHA runners are in the US, so Stripe Managed Payments is auto-selected (non-EU IP).
 	// Switch to EU Stripe for this test — it specifically tests the EU card payment flow.
