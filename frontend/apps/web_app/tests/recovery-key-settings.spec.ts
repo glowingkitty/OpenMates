@@ -216,7 +216,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Recovery key generated, save step visible.');
 
 	// Click "Copy" button to copy the recovery key to clipboard (scoped to save container)
-	const copyButton = saveContainer.getByTestId('save-button').filter({ hasText: /copy/i });
+	const copyButton = saveContainer.getByTestId('copy-button');
 	await expect(copyButton).toBeVisible();
 	await copyButton.click();
 	logCheckpoint('Clicked Copy button for recovery key.');
