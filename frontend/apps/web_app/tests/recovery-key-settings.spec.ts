@@ -136,7 +136,6 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// Wait for password form to appear
 	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
 	// .chat-container.authenticated is the ONLY reliable DOM indicator of a truly
 	// logged-in state. The .profile-container exists on the demo page too.
@@ -198,8 +197,11 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
 	if (authTfaVisible) {
 		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await authTfaInput.fill(authOtp);
+		await authTfaInput.click();
+		await authTfaInput.fill('');
+		await authTfaInput.pressSequentially(authOtp, { delay: 30 });
 		// Auto-submits on 6 digits
+		await expect(authModal).toBeHidden({ timeout: 30000 });
 		logCheckpoint('Entered OTP in SecurityAuth.');
 	}
 
