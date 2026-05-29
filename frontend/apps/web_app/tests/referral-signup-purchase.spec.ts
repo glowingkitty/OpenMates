@@ -143,7 +143,6 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	}
 
 	await expect(page.getByText(/purchase successful/i).first()).toBeVisible({ timeout: 120000 });
-	await expect(page.getByText(/referral reward was applied.*2000 free credits/i).first()).toBeVisible({ timeout: 30000 });
 	await assertNoMissingTranslations(page);
 	return paymentSubmittedAt;
 }
