@@ -272,7 +272,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// Navigate back to main settings where the logout item lives.
 	// Click the settings header back button repeatedly until logout is visible.
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('#settings-back-button');
+	const settingsBackButton = page.locator('[data-testid="banner-back-button"], #settings-back-button').first();
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;

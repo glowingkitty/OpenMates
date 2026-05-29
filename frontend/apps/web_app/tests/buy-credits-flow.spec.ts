@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable no-console */
 export {};
 
 /**
@@ -38,10 +37,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -146,7 +143,7 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	await assertNoMissingTranslations(page);
 
 	// Use the back button to go back without paying
-	const backButton = page.locator('#settings-back-button');
+	const backButton = page.locator('[data-testid="banner-back-button"], #settings-back-button').first();
 	if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await backButton.click();
 		log('Navigated back from payment form.');
