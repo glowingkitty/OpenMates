@@ -419,6 +419,16 @@ def test_paid_credit_update_marks_signup_complete():
     }
 
 
+def test_password_login_treats_legacy_signup_resume_paths_as_complete():
+    from backend.core.api.app.routes.auth_routes.auth_login import _is_obsolete_signup_resume_path
+
+    assert _is_obsolete_signup_resume_path("/signup/one_time_codes") is True
+    assert _is_obsolete_signup_resume_path("/signup/recovery-key") is True
+    assert _is_obsolete_signup_resume_path("#signup/credits") is True
+    assert _is_obsolete_signup_resume_path("/chat/new") is False
+    assert _is_obsolete_signup_resume_path("demo-for-everyone") is False
+
+
 @pytest.mark.anyio
 async def test_user_cache_does_not_regress_completed_signup_to_stale_signup_step():
     from backend.core.api.app.services.cache_user_mixin import UserCacheMixin

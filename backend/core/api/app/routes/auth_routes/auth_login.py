@@ -53,6 +53,11 @@ since the decryption keys are never stored on the server.
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
+def _is_obsolete_signup_resume_path(last_opened_path: Optional[str]) -> bool:
+    """Return True when login should not resume the legacy signup wizard."""
+    return isinstance(last_opened_path, str) and last_opened_path.startswith(("/signup/", "#signup/"))
+
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("120/minute")
 async def login(
@@ -445,24 +450,11 @@ async def login(
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
             
-            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
-            # This prevents users from getting stuck in signup flow after login when
-            # signupStore data (email, username) is no longer available.
-            # 
-            # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
-            # - basics, confirm-email, secure-account, password
-            # 
-            # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
-            # credits, payment, auto-top-up) as users may legitimately need to complete them.
-            early_signup_steps = [
-                "/signup/basics", "#signup/basics",
-                "/signup/confirm-email", "#signup/confirm-email",
-                "/signup/secure-account", "#signup/secure-account",
-                "/signup/password", "#signup/password",
-            ]
-            if last_opened_path and any(last_opened_path.startswith(step) for step in early_signup_steps):
-                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-for-everyone' after login.")
-                last_opened_path = "demo-for-everyone"
+            # The signup wizard now ends immediately after account creation. Any persisted
+            # /signup/* resume path is legacy state and must not reopen security/payment setup.
+            if _is_obsolete_signup_resume_path(last_opened_path):
+                logger.info(f"User {user_id[:6]}... has stale signup last_opened={last_opened_path}. Resetting to '/chat/new' after login.")
+                last_opened_path = "/chat/new"
                 # Update Directus and cache with the new last_opened value and signup_completed flag
                 try:
                     update_success = await directus_service.update_user(user_id, {
@@ -475,7 +467,8 @@ async def login(
                             "signup_completed": True
                         })
                         user_profile["last_opened"] = last_opened_path
-                        logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                        user_profile["signup_completed"] = True
+                        logger.info(f"Successfully reset last_opened to '/chat/new' for user {user_id[:6]}...")
                     else:
                         logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                 except Exception as e:
