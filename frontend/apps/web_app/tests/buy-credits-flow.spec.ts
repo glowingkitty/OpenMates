@@ -143,7 +143,10 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	await assertNoMissingTranslations(page);
 
 	// Use the back button to go back without paying
-	const backButton = page.locator('[data-testid="banner-back-button"], #settings-back-button').first();
+	const bannerBackButton = page.getByTestId('banner-back-button').first();
+	const backButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+		? bannerBackButton
+		: page.locator('#settings-back-button');
 	if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await backButton.click();
 		log('Navigated back from payment form.');

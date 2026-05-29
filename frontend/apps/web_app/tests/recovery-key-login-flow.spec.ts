@@ -261,7 +261,10 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 
 	// Navigate back to main settings by clicking the header back button repeatedly.
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('[data-testid="banner-back-button"], #settings-back-button').first();
+	const bannerBackButton = page.getByTestId('banner-back-button').first();
+	const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+		? bannerBackButton
+		: page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;
