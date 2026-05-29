@@ -257,7 +257,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 
 	// First purchase from Settings must collect the limited refund consent.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await expect(consentToggle).toBeVisible({ timeout: 10000 });
+	await expect(page.getByText(/Limited refund/i)).toBeVisible({ timeout: 10000 });
 	await setToggleChecked(consentToggle, true);
 	logSignupCheckpoint('Payment consent accepted.');
 
