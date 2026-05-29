@@ -1024,7 +1024,7 @@
                 credits_amount={credits_amount}
                 price={purchasePrice}
                 currency={currency}
-                emailEncryptionKey=""
+                emailEncryptionKey={cryptoService.getEmailEncryptionKeyForApi() || ''}
                 isSignup={isSignupFlow}
                 allowContinueWithoutPayment={isSignupFlow}
                 on:paymentStateChange={(e) => dispatch('paymentStateChange', e.detail)}
