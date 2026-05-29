@@ -510,7 +510,8 @@ Supports both saved payment methods and new payment form
             disableWebSocketHandlers={true}
             initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
-            on:consentGiven={() => {
+            on:consentGiven={(event) => {
+                if (!event.detail?.consented) return;
                 hasAcceptedRefundPolicy = true;
                 updateProfile({ has_accepted_refund_policy: true });
             }}
