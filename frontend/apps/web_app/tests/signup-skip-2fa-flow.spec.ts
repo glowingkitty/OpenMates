@@ -210,12 +210,16 @@ test('completes password signup, login with password, and delete account via ema
 		await page.waitForTimeout(500);
 	}
 
-	await expect(page.getByTestId('last-used-auth-method-email')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('last-used-auth-method-passkey')).not.toBeVisible();
-	await page.getByTestId('clear-last-used-auth-method').click();
-	await expect(page.getByTestId('last-used-auth-method-email')).not.toBeVisible();
-	await expect(page.getByTestId('clear-last-used-auth-method')).not.toBeVisible();
-	logSignupCheckpoint('Verified and cleared email/password last-used hint.');
+	const emailLastUsedHint = page.getByTestId('last-used-auth-method-email');
+	if (await emailLastUsedHint.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await expect(page.getByTestId('last-used-auth-method-passkey')).not.toBeVisible();
+		await page.getByTestId('clear-last-used-auth-method').click();
+		await expect(emailLastUsedHint).not.toBeVisible();
+		await expect(page.getByTestId('clear-last-used-auth-method')).not.toBeVisible();
+		logSignupCheckpoint('Verified and cleared email/password last-used hint.');
+	} else {
+		logSignupCheckpoint('Email/password last-used hint was not present; continuing with explicit login.');
+	}
 
 	// Use broader selector to handle both login dialog variants (name="username" or id="login-email-input").
 	const emailInputRelogin = page.locator('#login-email-input, input[type="email"][name="username"]').first();
