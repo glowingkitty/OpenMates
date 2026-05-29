@@ -344,7 +344,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 
 	// Submit recovery key login
 	// The EnterRecoveryKey component has a form with a submit button
-	const recoverySubmitButton = page.getByRole('button', { name: /login|verify|submit/i });
+	const recoverySubmitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	await expect(recoverySubmitButton).toBeVisible();
 	await recoverySubmitButton.click();
 	logCheckpoint('Submitted recovery key login.');
