@@ -164,12 +164,12 @@ test('uploaded CSV and EML files render as redacted sheet and mail embeds', asyn
 	await page.waitForTimeout(5000);
 	await screenshot(page, 'after-text-file-attach');
 
-	const sheetEmbed = editor.locator(
+	const sheetEmbed = page.locator(
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]'
-	);
-	const mailEmbed = editor.locator(
+	).first();
+	const mailEmbed = page.locator(
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="mail-email"]'
-	);
+	).first();
 	await expect(sheetEmbed).toBeVisible({ timeout: 20000 });
 	await expect(mailEmbed).toBeVisible({ timeout: 20000 });
 	await expect(editor).not.toContainText('ada.private@example.com');
