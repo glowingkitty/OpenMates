@@ -164,6 +164,7 @@ test('uploaded CSV and EML files render as redacted sheet and mail embeds', asyn
 	await page.waitForTimeout(5000);
 	await screenshot(page, 'after-text-file-attach');
 
+	// Sheet/mail embeds can be re-mounted by draft autosave, so assert the rendered wrapper globally.
 	const sheetEmbed = page.locator(
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]'
 	).first();
