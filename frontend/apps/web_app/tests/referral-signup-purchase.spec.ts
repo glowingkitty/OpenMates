@@ -97,7 +97,7 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	await passwordInputs.nth(1).fill(signupPassword);
 	await page.locator('#signup-password-continue').click();
 
-	await page.waitForURL(/chat/);
+	await expect(page).toHaveURL(/chat/, { timeout: 10000 });
 	const settingsMenuButton = page.locator('#settings-menu-toggle');
 	await expect(settingsMenuButton).toBeVisible({ timeout: 10000 });
 	await settingsMenuButton.click();
