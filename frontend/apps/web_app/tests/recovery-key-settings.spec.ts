@@ -194,16 +194,14 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 
 	// If 2FA required in SecurityAuth, enter OTP
 	const authTfaInput = authModal.getByTestId('tfa-input');
-	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
-	if (authTfaVisible) {
-		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await authTfaInput.click();
-		await authTfaInput.fill('');
-		await authTfaInput.pressSequentially(authOtp, { delay: 30 });
-		// Auto-submits on 6 digits
-		await expect(authModal).toBeHidden({ timeout: 30000 });
-		logCheckpoint('Entered OTP in SecurityAuth.');
-	}
+	await expect(authTfaInput).toBeVisible({ timeout: 20000 });
+	const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+	await authTfaInput.click();
+	await authTfaInput.fill('');
+	await authTfaInput.pressSequentially(authOtp, { delay: 30 });
+	// Auto-submits on 6 digits
+	await expect(authModal).toBeHidden({ timeout: 30000 });
+	logCheckpoint('Entered OTP in SecurityAuth.');
 
 	// ========================================================================
 	// PHASE 4: Wait for key generation and copy the key
