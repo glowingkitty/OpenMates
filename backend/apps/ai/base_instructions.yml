@@ -232,7 +232,7 @@ preprocess_request_tool:
             When TRUE, China-origin models will be excluded from model selection.
         enable_subchats:
           type: "boolean"
-          description: "True if the request is complex or multi-agent in nature and could benefit from running sub-chats (e.g., comparative research of multiple topics, batch or parallel processing, complex coding/tests). False for simple factual requests."
+          description: "True if the request is complex or multi-agent in nature and could benefit from running sub-chats (e.g., comparative research of multiple topics, batch or parallel processing, complex coding/tests), OR if the user explicitly mentions or requests sub-chats, subagents, or parallel processing. False for simple factual requests unless explicitly requested."
         load_app_settings_and_memories:
           type: "array"
           description: "List of app settings and memory item keys (e.g., 'app_id:item_key' with colon separator) to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
