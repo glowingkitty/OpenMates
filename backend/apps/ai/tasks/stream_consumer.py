@@ -3301,6 +3301,26 @@ async def _consume_main_processing_stream(
                             # Not a language - treat entire chunk as code content
                             current_code_content = chunk
                             logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code")
+
+                        # CRITICAL: If resolved language is interactive_question or interactive_response,
+                        # do not create an embed placeholder, bypass, and stream inline!
+                        if current_code_language and current_code_language.lower() in ('interactive_question', 'interactive_response'):
+                            in_code_block = False
+                            waiting_for_code_language = False
+                            chunk = f"```{current_code_language}\n{remaining_content}" if remaining_content else f"```{current_code_language}\n"
+                            
+                            final_response_chunks.append(chunk)
+                            stream_chunk_count += 1
+                            if cache_service:
+                                current_full_content = "".join(final_response_chunks)
+                                payload = _create_redis_payload(
+                                    task_id, request_data, current_full_content, stream_chunk_count,
+                                    model_name=stream_model_name,
+                                    category=preprocessing_result.category or "general_knowledge",
+                                )
+                                log_message = f"Published chunk (seq: {stream_chunk_count}, type=interactive_fenced, chunk_len={len(chunk)}) to '{redis_channel_name}'"
+                                await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, log_message)
+                            continue
                         
                         # HARDENING: Check for suspicious languages that indicate fake tool calls
                         # This mirrors the check in the direct-language path (Path B) above.
