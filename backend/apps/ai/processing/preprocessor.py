@@ -2046,11 +2046,25 @@ async def handle_preprocessing(
 
     # Validate enable_subchats (boolean)
     enable_subchats_val = llm_analysis_args.get("enable_subchats")
+    
+    # Robust pattern-matching fallback for explicit user commands
+    user_prompt_text = ""
+    if request_data.message_history:
+        # Get last user message content
+        last_msg = request_data.message_history[-1]
+        user_prompt_text = last_msg.content if hasattr(last_msg, 'content') else (last_msg.get('content') if isinstance(last_msg, dict) else '')
+    
+    has_explicit_sub_chat_intent = any(kw in (user_prompt_text or "").lower() for kw in ["sub chat", "sub_chat", "subchat", "subagent", "sub agent"])
+    
     if enable_subchats_val is None:
-        # Default to True if complexity is complex as an intelligent heuristic
-        enable_subchats_val = (complexity_val == "complex")
+        # Default to True if complexity is complex as an intelligent heuristic, or if explicit intent
+        enable_subchats_val = (complexity_val == "complex") or has_explicit_sub_chat_intent
     elif not isinstance(enable_subchats_val, bool):
         enable_subchats_val = bool(enable_subchats_val)
+        
+    if has_explicit_sub_chat_intent:
+        enable_subchats_val = True
+        
     llm_analysis_args["enable_subchats"] = enable_subchats_val
 
     # Extract china_model_sensitive from LLM analysis for model filtering

@@ -286,6 +286,7 @@ preprocess_request_tool:
         - "task_area"
         - "user_unhappy"
         - "china_model_sensitive"
+        - "enable_subchats"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
         - "relevant_focus_modes"
