@@ -1,0 +1,41 @@
+{
+  "fixture_id": "interactive_questions_quiz",
+  "recorded_at": "2026-05-30T12:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Quiz me on Python slicing syntax",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Python Slicing Quiz",
+    "icon_names": ["message-circle"],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini Flash",
+    "mate_id": "default",
+    "chat_summary": "A quick quiz on Python string slicing",
+    "chat_tags": ["study", "python"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Python Slicing Quiz"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Gemini Flash", "provider_name": "Google"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Gemini Flash",
+    "provider_name": "Google",
+    "server_region": "EU"
+  },
+  "response": "Here is a quick question to test your understanding of Python slicing syntax.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"python_slice_quiz\",\n  \"multiple\": false,
+  \"question\": \"What is the result of s[::-1]?\",\n  \"options\": [\n    { \"id\": \"opt1\", \"text\": \"Reverses the string\" },\n    { \"id\": \"opt2\", \"text\": \"Returns the first character\" }\n  ]\n}\n```\n\nDoes this make sense? Take your time!",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_credits": 3,
+    "model_name": "Gemini Flash"
+  }
+}
