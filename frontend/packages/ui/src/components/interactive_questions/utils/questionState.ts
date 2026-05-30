@@ -71,12 +71,12 @@ export async function submitResponse(chatId: string, content: string): Promise<v
       await chatDB.updateChat(chat);
     }
 
-    // 3. Dispatch 'messageAdded' event so Svelte's ChatHistory/ActiveChat instantly appends the bubble
+    // 3. Dispatch 'chatUpdated' event so Svelte's ActiveChat instantly appends the bubble
     chatSyncService.dispatchEvent(
-      new CustomEvent("messageAdded", {
+      new CustomEvent("chatUpdated", {
         detail: {
           chatId: chatId,
-          message: message,
+          newMessage: message,
         },
       })
     );

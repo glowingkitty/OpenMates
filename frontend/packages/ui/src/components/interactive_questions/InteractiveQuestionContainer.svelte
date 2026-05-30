@@ -75,12 +75,12 @@
     refreshHistory();
     // Subscriptions for dynamic live-updates
     chatSyncService.addEventListener('messageStatusChanged', handleSyncEvent);
-    chatSyncService.addEventListener('messageAdded', handleSyncEvent);
+    chatSyncService.addEventListener('chatUpdated', handleSyncEvent);
   });
 
   onDestroy(() => {
     chatSyncService.removeEventListener('messageStatusChanged', handleSyncEvent);
-    chatSyncService.removeEventListener('messageAdded', handleSyncEvent);
+    chatSyncService.removeEventListener('chatUpdated', handleSyncEvent);
   });
 
   // Handle "Clear" click to reset selections
