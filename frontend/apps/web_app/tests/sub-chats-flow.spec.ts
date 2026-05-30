@@ -87,9 +87,19 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	
 	// Inject a parent chat, a child sub-chat, and a grand-child sub-sub-chat programmatically via IndexedDB
 	await page.evaluate(async () => {
-		// Import our DB operations dynamically from console window
-		const { chatDB } = await import('@repo/ui/src/services/db');
-		await chatDB.init();
+		const DB_NAME = 'chats_db';
+		const CHATS_STORE = 'chats';
+		const MESSAGES_STORE = 'messages';
+
+		const openDB = (): Promise<IDBDatabase> => {
+			return new Promise((resolve, reject) => {
+				const request = indexedDB.open(DB_NAME);
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result);
+			});
+		};
+
+		const db = await openDB();
 
 		const parentId = 'e2e-parent-chat-uuid';
 		const childId = 'e2e-child-chat-uuid';
@@ -97,15 +107,40 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 
 		const now = Math.floor(Date.now() / 1000);
 
+		// Helper to delete item
+		const deleteItem = (storeName: string, id: string): Promise<void> => {
+			return new Promise((resolve, reject) => {
+				const tx = db.transaction(storeName, 'readwrite');
+				const store = tx.objectStore(storeName);
+				const request = store.delete(id);
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve();
+			});
+		};
+
+		// Helper to add/put item
+		const putItem = (storeName: string, item: any): Promise<void> => {
+			return new Promise((resolve, reject) => {
+				const tx = db.transaction(storeName, 'readwrite');
+				const store = tx.objectStore(storeName);
+				const request = store.put(item);
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve();
+			});
+		};
+
 		// Clean up any old ones
-		await chatDB.deleteChat(parentId);
-		await chatDB.deleteChat(childId);
-		await chatDB.deleteChat(grandId);
+		await deleteItem(CHATS_STORE, parentId);
+		await deleteItem(CHATS_STORE, childId);
+		await deleteItem(CHATS_STORE, grandId);
+		await deleteItem(MESSAGES_STORE, 'parent-msg-1');
+		await deleteItem(MESSAGES_STORE, 'child-msg-1');
+		await deleteItem(MESSAGES_STORE, 'grand-msg-1');
 
 		// 1. Parent Chat (Root)
 		const parentChat = {
 			chat_id: parentId,
-			encrypted_title: 'Parent Chat', // Store directly for non-E2EE simplicity in mock
+			encrypted_title: 'Parent Chat',
 			title: 'Parent Chat',
 			messages_v: 2,
 			title_v: 1,
@@ -143,9 +178,9 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 		};
 
 		// Save chats
-		await chatDB.addChat(parentChat);
-		await chatDB.addChat(childChat);
-		await chatDB.addChat(grandChat);
+		await putItem(CHATS_STORE, parentChat);
+		await putItem(CHATS_STORE, childChat);
+		await putItem(CHATS_STORE, grandChat);
 
 		// Create messages so they are renderable
 		const parentMsg = {
@@ -175,9 +210,11 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 			content: 'Verify Apple numbers.'
 		};
 
-		await chatDB.saveMessage(parentMsg);
-		await chatDB.saveMessage(childMsg);
-		await chatDB.saveMessage(grandMsg);
+		await putItem(MESSAGES_STORE, parentMsg);
+		await putItem(MESSAGES_STORE, childMsg);
+		await putItem(MESSAGES_STORE, grandMsg);
+
+		db.close();
 
 		// Trigger local lists changed event so UI updates
 		window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: parentId } }));
