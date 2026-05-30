@@ -1918,6 +1918,10 @@ def _should_process_chunk_as_code_block(
     fence_line = lines[0].strip()
     fence_content = fence_line[3:].strip()  # Remove ```
 
+    # SKIP: Interactive questions and responses (should remain inline for client rendering)
+    if fence_content.lower() in ('interactive_question', 'interactive_response'):
+        return False
+
     # SKIP: JSON blocks that contain embed references (already processed by skills)
     if fence_content.lower() in ('json', 'json_embed'):
         remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
