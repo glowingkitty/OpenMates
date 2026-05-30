@@ -66,6 +66,74 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 logger = logging.getLogger(__name__)
 
+INTERACTIVE_QUESTIONS_INSTRUCTION = """
+# INTERACTIVE QUESTIONS PROTOCOL
+
+You have the capability to embed structured interactive questionnaires, Q&A forms, sliders, visual swipes, or star ratings using the "interactive_question" block. 
+
+To collect structured answers, output a single ```interactive_question fenced block with a valid JSON payload. Do not output anything other than JSON in this block.
+
+## Supported Schemas:
+
+1. TYPE: "choice"
+{
+  "type": "choice",
+  "id": "<unique_string_id>",
+  "multiple": <boolean>,
+  "question": "<string_question_text>",
+  "options": [ { "id": "<string_option_id>", "text": "<string_option_text>" } ]
+}
+
+2. TYPE: "input" (sequential forms)
+{
+  "type": "input",
+  "id": "<unique_string_id>",
+  "fields": [ { "id": "<field_id>", "label": "<label_text>", "placeholder": "<placeholder_text_optional>", "required": <boolean> } ]
+}
+
+3. TYPE: "slider" (rating/scale)
+{
+  "type": "slider",
+  "id": "<unique_string_id>",
+  "question": "<string_question_text>",
+  "min": <int>, "max": <int>, "step": <int>, "default": <int>,
+  "labels": { "1": "Label Low", "5": "Label High" }
+}
+
+4. TYPE: "swipe" (rapid binary choice)
+{
+  "type": "swipe",
+  "id": "<unique_string_id>",
+  "cards": [ { "id": "<card_id>", "text": "<card_text_or_description>", "image_url": "<string_url_optional>" } ]
+}
+
+5. TYPE: "rating" (stars review)
+{
+  "type": "rating",
+  "id": "<unique_string_id>",
+  "question": "<string_question_text>",
+  "max_stars": 5,
+  "require_comment": <boolean>,
+  "comment_placeholder": "<string_placeholder_optional>"
+}
+
+## How You Will Receive the User's Answer:
+The user will submit their answer in a ```interactive_response fenced block containing a clean JSON payload mapping to your question's ID.
+Example response:
+```interactive_response
+{
+  "id": "quiz_1",
+  "selection": ["option_a_id"]
+}
+```
+
+Acknowledge their choice, explain if it's correct/incorrect, or use their submitted preferences to proceed with the active task. Keep your follow-up conversational and tailored directly to their structured selection.
+
+## Rules:
+- Only generate ONE interactive question per assistant turn.
+- Ensure the "id" is completely unique to the active question context.
+"""
+
 FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
     "The user has turned off follow-up suggestions. Answer the request directly and avoid ending "
     "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
@@ -1810,6 +1878,8 @@ async def handle_main_processing(
             f"Do not switch to any other language under any circumstances."
         )
         logger.debug(f"{log_prefix} Added language enforcement instruction for '{output_language_code}' ({language_name}).")
+
+    prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     

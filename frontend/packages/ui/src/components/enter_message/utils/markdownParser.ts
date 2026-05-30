@@ -811,6 +811,27 @@ function convertNodeToTiptap(node: Node): any {
 
       // Always include attrs object for consistent structure
       // language can be undefined for plain code blocks (```)
+      if (language === "interactive_question") {
+        let questionId = "";
+        try {
+          const parsed = JSON.parse(codeText);
+          questionId = parsed.id || "";
+        } catch {
+          // ignore
+        }
+        return {
+          type: "interactiveQuestion",
+          attrs: {
+            id: questionId,
+            json: codeText,
+          },
+        };
+      }
+
+      if (language === "interactive_response") {
+        return null;
+      }
+
       return {
         type: "codeBlock",
         attrs: { language: language || undefined },
