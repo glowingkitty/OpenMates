@@ -28,7 +28,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import Toggle from '../../../Toggle.svelte';
+  import Toggle from '../../Toggle.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
