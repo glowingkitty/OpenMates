@@ -25,6 +25,7 @@
   import { chatDB } from '../../services/db';
   import { chatSyncService } from '../../services/chatSyncService';
   import type { Message } from '../../../types/chat';
+  import { activeChatStore } from '../../../stores/activeChatStore';
   import ChoiceQuestion from './renderers/ChoiceQuestion.svelte';
   import InputQuestion from './renderers/InputQuestion.svelte';
   import SliderQuestion from './renderers/SliderQuestion.svelte';
@@ -53,9 +54,10 @@
 
   // Load and refresh message history from IndexedDB
   async function refreshHistory() {
-    if (!chatId) return;
+    const activeChatId = chatId || activeChatStore.get() || '';
+    if (!activeChatId) return;
     try {
-      const msgs = await chatDB.getMessagesForChat(chatId);
+      const msgs = await chatDB.getMessagesForChat(activeChatId);
       if (msgs) {
         loadedHistory = msgs;
       }
@@ -142,11 +144,12 @@
 
   // Handle "Send" click
   async function handleSend() {
-    if (!isValid || !chatId || isAnswered) return;
+    const activeChatId = chatId || activeChatStore.get() || '';
+    if (!isValid || !activeChatId || isAnswered) return;
 
     try {
       const responseText = formatUserResponse(currentSelection);
-      await submitResponse(chatId, responseText);
+      await submitResponse(activeChatId, responseText);
       // Optimistic lock before sync triggers DB refresh
       loadedHistory = [
         ...loadedHistory,
@@ -243,18 +246,18 @@
 
 <style>
   .interactive-question-card {
-    background: var(--color-grey-5, #ffffff);
+    background: var(--color-grey-10, #f8f9fa);
     border: 1px solid var(--color-grey-20, #e9ecef);
     border-radius: var(--radius-12, 12px);
-    padding: var(--spacing-16, 16px);
+    padding: var(--spacing-12, 12px);
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-16, 16px);
+    gap: var(--spacing-12, 12px);
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
-    margin: var(--spacing-12, 12px) 0;
+    margin: var(--spacing-8, 8px) 0;
     transition: all 0.25s ease;
   }
 

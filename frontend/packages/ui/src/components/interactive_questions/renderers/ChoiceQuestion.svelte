@@ -112,7 +112,7 @@
     display: flex;
     align-items: flex-start;
     gap: var(--spacing-12, 12px);
-    padding: var(--spacing-12, 12px) var(--spacing-16, 16px);
+    padding: var(--spacing-8, 8px) var(--spacing-12, 12px);
     background: var(--color-grey-10, #f8f9fa);
     border: 1px solid var(--color-grey-20, #e9ecef);
     border-radius: var(--radius-8, 8px);
