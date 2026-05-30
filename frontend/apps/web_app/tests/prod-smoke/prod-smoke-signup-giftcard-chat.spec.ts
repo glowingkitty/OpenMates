@@ -132,9 +132,11 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	const signupPassword = 'ProdSmoke!2345Secure';
 	logCheckpoint('Generated fresh signup email.', { signupEmail });
 
-	// ─── STEP 1: Signup with email + password, skip 2FA ───────────────────
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
+	// ─── STEP 1: Signup with email + password ─────────────────────────────
+	// Deep-link landing with the gift card hash pre-seeded. This triggers [+page.svelte] to
+	// stash the code in sessionStorage and prompt for signup.
+	await page.goto(getE2EDebugUrl('/#gift-card=' + PROD_SMOKE_GIFT_CARD_CODE));
+	await takeStepScreenshot(page, 'home-with-giftcard');
 
 	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginSignupButton).toBeVisible({ timeout: 15000 });
@@ -192,63 +194,14 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	await passwordInputs.nth(0).fill(signupPassword);
 	await passwordInputs.nth(1).fill(signupPassword);
 	await page.locator('#signup-password-continue').click();
+	logCheckpoint('Submitted password.');
 
-	// Skip 2FA setup.
-	const skipForNowButton = page.locator('#signup-nav-skip');
-	await expect(skipForNowButton).toBeVisible({ timeout: 20000 });
-	await skipForNowButton.click();
-	await expect(page.getByText(/be aware before skipping 2fa/i)).toBeVisible({ timeout: 15000 });
-	const skipConsentToggle = page.locator('#skip-2fa-consent-toggle');
-	await setToggleChecked(skipConsentToggle, true);
-	await page.locator('#signup-skip-2fa-continue').click();
-	logCheckpoint('Skipped 2FA.');
-
-	// Recovery key step — download + confirm.
-	const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
-	const [recoveryDownload] = await Promise.all([
-		page.waitForEvent('download'),
-		recoveryDownloadButton.click()
-	]);
-	expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
-	const recoveryConfirmToggle = page.locator('#confirm-storage-toggle-step5');
-	await setToggleChecked(recoveryConfirmToggle, true);
-	logCheckpoint('Recovery key downloaded and confirmed.');
-
-	// ─── STEP 2: Redeem the gift card on the credits step ────────────────
-	// The signup credits step has an "I have a gift card" button that swaps the
-	// panel to the GiftCardRedeem component (see CreditsTopContent.svelte:159).
-	// Redeeming the card fires an event that auto-completes the signup — no
-	// Stripe interaction at all.
-	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
-		timeout: 30000
-	});
-
-	const giftCardButton = page.locator('#signup-credits-gift-card');
-	await expect(giftCardButton).toBeVisible({ timeout: 10000 });
-	await giftCardButton.click();
-	await takeStepScreenshot(page, 'gift-card-input');
-	logCheckpoint('Opened gift card input on credits step.');
-
-	// GiftCardRedeem.svelte renders a single text input for the code. Use an
-	// input-type selector anchored to the visible gift card panel.
-	const giftCardInput = page.locator('input[type="text"]').first();
-	await expect(giftCardInput).toBeVisible({ timeout: 10000 });
-	await giftCardInput.fill(PROD_SMOKE_GIFT_CARD_CODE);
-	logCheckpoint('Entered gift card code.');
-
-	// The redeem button shares the "buy-button" testid with the credits
-	// package buy flow — GiftCardRedeem reuses the primary action style.
-	// Fall back to a role selector matching the redeem text.
-	const redeemButton = page.getByRole('button', { name: /redeem/i });
-	await expect(redeemButton).toBeVisible({ timeout: 10000 });
-	await redeemButton.click();
-	logCheckpoint('Clicked redeem.');
-
-	// After successful redemption the flow auto-advances to the payment step
-	// with a "purchase successful" message, then signup finalizes. We wait for
-	// the final chat URL as the definitive signal.
+	// ─── STEP 2: Automatic Gift Card Redemption ──────────────────────────
+	// Since we simplified the signup flow, the user goes directly from password
+	// setup to completion. The gift card deep link code stored in sessionStorage
+	// is now redeemed automatically on completion, and the page redirects to chat.
 	await page.waitForURL(/chat/, { timeout: 120000 });
-	logCheckpoint('Signup finalized after gift card redemption.');
+	logCheckpoint('Signup finalized with automatic gift card redemption.');
 	await takeStepScreenshot(page, 'chat-after-signup');
 
 	// ─── STEP 3: Send the first chat and assert an AI response streams in ─
