@@ -2596,6 +2596,7 @@
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
+        document.addEventListener('updaterecordingattrs', handleUpdateRecordingAttrs as EventListener);
         // PII click handling: attach to ProseMirror's root element in capture phase
         // so we see the click BEFORE ProseMirror can re-render decorations.
         const proseMirrorEl = editorElement?.querySelector('.ProseMirror');
@@ -2767,6 +2768,7 @@
         editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.removeEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
+        document.removeEventListener('updaterecordingattrs', handleUpdateRecordingAttrs as EventListener);
         // PII click handling is via editorProps.handleClick, no cleanup needed
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -3216,6 +3218,31 @@
         if (found) {
             dispatch(tr);
             console.debug('[MessageInput] Updated recording embed transcript for:', embedId);
+        }
+    }
+
+    /**
+     * Handle attribute updates from RecordingEmbedFullscreen/Preview (pre-send context).
+     * Updates the embed node's attributes so they are saved on send.
+     */
+    function handleUpdateRecordingAttrs(event: CustomEvent) {
+        const { embedId, attrs } = event.detail as { embedId: string; attrs: Record<string, unknown> };
+        if (!editor || editor.isDestroyed || !embedId) return;
+
+        const { state, dispatch } = editor.view;
+        const tr = state.tr;
+        let found = false;
+        state.doc.descendants((node, pos) => {
+            if (node.type.name === 'embed' && node.attrs.id === embedId) {
+                tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs });
+                found = true;
+                return false;
+            }
+            return true;
+        });
+        if (found) {
+            dispatch(tr);
+            console.debug('[MessageInput] Updated recording embed attrs for:', embedId, attrs);
         }
     }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }

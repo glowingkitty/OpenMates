@@ -70,6 +70,14 @@
     uploadError?: string;
     /** Transcribed text returned by Mistral Voxtral */
     transcript?: string;
+    /** Original raw transcript */
+    transcriptOriginal?: string;
+    /** Corrected transcript */
+    transcriptCorrected?: string;
+    /** Whether to use the corrected transcript */
+    useCorrected?: boolean;
+    /** Model used for correction */
+    correctionModel?: string;
     /** Formatted duration string (e.g. "0:42") */
     duration?: string;
     /** S3 file metadata — set after successful upload */
@@ -94,6 +102,8 @@
      * can be retried without re-uploading. Passed from RecordingRenderer.ts.
      */
     onRetry?: () => void;
+    /** Called when user toggles corrected vs original transcript */
+    onToggleCorrected?: (useCorrected: boolean) => void;
     /**
      * Transcription model name (e.g. 'voxtral-mini-2602').
      * Shown during 'transcribing' and in the finished subtitle as "Transcribed via <model>".
@@ -108,6 +118,10 @@
     blobUrl,
     uploadError,
     transcript,
+    transcriptOriginal,
+    transcriptCorrected,
+    useCorrected = true,
+    correctionModel: _correctionModel,
     duration,
     s3Files,
     s3BaseUrl,
@@ -118,8 +132,27 @@
     onFullscreen,
     onStop,
     onRetry,
+    onToggleCorrected,
     model,
   }: Props = $props();
+
+  // --- Auto-correct Transcript state ---
+  let useCorrectedState = $state(true);
+
+  $effect(() => {
+    if (useCorrected !== undefined) {
+      useCorrectedState = useCorrected;
+    }
+  });
+
+  function handleToggleCorrected(e: MouseEvent) {
+    e.stopPropagation(); // Avoid triggering card click
+    const nextVal = !useCorrectedState;
+    useCorrectedState = nextVal;
+    if (onToggleCorrected) {
+      onToggleCorrected(nextVal);
+    }
+  }
 
   // --- Audio playback state ---
 
@@ -288,14 +321,21 @@
     return '';
   });
 
+  let activeTranscript = $derived.by(() => {
+    if (transcriptOriginal && transcriptCorrected) {
+      return useCorrectedState ? transcriptCorrected : transcriptOriginal;
+    }
+    return transcript;
+  });
+
   /**
    * Truncated transcript for the preview area.
    * Shows the first MAX_TRANSCRIPT_PREVIEW chars with ellipsis if needed.
    */
   let transcriptPreview = $derived.by(() => {
-    if (!transcript) return '';
-    if (transcript.length <= MAX_TRANSCRIPT_PREVIEW) return transcript;
-    return transcript.slice(0, MAX_TRANSCRIPT_PREVIEW - 1) + '\u2026';
+    if (!activeTranscript) return '';
+    if (activeTranscript.length <= MAX_TRANSCRIPT_PREVIEW) return activeTranscript;
+    return activeTranscript.slice(0, MAX_TRANSCRIPT_PREVIEW - 1) + '\u2026';
   });
 
   // --- Audio controls ---
@@ -353,7 +393,7 @@
   status={unifiedStatus}
   skillName={$text('app_skills.audio.transcribe.audio_recording')}
   {isMobile}
-  onFullscreen={isFullscreenEnabled ? onFullscreen : undefined}
+  onFullscreen={isFullscreenEnabled ? onFullscreen : (undefined as unknown as () => void)}
   onStop={showStop ? onStop : undefined}
   showStatus={true}
   customStatusText={statusText}
@@ -456,6 +496,18 @@
             </span>
           </div>
         {/if}
+        {#if transcriptOriginal && transcriptCorrected}
+          <div class="transcript-toggle-bar">
+            <button
+              class="selector-pill"
+              class:active={useCorrectedState}
+              onclick={handleToggleCorrected}
+              type="button"
+            >
+              {useCorrectedState ? 'Corrected ✨' : 'Verbatim 🎙️'}
+            </button>
+          </div>
+        {/if}
         <p class="transcript-preview">{transcriptPreview}</p>
 
       {:else if audioLoadError}
@@ -500,6 +552,59 @@
     line-height: 1.5;
     color: var(--color-grey-50, #888);
     font-style: italic;
+  }
+
+  /* ---- Transcript Auto-correct Toggle Bar ---- */
+  .transcript-toggle-bar {
+    display: flex;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  .selector-pill {
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--radius-full, 9999px);
+    border: 1px solid var(--color-grey-20, #e8e8e8);
+    background: var(--color-grey-5, #fafafa);
+    color: var(--color-grey-60, #666);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    pointer-events: auto !important;
+  }
+
+  .selector-pill:hover {
+    background: var(--color-grey-15, #f0f0f0);
+    border-color: var(--color-grey-30, #ccc);
+  }
+
+  .selector-pill.active {
+    background: var(--color-app-audio, #e05555);
+    border-color: var(--color-app-audio, #e05555);
+    color: white;
+  }
+
+  .selector-pill.active:hover {
+    background: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
+    border-color: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
+  }
+
+  :global(.dark) .selector-pill {
+    background: var(--color-grey-80, #333);
+    border-color: var(--color-grey-70, #444);
+    color: var(--color-grey-30, #ccc);
+  }
+
+  :global(.dark) .selector-pill:hover {
+    background: var(--color-grey-75, #3a3a3a);
+    border-color: var(--color-grey-60, #555);
+  }
+
+  :global(.dark) .selector-pill.active {
+    background: var(--color-app-audio, #e05555);
+    border-color: var(--color-app-audio, #e05555);
+    color: white;
   }
 
   /* ---- Provider model info row (used in both transcribing and finished states) ---- */

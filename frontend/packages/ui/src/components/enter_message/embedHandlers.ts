@@ -1457,14 +1457,22 @@ export async function retryTranscription(
   // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
   let transcriptText: string | undefined;
   let modelFromResponse: string | undefined;
+  let transcriptOriginal: string | undefined;
+  let transcriptCorrected: string | undefined;
+  let useCorrected: boolean | undefined;
+  let correctionModel: string | undefined;
   try {
     const responseData = await transcribeResponse.json();
     const group = responseData?.data?.results?.find(
       (r: { id: string }) => r.id === embedId,
     );
-    transcriptText = group?.results?.[0]?.transcript ?? undefined;
-    // Read model from API response — backend includes it in result_entry
-    modelFromResponse = group?.results?.[0]?.model ?? undefined;
+    const resultObj = group?.results?.[0];
+    transcriptText = resultObj?.transcript ?? undefined;
+    modelFromResponse = resultObj?.model ?? undefined;
+    transcriptOriginal = resultObj?.transcript_original ?? undefined;
+    transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
+    useCorrected = resultObj?.use_corrected ?? undefined;
+    correctionModel = resultObj?.correction_model ?? undefined;
   } catch (parseError) {
     console.error(
       "[EmbedHandlers] retryTranscription: failed to parse response:",
@@ -1475,6 +1483,10 @@ export async function retryTranscription(
   updateEmbedNode({
     status: "finished",
     transcript: transcriptText ?? null,
+    transcriptOriginal: transcriptOriginal ?? null,
+    transcriptCorrected: transcriptCorrected ?? null,
+    useCorrected: useCorrected ?? null,
+    correctionModel: correctionModel ?? null,
     model: modelFromResponse ?? null,
     uploadError: null,
   });
@@ -1681,6 +1693,10 @@ async function _performRecordingUpload(
     // -----------------------------------------------------------------------
     let transcriptText: string | undefined;
     let modelFromResponse: string | undefined;
+    let transcriptOriginal: string | undefined;
+    let transcriptCorrected: string | undefined;
+    let useCorrected: boolean | undefined;
+    let correctionModel: string | undefined;
     try {
       const responseData = await transcribeResponse.json();
       // Response shape: SkillResponse wrapper from apps_api.py:
@@ -1688,10 +1704,15 @@ async function _performRecordingUpload(
       const group = responseData?.data?.results?.find(
         (r: { id: string }) => r.id === localEmbedId,
       );
-      transcriptText = group?.results?.[0]?.transcript ?? undefined;
+      const resultObj = group?.results?.[0];
+      transcriptText = resultObj?.transcript ?? undefined;
       // Read model from API response — backend includes the model ID in result_entry
       // so the frontend never needs to hardcode it after the response arrives.
-      modelFromResponse = group?.results?.[0]?.model ?? undefined;
+      modelFromResponse = resultObj?.model ?? undefined;
+      transcriptOriginal = resultObj?.transcript_original ?? undefined;
+      transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
+      useCorrected = resultObj?.use_corrected ?? undefined;
+      correctionModel = resultObj?.correction_model ?? undefined;
     } catch (parseError) {
       console.error(
         "[EmbedHandlers] Failed to parse transcription response:",
@@ -1706,6 +1727,10 @@ async function _performRecordingUpload(
     updateEmbedNode({
       status: "finished",
       transcript: transcriptText ?? null,
+      transcriptOriginal: transcriptOriginal ?? null,
+      transcriptCorrected: transcriptCorrected ?? null,
+      useCorrected: useCorrected ?? null,
+      correctionModel: correctionModel ?? null,
       model: modelFromResponse ?? null,
       uploadError: null,
     });
@@ -1727,6 +1752,10 @@ async function _performRecordingUpload(
         duration: null, // Duration is tracked on the TipTap node, not available here
         mime_type: mimeType || null,
         transcript: transcriptText ?? null,
+        transcript_original: transcriptOriginal ?? null,
+        transcript_corrected: transcriptCorrected ?? null,
+        use_corrected: useCorrected ?? null,
+        correction_model: correctionModel ?? null,
         model: modelFromResponse ?? null,
         s3_base_url: uploadResult.s3_base_url || null,
         files: uploadResult.files || null,

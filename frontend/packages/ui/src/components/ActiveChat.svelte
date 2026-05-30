@@ -1040,6 +1040,10 @@
         console.debug('[ActiveChat] Received recordingfullscreen event:', event.detail);
         recordingFullscreenData = {
             transcript: event.detail.transcript,
+            transcriptOriginal: event.detail.transcriptOriginal,
+            transcriptCorrected: event.detail.transcriptCorrected,
+            useCorrected: event.detail.useCorrected,
+            correctionModel: event.detail.correctionModel,
             blobUrl: event.detail.blobUrl,
             filename: event.detail.filename,
             duration: event.detail.duration,
@@ -1052,6 +1056,21 @@
             isEditable: event.detail.isEditable === true,
         };
         showRecordingFullscreen = true;
+    }
+
+    /**
+     * Handle attribute updates from RecordingEmbedFullscreen/Preview (pre-send context).
+     * Fires 'updaterecordingattrs' CustomEvent on document so MessageInput.svelte
+     * can update the embed node attrs in the TipTap editor.
+     */
+    function handleRecordingAttrsChange(embedId: string, attrs: Record<string, unknown>) {
+        document.dispatchEvent(
+            new CustomEvent('updaterecordingattrs', {
+                bubbles: true,
+                composed: true,
+                detail: { embedId, attrs },
+            }),
+        );
     }
 
     /**
@@ -11504,6 +11523,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     data={{
                         decodedContent: {
                             transcript: recordingFullscreenData.transcript,
+                            transcript_original: recordingFullscreenData.transcriptOriginal,
+                            transcript_corrected: recordingFullscreenData.transcriptCorrected,
+                            use_corrected: recordingFullscreenData.useCorrected,
+                            correction_model: recordingFullscreenData.correctionModel,
                             blob_url: recordingFullscreenData.blobUrl,
                             filename: recordingFullscreenData.filename,
                             duration: recordingFullscreenData.duration,
@@ -11517,6 +11540,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     embedId={recordingFullscreenData.embedId}
                     isEditable={recordingFullscreenData.isEditable}
                     onTranscriptChange={handleRecordingTranscriptChange}
+                    onAttrsChange={(embedId, changedAttrs) => {
+                        handleRecordingAttrsChange(embedId, changedAttrs);
+                        if (changedAttrs.transcript !== undefined) recordingFullscreenData.transcript = changedAttrs.transcript;
+                        if (changedAttrs.transcriptOriginal !== undefined) recordingFullscreenData.transcriptOriginal = changedAttrs.transcriptOriginal;
+                        if (changedAttrs.transcriptCorrected !== undefined) recordingFullscreenData.transcriptCorrected = changedAttrs.transcriptCorrected;
+                        if (changedAttrs.useCorrected !== undefined) recordingFullscreenData.useCorrected = changedAttrs.useCorrected;
+                        if (changedAttrs.correctionModel !== undefined) recordingFullscreenData.correctionModel = changedAttrs.correctionModel;
+                    }}
                     onClose={handleCloseRecordingFullscreen}
                 />
             {/if}

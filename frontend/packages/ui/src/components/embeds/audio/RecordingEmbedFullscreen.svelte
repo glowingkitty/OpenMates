@@ -28,6 +28,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import Toggle from '../../../Toggle.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
@@ -54,6 +55,8 @@
      * embed node attrs so the edited transcript is saved when the message is sent.
      */
     onTranscriptChange?: (embedId: string, newTranscript: string) => void;
+    /** Called when user updates any embed attributes (e.g. toggles auto-correct) */
+    onAttrsChange?: (embedId: string, changedAttrs: Record<string, unknown>) => void;
     /** Close handler */
     onClose: () => void;
     /** Whether there is a previous embed to navigate to */
@@ -77,6 +80,7 @@
     embedId,
     isEditable = false,
     onTranscriptChange,
+    onAttrsChange,
     onClose,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -105,33 +109,60 @@
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined);
   let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
+  let transcriptOriginal = $derived(typeof dc.transcript_original === 'string' ? dc.transcript_original : undefined);
+  let transcriptCorrected = $derived(typeof dc.transcript_corrected === 'string' ? dc.transcript_corrected : undefined);
+  let useCorrected = $derived(typeof dc.use_corrected === 'boolean' ? dc.use_corrected : true);
+  let _correctionModel = $derived(typeof dc.correction_model === 'string' ? dc.correction_model : undefined);
 
   // -------------------------------------------------------------------------
   // Editable transcript state
   // -------------------------------------------------------------------------
 
+  let useCorrectedState = $state(true);
+
+  $effect(() => {
+    useCorrectedState = useCorrected;
+  });
+
   /**
-   * Local transcript value, kept in sync with transcriptProp.
-   * When isEditable is true, the user can modify this in a textarea.
-   * Changes are propagated to the parent via onTranscriptChange().
-   *
-   * Initialised via $effect (not inline $state(transcriptProp)) so that
-   * Svelte 5 correctly tracks prop changes and avoids the
-   * "state_referenced_locally" lint warning.
+   * Local transcript value, kept in sync with either transcriptProp or active corrected/original variant.
    */
   let editableTranscript = $state<string>('');
 
-  // Sync editableTranscript whenever transcriptProp changes
-  // (e.g. transcription completes while fullscreen is open, or initial mount)
+  // Sync editableTranscript whenever transcriptProp, transcriptOriginal, transcriptCorrected, or useCorrectedState changes
   $effect(() => {
-    editableTranscript = transcriptProp ?? '';
+    if (transcriptOriginal && transcriptCorrected) {
+      editableTranscript = useCorrectedState ? (transcriptCorrected ?? '') : (transcriptOriginal ?? '');
+    } else {
+      editableTranscript = transcriptProp ?? '';
+    }
   });
 
   function handleTranscriptInput(e: Event) {
     const value = (e.currentTarget as HTMLTextAreaElement).value;
     editableTranscript = value;
-    if (isEditable && embedId && onTranscriptChange) {
-      onTranscriptChange(embedId, value);
+    if (isEditable && embedId) {
+      if (transcriptOriginal && transcriptCorrected) {
+        if (useCorrectedState) {
+          if (onAttrsChange) {
+            onAttrsChange(embedId, {
+              transcriptCorrected: value,
+              transcript: value,
+            });
+          }
+        } else {
+          if (onAttrsChange) {
+            onAttrsChange(embedId, {
+              transcriptOriginal: value,
+              transcript: value,
+            });
+          }
+        }
+      } else {
+        if (onTranscriptChange) {
+          onTranscriptChange(embedId, value);
+        }
+      }
     }
   }
 
@@ -377,6 +408,27 @@
 
       <!-- Transcript section -->
       <div class="transcript-section">
+        {#if transcriptOriginal && transcriptCorrected}
+          <div class="transcript-toggle-row">
+            <span class="toggle-label">Auto-Corrected Transcript</span>
+            <div class="toggle-container" style="pointer-events: auto !important;">
+              <Toggle
+                checked={useCorrectedState}
+                onchange={() => {
+                  const nextVal = !useCorrectedState;
+                  useCorrectedState = nextVal;
+                  if (isEditable && embedId && onAttrsChange) {
+                    onAttrsChange(embedId, {
+                      useCorrected: nextVal,
+                      transcript: nextVal ? transcriptCorrected : transcriptOriginal,
+                    });
+                  }
+                }}
+              />
+            </div>
+          </div>
+        {/if}
+
         {#if isEditable}
           <!--
             Editable transcript textarea: shown when the embed is still in the
@@ -582,6 +634,34 @@
     overflow-y: auto;
     padding: var(--spacing-12) var(--spacing-16) var(--spacing-16);
     min-height: 0;
+  }
+
+  .transcript-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4, 12px);
+    margin-bottom: var(--spacing-8, 20px);
+    border-bottom: 1px dashed var(--color-grey-15, #f0f0f0);
+    padding-bottom: var(--spacing-6, 15px);
+  }
+
+  .toggle-label {
+    font-size: var(--font-size-xs, 12px);
+    font-weight: 600;
+    color: var(--color-grey-60, #666);
+  }
+
+  .toggle-container {
+    display: flex;
+    align-items: center;
+  }
+
+  :global(.dark) .transcript-toggle-row {
+    border-bottom-color: var(--color-grey-80, #333);
+  }
+
+  :global(.dark) .toggle-label {
+    color: var(--color-grey-40, #aaa);
   }
 
   .transcript-text {
