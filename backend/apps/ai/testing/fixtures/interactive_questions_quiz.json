@@ -28,8 +28,7 @@
     "provider_name": "Google",
     "server_region": "EU"
   },
-  "response": "Here is a quick question to test your understanding of Python slicing syntax.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"python_slice_quiz\",\n  \"multiple\": false,
-  \"question\": \"What is the result of s[::-1]?\",\n  \"options\": [\n    { \"id\": \"opt1\", \"text\": \"Reverses the string\" },\n    { \"id\": \"opt2\", \"text\": \"Returns the first character\" }\n  ]\n}\n```\n\nDoes this make sense? Take your time!",
+  "response": "Here is a quick question to test your understanding of Python slicing syntax.\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"python_slice_quiz\",\n  \"multiple\": false,\n  \"question\": \"What is the result of s[::-1]?\",\n  \"options\": [\n    { \"id\": \"opt1\", \"text\": \"Reverses the string\" },\n    { \"id\": \"opt2\", \"text\": \"Returns the first character\" }\n  ]\n}\n```\n\nDoes this make sense? Take your time!",
   "skill_executions": [],
   "thinking_content": null,
   "usage": {
