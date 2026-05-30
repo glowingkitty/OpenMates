@@ -849,8 +849,8 @@
   let parentChatId = $state<string | null>(null);
   let parentChatTitle = $state<string | null>(null);
 
-  async function checkParentChat() {
-    if (!currentChatId) {
+  async function checkParentChat(activeId: string | null | undefined) {
+    if (!activeId) {
       parentChatId = null;
       parentChatTitle = null;
       return;
@@ -859,7 +859,7 @@
       const { getChat } = await import('../services/db/chatCrudOperations');
       const { chatDB } = await import('../services/db');
       await chatDB.init();
-      const chat = await getChat(chatDB, currentChatId);
+      const chat = await getChat(chatDB, activeId);
       if (chat && chat.parent_id) {
         parentChatId = chat.parent_id;
         const parentChat = await getChat(chatDB, chat.parent_id);
@@ -876,7 +876,8 @@
   }
 
   $effect(() => {
-    void checkParentChat();
+    const activeId = currentChatId;
+    void checkParentChat(activeId);
   });
 
   // CRITICAL: Only show permission dialog if it belongs to the current chat
