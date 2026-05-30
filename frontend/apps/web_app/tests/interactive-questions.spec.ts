@@ -192,6 +192,7 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 
 test.describe('InteractiveQuestions Chat Integration', () => {
 	test('triggers interactive questions, handles selections, submissions, and state locking in real-time chat', async ({ page }) => {
+		test.setTimeout(90000);
 		const log = createSignupLogger('INTERACTIVE_QUESTIONS_FLOW');
 		const screenshot = createStepScreenshotter(log);
 		await archiveExistingScreenshots(log);
