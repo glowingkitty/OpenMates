@@ -22,8 +22,8 @@
     RatingResponse
   } from './types';
   import { findSubsequentResponse, submitResponse } from './utils/questionState';
-  import { chatDB } from '../../../services/db';
-  import { chatSyncService } from '../../../services/chatSyncService';
+  import { chatDB } from '../../services/db';
+  import { chatSyncService } from '../../services/chatSyncService';
   import type { Message } from '../../../types/chat';
   import ChoiceQuestion from './renderers/ChoiceQuestion.svelte';
   import InputQuestion from './renderers/InputQuestion.svelte';
