@@ -35,10 +35,10 @@
   let {
     payload,
     chatId = ''
-  } = $props<{
+  }: {
     payload: InteractiveQuestionPayload;
     chatId?: string;
-  }>();
+  } = $props();
 
   // Reactive message list state
   let loadedHistory = $state<Message[]>([]);
