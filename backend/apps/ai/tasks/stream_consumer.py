@@ -2263,6 +2263,53 @@ async def _consume_main_processing_stream(
                 logger.info(f"{log_prefix} Awaiting focus mode confirmation for '{focus_id}'. Task will complete — continuation handled by auto-confirm or rejection.")
                 continue
 
+            # Sub-chat custom markers
+            if isinstance(chunk, dict) and "__spawn_sub_chats__" in chunk:
+                payload = {
+                    "type": "spawn_sub_chats",
+                    "task_id": task_id,
+                    "chat_id": request_data.chat_id,
+                    "sub_chats": chunk.get("sub_chats"),
+                    "report_trigger": chunk.get("report_trigger", "all")
+                }
+                if cache_service:
+                    await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published spawn_sub_chats event to '{redis_channel_name}'")
+                continue
+
+            if isinstance(chunk, dict) and "__awaiting_sub_chats_completion__" in chunk:
+                payload = {
+                    "type": "awaiting_sub_chats_completion",
+                    "task_id": task_id,
+                    "chat_id": request_data.chat_id
+                }
+                if cache_service:
+                    await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_sub_chats_completion event to '{redis_channel_name}'")
+                continue
+
+            if isinstance(chunk, dict) and "__sub_chat_completed__" in chunk:
+                payload = {
+                    "type": "sub_chat_completed",
+                    "task_id": task_id,
+                    "chat_id": chunk.get("sub_chat_id"),
+                    "parent_id": chunk.get("parent_id"),
+                    "summary": chunk.get("summary")
+                }
+                if cache_service:
+                    await _publish_to_redis(cache_service, f"chat_stream::{chunk.get('parent_id')}", payload, log_prefix, "Published sub_chat_completed event to parent")
+                continue
+
+            if isinstance(chunk, dict) and "__awaiting_user_input__" in chunk:
+                payload = {
+                    "type": "awaiting_user_input",
+                    "task_id": task_id,
+                    "chat_id": chunk.get("chat_id"),
+                    "parent_id": chunk.get("parent_id"),
+                    "question": chunk.get("question")
+                }
+                if cache_service:
+                    await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_user_input event to '{redis_channel_name}'")
+                continue
+
             # Check for cumulative LLM usage sentinel (emitted by handle_main_processing
             # just before the final usage metadata object when tool use occurred).
             # This captures the sum of tokens across ALL LLM iterations in this turn so

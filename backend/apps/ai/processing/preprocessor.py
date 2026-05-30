@@ -810,6 +810,7 @@ class PreprocessingResult(BaseModel):
     """
     can_proceed: bool = False # Renamed from is_safe_to_proceed
     rejection_reason: Optional[str] = None # This will serve as error_type
+    enable_subchats: bool = False # Whether sub-chats are enabled for this request.
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
@@ -2043,6 +2044,15 @@ async def handle_preprocessing(
         user_unhappy_val = False
         llm_analysis_args["user_unhappy"] = user_unhappy_val
 
+    # Validate enable_subchats (boolean)
+    enable_subchats_val = llm_analysis_args.get("enable_subchats")
+    if enable_subchats_val is None:
+        # Default to True if complexity is complex as an intelligent heuristic
+        enable_subchats_val = (complexity_val == "complex")
+    elif not isinstance(enable_subchats_val, bool):
+        enable_subchats_val = bool(enable_subchats_val)
+    llm_analysis_args["enable_subchats"] = enable_subchats_val
+
     # Extract china_model_sensitive from LLM analysis for model filtering
     # When True, China-origin models (DeepSeek, Qwen, etc.) are excluded to avoid censored/biased responses
     # Default to True (conservative) if not provided - better to exclude CN models than risk biased response
@@ -3031,6 +3041,7 @@ async def handle_preprocessing(
         rejection_reason=None,
         harmful_or_illegal_score=harmful_or_illegal_val,
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
+        enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)

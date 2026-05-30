@@ -77,6 +77,12 @@ class AskSkillRequest(BaseModel):
     # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
     embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
     
+    # Sub-chat orchestration fields
+    parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
+    is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
+    budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
+    budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
+    
     # Allow populating by name even with aliases
     model_config = {"populate_by_name": True}
 

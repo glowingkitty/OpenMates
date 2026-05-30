@@ -388,9 +388,9 @@ let _chatUpdatedFlushPending = false;
 	let allChats = $derived((() => {
 		void visiblePublicChats;
 
-		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats)
+		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats, and sub-chats - they are rendered nested)
 		const processedRealChats = allChatsFromDB
-			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
+			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id) && !chat.parent_id && !chat.is_sub_chat);
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
 		// CRITICAL: We don't filter out public chats from visiblePublicChats even if they are in the DB,
@@ -3953,6 +3953,76 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									}}
 								/>
 							</div>
+							<!-- Nested Sub-chats (Tier 1 & Tier 2) -->
+							{@const subChats = allChatsFromDB.filter(c => c.parent_id === chat.chat_id)}
+							{#if subChats.length > 0}
+								<div class="sub-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
+									{#each subChats as subChat (subChat.chat_id)}
+										<div
+											role="button"
+											tabindex="0"
+											class="chat-item sub-chat-item"
+											data-testid="sub-chat-item"
+											class:active={selectedChatId === subChat.chat_id}
+											onclick={(event) => {
+												handleChatItemClick(subChat, event);
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													const syntheticEvent = new MouseEvent('click', {
+														bubbles: true,
+														cancelable: true
+													});
+													handleChatItemClick(subChat, syntheticEvent);
+												}
+											}}
+										>
+											<ChatComponent
+												chat={subChat}
+												activeChatId={selectedChatId}
+												selectMode={selectMode}
+												selectedChatIds={selectedChatIds}
+											/>
+										</div>
+										<!-- Nested Grandchild Sub-chats (Tier 2) -->
+										{@const grandChats = allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)}
+										{#if grandChats.length > 0}
+											<div class="sub-chats-container grandchild-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
+												{#each grandChats as grandChat (grandChat.chat_id)}
+													<div
+														role="button"
+														tabindex="0"
+														class="chat-item sub-chat-item grandchild-chat-item"
+														data-testid="grandchild-chat-item"
+														class:active={selectedChatId === grandChat.chat_id}
+														onclick={(event) => {
+															handleChatItemClick(grandChat, event);
+														}}
+														onkeydown={(e) => {
+															if (e.key === 'Enter' || e.key === ' ') {
+																e.preventDefault();
+																const syntheticEvent = new MouseEvent('click', {
+																	bubbles: true,
+																	cancelable: true
+																});
+																handleChatItemClick(grandChat, syntheticEvent);
+															}
+														}}
+													>
+														<ChatComponent
+															chat={grandChat}
+															activeChatId={selectedChatId}
+															selectMode={selectMode}
+															selectedChatIds={selectedChatIds}
+														/>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									{/each}
+								</div>
+							{/if}
 						{/each}
 					</div>
 				{/if}

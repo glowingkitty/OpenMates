@@ -347,3 +347,13 @@ async def test_translate_chat_summary_uses_isolated_translation(monkeypatch):
         "role": "user",
         "content": "Translate this chat summary to English:\n\nNutzer erstellt deutsche Bewerbungsunterlagen.",
     }
+
+
+def test_preprocessing_result_has_enable_subchats():
+    from backend.apps.ai.processing.preprocessor import PreprocessingResult
+    res = PreprocessingResult(
+        can_proceed=True,
+        enable_subchats=True,
+        harmful_or_illegal_score=0.0
+    )
+    assert res.enable_subchats is True

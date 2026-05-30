@@ -1986,6 +1986,7 @@ async def _async_process_ai_skill_ask_task(
                 available_skills=available_skills_for_postproc,
                 available_focus_modes=available_focus_modes_for_postproc,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
+                is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
                 output_language=chat_output_language,
                 user_system_language=user_system_language,
                 current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation

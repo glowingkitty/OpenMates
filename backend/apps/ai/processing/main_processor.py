@@ -1162,6 +1162,18 @@ async def handle_main_processing(
     """
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
+
+    # Determine chat depth (Root=0, Child=1, Grandchild=2)
+    chat_depth = 0
+    if hasattr(request_data, "parent_id") and request_data.parent_id:
+        chat_depth = 1
+        try:
+            parent_chat = await directus_service.chat.get_chat_metadata(request_data.parent_id)
+            if parent_chat and parent_chat.get("parent_id"):
+                chat_depth = 2
+        except Exception as e:
+            logger.warning(f"{log_prefix} Error resolving parent chat depth for {request_data.parent_id}: {e}")
+    logger.info(f"{log_prefix} Resolved chat depth to {chat_depth} (parent_id: {getattr(request_data, 'parent_id', None)})")
     
     # --- Auto-reject any pending app settings/memories request for this chat ---
     # If user sends a new message without responding to the permission dialog,
@@ -2004,6 +2016,110 @@ async def handle_main_processing(
         }
         available_tools_for_llm.append(deactivate_tool)
         logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id})")
+
+    # --- Add sub-chat orchestration tools ---
+    enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
+    
+    start_sub_chats_tool = {
+        "type": "function",
+        "function": {
+            "name": "start_sub_chats",
+            "description": (
+                "Spawn one or multiple autonomous background sub-chats to parallelize complex tasks. "
+                "You can specify a list of sub-chats, each with its own prompt. "
+                "Supports loops/templates where you specify a list of items and a prompt_template "
+                "containing '{x}' which will be replaced with each item from the list."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sub_chats": {
+                        "type": "array",
+                        "description": "List of sub-chats to spawn.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "prompt": {
+                                    "type": "string",
+                                    "description": "Specific custom prompt for this sub-chat. Use either 'prompt' OR 'prompt_template' and 'list'."
+                                },
+                                "prompt_template": {
+                                    "type": "string",
+                                    "description": "Template prompt containing '{x}' to spawn multiple similar sub-chats."
+                                },
+                                "list": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Array of strings/elements to substitute into '{x}' of prompt_template."
+                                },
+                                "wait_for_completion": {
+                                    "type": "boolean",
+                                    "description": "If True, the parent chat will wait for this sub-chat's results before continuing. Default True.",
+                                    "default": True
+                                },
+                                "budget_limit": {
+                                    "type": "number",
+                                    "description": "Optional credit budget limit for this sub-chat subtree."
+                                },
+                                "report_trigger": {
+                                    "type": "string",
+                                    "enum": ["each", "all"],
+                                    "description": "Whether to report back after 'each' sub-chat completes or only after 'all' have completed. Default 'all'.",
+                                    "default": "all"
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": ["sub_chats"]
+            }
+        }
+    }
+
+    end_subchat_tool = {
+        "type": "function",
+        "function": {
+            "name": "end_subchat",
+            "description": "Successfully end the current sub-chat session and submit your final summary/report back to the parent chat.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "summary": {
+                        "type": "string",
+                        "description": "The detailed markdown or structured JSON summary of your work and findings to report back to the parent chat."
+                    }
+                },
+                "required": ["summary"]
+            }
+        }
+    }
+
+    ask_user_input_tool = {
+        "type": "function",
+        "function": {
+            "name": "ask_user_input",
+            "description": "Pause sub-chat execution and request clarifying input, context, or direction from the user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The precise question or request for information you need from the user."
+                    }
+                },
+                "required": ["question"]
+            }
+        }
+    }
+
+    if chat_depth < 2 and enable_subchats_results:
+        available_tools_for_llm.append(start_sub_chats_tool)
+        logger.info(f"{log_prefix} Added start_sub_chats tool to main LLM tools.")
+    
+    if chat_depth > 0:
+        available_tools_for_llm.append(end_subchat_tool)
+        available_tools_for_llm.append(ask_user_input_tool)
+        logger.info(f"{log_prefix} Added end_subchat and ask_user_input tools to main LLM tools (depth={chat_depth}).")
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
@@ -2073,7 +2189,7 @@ async def handle_main_processing(
     # underscored form into "activate-focus-mode" before resolver lookup, so
     # we register BOTH the canonicalized form (post-canonicalize) and the raw
     # snake_case form (pre-canonicalize, defensive) for both tools.
-    for system_skill in ("activate_focus_mode", "deactivate_focus_mode"):
+    for system_skill in ("activate_focus_mode", "deactivate_focus_mode", "start_sub_chats", "end_subchat", "ask_user_input"):
         # Pre-canonicalize form (raw snake_case as the LLM emits it)
         tool_resolver_map[system_skill] = ("system", system_skill)
         # Post-canonicalize form (underscores → hyphens, what the dispatcher sees)
@@ -2536,11 +2652,14 @@ async def handle_main_processing(
                 # separator format. See _canonicalize_tool_name() for details.
                 raw_function_name = chunk.function_name
                 canonical_name = _canonicalize_tool_name(raw_function_name)
-                if canonical_name not in allowed_tool_names:
+                is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
+                if canonical_name not in allowed_tool_names or is_sub_chat_violation:
+                    rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
                     logger.warning(
-                        f"{log_prefix} [HALLUCINATION] Rejecting unknown tool call "
+                        f"{log_prefix} [HALLUCINATION/BLOCK] Rejecting tool call "
                         f"'{raw_function_name}' (canonical='{canonical_name}') "
                         f"from main LLM. tool_call_id={chunk.tool_call_id}. "
+                        f"Nesting violation: {is_sub_chat_violation}. "
                         f"Allowed tools ({len(allowed_tool_names)}): {sorted(allowed_tool_names)}. "
                         f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     )
@@ -2559,7 +2678,7 @@ async def handle_main_processing(
                         "name": raw_function_name,
                         "content": json.dumps({
                             "status": "rejected",
-                            "reason": INVALID_TOOL_RESULT_REASON,
+                            "reason": rejection_reason,
                         }),
                     }
                     hallucinated_tool_calls_this_turn.append((chunk, rejection_tool_message))
@@ -3169,11 +3288,13 @@ async def handle_main_processing(
                 # tool calls out of tool_calls_for_this_turn, but enforce the allow-list
                 # here again so no future code path can ever execute a skill that the
                 # preprocessor did not explicitly forward.
-                if tool_name not in allowed_tool_names:
+                is_sub_chat_violation = (tool_name == "start-sub-chats" and chat_depth >= 2)
+                if tool_name not in allowed_tool_names or is_sub_chat_violation:
+                    rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else "Tool not available. Only preselected tools may be used. Do not retry this call."
                     logger.warning(
-                        f"{log_prefix} [HALLUCINATION] Refusing to execute unknown tool '{tool_name}'. "
+                        f"{log_prefix} [HALLUCINATION/BLOCK] Refusing to execute tool '{tool_name}'. "
                         f"tool_call_id={tool_call_id}. Allowed tools ({len(allowed_tool_names)}): "
-                        f"{sorted(allowed_tool_names)}. Raw arguments: {tool_arguments_str[:500]}"
+                        f"{sorted(allowed_tool_names)}. Nesting violation: {is_sub_chat_violation}. Raw arguments: {tool_arguments_str[:500]}"
                     )
                     current_message_history.append({
                         "tool_call_id": tool_call_id,
@@ -3181,10 +3302,7 @@ async def handle_main_processing(
                         "name": tool_name,
                         "content": json.dumps({
                             "status": "rejected",
-                            "reason": (
-                                "Tool not available. Only preselected tools may be used. "
-                                "Do not retry this call."
-                            ),
+                            "reason": rejection_reason,
                         }),
                     })
                     continue
@@ -3604,6 +3722,159 @@ async def handle_main_processing(
                         # The focus mode instructions will no longer apply to this response
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
                         continue
+
+                    elif skill_id == "start_sub_chats":
+                        sub_chats_args = parsed_args.get("sub_chats", [])
+                        logger.info(f"{log_prefix} [SUB_CHAT] LLM requested start_sub_chats with {len(sub_chats_args)} chats")
+                        
+                        spawned_sub_chats = []
+                        import uuid
+                        for sc in sub_chats_args:
+                            prompt = sc.get("prompt")
+                            prompt_template = sc.get("prompt_template")
+                            sc_list = sc.get("list", [])
+                            wait_for_completion = sc.get("wait_for_completion", True)
+                            budget_limit = sc.get("budget_limit")
+                            report_trigger = sc.get("report_trigger", "all")
+                            
+                            # Support loop templating
+                            if prompt_template and sc_list:
+                                for item in sc_list:
+                                    resolved_prompt = prompt_template.replace("{x}", str(item))
+                                    sc_id = str(uuid.uuid4())
+                                    spawned_sub_chats.append({
+                                        "id": sc_id,
+                                        "prompt": resolved_prompt,
+                                        "wait_for_completion": wait_for_completion,
+                                        "budget_limit": budget_limit,
+                                        "report_trigger": report_trigger
+                                    })
+                            else:
+                                sc_id = str(uuid.uuid4())
+                                spawned_sub_chats.append({
+                                    "id": sc_id,
+                                    "prompt": prompt or prompt_template or "",
+                                    "wait_for_completion": wait_for_completion,
+                                    "budget_limit": budget_limit,
+                                    "report_trigger": report_trigger
+                                })
+                        
+                        # Set up the tool response
+                        tool_result_content_str = json.dumps({
+                            "status": "spawned",
+                            "sub_chats": spawned_sub_chats,
+                            "message": f"Successfully spawned {len(spawned_sub_chats)} sub-chats in the background. Awaiting their completion."
+                        })
+                        
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        
+                        # Yield the spawn sub-chats marker
+                        yield {
+                            "__spawn_sub_chats__": True,
+                            "parent_id": request_data.chat_id,
+                            "sub_chats": spawned_sub_chats,
+                            "report_trigger": sub_chats_args[0].get("report_trigger", "all") if sub_chats_args else "all"
+                        }
+                        
+                        # Stop parent execution now because we need to wait for completion of sub-chats
+                        # unless they are marked as independent (wait_for_completion=False).
+                        # Let's check if there are any that require waiting
+                        any_wait = any(sc.get("wait_for_completion", True) for sc in sub_chats_args)
+                        if any_wait:
+                            logger.info(f"{log_prefix} [SUB_CHAT] Yielding wait marker and pausing parent execution")
+                            yield {"__awaiting_sub_chats_completion__": True, "chat_id": request_data.chat_id}
+                            return
+                        continue
+
+                    elif skill_id == "end_subchat":
+                        summary = parsed_args.get("summary", "")
+                        logger.info(f"{log_prefix} [SUB_CHAT] LLM requested end_subchat")
+                        
+                        # Save sub-chat completion status in Directus/Cache
+                        if directus_service:
+                            try:
+                                import uuid
+                                # Mark current chat as completed
+                                await directus_service.chat.update_chat_fields_in_directus(
+                                    request_data.chat_id,
+                                    {"updated_at": int(time.time()), "is_sub_chat": True}
+                                )
+                                logger.info(f"{log_prefix} [SUB_CHAT] Marked sub-chat as completed in Directus.")
+                                
+                                # Write summary system message into parent chat
+                                if request_data.parent_id:
+                                    system_message_content = f"### Sub-Chat Report ({request_data.chat_id})\n{summary}"
+                                    now_sec = int(time.time())
+                                    parent_msg_id = f"{request_data.parent_id[-10:]}-{uuid.uuid4()}"
+                                    
+                                    # Format the system message securely for Directus
+                                    system_msg_data = {
+                                        "id": parent_msg_id,
+                                        "chat_id": request_data.parent_id,
+                                        "role": "system",
+                                        "created_at": now_sec,
+                                        "status": "synced",
+                                        "content": system_message_content
+                                    }
+                                    await directus_service.chat.create_message_in_directus(system_msg_data)
+                                    logger.info(f"{log_prefix} [SUB_CHAT] Wrote summary system message to parent chat {request_data.parent_id}")
+                                    
+                                    if cache_service:
+                                        # Set completion marker in redis
+                                        await cache_service.set(f"subchat:{request_data.chat_id}:completed", True, ttl=86400)
+                                    
+                                    # Yield a completed event back to client
+                                    yield {
+                                        "__sub_chat_completed__": True,
+                                        "sub_chat_id": request_data.chat_id,
+                                        "parent_id": request_data.parent_id,
+                                        "summary": summary
+                                    }
+                            except Exception as db_err:
+                                logger.error(f"{log_prefix} [SUB_CHAT] Error saving completion to Directus: {db_err}", exc_info=True)
+                        
+                        tool_result_content_str = json.dumps({
+                            "status": "completed",
+                            "message": "Sub-chat ended successfully. Report submitted to parent."
+                        })
+                        tool_response_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": tool_result_content_str
+                        }
+                        current_message_history.append(tool_response_message)
+                        continue
+
+                    elif skill_id == "ask_user_input":
+                        question = parsed_args.get("question", "")
+                        logger.info(f"{log_prefix} [SUB_CHAT] LLM requested ask_user_input: {question}")
+                        
+                        # Set sub-chat state in Directus/Cache to waiting_for_user
+                        if directus_service:
+                            try:
+                                await directus_service.chat.update_chat_fields_in_directus(
+                                    request_data.chat_id,
+                                    {"updated_at": int(time.time())}
+                                )
+                            except Exception as db_err:
+                                logger.error(f"{log_prefix} [SUB_CHAT] Error updating status in Directus: {db_err}")
+                        
+                        # Yield the user input requested event
+                        yield {
+                            "__awaiting_user_input__": True,
+                            "question": question,
+                            "chat_id": request_data.chat_id,
+                            "parent_id": request_data.parent_id
+                        }
+                        return  # Halt sub-chat execution until user responds
+
                     else:
                         logger.warning(f"{log_prefix} Unknown system tool: {skill_id}")
                         tool_result_content_str = json.dumps({"error": f"Unknown system tool: {skill_id}"})

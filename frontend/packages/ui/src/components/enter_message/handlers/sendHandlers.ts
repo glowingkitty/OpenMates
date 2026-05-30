@@ -360,6 +360,7 @@ export async function handleSend(
   setHasContent: (value: boolean) => void,
   currentChatId?: string,
   activePIIExclusions: Set<string> = new Set(),
+  broadcastToSiblings: boolean = false,
 ) {
   if (!editor || !hasActualContent(editor)) {
     vibrateMessageField();
@@ -1146,6 +1147,7 @@ export async function handleSend(
       chatIdToUse,
       piiMappingsForStorage,
     );
+    ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
     // (prevents a brief empty chat row while active chat selection/metadata settles)
@@ -1344,6 +1346,32 @@ export async function handleSend(
       } else {
         // Update regular chat in IndexedDB
         await chatDB.saveMessage(messagePayload);
+
+        // Sub-chat sibling broadcast logic
+        if (broadcastToSiblings) {
+          try {
+            const { getAllChats } = await import("../../../services/db/chatCrudOperations");
+            const allChats = await getAllChats(chatDB);
+            const currentChatRecord = await chatDB.getChat(chatIdToUse);
+            if (currentChatRecord && currentChatRecord.parent_id) {
+              const siblings = allChats.filter(c => c.parent_id === currentChatRecord.parent_id && c.chat_id !== chatIdToUse);
+              const { generateUUID } = await import("../../../message_parsing/utils");
+              for (const sib of siblings) {
+                const sibMsgId = `${sib.chat_id.slice(-10)}-${generateUUID()}`;
+                const sibMsgPayload = {
+                  ...messagePayload,
+                  message_id: sibMsgId,
+                  chat_id: sib.chat_id,
+                };
+                await chatDB.saveMessage(sibMsgPayload);
+                console.debug(`[handleSend:Broadcast] Saved message copy to sibling sub-chat: ${sib.chat_id}`);
+                await chatSyncService.sendNewMessage(sibMsgPayload);
+              }
+            }
+          } catch (err) {
+            console.error('[handleSend:Broadcast] Error broadcasting to siblings:', err);
+          }
+        }
         existingChat = await chatDB.getChat(chatIdToUse);
         if (existingChat) {
           existingChat.messages_v = (existingChat.messages_v || 0) + 1;

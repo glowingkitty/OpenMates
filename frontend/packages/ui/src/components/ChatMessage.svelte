@@ -20,7 +20,7 @@
   } from '../services/sendersMessageHighlights';
   import { userProfile } from '../stores/userProfile';
   import { authStore } from '../stores/authStore';
-  import type { HighlightAnchor, MessageHighlight } from '../types/chat';
+  import type { HighlightAnchor, MessageHighlight, Chat } from '../types/chat';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
@@ -155,6 +155,41 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
+
+  // --- Sub-chats tracking for assistant message turn ---
+  let subChatsOfThisMessage = $state<Chat[]>([]);
+
+  async function loadSubChats() {
+    if (role !== 'assistant' || !currentChatId) return;
+    try {
+      const { getAllChats } = await import('../services/db/chatCrudOperations');
+      const { chatDB } = await import('../services/db');
+      await chatDB.init();
+      const all = await getAllChats(chatDB);
+      const msgTime = original_message?.created_at || 0;
+      // Filter sub-chats created close to this assistant message (within 60s)
+      subChatsOfThisMessage = all.filter(c => 
+        c.parent_id === currentChatId && 
+        (c.is_sub_chat || c.parent_id !== null) &&
+        Math.abs(c.created_at - msgTime) < 60
+      );
+    } catch (e) {
+      console.error('Error loading sub-chats for message:', e);
+    }
+  }
+
+  onMount(() => {
+    loadSubChats();
+    const handleListChange = () => {
+      loadSubChats();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('localChatListChanged', handleListChange);
+      return () => {
+        window.removeEventListener('localChatListChanged', handleListChange);
+      };
+    }
+  });
 
   // ─── Highlights ────────────────────────────────────────────────────────────
   // Reactive list of highlights for THIS message, from the shared store.
@@ -2638,6 +2673,45 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 {role}
                 on:message-embed-click={handleEmbedClick}
             />
+          {/if}
+
+          <!-- Horizontal Scrollable Sub-Chats Carousel -->
+          {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
+            <div class="sub-chats-carousel" style="display: flex; gap: 12px; overflow-x: auto; padding: 12px 4px; margin-top: 12px; border-top: 1px solid var(--grey20); scrollbar-width: thin;" data-testid="sub-chats-carousel">
+              {#each subChatsOfThisMessage as sc (sc.chat_id)}
+                <button
+                  type="button"
+                  class="sub-chat-card"
+                  data-testid="sub-chat-card"
+                  style="flex: 0 0 200px; display: flex; flex-direction: column; justify-content: space-between; padding: 12px; border-radius: 12px; background: var(--grey10); border: 1px solid var(--grey30); text-align: left; cursor: pointer; transition: transform 0.2s, border-color 0.2s;"
+                  onclick={async () => {
+                    const { activeChatStore } = await import('../stores/activeChatStore');
+                    activeChatStore.setActiveChat(sc.chat_id);
+                  }}
+                >
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #6364FF, #9B6DFF); display: flex; align-items: center; justify-content: center;">
+                      <span style="color: white; font-size: 10px; font-weight: bold;">S</span>
+                    </div>
+                    <span style="font-size: 11px; font-weight: 500; color: var(--fontSecondary);">Sub-chat</span>
+                  </div>
+                  <div style="font-size: 13px; font-weight: bold; color: var(--fontPrimary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                    {sc.title || "Autonomous Task"}
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--fontTertiary);">
+                    <span>{sc.budget_spent || 0} credits</span>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      {#if sc.updated_at > sc.created_at}
+                        <span style="color: green; font-weight: bold;" data-testid="sub-chat-status-done">✓ Done</span>
+                      {:else}
+                        <span class="pulse" style="width: 6px; height: 6px; border-radius: 50%; background: orange; display: inline-block;"></span>
+                        <span data-testid="sub-chat-status-active">Active</span>
+                      {/if}
+                    </span>
+                  </div>
+                </button>
+              {/each}
+            </div>
           {/if}
         </div>
         

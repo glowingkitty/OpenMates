@@ -32,5 +32,10 @@ class AskSkillRequest(BaseModel):
             "file_path argument instead of a raw embed_id."
         ),
     )
+    # Sub-chat orchestration fields
+    parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
+    is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
+    budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
+    budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
 
 # Add other shared AI skill-related schemas here if needed in the future.

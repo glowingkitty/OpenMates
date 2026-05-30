@@ -845,6 +845,39 @@
   });
   let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
+  // --- Parent chat / Sub-chat "Return" header tracking ---
+  let parentChatId = $state<string | null>(null);
+  let parentChatTitle = $state<string | null>(null);
+
+  async function checkParentChat() {
+    if (!currentChatId) {
+      parentChatId = null;
+      parentChatTitle = null;
+      return;
+    }
+    try {
+      const { getChat } = await import('../services/db/chatCrudOperations');
+      const { chatDB } = await import('../services/db');
+      await chatDB.init();
+      const chat = await getChat(chatDB, currentChatId);
+      if (chat && chat.parent_id) {
+        parentChatId = chat.parent_id;
+        const parentChat = await getChat(chatDB, chat.parent_id);
+        parentChatTitle = parentChat?.title || "Parent Chat";
+      } else {
+        parentChatId = null;
+        parentChatTitle = null;
+      }
+    } catch (e) {
+      console.error('Error checking parent chat:', e);
+      parentChatId = null;
+      parentChatTitle = null;
+    }
+  }
+
+  $effect(() => {
+    void checkParentChat();
+  });
 
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
@@ -1958,6 +1991,27 @@
     bind:this={container}
     onscroll={handleScroll}
 >
+    {#if parentChatId}
+        <button
+            type="button"
+            class="return-to-parent-button"
+            data-testid="return-to-parent-button"
+            title={`Return to ${parentChatTitle}`}
+            style="position: absolute; top: 12px; left: 12px; z-index: 999; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
+            onclick={async () => {
+                const { activeChatStore } = await import('../stores/activeChatStore');
+                activeChatStore.setActiveChat(parentChatId);
+            }}
+        >
+            <span style="display: flex; align-items: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+            </span>
+            <span>Return</span>
+        </button>
+    {/if}
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
