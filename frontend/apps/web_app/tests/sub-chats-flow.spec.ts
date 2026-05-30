@@ -129,13 +129,20 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 			});
 		};
 
-		// Clean up any old ones
-		await deleteItem(CHATS_STORE, parentId);
-		await deleteItem(CHATS_STORE, childId);
-		await deleteItem(CHATS_STORE, grandId);
-		await deleteItem(MESSAGES_STORE, 'parent-msg-1');
-		await deleteItem(MESSAGES_STORE, 'child-msg-1');
-		await deleteItem(MESSAGES_STORE, 'grand-msg-1');
+		// Helper to clear a store
+		const clearStore = (storeName: string): Promise<void> => {
+			return new Promise((resolve, reject) => {
+				const tx = db.transaction(storeName, 'readwrite');
+				const store = tx.objectStore(storeName);
+				const request = store.clear();
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve();
+			});
+		};
+
+		// Clean up everything to have a pristine test environment
+		await clearStore(CHATS_STORE);
+		await clearStore(MESSAGES_STORE);
 
 		// 1. Parent Chat (Root)
 		const parentChat = {
