@@ -38,6 +38,14 @@
     }
   });
 
+  // Reset swipes if parent clears the value
+  $effect(() => {
+    if (value === null && !disabled) {
+      swipesRecord = {};
+      activeCardIndex = 0;
+    }
+  });
+
   // Handle Swipe/Decision on active card
   function handleDecision(decision: 'like' | 'dislike') {
     if (disabled || activeCardIndex >= data.cards.length) return;

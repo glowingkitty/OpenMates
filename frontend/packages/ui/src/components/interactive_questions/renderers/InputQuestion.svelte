@@ -44,6 +44,17 @@
     }
   });
 
+  // Reset inputs if parent clears the value
+  $effect(() => {
+    if (value === null && !disabled) {
+      const initial: Record<string, string> = {};
+      for (const field of data.fields) {
+        initial[field.id] = '';
+      }
+      fieldValues = initial;
+    }
+  });
+
   // Handle value change on keyup/change
   function handleInput(fieldId: string, val: string) {
     if (disabled) return;

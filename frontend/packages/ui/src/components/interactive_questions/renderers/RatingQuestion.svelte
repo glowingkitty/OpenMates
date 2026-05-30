@@ -39,6 +39,14 @@
     }
   });
 
+  // Reset rating if parent clears the value
+  $effect(() => {
+    if (value === null && !disabled) {
+      rating = 0;
+      comment = '';
+    }
+  });
+
   function handleSetRating(starNum: number) {
     if (disabled) return;
     rating = starNum;

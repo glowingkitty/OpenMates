@@ -40,6 +40,13 @@
     }
   });
 
+  // Reset slider if parent clears the value
+  $effect(() => {
+    if (value === null && !disabled) {
+      sliderVal = data.default ?? Math.round((data.min + data.max) / 2);
+    }
+  });
+
   function handleChange(val: number) {
     if (disabled) return;
     sliderVal = val;

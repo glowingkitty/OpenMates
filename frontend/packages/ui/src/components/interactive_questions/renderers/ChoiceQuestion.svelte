@@ -35,6 +35,13 @@
     }
   });
 
+  // Reset selection if parent clears the value
+  $effect(() => {
+    if (value === null && !disabled) {
+      selectedIds = [];
+    }
+  });
+
   // Handle choice selection
   function handleSelect(optionId: string) {
     if (disabled) return;
