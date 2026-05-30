@@ -24,8 +24,8 @@
   import { findSubsequentResponse, submitResponse } from './utils/questionState';
   import { chatDB } from '../../services/db';
   import { chatSyncService } from '../../services/chatSyncService';
-  import type { Message } from '../../../types/chat';
-  import { activeChatStore } from '../../../stores/activeChatStore';
+  import type { Message } from '../../types/chat';
+  import { activeChatStore } from '../../stores/activeChatStore';
   import ChoiceQuestion from './renderers/ChoiceQuestion.svelte';
   import InputQuestion from './renderers/InputQuestion.svelte';
   import SliderQuestion from './renderers/SliderQuestion.svelte';
