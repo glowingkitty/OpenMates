@@ -75,8 +75,9 @@ export async function submitResponse(chatId: string, content: string): Promise<v
     chatSyncService.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
-          chatId: chatId,
+          chat_id: chatId,
           newMessage: message,
+          chat: chat || undefined,
         },
       })
     );
