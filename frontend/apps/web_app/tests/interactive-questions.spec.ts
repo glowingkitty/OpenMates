@@ -1,59 +1,104 @@
-import { expect, test } from './helpers/cookie-audit';
+/* eslint-disable @typescript-eslint/no-require-imports */
+export {};
 
 /**
- * Playwright E2E Tests for the InteractiveQuestions system.
- * Runs against the dev preview router to verify layout rendering, Clear/Send button states,
- * and user interactions.
+ * Interactive Questions Chat Flow Spec
  *
- * Architecture: Svelte 5 / Playwright Integration Tests
+ * Verifies that the assistant can embed interactive question blocks,
+ * which are parsed as Svelte widgets. Interacting with the choices and
+ * clicking "Send" dispatches the response as a user message, locking
+ * the container's interactive elements.
+ *
+ * REQUIRED ENV VARS:
+ * - OPENMATES_TEST_ACCOUNT_EMAIL
+ * - OPENMATES_TEST_ACCOUNT_PASSWORD
+ * - OPENMATES_TEST_ACCOUNT_OTP_KEY
  */
-test.describe('InteractiveQuestions System', () => {
-	test.beforeEach(async ({ page }) => {
-		// Navigate directly to the component's unauthenticated dev preview route
-		const response = await page.goto('/dev/preview/interactive_questions/InteractiveQuestionContainer', {
-			waitUntil: 'networkidle'
-		});
-		expect(response?.status()).toBe(200);
-		// Wait for SvelteKit client hydration
-		await page.waitForTimeout(2000);
-	});
 
-	test('renders choice single-select question, handles selections and clear actions', async ({ page }) => {
-		// Verify type badge and question title are visible
-		await expect(page.locator('.type-badge.choice-badge')).toContainText('Choice');
-		await expect(page.locator('.question-title')).toBeVisible();
+const { test, expect } = require('./helpers/cookie-audit');
+const {
+	createSignupLogger,
+	archiveExistingScreenshots,
+	createStepScreenshotter,
+	withMockMarker
+} = require('./signup-flow-helpers');
 
-		// Verify option list records exist
-		const options = page.locator('.option-item');
-		await expect(options).toHaveCount(3);
+const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
-		// Send button should be disabled by default (no selection made)
-		const sendBtn = page.locator('.btn-send');
-		await expect(sendBtn).toHaveClass(/disabled/);
+test('triggers interactive questions, handles selections, submissions, and state locking', async ({ page }) => {
+	const log = createSignupLogger('INTERACTIVE_QUESTIONS');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
 
-		// Click the first option
-		await options.first().click();
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
 
-		// Send button should become active
-		await expect(sendBtn).not.toHaveClass(/disabled/);
+	// Start a new chat
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await newChatButton.click();
+		await page.waitForTimeout(1500);
+	}
+	await screenshot(page, 'new-chat-ready');
 
-		// Click 'Clear'
-		await page.locator('.btn-clear').click();
+	// Ask for a quiz to trigger the interactive question block
+	const message = 'Quiz me on Python slicing syntax';
+	log(`Sending: "${message}"`);
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 10000 });
+	await messageEditor.click();
+	await page.keyboard.type(withMockMarker(message, 'interactive_questions_quiz'));
 
-		// Send button should be disabled again
-		await expect(sendBtn).toHaveClass(/disabled/);
-	});
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled();
+	await sendButton.click();
+	log('Message sent.');
 
-	test('supports keyboard navigation for accessible choice selections', async ({ page }) => {
-		const options = page.locator('.option-item');
-		const sendBtn = page.locator('.btn-send');
+	// Wait for the assistant's message containing the interactive question
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	await page.waitForTimeout(1000);
+	await screenshot(page, 'assistant-quiz-received');
 
-		// Focus the second choice option and press Enter to select it
-		await options.nth(1).focus();
-		await page.keyboard.press('Enter');
+	// Verify the interactive question card is mounted inside the message bubble
+	const questionCard = page.locator('.interactive-question-card');
+	await expect(questionCard).toBeVisible({ timeout: 15000 });
 
-		// Choice should be selected, unlocking the Send button
-		await expect(options.nth(1)).toHaveClass(/selected/);
-		await expect(sendBtn).not.toHaveClass(/disabled/);
-	});
+	// Assert the question heading title is parsed and rendered correctly
+	const title = questionCard.locator('.question-title');
+	await expect(title).toBeVisible();
+
+	// Verify the option items list renders correctly
+	const options = questionCard.locator('.option-item');
+	await expect(options).toHaveCount(2);
+
+	// Verify "Send" and "Clear" buttons exist in the card footer
+	const clearBtn = questionCard.locator('.btn-clear');
+	const submitBtn = questionCard.locator('.btn-send');
+	await expect(clearBtn).toBeVisible();
+	await expect(submitBtn).toBeVisible();
+
+	// Send button should be disabled until a choice is selected
+	await expect(submitBtn).toHaveClass(/disabled/);
+
+	// Select the first option
+	await options.first().click();
+	await expect(submitBtn).not.toHaveClass(/disabled/);
+
+	// Click "Send" inside the question card container to submit the response
+	await submitBtn.click();
+	log('Interactive answer submitted.');
+
+	// Wait for our answered response summary message to be appended to the chat
+	const userResponseMsg = page.locator('.chat-message-body').last();
+	await expect(userResponseMsg).toContainText('I selected:');
+
+	// Verify that the interactive question card has transitioned to its locked/answered state
+	await expect(questionCard).toHaveClass(/locked/);
+	await expect(questionCard.locator('.answered-badge')).toBeVisible();
+
+	// Confirm that the Clear and Send buttons are unmounted after the question is locked
+	await expect(clearBtn).not.toBeVisible();
+	await expect(submitBtn).not.toBeVisible();
+
+	await screenshot(page, 'quiz-completed-and-locked');
 });
