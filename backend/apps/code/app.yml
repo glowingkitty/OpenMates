@@ -461,3 +461,7 @@ focuses:
     name_translation_key: code.refactor_code
     description_translation_key: code.refactor_code.description
     stage: planning
+  - id: check_security
+    name_translation_key: code.check_security
+    description_translation_key: code.check_security.description
+    stage: development
