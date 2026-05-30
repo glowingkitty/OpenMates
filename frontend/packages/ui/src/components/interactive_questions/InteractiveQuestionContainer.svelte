@@ -185,6 +185,10 @@
     {/if}
   </div>
 
+  {#if payload.question}
+    <h4 class="question-title">{payload.question}</h4>
+  {/if}
+
   <div class="question-body">
     {#if payload.type === 'choice'}
       <ChoiceQuestion
