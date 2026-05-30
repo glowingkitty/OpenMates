@@ -256,8 +256,8 @@ test.describe('InteractiveQuestions Chat Integration', () => {
 		log('Interactive answer submitted.');
 
 		// Wait for our answered response summary message to be appended to the chat
-		const userResponseMsg = page.locator('.chat-message-body').last();
-		await expect(userResponseMsg).toContainText('I selected:');
+		const userResponseMsg = page.locator('.user-message-content').last();
+		await expect(userResponseMsg).toContainText('I selected:', { timeout: 10000 });
 
 		// Verify that the interactive question card has transitioned to its locked/answered state
 		await expect(questionCard).toHaveClass(/locked/);
