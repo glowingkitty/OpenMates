@@ -101,9 +101,9 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 
 		const db = await openDB();
 
-		const parentId = 'e2e-parent-chat-uuid';
-		const childId = 'e2e-child-chat-uuid';
-		const grandId = 'e2e-grandchild-chat-uuid';
+		const parentId = 'demo-parent-chat-uuid';
+		const childId = 'demo-child-chat-uuid';
+		const grandId = 'demo-grandchild-chat-uuid';
 
 		const now = Math.floor(Date.now() / 1000);
 
@@ -239,7 +239,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	// 3. Open Parent Chat and Verify Cards Carousel
 	log('Opening parent chat...');
 	await page.evaluate(() => {
-		window.location.hash = 'chat-id=e2e-parent-chat-uuid';
+		window.location.hash = 'chat-id=demo-parent-chat-uuid';
 	});
 	await page.waitForTimeout(1500);
 	await screenshot(page, 'parent-chat-opened');
@@ -257,7 +257,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	log('Navigating to child sub-chat via card click...');
 	await card.click();
 	await page.waitForTimeout(1500);
-	await expect(page).toHaveURL(/chat-id=e2e-child-chat-uuid/);
+	await expect(page).toHaveURL(/chat-id=demo-child-chat-uuid/);
 	await screenshot(page, 'child-chat-opened');
 
 	// 5. Verify Persistent "Return" Header Bar
@@ -276,7 +276,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	log('Clicking "Return" to navigate back to parent...');
 	await returnButton.click();
 	await page.waitForTimeout(1500);
-	await expect(page).toHaveURL(/chat-id=e2e-parent-chat-uuid/);
+	await expect(page).toHaveURL(/chat-id=demo-parent-chat-uuid/);
 	await screenshot(page, 'returned-to-parent');
 
 	log('E2E Sub-chats flow test completed successfully!');
