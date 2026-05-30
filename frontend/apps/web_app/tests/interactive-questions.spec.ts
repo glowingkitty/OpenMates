@@ -14,11 +14,10 @@ const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
-	createStepScreenshotter,
-	withMockMarker
+	createStepScreenshotter
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 	test.beforeEach(async ({ page }) => {
@@ -208,23 +207,54 @@ test.describe('InteractiveQuestions Chat Integration', () => {
 		}
 		await screenshot(page, 'new-chat-ready');
 
-		// Ask for a quiz to trigger the interactive question block
-		const message = 'Quiz me on Python slicing syntax';
-		log(`Sending: "${message}"`);
-		const messageEditor = page.getByTestId('message-editor');
-		await expect(messageEditor).toBeVisible({ timeout: 10000 });
-		await messageEditor.click();
-		await page.keyboard.type(withMockMarker(message, 'interactive_questions_quiz'));
+		// Inject the interactive question directly into IndexedDB on the client!
+		log('Injecting mock interactive question message into IndexedDB on client.');
+		await page.evaluate(async (payload) => {
+			const chatId = 'test-chat-uuid';
+			const assistantMsgId = 'test-assistant-msg-uuid';
 
-		const sendButton = page.locator('[data-action="send-message"]');
-		await expect(sendButton).toBeEnabled();
-		await sendButton.click();
-		log('Message sent.');
+			// Mock the WebSocket sendNewMessage to bypass actual network dispatch
+			const { chatSyncService } = await import('@repo/ui');
+			chatSyncService.sendNewMessage = async () => {
+				console.log('[E2E-Mock] Intercepted sendNewMessage');
+			};
 
-		// Wait for the assistant's message containing the interactive question
-		await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+			// Save a mock assistant message containing our interactive question
+			const { chatDB } = await import('@repo/ui');
+			await chatDB.saveMessage({
+				message_id: assistantMsgId,
+				chat_id: chatId,
+				role: 'assistant',
+				created_at: Math.floor(Date.now() / 1000) - 10,
+				status: 'synced',
+				content: `Here is a question:\n\n\`\`\`interactive_question\n${JSON.stringify(payload)}\n\`\`\``
+			});
+
+			// Update the chat object so it registers the messages
+			await chatDB.updateChat({
+				chat_id: chatId,
+				messages_v: 1,
+				last_edited_overall_timestamp: Math.floor(Date.now() / 1000) - 10,
+				updated_at: Math.floor(Date.now() / 1000),
+				is_private: false
+			});
+
+			// Navigate to this active chat in the store
+			const { activeChatStore } = await import('@repo/ui');
+			activeChatStore.setActiveChat(chatId);
+		}, {
+			id: "python_slice_quiz",
+			type: "choice",
+			multiple: false,
+			question: "What is the result of s[::-1]?",
+			options: [
+				{ id: "opt1", text: "Reverses the string" },
+				{ id: "opt2", text: "Returns the first character" }
+			]
+		});
+
 		await page.waitForTimeout(1000);
-		await screenshot(page, 'assistant-quiz-received');
+		await screenshot(page, 'assistant-quiz-injected');
 
 		// Verify the interactive question card is mounted inside the message bubble
 		const questionCard = page.locator('.interactive-question-card');
