@@ -2530,6 +2530,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
+      class:interactive-response-bubble={role === 'user' && typeof content === 'string' && content.includes('```interactive_response')}
       data-testid="{role === 'user' ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
@@ -3292,5 +3293,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     .badge-text {
       color: var(--color-font-primary, #fff);
     }
+  }
+
+  /* Interactive Question User Response bubble styling */
+  .interactive-response-bubble {
+    border-left: 3px solid var(--color-primary, #ff553b) !important;
+    border-top-left-radius: var(--radius-8, 8px) !important;
+    border-bottom-left-radius: var(--radius-8, 8px) !important;
+    background: var(--color-grey-10, #f8f9fa) !important;
+    color: var(--color-font-primary) !important;
+    padding-left: var(--spacing-12, 12px) !important;
   }
 </style>

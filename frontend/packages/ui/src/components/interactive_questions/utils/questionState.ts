@@ -11,6 +11,7 @@
 import { chatSyncService } from "../../../services/chatSyncService";
 import type { Message } from "../../../types/chat";
 import type { InteractiveQuestionResponse } from "../types";
+import { chatDB } from "../../../services/db";
 
 /**
  * Searches the chat history for a subsequent user response containing an interactive response payload
@@ -53,8 +54,36 @@ export async function submitResponse(chatId: string, content: string): Promise<v
     chat_id: chatId,
     role: "user",
     created_at: Math.floor(Date.now() / 1000),
-    status: "sending",
+    status: "synced", // Set to synced so it is displayed as completed locally
     content: content,
   };
+
+  try {
+    // 1. Save the user response message locally in IndexedDB
+    await chatDB.saveMessage(message);
+
+    // 2. Increment local chat message version and overall timestamp
+    const chat = await chatDB.getChat(chatId);
+    if (chat) {
+      chat.messages_v = (chat.messages_v || 0) + 1;
+      chat.last_edited_overall_timestamp = message.created_at;
+      chat.updated_at = Math.floor(Date.now() / 1000);
+      await chatDB.updateChat(chat);
+    }
+
+    // 3. Dispatch 'messageAdded' event so Svelte's ChatHistory/ActiveChat instantly appends the bubble
+    chatSyncService.dispatchEvent(
+      new CustomEvent("messageAdded", {
+        detail: {
+          chatId: chatId,
+          message: message,
+        },
+      })
+    );
+  } catch (err) {
+    console.error("[questionState] Error saving and dispatching response message:", err);
+  }
+
+  // 4. Send response message over active WebSocket
   await chatSyncService.sendNewMessage(message);
 }
