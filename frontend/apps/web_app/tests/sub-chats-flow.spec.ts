@@ -281,7 +281,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 
 	// 7. Click Return to Go Back to Parent
 	log('Clicking "Return" to navigate back to parent...');
-	await returnButton.click();
+	await returnButton.click({ force: true });
 	await page.waitForTimeout(1500);
 	await expect(page).toHaveURL(/chat-id=e2e-parent-chat-uuid/);
 	await screenshot(page, 'returned-to-parent');

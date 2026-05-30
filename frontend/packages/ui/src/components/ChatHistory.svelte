@@ -1998,7 +1998,7 @@
             class="return-to-parent-button"
             data-testid="return-to-parent-button"
             title={`Return to ${parentChatTitle}`}
-            style="position: absolute; top: 12px; left: 12px; z-index: 999; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
+            style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
             onclick={async () => {
                 const { activeChatStore } = await import('../stores/activeChatStore');
                 activeChatStore.setActiveChat(parentChatId);
