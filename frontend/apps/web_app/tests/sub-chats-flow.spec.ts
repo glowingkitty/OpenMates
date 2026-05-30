@@ -217,7 +217,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 		db.close();
 
 		// Trigger local lists changed event so UI updates
-		window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: parentId } }));
+		window.dispatchEvent(new CustomEvent('localChatListChanged'));
 	});
 
 	await page.waitForTimeout(2000);
