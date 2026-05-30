@@ -484,30 +484,32 @@
           The label is only shown when we know which model was used so it's
           future-proof if the transcription provider is swapped out.
         -->
-        {#if model}
-          <div class="model-info-line">
-            {#if modelIconUrl}
-              <div class="model-icon-circle">
-                <img src={modelIconUrl} alt="" class="model-icon" />
-              </div>
-            {/if}
-            <span class="model-info-text">
-              {$text('app_skills.audio.transcribe.transcribed_by').replace('{model}', getModelDisplayName(model))}
-            </span>
-          </div>
-        {/if}
-        {#if transcriptOriginal && transcriptCorrected}
-          <div class="transcript-toggle-bar">
+        <div class="transcript-meta-row">
+          {#if model}
+            <div class="model-info-line">
+              {#if modelIconUrl}
+                <div class="model-icon-circle">
+                  <img src={modelIconUrl} alt="" class="model-icon" />
+                </div>
+              {/if}
+              <span class="model-info-text">
+                {$text('app_skills.audio.transcribe.transcribed_by').replace('{model}', getModelDisplayName(model))}
+              </span>
+            </div>
+          {/if}
+
+          {#if transcriptOriginal && transcriptCorrected}
             <button
-              class="selector-pill"
-              class:active={useCorrectedState}
+              class="ai-correction-badge"
+              class:corrected={useCorrectedState}
               onclick={handleToggleCorrected}
               type="button"
             >
-              {useCorrectedState ? 'Corrected ✨' : 'Verbatim 🎙️'}
+              <span class="sparkle-icon"></span>
+              <span class="badge-text">{useCorrectedState ? 'Corrected transcript ON' : 'Verbatim transcript'}</span>
             </button>
-          </div>
-        {/if}
+          {/if}
+        </div>
         <p class="transcript-preview">{transcriptPreview}</p>
 
       {:else if audioLoadError}
@@ -555,56 +557,94 @@
   }
 
   /* ---- Transcript Auto-correct Toggle Bar ---- */
-  .transcript-toggle-bar {
+  .transcript-meta-row {
     display: flex;
-    margin-top: 2px;
-    margin-bottom: 2px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+    width: 100%;
   }
 
-  .selector-pill {
+  .ai-correction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 3px 8px;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--color-grey-10, #f5f5f5);
+    border: 1px solid var(--color-grey-20, #e8e8e8);
+    color: var(--color-grey-60, #666);
     font-size: 10px;
     font-weight: 600;
-    border-radius: var(--radius-full, 9999px);
-    border: 1px solid var(--color-grey-20, #e8e8e8);
-    background: var(--color-grey-5, #fafafa);
-    color: var(--color-grey-60, #666);
     cursor: pointer;
     transition: all 0.15s ease-in-out;
     pointer-events: auto !important;
   }
 
-  .selector-pill:hover {
+  .ai-correction-badge:hover {
     background: var(--color-grey-15, #f0f0f0);
     border-color: var(--color-grey-30, #ccc);
   }
 
-  .selector-pill.active {
+  .ai-correction-badge.corrected {
+    background: rgba(224, 85, 85, 0.08); /* 8% opacity of var(--color-app-audio) */
+    border-color: rgba(224, 85, 85, 0.25);
+    color: var(--color-app-audio, #e05555);
+  }
+
+  .ai-correction-badge.corrected:hover {
+    background: rgba(224, 85, 85, 0.15);
+    border-color: rgba(224, 85, 85, 0.35);
+  }
+
+  .sparkle-icon {
+    display: block;
+    width: 11px;
+    height: 11px;
+    background: var(--color-grey-50, #888);
+    -webkit-mask-image: url('/icons/ai.svg');
+    mask-image: url('/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  .ai-correction-badge.corrected .sparkle-icon {
     background: var(--color-app-audio, #e05555);
-    border-color: var(--color-app-audio, #e05555);
-    color: white;
   }
 
-  .selector-pill.active:hover {
-    background: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
-    border-color: color-mix(in srgb, var(--color-app-audio, #e05555) 85%, #000 15%);
-  }
-
-  :global(.dark) .selector-pill {
+  :global(.dark) .ai-correction-badge {
     background: var(--color-grey-80, #333);
     border-color: var(--color-grey-70, #444);
     color: var(--color-grey-30, #ccc);
   }
 
-  :global(.dark) .selector-pill:hover {
+  :global(.dark) .ai-correction-badge:hover {
     background: var(--color-grey-75, #3a3a3a);
     border-color: var(--color-grey-60, #555);
   }
 
-  :global(.dark) .selector-pill.active {
+  :global(.dark) .ai-correction-badge.corrected {
+    background: rgba(224, 85, 85, 0.15);
+    border-color: rgba(224, 85, 85, 0.35);
+    color: var(--color-app-audio, #e05555);
+  }
+
+  :global(.dark) .ai-correction-badge.corrected:hover {
+    background: rgba(224, 85, 85, 0.22);
+    border-color: rgba(224, 85, 85, 0.45);
+  }
+
+  :global(.dark) .sparkle-icon {
+    background: var(--color-grey-40, #aaa);
+  }
+
+  :global(.dark) .ai-correction-badge.corrected .sparkle-icon {
     background: var(--color-app-audio, #e05555);
-    border-color: var(--color-app-audio, #e05555);
-    color: white;
   }
 
   /* ---- Provider model info row (used in both transcribing and finished states) ---- */
