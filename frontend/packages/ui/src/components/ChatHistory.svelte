@@ -1994,12 +1994,15 @@
     onscroll={handleScroll}
 >
     {#if parentChatId}
-        <a
-            href={`#chat-id=${parentChatId}`}
+        <button
+            type="button"
             class="return-to-parent-button"
             data-testid="return-to-parent-button"
             title={`Return to ${parentChatTitle}`}
-            style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
+            style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
+            onclick={() => {
+                activeChatStore.setActiveChat(parentChatId);
+            }}
         >
             <span style="display: flex; align-items: center;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2008,7 +2011,7 @@
                 </svg>
             </span>
             <span>Return</span>
-        </a>
+        </button>
     {/if}
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
          so it spans the full width regardless of the .chat-history-content max-width.
