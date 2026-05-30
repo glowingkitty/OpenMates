@@ -1893,6 +1893,21 @@ async def handle_main_processing(
 
     prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 
+    # --- Add sub-chats usage instructions for LLM ---
+    if enable_subchats_results:
+        sub_chats_instruction = (
+            "### Sub-Chats (Sub-Agents) Orchestration Instruction:\n"
+            "You have the unique ability to spawn one or multiple autonomous background sub-chats "
+            "to parallelize complex tasks (such as parallel web research, batch processing, comparative analysis, or dividing a long-form task into sections) "
+            "using the 'start_sub_chats' tool.\n"
+            "When the user asks a complex question that would benefit from parallel or distributed processing (e.g., comparing multiple items, batch looping, or deep multi-topic research), "
+            "you MUST call 'start_sub_chats' to delegate those tasks to sub-agents. Do not attempt to do everything in a single turn if it would benefit from sub-chats.\n"
+            "When spawning sub-chats, provide precise and focused prompts for each sub-chat so they can work independently and efficiently. "
+            "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
+        )
+        prompt_parts.append(sub_chats_instruction)
+        logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
+
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     
     # Generate tool definitions from discovered apps using the tool generator
