@@ -248,6 +248,11 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	await expect(card).toBeVisible();
 	await expect(card).toContainText('Research Apple Q1');
 	await expect(card.getByTestId('sub-chat-status-done')).toContainText('Done');
+	await expect(card).not.toContainText('credits');
+	const cardBox = await card.boundingBox();
+	expect(cardBox?.height, 'Sub-chat previews should use the large resume-card layout.').toBeGreaterThan(150);
+	const assistantTextBox = await page.getByText('I have started the sub-chat Apple research.').boundingBox();
+	expect(cardBox?.y, 'Sub-chat previews should stay at the top of the assistant response.').toBeLessThan(assistantTextBox?.y ?? 0);
 
 	// 4. Click Card to Navigate to Sub-chat
 	log('Navigating to child sub-chat via card click...');

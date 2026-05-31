@@ -4903,7 +4903,7 @@ export async function handleSpawnSubChatsImpl(
             parentKey,
           ),
           messages_v: 1,
-          title_v: 1,
+          title_v: 0,
           unread_count: 0,
           created_at: Math.floor(Date.now() / 1000),
           updated_at: Math.floor(Date.now() / 1000),

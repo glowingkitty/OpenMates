@@ -43,6 +43,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import type { TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
+  import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
+  import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   
   // Define types for message content parts
   type AppCardData = {
@@ -157,7 +159,26 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let thinkingExpanded = $state(false);
 
   // --- Sub-chats tracking for assistant message turn ---
-  let subChatsOfThisMessage = $state<Chat[]>([]);
+  type SubChatPreview = Chat & {
+    previewSummary?: string | null;
+    previewCategory?: string | null;
+    previewIcon?: string | null;
+  };
+
+  let subChatsOfThisMessage = $state<SubChatPreview[]>([]);
+
+  function getSubChatPreviewStyle(category?: string | null): string {
+    const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
+      start: '#4867cd',
+      end: '#a0beff',
+    };
+
+    return [
+      `background: linear-gradient(135deg, ${colors.start}, ${colors.end})`,
+      `--orb-color-a: ${colors.start}`,
+      `--orb-color-b: ${colors.end}`,
+    ].join('; ');
+  }
 
   async function loadSubChats() {
     if (role !== 'assistant' || !currentChatId) return;
@@ -168,11 +189,51 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       const all = await getAllChats(chatDB);
       const msgTime = original_message?.created_at || 0;
       // Filter sub-chats created close to this assistant message (within 60s)
-      subChatsOfThisMessage = all.filter(c => 
+      const matchingSubChats = all.filter(c => 
         c.parent_id === currentChatId && 
         (c.is_sub_chat || c.parent_id !== null) &&
         Math.abs(c.created_at - msgTime) < 60
       );
+      const previews: SubChatPreview[] = [];
+      const fallbackKey = await chatKeyManager.getKey(currentChatId);
+
+      for (const chat of matchingSubChats) {
+        const chatKey = await chatKeyManager.getKey(chat.chat_id) || fallbackKey;
+        const preview: SubChatPreview = { ...chat };
+
+        if (chatKey) {
+          if (!preview.title && chat.encrypted_title) {
+            preview.title = await decryptWithChatKey(chat.encrypted_title, chatKey, {
+              chatId: chat.chat_id,
+              fieldName: 'sub_chat_title',
+            }) || preview.title;
+          }
+          if (chat.encrypted_chat_summary) {
+            preview.previewSummary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, {
+              chatId: chat.chat_id,
+              fieldName: 'sub_chat_summary',
+            });
+          }
+          if (chat.encrypted_category) {
+            preview.previewCategory = await decryptWithChatKey(chat.encrypted_category, chatKey, {
+              chatId: chat.chat_id,
+              fieldName: 'sub_chat_category',
+            });
+          }
+          if (chat.encrypted_icon) {
+            preview.previewIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey, {
+              chatId: chat.chat_id,
+              fieldName: 'sub_chat_icon',
+            });
+          }
+        }
+
+        preview.previewCategory ||= chat.category || 'general_knowledge';
+        preview.previewIcon = getValidIconName(preview.previewIcon || '', preview.previewCategory || 'general_knowledge');
+        previews.push(preview);
+      }
+
+      subChatsOfThisMessage = previews;
     } catch (e) {
       console.error('Error loading sub-chats for message:', e);
     }
@@ -2610,6 +2671,56 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           onHighlightAndComment={handleToolbarHighlightAndComment}
         />
 
+        <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,
+             even after the parent continuation summary arrives below. -->
+        {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
+          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
+            {#each subChatsOfThisMessage as sc (sc.chat_id)}
+              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
+              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+              <button
+                type="button"
+                class="sub-chat-card sub-chat-large-card"
+                data-testid="sub-chat-card"
+                style={getSubChatPreviewStyle(subChatCategory)}
+                onclick={async () => {
+                  const { activeChatStore } = await import('../stores/activeChatStore');
+                  activeChatStore.setActiveChat(sc.chat_id);
+                }}
+              >
+                <div
+                  class="sub-chat-status-pill"
+                  data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
+                >
+                  {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
+                </div>
+                <div class="sub-chat-large-orbs" aria-hidden="true">
+                  <div class="sub-chat-orb sub-chat-orb-1"></div>
+                  <div class="sub-chat-orb sub-chat-orb-2"></div>
+                  <div class="sub-chat-orb sub-chat-orb-3"></div>
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-content">
+                  <div class="sub-chat-large-icon" aria-hidden="true">
+                    <SubChatIcon size={32} color="white" />
+                  </div>
+                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
+                    {sc.title || "Autonomous Task"}
+                  </span>
+                  {#if sc.previewSummary}
+                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+        {/if}
+
         <!-- Thinking Section: Displayed above message content for thinking models -->
         {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
           <ThinkingSection
@@ -2675,43 +2786,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             />
           {/if}
 
-          <!-- Horizontal Scrollable Sub-Chats Carousel -->
-          {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
-            <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
-              {#each subChatsOfThisMessage as sc (sc.chat_id)}
-                <button
-                  type="button"
-                  class="sub-chat-card resume-style-card"
-                  data-testid="sub-chat-card"
-                  onclick={async () => {
-                    const { activeChatStore } = await import('../stores/activeChatStore');
-                    activeChatStore.setActiveChat(sc.chat_id);
-                  }}
-                >
-                  <div class="sub-chat-compact-icon" aria-hidden="true">
-                    <span>S</span>
-                  </div>
-                  <div class="sub-chat-card-content">
-                    <span class="sub-chat-card-pill">Sub-chat</span>
-                    <span class="sub-chat-card-title" data-testid="sub-chat-title">
-                      {sc.title || "Autonomous Task"}
-                    </span>
-                    <div class="sub-chat-card-meta">
-                      <span>{sc.budget_spent || 0} credits</span>
-                      {#if sc.updated_at > sc.created_at}
-                        <span class="sub-chat-status done" data-testid="sub-chat-status-done">Done</span>
-                      {:else}
-                        <span class="sub-chat-status active" data-testid="sub-chat-status-active">Active</span>
-                      {/if}
-                    </div>
-                  </div>
-                  <div class="sub-chat-card-arrow" aria-hidden="true">
-                    &gt;
-                  </div>
-                </button>
-              {/each}
-            </div>
-          {/if}
         </div>
         
         {#if is_truncated && role === 'user'}
@@ -2973,128 +3047,231 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .sub-chats-carousel {
     display: flex;
-    gap: var(--spacing-6);
+    gap: var(--spacing-8);
     overflow-x: auto;
-    padding: var(--spacing-6) var(--spacing-2);
-    margin-top: var(--spacing-6);
-    border-top: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
-    scrollbar-width: thin;
+    overflow-y: hidden;
+    padding: var(--spacing-6) var(--spacing-2) var(--spacing-8);
+    margin-bottom: var(--spacing-6);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sub-chats-carousel::-webkit-scrollbar {
+    display: none;
   }
 
   .sub-chat-card {
     position: relative;
-    flex: 0 0 240px;
+    flex: 0 0 300px;
     display: flex;
     align-items: center;
-    gap: var(--spacing-6);
-    min-height: 58px;
-    padding: var(--spacing-5) var(--spacing-8);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: var(--radius-8);
-    background: linear-gradient(135deg, var(--gradient-ai-start, #6364ff), var(--gradient-ai-end, #9b6dff));
-    background-size: 140% 140%;
-    background-position: 0% 50%;
-    color: white;
+    justify-content: center;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
+    padding: 0;
+    border: none;
+    border-radius: 30px;
+    background-color: transparent;
     cursor: pointer;
     overflow: hidden;
-    text-align: left;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
     box-shadow:
       0 8px 24px rgba(0, 0, 0, 0.16),
       0 2px 6px rgba(0, 0, 0, 0.1);
     transition:
-      background-position 0.25s ease,
       transform 0.15s ease-out,
-      box-shadow 0.2s ease-out,
-      border-color 0.2s ease;
+      box-shadow 0.2s ease-out;
+  }
+
+  .sub-chat-card:hover,
+  .sub-chat-card:active {
+    background-color: transparent;
+    filter: none;
+    scale: 1;
   }
 
   .sub-chat-card:hover {
-    border-color: rgba(255, 255, 255, 0.24);
-    background-position: 100% 50%;
-    transform: translateY(-1px);
+    transform: scale(0.98);
     box-shadow:
-      0 10px 28px rgba(0, 0, 0, 0.18),
-      0 3px 8px rgba(0, 0, 0, 0.12);
+      0 4px 12px rgba(0, 0, 0, 0.12),
+      0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
   .sub-chat-card:active {
-    transform: scale(0.98);
+    transform: scale(0.96) !important;
+    transition: transform 0.05s ease-out;
   }
 
-  .sub-chat-compact-icon {
+  .sub-chat-card:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+  }
+
+  .sub-chat-status-pill {
+    position: absolute;
+    top: var(--spacing-8);
+    left: var(--spacing-8);
+    z-index: var(--z-index-raised-4);
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .sub-chat-large-content {
+    position: relative;
+    z-index: var(--z-index-raised-3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    width: 100%;
+    max-width: 260px;
+    padding: var(--spacing-8) var(--spacing-12);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .sub-chat-large-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    min-width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 11px;
-    font-weight: 800;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
   }
 
-  .sub-chat-card-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .sub-chat-card-pill {
-    width: fit-content;
-    padding: 3px 7px;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.28);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .sub-chat-card-title {
-    display: block;
+  .sub-chat-large-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: rgba(255, 255, 255, 0.96);
-    font-size: var(--font-size-small);
+    max-width: 100%;
+    color: var(--color-font-button);
+    font-size: var(--font-size-p);
     font-weight: 700;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+    line-height: 1.3;
+    text-align: center;
   }
 
-  .sub-chat-card-meta {
+  .sub-chat-large-summary {
+    margin: 2px 0 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--font-size-xxs);
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .sub-chat-large-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: 30px;
+  }
+
+  .sub-chat-orb {
+    position: absolute;
+    width: 280px;
+    height: 240px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--orb-color-b) 0%,
+      var(--orb-color-b) 40%,
+      transparent 85%
+    );
+    filter: blur(22px);
+    opacity: 0.35;
+    will-change: transform, border-radius;
+  }
+
+  .sub-chat-orb-1 {
+    top: -60px;
+    left: -70px;
+    animation:
+      orbMorph1 11s ease-in-out infinite,
+      resumeOrbDrift1 19s ease-in-out infinite;
+  }
+
+  .sub-chat-orb-2 {
+    right: -80px;
+    bottom: -80px;
+    width: 260px;
+    height: 220px;
+    animation:
+      orbMorph2 13s ease-in-out infinite,
+      resumeOrbDrift2 23s ease-in-out infinite;
+  }
+
+  .sub-chat-orb-3 {
+    top: -10px;
+    left: 25%;
+    width: 200px;
+    height: 180px;
+    opacity: 0.38;
+    animation:
+      orbMorph3 17s ease-in-out infinite,
+      resumeOrbDrift3 29s ease-in-out infinite;
+  }
+
+  .sub-chat-large-deco {
+    position: absolute;
+    z-index: var(--z-index-raised);
     display: flex;
     align-items: center;
-    gap: var(--spacing-4);
-    color: rgba(255, 255, 255, 0.72);
-    font-size: var(--font-size-xxs);
-    font-weight: 600;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    pointer-events: none;
+    --float-rx: 7px;
+    --float-ry: 8px;
+    --deco-target-opacity: 0.3;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
   }
 
-  .sub-chat-status.done {
-    color: rgba(209, 255, 223, 0.95);
+  .sub-chat-large-deco-left {
+    left: -10px;
+    bottom: -8px;
+    --deco-rotate: -15deg;
   }
 
-  .sub-chat-status.active::before {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin-right: 4px;
-    border-radius: 50%;
-    background: rgba(255, 199, 87, 0.95);
-    vertical-align: 1px;
+  .sub-chat-large-deco-right {
+    right: -10px;
+    bottom: -8px;
+    --deco-rotate: 15deg;
+    animation-delay: 0.1s, -8s;
   }
 
-  .sub-chat-card-arrow {
-    color: rgba(255, 255, 255, 0.88);
-    font-size: var(--font-size-small);
-    font-weight: 700;
-    opacity: 0.82;
+  .sub-chat-large-deco :global(svg) {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sub-chat-orb,
+    .sub-chat-large-deco {
+      animation: none !important;
+    }
   }
 
   /* Compression summary card: wider card with expand/collapse for AI-generated chat summaries.

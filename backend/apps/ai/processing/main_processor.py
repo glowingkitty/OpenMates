@@ -3794,7 +3794,7 @@ async def handle_main_processing(
                                         "created_at": int(time.time()),
                                         "updated_at": int(time.time()),
                                         "messages_v": 1,
-                                        "title_v": 1,
+                                        "title_v": 0,
                                         "last_edited_overall_timestamp": int(time.time()),
                                         "last_message_timestamp": int(time.time()),
                                         "unread_count": 0,
@@ -3825,7 +3825,7 @@ async def handle_main_processing(
                                                 "sender_name": "user"
                                             }
                                         ],
-                                        "chat_has_title": True,
+                                        "chat_has_title": False,
                                         "parent_id": request_data.chat_id,
                                         "is_sub_chat": True,
                                         "is_incognito": request_data.is_incognito,
