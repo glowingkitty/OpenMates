@@ -576,7 +576,30 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     continue
 
                 event_type = redis_payload.get("type")
-                if event_type == "ai_message_chunk":
+                if event_type in ("spawn_sub_chats", "awaiting_sub_chats_completion", "sub_chat_completed", "awaiting_user_input"):
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id_from_payload = redis_payload.get("parent_id") or redis_payload.get("chat_id")
+                    
+                    if not user_id_uuid:
+                        logger.warning(
+                            f"AI Stream Listener: Missing user_id_uuid in sub-chat payload from channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    
+                    user_connections = manager.get_connections_for_user(user_id_uuid)
+                    for device_hash, websocket_conn in user_connections.items():
+                        active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
+                        if chat_id_from_payload == active_chat_on_device:
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": redis_payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash
+                            )
+                            logger.info(f"AI Stream Listener: Forwarded '{event_type}' to active chat on {user_id_uuid}/{device_hash}")
+                    continue
+
+                elif event_type == "ai_message_chunk":
                     user_id_uuid = redis_payload.get("user_id_uuid") # Use UUID for ConnectionManager
                     user_id_hash_for_logging = redis_payload.get("user_id_hash") # Keep for logging if needed
                     chat_id_from_payload = redis_payload.get("chat_id")

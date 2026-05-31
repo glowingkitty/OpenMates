@@ -2274,6 +2274,9 @@ async def _consume_main_processing_stream(
                     "type": "spawn_sub_chats",
                     "task_id": task_id,
                     "chat_id": request_data.chat_id,
+                    "user_id_uuid": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "message_id": task_id,
                     "sub_chats": chunk.get("sub_chats"),
                     "report_trigger": chunk.get("report_trigger", "all")
                 }
@@ -2286,7 +2289,10 @@ async def _consume_main_processing_stream(
                 payload = {
                     "type": "awaiting_sub_chats_completion",
                     "task_id": task_id,
-                    "chat_id": request_data.chat_id
+                    "chat_id": request_data.chat_id,
+                    "user_id_uuid": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "message_id": task_id
                 }
                 if cache_service:
                     await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_sub_chats_completion event to '{redis_channel_name}'")
@@ -2298,6 +2304,9 @@ async def _consume_main_processing_stream(
                     "task_id": task_id,
                     "chat_id": chunk.get("sub_chat_id"),
                     "parent_id": chunk.get("parent_id"),
+                    "user_id_uuid": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "message_id": task_id,
                     "summary": chunk.get("summary")
                 }
                 if cache_service:
@@ -2311,6 +2320,9 @@ async def _consume_main_processing_stream(
                     "task_id": task_id,
                     "chat_id": chunk.get("chat_id"),
                     "parent_id": chunk.get("parent_id"),
+                    "user_id_uuid": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "message_id": task_id,
                     "question": chunk.get("question")
                 }
                 if cache_service:
