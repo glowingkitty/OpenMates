@@ -288,7 +288,11 @@ async def _build_chat_details_from_cache(
         "title_v": cached_versions.title_v if cached_versions else 0,
         "pinned": cached_list_item.pinned,
         "is_shared": cached_list_item.is_shared,
-        "is_private": cached_list_item.is_private
+        "is_private": cached_list_item.is_private,
+        "parent_id": cached_list_item.parent_id,
+        "is_sub_chat": cached_list_item.is_sub_chat,
+        "budget_limit": cached_list_item.budget_limit,
+        "budget_spent": cached_list_item.budget_spent,
     }
 
 
@@ -319,7 +323,11 @@ def _build_chat_details_from_directus_metadata(
         "title_v": chat_metadata.get("title_v", 0),
         "pinned": chat_metadata.get("pinned"),
         "is_shared": chat_metadata.get("is_shared"),
-        "is_private": chat_metadata.get("is_private")
+        "is_private": chat_metadata.get("is_private"),
+        "parent_id": chat_metadata.get("parent_id"),
+        "is_sub_chat": chat_metadata.get("is_sub_chat"),
+        "budget_limit": chat_metadata.get("budget_limit"),
+        "budget_spent": chat_metadata.get("budget_spent"),
     }
 
 

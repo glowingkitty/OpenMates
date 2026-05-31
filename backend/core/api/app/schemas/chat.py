@@ -113,6 +113,12 @@ class CachedChatListItemData(BaseModel):
     # Sharing fields
     is_shared: Optional[bool] = None
     is_private: Optional[bool] = None
+    # Sub-chat metadata must be cached with list items so phased sync can
+    # restore parent-key fallback after cold boot.
+    parent_id: Optional[str] = None
+    is_sub_chat: Optional[bool] = None
+    budget_limit: Optional[int] = None
+    budget_spent: Optional[int] = None
     # user_id is the owner of the chat
     user_id: Optional[str] = None
     # draft_json is removed as it's now user-specific and in a different cache key

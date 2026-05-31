@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,pinned"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,pinned"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,is_shared,is_private,share_pii,share_highlights,pinned"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count"
-CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
@@ -46,7 +46,11 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
     "is_private,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
     "share_pii,"
-    "share_highlights"
+    "share_highlights,"
+    "parent_id,"
+    "is_sub_chat,"
+    "budget_limit,"
+    "budget_spent"
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
@@ -74,7 +78,11 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "is_shared,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
     "is_private,"  # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
     "share_pii,"
-    "share_highlights"
+    "share_highlights,"
+    "parent_id,"
+    "is_sub_chat,"
+    "budget_limit,"
+    "budget_spent"
 )
 
 # Fields for the new 'drafts' collection

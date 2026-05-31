@@ -34,6 +34,10 @@ def test_phase1_partial_cache_metadata_is_filled_from_directus() -> None:
         "messages_v": 4,
         "title_v": 1,
         "unread_count": 2,
+        "parent_id": "parent-chat-1",
+        "is_sub_chat": True,
+        "budget_limit": 500,
+        "budget_spent": 125,
     }
 
     merged = _merge_partial_cache_chat_details(
@@ -49,6 +53,10 @@ def test_phase1_partial_cache_metadata_is_filled_from_directus() -> None:
     assert merged["title_v"] == 1
     assert merged["unread_count"] == 0
     assert merged["encrypted_chat_key"] == "cached-key"
+    assert merged["parent_id"] == "parent-chat-1"
+    assert merged["is_sub_chat"] is True
+    assert merged["budget_limit"] == 500
+    assert merged["budget_spent"] == 125
 
     assert _count_directus_filled_metadata_fields(cached_details, directus_details) == 3
     assert _phase1_metadata_invariant_violations(merged) == []

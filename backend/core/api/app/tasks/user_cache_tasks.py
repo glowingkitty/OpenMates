@@ -259,6 +259,10 @@ async def _warm_cache_phase_one(
             last_message_timestamp=chat_details.get("last_edited_overall_timestamp") or chat_details.get("last_message_timestamp"),
             is_shared=chat_details.get("is_shared"),
             is_private=chat_details.get("is_private"),
+            parent_id=chat_details.get("parent_id"),
+            is_sub_chat=chat_details.get("is_sub_chat"),
+            budget_limit=chat_details.get("budget_limit"),
+            budget_spent=chat_details.get("budget_spent"),
             pinned=chat_details.get("pinned"),
             user_id=user_id  # Cache the owner ID
         )
@@ -366,6 +370,10 @@ async def _warm_cache_phase_two_optimized(
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
                 pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
@@ -415,6 +423,10 @@ async def _warm_cache_phase_two_optimized(
                         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
                         is_private=chat_data.get("is_private"),
+                        parent_id=chat_data.get("parent_id"),
+                        is_sub_chat=chat_data.get("is_sub_chat"),
+                        budget_limit=chat_data.get("budget_limit"),
+                        budget_spent=chat_data.get("budget_spent"),
                         pinned=chat_data.get("pinned"),
                         user_id=user_id  # Cache the owner ID
                     )
@@ -486,6 +498,10 @@ async def _warm_cache_phase_two(
                 encrypted_category=chat_data.get("encrypted_category"),
                 encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
             )
 
             await cache_service.set_chat_list_item(user_id, chat_id, list_item)
@@ -543,6 +559,10 @@ async def _warm_cache_phase_three_optimized(
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
                 pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
@@ -592,6 +612,10 @@ async def _warm_cache_phase_three_optimized(
                         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
                         is_private=chat_data.get("is_private"),
+                        parent_id=chat_data.get("parent_id"),
+                        is_sub_chat=chat_data.get("is_sub_chat"),
+                        budget_limit=chat_data.get("budget_limit"),
+                        budget_spent=chat_data.get("budget_spent"),
                         pinned=chat_data.get("pinned"),
                         user_id=user_id  # Cache the owner ID
                     )
@@ -697,6 +721,10 @@ async def _warm_cache_phase_three(
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
                 pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )

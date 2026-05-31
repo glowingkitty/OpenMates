@@ -1836,7 +1836,11 @@ async def _async_persist_encrypted_chat_metadata(
                                 encrypted_top_recommended_apps_for_chat=fresh_chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
                                 encrypted_quick_tip_slugs=fresh_chat_metadata.get("encrypted_quick_tip_slugs"),
                                 encrypted_active_focus_id=fresh_chat_metadata.get("encrypted_active_focus_id"),
-                                last_message_timestamp=fresh_chat_metadata.get("last_message_timestamp")
+                                last_message_timestamp=fresh_chat_metadata.get("last_message_timestamp"),
+                                parent_id=fresh_chat_metadata.get("parent_id"),
+                                is_sub_chat=fresh_chat_metadata.get("is_sub_chat"),
+                                budget_limit=fresh_chat_metadata.get("budget_limit"),
+                                budget_spent=fresh_chat_metadata.get("budget_spent"),
                             )
                             
                             cache_update_result = await cache_service.set_chat_list_item_data(user_id, chat_id, cache_data)
@@ -1930,7 +1934,11 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
                         encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
-                        last_message_timestamp=last_message
+                        last_message_timestamp=last_message,
+                        parent_id=encrypted_metadata.get("parent_id"),
+                        is_sub_chat=encrypted_metadata.get("is_sub_chat"),
+                        budget_limit=encrypted_metadata.get("budget_limit"),
+                        budget_spent=encrypted_metadata.get("budget_spent"),
                     )
                     
                     cache_create_result = await cache_service.set_chat_list_item_data(user_id, chat_id, cache_data)
