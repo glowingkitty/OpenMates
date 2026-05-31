@@ -216,6 +216,17 @@ async def get_shared_chat(
             },
             admin_required=True,
         ) or []
+
+        sub_chats = await directus_service.get_items(
+            "chats",
+            params={
+                "filter[parent_id][_eq]": chat_id,
+                "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
+                "sort": "created_at",
+                "limit": -1,
+            },
+            admin_required=True,
+        ) or []
         
         return {
             "chat_id": chat_id,
@@ -227,6 +238,7 @@ async def get_shared_chat(
             "messages": messages or [],
             "embeds": embeds or [],
             "embed_keys": embed_keys or [],
+            "sub_chats": sub_chats,
             "code_run_outputs": code_run_outputs,
             "message_highlights": message_highlights,
             "share_pii": share_pii,
