@@ -1376,6 +1376,29 @@ class ChatDatabase {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
   }
 
+  async getChatDescendantIds(chatId: string): Promise<string[]> {
+    try {
+      const allChats = await this.getAllChats();
+      const descendants: string[] = [];
+      
+      const findChildren = (parentId: string) => {
+        const children = allChats.filter(c => c.parent_id === parentId);
+        for (const child of children) {
+          if (!descendants.includes(child.chat_id)) {
+            descendants.push(child.chat_id);
+            findChildren(child.chat_id);
+          }
+        }
+      };
+      
+      findChildren(chatId);
+      return descendants;
+    } catch (error) {
+      console.error(`[ChatDatabase] Error finding descendant IDs for ${chatId}:`, error);
+      return [];
+    }
+  }
+
   async updateChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
     return this.addChat(chat, transaction);
   }

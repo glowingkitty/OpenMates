@@ -3411,7 +3411,16 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         try {
             console.debug('[Chats] Starting bulk delete for', selectedChatIds.size, 'chats');
             
-            const chatIdsToDelete = Array.from(selectedChatIds);
+            const initialChatIdsToDelete = Array.from(selectedChatIds);
+            const allIdsSet = new Set<string>();
+            for (const id of initialChatIdsToDelete) {
+                allIdsSet.add(id);
+                const descendants = await chatDB.getChatDescendantIds(id);
+                for (const descId of descendants) {
+                    allIdsSet.add(descId);
+                }
+            }
+            const chatIdsToDelete = Array.from(allIdsSet);
             let deletedCount = 0;
             const errors: string[] = [];
 

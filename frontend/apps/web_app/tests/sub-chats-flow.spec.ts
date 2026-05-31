@@ -107,17 +107,6 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 
 		const now = Math.floor(Date.now() / 1000);
 
-		// Helper to delete item
-		const deleteItem = (storeName: string, id: string): Promise<void> => {
-			return new Promise((resolve, reject) => {
-				const tx = db.transaction(storeName, 'readwrite');
-				const store = tx.objectStore(storeName);
-				const request = store.delete(id);
-				request.onerror = () => reject(request.error);
-				request.onsuccess = () => resolve();
-			});
-		};
-
 		// Helper to add/put item
 		const putItem = (storeName: string, item: any): Promise<void> => {
 			return new Promise((resolve, reject) => {
@@ -283,7 +272,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	log('Clicking "Return" to navigate back to parent...');
 	try {
 		await returnButton.click({ timeout: 5000 });
-	} catch (e) {
+	} catch (_e) {
 		log('Normal click failed/intercepted, force clicking...');
 		await returnButton.click({ force: true });
 	}
@@ -300,6 +289,74 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	}
 	await expect(page).toHaveURL(/chat-id=e2e-parent-chat-uuid/);
 	await screenshot(page, 'returned-to-parent');
+
+	// 8. Delete Parent Chat and Verify Cascading Deletion of Sub-chats & Grandchild Chats
+	log('Deleting parent chat to verify cascading deletion...');
+	
+	const parentChatItem = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="e2e-parent-chat-uuid"]');
+	await expect(parentChatItem).toBeVisible();
+	
+	// Right-click to open context menu on parent chat
+	await parentChatItem.click({ button: 'right', timeout: 5000 });
+	await page.waitForTimeout(500);
+	await screenshot(page, 'parent-context-menu-open');
+	
+	const deleteButton = page.getByTestId('chat-context-delete');
+	await expect(deleteButton).toBeVisible({ timeout: 5000 });
+	
+	// Click delete button
+	await deleteButton.click({ timeout: 5000 });
+	await page.waitForTimeout(300);
+	await screenshot(page, 'parent-delete-confirm-mode');
+	
+	// Click again to confirm
+	await deleteButton.click({ timeout: 5000 });
+	await page.waitForTimeout(1000);
+	await screenshot(page, 'parent-deleted-success');
+	
+	// Assert they are no longer visible in sidebar
+	await expect(parentChatItem).not.toBeVisible({ timeout: 10000 });
+	
+	const childSidebarItem = page.locator('[data-testid="sub-chat-item"]');
+	await expect(childSidebarItem).not.toBeVisible({ timeout: 5000 });
+	
+	const grandSidebarItem = page.locator('[data-testid="grandchild-chat-item"]');
+	await expect(grandSidebarItem).not.toBeVisible({ timeout: 5000 });
+	
+	// Programmatically verify IndexedDB is empty of these chats
+	log('Verifying IndexedDB database has no remaining records of parent, child, or grandchild...');
+	const remainingChatsCount = await page.evaluate(async () => {
+		const DB_NAME = 'chats_db';
+		const CHATS_STORE = 'chats';
+		
+		const openDB = (): Promise<IDBDatabase> => {
+			return new Promise((resolve, reject) => {
+				const request = indexedDB.open(DB_NAME);
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result);
+			});
+		};
+		
+		const db = await openDB();
+		return new Promise<number>((resolve, reject) => {
+			const tx = db.transaction(CHATS_STORE, 'readonly');
+			const store = tx.objectStore(CHATS_STORE);
+			const request = store.getAllKeys();
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const keys = request.result as string[];
+				const testKeys = keys.filter(k => 
+					k === 'e2e-parent-chat-uuid' || 
+					k === 'e2e-child-chat-uuid' || 
+					k === 'e2e-grandchild-chat-uuid'
+				);
+				resolve(testKeys.length);
+			};
+		});
+	});
+	
+	expect(remainingChatsCount).toBe(0);
+	log('Successfully verified cascading deletion of sub-chats from IndexedDB!');
 
 	log('E2E Sub-chats flow test completed successfully!');
 });

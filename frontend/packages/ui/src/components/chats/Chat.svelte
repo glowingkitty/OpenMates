@@ -1853,84 +1853,98 @@
         return;
       }
       
-      // CRITICAL: Handle chats for non-authenticated users
-      // There are two types:
-      // 1. Shared chats - stored in IndexedDB with keys in sharedChatKeyStorage (from share links)
-      // 2. Draft-only chats - only exist in sessionStorage
-      if (!$authStore.isAuthenticated) {
-        // Check if this is a shared chat (has a key in sharedChatKeyStorage)
-        const { getSharedChatKey, deleteSharedChatKey } = await import('../../services/sharedChatKeyStorage');
-        const sharedKey = await getSharedChatKey(chatIdToDelete);
-        
-        if (sharedKey) {
-          // This is a shared chat - delete from IndexedDB and remove the stored key
-          console.debug('[Chat] Deleting shared chat from IndexedDB:', chatIdToDelete);
+      // Find all descendants (children and grandchildren sub-chats) to delete recursively
+      const descendants = await chatDB.getChatDescendantIds(chatIdToDelete);
+      const allIdsToDelete = [chatIdToDelete, ...descendants];
+      console.debug('[Chat] Resolved cascading deletion IDs:', allIdsToDelete);
+
+      let deletedCount = 0;
+
+      for (const idToDelete of allIdsToDelete) {
+        // CRITICAL: Handle chats for non-authenticated users
+        // There are two types:
+        // 1. Shared chats - stored in IndexedDB with keys in sharedChatKeyStorage (from share links)
+        // 2. Draft-only chats - only exist in sessionStorage
+        if (!$authStore.isAuthenticated) {
+          // Check if this is a shared chat (has a key in sharedChatKeyStorage)
+          const { getSharedChatKey, deleteSharedChatKey } = await import('../../services/sharedChatKeyStorage');
+          const sharedKey = await getSharedChatKey(idToDelete);
           
-          // Delete from IndexedDB
-          await chatDB.deleteChat(chatIdToDelete);
+          if (sharedKey) {
+            // This is a shared chat - delete from IndexedDB and remove the stored key
+            console.debug('[Chat] Deleting shared chat from IndexedDB:', idToDelete);
+            
+            // Delete from IndexedDB
+            await chatDB.deleteChat(idToDelete);
+            
+            // Delete the shared chat key from storage
+            await deleteSharedChatKey(idToDelete);
+            
+            // Clear from memory cache
+            chatDB.clearChatKey(idToDelete);
+            
+            // Dispatch event to update UI
+            chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: idToDelete } }));
+            
+            console.debug('[Chat] Shared chat and key deleted:', idToDelete);
+            deletedCount++;
+            continue;
+          }
           
-          // Delete the shared chat key from storage
-          await deleteSharedChatKey(chatIdToDelete);
+          // Draft-only chat - only delete from sessionStorage
+          console.debug('[Chat] Deleting sessionStorage-only chat (draft-only):', idToDelete);
           
-          // Clear from memory cache
-          chatDB.clearChatKey(chatIdToDelete);
+          // Delete draft from sessionStorage
+          const { deleteSessionStorageDraft } = await import('../../services/drafts/sessionStorageDraftService');
+          deleteSessionStorageDraft(idToDelete);
           
           // Dispatch event to update UI
-          chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+          const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../../services/drafts/draftConstants');
+          window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+            detail: { chat_id: idToDelete, draftDeleted: true } 
+          }));
           
-          console.debug('[Chat] Shared chat and key deleted:', chatIdToDelete);
-          notificationStore.success('Chat deleted successfully');
-          return;
+          // Also dispatch chatDeleted event for consistency
+          chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: idToDelete } }));
+          
+          console.debug('[Chat] SessionStorage-only chat deleted:', idToDelete);
+          deletedCount++;
+          continue;
         }
         
-        // Draft-only chat - only delete from sessionStorage
-        console.debug('[Chat] Deleting sessionStorage-only chat (draft-only):', chatIdToDelete);
+        // REAL CHAT HANDLING (authenticated users): Delete from IndexedDB and server
+        // Step 1: Delete from IndexedDB (local deletion) FIRST - optimistic delete
+        console.debug('[Chat] Deleting chat from IndexedDB:', idToDelete);
+        await chatDB.deleteChat(idToDelete);
+        console.debug('[Chat] Chat deleted from IndexedDB:', idToDelete);
         
-        // Delete draft from sessionStorage
-        const { deleteSessionStorageDraft } = await import('../../services/drafts/sessionStorageDraftService');
-        deleteSessionStorageDraft(chatIdToDelete);
+        // Step 2: Dispatch chatDeleted event AFTER deletion to update UI components
+        // This ensures the chat is actually removed from IndexedDB before UI updates
+        console.debug('[Chat] Dispatching chatDeleted event for UI update:', idToDelete);
+        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: idToDelete } }));
+        console.debug('[Chat] chatDeleted event dispatched for chat:', idToDelete);
         
-        // Dispatch event to update UI
-        const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../../services/drafts/draftConstants');
-        window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
-          detail: { chat_id: chatIdToDelete, draftDeleted: true } 
-        }));
-        
-        // Also dispatch chatDeleted event for consistency
-        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
-        
-        console.debug('[Chat] SessionStorage-only chat deleted:', chatIdToDelete);
-        notificationStore.success('Chat deleted successfully');
-        return;
+        // Step 3: Send delete request to server via chatSyncService
+        // If offline / WebSocket disconnected, queue the deletion for when we reconnect.
+        // The pending deletion is tracked in localStorage so phased sync won't re-add
+        // the chat from the server before the delete is confirmed.
+        console.debug('[Chat] Sending delete request to server for chat:', idToDelete);
+        try {
+          await chatSyncService.sendDeleteChat(idToDelete);
+          console.debug('[Chat] Delete request sent to server for chat:', idToDelete);
+        } catch (sendError) {
+          // Server delete failed (likely offline / WebSocket disconnected).
+          // Queue for retry on reconnect. The chat is already removed from IndexedDB
+          // and UI, so the user sees it as deleted immediately (optimistic delete).
+          console.warn('[Chat] Failed to send delete to server, queueing for reconnect:', idToDelete, sendError);
+          const { addPendingChatDeletion } = await import('../../services/pendingChatDeletions');
+          addPendingChatDeletion(idToDelete);
+        }
+        deletedCount++;
       }
       
-      // REAL CHAT HANDLING (authenticated users): Delete from IndexedDB and server
-      // Step 1: Delete from IndexedDB (local deletion) FIRST - optimistic delete
-      console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
-      await chatDB.deleteChat(chatIdToDelete);
-      console.debug('[Chat] Chat deleted from IndexedDB:', chatIdToDelete);
-      
-      // Step 2: Dispatch chatDeleted event AFTER deletion to update UI components
-      // This ensures the chat is actually removed from IndexedDB before UI updates
-      console.debug('[Chat] Dispatching chatDeleted event for UI update:', chatIdToDelete);
-      chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
-      console.debug('[Chat] chatDeleted event dispatched for chat:', chatIdToDelete);
-      
-      // Step 3: Send delete request to server via chatSyncService
-      // If offline / WebSocket disconnected, queue the deletion for when we reconnect.
-      // The pending deletion is tracked in localStorage so phased sync won't re-add
-      // the chat from the server before the delete is confirmed.
-      console.debug('[Chat] Sending delete request to server for chat:', chatIdToDelete);
-      try {
-        await chatSyncService.sendDeleteChat(chatIdToDelete);
-        console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
-      } catch (sendError) {
-        // Server delete failed (likely offline / WebSocket disconnected).
-        // Queue for retry on reconnect. The chat is already removed from IndexedDB
-        // and UI, so the user sees it as deleted immediately (optimistic delete).
-        console.warn('[Chat] Failed to send delete to server, queueing for reconnect:', chatIdToDelete, sendError);
-        const { addPendingChatDeletion } = await import('../../services/pendingChatDeletions');
-        addPendingChatDeletion(chatIdToDelete);
+      if (deletedCount > 0) {
+        notificationStore.success('Chat deleted successfully');
       }
       
     } catch (error) {

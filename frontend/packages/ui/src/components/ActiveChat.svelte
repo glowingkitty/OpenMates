@@ -2567,19 +2567,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Delete regular chat — mirrors Chat.svelte handleDeleteChat
                     try {
                         const chatIdToDelete = chat.chat_id;
-                        // Delete from IndexedDB first (optimistic)
-                        await chatDB.deleteChat(chatIdToDelete);
-                        // Dispatch chatDeleted for UI update
-                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
-                        // Send server-side delete via WebSocket
-                        chatSyncService.sendDeleteChat(chatIdToDelete);
+                        const descendants = await chatDB.getChatDescendantIds(chatIdToDelete);
+                        const allIdsToDelete = [chatIdToDelete, ...descendants];
+                        
+                        for (const idToDelete of allIdsToDelete) {
+                            // Delete from IndexedDB first (optimistic)
+                            await chatDB.deleteChat(idToDelete);
+                            // Dispatch chatDeleted for UI update
+                            chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: idToDelete } }));
+                            // Send server-side delete via WebSocket
+                            try {
+                                await chatSyncService.sendDeleteChat(idToDelete);
+                            } catch (sendError) {
+                                console.warn('[ActiveChat] Failed to send delete to server, queueing for reconnect:', idToDelete, sendError);
+                                const { addPendingChatDeletion } = await import('../services/pendingChatDeletions');
+                                addPendingChatDeletion(idToDelete);
+                            }
+                        }
+                        
                         notificationStore.success('Chat deleted');
-                        // Clear resume card if it was the deleted chat
-                        if (resumeChatData?.chat_id === chatIdToDelete) {
+                        // Clear resume card if any of the deleted chats matches
+                        if (resumeChatData && allIdsToDelete.includes(resumeChatData.chat_id)) {
                             resumeChatData = null;
                         }
                         // Remove from recentChats array
-                        recentChats = recentChats.filter(rc => rc.chat.chat_id !== chatIdToDelete);
+                        recentChats = recentChats.filter(rc => !allIdsToDelete.includes(rc.chat.chat_id));
                     } catch (err) {
                         console.error('[ActiveChat] Delete failed:', err);
                         notificationStore.error('Failed to delete chat');
