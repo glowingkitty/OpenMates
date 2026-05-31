@@ -247,7 +247,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	const card = page.getByTestId('sub-chat-card');
 	await expect(card).toBeVisible();
 	await expect(card).toContainText('Research Apple Q1');
-	await expect(card).toContainText('✓ Done');
+	await expect(card.getByTestId('sub-chat-status-done')).toContainText('Done');
 
 	// 4. Click Card to Navigate to Sub-chat
 	log('Navigating to child sub-chat via card click...');
