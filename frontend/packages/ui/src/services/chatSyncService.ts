@@ -645,6 +645,20 @@ export class ChatSynchronizationService extends EventTarget {
         },
       ),
     );
+    webSocketService.on("awaiting_user_input", (payload) =>
+      aiHandlers.handleAwaitingUserInputImpl(
+        this,
+        payload as {
+          type: "awaiting_user_input";
+          chat_id: string;
+          parent_id?: string;
+          message_id: string;
+          task_id?: string;
+          user_message_id?: string;
+          question: string;
+        },
+      ),
+    );
     // Real-time preprocessing step events: title_generated, mate_selected, model_selected.
     // These arrive in a burst after the single preprocessing LLM call resolves.
     // The handler dispatches a "preprocessingStep" CustomEvent for ActiveChat.svelte to consume.

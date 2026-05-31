@@ -1904,6 +1904,8 @@ async def handle_main_processing(
             "When the user asks a complex question that would benefit from parallel or distributed processing (e.g., comparing multiple items, batch looping, or deep multi-topic research), "
             "you MUST call 'start_sub_chats' to delegate those tasks to sub-agents. Do not attempt to do everything in a single turn if it would benefit from sub-chats.\n"
             "When spawning sub-chats, provide precise and focused prompts for each sub-chat so they can work independently and efficiently. "
+            "If a sub-chat can answer independently, its final assistant response is automatically treated as its completion summary for the parent. "
+            "Sub-chats should not call an end function just to finish. If a sub-chat needs clarification from the user, it MUST call 'ask_user_input' with the exact question instead of embedding a marker in normal text. "
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
         prompt_parts.append(sub_chats_instruction)
@@ -2131,9 +2133,8 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Added start_sub_chats tool to main LLM tools.")
     
     if chat_depth > 0:
-        available_tools_for_llm.append(end_subchat_tool)
         available_tools_for_llm.append(ask_user_input_tool)
-        logger.info(f"{log_prefix} Added end_subchat and ask_user_input tools to main LLM tools (depth={chat_depth}).")
+        logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
@@ -2203,7 +2204,7 @@ async def handle_main_processing(
     # underscored form into "activate-focus-mode" before resolver lookup, so
     # we register BOTH the canonicalized form (post-canonicalize) and the raw
     # snake_case form (pre-canonicalize, defensive) for both tools.
-    for system_skill in ("activate_focus_mode", "deactivate_focus_mode", "start_sub_chats", "end_subchat", "ask_user_input"):
+    for system_skill in ("activate_focus_mode", "deactivate_focus_mode", "start_sub_chats", "ask_user_input"):
         # Pre-canonicalize form (raw snake_case as the LLM emits it)
         tool_resolver_map[system_skill] = ("system", system_skill)
         # Post-canonicalize form (underscores → hyphens, what the dispatcher sees)
@@ -3888,7 +3889,6 @@ async def handle_main_processing(
                         # Save sub-chat completion status in Directus/Cache
                         if directus_service:
                             try:
-                                import uuid
                                 # Mark current chat as completed
                                 await directus_service.chat.update_chat_fields_in_directus(
                                     request_data.chat_id,
@@ -3896,24 +3896,10 @@ async def handle_main_processing(
                                 )
                                 logger.info(f"{log_prefix} [SUB_CHAT] Marked sub-chat as completed in Directus.")
                                 
-                                # Write summary system message into parent chat
+                                # Report the summary through Redis/continuation handling. Do not write
+                                # plaintext system messages to Directus; parent synthesis is zero-knowledge
+                                # and handled by the normal AI continuation pipeline.
                                 if request_data.parent_id:
-                                    system_message_content = f"### Sub-Chat Report ({request_data.chat_id})\n{summary}"
-                                    now_sec = int(time.time())
-                                    parent_msg_id = f"{request_data.parent_id[-10:]}-{uuid.uuid4()}"
-                                    
-                                    # Format the system message securely for Directus
-                                    system_msg_data = {
-                                        "id": parent_msg_id,
-                                        "chat_id": request_data.parent_id,
-                                        "role": "system",
-                                        "created_at": now_sec,
-                                        "status": "synced",
-                                        "content": system_message_content
-                                    }
-                                    await directus_service.chat.create_message_in_directus(system_msg_data)
-                                    logger.info(f"{log_prefix} [SUB_CHAT] Wrote summary system message to parent chat {request_data.parent_id}")
-                                    
                                     if cache_service:
                                         # Set completion marker in redis
                                         await cache_service.set(f"subchat:{request_data.chat_id}:completed", True, ttl=86400)

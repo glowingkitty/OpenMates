@@ -21,6 +21,7 @@ from backend.core.api.app.services.translations import TranslationService
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
@@ -51,6 +52,212 @@ from backend.shared.python_utils.url_normalizer import (
 from backend.shared.python_utils.markdown_links import iter_markdown_links
 
 logger = logging.getLogger(__name__)
+
+SUB_CHAT_PENDING_TTL_SECONDS = 60 * 60 * 24
+SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
+SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
+
+
+def _sub_chat_pending_key(parent_chat_id: str) -> str:
+    return f"{SUB_CHAT_PENDING_KEY_PREFIX}:{parent_chat_id}"
+
+
+async def _store_sub_chat_pending_context(
+    *,
+    cache_service: Optional[CacheService],
+    parent_request_data: AskSkillRequest,
+    parent_task_id: str,
+    sub_chats: list[dict[str, Any]],
+    report_trigger: str,
+    skill_config_dict: Optional[Dict[str, Any]],
+    log_prefix: str,
+) -> None:
+    if not cache_service or not sub_chats:
+        return
+
+    expected_ids = [str(sub_chat.get("id")) for sub_chat in sub_chats if sub_chat.get("id")]
+    if not expected_ids:
+        logger.warning("%s Cannot store sub-chat pending context: no child ids", log_prefix)
+        return
+
+    payload = {
+        "parent_task_id": parent_task_id,
+        "parent_request_data": parent_request_data.model_dump(mode="json"),
+        "skill_config_dict": skill_config_dict or {},
+        "expected_sub_chat_ids": expected_ids,
+        "completed": {},
+        "report_trigger": report_trigger,
+        "created_at": int(time.time()),
+    }
+    await cache_service.set(
+        _sub_chat_pending_key(parent_request_data.chat_id),
+        payload,
+        ttl=SUB_CHAT_PENDING_TTL_SECONDS,
+    )
+    logger.info(
+        "%s Stored sub-chat pending context for parent %s with %d child chat(s)",
+        log_prefix,
+        parent_request_data.chat_id,
+        len(expected_ids),
+    )
+
+
+async def _record_sub_chat_completion_and_maybe_continue_parent(
+    *,
+    cache_service: Optional[CacheService],
+    request_data: AskSkillRequest,
+    task_id: str,
+    summary: str,
+    log_prefix: str,
+) -> None:
+    if not cache_service or not request_data.is_sub_chat or not request_data.parent_id:
+        return
+
+    completion_payload = {
+        "type": "sub_chat_completed",
+        "task_id": task_id,
+        "chat_id": request_data.chat_id,
+        "parent_id": request_data.parent_id,
+        "user_id_uuid": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "message_id": task_id,
+        "summary": summary,
+    }
+    await _publish_to_redis(
+        cache_service,
+        f"chat_stream::{request_data.parent_id}",
+        completion_payload,
+        log_prefix,
+        "Published automatic sub_chat_completed event to parent",
+    )
+
+    pending_key = _sub_chat_pending_key(request_data.parent_id)
+    pending_context = await cache_service.get(pending_key)
+    if not isinstance(pending_context, dict):
+        logger.warning(
+            "%s Sub-chat %s completed but no pending context exists for parent %s",
+            log_prefix,
+            request_data.chat_id,
+            request_data.parent_id,
+        )
+        return
+
+    completed = pending_context.get("completed")
+    if not isinstance(completed, dict):
+        completed = {}
+    completed[request_data.chat_id] = {
+        "summary": summary,
+        "task_id": task_id,
+        "completed_at": int(time.time()),
+    }
+    pending_context["completed"] = completed
+
+    expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
+    if not expected_ids:
+        logger.warning("%s Pending sub-chat context for parent %s has no expected ids", log_prefix, request_data.parent_id)
+        await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+        return
+
+    all_completed = all(chat_id in completed for chat_id in expected_ids)
+    if not all_completed:
+        await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+        logger.info(
+            "%s Recorded sub-chat completion %s for parent %s (%d/%d complete)",
+            log_prefix,
+            request_data.chat_id,
+            request_data.parent_id,
+            len(completed),
+            len(expected_ids),
+        )
+        return
+
+    if pending_context.get("continuation_dispatched"):
+        logger.info("%s Parent continuation already dispatched for %s", log_prefix, request_data.parent_id)
+        return
+
+    pending_context["continuation_dispatched"] = True
+    await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+    await _dispatch_sub_chat_parent_continuation(
+        pending_context=pending_context,
+        parent_chat_id=request_data.parent_id,
+        log_prefix=log_prefix,
+    )
+    await cache_service.delete(pending_key)
+
+
+async def _dispatch_sub_chat_parent_continuation(
+    *,
+    pending_context: dict[str, Any],
+    parent_chat_id: str,
+    log_prefix: str,
+) -> None:
+    request_payload = pending_context.get("parent_request_data")
+    if not isinstance(request_payload, dict):
+        logger.error("%s Cannot dispatch sub-chat parent continuation: missing parent request data", log_prefix)
+        return
+
+    original_request = AskSkillRequest(**request_payload)
+    continuation_history = [
+        AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
+        for message in original_request.message_history
+    ]
+    continuation_history.append(
+        AIHistoryMessage(
+            role="system",
+            content=_build_sub_chat_completion_context(pending_context),
+            created_at=int(time.time()),
+        )
+    )
+
+    continuation_request = AskSkillRequest(
+        chat_id=original_request.chat_id,
+        message_id=original_request.message_id,
+        user_id=original_request.user_id,
+        user_id_hash=original_request.user_id_hash,
+        message_history=continuation_history,
+        chat_has_title=True,
+        current_chat_title=original_request.current_chat_title,
+        is_incognito=original_request.is_incognito,
+        is_external=original_request.is_external,
+        mate_id=original_request.mate_id,
+        active_focus_id=original_request.active_focus_id,
+        user_preferences=original_request.user_preferences,
+        app_settings_memories_metadata=original_request.app_settings_memories_metadata,
+        mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
+        is_sub_chat_continuation=True,
+        embed_file_path_index=original_request.embed_file_path_index,
+    )
+
+    task_result = celery_config.app.send_task(
+        name="apps.ai.tasks.skill_ask",
+        kwargs={
+            "request_data_dict": continuation_request.model_dump(mode="json"),
+            "skill_config_dict": pending_context.get("skill_config_dict") or {},
+        },
+        queue="app_ai",
+    )
+    logger.info(
+        "%s Dispatched sub-chat parent continuation task %s for parent %s",
+        log_prefix,
+        task_result.id,
+        parent_chat_id,
+    )
+
+
+def _build_sub_chat_completion_context(pending_context: dict[str, Any]) -> str:
+    completed = pending_context.get("completed") if isinstance(pending_context.get("completed"), dict) else {}
+    expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
+    lines = [
+        "The waited sub-chats have completed. Use the reports below to answer the user's original request.",
+        "Do not call start_sub_chats again for these same reports; synthesize the final parent response now.",
+        "",
+    ]
+    for index, chat_id in enumerate(expected_ids, start=1):
+        summary = completed.get(chat_id, {}).get("summary") if isinstance(completed.get(chat_id), dict) else None
+        lines.append(f"## Sub-chat {index}: {chat_id}")
+        lines.append(summary or "No summary was returned.")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 # Type alias for usage metadata
 UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]
@@ -2013,6 +2220,7 @@ async def _consume_main_processing_stream(
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
     fake_tool_calls_filtered = False
+    sub_chat_completion_recorded = False
     
     # Track if the current multi-chunk code block has language 'toon' and needs content-based
     # validation at closing fence. 'toon' blocks can be either:
@@ -2270,6 +2478,7 @@ async def _consume_main_processing_stream(
 
             # Sub-chat custom markers
             if isinstance(chunk, dict) and "__spawn_sub_chats__" in chunk:
+                sub_chats = chunk.get("sub_chats")
                 payload = {
                     "type": "spawn_sub_chats",
                     "task_id": task_id,
@@ -2277,10 +2486,19 @@ async def _consume_main_processing_stream(
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
                     "message_id": task_id,
-                    "sub_chats": chunk.get("sub_chats"),
+                    "sub_chats": sub_chats,
                     "report_trigger": chunk.get("report_trigger", "all")
                 }
                 if cache_service:
+                    await _store_sub_chat_pending_context(
+                        cache_service=cache_service,
+                        parent_request_data=request_data,
+                        parent_task_id=task_id,
+                        sub_chats=sub_chats if isinstance(sub_chats, list) else [],
+                        report_trigger=chunk.get("report_trigger", "all"),
+                        skill_config_dict=skill_config_dict,
+                        log_prefix=log_prefix,
+                    )
                     await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published spawn_sub_chats event to '{redis_channel_name}'")
                 continue
 
@@ -2299,6 +2517,7 @@ async def _consume_main_processing_stream(
                 continue
 
             if isinstance(chunk, dict) and "__sub_chat_completed__" in chunk:
+                summary = chunk.get("summary") or ""
                 payload = {
                     "type": "sub_chat_completed",
                     "task_id": task_id,
@@ -2307,10 +2526,18 @@ async def _consume_main_processing_stream(
                     "user_id_uuid": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
                     "message_id": task_id,
-                    "summary": chunk.get("summary")
+                    "summary": summary
                 }
                 if cache_service:
                     await _publish_to_redis(cache_service, f"chat_stream::{chunk.get('parent_id')}", payload, log_prefix, "Published sub_chat_completed event to parent")
+                    await _record_sub_chat_completion_and_maybe_continue_parent(
+                        cache_service=cache_service,
+                        request_data=request_data,
+                        task_id=task_id,
+                        summary=summary,
+                        log_prefix=log_prefix,
+                    )
+                    sub_chat_completion_recorded = True
                 continue
 
             if isinstance(chunk, dict) and "__awaiting_user_input__" in chunk:
@@ -4369,10 +4596,17 @@ async def _consume_main_processing_stream(
         
     # Handle paused execution cases: waiting for sub-chats or user input
     # The client handles the paused state without finalizing the current message
-    if awaiting_sub_chats_completion or awaiting_user_input:
-        reason = "sub-chats completion" if awaiting_sub_chats_completion else "user input"
-        logger.info(f"{log_prefix} Task completing without response - awaiting {reason}. No final marker will be sent.")
+    if awaiting_user_input:
+        logger.info(f"{log_prefix} Task completing without response - awaiting user input. No final marker will be sent.")
         return "", False, False, [], debug_metadata
+
+    if awaiting_sub_chats_completion and not aggregated_response:
+        aggregated_response = SUB_CHAT_PARENT_STATUS_MESSAGE
+        final_response_chunks = [aggregated_response]
+        logger.info(
+            f"{log_prefix} Parent is waiting for sub-chats; completing current assistant message "
+            "and deferring final synthesis to the automatic continuation."
+        )
     
     # Handle the case where we're awaiting focus mode confirmation (deferred activation).
     # Unlike app_settings, the focus mode case has embed content (the focus mode activation
@@ -5057,6 +5291,15 @@ async def _consume_main_processing_stream(
     if billing_error:
         logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
         raise billing_error
+
+    if not sub_chat_completion_recorded:
+        await _record_sub_chat_completion_and_maybe_continue_parent(
+            cache_service=cache_service,
+            request_data=request_data,
+            task_id=task_id,
+            summary=aggregated_response,
+            log_prefix=log_prefix,
+        )
     
     # NOTE: Email notifications for offline users are handled in websockets.py
     # when the final marker is received. The WebSocket handler has access to

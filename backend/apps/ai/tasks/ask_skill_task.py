@@ -1492,7 +1492,7 @@ async def _async_process_ai_skill_ask_task(
                     # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
                     # When this is True, the user message was already persisted before the app settings/memories
                     # or focus mode deferred activation pause
-                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation,
+                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation,
                 }
             
                 # Include encrypted_chat_key so secondary devices can cache it early

@@ -2677,37 +2677,36 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
           <!-- Horizontal Scrollable Sub-Chats Carousel -->
           {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
-            <div class="sub-chats-carousel" style="display: flex; gap: 12px; overflow-x: auto; padding: 12px 4px; margin-top: 12px; border-top: 1px solid var(--grey20); scrollbar-width: thin;" data-testid="sub-chats-carousel">
+            <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
               {#each subChatsOfThisMessage as sc (sc.chat_id)}
                 <button
                   type="button"
-                  class="sub-chat-card"
+                  class="sub-chat-card resume-style-card"
                   data-testid="sub-chat-card"
-                  style="flex: 0 0 200px; display: flex; flex-direction: column; justify-content: space-between; padding: 12px; border-radius: 12px; background: var(--grey10); border: 1px solid var(--grey30); text-align: left; cursor: pointer; transition: transform 0.2s, border-color 0.2s;"
                   onclick={async () => {
                     const { activeChatStore } = await import('../stores/activeChatStore');
                     activeChatStore.setActiveChat(sc.chat_id);
                   }}
                 >
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <div style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #6364FF, #9B6DFF); display: flex; align-items: center; justify-content: center;">
-                      <span style="color: white; font-size: 10px; font-weight: bold;">S</span>
-                    </div>
-                    <span style="font-size: 11px; font-weight: 500; color: var(--fontSecondary);">Sub-chat</span>
+                  <div class="sub-chat-compact-icon" aria-hidden="true">
+                    <span>S</span>
                   </div>
-                  <div style="font-size: 13px; font-weight: bold; color: var(--fontPrimary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                    {sc.title || "Autonomous Task"}
-                  </div>
-                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--fontTertiary);">
-                    <span>{sc.budget_spent || 0} credits</span>
-                    <span style="display: flex; align-items: center; gap: 4px;">
-                      {#if sc.updated_at > sc.created_at}
-                        <span style="color: green; font-weight: bold;" data-testid="sub-chat-status-done">✓ Done</span>
-                      {:else}
-                        <span class="pulse" style="width: 6px; height: 6px; border-radius: 50%; background: orange; display: inline-block;"></span>
-                        <span data-testid="sub-chat-status-active">Active</span>
-                      {/if}
+                  <div class="sub-chat-card-content">
+                    <span class="sub-chat-card-pill">Sub-chat</span>
+                    <span class="sub-chat-card-title" data-testid="sub-chat-title">
+                      {sc.title || "Autonomous Task"}
                     </span>
+                    <div class="sub-chat-card-meta">
+                      <span>{sc.budget_spent || 0} credits</span>
+                      {#if sc.updated_at > sc.created_at}
+                        <span class="sub-chat-status done" data-testid="sub-chat-status-done">Done</span>
+                      {:else}
+                        <span class="sub-chat-status active" data-testid="sub-chat-status-active">Active</span>
+                      {/if}
+                    </div>
+                  </div>
+                  <div class="sub-chat-card-arrow" aria-hidden="true">
+                    &gt;
                   </div>
                 </button>
               {/each}
@@ -2970,6 +2969,132 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .credits-restored-btn {
     background: var(--color-success, #28a745);
+  }
+
+  .sub-chats-carousel {
+    display: flex;
+    gap: var(--spacing-6);
+    overflow-x: auto;
+    padding: var(--spacing-6) var(--spacing-2);
+    margin-top: var(--spacing-6);
+    border-top: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    scrollbar-width: thin;
+  }
+
+  .sub-chat-card {
+    position: relative;
+    flex: 0 0 240px;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-6);
+    min-height: 58px;
+    padding: var(--spacing-5) var(--spacing-8);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-8);
+    background: linear-gradient(135deg, var(--gradient-ai-start, #6364ff), var(--gradient-ai-end, #9b6dff));
+    background-size: 140% 140%;
+    background-position: 0% 50%;
+    color: white;
+    cursor: pointer;
+    overflow: hidden;
+    text-align: left;
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.16),
+      0 2px 6px rgba(0, 0, 0, 0.1);
+    transition:
+      background-position 0.25s ease,
+      transform 0.15s ease-out,
+      box-shadow 0.2s ease-out,
+      border-color 0.2s ease;
+  }
+
+  .sub-chat-card:hover {
+    border-color: rgba(255, 255, 255, 0.24);
+    background-position: 100% 50%;
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 28px rgba(0, 0, 0, 0.18),
+      0 3px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  .sub-chat-card:active {
+    transform: scale(0.98);
+  }
+
+  .sub-chat-compact-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .sub-chat-card-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sub-chat-card-pill {
+    width: fit-content;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .sub-chat-card-title {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(255, 255, 255, 0.96);
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  }
+
+  .sub-chat-card-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: var(--font-size-xxs);
+    font-weight: 600;
+  }
+
+  .sub-chat-status.done {
+    color: rgba(209, 255, 223, 0.95);
+  }
+
+  .sub-chat-status.active::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 4px;
+    border-radius: 50%;
+    background: rgba(255, 199, 87, 0.95);
+    vertical-align: 1px;
+  }
+
+  .sub-chat-card-arrow {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    opacity: 0.82;
   }
 
   /* Compression summary card: wider card with expand/collapse for AI-generated chat summaries.

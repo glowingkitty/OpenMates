@@ -588,6 +588,31 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         continue
                     
                     user_connections = manager.get_connections_for_user(user_id_uuid)
+                    if event_type == "awaiting_user_input":
+                        for device_hash, websocket_conn in user_connections.items():
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": redis_payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash
+                            )
+                            logger.info(f"AI Stream Listener: Forwarded '{event_type}' to {user_id_uuid}/{device_hash}")
+
+                        if not manager.is_user_active(user_id_uuid):
+                            question_preview = redis_payload.get("question") or "A sub-chat needs your input."
+                            await _send_push_notification_if_enabled(
+                                app=app,
+                                user_id=user_id_uuid,
+                                chat_id=redis_payload.get("chat_id"),
+                                response_preview=question_preview,
+                            )
+                            await _send_offline_email_notification(
+                                app=app,
+                                user_id=user_id_uuid,
+                                chat_id=redis_payload.get("chat_id"),
+                                response_preview=question_preview,
+                            )
+                        continue
+
                     for device_hash, websocket_conn in user_connections.items():
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         if chat_id_from_payload == active_chat_on_device:

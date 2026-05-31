@@ -930,11 +930,12 @@ export async function handleAIBackgroundResponseCompletedImpl(
     );
 
     // Show notification and increment unread count for background chat completion.
-    // This is a background handler (chat is not active), so always show the notification.
+    // Sub-chats run as parent-owned background workers; they should only notify when
+    // they explicitly ask for user input, which is handled by awaiting_user_input.
     // The activeChatStore check is a safety guard in case the user switched back
     // to this chat between the server sending the event and us processing it.
     const activeChatId = activeChatStore.get();
-    if (activeChatId !== payload.chat_id) {
+    if (activeChatId !== payload.chat_id && !chat.is_sub_chat && !chat.parent_id) {
       console.debug(
         `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id} (active: ${activeChatId})`,
       );
@@ -4969,6 +4970,127 @@ export async function handleSpawnSubChatsImpl(
   } catch (error) {
     console.error(
       `[ChatSyncService:AI] Error handling spawn_sub_chats payload:`,
+      error,
+    );
+  }
+}
+
+export async function handleAwaitingUserInputImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    type: "awaiting_user_input";
+    chat_id: string;
+    parent_id?: string;
+    message_id: string;
+    task_id?: string;
+    user_message_id?: string;
+    question: string;
+  },
+): Promise<void> {
+  console.info("[ChatSyncService:AI] Received 'awaiting_user_input' payload:", payload);
+  try {
+    if (!payload.chat_id || !payload.message_id || !payload.question) {
+      console.error(
+        "[ChatSyncService:AI] awaiting_user_input payload missing chat_id, message_id, or question",
+        payload,
+      );
+      return;
+    }
+
+    let chat = await chatDB.getChat(payload.chat_id);
+    if (!chat) {
+      console.error(
+        `[ChatSyncService:AI] Sub-chat ${payload.chat_id} not found for awaiting_user_input`,
+      );
+      return;
+    }
+
+    const existingMessage = await chatDB.getMessage(payload.message_id);
+    const now = Math.floor(Date.now() / 1000);
+    let questionMessage = existingMessage;
+    let createdQuestionMessage = false;
+    if (!questionMessage) {
+      questionMessage = {
+        message_id: payload.message_id,
+        chat_id: payload.chat_id,
+        user_message_id: payload.user_message_id,
+        role: "assistant",
+        content: payload.question,
+        status: "waiting_for_user",
+        created_at: now,
+        encrypted_content: "",
+      };
+      await chatDB.saveMessage(questionMessage);
+      createdQuestionMessage = true;
+      console.info(
+        `[ChatSyncService:AI] Saved awaiting_user_input question as assistant message ${payload.message_id}`,
+      );
+    }
+
+    chat = {
+      ...chat,
+      updated_at: now,
+      last_edited_overall_timestamp: now,
+    };
+    await chatDB.updateChat(chat);
+
+    const taskId = payload.task_id || payload.message_id;
+    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+    if (taskInfo && taskInfo.taskId === taskId) {
+      serviceInstance.activeAITasks.delete(payload.chat_id);
+    }
+
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: payload.chat_id,
+          chat,
+          newMessage: questionMessage,
+          type: "awaiting_user_input",
+        },
+      }),
+    );
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { chat_id: payload.parent_id || payload.chat_id },
+      }),
+    );
+    serviceInstance.dispatchEvent(
+      new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: payload.chat_id,
+          taskId,
+          status: "waiting_for_user",
+        },
+      }),
+    );
+
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== payload.chat_id) {
+      unreadMessagesStore.incrementUnread(payload.chat_id);
+      notificationStore.chatMessage(
+        payload.chat_id,
+        chat.title || "Sub-chat needs input",
+        payload.question,
+        undefined,
+        chat.category || undefined,
+      );
+    }
+
+    if (createdQuestionMessage) {
+      try {
+        await serviceInstance.sendCompletedAIResponse(questionMessage);
+      } catch (error) {
+        console.error(
+          "[ChatSyncService:AI] Error syncing awaiting_user_input question to server:",
+          error,
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:AI] Error handling awaiting_user_input payload:",
       error,
     );
   }

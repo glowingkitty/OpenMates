@@ -162,6 +162,7 @@ async def dispatch_async_skill_continuation(
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
         embed_file_path_index=original_request.embed_file_path_index,
+        is_sub_chat_continuation=original_request.is_sub_chat_continuation,
     )
 
     app = _get_celery_app()
