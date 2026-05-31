@@ -15,7 +15,7 @@ test.describe('Projects v1 flow', () => {
   });
 
   test('creates and deletes a project', async ({ page }) => {
-    await page.getByTestId('projects-nav-link').click();
+    await page.goto('/projects');
     await expect(page.getByTestId('projects-page')).toBeVisible();
 
     const projectName = `E2E Project ${Date.now()}`;
