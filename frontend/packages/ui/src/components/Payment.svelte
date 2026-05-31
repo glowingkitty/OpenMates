@@ -817,13 +817,17 @@
             // Show success notification popup (using Notification.svelte component)
             notificationStore.success(
                 `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
-                5000
+                5000,
+                true,
+                `payment-completed-${payload.order_id}`
             );
 
             if (payload.referral_reward_applied && payload.referral_referred_bonus) {
                 notificationStore.success(
                     `Your referral reward was applied. You got ${payload.referral_referred_bonus} free credits.`,
-                    15000
+                    15000,
+                    true,
+                    `payment-referral-${payload.order_id}`
                 );
             }
             
@@ -926,7 +930,9 @@
         // This notification will appear even if user has already moved on to other parts of the app
         notificationStore.error(
             payload.message || 'Payment failed. Please try again or use a different payment method.',
-            10000 // Show for 10 seconds since this is important
+            10000, // Show for 10 seconds since this is important
+            true,
+            `payment-failed-${payload.order_id}`
         );
         
         // Update payment state to failure
