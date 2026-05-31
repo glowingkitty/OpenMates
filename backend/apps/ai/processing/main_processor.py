@@ -3773,6 +3773,83 @@ async def handle_main_processing(
                                     "report_trigger": report_trigger
                                 })
                         
+                        # Create and dispatch sub-chats in Directus/Celery
+                        if directus_service:
+                            for sc in spawned_sub_chats:
+                                try:
+                                    sc_id = sc["id"]
+                                    prompt = sc["prompt"]
+                                    
+                                    # Create the sub-chat record in Directus
+                                    sub_chat_payload = {
+                                        "id": sc_id,
+                                        "hashed_user_id": request_data.user_id_hash,
+                                        "created_at": int(time.time()),
+                                        "updated_at": int(time.time()),
+                                        "messages_v": 1,
+                                        "title_v": 1,
+                                        "last_edited_overall_timestamp": int(time.time()),
+                                        "last_message_timestamp": int(time.time()),
+                                        "unread_count": 0,
+                                        "encrypted_title": "",
+                                        "title": prompt[:30] + "..." if len(prompt) > 30 else prompt,
+                                        "parent_id": request_data.chat_id,
+                                        "is_sub_chat": True
+                                    }
+                                    await directus_service.chat.create_chat_in_directus(sub_chat_payload)
+                                    logger.info(f"{log_prefix} [SUB_CHAT] Created child chat record {sc_id} in Directus")
+                                    
+                                    # Create the first user message in the sub-chat
+                                    msg_id = f"{sc_id[-10:]}-{uuid.uuid4()}"
+                                    msg_payload = {
+                                        "id": msg_id,
+                                        "chat_id": sc_id,
+                                        "role": "user",
+                                        "created_at": int(time.time()),
+                                        "status": "synced",
+                                        "content": prompt
+                                    }
+                                    await directus_service.create_item("messages", msg_payload)
+                                    logger.info(f"{log_prefix} [SUB_CHAT] Created first user message {msg_id} in child chat {sc_id}")
+                                    
+                                    # Construct child AskSkillRequest data
+                                    child_request_data = {
+                                        "chat_id": sc_id,
+                                        "message_id": msg_id,
+                                        "user_id": request_data.user_id,
+                                        "user_id_hash": request_data.user_id_hash,
+                                        "message_history": [
+                                            {
+                                                "role": "user",
+                                                "content": prompt,
+                                                "created_at": int(time.time()),
+                                                "sender_name": "user"
+                                            }
+                                        ],
+                                        "chat_has_title": True,
+                                        "parent_id": request_data.chat_id,
+                                        "is_sub_chat": True,
+                                        "is_incognito": request_data.is_incognito,
+                                        "is_external": request_data.is_external,
+                                        "mate_id": "george", # Default mate for sub-chat processing
+                                        "user_preferences": request_data.user_preferences or {}
+                                    }
+                                    
+                                    # Dispatch Celery task for the sub-chat execution
+                                    from backend.apps.ai.tasks.ask_skill_task import process_ai_skill_ask_task
+                                    process_ai_skill_ask_task.apply_async(
+                                        kwargs={
+                                            "request_data_dict": child_request_data,
+                                            "skill_config_dict": skill_config_dict or {}
+                                        },
+                                        queue="app_ai",
+                                        exchange="app_ai",
+                                        routing_key="app_ai"
+                                    )
+                                    logger.info(f"{log_prefix} [SUB_CHAT] Dispatched process_ai_skill_ask_task for child chat {sc_id}")
+                                except Exception as sc_err:
+                                    logger.error(f"{log_prefix} [SUB_CHAT] Error creating or dispatching sub-chat: {sc_err}", exc_info=True)
+
                         # Set up the tool response
                         tool_result_content_str = json.dumps({
                             "status": "spawned",
