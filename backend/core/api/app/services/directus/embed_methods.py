@@ -61,6 +61,7 @@ EMBED_KEY_ALL_FIELDS = (
     "hashed_embed_id,"
     "key_type,"
     "hashed_chat_id,"
+    "hashed_project_id,"
     "encrypted_embed_key,"
     "hashed_user_id,"
     "created_at"
@@ -840,6 +841,29 @@ class EmbedMethods:
             # ------------------------------------------------------------------
             embeds_to_delete = private_embeds + shared_embeds_to_delete
 
+            if embeds_to_delete and user_id and hasattr(self.directus_service, "project"):
+                candidate_embed_ids = [
+                    e.get('embed_id') for e in embeds_to_delete if e.get('embed_id')
+                ]
+                project_ref_counts = await self.directus_service.project.get_project_embed_reference_counts(
+                    candidate_embed_ids,
+                    user_id,
+                )
+                protected_embed_ids = {
+                    embed_id for embed_id, count in project_ref_counts.items() if count > 0
+                }
+                if protected_embed_ids:
+                    logger.info(
+                        "Keeping %d embed(s) for hashed_chat_id %s because they are referenced by projects: %s",
+                        len(protected_embed_ids),
+                        hashed_chat_id[:16],
+                        list(protected_embed_ids)[:5],
+                    )
+                    embeds_to_delete = [
+                        embed for embed in embeds_to_delete
+                        if embed.get('embed_id') not in protected_embed_ids
+                    ]
+
             if not embeds_to_delete:
                 logger.info("All embeds are still needed — nothing to delete.")
                 return True, []
@@ -1052,7 +1076,13 @@ class EmbedMethods:
             )
             return 0
 
-    async def delete_embeds_for_message(self, hashed_chat_id: str, hashed_message_id: str, s3_service=None) -> list:
+    async def delete_embeds_for_message(
+        self,
+        hashed_chat_id: str,
+        hashed_message_id: str,
+        s3_service=None,
+        user_id: Optional[str] = None,
+    ) -> list:
         """
         Deletes embeds for a specific message from Directus.
         Only deletes embeds that are private/not shared (same logic as delete_all_embeds_for_chat).
@@ -1097,7 +1127,29 @@ class EmbedMethods:
             logger.info(
                 f"Found {len(directus_ids)} private embed(s) to delete for hashed_message_id: {hashed_message_id[:16]}..."
             )
-            
+
+            if embed_uuid_ids and user_id and hasattr(self.directus_service, "project"):
+                project_ref_counts = await self.directus_service.project.get_project_embed_reference_counts(
+                    embed_uuid_ids,
+                    user_id,
+                )
+                protected_embed_ids = {
+                    embed_id for embed_id, count in project_ref_counts.items() if count > 0
+                }
+                if protected_embed_ids:
+                    logger.info(
+                        "Keeping %d embed(s) for hashed_message_id %s because they are referenced by projects: %s",
+                        len(protected_embed_ids),
+                        hashed_message_id[:16],
+                        list(protected_embed_ids)[:5],
+                    )
+                    response = [
+                        embed for embed in response
+                        if embed.get('embed_id') not in protected_embed_ids
+                    ]
+                    directus_ids = [embed.get('id') for embed in response if embed.get('id')]
+                    embed_uuid_ids = [embed.get('embed_id') for embed in response if embed.get('embed_id')]
+
             if not directus_ids:
                 return []
             
@@ -1361,4 +1413,3 @@ class EmbedMethods:
         
         if total_deleted > 0 or total_failed > 0:
             logger.info(f"S3 cleanup for embed deletion: {total_deleted} files deleted, {total_failed} failures")
-

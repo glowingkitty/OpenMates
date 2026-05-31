@@ -61,7 +61,7 @@
     // Update the webAppNavItems based on login state using Svelte 5 runes
     let webAppNavItems = $derived(isLoggedIn ? [
         // { href: '/app/chat', text: $t('navigation.chat') },
-        // { href: '/app/projects', text: $t('navigation.projects') },
+        { href: '/projects', text: $text('navigation.projects') },
         // { href: '/app/workflows', text: $t('navigation.workflows') }
     ] : []);
 
@@ -349,6 +349,18 @@
                     <div class="docs-tabs">
                         <a href="/docs" class="docs-tab active">{$text('common.docs')}</a>
                         <a href="/" class="docs-tab">{$text('common.chat')}</a>
+                    </div>
+                {:else if context === 'webapp' && isLoggedIn}
+                    <div class="webapp-center-tabs">
+                        <a
+                            href="/projects"
+                            class="docs-tab"
+                            class:active={isActive('/projects')}
+                            data-testid="projects-nav-link"
+                            onclick={(e) => handleClick(e, '/projects')}
+                        >
+                            {$text('navigation.projects')}
+                        </a>
                     </div>
                 {/if}
 
@@ -781,7 +793,8 @@
     }
 
     /* Docs/Chat tab toggle — centered in header when in docs mode */
-    .docs-tabs {
+    .docs-tabs,
+    .webapp-center-tabs {
         display: flex;
         align-items: center;
         gap: var(--spacing-2);
@@ -818,7 +831,8 @@
     }
 
     @media (max-width: 600px) {
-        .docs-tabs {
+    .docs-tabs,
+    .webapp-center-tabs {
             position: static;
             transform: none;
         }

@@ -847,6 +847,7 @@ def persist_chat_and_draft_on_logout_task(
 async def _async_persist_delete_chat(
     user_id: str, # Keep user_id for overall context/logging and potential use in chat deletion itself
     chat_id: str,
+    remove_project_embed_refs: bool = False,
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
     """
@@ -909,6 +910,35 @@ async def _async_persist_delete_chat(
         #    Also deletes associated S3 files and upload_files dedup records, and
         #    decrements the user's storage_used_bytes counter accordingly.
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+
+        if remove_project_embed_refs and hasattr(directus_service, "project"):
+            try:
+                rows = await directus_service.get_items(
+                    'embeds',
+                    params={
+                        'filter[hashed_chat_id][_eq]': hashed_chat_id,
+                        'fields': 'embed_id',
+                        'limit': -1,
+                    },
+                    no_cache=True,
+                )
+                embed_ids = [row.get('embed_id') for row in rows or [] if row.get('embed_id')]
+                target_hashes = [hashlib.sha256(embed_id.encode()).hexdigest() for embed_id in embed_ids]
+                removed = await directus_service.project.remove_items_for_target_hashes(
+                    target_hashes,
+                    item_type='embed',
+                    user_id=user_id,
+                )
+                logger.info(
+                    f"Removed {removed} project item reference(s) before deleting chat {chat_id}. "
+                    f"Task ID: {task_id}"
+                )
+            except Exception as project_ref_err:
+                logger.error(
+                    f"Failed to remove project embed references before deleting chat {chat_id}: {project_ref_err}",
+                    exc_info=True,
+                )
+                raise
 
         # Initialize S3 service for cleaning up S3 files associated with embeds
         s3_service = None
@@ -1011,7 +1041,7 @@ async def _async_persist_delete_chat(
 
 
 @app.task(name="app.tasks.persistence_tasks.persist_delete_chat", bind=True)
-def persist_delete_chat(self, user_id: str, chat_id: str):
+def persist_delete_chat(self, user_id: str, chat_id: str, remove_project_embed_refs: bool = False):
     """
     Synchronous Celery task wrapper to delete a chat and ALL its associated drafts from Directus,
     and ALL drafts for the chat from cache.
@@ -1030,6 +1060,7 @@ def persist_delete_chat(self, user_id: str, chat_id: str):
         loop.run_until_complete(_async_persist_delete_chat(
             user_id=user_id,
             chat_id=chat_id,
+            remove_project_embed_refs=remove_project_embed_refs,
             task_id=task_id
         ))
         logger.info(
@@ -1109,7 +1140,7 @@ async def _async_persist_delete_message(
             )
 
         deleted_embeds = await directus_service.embed.delete_embeds_for_message(
-            hashed_chat_id, hashed_message_id, s3_service=s3_service
+            hashed_chat_id, hashed_message_id, s3_service=s3_service, user_id=user_id
         )
 
         if deleted_embeds:

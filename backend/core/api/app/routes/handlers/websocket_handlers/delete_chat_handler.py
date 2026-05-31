@@ -8,10 +8,22 @@ from backend.core.api.app.services.directus.directus import DirectusService # Ke
 from backend.core.api.app.utils.encryption import EncryptionService # Keep for Celery task context if needed
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.compliance import ComplianceService # For compliance logging
-# Import the Celery app instance
-from backend.core.api.app.tasks.celery_config import app
 
 logger = logging.getLogger(__name__)
+
+
+def _queue_delete_chat_task(user_id: str, chat_id: str, remove_project_embeds: bool) -> None:
+    from backend.core.api.app.tasks.celery_config import app
+
+    app.send_task(
+        name='app.tasks.persistence_tasks.persist_delete_chat', # Full path to the task
+        kwargs={
+            'user_id': user_id,
+            'chat_id': chat_id,
+            'remove_project_embed_refs': remove_project_embeds,
+        },
+        queue='persistence' # Assign to the 'persistence' queue
+    )
 
 async def handle_delete_chat(
     websocket: WebSocket,
@@ -25,7 +37,7 @@ async def handle_delete_chat(
     user_otel_attrs: dict = None,):
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("delete_chat", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -40,6 +52,7 @@ async def handle_delete_chat(
             return
 
         logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
+        remove_project_embeds = bool(payload.get("removeProjectEmbeds"))
     
         try:
             # 0. Verify chat ownership before processing deletion
@@ -163,12 +176,7 @@ async def handle_delete_chat(
 
             # 3. Trigger Celery task to delete chat from Directus and ALL associated drafts
             try:
-                # Use app.send_task for explicit task dispatch
-                app.send_task(
-                    name='app.tasks.persistence_tasks.persist_delete_chat', # Full path to the task
-                    kwargs={'user_id': user_id, 'chat_id': chat_id},
-                    queue='persistence' # Assign to the 'persistence' queue
-                )
+                _queue_delete_chat_task(user_id, chat_id, remove_project_embeds)
                 logger.info(f"Successfully queued Celery task persist_delete_chat for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
             except Exception as celery_e:
                 logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)

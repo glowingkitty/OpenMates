@@ -34,6 +34,7 @@ export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
+export { default as ProjectsPage } from "./src/components/projects/ProjectsPage.svelte";
 export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as SearchBar } from "./src/components/chats/search/SearchBar.svelte";
@@ -132,6 +133,7 @@ export {
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
+export * from "./src/services/projectService";
 export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";
 export { handleMessageHighlightAddedImpl } from "./src/services/handlersMessageHighlights";
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service

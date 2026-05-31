@@ -51,6 +51,7 @@ from backend.core.api.app.routes import email_block  # noqa: E402 # Import email
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
+from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.routes import status_routes  # noqa: E402 # Import status page API v3 (grouped health + tests)
@@ -1343,6 +1344,7 @@ def create_app() -> FastAPI:
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
+    app.include_router(projects.router, include_in_schema=False)  # Projects workspace endpoints - web app only
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
