@@ -146,6 +146,36 @@ async def _fetch_code_run_outputs_for_chats(
         return []
 
 
+async def _fetch_direct_sub_chat_ids_for_phase1_parents(
+    directus_service: DirectusService,
+    parent_chat_ids: List[str],
+    user_id: str,
+) -> List[str]:
+    """Fetch direct child sub-chat IDs so parent preview cards survive cold reloads."""
+    if not parent_chat_ids:
+        return []
+    try:
+        import hashlib
+
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        rows = await directus_service.get_items(
+            "chats",
+            params={
+                "filter[parent_id][_in]": ",".join(parent_chat_ids),
+                "filter[hashed_user_id][_eq]": hashed_user_id,
+                "fields": "id,parent_id,is_sub_chat,created_at",
+                "sort": "created_at",
+                "limit": 50,
+            },
+            admin_required=True,
+        ) or []
+        child_ids = [row.get("id") for row in rows if isinstance(row, dict) and row.get("id")]
+        return [str(chat_id) for chat_id in child_ids]
+    except Exception as exc:
+        logger.warning("Phase 1a: Failed to fetch direct sub-chats for parents: %s", exc, exc_info=True)
+        return []
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -492,6 +522,22 @@ async def _handle_phase1_sync(
                 device_fingerprint_hash
             )
             return []
+
+        direct_sub_chat_ids = await _fetch_direct_sub_chat_ids_for_phase1_parents(
+            directus_service,
+            phase1_chat_ids,
+            user_id,
+        )
+        if direct_sub_chat_ids:
+            existing_phase1_ids = set(phase1_chat_ids)
+            for child_id in direct_sub_chat_ids:
+                if child_id not in existing_phase1_ids:
+                    phase1_chat_ids.append(child_id)
+                    existing_phase1_ids.add(child_id)
+            logger.info(
+                "Phase 1a: Included %d direct sub-chat metadata row(s) for parent preview reloads",
+                len(direct_sub_chat_ids),
+            )
 
         # --- Batch fetch metadata for all phase1 chats ---
         batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, phase1_chat_ids)
