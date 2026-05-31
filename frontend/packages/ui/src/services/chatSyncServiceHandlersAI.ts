@@ -4811,3 +4811,122 @@ export async function handleChatCompressionCheckpointStoredImpl(
     new CustomEvent("chatCompressionCheckpointStored", { detail: payload }),
   );
 }
+
+export async function handleSpawnSubChatsImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    type: "spawn_sub_chats";
+    chat_id: string;
+    sub_chats: Array<{
+      id: string;
+      user_message_id: string;
+      prompt: string;
+      wait_for_completion?: boolean;
+    }>;
+  },
+): Promise<void> {
+  console.info("[ChatSyncService:AI] Received 'spawn_sub_chats' payload:", payload);
+  try {
+    const parentChatId = payload.chat_id;
+    // Get parent chat key synchronously from ChatKeyManager (should be loaded since parent is active)
+    const parentKey = chatKeyManager.getKeySync(parentChatId);
+    if (!parentKey) {
+      console.error(
+        `[ChatSyncService:AI] Parent chat key missing for ${parentChatId}, cannot initialize sub-chats`,
+      );
+      return;
+    }
+
+    const { userProfile } = await import("../stores/userProfile");
+    const { get } = await import("svelte/store");
+    const currentUserId = get(userProfile).user_id;
+
+    for (const sc of payload.sub_chats) {
+      const scId = sc.id;
+      const prompt = sc.prompt;
+      const userMessageId = sc.user_message_id;
+
+      // 1. Inject the parent chat's key for the sub-chat.
+      // Under zero-knowledge rules, sub-chats share the parent's encryption key.
+      chatKeyManager.injectKey(scId, parentKey, "master_key");
+      console.info(
+        `[ChatSyncService:AI] Injected parent key into sub-chat ${scId}`,
+      );
+
+      // 2. Retrieve or create sub-chat record locally in IndexedDB
+      let childChat = await chatDB.getChat(scId);
+      if (!childChat) {
+        childChat = {
+          chat_id: scId,
+          parent_id: parentChatId,
+          is_sub_chat: true,
+          title: prompt.substring(0, 30) + (prompt.length > 30 ? "..." : ""),
+          encrypted_title: await encryptWithChatKey(
+            prompt.substring(0, 30),
+            parentKey,
+          ),
+          messages_v: 1,
+          title_v: 1,
+          unread_count: 0,
+          created_at: Math.floor(Date.now() / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+          last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
+          user_id: currentUserId,
+        };
+
+        // Encrypt the chat key with the master key for device sync and storage
+        const encryptedChatKey = await encryptChatKeyWithMasterKey(parentKey);
+        if (encryptedChatKey) {
+          childChat.encrypted_chat_key = encryptedChatKey;
+        }
+
+        await chatDB.addChat(childChat);
+        console.info(
+          `[ChatSyncService:AI] Created child chat record locally for ${scId}`,
+        );
+      }
+
+      // 3. Create the first user message in the sub-chat
+      let userMsg = await chatDB.getMessage(userMessageId);
+      if (!userMsg) {
+        userMsg = {
+          message_id: userMessageId,
+          chat_id: scId,
+          role: "user",
+          content: prompt,
+          status: "synced",
+          created_at: Math.floor(Date.now() / 1000),
+          encrypted_content: "", // Will be set by saveMessage encryption hook
+        };
+        await chatDB.saveMessage(userMsg);
+        console.info(
+          `[ChatSyncService:AI] Created first user message locally for sub-chat ${scId}`,
+        );
+
+        // 4. Sync the sub-chat and user message to Directus via standard sendEncryptedStoragePackage
+        const { sendEncryptedStoragePackage } = await import(
+          "./sendersChatMessages"
+        );
+        await sendEncryptedStoragePackage(serviceInstance, {
+          chat_id: scId,
+          user_message: userMsg,
+        });
+        console.info(
+          `[ChatSyncService:AI] Synced child chat and user message to Directus for ${scId}`,
+        );
+      }
+    }
+
+    // Dispatch localChatListChanged to update sidebar and carousel
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { chat_id: parentChatId },
+      }),
+    );
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error handling spawn_sub_chats payload:`,
+      error,
+    );
+  }
+}

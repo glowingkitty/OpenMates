@@ -630,6 +630,21 @@ export class ChatSynchronizationService extends EventTarget {
         payload as AITypingStartedPayload,
       ),
     );
+    webSocketService.on("spawn_sub_chats", (payload) =>
+      aiHandlers.handleSpawnSubChatsImpl(
+        this,
+        payload as {
+          type: "spawn_sub_chats";
+          chat_id: string;
+          sub_chats: Array<{
+            id: string;
+            user_message_id: string;
+            prompt: string;
+            wait_for_completion?: boolean;
+          }>;
+        },
+      ),
+    );
     // Real-time preprocessing step events: title_generated, mate_selected, model_selected.
     // These arrive in a burst after the single preprocessing LLM call resolves.
     // The handler dispatches a "preprocessingStep" CustomEvent for ActiveChat.svelte to consume.

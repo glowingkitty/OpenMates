@@ -567,6 +567,11 @@ class ChatDatabase {
         // This enables chatKeyManager.getKey(chatId) to load keys from IDB when not in cache.
         chatKeyManager.setEncryptedChatKeyFetcher(async (chatId: string) => {
           const chat = await this.getChat(chatId);
+          if (chat?.parent_id) {
+            console.debug(`[ChatKeyManager] Resolving key for sub-chat ${chatId} using parent chat ${chat.parent_id}`);
+            const parentChat = await this.getChat(chat.parent_id);
+            return parentChat?.encrypted_chat_key || null;
+          }
           return chat?.encrypted_chat_key || null;
         });
 

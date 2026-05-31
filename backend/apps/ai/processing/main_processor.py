@@ -3756,8 +3756,10 @@ async def handle_main_processing(
                                 for item in sc_list:
                                     resolved_prompt = prompt_template.replace("{x}", str(item))
                                     sc_id = str(uuid.uuid4())
+                                    user_msg_id = f"{sc_id[-10:]}-{uuid.uuid4()}"
                                     spawned_sub_chats.append({
                                         "id": sc_id,
+                                        "user_message_id": user_msg_id,
                                         "prompt": resolved_prompt,
                                         "wait_for_completion": wait_for_completion,
                                         "budget_limit": budget_limit,
@@ -3765,8 +3767,10 @@ async def handle_main_processing(
                                     })
                             else:
                                 sc_id = str(uuid.uuid4())
+                                user_msg_id = f"{sc_id[-10:]}-{uuid.uuid4()}"
                                 spawned_sub_chats.append({
                                     "id": sc_id,
+                                    "user_message_id": user_msg_id,
                                     "prompt": prompt or prompt_template or "",
                                     "wait_for_completion": wait_for_completion,
                                     "budget_limit": budget_limit,
@@ -3780,6 +3784,7 @@ async def handle_main_processing(
                                 try:
                                     sc_id = sc["id"]
                                     prompt = sc["prompt"]
+                                    msg_id = sc["user_message_id"]
                                     
                                     # Create the sub-chat record in Directus
                                     sub_chat_payload = {
@@ -3800,18 +3805,10 @@ async def handle_main_processing(
                                     await directus_service.chat.create_chat_in_directus(sub_chat_payload)
                                     logger.info(f"{log_prefix} [SUB_CHAT] Created child chat record {sc_id} in Directus")
                                     
-                                    # Create the first user message in the sub-chat
-                                    msg_id = f"{sc_id[-10:]}-{uuid.uuid4()}"
-                                    msg_payload = {
-                                        "id": msg_id,
-                                        "chat_id": sc_id,
-                                        "role": "user",
-                                        "created_at": int(time.time()),
-                                        "status": "synced",
-                                        "content": prompt
-                                    }
-                                    await directus_service.create_item("messages", msg_payload)
-                                    logger.info(f"{log_prefix} [SUB_CHAT] Created first user message {msg_id} in child chat {sc_id}")
+                                    # Note: Zero-knowledge architecture - the first user message is encrypted
+                                    # and persisted by the client when it receives the 'spawn_sub_chats' WS event.
+                                    # Writing a plaintext user message here violates zero-knowledge rules and
+                                    # throws a 403 Forbidden because Directus 'messages' collection has no 'content' field.
                                     
                                     # Construct child AskSkillRequest data
                                     child_request_data = {
