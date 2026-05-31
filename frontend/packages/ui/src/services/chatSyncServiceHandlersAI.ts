@@ -4866,9 +4866,9 @@ export async function handleSpawnSubChatsImpl(
       const prompt = subChatPayload.prompt || "";
       const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
 
-      if (!scId || !userMessageId) {
+      if (!scId) {
         console.error(
-          "[ChatSyncService:AI] Skipping malformed sub-chat payload; missing id or user_message_id",
+          "[ChatSyncService:AI] Skipping malformed sub-chat payload; missing id",
           { parentChatId, subChatPayload },
         );
         continue;
@@ -4915,6 +4915,13 @@ export async function handleSpawnSubChatsImpl(
       }
 
       // 3. Create the first user message in the sub-chat
+      if (!userMessageId) {
+        console.warn(
+          `[ChatSyncService:AI] Sub-chat ${scId} payload missing user_message_id; created local chat shell only`,
+        );
+        continue;
+      }
+
       let userMsg = await chatDB.getMessage(userMessageId);
       if (!userMsg) {
         userMsg = {
