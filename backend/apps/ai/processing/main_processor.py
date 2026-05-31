@@ -1894,6 +1894,7 @@ async def handle_main_processing(
     prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 
     # --- Add sub-chats usage instructions for LLM ---
+    enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
     if enable_subchats_results:
         sub_chats_instruction = (
             "### Sub-Chats (Sub-Agents) Orchestration Instruction:\n"
@@ -2033,8 +2034,6 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id})")
 
     # --- Add sub-chat orchestration tools ---
-    enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
-    
     start_sub_chats_tool = {
         "type": "function",
         "function": {
