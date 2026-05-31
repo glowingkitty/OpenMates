@@ -2211,6 +2211,11 @@ async def _consume_main_processing_stream(
     # Unlike app_settings, focus mode has embed content that needs to be finalized
     awaiting_focus_mode_confirmation = False
     
+    # Track if we're awaiting sub-chats to complete before continuing
+    awaiting_sub_chats_completion = False
+    # Track if we're awaiting user input from a sub-chat
+    awaiting_user_input = False
+    
     # Debug metadata captured from main_processor (system prompt, tools, message history)
     # Yielded early before the LLM call loop and returned to ask_skill_task for debug caching
     debug_metadata: Optional[Dict[str, Any]] = None
@@ -2277,6 +2282,7 @@ async def _consume_main_processing_stream(
                 continue
 
             if isinstance(chunk, dict) and "__awaiting_sub_chats_completion__" in chunk:
+                awaiting_sub_chats_completion = True
                 payload = {
                     "type": "awaiting_sub_chats_completion",
                     "task_id": task_id,
@@ -2299,6 +2305,7 @@ async def _consume_main_processing_stream(
                 continue
 
             if isinstance(chunk, dict) and "__awaiting_user_input__" in chunk:
+                awaiting_user_input = True
                 payload = {
                     "type": "awaiting_user_input",
                     "task_id": task_id,
@@ -4272,6 +4279,8 @@ async def _consume_main_processing_stream(
         and not was_soft_limited_during_stream
         and not awaiting_app_settings_memories_permission
         and not awaiting_focus_mode_confirmation
+        and not awaiting_sub_chats_completion
+        and not awaiting_user_input
     ):
         if fake_tool_calls_filtered:
             # We filtered fake tool calls and the LLM didn't produce any other content
@@ -4344,6 +4353,13 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
+        return "", False, False, [], debug_metadata
+        
+    # Handle paused execution cases: waiting for sub-chats or user input
+    # The client handles the paused state without finalizing the current message
+    if awaiting_sub_chats_completion or awaiting_user_input:
+        reason = "sub-chats completion" if awaiting_sub_chats_completion else "user input"
+        logger.info(f"{log_prefix} Task completing without response - awaiting {reason}. No final marker will be sent.")
         return "", False, False, [], debug_metadata
     
     # Handle the case where we're awaiting focus mode confirmation (deferred activation).
