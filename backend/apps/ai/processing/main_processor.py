@@ -3774,6 +3774,7 @@ async def handle_main_processing(
                                 })
                         
                         # Create and dispatch sub-chats in Directus/Celery
+                        logger.info(f"{log_prefix} [SUB_CHAT] Debug: directus_service={directus_service}, spawned_sub_chats={spawned_sub_chats}")
                         if directus_service:
                             for sc in spawned_sub_chats:
                                 try:
