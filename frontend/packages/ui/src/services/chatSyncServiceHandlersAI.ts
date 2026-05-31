@@ -4828,8 +4828,24 @@ export async function handleSpawnSubChatsImpl(
   console.info("[ChatSyncService:AI] Received 'spawn_sub_chats' payload:", payload);
   try {
     const parentChatId = payload.chat_id;
+    if (!parentChatId) {
+      console.error(
+        "[ChatSyncService:AI] spawn_sub_chats payload missing chat_id; cannot initialize sub-chats",
+        payload,
+      );
+      return;
+    }
+
+    if (!Array.isArray(payload.sub_chats)) {
+      console.error(
+        "[ChatSyncService:AI] spawn_sub_chats payload missing sub_chats array; cannot initialize sub-chats",
+        payload,
+      );
+      return;
+    }
+
     // Get parent chat key synchronously from ChatKeyManager (should be loaded since parent is active)
-    const parentKey = chatKeyManager.getKeySync(parentChatId);
+    const parentKey = chatKeyManager.getKeySync(parentChatId) || await chatKeyManager.getKey(parentChatId);
     if (!parentKey) {
       console.error(
         `[ChatSyncService:AI] Parent chat key missing for ${parentChatId}, cannot initialize sub-chats`,
@@ -4842,9 +4858,21 @@ export async function handleSpawnSubChatsImpl(
     const currentUserId = get(userProfile).user_id;
 
     for (const sc of payload.sub_chats) {
-      const scId = sc.id;
-      const prompt = sc.prompt;
-      const userMessageId = sc.user_message_id;
+      const subChatPayload = sc as typeof sc & {
+        chat_id?: string;
+        message_id?: string;
+      };
+      const scId = subChatPayload.id || subChatPayload.chat_id;
+      const prompt = subChatPayload.prompt || "";
+      const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
+
+      if (!scId || !userMessageId) {
+        console.error(
+          "[ChatSyncService:AI] Skipping malformed sub-chat payload; missing id or user_message_id",
+          { parentChatId, subChatPayload },
+        );
+        continue;
+      }
 
       // 1. Inject the parent chat's key for the sub-chat.
       // Under zero-knowledge rules, sub-chats share the parent's encryption key.
