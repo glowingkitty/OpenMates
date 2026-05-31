@@ -7,6 +7,8 @@ Every Swift UI file must visually match its web counterpart exactly.
 The web app (Svelte + CSS custom properties) is the design source of truth.
 Design tokens are pre-generated — never hardcode colors, spacing, or radii.
 
+OpenMates is SwiftUI-first, not SwiftUI-only. Keep product UI composition and Svelte parity in SwiftUI by default, but use UIKit/AppKit selectively for proven performance hot paths or system-backed capabilities.
+
 ---
 
 ## Build & Run Workflow
@@ -155,6 +157,26 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 2. Read the mapped CSS file — note exact class names, pixel values, transitions.
 3. Read the token mapping table in `docs/architecture/frontend/apple-ui-redesign-task.md`.
 4. Only then write or modify Swift code.
+
+### SwiftUI / UIKit performance strategy
+- Keep app chrome, screen composition, settings, static product UI, and Svelte-to-native component parity in SwiftUI by default.
+- Do not rewrite an entire screen or the app shell to UIKit without a concrete bottleneck.
+- Use UIKit/AppKit selectively for long virtualized feeds, chat transcript/message lists with proven scroll or streaming jank, rich embed grids/lists with heavy media, gesture-heavy real-time interactions, and PDF/map/video/web/canvas surfaces.
+- Before replacing SwiftUI with UIKit, first reduce expensive `body` work, broad state invalidation, and avoidable layout churn.
+- If the issue is scrolling, virtualization, cell reuse, or frame stability, prefer a contained `UICollectionView`/`UIScrollView` wrapper via `UIViewRepresentable` while keeping the surrounding screen in SwiftUI.
+- For macOS equivalents, use the matching AppKit wrapper pattern (`NSViewRepresentable`) rather than duplicating unrelated app architecture.
+
+### SwiftUI performance rules
+- Avoid markdown parsing, JSON decoding, image decoding/resizing, sorting/filtering large arrays, embed payload normalization, and formatter construction inside `body`, computed view properties, and frequently re-rendered builders.
+- Cache parsed render data with stable IDs.
+- Scope state narrowly so message-level updates do not invalidate the full transcript or app shell.
+- Prefer stable identity for rows, embeds, and media-heavy cells.
+- Profile with Instruments when a performance-sensitive surface changes or visible jank is reported.
+
+### Chat transcript performance
+- The chat transcript is a high-risk SwiftUI performance surface because it combines streaming updates, long scroll history, markdown, embeds, images, and dynamic layout.
+- If transcript scrolling or streaming becomes visibly janky, prefer a UIKit-backed transcript implementation using `UICollectionView` with reusable cells, embedded in SwiftUI.
+- Do not migrate the whole app shell to UIKit to fix transcript performance.
 
 ### Colors — never hardcode
 - Use `Color.*` extensions from `ColorTokens.generated.swift`.
