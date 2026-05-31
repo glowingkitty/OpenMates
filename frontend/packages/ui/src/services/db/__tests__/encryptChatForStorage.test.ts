@@ -86,6 +86,7 @@ vi.mock("svelte/store", () => ({
 }));
 
 import { encryptChatForStorage } from "../chatCrudOperations";
+import { getEncryptedChatKey } from "../chatKeyManagement";
 import type { Chat } from "../../../types/chat";
 
 // ---------------------------------------------------------------------------
@@ -371,5 +372,36 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
     expect(mockGetKeySync).not.toHaveBeenCalled();
     expect(result.chat_id).toBe("demo-welcome");
+  });
+});
+
+describe("getEncryptedChatKey", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("falls back to the parent encrypted key for sub-chats", async () => {
+    const db = makeDbInstance();
+    db.getChat
+      .mockResolvedValueOnce(
+        makeChat({
+          chat_id: "sub-chat-123",
+          encrypted_chat_key: null,
+          parent_id: "parent-chat-123",
+          is_sub_chat: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        makeChat({
+          chat_id: "parent-chat-123",
+          encrypted_chat_key: "parent-encrypted-key",
+        }),
+      );
+
+    const result = await getEncryptedChatKey(db as any, "sub-chat-123");
+
+    expect(result).toBe("parent-encrypted-key");
+    expect(db.getChat).toHaveBeenNthCalledWith(1, "sub-chat-123");
+    expect(db.getChat).toHaveBeenNthCalledWith(2, "parent-chat-123");
   });
 });

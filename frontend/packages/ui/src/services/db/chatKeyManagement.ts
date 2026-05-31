@@ -388,6 +388,13 @@ export async function getEncryptedChatKey(
   try {
     const chat = await dbInstance.getChat(chatId);
     const encryptedKey = chat?.encrypted_chat_key || null;
+    if (!encryptedKey && chat?.parent_id) {
+      const parentChat = await dbInstance.getChat(chat.parent_id);
+      const parentEncryptedKey = parentChat?.encrypted_chat_key || null;
+      if (parentEncryptedKey) {
+        return parentEncryptedKey;
+      }
+    }
     if (!encryptedKey) {
       console.warn(
         `[ChatDatabase] No encrypted_chat_key found for chat ${chatId}:`,
