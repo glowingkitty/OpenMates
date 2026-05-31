@@ -1591,6 +1591,14 @@ export async function handleAITypingStartedImpl( // Changed to async
     }
 
     if (!userMessage) {
+      const chatForMissingUserMessage = await chatDB.getChat(payload.chat_id);
+      if (chatForMissingUserMessage?.is_sub_chat) {
+        console.warn(
+          `[ChatSyncService:AI] No local user message found for sub-chat ${payload.chat_id}; skipping encrypted user-message storage package`,
+        );
+        return;
+      }
+
       console.error(
         `[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`,
       );
