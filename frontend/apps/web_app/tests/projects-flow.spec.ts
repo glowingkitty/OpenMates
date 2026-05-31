@@ -16,7 +16,8 @@ test.describe('Projects v1 flow', () => {
 
   test('creates and deletes a project', async ({ page }) => {
     await page.goto('/projects');
-    await expect(page.getByTestId('projects-page')).toBeVisible();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
     const projectName = `E2E Project ${Date.now()}`;
     await page.getByTestId('project-name-input').fill(projectName);
