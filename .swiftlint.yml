@@ -1,0 +1,41 @@
+included:
+  - apple
+
+excluded:
+  - apple/OpenMates.xcodeproj
+  - frontend/packages/ui/src/tokens/generated/swift
+
+disabled_rules:
+  - file_length
+  - function_body_length
+  - function_parameter_count
+  - type_body_length
+  - line_length
+  - identifier_name
+  - type_name
+  - trailing_whitespace
+  - control_statement
+  - cyclomatic_complexity
+  - empty_enum_arguments
+  - force_cast
+  - for_where
+  - implicit_optional_initialization
+  - inclusive_language
+  - large_tuple
+  - multiple_closures_with_trailing_closure
+  - nesting
+  - non_optional_string_data_conversion
+  - optional_data_string_conversion
+  - private_over_fileprivate
+  - redundant_discardable_let
+  - statement_position
+  - switch_case_alignment
+  - todo
+  - trailing_comma
+  - trailing_newline
+  - unneeded_synthesized_initializer
+  - unused_closure_parameter
+  - unused_optional_binding
+  - void_function_in_ternary
+
+reporter: xcode
