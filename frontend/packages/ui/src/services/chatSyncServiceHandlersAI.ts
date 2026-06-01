@@ -4922,6 +4922,7 @@ export async function handleSpawnSubChatsImpl(
           `[ChatSyncService:AI] Created child chat record locally for ${scId}`,
         );
       }
+      await flushPendingTypingStartedForChat(serviceInstance, scId);
 
       // 3. Create the first user message in the sub-chat
       if (!userMessageId) {

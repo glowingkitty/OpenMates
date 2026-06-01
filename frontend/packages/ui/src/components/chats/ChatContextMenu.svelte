@@ -19,6 +19,11 @@
         hideDelete?: boolean;
         hideDownload?: boolean;
         hideCopy?: boolean;
+        hideSelect?: boolean;
+        hideShare?: boolean;
+        hideVisibility?: boolean;
+        hidePin?: boolean;
+        hideReadStatus?: boolean;
         selectMode?: boolean; // Whether we're in select mode (managed by Chats.svelte)
         selectedChatIds?: Set<string>; // Set of selected chat IDs (managed by Chats.svelte)
         downloading?: boolean; // Whether a download is currently in progress
@@ -31,6 +36,11 @@
         hideDelete = false,
         hideDownload = false,
         hideCopy = false,
+        hideSelect = false,
+        hideShare = false,
+        hideVisibility = false,
+        hidePin = false,
+        hideReadStatus = false,
         selectMode = false,
         selectedChatIds = new Set<string>(),
         downloading = false
@@ -503,14 +513,16 @@
                 {$text('chats.context_menu.open_new_tab')}
             </button>
 
-            <button
-                class="menu-item select"
-                onclick={(event) => handleButtonClick('enterSelectMode', event)}
-                ontouchend={(event) => handleButtonClick('enterSelectMode', event)}
-            >
-                <div class="clickable-icon icon_select"></div>
-                {$text('chats.context_menu.select')}
-            </button>
+            {#if !hideSelect}
+                <button
+                    class="menu-item select"
+                    onclick={(event) => handleButtonClick('enterSelectMode', event)}
+                    ontouchend={(event) => handleButtonClick('enterSelectMode', event)}
+                >
+                    <div class="clickable-icon icon_select"></div>
+                    {$text('chats.context_menu.select')}
+                </button>
+            {/if}
 
             {#if !hideDownload}
                 <button
@@ -539,7 +551,7 @@
                 </button>
             {/if}
 
-            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+            {#if !hideShare && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item share"
                     class:disabled={!$authStore.isAuthenticated}
@@ -560,7 +572,7 @@
                 </button>
             {/if}
 
-            {#if chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
+            {#if !hideVisibility && chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item hide"
                     data-testid="chat-context-hide"
@@ -582,7 +594,7 @@
                 </button>
             {/if}
 
-            {#if chat && chat.is_hidden}
+            {#if !hideVisibility && chat && chat.is_hidden}
                 <button
                     class="menu-item unhide"
                     data-testid="chat-context-unhide"
@@ -604,7 +616,7 @@
                 </button>
             {/if}
 
-            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+            {#if !hidePin && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
                 {#if chat.pinned}
                     <button
                         class="menu-item unpin"
@@ -648,7 +660,7 @@
                 {/if}
             {/if}
 
-            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+            {#if !hideReadStatus && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
                 {#if isUnread}
                     <button
                         class="menu-item mark-read"

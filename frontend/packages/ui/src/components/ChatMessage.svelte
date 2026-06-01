@@ -7,6 +7,7 @@
   import DemoMessageContent from './DemoMessageContent.svelte';
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
+  import ChatContextMenu from './chats/ChatContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
   import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
   import HighlightCommentPopover from './HighlightCommentPopover.svelte';
@@ -45,6 +46,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
   import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
+  import { copyChatToClipboard } from '../services/chatExportService';
+  import { downloadChatAsZip } from '../services/zipExportService';
   
   // Define types for message content parts
   type AppCardData = {
@@ -166,6 +169,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   };
 
   let subChatsOfThisMessage = $state<SubChatPreview[]>([]);
+  let subChatContextMenuChat = $state<SubChatPreview | null>(null);
+  let subChatContextMenuX = $state(0);
+  let subChatContextMenuY = $state(0);
+  let subChatContextMenuVisible = $state(false);
+  let subChatDownloading = $state(false);
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -236,6 +244,55 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       subChatsOfThisMessage = previews;
     } catch (e) {
       console.error('Error loading sub-chats for message:', e);
+    }
+  }
+
+  function handleSubChatContextMenu(event: MouseEvent, subChat: SubChatPreview) {
+    event.preventDefault();
+    event.stopPropagation();
+    subChatContextMenuChat = subChat;
+    subChatContextMenuX = event.clientX;
+    subChatContextMenuY = event.clientY;
+    subChatContextMenuVisible = true;
+  }
+
+  async function handleSubChatMenuAction(event: CustomEvent<string>) {
+    const action = event.detail;
+    const subChat = subChatContextMenuChat;
+    if (action === 'close') {
+      subChatContextMenuVisible = false;
+      return;
+    }
+    if (!subChat) return;
+
+    try {
+      if (action === 'download' || action === 'copy') {
+        const messages = await chatDB.getMessagesForChat(subChat.chat_id);
+        if (action === 'download') {
+          subChatDownloading = true;
+          await downloadChatAsZip(subChat, messages);
+        } else {
+          await copyChatToClipboard(subChat, messages);
+          const { notificationStore } = await import('../stores/notificationStore');
+          notificationStore.success('Chat copied to clipboard');
+        }
+      } else if (action === 'delete') {
+        await chatDB.deleteChat(subChat.chat_id);
+        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: subChat.chat_id } }));
+        await chatSyncService.sendDeleteChat(subChat.chat_id);
+      } else if (action === 'share') {
+        const { activeChatStore } = await import('../stores/activeChatStore');
+        activeChatStore.setActiveChat(subChat.chat_id);
+        settingsDeepLink.set('shared/share');
+        panelState.openSettings();
+      }
+    } catch (error) {
+      console.error('[ChatMessage] Sub-chat context menu action failed:', action, error);
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.error('Failed to perform action');
+    } finally {
+      subChatDownloading = false;
+      subChatContextMenuVisible = false;
     }
   }
 
@@ -2683,6 +2740,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 class="sub-chat-card sub-chat-large-card"
                 data-testid="sub-chat-card"
                 style={getSubChatPreviewStyle(subChatCategory)}
+                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
                 onclick={async () => {
                   const { activeChatStore } = await import('../stores/activeChatStore');
                   activeChatStore.setActiveChat(sc.chat_id);
@@ -2719,6 +2777,27 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               </button>
             {/each}
           </div>
+        {/if}
+
+        {#if subChatContextMenuVisible && subChatContextMenuChat}
+          <ChatContextMenu
+            x={subChatContextMenuX}
+            y={subChatContextMenuY}
+            show={subChatContextMenuVisible}
+            chat={subChatContextMenuChat}
+            hideSelect={true}
+            hideVisibility={true}
+            hidePin={true}
+            hideReadStatus={true}
+            selectMode={false}
+            selectedChatIds={new Set<string>()}
+            downloading={subChatDownloading}
+            on:close={handleSubChatMenuAction}
+            on:download={handleSubChatMenuAction}
+            on:copy={handleSubChatMenuAction}
+            on:delete={handleSubChatMenuAction}
+            on:share={handleSubChatMenuAction}
+          />
         {/if}
 
         <!-- Thinking Section: Displayed above message content for thinking models -->

@@ -48,6 +48,9 @@
     selectMode = false,
     selectedChatIds = new Set<string>(),
     onToggleSelection,
+    hasSubChats = false,
+    subChatsExpanded = false,
+    onToggleSubChats,
     highlightedTitle = null,
   }: {
     chat: Chat;
@@ -55,6 +58,9 @@
     selectMode?: boolean;
     selectedChatIds?: Set<string>;
     onToggleSelection?: (chatId: string) => void;
+    hasSubChats?: boolean;
+    subChatsExpanded?: boolean;
+    onToggleSubChats?: (chatId: string) => void;
     /** Pre-highlighted HTML string for the chat title (used in search results to show <mark> tags). When provided, overrides the normal title rendering. */
     highlightedTitle?: string | null;
   } = $props();
@@ -1149,6 +1155,14 @@
     clearTouchTimer();
   }
 
+  function handleSubChatsToggle(event: MouseEvent | KeyboardEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (chat?.chat_id && onToggleSubChats) {
+      onToggleSubChats(chat.chat_id);
+    }
+  }
+
   /**
    * Clear the touch timer
    */
@@ -2159,6 +2173,22 @@
                <span class="status-message">{truncateText(displayText,60)}</span>
             {/if}
           </div>
+          {#if hasSubChats && !selectMode}
+            <button
+              type="button"
+              class="sub-chats-toggle"
+              data-testid="sub-chats-toggle"
+              class:expanded={subChatsExpanded}
+              aria-label={subChatsExpanded ? 'Hide sub chats' : 'Show sub chats'}
+              aria-expanded={subChatsExpanded}
+              onclick={handleSubChatsToggle}
+              onkeydown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  handleSubChatsToggle(event);
+                }
+              }}
+            ></button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -2313,6 +2343,36 @@
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
+  }
+
+  .sub-chats-toggle {
+    all: unset;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    background: var(--color-grey-60);
+    -webkit-mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+    mask-image: url('@openmates/ui/static/icons/dropdown.svg');
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 12px 12px;
+    mask-size: 12px 12px;
+    transform: rotate(-90deg);
+    transition: background-color var(--duration-normal) var(--easing-default), transform var(--duration-normal) var(--easing-default);
+  }
+
+  .sub-chats-toggle:hover,
+  .sub-chats-toggle:focus-visible {
+    background: var(--color-text);
+  }
+
+  .sub-chats-toggle.expanded {
+    transform: rotate(0deg);
   }
 
   .status-message {

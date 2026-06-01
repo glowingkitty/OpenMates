@@ -2864,7 +2864,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // (Chats.svelte) remount performance, not the welcome screen. Using
             // the cache here causes stale sort order when returning from a chat.
             let chats: Chat[] = await chatDB.getAllChats();
-            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
+            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id) && !c.parent_id && !c.is_sub_chat);
             const sorted = sortChats(filteredChats, []);
 
             // Exclude the primary resume chat (it's rendered separately)
@@ -2923,6 +2923,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (currentActiveChatId === chatId || isPublicChat(chatId)) continue;
                 const chat = await chatDB.getChat(chatId);
                 if (!chat) continue;
+                if (chat.parent_id || chat.is_sub_chat) continue;
                 const meta = await buildRecentChatMeta(chat);
                 chatItems.push({ ...meta, kind: 'chat', priority });
             }
@@ -3218,6 +3219,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Look up the specific chat by ID from last_opened
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) return false;
+            if (chat.parent_id || chat.is_sub_chat) return false;
 
             // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;

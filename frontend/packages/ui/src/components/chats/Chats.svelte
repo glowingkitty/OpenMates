@@ -91,9 +91,20 @@ let _chatUpdatedFlushPending = false;
 	let selectMode = $state(false); // Whether we're in multi-select mode
 	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
 	let lastSelectedChatId: string | null = $state(null); // Track last selected chat for range selection
+	let expandedSubChatParentIds = $state<Set<string>>(new Set());
 
 	// Hidden Chats State
 	let showHiddenChatUnlock = $state(false); // Show unlock modal (for context menu hide action)
+
+	function toggleSubChatsForParent(chatId: string): void {
+		const next = new Set(expandedSubChatParentIds);
+		if (next.has(chatId)) {
+			next.delete(chatId);
+		} else {
+			next.add(chatId);
+		}
+		expandedSubChatParentIds = next;
+	}
 	let isFirstTimeUnlock = $state(false); // True if setting code for first time
 	let chatIdToHideAfterUnlock: string | null = $state(null); // Chat ID to hide after unlock
 	let hiddenChatState = $derived($hiddenChatStore); // Reactive hidden chat state
@@ -3857,6 +3868,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
+						{@const subChats = allChatsFromDB.filter(c => c.parent_id === chat.chat_id)}
 						<div
 							role="button"
 							tabindex="0"
@@ -3951,6 +3963,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									activeChatId={selectedChatId}
 									selectMode={selectMode}
 									selectedChatIds={selectedChatIds}
+									hasSubChats={subChats.length > 0}
+									subChatsExpanded={expandedSubChatParentIds.has(chat.chat_id)}
+									onToggleSubChats={toggleSubChatsForParent}
 									onToggleSelection={(chatId: string) => {
 										if (selectedChatIds.has(chatId)) {
 											selectedChatIds.delete(chatId);
@@ -3963,8 +3978,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								/>
 							</div>
 							<!-- Nested Sub-chats (Tier 1 & Tier 2) -->
-							{@const subChats = allChatsFromDB.filter(c => c.parent_id === chat.chat_id)}
-							{#if subChats.length > 0}
+							{#if subChats.length > 0 && expandedSubChatParentIds.has(chat.chat_id)}
 								<div class="sub-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
 									{#each subChats as subChat (subChat.chat_id)}
 										<div
