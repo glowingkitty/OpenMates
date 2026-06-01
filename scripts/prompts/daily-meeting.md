@@ -88,8 +88,7 @@ This is the persistent daily dashboard in `vaults/memory/Daily Notes/{{DATE}}.md
 
 ### Current Milestone State
 
-Milestones are sourced from Linear projects (via `mcp__linear__list_projects` + `mcp__linear__list_milestones`).
-NOT from `.planning/PROJECT.md` — that file is obsolete.
+Milestones are sourced from GitHub milestones/issues by default. Retained Linear milestone context is only for Linear-only categories. NOT from `.planning/PROJECT.md` — that file is obsolete.
 
 ### Data Failures
 
@@ -117,7 +116,7 @@ Use emojis for scanability: ✅ done, 🔄 in progress, ❌ not started/failed, 
 
 ### Step 1: STATUS CLEANUP 🧹
 
-Query Linear for ALL tasks not in Done/Canceled state. Use `mcp__linear__list_issues` with **no limit** (or limit: 200) across states "Todo", "In Progress", "In Review", "Backlog", and "Triage". If the result count equals the limit, paginate with `after` cursor to get the rest. **Every task must appear — never truncate the list.**
+Query GitHub Issues by default and retained Linear tasks with `python3 scripts/linear.py list --team OPE --all --limit 100 --json`. Linear is only for programmatically stored/recorded issues, marketing, sensitive/private work, and explicit OPE tasks. **Every relevant open task must appear — never truncate the list.**
 
 Sort results for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age (oldest first).
 
@@ -127,13 +126,13 @@ Flag:
 - ⚠️ **Ghost tasks**: In Progress with `claude-is-working` label but no active session
 - ⚠️ **Missing metadata**: No milestone, no priority, or no labels assigned
 
-Present as a table with columns: Linear ID, Title, Short Description, Status, Priority, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
+Present as a table with columns: Tracker ID, Title, Short Description, Status, Priority, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
 
-**Auto-archive Done tasks > 30 days:** Query Linear for Done tasks older than 30 days (`mcp__linear__list_issues` with state "Done", createdAt older than 30 days). If any exist, report the count and ask: "There are N Done tasks older than 30 days. Want me to archive them?" Archive on confirmation using `mcp__linear__save_issue` with the archive flag.
+**Auto-archive Done Linear tasks > 30 days:** Query retained Linear tasks with `scripts/linear.py`. If any Done tasks are older than 30 days, report the count and ask before archiving/deleting. Apply confirmed changes with `scripts/linear.py`, not Linear MCP.
 
 **Auto-cancel E2E test artifacts:** Query for tasks with title matching `[E2E Test]` pattern. Cancel them automatically without asking — these are always test artifacts. Report: "Canceled N E2E test artifacts."
 
-Wait for user input. Update Linear statuses based on their answers before proceeding.
+Wait for user input. Update GitHub or retained Linear statuses based on their answers before proceeding.
 
 ### Step 2: YESTERDAY REVIEW 📋
 
@@ -166,10 +165,10 @@ Using the gathered health data:
 - ⚠️ Flag data sources that were unavailable or stale
 - If "no errors" is reported but seems unlikely, flag it as potentially unreliable (OTel gap)
 - **Browser error context**: Review the ephemeral error-context data — are there error patterns across multiple anonymous sessions? This shows errors happening to real users, not just admins.
-- **🔴 PII LEAK AUDIT IS CRITICAL**: If the PII leak audit found ANY matches, this is the #1 priority. Create a HIGH priority Linear task immediately. Investigate which log statement is leaking PII and fix the sanitization.
+- **🔴 PII LEAK AUDIT IS CRITICAL**: If the PII leak audit found ANY matches, this is the #1 priority. Create a private/sensitive Linear task immediately. Investigate which log statement is leaking PII and fix the sanitization.
 - **Warning log review**: WARNING-level server logs are now included in the OpenObserve data. Flag any new warnings (deprecations, retries, near-failures) that appeared for the first time.
-- **SEO health**: Report the SEO health check results — sitemap URL count, missing meta tags, SSR rendering issues. Only flag if there are issues; if all green, one line: "SEO: ✅". If issues found, create a Linear task if none exists.
-- If a broken item has no Linear task, create one with HIGH priority
+- **SEO health**: Report the SEO health check results — sitemap URL count, missing meta tags, SSR rendering issues. Only flag if there are issues; if all green, one line: "SEO: ✅". If issues found, create a GitHub Issue if none exists.
+- If a broken public item has no GitHub Issue, create one with high priority labels. Use Linear only when the item is sensitive/private or marketing-related.
 
 Wait for user input (they may know about issues the data missed).
 
@@ -181,14 +180,14 @@ Using `docs/architecture/compliance/top-10-recommendations.md`:
 - Present every **CRITICAL** and **HIGH** finding: rank, title, score, framework, one-line "why", and the `code-fix` / `docs-only` / `transparency-fix` tag.
 - List MEDIUM and LOW findings as titles only (one line each).
 - Mention items resolved since last run (brief) and any tier activation alerts.
-- **Ask the user which findings (if any) should be promoted into today's top 10 priorities**, and whether any need a new Linear task if not already tracked.
+- **Ask the user which findings (if any) should be promoted into today's top 10 priorities**, and whether any need a new GitHub Issue or retained Linear task if not already tracked.
 
 Wait for user input.
 
 ### Step 4: PROJECT TRAJECTORY 🗺️
 
-Using Linear milestones (queried via `mcp__linear__list_projects` + `mcp__linear__list_milestones`) + nightly reports:
-- Current milestone progress (from Linear milestone `progress` field)
+Using GitHub milestones/issues by default, retained Linear milestones only for Linear-only categories, plus nightly reports:
+- Current milestone progress
 - Target dates vs actual — flag overdue milestones
 - Scope/timeline concerns
 - Session quality trend
@@ -219,11 +218,11 @@ Rules for asking:
 
 ### Step 6: TODAY'S PRIORITIES 🎯
 
-Query Linear for ALL active tasks (Todo, In Progress, Backlog) using `mcp__linear__list_issues` with **no limit** (or limit: 200). Paginate if needed. Sort by status (**Todo before Backlog**), then by priority (Urgent → High → Medium → Low → No priority). Use this complete list to propose priorities:
+Use the complete GitHub Issue list plus retained Linear tasks from `scripts/linear.py` to propose priorities. Sort by status when available, then by priority. Use this complete list to propose priorities:
 - Present a **ranked list of up to 10 tasks** for the day
 - The **top 3 are the "must complete" targets** — the clear goal is to finish at least these 3
 - Tasks 4-10 define what to pick up next (via `/next-task`) once the top 3 are done
-- Present each with: rank, Linear ID, title, short description, rationale, estimated effort
+- Present each with: rank, tracker ID, title, short description, rationale, estimated effort
 - Adjust if health data revealed urgent issues
 - Adjust based on user's stated energy, blockers, time constraints, and strategic focus
 - For each: 🔥 urgent / ⚡ high / 📋 medium
@@ -236,7 +235,7 @@ Priority selection rules (for deciding what makes the list):
 1. **Production outages / data loss** — always #1 if present
 2. **User-facing bugs on prod** — real users are affected
 3. **Milestone-critical tasks** — blocking a deadline
-4. **High/Urgent Linear priority** — respect existing priority fields
+4. **High/Urgent priority** — respect existing priority fields
 5. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
 6. **Outages/broken tests** — if health data shows broken items
 7. **User-reported issues** — should appear within 48h of report
@@ -278,9 +277,9 @@ Use this JSON structure for the state file:
   "last_meeting": "<ISO timestamp>",
   "date": "{{DATE}}",
   "priorities": [
-    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
-    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
-    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."}
+    {"tracker_id": "#123", "title": "...", "description": "...", "status_at_selection": "..."},
+    {"tracker_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
+    {"tracker_id": "#124", "title": "...", "description": "...", "status_at_selection": "..."}
   ],
   "confirmed_by": "user",
   "confirmed_at": "<ISO timestamp>",
@@ -380,19 +379,19 @@ Do NOT end the meeting until all items are checked:
 - [ ] 5 context questions asked and answered (one per round)
 - [ ] Today's priorities confirmed (up to 10 ranked, goal: complete top 3)
 - [ ] Milestone changes evaluated and applied (if any)
-- [ ] Linear labels updated (old removed, new added)
-- [ ] Linear comments posted on selected tasks
+- [ ] Tracker labels updated (old removed, new added)
+- [ ] Tracker comments posted on selected tasks
 - [ ] Workflow improvement suggestions discussed and saved
 - [ ] State file saved
 - [ ] Meeting summary MD written
 
 ## Rules
 
-- Use the Linear MCP tools (`mcp__linear__save_issue`, `mcp__linear__save_comment`, `mcp__linear__list_issues`) for all Linear operations.
+- Use GitHub Issues by default. Use `python3 scripts/linear.py` for retained Linear tasks. Do not use Linear MCP tools.
 - **Step by step.** Present ONE section at a time. Wait for user input after each.
 - Use emojis consistently for scanability (✅🔄❌⚠️🔥🧊📊🎯).
 - Be honest about failures. Don't sugarcoat.
 - Flag "no errors" as suspicious when the user has reported otherwise — OTel gaps are known.
-- ALL Linear tasks not Done/Canceled must be considered, not just recent ones.
+- ALL retained Linear tasks not Done/Canceled must be considered, not just recent ones.
 - If the user doesn't respond within the session, present all sections and auto-close. The auto-confirm timer handles the rest externally.
-- **Every Linear task reference must include: Linear ID, title, AND a short description.** Title alone never provides enough context. The short description (~100 chars max) should summarize what the task is about — derived from the issue description. Summarize if long, use the first sentence if short, "(no description)" if the issue has no description.
+- **Every tracker reference must include: ID, title, AND a short description.** Title alone never provides enough context. The short description (~100 chars max) should summarize what the task is about — derived from the issue description. Summarize if long, use the first sentence if short, "(no description)" if the issue has no description.

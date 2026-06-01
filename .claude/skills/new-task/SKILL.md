@@ -1,13 +1,15 @@
 ---
 name: openmates:new-task
-description: Create a well-structured Linear task with smart field suggestions based on input
+description: Create a well-structured task with smart field suggestions; GitHub Issues by default, Linear only for retained internal categories
 user-invocable: true
 argument-hint: "<description of task>"
 ---
 
 ## Instructions
 
-You are creating a new Linear task for the OpenMates project. Your job is to take the user's raw input (which may be a brain dump, a bug report, a feature idea, or a vague note) and turn it into a well-structured task with all fields properly filled.
+You are creating a new task for the OpenMates project. Your job is to take the user's raw input (which may be a brain dump, a bug report, a feature idea, or a vague note) and turn it into a well-structured task with all fields properly filled.
+
+Use GitHub Issues by default. Use Linear only for programmatically stored/recorded product issues, marketing work, sensitive/private work, or when the user explicitly asks for Linear.
 
 ### Step 1: Parse the Input
 
@@ -62,10 +64,9 @@ Use `AskUserQuestion`:
 
 ### Step 4: Create the Task
 
-Call `mcp__linear__save_issue` with all fields:
-```
-title, team: "OpenMates", description, priority, labels, project, milestone
-```
+For GitHub-default tasks, call `github_issue_write` with a concise title, structured body, labels, and assignees only when the user requested them.
+
+For Linear-only tasks, use `python3 scripts/linear.py create --team OPE --title "..." --description "..."` and add state/priority/labels when needed. Do not use Linear MCP tools.
 
 If the task type is "Idea", automatically add the `Idea` label and set priority to None (0).
 
@@ -73,9 +74,11 @@ If the task type is "Idea", automatically add the `Idea` label and set priority 
 
 Show the created task with its identifier and URL:
 ```
-Created: OPE-XXX — "Title"
-URL: https://linear.app/openmates/issue/OPE-XXX/...
+Created: #123 — "Title"
+URL: https://github.com/glowingkitty/OpenMates/issues/123
 ```
+
+For Linear-only tasks, show the `OPE-XXX` identifier returned by `scripts/linear.py`.
 
 ---
 

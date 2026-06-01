@@ -21,7 +21,7 @@ Gather all data upfront before any analysis. Run these in parallel where possibl
 
 #### 1a. Fetch all open issues
 
-Use `mcp__linear__list_issues` to fetch ALL issues from team OpenMates that are NOT Done or Canceled.
+Use `python3 scripts/linear.py list --team OPE --all --limit 100 --json` to fetch Linear issues from team OpenMates, then filter out Done and Canceled.
 Fetch in batches if needed. For each issue, collect: identifier, title, description, state, priority, labels, project, milestone, createdAt, updatedAt, assignee.
 
 Store the full list mentally — you'll reference it across all sections.
@@ -32,17 +32,15 @@ Also fetch ALL issues with state **Done** from team OpenMates. Collect: identifi
 
 #### 1b. Fetch organizational context
 
-Run these in parallel:
-```
-mcp__linear__list_projects — team OpenMates
-mcp__linear__list_milestones
-mcp__linear__list_issue_labels — team OpenMates
-mcp__linear__list_cycles — team OpenMates
+Run these in parallel where useful:
+```bash
+python3 scripts/linear.py states --team OPE --json
+python3 scripts/linear.py labels --team OPE --json
 ```
 
 #### 1c. Fetch comments (skip if `--quick` or if ALL tasks are < 14 days old)
 
-For each open issue, fetch comments via `mcp__linear__list_comments`.
+For each open issue, fetch comments via `python3 scripts/linear.py get OPE-XX --comments --json`.
 Record the date of the most recent comment per issue — this is the "last activity" signal for staleness detection.
 
 **Optimization:** If the oldest open task is < 14 days old, skip comment fetching entirely — nothing can be stale. Use updatedAt as the activity signal instead.
@@ -175,7 +173,7 @@ Use `AskUserQuestion` with options:
 - **pick** — go through one by one
 - **skip** — skip this section
 
-For approved items, call `mcp__linear__save_issue` to set state to Done.
+For approved items, call `python3 scripts/linear.py update OPE-XX --state Done`.
 
 Remove approved ghost tasks from your working set for subsequent sections.
 
@@ -281,7 +279,7 @@ Present findings — **always include the full title**:
 For EACH unclear task, use `AskUserQuestion`:
 - "What did you mean by **OPE-XX: 'fix it'**? I'll update the title and add a description."
 
-Based on the user's response, call `mcp__linear__save_issue` to update the title and description.
+Based on the user's response, call `python3 scripts/linear.py update OPE-XX --title "..." --description-file <file>` to update the title and description.
 
 If the user says they don't remember or it's no longer relevant, delete the task.
 
@@ -305,7 +303,7 @@ Present findings — **always include title**:
 | 1 | OPE-XX | "Critical auth bug" | In Progress | Bug | → High (2) |
 ```
 
-Use `AskUserQuestion` with approval per group. Apply priority changes via `mcp__linear__save_issue`.
+Use `AskUserQuestion` with approval per group. Apply priority changes via `python3 scripts/linear.py update OPE-XX --priority N`.
 
 ---
 
@@ -328,7 +326,7 @@ Present findings — **always include title**:
 | 1 | OPE-XX | "Fix API rate limiting" | Todo | → Bug, Backend |
 ```
 
-Use `AskUserQuestion` for approval. Apply label changes via `mcp__linear__save_issue`.
+Use `AskUserQuestion` for approval. Apply label changes via `python3 scripts/linear.py update OPE-XX --add-label ...` or `--remove-label ...`.
 
 For unused labels, offer to delete them via the GraphQL API:
 ```bash
@@ -357,7 +355,7 @@ Present findings — **always include title**:
 | 1 | OPE-XX | "Encrypt embed metadata" | Web App | Related to encryption |
 ```
 
-Use `AskUserQuestion` for approvals. Apply via `mcp__linear__save_issue`. Create new milestones via `mcp__linear__save_milestone` if approved.
+Use `AskUserQuestion` for approvals. Apply available issue updates via `python3 scripts/linear.py update ...`. If project/milestone changes are needed and the CLI does not support the operation yet, add the missing CLI command before changing live data.
 
 ---
 
@@ -382,7 +380,7 @@ Present findings:
 ```
 
 Use `AskUserQuestion` per task — the user confirms or adjusts the split. For approved splits:
-1. Create subtasks via `mcp__linear__save_issue` with parentId set to the original
+1. Create subtasks with `python3 scripts/linear.py create ...` when the CLI supports the needed parent linkage; otherwise add the missing CLI command before changing live data
 2. Post a comment on the parent linking to the new subtasks
 
 ---

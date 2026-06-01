@@ -15,7 +15,7 @@ You are gathering everything needed to fully understand a task before writing a 
 
 Parse the argument:
 
-- If it looks like a Linear issue ID (`OPE-\d+`), call `mcp__linear__get_issue` + `mcp__linear__extract_images` + `mcp__linear__list_comments` to pre-load context before asking questions. Use what you learn to skip rounds whose answers are already clear.
+- If it looks like a Linear issue ID (`OPE-\d+`), run `python3 scripts/linear.py get OPE-123 --comments` to pre-load context before asking questions. Use what you learn to skip rounds whose answers are already clear.
 - Otherwise treat the argument as a free-text description and note what's already known.
 
 Identify the task type from context:
@@ -128,8 +128,8 @@ Synthesize everything into this structured markdown block. Omit sections that ar
 ### After the Brief
 
 1. **If task type is Bug:** suggest running `/reproduce-first` as the next step.
-2. **If task type is Feature:** suggest running `/new-task` to create a Linear issue from the brief, or remind the user to link an existing one.
-3. **If a Linear issue was loaded in context:** offer to update its description with the Task Brief via `mcp__linear__save_issue`.
+2. **If task type is Feature:** suggest running `/new-task` to create a GitHub Issue by default, or a Linear issue only for retained Linear categories.
+3. **If a Linear issue was loaded in context:** offer to update its description with the Task Brief via `python3 scripts/linear.py update OPE-123 --description-file <file>`.
 
 ---
 

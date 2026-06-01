@@ -120,7 +120,7 @@ Use the repo rule files when the task touches relevant areas. In OpenCode, these
 - Embeds: `.claude/rules/embed.md`
 - Apple UI: `.claude/rules/apple-ui.md`
 - Planning and acceptance criteria: `.claude/rules/planning.md`
-- Linear task workflow: `.claude/rules/linear-tasks.md`
+- Task tracking workflow: `.claude/rules/task-management.md` — GitHub Issues by default; Linear only for programmatically stored/recorded issues, marketing work, sensitive/private work, or explicitly provided Linear issues.
 
 ---
 
@@ -152,7 +152,7 @@ The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
 
 Before any new app, skill, API integration, or significant feature:
 
-1. Check Linear for existing tasks — search related tasks in Todo/Backlog/In Progress. Link your work to an existing task or confirm with the user before creating a new one.
+1. Search existing tracker entries before creating new ones. Use GitHub Issues by default. Use `python3 scripts/linear.py` only for programmatically stored/recorded issues, marketing work, sensitive/private work, or explicitly provided Linear issues.
 2. Search for official docs (never rely on training data for APIs/pricing).
 3. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
 4. Ask clarifying questions before writing code. Wait for confirmation.

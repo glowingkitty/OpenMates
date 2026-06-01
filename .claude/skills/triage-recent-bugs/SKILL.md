@@ -1,6 +1,6 @@
 ---
 name: openmates:triage-recent-bugs
-description: Discover recent user-reported bugs on Linear, investigate them in parallel, replicate, fix, deploy, and verify end-to-end — composing issue-forensics, encryption-flow-tracer, and test-failure-triager.
+description: Discover recent user-reported bugs from retained Linear issues, investigate them in parallel, replicate, fix, deploy, and verify end-to-end — composing issue-forensics, encryption-flow-tracer, and test-failure-triager.
 user-invocable: true
 argument-hint: "[hours=2]"
 ---
@@ -21,13 +21,10 @@ Compute the cutoff timestamp:
 date -u -d '${ARGS:-2} hours ago' --iso-8601=seconds
 ```
 
-Then query Linear:
+Then query Linear with the API CLI:
 
-```
-mcp__linear__list_issues
-  createdAt: "<iso-cutoff>"
-  orderBy: createdAt
-  limit: 20
+```bash
+python3 scripts/linear.py list --team OPE --state Todo --state Backlog --state "In Progress" --limit 100 --json
 ```
 
 Filter locally to `labels` containing `Bug` and `status` in `Todo | Backlog | In Progress`. Show the user a numbered list and **ask which to work on**. Default: all bug-labeled issues in the window.
@@ -50,14 +47,11 @@ Capture the session ID. All subsequent `sessions.py track`/`deploy` calls must u
 
 For each issue, in parallel:
 
-```
-mcp__linear__save_issue
-  id: "OPE-XX"
-  state: "In Progress"
-  labels: ["Bug", "claude-is-working"]
+```bash
+python3 scripts/linear.py update OPE-XX --state "In Progress" --add-label claude-is-working
 ```
 
-Then post a pickup comment with the session ID (`mcp__linear__save_comment`). **Do not skip the pickup comment** — this is required by `.claude/rules/linear-tasks.md`.
+Then post a pickup comment with the session ID using `python3 scripts/linear.py comment OPE-XX --body "..."`. **Do not skip the pickup comment** — this is required by `.claude/rules/task-management.md`.
 
 ### Step 5: Parallel forensics
 
@@ -66,7 +60,7 @@ Spawn one `issue-forensics` agent per bug in a **single message** (multiple Agen
 Each agent prompt must contain:
 - The Linear issue ID
 - The internal Directus issue ID from the description (extract via regex `Internal issue ID:\s*\`([a-f0-9-]+)\``)
-- A hint to extract screenshots via `mcp__linear__extract_images`
+- A hint to inspect screenshots or image links embedded in the Linear issue description
 - Instruction to return a compact report under 250 words
 
 **Never run `debug.py` yourself.** The agents isolate noisy timeline output.
@@ -141,13 +135,13 @@ This is the #1 mistake from the inaugural run of this workflow — treat it as a
 
 For each fixed issue, in parallel:
 
-1. `mcp__linear__save_comment` with:
+1. `python3 scripts/linear.py comment OPE-XX --body-file <summary-file>` with:
    - Root cause (1 sentence)
    - Fix summary (1 sentence)
    - Files changed
    - Commit SHA
    - Test evidence ("CI vitest run 24150665520 → 218/218 passed, +3 new tests")
-2. `mcp__linear__save_issue` with `state: "In Review"` and remove `claude-is-working` label.
+2. `python3 scripts/linear.py update OPE-XX --state "In Review" --remove-label claude-is-working`.
 
 ### Step 13: End session
 
