@@ -9,6 +9,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { notificationStore } from '../../stores/notificationStore';
+  import { panelState } from '../../stores/panelStateStore';
   import {
     createFolder,
     createProject,
@@ -21,6 +22,8 @@
     type ProjectViewModel,
   } from '../../services/projectService';
 
+  let { variant = 'main' }: { variant?: 'main' | 'sidebar' } = $props();
+
   let projects = $state<ProjectViewModel[]>([]);
   let selectedProject = $state<ProjectViewModel | null>(null);
   let folders = $state<ProjectFolderViewModel[]>([]);
@@ -30,16 +33,33 @@
   let newProjectName = $state('');
   let newFolderName = $state('');
   let uploadInput = $state<HTMLInputElement>();
+  let hasLoadError = $state(false);
+
+  let sortedProjects = $derived([...projects].sort((a, b) => (b.encrypted.created_at || 0) - (a.encrypted.created_at || 0)));
+  let recentProjects = $derived(sortedProjects.slice(0, 3));
+
+  const PROJECT_SELECTED_EVENT = 'openmates-project-selected';
+  const PROJECTS_CHANGED_EVENT = 'openmates-projects-changed';
+
+  function broadcastProjectSelected(project: ProjectViewModel): void {
+    window.dispatchEvent(new CustomEvent<ProjectViewModel>(PROJECT_SELECTED_EVENT, { detail: project }));
+  }
+
+  function broadcastProjectsChanged(): void {
+    window.dispatchEvent(new CustomEvent(PROJECTS_CHANGED_EVENT));
+  }
 
   async function refreshProjects(): Promise<void> {
     isLoading = true;
     try {
+      hasLoadError = false;
       projects = await listProjects();
       if (!selectedProject && projects.length > 0) {
-        selectedProject = projects[0];
+        selectedProject = sortedProjects[0] ?? projects[0];
         await refreshSelectedProject();
       }
     } catch (error) {
+      hasLoadError = true;
       console.error('[ProjectsPage] Failed to load projects:', error);
       notificationStore.error('Failed to load projects');
     } finally {
@@ -69,6 +89,8 @@
       folders = [];
       items = [];
       newProjectName = '';
+      broadcastProjectsChanged();
+      broadcastProjectSelected(project);
       notificationStore.success('Project created');
     } catch (error) {
       console.error('[ProjectsPage] Failed to create project:', error);
@@ -87,6 +109,7 @@
         selectedProject = projects[0] ?? null;
         await refreshSelectedProject();
       }
+      broadcastProjectsChanged();
       notificationStore.success('Project deleted');
     } catch (error) {
       console.error('[ProjectsPage] Failed to delete project:', error);
@@ -133,6 +156,10 @@
 
   function selectProject(project: ProjectViewModel): void {
     selectedProject = project;
+    broadcastProjectSelected(project);
+    if (variant === 'sidebar') {
+      panelState.closeChats();
+    }
     refreshSelectedProject().catch((error) => {
       console.error('[ProjectsPage] Failed to refresh selected project:', error);
       notificationStore.error('Failed to open project');
@@ -141,52 +168,68 @@
 
   onMount(() => {
     void refreshProjects();
+    const handleProjectSelected = (event: Event) => {
+      const project = (event as CustomEvent<ProjectViewModel>).detail;
+      if (!project || selectedProject?.project_id === project.project_id) return;
+      selectedProject = project;
+      void refreshSelectedProject();
+    };
+    const handleProjectsChanged = () => {
+      void refreshProjects();
+    };
+    window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
+    window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
+    return () => {
+      window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
+      window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
+    };
   });
 </script>
 
-<section class="projects-page" data-testid="projects-page">
-  <aside class="projects-sidebar" aria-label="Projects">
-    <div class="sidebar-header">
-      <h1>Projects</h1>
-      <p>Organize chats, embeds, uploads, and saved AI outputs.</p>
+{#snippet createProjectForm(compact = false)}
+  <form class="create-row" class:compact onsubmit={(event) => { event.preventDefault(); void handleCreateProject(); }}>
+    <input
+      data-testid="project-name-input"
+      bind:value={newProjectName}
+      placeholder="New project name"
+      aria-label="New project name"
+    />
+    <button data-testid="project-create-button" type="submit" disabled={isSaving || !newProjectName.trim()}>
+      Create project
+    </button>
+  </form>
+{/snippet}
+
+{#snippet projectList(showEmpty = true)}
+  {#if isLoading}
+    <p class="muted">Loading projects...</p>
+  {:else if hasLoadError}
+    <div class="load-error" data-testid="projects-load-error">
+      <p>Failed to load projects.</p>
+      <button type="button" onclick={() => void refreshProjects()}>Retry</button>
     </div>
+  {:else if sortedProjects.length === 0 && showEmpty}
+    <p class="muted">No projects yet. Create one to start organizing saved work.</p>
+  {:else}
+    <div class="project-list" data-testid="project-list">
+      {#each sortedProjects as project (project.project_id)}
+        <button
+          class:active={selectedProject?.project_id === project.project_id}
+          class="project-card"
+          data-testid="project-card"
+          onclick={() => selectProject(project)}
+          type="button"
+        >
+          <span>{project.name || 'Untitled project'}</span>
+          <small>{project.encrypted.item_count ?? 0} items</small>
+        </button>
+      {/each}
+    </div>
+  {/if}
+{/snippet}
 
-    <form class="create-row" onsubmit={(event) => { event.preventDefault(); void handleCreateProject(); }}>
-      <input
-        data-testid="project-name-input"
-        bind:value={newProjectName}
-        placeholder="New project name"
-        aria-label="New project name"
-      />
-      <button data-testid="project-create-button" type="submit" disabled={isSaving || !newProjectName.trim()}>
-        Create
-      </button>
-    </form>
-
-    {#if isLoading}
-      <p class="muted">Loading projects...</p>
-    {:else if projects.length === 0}
-      <p class="muted">No projects yet. Create one to start organizing saved work.</p>
-    {:else}
-      <div class="project-list" data-testid="project-list">
-        {#each projects as project (project.project_id)}
-          <button
-            class:active={selectedProject?.project_id === project.project_id}
-            class="project-card"
-            data-testid="project-card"
-            onclick={() => selectProject(project)}
-            type="button"
-          >
-            <span>{project.name || 'Untitled project'}</span>
-            <small>{project.encrypted.item_count ?? 0} items</small>
-          </button>
-        {/each}
-      </div>
-    {/if}
-  </aside>
-
-  <main class="project-main">
-    {#if selectedProject}
+{#snippet selectedProjectDetails()}
+  {#if selectedProject}
       <header class="project-header">
         <div>
           <p class="eyebrow">Project</p>
@@ -254,61 +297,174 @@
         <p>Create your first project to organize chats, embeds, and uploads around a goal.</p>
       </div>
     {/if}
-  </main>
-</section>
+{/snippet}
+
+{#if variant === 'sidebar'}
+  <aside class="projects-sidebar-panel" aria-label="Projects" data-testid="projects-sidebar">
+    <div class="top-buttons-container">
+      <div class="top-buttons">
+        <button
+          class="clickable-icon icon_close top-button right"
+          aria-label="Close projects"
+          onclick={() => panelState.closeChats()}
+          type="button"
+        ></button>
+      </div>
+    </div>
+    <div class="projects-sidebar-scroll">
+      <h2 class="group-title">Projects</h2>
+      {@render createProjectForm(true)}
+      {@render projectList()}
+    </div>
+  </aside>
+{:else}
+  <section class="projects-page" data-testid="projects-page">
+    <main class="project-main">
+      <section class="projects-hero">
+        <div>
+          <p class="eyebrow">Projects</p>
+          <h1>Continue where you left off</h1>
+          <p>Pick up recent project work or create a new workspace for chats, embeds, uploads, and saved AI outputs.</p>
+        </div>
+        <button class="hero-create-button" data-testid="project-create-main-button" type="button" onclick={() => panelState.openChats()}>
+          Create project
+        </button>
+      </section>
+
+      {#if recentProjects.length > 0}
+        <section class="project-section" data-testid="recent-projects-section">
+          <div class="section-title">
+            <h2>Continue where you left off</h2>
+          </div>
+          <div class="grid">
+            {#each recentProjects as project (project.project_id)}
+              <button class="tile project-tile" data-testid="recent-project-card" type="button" onclick={() => selectProject(project)}>
+                <span class="tile-icon">Project</span>
+                <strong>{project.name || 'Untitled project'}</strong>
+                <small>{project.encrypted.item_count ?? 0} items</small>
+              </button>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      <section class="project-section" data-testid="all-projects-section">
+        <div class="section-title">
+          <h2>All projects</h2>
+          <span class="muted">{sortedProjects.length} total</span>
+        </div>
+        {@render projectList(false)}
+      </section>
+
+      <section class="project-section">
+        {@render selectedProjectDetails()}
+      </section>
+    </main>
+  </section>
+{/if}
 
 <style>
   .projects-page {
-    display: grid;
-    grid-template-columns: minmax(260px, 325px) 1fr;
     min-height: calc(100vh - 80px);
-    background: var(--grey-0, #fff);
-    color: var(--font-primary, #1f2937);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
   }
 
-  .projects-sidebar {
-    border-right: 1px solid var(--grey-20, #e5e7eb);
-    padding: 24px;
-    background: var(--grey-5, #f8fafc);
+  .projects-sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--color-grey-20);
   }
 
-  .sidebar-header h1,
+  .projects-sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: var(--spacing-10);
+  }
+
+  .top-buttons-container {
+    flex-shrink: 0;
+    z-index: var(--z-index-dropdown-1);
+    background-color: var(--color-grey-20);
+    padding: var(--spacing-8) var(--spacing-10);
+    border-bottom: 1px solid var(--color-grey-30);
+  }
+
+  .top-buttons {
+    position: relative;
+    height: 32px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .top-button.right {
+    margin-inline-start: auto;
+  }
+
+  .group-title {
+    font-size: 0.85em;
+    color: var(--color-grey-60);
+    margin: 0 0 var(--spacing-3);
+    padding: 15px 15px 0;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .projects-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-10);
+    border-radius: var(--radius-6);
+    background: linear-gradient(135deg, var(--color-grey-0), var(--color-grey-10));
+    padding: clamp(24px, 5vw, 56px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  .projects-hero h1,
   .project-header h2,
+  .project-section h2,
   .project-section h3 {
     margin: 0;
   }
 
-  .sidebar-header p,
+  .projects-hero p,
   .project-header p,
   .muted {
-    color: var(--font-secondary, #64748b);
+    color: var(--color-font-secondary);
   }
 
   .create-row {
     display: flex;
     gap: 8px;
-    margin: 20px 0;
+    margin: 20px 15px;
   }
 
   .create-row.compact {
-    margin: 0;
+    margin: 10px 15px 20px;
+    flex-direction: column;
   }
 
   input {
     flex: 1;
     min-width: 0;
-    border: 1px solid var(--grey-30, #cbd5e1);
-    border-radius: 14px;
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-3);
     padding: 10px 12px;
     font: inherit;
   }
 
   button {
     border: 0;
-    border-radius: 14px;
+    border-radius: var(--radius-3);
     padding: 10px 14px;
-    background: var(--button-primary, #3b82f6);
-    color: var(--font-button, #fff);
+    background: var(--color-button-primary);
+    color: var(--color-font-button);
     font: inherit;
     cursor: pointer;
   }
@@ -320,7 +476,8 @@
 
   .project-list {
     display: grid;
-    gap: 10px;
+    gap: var(--spacing-2);
+    padding: 0 10px;
   }
 
   .project-card {
@@ -328,20 +485,23 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    background: var(--grey-0, #fff);
+    background: transparent;
     color: inherit;
-    border: 1px solid var(--grey-20, #e5e7eb);
+    border: 0;
+    border-radius: var(--radius-3);
     text-align: left;
+    padding: 12px 15px;
   }
 
   .project-card.active {
-    border-color: var(--button-primary, #3b82f6);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-primary, #3b82f6) 18%, transparent);
+    background: color-mix(in srgb, var(--color-grey-60) 30%, transparent);
   }
 
   .project-main {
-    padding: 32px;
+    padding: clamp(20px, 4vw, 48px);
     overflow: auto;
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
   .project-header,
@@ -349,7 +509,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: var(--spacing-8);
     margin-bottom: 24px;
   }
 
@@ -361,7 +521,7 @@
   .eyebrow,
   .tile-icon {
     margin: 0 0 6px;
-    color: var(--font-secondary, #64748b);
+    color: var(--color-font-secondary);
     font-size: 0.82rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -379,11 +539,16 @@
 
   .tile,
   .empty-state {
-    border: 1px solid var(--grey-20, #e5e7eb);
-    border-radius: 22px;
-    background: var(--grey-0, #fff);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
     padding: 18px;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  .project-tile {
+    color: inherit;
+    text-align: left;
   }
 
   .tile {
@@ -393,7 +558,7 @@
   }
 
   .folder {
-    background: linear-gradient(135deg, var(--grey-0, #fff), var(--grey-10, #f1f5f9));
+    background: linear-gradient(135deg, var(--color-grey-0), var(--color-grey-10));
   }
 
   .empty-state.large {
@@ -402,16 +567,13 @@
     text-align: center;
   }
 
+  .load-error {
+    margin: 0 15px;
+    color: var(--color-font-secondary);
+  }
+
   @media (max-width: 800px) {
-    .projects-page {
-      grid-template-columns: 1fr;
-    }
-
-    .projects-sidebar {
-      border-right: 0;
-      border-bottom: 1px solid var(--grey-20, #e5e7eb);
-    }
-
+    .projects-hero,
     .project-header,
     .section-title {
       flex-direction: column;

@@ -18,12 +18,20 @@ test.describe('Projects v1 flow', () => {
     await page.goto('/projects');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('projects-load-error')).toHaveCount(0);
+    await expect(page.getByTestId('chats-nav-link')).toBeVisible();
+    await expect(page.getByTestId('projects-nav-link')).toBeVisible();
+    await expect(page.getByTestId('projects-nav-link')).toHaveClass(/active/);
+    await expect(page.getByTestId('all-projects-section')).toBeVisible();
 
     const projectName = `E2E Project ${Date.now()}`;
+    await page.getByTestId('project-create-main-button').click();
+    await expect(page.getByTestId('projects-sidebar')).toBeVisible();
     await page.getByTestId('project-name-input').fill(projectName);
     await page.getByTestId('project-create-button').click();
 
     await expect(page.getByTestId('project-card').filter({ hasText: projectName })).toBeVisible();
+    await expect(page.getByTestId('recent-project-card').filter({ hasText: projectName })).toBeVisible();
     await expect(page.getByTestId('project-empty-items')).toBeVisible();
 
     page.once('dialog', (dialog) => dialog.accept());

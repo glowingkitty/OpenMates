@@ -58,12 +58,7 @@
         text: string;
     }
 
-    // Update the webAppNavItems based on login state using Svelte 5 runes
-    let webAppNavItems = $derived(isLoggedIn ? [
-        // { href: '/app/chat', text: $t('navigation.chat') },
-        { href: '/projects', text: $text('navigation.projects') },
-        // { href: '/app/workflows', text: $t('navigation.workflows') }
-    ] : []);
+    let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
 
     // Define the type for social links
     type SocialLink = {
@@ -82,7 +77,7 @@
     ];
 
     // Use appropriate nav items based on context using Svelte 5 runes
-    let navItems = $derived(context === 'webapp' ? webAppNavItems : websiteNavItems);
+    let navItems = $derived(context === 'webapp' ? [] : websiteNavItems);
 
     // Only show navigation section if we have at least 2 nav items using Svelte 5 runes
     let showNavLinks = $derived(navItems?.length >= 2);
@@ -207,8 +202,7 @@
             // Reset to website navigation when logged out
             navItems = websiteNavItems;
         } else if (context === 'webapp') {
-            // Use web app navigation when logged in and in webapp context
-            navItems = webAppNavItems;
+            navItems = [];
         } else {
             // Otherwise use website nav items
             navItems = websiteNavItems;
@@ -351,15 +345,26 @@
                         <a href="/" class="docs-tab">{$text('common.chat')}</a>
                     </div>
                 {:else if context === 'webapp' && isLoggedIn}
-                    <div class="webapp-center-tabs">
+                    <div class="webapp-center-tabs" aria-label="Workspace switcher">
+                        <a
+                            href="/"
+                            class="workspace-tab"
+                            class:active={!isProjectsRoute}
+                            data-testid="chats-nav-link"
+                            aria-label="Chats"
+                            onclick={(e) => handleClick(e, '/')}
+                        >
+                            <span class="workspace-icon chat-icon" aria-hidden="true"></span>
+                        </a>
                         <a
                             href="/projects"
-                            class="docs-tab"
-                            class:active={isActive('/projects')}
+                            class="workspace-tab"
+                            class:active={isProjectsRoute}
                             data-testid="projects-nav-link"
+                            aria-label={$text('navigation.projects')}
                             onclick={(e) => handleClick(e, '/projects')}
                         >
-                            {$text('navigation.projects')}
+                            <span class="workspace-icon project-icon" aria-hidden="true"></span>
                         </a>
                     </div>
                 {/if}
@@ -807,9 +812,11 @@
         transform: translateX(-50%);
     }
 
-    .docs-tab {
+    .docs-tab,
+    .workspace-tab {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         padding: var(--spacing-3) var(--spacing-8);
         border-radius: var(--radius-3);
         text-decoration: none;
@@ -820,14 +827,44 @@
         white-space: nowrap;
     }
 
-    .docs-tab:hover {
+    .workspace-tab {
+        width: 34px;
+        height: 30px;
+        padding: 0;
+    }
+
+    .docs-tab:hover,
+    .workspace-tab:hover {
         color: var(--color-font-primary);
     }
 
-    .docs-tab.active {
-        background-color: var(--color-grey-0);
+    .docs-tab.active,
+    .workspace-tab.active {
+        background-color: color-mix(in srgb, var(--color-grey-60) 30%, transparent);
         color: var(--color-font-primary);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .workspace-icon {
+        width: 20px;
+        height: 20px;
+        background: var(--color-primary);
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    .chat-icon {
+        -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+        mask-image: url('@openmates/ui/static/icons/chat.svg');
+    }
+
+    .project-icon {
+        -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+        mask-image: url('@openmates/ui/static/icons/project.svg');
     }
 
     @media (max-width: 600px) {
