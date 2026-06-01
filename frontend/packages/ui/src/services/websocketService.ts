@@ -52,6 +52,48 @@ function sanitizeTokenForLogging(token: string | null | undefined): string {
   return `"${token.substring(0, 8)}...***REDACTED***"`;
 }
 
+type WebSocketLogSummary = {
+  type?: string;
+  event?: string;
+  batch_number?: unknown;
+  is_last_batch?: unknown;
+  chat_count?: number;
+  message_count?: number;
+  embed_count?: number;
+  embed_key_count?: number;
+};
+
+function summarizeIncomingMessageForLogging(rawMessage: unknown): WebSocketLogSummary | string {
+  if (!rawMessage || typeof rawMessage !== "object") return typeof rawMessage;
+
+  const message = rawMessage as {
+    type?: string;
+    event?: string;
+    payload?: {
+      batch_number?: unknown;
+      is_last_batch?: unknown;
+      chats?: Array<{ messages?: unknown[] }>;
+      embeds?: unknown[];
+      embed_keys?: unknown[];
+    };
+  };
+  const payload = message.payload;
+
+  return {
+    type: message.type,
+    event: message.event,
+    batch_number: payload?.batch_number,
+    is_last_batch: payload?.is_last_batch,
+    chat_count: payload?.chats?.length,
+    message_count: payload?.chats?.reduce(
+      (count, chat) => count + (chat.messages?.length ?? 0),
+      0,
+    ),
+    embed_count: payload?.embeds?.length,
+    embed_key_count: payload?.embed_keys?.length,
+  };
+}
+
 // Define message types based on the plan (can be expanded)
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
@@ -563,8 +605,8 @@ class WebSocketService extends EventTarget {
             // Only log if not ping/pong
             if (rawMessage.type !== "ping" && rawMessage.type !== "pong") {
               console.debug(
-                "[WebSocketService] Raw received data:",
-                rawMessage,
+                "[WebSocketService] Received message summary:",
+                summarizeIncomingMessageForLogging(rawMessage),
               );
             }
 
