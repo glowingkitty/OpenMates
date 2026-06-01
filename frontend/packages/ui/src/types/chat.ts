@@ -861,6 +861,7 @@ export interface Phase1bChatContentPayload {
   chats: Array<{
     chat_id: string;
     messages: (Message | string)[] | null;
+    compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
   }>;
   embeds?: SyncEmbed[];
@@ -931,8 +932,13 @@ export interface ChatContentBatchResponsePayload {
     string,
     { messages_v: number; server_message_count: number }
   >; // Per-chat version info for updating local tracking
+  compression_checkpoints_by_chat_id?: Record<
+    string,
+    ChatCompressionCheckpoint[]
+  >;
   embeds?: SyncEmbed[]; // On-demand embeds for requested chats
   embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
+  code_run_outputs?: SyncCodeRunOutput[];
 }
 
 export interface OfflineSyncCompletePayload {

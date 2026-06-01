@@ -501,6 +501,15 @@ export async function handlePhase1bChatContentImpl(
   try {
     // Store messages for each chat (encrypted, no decryption)
     for (const chatData of payload.chats || []) {
+      if (
+        chatData.compression_checkpoints &&
+        chatData.compression_checkpoints.length > 0
+      ) {
+        for (const checkpoint of chatData.compression_checkpoints) {
+          await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
+
       if (!chatData.messages || chatData.messages.length === 0) continue;
 
       const preparedMessages: Message[] = [];
@@ -770,6 +779,12 @@ export async function handleChatContentBatchResponseImpl(
       await yieldToMainThread();
     }
     const rawMessages = payload.messages_by_chat_id[chatId];
+    const compressionCheckpoints =
+      payload.compression_checkpoints_by_chat_id?.[chatId] || [];
+    for (const checkpoint of compressionCheckpoints) {
+      await chatDB.saveChatCompressionCheckpoint(checkpoint);
+    }
+
     if (!rawMessages || rawMessages.length === 0) {
       console.debug(
         `[ChatSyncService:CoreSync] Batch response: No messages for chat ${chatId}`,
@@ -946,6 +961,15 @@ export async function handleChatContentBatchResponseImpl(
     } catch (e) {
       console.error("[ChatSyncService:CoreSync] Batch embeds error:", e);
     }
+  }
+
+  if (payload.code_run_outputs && payload.code_run_outputs.length > 0) {
+    const { handleCodeRunOutputSyncedImpl } = await import(
+      "./handlersCodeRunOutputs"
+    );
+    await Promise.all(
+      payload.code_run_outputs.map((output) => handleCodeRunOutputSyncedImpl(output)),
+    );
   }
 }
 

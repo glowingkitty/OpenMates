@@ -175,6 +175,24 @@ export async function handlePhase2RecentChatsImpl(
         detail: { chat_count, total_chat_count },
       }),
     );
+
+    // Phase 3 is no longer part of web startup. If the account has more than
+    // the first 100 chats, continue with metadata-only expansion after Phase 2.
+    if (total_chat_count && total_chat_count > 100) {
+      try {
+        const existingIds = await chatDB.getMetadataOnlyChatIds();
+        console.info(
+          `[ChatSyncService] Phase 2: Triggering metadata sync for chats 101-1000 ` +
+            `(total=${total_chat_count}, existing_metadata=${existingIds.length})`,
+        );
+        await serviceInstance.sendSyncMetadataChats(existingIds);
+      } catch (err) {
+        console.error(
+          "[ChatSyncService] Failed to trigger metadata sync after Phase 2:",
+          err,
+        );
+      }
+    }
   } catch (error) {
     console.error("[ChatSyncService] Error handling Phase 2:", error);
   }

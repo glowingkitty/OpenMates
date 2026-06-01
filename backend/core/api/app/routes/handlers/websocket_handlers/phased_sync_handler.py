@@ -16,6 +16,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_ch
 
 logger = logging.getLogger(__name__)
 
+STARTUP_FULL_PARENT_CHAT_LIMIT = 10
+STARTUP_METADATA_PARENT_CHAT_LIMIT = 100
+STARTUP_SUB_CHAT_METADATA_LIMIT = 50
+
 PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
     "encrypted_chat_key",
     "encrypted_icon",
@@ -165,7 +169,7 @@ async def _fetch_direct_sub_chat_ids_for_phase1_parents(
                 "filter[hashed_user_id][_eq]": hashed_user_id,
                 "fields": "id,parent_id,is_sub_chat,created_at",
                 "sort": "created_at",
-                "limit": 50,
+                "limit": STARTUP_SUB_CHAT_METADATA_LIMIT,
             },
             admin_required=True,
         ) or []
@@ -174,6 +178,11 @@ async def _fetch_direct_sub_chat_ids_for_phase1_parents(
     except Exception as exc:
         logger.warning("Phase 1a: Failed to fetch direct sub-chats for parents: %s", exc, exc_info=True)
         return []
+
+
+def _is_parent_chat_details(chat_details: Dict[str, Any]) -> bool:
+    """Return true when the chat is a top-level parent chat, not a sub-chat."""
+    return not chat_details.get("is_sub_chat") and not chat_details.get("parent_id")
 
 
 async def handle_phased_sync_request(
@@ -187,11 +196,15 @@ async def handle_phased_sync_request(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,):
     """
-    Handles phased sync requests from the client.
-    This implements the 3-phase sync architecture with version-aware delta sync:
-    - Phase 1: Last opened chat AND new chat suggestions (immediate priority) - always both
-    - Phase 2: Last 20 updated chats (quick access) - only missing/outdated chats
-    - Phase 3: Last 100 updated chats (full sync) - only missing/outdated chats
+    Handles startup sync requests from the client.
+
+    Startup sync is intentionally bounded:
+    - Phase 1a: shell metadata, suggestions, inspirations, and recent chat metadata
+    - Phase 1b: full content for the 10 most recent parent chats only
+    - Phase 2: metadata-only for the 100 most recent chats
+
+    Phase 3 is reserved for explicit/offline prefetch requests and is not part of
+    the default web startup path.
     
     The client sends version data so we can skip sending chats that are already up-to-date.
     Phase 1 ALWAYS sends suggestions - Phase 3 NEVER sends suggestions.
@@ -247,13 +260,26 @@ async def handle_phased_sync_request(
                     client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
                 )
 
-            # Phase 3: Background message sync (chunked batches of 10, no embeds)
-            if sync_phase == "phase3" or sync_phase == "all":
+            # Phase 3: explicit/offline prefetch only. Do not run it during the
+            # default web startup `all` sync, otherwise chats 11-100 would receive
+            # messages/embeds and violate the bounded startup contract.
+            if sync_phase == "phase3":
                 await _handle_phase3_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
                     client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids,
                     phase1_chat_ids
                 )
+
+            if sync_phase == "all":
+                try:
+                    await _handle_app_settings_memories_sync(
+                        manager, directus_service, user_id, device_fingerprint_hash
+                    )
+                except Exception as app_data_error:
+                    logger.warning(
+                        f"Failed to sync app settings/memories: {app_data_error}",
+                        exc_info=True,
+                    )
         
             # Send sync completion event
             await manager.send_personal_message(
@@ -446,7 +472,14 @@ async def _handle_phase1_sync(
         # Run all independent fetches concurrently for minimal latency
         suggestions_task = _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
         inspirations_task = _fetch_daily_inspirations(cache_service, directus_service, user_id)
-        recent_ids_task = cache_service.get_chat_ids_versions(user_id, start=0, end=10, with_scores=False)
+        # Fetch enough recent IDs to find 10 parent chats even when sub-chats are
+        # interleaved in the recent-chat sorted set.
+        recent_ids_task = cache_service.get_chat_ids_versions(
+            user_id,
+            start=0,
+            end=STARTUP_METADATA_PARENT_CHAT_LIMIT - 1,
+            with_scores=False,
+        )
 
         new_chat_suggestions, daily_inspirations, recent_chat_ids = await _asyncio.gather(
             suggestions_task, inspirations_task, recent_ids_task
@@ -474,7 +507,7 @@ async def _handle_phase1_sync(
             if raw_id and raw_id != "new" and not raw_id.startswith("demo-") and not raw_id.startswith("legal-"):
                 last_opened_id = raw_id
 
-        # --- Build list of up to 11 chat IDs (last-opened + 10 most recent) ---
+        # --- Build ordered candidates. Phase 1b later narrows these to 10 parent chats. ---
         phase1_chat_ids: List[str] = []
         if last_opened_id:
             phase1_chat_ids.append(last_opened_id)
@@ -483,20 +516,20 @@ async def _handle_phase1_sync(
             for cid in recent_chat_ids:
                 if cid not in phase1_chat_ids:
                     phase1_chat_ids.append(cid)
-                if len(phase1_chat_ids) >= 11:
+                if len(phase1_chat_ids) >= STARTUP_METADATA_PARENT_CHAT_LIMIT:
                     break
 
         # If cache returned nothing, try Directus fallback for recent chats
         if not recent_chat_ids and not phase1_chat_ids:
             try:
                 fallback_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-                    user_id, limit=11
+                    user_id, limit=STARTUP_METADATA_PARENT_CHAT_LIMIT
                 )
                 for cw in (fallback_chats or []):
                     cid = cw.get("chat_details", {}).get("id") if isinstance(cw, dict) else None
                     if cid and cid not in phase1_chat_ids:
                         phase1_chat_ids.append(cid)
-                    if len(phase1_chat_ids) >= 11:
+                    if len(phase1_chat_ids) >= STARTUP_METADATA_PARENT_CHAT_LIMIT:
                         break
             except Exception as e:
                 logger.warning(f"Phase 1a: Directus fallback for recent chats failed: {e}")
@@ -522,22 +555,6 @@ async def _handle_phase1_sync(
                 device_fingerprint_hash
             )
             return []
-
-        direct_sub_chat_ids = await _fetch_direct_sub_chat_ids_for_phase1_parents(
-            directus_service,
-            phase1_chat_ids,
-            user_id,
-        )
-        if direct_sub_chat_ids:
-            existing_phase1_ids = set(phase1_chat_ids)
-            for child_id in direct_sub_chat_ids:
-                if child_id not in existing_phase1_ids:
-                    phase1_chat_ids.append(child_id)
-                    existing_phase1_ids.add(child_id)
-            logger.info(
-                "Phase 1a: Included %d direct sub-chat metadata row(s) for parent preview reloads",
-                len(direct_sub_chat_ids),
-            )
 
         # --- Batch fetch metadata for all phase1 chats ---
         batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, phase1_chat_ids)
@@ -567,10 +584,14 @@ async def _handle_phase1_sync(
             except Exception as e:
                 logger.warning(f"Phase 1a: Directus batch metadata fetch failed: {e}")
 
-        # Build chat_details for each chat
+        # Build chat_details for each candidate. Only parent chats can be returned
+        # for Phase 1b full-content sync; sub-chats stay metadata-only and hydrate
+        # on demand when opened.
         last_chat_details = None
+        candidate_metadata: List[Dict[str, Any]] = []
         recent_chat_metadata: List[Dict[str, Any]] = []
         valid_phase1_ids: List[str] = []
+        parent_content_chat_ids: List[str] = []
         partial_cache_filled_count = 0
         invariant_violation_count = 0
 
@@ -630,8 +651,40 @@ async def _handle_phase1_sync(
             valid_phase1_ids.append(cid)
             if cid == last_opened_id:
                 last_chat_details = chat_details
-            else:
-                recent_chat_metadata.append(chat_details)
+
+            if _is_parent_chat_details(chat_details) and len(parent_content_chat_ids) < STARTUP_FULL_PARENT_CHAT_LIMIT:
+                parent_content_chat_ids.append(cid)
+                candidate_metadata.append(chat_details)
+
+        direct_sub_chat_ids = await _fetch_direct_sub_chat_ids_for_phase1_parents(
+            directus_service,
+            parent_content_chat_ids,
+            user_id,
+        )
+        if direct_sub_chat_ids:
+            try:
+                sub_chat_metadata_map = await directus_service.chat.get_chats_metadata_batch(direct_sub_chat_ids)
+            except Exception as e:
+                logger.warning(f"Phase 1a: Direct sub-chat metadata fetch failed: {e}")
+                sub_chat_metadata_map = {}
+
+            for child_id in direct_sub_chat_ids:
+                if child_id in sub_chat_metadata_map:
+                    candidate_metadata.append(
+                        _build_chat_details_from_directus_metadata(
+                            sub_chat_metadata_map[child_id], child_id
+                        )
+                    )
+            logger.info(
+                "Phase 1a: Included %d direct sub-chat metadata row(s) for parent preview reloads",
+                len(sub_chat_metadata_map),
+            )
+
+        recent_chat_metadata = [
+            chat_details
+            for chat_details in candidate_metadata
+            if chat_details.get("id") != last_opened_id
+        ]
 
         # If last_opened wasn't found (deleted?), promote first recent to last_chat
         if last_opened_id and not last_chat_details and recent_chat_metadata:
@@ -666,7 +719,12 @@ async def _handle_phase1_sync(
             f"metadata_invariant_violations={invariant_violation_count}"
         )
 
-        return valid_phase1_ids
+        logger.info(
+            "Phase 1a: Selected %d parent chat(s) for startup full-content sync from %d metadata candidate(s)",
+            len(parent_content_chat_ids),
+            len(valid_phase1_ids),
+        )
+        return parent_content_chat_ids
 
     except Exception as e:
         logger.error(f"Error in Phase 1a sync for user {user_id}: {e}", exc_info=True)
@@ -701,6 +759,7 @@ async def _handle_phase1b_sync(
         import hashlib
 
         chats_data: List[Dict[str, Any]] = []
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
         for chat_id in phase1_chat_ids:
             messages_data: List[str] = []
@@ -750,9 +809,16 @@ async def _handle_phase1b_sync(
                 if server_message_count is None:
                     server_message_count = len(messages_data)
 
+            checkpoint = await get_latest_chat_compression_checkpoint(
+                directus_service,
+                chat_id,
+                user_id_hash,
+            )
+
             chats_data.append({
                 "chat_id": chat_id,
                 "messages": messages_data if should_fetch_messages else None,
+                "compression_checkpoints": [checkpoint] if checkpoint else [],
                 "server_message_count": server_message_count or 0
             })
 
