@@ -68,7 +68,9 @@ python scripts/check_og_tags.py
 ### `linear.py`
 
 Manage Linear issues through the Linear API when MCP access is unavailable. The
-script reads `LINEAR_API_KEY` from the environment and never stores it.
+script loads `.env` like the Buffer helper: exported environment variables win,
+and `.env` only fills missing values. Use `--credential-source auto|env|openmates-vault`
+to choose between `LINEAR_API_KEY`, OpenMates Vault, or env with Vault fallback.
 
 **Usage:**
 

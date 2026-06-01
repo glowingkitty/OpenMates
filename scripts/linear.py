@@ -4,8 +4,8 @@ scripts/linear.py
 
 General-purpose Linear API CLI for agents and developers when the Linear MCP is
 unavailable. It uses the official Linear GraphQL API, discovers workspace IDs at
-runtime, and never stores API keys. Set LINEAR_API_KEY in the environment before
-running commands that talk to Linear.
+runtime, and never stores API keys. Credentials are read from env first, with an
+optional OpenMates Vault fallback through the local `api` Docker container.
 """
 
 from __future__ import annotations
@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,15 @@ API_URL = "https://api.linear.app/graphql"
 DEFAULT_TEAM_KEY = "OPE"
 DEFAULT_LIMIT = 25
 REQUEST_TIMEOUT_SECONDS = 20
+CREDENTIAL_SOURCES = ("auto", "env", "openmates-vault")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LINEAR_VAULT_KEYS = (
+    "api_key",
+    "linear_api_key",
+    "access_token",
+    "token",
+)
+credential_source = "auto"
 PRIORITY_NAMES = {
     0: "No priority",
     1: "Urgent",
@@ -37,12 +48,69 @@ class LinearError(RuntimeError):
     """Raised when Linear returns an error or the request cannot be completed."""
 
 
+def load_env_file(path: Path) -> None:
+    if not path.is_file():
+        return
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+@lru_cache(maxsize=None)
+def get_openmates_vault_provider(provider: str) -> dict[str, str]:
+    code = f"""
+import asyncio, json
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+async def main():
+    manager = SecretsManager()
+    await manager.initialize()
+    secrets = await manager.get_secrets_from_path('kv/data/providers/{provider}')
+    print(json.dumps(secrets or {{}}))
+
+asyncio.run(main())
+"""
+    try:
+        result = subprocess.run(
+            ["docker", "exec", "api", "python", "-c", code],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise LinearError("OpenMates Vault fallback requires Docker to be installed and available.") from exc
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.strip() or exc.stdout.strip() or "docker exec api failed"
+        raise LinearError(f"OpenMates Vault fallback failed for provider '{provider}': {detail}") from exc
+    return json.loads(result.stdout or "{}")
+
+
 def get_api_key() -> str:
-    api_key = os.environ.get("LINEAR_API_KEY")
+    api_key = None if credential_source == "openmates-vault" else os.environ.get("LINEAR_API_KEY")
     if api_key:
         return api_key
 
-    raise LinearError("LINEAR_API_KEY is not set. Export it before running this script.")
+    if credential_source != "env":
+        linear_secrets = get_openmates_vault_provider("linear")
+        for key in LINEAR_VAULT_KEYS:
+            api_key = linear_secrets.get(key)
+            if api_key:
+                return api_key
+
+    if credential_source == "auto":
+        keys = ", ".join(LINEAR_VAULT_KEYS)
+        raise LinearError(f"Missing LINEAR_API_KEY; OpenMates Vault provider 'linear' also did not provide one of: {keys}.")
+    if credential_source == "openmates-vault":
+        keys = ", ".join(LINEAR_VAULT_KEYS)
+        raise LinearError(f"OpenMates Vault provider 'linear' did not provide one of: {keys}.")
+    raise LinearError("Missing LINEAR_API_KEY. Export it before running this script.")
 
 
 def graphql(query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -355,13 +423,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Print raw JSON output.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("me", help="Show the authenticated Linear user.")
-    subparsers.add_parser("teams", help="List workspace teams.")
+    def add_credential_source_arg(command_parser: argparse.ArgumentParser) -> None:
+        command_parser.add_argument(
+            "--credential-source",
+            choices=CREDENTIAL_SOURCES,
+            default="auto",
+            help="Read credentials from env, OpenMates Vault, or env with Vault fallback.",
+        )
+
+    me = subparsers.add_parser("me", help="Show the authenticated Linear user.")
+    add_credential_source_arg(me)
+
+    teams = subparsers.add_parser("teams", help="List workspace teams.")
+    add_credential_source_arg(teams)
 
     states = subparsers.add_parser("states", help="List workflow states for a team.")
+    add_credential_source_arg(states)
     states.add_argument("--team", default=DEFAULT_TEAM_KEY)
 
     labels = subparsers.add_parser("labels", help="List issue labels.")
+    add_credential_source_arg(labels)
     labels.add_argument("--team", default=DEFAULT_TEAM_KEY)
     labels.add_argument("--all-teams", action="store_true", help="List labels for all teams.")
 
@@ -370,6 +451,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("search", "Search issues by title or description."),
     ):
         list_parser = subparsers.add_parser(command_name, help=help_text)
+        add_credential_source_arg(list_parser)
         list_parser.add_argument("query_arg", nargs="?", help="Search text. Same as --query.")
         list_parser.add_argument("--team", default=DEFAULT_TEAM_KEY)
         list_parser.add_argument("--state", action="append", help="Workflow state name. May be repeated.")
@@ -380,10 +462,12 @@ def build_parser() -> argparse.ArgumentParser:
         list_parser.add_argument("--all", action="store_true", help="Include completed and canceled issues.")
 
     get_parser = subparsers.add_parser("get", help="Get one issue by OPE-123 or UUID.")
+    add_credential_source_arg(get_parser)
     get_parser.add_argument("issue")
     get_parser.add_argument("--comments", action="store_true", help="Include the latest comments.")
 
     create = subparsers.add_parser("create", help="Create an issue.")
+    add_credential_source_arg(create)
     create.add_argument("--team", default=DEFAULT_TEAM_KEY)
     create.add_argument("--title", required=True)
     create.add_argument("--description")
@@ -393,6 +477,7 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--label", action="append")
 
     update = subparsers.add_parser("update", help="Update an issue.")
+    add_credential_source_arg(update)
     update.add_argument("issue")
     update.add_argument("--title")
     update.add_argument("--description")
@@ -405,11 +490,13 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--project-id", help="Set a Linear project UUID. Use an empty string to clear it.")
 
     comment = subparsers.add_parser("comment", help="Add a comment to an issue.")
+    add_credential_source_arg(comment)
     comment.add_argument("issue")
     comment.add_argument("--body")
     comment.add_argument("--body-file")
 
     delete = subparsers.add_parser("delete", help="Soft-delete an issue. Recoverable in Linear for 30 days.")
+    add_credential_source_arg(delete)
     delete.add_argument("issue")
     delete.add_argument("--yes", action="store_true", help="Required confirmation flag.")
 
@@ -417,8 +504,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    load_env_file(PROJECT_ROOT / ".env")
     parser = build_parser()
     args = parser.parse_args()
+    global credential_source
+    credential_source = args.credential_source
 
     try:
         if args.command == "me":
