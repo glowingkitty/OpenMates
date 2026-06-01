@@ -30,7 +30,7 @@
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
-  import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
+  import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
@@ -83,9 +83,11 @@
      * Defaults to 0 (embed hidden until width is known).
      */
     containerWidth?: number;
+    /** Which workspace surface this banner is rendered in. Legacy items default to chats. */
+    surface?: DailyInspirationSurface;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0 }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats' }: Props = $props();
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
 
@@ -146,7 +148,7 @@
       isCrossfading = true;
       setTimeout(() => {
         inspirations = state.inspirations;
-        currentIndex = getVisibleIndexForStoreIndex(state.inspirations, state.currentIndex);
+        currentIndex = getVisibleIndexForStoreIndex(surfaceInspirations(state.inspirations), state.currentIndex);
         // Allow a frame for the DOM to update with new data before fading in
         requestAnimationFrame(() => {
           isCrossfading = false;
@@ -154,7 +156,7 @@
       }, 200); // Match the CSS fade-out duration
     } else {
       inspirations = state.inspirations;
-      currentIndex = getVisibleIndexForStoreIndex(state.inspirations, state.currentIndex);
+      currentIndex = getVisibleIndexForStoreIndex(surfaceInspirations(state.inspirations), state.currentIndex);
     }
   });
 
@@ -185,7 +187,7 @@
       const state = get(dailyInspirationStore);
       if (!state.isPersonalized) {
         dailyInspirationStore.reset();
-        loadDefaultInspirations({ allowIndexedDB: false }).catch((err) => {
+        loadDefaultInspirations({ allowIndexedDB: false, surface }).catch((err) => {
           console.error('[DailyInspirationBanner] Failed to reload inspirations after language change:', err);
         });
       }
@@ -270,7 +272,7 @@
   // ─── Derived values ─────────────────────────────────────────────────────────
 
   let visibleInspirations = $derived.by(() => (
-    inspirations.filter((inspiration) => isDailyInspirationVisible(inspiration))
+    surfaceInspirations(inspirations).filter((inspiration) => isDailyInspirationVisible(inspiration))
   ));
 
   /** Currently displayed inspiration. */
@@ -669,6 +671,10 @@
     if (AUTHENTICATED_ONLY_FEATURE_IDS.has(feature.feature_id)) return false;
     if (feature.requires_authentication === true && !GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path)) return false;
     return GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path);
+  }
+
+  function surfaceInspirations(source: DailyInspiration[]): DailyInspiration[] {
+    return source.filter((inspiration) => (inspiration.surface ?? 'chats') === surface);
   }
 
   /**

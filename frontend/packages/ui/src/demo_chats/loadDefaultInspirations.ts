@@ -34,8 +34,9 @@ import { getApiEndpoint } from "../config/api";
 import {
   dailyInspirationStore,
   type DailyInspiration,
+  type DailyInspirationSurface,
 } from "../stores/dailyInspirationStore";
-import { getHardcodedInspirations } from "./hardcodedInspirations";
+import { getHardcodedInspirationsForSurface } from "./hardcodedInspirations";
 
 const LOG_PREFIX = "[loadDefaultInspirations]";
 
@@ -138,6 +139,11 @@ function storeHasOnlyHardcoded(): boolean {
   );
 }
 
+function storeHasSurfaceData(surface: DailyInspirationSurface): boolean {
+  const state = get(dailyInspirationStore);
+  return state.inspirations.some((inspiration) => (inspiration.surface ?? "chats") === surface);
+}
+
 /**
  * Populate the daily inspiration store on page load.
  *
@@ -153,10 +159,10 @@ function storeHasOnlyHardcoded(): boolean {
  * inspirations delivered via WebSocket always take ultimate priority.
  */
 export async function loadDefaultInspirations(
-  options: { allowIndexedDB?: boolean } = {},
+  options: { allowIndexedDB?: boolean; surface?: DailyInspirationSurface } = {},
 ): Promise<void> {
   try {
-    const { allowIndexedDB = true } = options;
+    const { allowIndexedDB = true, surface = "chats" } = options;
 
     const urlParams =
       typeof window !== "undefined"
@@ -204,6 +210,21 @@ export async function loadDefaultInspirations(
     // Skip if the store is already populated with REAL data (not hardcoded).
     // WS delivery or Phase 1 sync may have raced ahead of us.
     const current = get(dailyInspirationStore);
+    if (surface !== "chats") {
+      if (storeHasSurfaceData(surface)) {
+        console.debug(`${LOG_PREFIX} ${surface} inspirations already loaded — skipping`);
+        return;
+      }
+      const currentLangSync = get(svelteLocaleStore) || "en";
+      const hardcoded = getHardcodedInspirationsForSurface(currentLangSync, surface);
+      dailyInspirationStore.setSurfaceInspirations(surface, hardcoded, {
+        personalized: false,
+      });
+      console.debug(
+        `${LOG_PREFIX} Loaded ${hardcoded.length} ${surface} hardcoded inspiration(s) for lang=${currentLangSync}`,
+      );
+      return;
+    }
     if (current.inspirations.length > 0 && !storeHasOnlyHardcoded()) {
       console.debug(
         `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
@@ -216,8 +237,8 @@ export async function loadDefaultInspirations(
     // These will be replaced by IndexedDB / server / WS data when it arrives.
     if (current.inspirations.length === 0) {
       const currentLangSync = get(svelteLocaleStore) || "en";
-      const hardcoded = getHardcodedInspirations(currentLangSync);
-      dailyInspirationStore.setInspirations(hardcoded, {
+      const hardcoded = getHardcodedInspirationsForSurface(currentLangSync, "chats");
+      dailyInspirationStore.setSurfaceInspirations("chats", hardcoded, {
         personalized: false,
       });
       console.debug(
@@ -331,7 +352,7 @@ export async function loadDefaultInspirations(
 
     // Public server defaults: not personalized (no is_opened / opened_chat_id).
     // setInspirations guards against overwriting personalized data, so this is safe.
-    dailyInspirationStore.setInspirations(inspirations, {
+    dailyInspirationStore.setSurfaceInspirations("chats", inspirations, {
       personalized: false,
     });
     console.debug(

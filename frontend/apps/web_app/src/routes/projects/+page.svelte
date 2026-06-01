@@ -6,7 +6,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Header, ProjectsPage, Notification, authStore, initialize, notificationStore, panelState } from '@repo/ui';
+  import { Header, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState } from '@repo/ui';
 
   onMount(() => {
     initialize().catch((error) => {
@@ -15,7 +15,6 @@
   });
 </script>
 
-<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 {#if !$authStore.isInitialized}
   <main class="projects-route-state" data-testid="projects-auth-loading">Loading projects...</main>
 {:else if $authStore.isAuthenticated}
@@ -26,10 +25,19 @@
       </div>
     {/if}
   </div>
-  <main class="projects-route-main" class:menu-closed={!$panelState.isActivityHistoryOpen}>
-    <ProjectsPage />
-  </main>
+  <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
+    <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+    <div class="projects-container" class:menu-open={$panelState.isSettingsOpen}>
+      <div class="projects-wrapper" id="main-projects" tabindex="-1">
+        <ProjectsPage />
+      </div>
+      <div class="settings-wrapper">
+        <Settings isLoggedIn={$authStore.isAuthenticated} />
+      </div>
+    </div>
+  </div>
 {:else}
+  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
   <main class="projects-route-state" data-testid="projects-auth-required">
     <h1>Projects</h1>
     <p>Please log in to organize chats, embeds, and uploaded files into projects.</p>
@@ -91,19 +99,48 @@
     overflow: hidden;
   }
 
-  .projects-route-main {
+  .main-content {
     position: fixed;
     inset-inline-start: calc(var(--sidebar-width, 325px) + var(--sidebar-margin, 10px));
     inset-inline-end: 0;
-    top: 82px;
+    top: 0;
     bottom: 0;
-    overflow: auto;
     background: var(--color-grey-0);
-    transition: inset-inline-start 0.3s ease;
+    z-index: 10;
+    transition:
+      inset-inline-start 0.3s ease,
+      transform 0.3s ease;
   }
 
-  .projects-route-main.menu-closed {
+  .main-content.menu-closed {
     inset-inline-start: var(--sidebar-margin, 10px);
+  }
+
+  .projects-container {
+    display: flex;
+    flex-direction: row;
+    height: calc(100vh - 82px);
+    height: calc(100dvh - 82px);
+    gap: 0;
+    padding: 10px 20px 10px 10px;
+  }
+
+  @media (min-width: 1100px) {
+    .projects-container.menu-open {
+      gap: 20px;
+    }
+  }
+
+  .projects-wrapper {
+    flex: 1;
+    display: flex;
+    min-width: 0;
+  }
+
+  .settings-wrapper {
+    display: flex;
+    align-items: flex-start;
+    min-width: fit-content;
   }
 
   @media (max-width: 600px) {
@@ -111,10 +148,25 @@
       width: 100%;
     }
 
-    .projects-route-main {
+    .main-content {
       inset-inline-start: 0;
       inset-inline-end: 0;
-      top: 75px;
+      z-index: 20;
+      transform: translateX(0);
+    }
+
+    .main-content:not(.menu-closed) {
+      transform: translateX(100%);
+    }
+
+    :global([dir='rtl']) .main-content:not(.menu-closed) {
+      transform: translateX(-100%);
+    }
+
+    .projects-container {
+      height: calc(100vh - 75px);
+      height: calc(100dvh - 75px);
+      padding-inline-end: 10px;
     }
   }
 

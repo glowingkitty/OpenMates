@@ -8,8 +8,13 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
+  import ProjectBrowserItem from './ProjectBrowserItem.svelte';
+  import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
+  import { userProfile } from '../../stores/userProfile';
+  import { computeSHA256 } from '../../message_parsing/utils';
   import {
     createFolder,
     createProject,
@@ -34,9 +39,16 @@
   let newFolderName = $state('');
   let uploadInput = $state<HTMLInputElement>();
   let hasLoadError = $state(false);
+  let viewMode = $state<'tile' | 'list'>('tile');
+  let currentFolder = $state<ProjectFolderViewModel | null>(null);
+  let currentFolderHash = $state<string | null>(null);
+  let folderHashes = $state(new Map<string, string>());
 
   let sortedProjects = $derived([...projects].sort((a, b) => (b.encrypted.created_at || 0) - (a.encrypted.created_at || 0)));
-  let recentProjects = $derived(sortedProjects.slice(0, 3));
+  let recentProjects = $derived(sortedProjects.slice(0, 8));
+  let greetingName = $derived($userProfile.username || 'there');
+  let browserFolders = $derived(folders.filter((folder) => (folder.parentHash ?? null) === currentFolderHash));
+  let browserItems = $derived(items.filter((item) => (item.encrypted.hashed_folder_id ?? null) === currentFolderHash));
 
   const PROJECT_SELECTED_EVENT = 'openmates-project-selected';
   const PROJECTS_CHANGED_EVENT = 'openmates-projects-changed';
@@ -71,11 +83,19 @@
     if (!selectedProject) {
       folders = [];
       items = [];
+      currentFolder = null;
+      currentFolderHash = null;
+      folderHashes = new Map();
       return;
     }
     const contents = await getProjectContents(selectedProject);
     folders = contents.folders;
     items = contents.items;
+    folderHashes = new Map(await Promise.all(contents.folders.map(async (folder) => [folder.folder_id, await computeSHA256(folder.folder_id)] as const)));
+    if (currentFolder && !contents.folders.some((folder) => folder.folder_id === currentFolder?.folder_id)) {
+      currentFolder = null;
+      currentFolderHash = null;
+    }
   }
 
   async function handleCreateProject(): Promise<void> {
@@ -86,6 +106,8 @@
       const project = await createProject(name);
       projects = [project, ...projects];
       selectedProject = project;
+      currentFolder = null;
+      currentFolderHash = null;
       folders = [];
       items = [];
       newProjectName = '';
@@ -123,7 +145,7 @@
     if (!name || isSaving) return;
     isSaving = true;
     try {
-      await createFolder(selectedProject, name);
+      await createFolder(selectedProject, name, currentFolder?.folder_id);
       newFolderName = '';
       await refreshSelectedProject();
       notificationStore.success('Folder created');
@@ -156,6 +178,8 @@
 
   function selectProject(project: ProjectViewModel): void {
     selectedProject = project;
+    currentFolder = null;
+    currentFolderHash = null;
     broadcastProjectSelected(project);
     if (variant === 'sidebar') {
       panelState.closeChats();
@@ -166,12 +190,29 @@
     });
   }
 
+  async function openFolder(folder: ProjectFolderViewModel): Promise<void> {
+    currentFolder = folder;
+    currentFolderHash = folderHashes.get(folder.folder_id) ?? await computeSHA256(folder.folder_id);
+  }
+
+  function openRoot(): void {
+    currentFolder = null;
+    currentFolderHash = null;
+  }
+
+  function handleStartProjectInspiration(): void {
+    panelState.openChats();
+  }
+
   onMount(() => {
     void refreshProjects();
+    void loadDefaultInspirations({ surface: 'projects', allowIndexedDB: false });
     const handleProjectSelected = (event: Event) => {
       const project = (event as CustomEvent<ProjectViewModel>).detail;
       if (!project || selectedProject?.project_id === project.project_id) return;
       selectedProject = project;
+      currentFolder = null;
+      currentFolderHash = null;
       void refreshSelectedProject();
     };
     const handleProjectsChanged = () => {
@@ -249,44 +290,44 @@
 
       <section class="project-section">
         <div class="section-title">
-          <h3>Folders</h3>
+          <div>
+            <h3>{currentFolder ? currentFolder.name || 'Untitled folder' : 'Project files'}</h3>
+            <button class="breadcrumb-button" type="button" onclick={openRoot}>All projects</button>
+            {#if currentFolder}
+              <span class="breadcrumb-separator">/</span>
+              <span class="breadcrumb-current">{currentFolder.name || 'Untitled folder'}</span>
+            {/if}
+          </div>
           <form class="create-row compact" onsubmit={(event) => { event.preventDefault(); void handleCreateFolder(); }}>
             <input bind:value={newFolderName} placeholder="New folder" aria-label="New folder" data-testid="project-folder-name-input" />
             <button type="submit" disabled={isSaving || !newFolderName.trim()} data-testid="project-folder-create-button">Add folder</button>
           </form>
         </div>
-        {#if folders.length === 0}
-          <p class="muted">No folders yet.</p>
-        {:else}
-          <div class="grid" data-testid="project-folder-list">
-            {#each folders as folder (folder.folder_id)}
-              <article class="tile folder" data-testid="project-folder-card">
-                <span class="tile-icon">Folder</span>
-                <strong>{folder.name || 'Untitled folder'}</strong>
-              </article>
-            {/each}
-          </div>
-        {/if}
-      </section>
 
-      <section class="project-section">
-        <div class="section-title">
-          <h3>Items</h3>
-          <span class="muted">{items.length} saved</span>
+        <div class="browser-toolbar">
+          <span class="muted">{browserFolders.length + browserItems.length} entries</span>
+          <div class="view-toggle" aria-label="Project view mode">
+            <button type="button" class:active={viewMode === 'tile'} onclick={() => (viewMode = 'tile')}>Tile</button>
+            <button type="button" class:active={viewMode === 'list'} onclick={() => (viewMode = 'list')}>List</button>
+          </div>
         </div>
-        {#if items.length === 0}
+
+        {#if browserFolders.length === 0 && browserItems.length === 0}
           <div class="empty-state" data-testid="project-empty-items">
             <h3>No project items yet</h3>
             <p>Upload a file or use “Add to project” from chats and embed fullscreen views.</p>
           </div>
         {:else}
-          <div class="grid" data-testid="project-item-list">
-            {#each items as item (item.project_item_id)}
-              <article class="tile" data-testid="project-item-card" data-item-type={item.item_type}>
-                <span class="tile-icon">{item.metadata.embed_type?.toString() || item.item_type}</span>
-                <strong>{item.displayName || item.target_id}</strong>
-                <small>{item.item_type}</small>
-              </article>
+          <div class:browser-grid={viewMode === 'tile'} class:browser-list={viewMode === 'list'} data-testid="project-browser-list">
+            {#each browserFolders as folder (folder.folder_id)}
+              <button class="folder-entry {viewMode}" data-testid="project-folder-card" type="button" onclick={() => void openFolder(folder)}>
+                <span class="folder-icon">Folder</span>
+                <strong>{folder.name || 'Untitled folder'}</strong>
+                <small>Folder</small>
+              </button>
+            {/each}
+            {#each browserItems as item (item.project_item_id)}
+              <ProjectBrowserItem {item} {viewMode} />
             {/each}
           </div>
         {/if}
@@ -320,10 +361,18 @@
 {:else}
   <section class="projects-page" data-testid="projects-page">
     <main class="project-main">
+      <div class="daily-inspiration-area">
+        <DailyInspirationBanner
+          surface="projects"
+          onStartChat={handleStartProjectInspiration}
+          containerWidth={900}
+        />
+      </div>
+
       <section class="projects-hero">
         <div>
           <p class="eyebrow">Projects</p>
-          <h1>Continue where you left off</h1>
+          <h1>Hey {greetingName}! Continue where you left off:</h1>
           <p>Pick up recent project work or create a new workspace for chats, embeds, uploads, and saved AI outputs.</p>
         </div>
         <button class="hero-create-button" data-testid="project-create-main-button" type="button" onclick={() => panelState.openChats()}>
@@ -336,9 +385,9 @@
           <div class="section-title">
             <h2>Continue where you left off</h2>
           </div>
-          <div class="grid">
+          <div class="recent-projects-row">
             {#each recentProjects as project (project.project_id)}
-              <button class="tile project-tile" data-testid="recent-project-card" type="button" onclick={() => selectProject(project)}>
+              <button class="recent-project-card" data-testid="recent-project-card" type="button" onclick={() => selectProject(project)}>
                 <span class="tile-icon">Project</span>
                 <strong>{project.name || 'Untitled project'}</strong>
                 <small>{project.encrypted.item_count ?? 0} items</small>
@@ -365,7 +414,10 @@
 
 <style>
   .projects-page {
-    min-height: calc(100vh - 80px);
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
     background: var(--color-grey-0);
     color: var(--color-font-primary);
   }
@@ -421,9 +473,16 @@
     align-items: flex-start;
     gap: var(--spacing-10);
     border-radius: var(--radius-6);
-    background: linear-gradient(135deg, var(--color-grey-0), var(--color-grey-10));
-    padding: clamp(24px, 5vw, 56px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    background: linear-gradient(135deg, var(--color-grey-10), var(--color-grey-0));
+    padding: clamp(22px, 4vw, 46px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  }
+
+  .projects-hero h1 {
+    max-width: 980px;
+    font-size: clamp(2.6rem, 5.8vw, 5rem);
+    line-height: 1.05;
+    letter-spacing: -0.05em;
   }
 
   .projects-hero h1,
@@ -498,10 +557,15 @@
   }
 
   .project-main {
-    padding: clamp(20px, 4vw, 48px);
+    height: 100%;
     overflow: auto;
-    max-width: 1200px;
+    padding: clamp(14px, 3vw, 32px);
+    max-width: 1500px;
     margin: 0 auto;
+  }
+
+  .daily-inspiration-area {
+    margin-bottom: 24px;
   }
 
   .project-header,
@@ -531,10 +595,118 @@
     margin-top: 32px;
   }
 
+  .recent-projects-row {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 6px 2px 18px;
+    scroll-snap-type: x proximity;
+  }
+
+  .recent-project-card {
+    flex: 0 0 300px;
+    width: 300px;
+    height: 200px;
+    display: grid;
+    align-content: end;
+    gap: 8px;
+    color: var(--color-font-primary);
+    text-align: left;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: linear-gradient(135deg, var(--color-grey-0), var(--color-grey-10));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    scroll-snap-align: start;
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 14px;
+  }
+
+  .browser-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .view-toggle {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--radius-4);
+    background: var(--color-grey-10);
+  }
+
+  .view-toggle button {
+    background: transparent;
+    color: var(--color-font-secondary);
+    padding: 7px 10px;
+  }
+
+  .view-toggle button.active {
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+  }
+
+  .browser-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .browser-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .folder-entry {
+    color: inherit;
+    text-align: left;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: linear-gradient(135deg, var(--color-grey-0), var(--color-grey-10));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .folder-entry.tile {
+    min-height: 210px;
+    display: grid;
+    align-content: end;
+    gap: 8px;
+    padding: 18px;
+  }
+
+  .folder-entry.list {
+    display: grid;
+    grid-template-columns: minmax(90px, 140px) 1fr auto;
+    align-items: center;
+    min-height: 64px;
+    padding: 0 14px;
+    box-shadow: none;
+  }
+
+  .folder-icon {
+    color: var(--color-font-secondary);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .breadcrumb-button {
+    margin-top: 8px;
+    padding: 0;
+    background: transparent;
+    color: var(--color-font-secondary);
+  }
+
+  .breadcrumb-separator,
+  .breadcrumb-current {
+    color: var(--color-font-secondary);
+    font-size: 0.9rem;
   }
 
   .tile,
@@ -577,6 +749,20 @@
     .project-header,
     .section-title {
       flex-direction: column;
+    }
+
+    .projects-hero h1 {
+      font-size: clamp(2.2rem, 12vw, 4rem);
+    }
+
+    .recent-project-card {
+      flex-basis: 260px;
+      width: 260px;
+      height: 170px;
+    }
+
+    .browser-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>
