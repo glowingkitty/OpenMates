@@ -1,3 +1,36 @@
+<script module lang="ts">
+  import type { Chat } from '../types/chat';
+
+  const subChatsByParentCache = new Map<string, Chat[]>();
+  const pendingSubChatsByParent = new Map<string, Promise<Chat[]>>();
+
+  async function getSubChatsForParentChat(parentChatId: string, forceRefresh = false): Promise<Chat[]> {
+    if (!forceRefresh && subChatsByParentCache.has(parentChatId)) {
+      return subChatsByParentCache.get(parentChatId) ?? [];
+    }
+
+    const pending = pendingSubChatsByParent.get(parentChatId);
+    if (!forceRefresh && pending) return pending;
+
+    const loadPromise = (async () => {
+      const { getSubChatsForParent } = await import('../services/db/chatCrudOperations');
+      const { chatDB } = await import('../services/db');
+      const subChats = await getSubChatsForParent(chatDB, parentChatId);
+      subChatsByParentCache.set(parentChatId, subChats);
+      return subChats;
+    })().finally(() => {
+      pendingSubChatsByParent.delete(parentChatId);
+    });
+
+    pendingSubChatsByParent.set(parentChatId, loadPromise);
+    return loadPromise;
+  }
+
+  function clearSubChatsForParentCache(parentChatId: string): void {
+    subChatsByParentCache.delete(parentChatId);
+  }
+</script>
+
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
   import { onMount } from 'svelte';
@@ -48,6 +81,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
+  import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
   type AppCardData = {
@@ -191,14 +225,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   async function loadSubChats() {
     if (role !== 'assistant' || !currentChatId) return;
     try {
-      const { getAllChats } = await import('../services/db/chatCrudOperations');
-      const { chatDB } = await import('../services/db');
-      await chatDB.init();
-      const all = await getAllChats(chatDB);
+      const all = await getSubChatsForParentChat(currentChatId);
       const msgTime = original_message?.created_at || 0;
       // Filter sub-chats created close to this assistant message (within 60s)
       const matchingSubChats = all.filter(c => 
-        c.parent_id === currentChatId && 
         (c.is_sub_chat || c.parent_id !== null) &&
         Math.abs(c.created_at - msgTime) < 60
       );
@@ -298,13 +328,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   onMount(() => {
     loadSubChats();
-    const handleListChange = () => {
+    const handleListChange = (event: Event) => {
+      const changedChatId = (event as CustomEvent<{ chat_id?: string }>).detail?.chat_id;
+      if (changedChatId && changedChatId !== currentChatId) return;
+      if (currentChatId) clearSubChatsForParentCache(currentChatId);
       loadSubChats();
     };
     if (typeof window !== 'undefined') {
-      window.addEventListener('localChatListChanged', handleListChange);
+      window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
       return () => {
-        window.removeEventListener('localChatListChanged', handleListChange);
+        window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
       };
     }
   });
