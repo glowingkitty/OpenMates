@@ -3,6 +3,7 @@ status: active
 last_verified: 2026-06-01
 key_files:
   - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+  - backend/core/api/app/routes/sync_api.py
   - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
   - frontend/packages/ui/src/services/chatSyncMerge.ts
 ---
@@ -20,7 +21,7 @@ The backend startup sync handler assembles encrypted chat metadata and bounded r
 - Phase 2 metadata-only sync for the recent 100-chat window.
 - App settings/memories sync.
 
-Phase 3 is reserved for explicit/offline prefetch requests. It must not be part of default web login/startup.
+Phase 3 is not part of default web login/startup. Optional native/desktop offline hydration uses `POST /v1/sync/offline-prefetch` instead of reusing startup WebSocket sync.
 
 ## Phase 1a Contract
 
@@ -41,6 +42,16 @@ Phase 1b must not fetch or send sub-chat messages, sub-chat embeds, sub-chat emb
 Phase 2 is metadata-only for the recent 100-chat window. It must not include messages, embeds, embed keys, Code Run outputs, or compression checkpoints.
 
 If the user has more than 100 chats, the frontend triggers `sync_metadata_chats` after Phase 2 because Phase 3 no longer runs during web startup.
+
+## Offline Prefetch Contract
+
+`sync_api.py` owns optional native/desktop offline content hydration for parent chats after the startup window.
+
+- Cursor `10` is the first eligible item; offsets `0...9` belong to Phase 1b startup full-content sync.
+- Each chunk is capped to 5 parent chats and returns `next_cursor` for resumability.
+- The route returns encrypted messages, referenced embeds, embed keys, Code Run output sidecars, compression checkpoints, and per-chat version data.
+- It must skip rows with `is_sub_chat=true` or a non-empty `parent_id`; sub-chat content remains on-demand through `request_chat_content_batch`.
+- It must remain authenticated and user-scoped. The server must never send decrypted message or embed content.
 
 ## Client Merge Contract
 

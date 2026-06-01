@@ -2304,6 +2304,7 @@ struct MainAppView: View {
                     backgroundSyncFlushTask = nil
                     await flushBackgroundSyncedContent(reason: "syncComplete")
                 }
+                syncBridge?.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
 
             default:
                 await loadInitialData()

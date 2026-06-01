@@ -1,8 +1,8 @@
-// Phased sync manager — implements the 4-phase chat sync protocol.
-// Phase 1: Last opened chat (immediate display)
-// Phase 2: Last 20 chats (metadata only, sidebar)
-// Phase 3: Last 100 chats (full content, batched)
-// Phase 4: Metadata-only sync (chats 101-1000)
+// Phased sync manager — implements the bounded startup chat sync protocol.
+// Phase 1a: Last-opened/recent metadata for immediate display.
+// Phase 1b: Full encrypted content for up to 10 recent parent chats.
+// Phase 2: Metadata-only sync for the 100 most recent chats.
+// Optional offline content for older parent chats is fetched via REST chunks.
 
 import Foundation
 import SwiftUI

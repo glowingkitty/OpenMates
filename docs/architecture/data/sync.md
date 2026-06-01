@@ -6,6 +6,8 @@ key_files:
   - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
   - backend/core/api/app/routes/websockets.py
   - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+  - backend/core/api/app/routes/sync_api.py
+  - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
   - backend/core/api/app/routes/debug_sync.py
   - backend/core/api/app/tasks/user_cache_tasks.py
   - backend/core/api/app/services/cache_chat_mixin.py
@@ -127,7 +129,15 @@ Client-side Phase 1a handling must use the shared chat metadata merge policy (`m
 
 ### Native Offline Prefetch
 
-Native/desktop offline sync for chats 11-100 is a future capability-gated background path, not part of web startup. It should run only when Wi-Fi/performance/storage budgets allow, be resumable/cancellable, and emit explicit progress events.
+Native/desktop offline sync for parent chats 11-100 is a separate capability-gated path, not part of web startup.
+
+- REST endpoint: `POST /v1/sync/offline-prefetch`
+- Request: `cursor`, `limit` (max 5), and `include_embeds`.
+- Response: encrypted parent-chat metadata, encrypted message strings, referenced embeds, embed keys, Code Run output sidecars, compression checkpoints, and `next_cursor`.
+- Cursor starts at offset 10 so startup-owned parent chats are not fetched again.
+- The endpoint filters out sub-chat content; sub-chats remain on-demand only.
+- Apple/native clients run it opportunistically after startup sync and on network restore only when network is non-expensive/non-constrained, Low Power Mode is off, thermal state is acceptable, and local storage remains under budget.
+- Prefetched content is persisted to SwiftData through `OfflineStore`; it is not pushed into the visible in-memory transcript unless the chat is already part of normal startup/opened-chat state.
 
 ## User Choice Protection
 
@@ -173,4 +183,4 @@ Sync **never overrides** explicit user choices:
 - [Message Processing](../messaging/message-processing.md) — dual-cache (AI vs. sync)
 - [Embeds](../messaging/embeds.md) — embed sync alongside messages
 - [Device Sessions](./device-sessions.md) — device fingerprinting, multi-device
-- [Memories](../../user-guide/apps/settings-and-memories.md) — post-Phase 3 sync target
+- [Memories](../../user-guide/apps/settings-and-memories.md) — post-startup sync target
