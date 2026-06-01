@@ -225,7 +225,7 @@ def list_teams() -> list[dict[str, Any]]:
 
 def list_states(team_id: str) -> list[dict[str, Any]]:
     query = """
-    query States($teamId: String!) {
+    query States($teamId: ID!) {
       workflowStates(filter: { team: { id: { eq: $teamId } } }, first: 100) {
         nodes { id name type position }
       }
