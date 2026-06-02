@@ -1047,9 +1047,8 @@ final class ChatViewModel: ObservableObject {
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 
         do {
-            let uploadURL = await APIClient.shared.baseURL
-                .deletingLastPathComponent()
-                .appendingPathComponent("upload/v1/files")
+            let uploadURL = await APIClient.shared.uploadBaseURL
+                .appendingPathComponent("v1/upload/file")
             var request = URLRequest(url: uploadURL)
             request.httpMethod = "POST"
             request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
