@@ -931,14 +931,19 @@
     }
 
     .workspace-tab {
-        width: 34px;
-        height: 30px;
+        appearance: none;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        flex: 0 0 44px;
         padding: 0;
         border: 0;
         background: transparent;
         cursor: pointer;
         box-sizing: border-box;
         font: inherit;
+        margin: 0;
     }
 
     .workspace-tab[aria-disabled="true"] {
@@ -1021,8 +1026,11 @@
         }
 
         .workspace-tab {
-            width: 30px;
-            height: 28px;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
+            flex-basis: 44px;
         }
 
         .workspace-icon {
