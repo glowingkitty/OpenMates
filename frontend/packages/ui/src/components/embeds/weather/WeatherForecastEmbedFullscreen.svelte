@@ -65,6 +65,11 @@
   let loadedDays = $state<WeatherDayResult[]>([]);
   let selectedDay = $derived(selectedDayIndex >= 0 ? loadedDays[selectedDayIndex] ?? null : null);
 
+  interface DayCardClickParams {
+    index: number;
+    days: WeatherDayResult[];
+  }
+
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {
     return {
       embed_id: embedId,
@@ -118,6 +123,21 @@
     openDay(index, days);
   }
 
+  function captureDayCardClick(node: HTMLElement, params: DayCardClickParams) {
+    let currentParams = params;
+    const handleClick = () => openDay(currentParams.index, currentParams.days);
+    node.addEventListener('click', handleClick, { capture: true });
+
+    return {
+      update(nextParams: DayCardClickParams) {
+        currentParams = nextParams;
+      },
+      destroy() {
+        node.removeEventListener('click', handleClick, { capture: true });
+      },
+    };
+  }
+
   function closeDay(): void {
     selectedDayIndex = -1;
   }
@@ -167,6 +187,7 @@
             class="forecast-day-card"
             role="button"
             tabindex="0"
+            use:captureDayCardClick={{ index, days }}
             onclick={() => openDay(index, days)}
             onkeydown={(event) => handleDayKeydown(event, index, days)}
           >
