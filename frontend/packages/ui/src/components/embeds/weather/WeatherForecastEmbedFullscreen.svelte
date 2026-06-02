@@ -117,13 +117,6 @@
     selectedDay = days[index] ?? null;
   }
 
-  function handleDayKeydown(event: KeyboardEvent, index: number, days: WeatherDayResult[]): void {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    openDay(index, days);
-  }
-
-
   function closeDay(): void {
     selectedDayIndex = -1;
     selectedDay = null;
@@ -191,14 +184,6 @@
               isMobile={false}
               onFullscreen={() => openDay(index, days)}
             />
-            <button
-              type="button"
-              class="forecast-day-card-button"
-              data-testid="weather-day-drilldown-button"
-              aria-label={`${$text('apps.weather.day')}: ${day.date ?? index + 1}`}
-              onclick={() => openDay(index, days)}
-              onkeydown={(event) => handleDayKeydown(event, index, days)}
-            ></button>
           </div>
         {/each}
       </div>
@@ -247,29 +232,9 @@
   }
 
   .forecast-day-card {
-    position: relative;
     width: 100%;
     max-width: 320px;
     margin: 0 auto;
-  }
-
-  .forecast-day-card-button {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: block;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    border-radius: 16px;
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .forecast-day-card-button:focus-visible {
-    outline: 2px solid var(--color-primary-start);
-    outline-offset: 4px;
   }
 
   @container fullscreen (max-width: 680px) {

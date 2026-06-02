@@ -139,7 +139,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		const firstDay = dayCards.first();
 		await expect(firstDay.locator('[data-skill-icon="weather"]')).toBeVisible({ timeout: 15_000 });
 		await expect(firstDay, 'weather day card should be interactive before drilldown').toHaveAttribute('role', 'button');
-		await grid.getByTestId('weather-day-drilldown-button').first().click();
+		await firstDay.click();
 		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-skill-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
 	});
@@ -234,7 +234,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(grid).toBeVisible({ timeout: 30_000 });
 			const firstDay = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]').first();
 			await expect(firstDay).toBeVisible({ timeout: 30_000 });
-			await grid.getByTestId('weather-day-drilldown-button').first().click();
+			await firstDay.click();
 			await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 			await closeFullscreen(page, fullscreen);
 		} else {
