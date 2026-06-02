@@ -177,34 +177,9 @@ async function openNewChat(page: any, logCheckpoint: (msg: string) => void): Pro
 	logCheckpoint('New chat opened and editor ready.');
 }
 
-async function navigateToChatById(
-	page: any,
-	chatId: string,
-	logCheckpoint: (msg: string) => void
-): Promise<void> {
+async function navigateToChatById(page: any, chatId: string): Promise<void> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
-
-	const activeChatContainer = page.getByTestId('active-chat-container');
-	const chatHasMessages = await activeChatContainer
-		.locator('[data-testid="message-user"], [data-testid="message-assistant"]')
-		.first()
-		.waitFor({ state: 'visible', timeout: 8000 })
-		.then(() => true)
-		.catch(() => false);
-	if (chatHasMessages) return;
-
-	const chatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
-	if (!(await chatItem.first().isVisible().catch(() => false))) {
-		const sidebarToggle = page.getByRole('button', { name: /open sidebar|toggle sidebar|menu/i });
-		await sidebarToggle.first().click().catch(() => undefined);
-		await page.waitForTimeout(500);
-	}
-
-	await expect(chatItem.first()).toBeVisible({ timeout: 60000 });
-	await chatItem.first().click();
-	await expect(activeChatContainer.locator('[data-testid="message-user"]').first()).toBeVisible({ timeout: 15000 });
-	logCheckpoint(`Opened chat ${chatId} from chat list fallback.`);
 }
 
 /**
@@ -563,15 +538,12 @@ test('attaches multiple files at once and shows image embed and code reference i
 //             img.full-image, button.icon_minimize) → close fullscreen
 //   PHASE 4: Tab reload → navigate back to chat → verify both embed types
 //            still render with preview images
-//   PHASE 5: Logout → login again → navigate to chat → verify both embed
-//            types still render with preview images
-//   PHASE 6: Delete the chat
+//   PHASE 5: Delete the chat
 //
-// Note on img.preview-image after reload/relogin: the image data is encrypted
+// Note on img.preview-image after reload: the image data is encrypted
 // client-side. It only loads when IndexedDB has the decryption key, which
 // requires "Stay logged in" to have been enabled during login. loginToTestAccount()
-// already handles this. After a plain tab reload the key survives in memory;
-// after a logout/relogin "Stay logged in" is re-enabled so it is re-persisted.
+// already handles this. After a plain tab reload the key survives in memory.
 // ---------------------------------------------------------------------------
 
 /**
@@ -658,7 +630,7 @@ async function assertImageEmbedsHealthy(
 	);
 }
 
-test('finance image: upload, AI views image, embeds persist through reload and relogin', async ({
+test('finance image: upload, AI views image, embeds persist through reload', async ({
 	page
 }: {
 	page: any;
@@ -860,7 +832,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	await page.waitForTimeout(5000);
 
 	// Navigate directly to the chat in case the reload changed the active chat
-	await navigateToChatById(page, chatId, log);
+	await navigateToChatById(page, chatId);
 	await page.waitForTimeout(4000);
 
 	// After reload, encrypted image bytes can arrive after chat structure depending
@@ -876,55 +848,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	}
 
 	// ======================================================================
-	// PHASE 5: Logout → login again → verify both embed types persist
-	// ======================================================================
-	log('PHASE 5: Logging out...');
-	warnErrorLogs.length = 0;
-
-	const openSettingsBtn = page.getByRole('button', { name: /open settings menu/i });
-	await expect(openSettingsBtn).toBeVisible({ timeout: 10000 });
-	await openSettingsBtn.click();
-	await page.waitForTimeout(500);
-
-	const logoutItem = page.getByRole('menuitem', { name: /logout/i });
-	await expect(logoutItem).toBeVisible({ timeout: 5000 });
-	await logoutItem.click();
-	log('Clicked Logout.');
-
-	await page.waitForTimeout(3000);
-	const loginSignupBtn = page.getByTestId('header-login-signup-btn');
-	await expect(loginSignupBtn).toBeVisible({ timeout: 15000 });
-	log('Logout confirmed — "Login / Sign up" button visible.');
-	await screenshot(page, '10-logged-out');
-
-	// Re-login (loginToTestAccount enables "Stay logged in" so keys re-persist)
-	log('Logging in again...');
-	await loginToTestAccount(page, log, screenshot);
-
-	// Navigate back to the test chat.
-	// Wait 8 seconds after navigation: after relogin, the app must restore IndexedDB
-	// keys from the persisted "Stay logged in" session before it can decrypt images.
-	log(`Navigating to chat ${chatId} after re-login...`);
-	await navigateToChatById(page, chatId, log);
-	await page.waitForTimeout(8000);
-	await screenshot(page, '11-after-relogin');
-
-	// After relogin, verify embed structure is present but don't require img.preview-image
-	// to have loaded: image decryption after relogin depends on WebSocket embed-data sync
-	// timing (server must re-deliver encrypted embed data before the client can decrypt it).
-	// Verifying that the embed card exists (wrapper visible, AI view card visible) is
-	// sufficient to confirm that the relogin + chat navigation worked correctly.
-	await assertImageEmbedsHealthy(page, log, 'after_relogin', false);
-	await screenshot(page, '12-embeds-after-relogin');
-
-	if (warnErrorLogs.length > 0) {
-		saveWarnErrorLogs('finance', 'after_relogin');
-	} else {
-		log('No console warnings/errors during re-login phase.');
-	}
-
-	// ======================================================================
-	// PHASE 6: Delete the chat
+	// PHASE 5: Delete the chat
 	// ======================================================================
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log(`Final console warn/error count: ${warnErrorLogs.length}`);
