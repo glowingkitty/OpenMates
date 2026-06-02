@@ -116,6 +116,14 @@ struct ChatView: View {
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
     @State private var composerOverlay: ComposerOverlay?
+    @State private var micPermissionState: MicPermissionState = .unknown
+    @State private var recordHintVisible = false
+    @State private var recordDragOffsetX: CGFloat = 0
+    @State private var recordAttemptActive = false
+    @State private var recordStartTask: Task<Void, Never>?
+    @State private var recordHintTask: Task<Void, Never>?
+    @State private var detectedPIIMatches: [PIIMatch] = []
+    @State private var piiExclusions: Set<String> = []
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
     @State private var chatContainerWidth: CGFloat = 0
@@ -260,6 +268,9 @@ struct ChatView: View {
             Task {
                 await viewModel.applySyncedEmbeds(initialEmbeds)
             }
+        }
+        .onChange(of: messageText) { _, newValue in
+            updatePIIMatches(for: newValue)
         }
     }
 
@@ -855,6 +866,11 @@ struct ChatView: View {
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
         let overlayActive = composerOverlay != nil
         return VStack(spacing: .spacing2) {
+            let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
+            PIIWarningBanner(matches: activePIIMatches) {
+                piiExclusions.formUnion(detectedPIIMatches.map(\.id))
+            }
+
             if let chatId = viewModel.chat?.id {
                 UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
             }
@@ -908,13 +924,7 @@ struct ChatView: View {
                 #endif
 
                 if messageText.isEmpty && !viewModel.isStreaming {
-                    inputActionButton(icon: "recordaudio", label: AppStrings.recordAudio) {
-                        composerRecorder.startRecording()
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            composerOverlay = .recording
-                            isInputFocused = true
-                        }
-                    }
+                    recordActionControls
                 } else {
                     Button(action: sendMessage) {
                         Text(AppStrings.sendAction)
@@ -939,6 +949,15 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing6)
+            }
+
+            if let recordPermissionHintText {
+                Text(recordPermissionHintText)
+                    .font(.omXs)
+                    .foregroundStyle(micPermissionState == .denied ? Color.error : Color.fontTertiary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, .spacing5)
+                    .transition(.opacity)
             }
         }
     }
@@ -975,15 +994,22 @@ struct ChatView: View {
             return AnyView(
                 ComposerRecordingOverlay(
                     recorder: composerRecorder,
+                    dragOffsetX: recordDragOffsetX,
                     onStop: { url in
                         self.composerOverlay = nil
-                        if let data = try? Data(contentsOf: url) {
-                            Task { await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent) }
+                        self.recordAttemptActive = false
+                        self.recordDragOffsetX = 0
+                        Task {
+                            if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
+                                appendRecordingTranscript(transcript)
+                            }
                         }
                     },
                     onCancel: {
                         composerRecorder.cancelRecording()
                         self.composerOverlay = nil
+                        self.recordAttemptActive = false
+                        self.recordDragOffsetX = 0
                     }
                 )
             )
@@ -1060,26 +1086,176 @@ struct ChatView: View {
         .accessibilityLabel(label)
     }
 
+    private var recordActionControls: some View {
+        HStack(spacing: .spacing4) {
+            if recordHintVisible && micPermissionState == .granted {
+                Text(AppStrings.pressAndHoldToRecord)
+                    .font(.omXs)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
+                    .transition(.opacity)
+            }
+
+            recordGestureButton
+        }
+    }
+
+    private var recordGestureButton: some View {
+        Icon("recordaudio", size: 25)
+            .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+            .frame(width: 25, height: 25)
+            .contentShape(Circle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        handleRecordGestureChanged(value)
+                    }
+                    .onEnded { _ in
+                        finishRecordAttempt()
+                    }
+            )
+            .accessibilityLabel(AppStrings.recordAudio)
+    }
+
+    private var recordPermissionHintText: String? {
+        if micPermissionState == .denied {
+            return AppStrings.microphoneBlocked
+        }
+        if recordHintVisible && micPermissionState != .granted {
+            return AppStrings.allowMicrophoneAccess
+        }
+        return nil
+    }
+
     private func dismissInputIfNeeded() {
         guard isInputFocused else { return }
         isInputFocused = false
         showAttachmentMenu = false
     }
 
+    private func handleRecordGestureChanged(_ value: DragGesture.Value) {
+        if !recordAttemptActive {
+            beginRecordAttempt(startLocation: value.startLocation)
+        }
+
+        guard composerOverlay == .recording else { return }
+        recordDragOffsetX = min(0, value.translation.width)
+        let distance = hypot(value.translation.width, value.translation.height)
+        if distance > 100 && value.translation.width < -60 {
+            cancelRecordAttempt()
+        }
+    }
+
+    private func beginRecordAttempt(startLocation _: CGPoint) {
+        recordAttemptActive = true
+        recordDragOffsetX = 0
+        recordStartTask?.cancel()
+
+        if micPermissionState == .denied {
+            showRecordHint()
+            return
+        }
+
+        if micPermissionState == .unknown {
+            Task { @MainActor in
+                let granted = await composerRecorder.requestPermission()
+                micPermissionState = granted ? .granted : .denied
+                recordAttemptActive = false
+                showRecordHint(duration: granted ? 2500 : 0)
+            }
+            return
+        }
+
+        recordStartTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, recordAttemptActive, micPermissionState == .granted else { return }
+            composerRecorder.startRecording()
+            guard composerRecorder.error == nil else {
+                micPermissionState = .denied
+                recordAttemptActive = false
+                showRecordHint(duration: 0)
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.15)) {
+                composerOverlay = .recording
+                isInputFocused = true
+            }
+        }
+    }
+
+    private func finishRecordAttempt() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+
+        if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
+            composerOverlay = nil
+            recordAttemptActive = false
+            recordDragOffsetX = 0
+            Task {
+                if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
+                    appendRecordingTranscript(transcript)
+                }
+            }
+            return
+        }
+
+        if recordAttemptActive && micPermissionState == .granted {
+            showRecordHint()
+        }
+        recordAttemptActive = false
+        recordDragOffsetX = 0
+    }
+
+    private func cancelRecordAttempt() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+        composerRecorder.cancelRecording()
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordDragOffsetX = 0
+    }
+
+    private func showRecordHint(duration: Int = 2500) {
+        recordHintVisible = true
+        recordHintTask?.cancel()
+        guard duration > 0 else { return }
+        recordHintTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(duration))
+            guard !Task.isCancelled else { return }
+            recordHintVisible = false
+        }
+    }
+
+    private func appendRecordingTranscript(_ transcript: String) {
+        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        messageText += messageText.isEmpty ? trimmed : "\n\(trimmed)"
+    }
+
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        let sanitizedText = PIIDetector.redactedText(text, matches: detectedPIIMatches, excludedIds: piiExclusions)
         if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
             let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
-            pendingUploads.addPendingSend(chatId: chatId, content: text, blockingUploadIds: blockingIds)
+            pendingUploads.addPendingSend(chatId: chatId, content: sanitizedText, blockingUploadIds: blockingIds)
             messageText = ""
             return
         }
         messageText = ""
+        detectedPIIMatches = []
+        piiExclusions = []
 
         Task {
-            await viewModel.sendMessage(text)
+            await viewModel.sendMessage(sanitizedText)
         }
+    }
+
+    private func updatePIIMatches(for text: String) {
+        detectedPIIMatches = PIIDetector.detect(in: text)
+        let currentIds = Set(detectedPIIMatches.map(\.id))
+        piiExclusions = piiExclusions.intersection(currentIds)
     }
 
     private func publicChatIconName(for chatId: String) -> String? {

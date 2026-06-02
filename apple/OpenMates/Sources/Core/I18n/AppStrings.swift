@@ -292,6 +292,12 @@ enum AppStrings {
     static func uploadProgressUploading(percent: String) -> String {
         LocalizationManager.shared.text("enter_message.upload_progress.uploading", replacements: ["percent": percent])
     }
+    static var piiBannerTitle: String { L("enter_message.pii.banner_title") }
+    static var piiUndoAll: String { L("enter_message.pii.undo_all") }
+    static var piiUndoAllShort: String { L("enter_message.pii.undo_all_short") }
+    static func piiBannerDescription(summary: String) -> String {
+        LocalizationManager.shared.text("enter_message.pii.banner_description", replacements: ["summary": summary])
+    }
 
     // MARK: - Embeds
     static var voiceRecording: String { L("embed.voice_recording") }

@@ -955,17 +955,91 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Attachment upload
 
-    func uploadAttachment(data: Data, filename: String) async {
-        guard let chatId = chat?.id else { return }
+    @discardableResult
+    func uploadAttachment(data: Data, filename: String) async -> UploadFileResponse? {
+        guard let chatId = chat?.id else { return nil }
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
+
+        return await uploadData(
+            data,
+            filename: filename,
+            uploadId: uploadId,
+            contentType: "application/octet-stream",
+            markFinishedOnSuccess: true
+        )
+    }
+
+    func uploadRecording(url: URL, duration _: TimeInterval) async -> String? {
+        guard let chatId = chat?.id,
+              let data = try? Data(contentsOf: url) else { return nil }
+        let uploadId = UUID().uuidString
+        let filename = url.lastPathComponent
+        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
+
+        guard let upload = await uploadData(
+            data,
+            filename: filename,
+            uploadId: uploadId,
+            contentType: "audio/mp4",
+            markFinishedOnSuccess: false
+        ) else {
+            return nil
+        }
+
+        PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
+        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
+        guard let s3Key else {
+            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
+            return nil
+        }
+
+        let embedId = UUID().uuidString
+        let request: [String: Any] = [
+            "requests": [[
+                "id": embedId,
+                "embed_id": upload.embedId,
+                "s3_key": s3Key,
+                "s3_base_url": upload.s3BaseUrl,
+                "aes_key": upload.aesKey,
+                "aes_nonce": upload.aesNonce,
+                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
+                "filename": filename,
+                "mime_type": "audio/mp4",
+                "chat_id": chatId
+            ]]
+        ]
+
+        do {
+            let response: TranscribeSkillResponse = try await APIClient.shared.request(
+                .post,
+                path: "apps/audio/skills/transcribe",
+                body: request
+            )
+            PendingUploadStore.shared.markFinished(id: uploadId)
+            return response.data.results.first?.results.first?.transcript
+        } catch {
+            print("[Chat] Recording transcription error: \(error)")
+            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
+            return nil
+        }
+    }
+
+    private func uploadData(
+        _ data: Data,
+        filename: String,
+        uploadId: String,
+        contentType: String,
+        markFinishedOnSuccess: Bool
+    ) async -> UploadFileResponse? {
+        guard let chatId = chat?.id else { return nil }
 
         let boundary = UUID().uuidString
         var body = Data()
 
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
         body.append(data)
         body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
@@ -981,17 +1055,25 @@ final class ChatViewModel: ObservableObject {
             request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
 
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode) else {
                 print("[Chat] Upload failed")
                 PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
-                return
+                return nil
             }
-            PendingUploadStore.shared.markFinished(id: uploadId)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let upload = try decoder.decode(UploadFileResponse.self, from: responseData)
+            PendingUploadStore.shared.updateProgress(id: uploadId, progress: 1.0)
+            if markFinishedOnSuccess {
+                PendingUploadStore.shared.markFinished(id: uploadId)
+            }
+            return upload
         } catch {
             print("[Chat] Upload error: \(error)")
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
+            return nil
         }
     }
 
@@ -999,6 +1081,35 @@ final class ChatViewModel: ObservableObject {
         guard let data = try? Data(contentsOf: url) else { return }
         await uploadAttachment(data: data, filename: url.lastPathComponent)
     }
+}
+
+struct UploadFileResponse: Decodable {
+    let embedId: String
+    let filename: String
+    let contentType: String
+    let files: [String: UploadedFileVariant]
+    let s3BaseUrl: String
+    let aesKey: String
+    let aesNonce: String
+    let vaultWrappedAesKey: String
+}
+
+struct UploadedFileVariant: Decodable {
+    let s3Key: String
+    let sizeBytes: Int?
+}
+
+private struct TranscribeSkillResponse: Decodable {
+    struct ResponseData: Decodable {
+        struct ResultGroup: Decodable {
+            struct Result: Decodable {
+                let transcript: String?
+            }
+            let results: [Result]
+        }
+        let results: [ResultGroup]
+    }
+    let data: ResponseData
 }
 
 private struct ChatEmbedsResponse: Decodable {
