@@ -878,6 +878,10 @@ struct ChatView: View {
                 UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
             }
 
+            PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
+                viewModel.removePendingComposerEmbed(id: embed.id)
+            }
+
             OMMessageInputField(
                 text: $messageText,
                 isFocused: $isInputFocused,

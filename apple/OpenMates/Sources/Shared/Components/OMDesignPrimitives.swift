@@ -88,6 +88,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 .onSubmit(onSubmit)
                 .accessibilityLabel(AppStrings.chatMessageInput)
                 .accessibilityHint(accessibilityHint)
+                .accessibilityIdentifier("message-editor")
                 .padding(.horizontal, compact ? .spacing6 : expandedHorizontalPadding)
                 .padding(.top, compact ? 0 : expandedTopPadding)
                 .padding(.bottom, compact ? 0 : expandedBottomPadding)
