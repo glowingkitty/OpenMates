@@ -224,6 +224,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		}).toPass({ timeout: 180_000 });
 
 		if (await weatherParent.isVisible().catch(() => false)) {
+			await expect(weatherParent).toHaveAttribute('data-status', 'finished', { timeout: 180_000 });
 			await expect(weatherParent.getByTestId('weather-forecast-preview')).toBeVisible({ timeout: 15_000 });
 			const fullscreen = await openFullscreen(page, weatherParent);
 			const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
