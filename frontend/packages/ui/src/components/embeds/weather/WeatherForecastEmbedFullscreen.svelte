@@ -65,10 +65,6 @@
   let loadedDays = $state<WeatherDayResult[]>([]);
   let selectedDay = $derived(selectedDayIndex >= 0 ? loadedDays[selectedDayIndex] ?? null : null);
 
-  interface DayCardClickParams {
-    index: number;
-    days: WeatherDayResult[];
-  }
 
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {
     return {
@@ -123,20 +119,6 @@
     openDay(index, days);
   }
 
-  function captureDayCardClick(node: HTMLElement, params: DayCardClickParams) {
-    let currentParams = params;
-    const handleClick = () => openDay(currentParams.index, currentParams.days);
-    node.addEventListener('click', handleClick, { capture: true });
-
-    return {
-      update(nextParams: DayCardClickParams) {
-        currentParams = nextParams;
-      },
-      destroy() {
-        node.removeEventListener('click', handleClick, { capture: true });
-      },
-    };
-  }
 
   function closeDay(): void {
     selectedDayIndex = -1;
@@ -185,11 +167,6 @@
         {#each days as day, index}
           <div
             class="forecast-day-card"
-            role="button"
-            tabindex="0"
-            use:captureDayCardClick={{ index, days }}
-            onclick={() => openDay(index, days)}
-            onkeydown={(event) => handleDayKeydown(event, index, days)}
           >
             <WeatherDayEmbedPreview
               id={day.embed_id}
@@ -207,6 +184,14 @@
               isMobile={false}
               onFullscreen={() => openDay(index, days)}
             />
+            <button
+              type="button"
+              class="forecast-day-card-button"
+              data-testid="weather-day-drilldown-button"
+              aria-label={`${$text('apps.weather.day')}: ${day.date ?? index + 1}`}
+              onclick={() => openDay(index, days)}
+              onkeydown={(event) => handleDayKeydown(event, index, days)}
+            ></button>
           </div>
         {/each}
       </div>
@@ -255,15 +240,29 @@
   }
 
   .forecast-day-card {
+    position: relative;
     width: 100%;
     max-width: 320px;
     margin: 0 auto;
   }
 
-  .forecast-day-card:focus-visible {
+  .forecast-day-card-button {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .forecast-day-card-button:focus-visible {
     outline: 2px solid var(--color-primary-start);
     outline-offset: 4px;
-    border-radius: 16px;
   }
 
   @container fullscreen (max-width: 680px) {
