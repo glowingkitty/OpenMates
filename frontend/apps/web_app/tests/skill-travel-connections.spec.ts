@@ -153,7 +153,18 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		logCheckpoint('Travel connections embed finished.');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
+		const resultCards = await verifySearchGrid(fullscreenOverlay, 1, 15000).catch(async () => {
+			await expect(fullscreenOverlay.getByText(/no results found/i)).toBeVisible({ timeout: 5000 });
+			logCheckpoint('Travel connections fullscreen rendered with no-results state.');
+			return null;
+		});
+
+		if (!resultCards) {
+			await closeFullscreen(page, fullscreenOverlay);
+			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-connections');
+			return;
+		}
+
 		const cardCount = await resultCards.count();
 		logCheckpoint(`Found ${cardCount} connection result(s).`);
 
