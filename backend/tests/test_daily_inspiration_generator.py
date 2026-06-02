@@ -16,6 +16,7 @@ import importlib
 fake_llm_utils = types.ModuleType("backend.apps.ai.utils.llm_utils")
 fake_llm_utils.LLMPreprocessingCallResult = SimpleNamespace
 fake_llm_utils.call_preprocessing_llm = None
+fake_llm_utils.truncate_message_history_to_token_budget = lambda message_history, **_kwargs: message_history
 sys.modules["backend.apps.ai.utils.llm_utils"] = fake_llm_utils
 
 
