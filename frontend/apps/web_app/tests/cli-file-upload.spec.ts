@@ -15,7 +15,7 @@ export {};
  *   6. Verify: the embed content does NOT contain the raw secret value
  *
  *   Image file:
- *   7. Create a tiny valid PNG (1×1 pixel)
+ *   7. Use the shared sample PNG fixture
  *   8. Send a chat message with @/path/to/image.png
  *   9. Verify: CLI output shows the file was uploaded (✓ uploaded)
  *   10. Verify: the resulting message embed references an image
@@ -292,16 +292,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	logCheckpoint('CLI login complete');
 }
 
-// ── 1×1 pixel PNG (smallest valid PNG) ─────────────────────────────────────
-// Hex bytes of a 1×1 transparent PNG — always passes MIME validation
-const TINY_PNG_HEX =
-	'89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489' +
-	'0000000a49444154789c6260000000020001e221bc330000000049454e44ae426082';
-
-function writeTinyPng(destPath: string): void {
-	const buf = Buffer.from(TINY_PNG_HEX, 'hex');
-	fs.writeFileSync(destPath, buf);
-}
+const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 
 // ── Main test ───────────────────────────────────────────────────────────────
 
@@ -330,10 +321,8 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		);
 		logCheckpoint(`Created text file: ${textFilePath}`);
 
-		// Tiny valid PNG for image upload
-		const imagePath = path.join(tmpDir, 'test-image.png');
-		writeTinyPng(imagePath);
-		logCheckpoint(`Created image file: ${imagePath}`);
+		const imagePath = SAMPLE_PNG;
+		logCheckpoint(`Using image fixture: ${imagePath}`);
 
 		// ── Text file upload ─────────────────────────────────────────────
 
