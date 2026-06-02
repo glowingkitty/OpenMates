@@ -103,6 +103,14 @@ Availability check: `is_skill_available()` in [apps.py](../../backend/core/api/a
 - Conversion automatic in [main_processor.py](../../backend/apps/ai/processing/main_processor.py)
 - Skills only return JSON; system handles TOON encoding
 
+## App-Store Examples
+
+- Every new skill needs user-facing examples before it ships.
+- Embed-producing skills provide curated fixtures next to their preview component as `*EmbedPreview.examples.ts`; `SkillExamplesSection.svelte` loads these via `skillStoreExamplesResolver.ts` and the generated embed registry.
+- Example fixtures must be based on real skill runs and include enough data for both the preview and fullscreen renderers.
+- Localisable prompt labels live in `frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml` and are referenced through `query_translation_key`.
+- Non-embed skills should use the app's existing `example_entries` or `example_translation_keys` metadata pattern in `backend/apps/{appId}/app.yml`.
+
 <!-- TODO: screenshot (1000x400) — embed preview in processing state with cancel button visible -->
 
 ## In-Process Loading (OPE-342)
