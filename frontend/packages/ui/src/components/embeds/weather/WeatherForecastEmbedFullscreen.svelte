@@ -112,6 +112,12 @@
     selectedDayIndex = index;
   }
 
+  function handleDayKeydown(event: KeyboardEvent, index: number, days: WeatherDayResult[]): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openDay(index, days);
+  }
+
   function closeDay(): void {
     selectedDayIndex = -1;
   }
@@ -157,22 +163,30 @@
     {:else}
       <div class="forecast-grid" data-testid="weather-forecast-fullscreen-grid">
         {#each days as day, index}
-          <WeatherDayEmbedPreview
-            id={day.embed_id}
-            date={day.date}
-            locationName={day.location_name || locationName}
-            provider={day.provider || provider}
-            condition={day.condition}
-            icon={day.icon}
-            temperatureMinC={day.temperature_min_c}
-            temperatureMaxC={day.temperature_max_c}
-            precipitationTotalMm={day.precipitation_total_mm}
-            precipitationProbabilityMaxPct={day.precipitation_probability_max_pct}
-            rainHours={day.rain_hours}
-            status="finished"
-            isMobile={false}
-            onFullscreen={() => openDay(index, days)}
-          />
+          <div
+            class="forecast-day-card"
+            role="button"
+            tabindex="0"
+            onclick={() => openDay(index, days)}
+            onkeydown={(event) => handleDayKeydown(event, index, days)}
+          >
+            <WeatherDayEmbedPreview
+              id={day.embed_id}
+              date={day.date}
+              locationName={day.location_name || locationName}
+              provider={day.provider || provider}
+              condition={day.condition}
+              icon={day.icon}
+              temperatureMinC={day.temperature_min_c}
+              temperatureMaxC={day.temperature_max_c}
+              precipitationTotalMm={day.precipitation_total_mm}
+              precipitationProbabilityMaxPct={day.precipitation_probability_max_pct}
+              rainHours={day.rain_hours}
+              status="finished"
+              isMobile={false}
+              onFullscreen={() => openDay(index, days)}
+            />
+          </div>
         {/each}
       </div>
     {/if}
@@ -217,6 +231,18 @@
     min-width: unset !important;
     max-width: 320px !important;
     margin: 0 auto;
+  }
+
+  .forecast-day-card {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .forecast-day-card:focus-visible {
+    outline: 2px solid var(--color-primary-start);
+    outline-offset: 4px;
+    border-radius: 16px;
   }
 
   @container fullscreen (max-width: 680px) {
