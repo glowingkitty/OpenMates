@@ -286,9 +286,9 @@ changes to the documentation (to keep the documentation up to date).
     // Share chat (shared/share) is available for non-authenticated users to share demo chats
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let settingsViews = $derived.by((): Record<string, any> => {
-        const isAuthenticated = $authStore.isAuthenticated || demoModeOn;
         const restrictedMode = $isRestrictedSession;
         const demoModeOn = $demoMode;
+        const isAuthenticated = $authStore.isAuthenticated || demoModeOn;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return Object.entries(allSettingsViews).reduce((filtered: Record<string, any>, [key, component]) => {
             // Demo mode: hide admin "Server" section and the "Logs" entry so screenshots /
