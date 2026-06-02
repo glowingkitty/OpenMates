@@ -431,7 +431,7 @@ class TestFixBadEmbedDisplayText:
     def test_returns_unchanged_when_no_services(self):
         """When cache/encryption services are None, returns input unchanged."""
         text = "[macrumors.com-MvT](embed:macrumors.com-MvT) has the details."
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             _fix_bad_embed_display_text(
                 aggregated_response=text,
                 tool_calls_info=None,
@@ -444,7 +444,7 @@ class TestFixBadEmbedDisplayText:
         assert result == text
 
     def test_returns_unchanged_empty_string(self):
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             _fix_bad_embed_display_text(
                 aggregated_response="",
                 tool_calls_info=None,
@@ -458,7 +458,7 @@ class TestFixBadEmbedDisplayText:
 
     def test_returns_unchanged_no_embed_links(self):
         text = "This is a normal response with no embed links whatsoever."
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             _fix_bad_embed_display_text(
                 aggregated_response=text,
                 tool_calls_info=None,
