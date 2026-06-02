@@ -732,7 +732,7 @@ changes to the documentation (to keep the documentation up to date).
     let showSettingsIcon = $derived(true);
     
     let username = $derived($userProfile.username || '');
-    let displayUsername = $derived(username || ($demoMode ? DEMO_MARKETING_USERNAME : ''));
+    let displayUsername = $derived($demoMode ? DEMO_MARKETING_USERNAME : username);
     let displayCredits = $derived($demoMode ? DEMO_MARKETING_CREDITS : ($userProfile.credits ?? 0));
     let isInSignupMode = $derived($isInSignupProcess);
     let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
