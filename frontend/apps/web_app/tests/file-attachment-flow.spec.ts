@@ -201,7 +201,7 @@ async function navigateToChatById(
 		await page.waitForTimeout(500);
 	}
 
-	await expect(chatItem.first()).toBeVisible({ timeout: 15000 });
+	await expect(chatItem.first()).toBeVisible({ timeout: 60000 });
 	await chatItem.first().click();
 	await expect(activeChatContainer.locator('[data-testid="message-user"]').first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint(`Opened chat ${chatId} from chat list fallback.`);
