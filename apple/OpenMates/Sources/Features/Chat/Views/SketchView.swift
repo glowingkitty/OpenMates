@@ -7,7 +7,7 @@ import SwiftUI
 #if os(iOS)
 import PencilKit
 
-struct SketchView: View {
+struct SketchComposerOverlay: View {
     let onSave: (Data, String) -> Void
     let onCancel: () -> Void
     @State private var canvasView = PKCanvasView()
@@ -19,82 +19,83 @@ struct SketchView: View {
     private let widths: [CGFloat] = [1, 3, 5, 8]
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                toolBar
-                Divider()
-                CanvasRepresentable(
-                    canvasView: $canvasView,
-                    toolType: toolType,
-                    color: selectedColor,
-                    width: selectedWidth
-                )
-            }
-            .navigationTitle("Sketch")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { onCancel() }
+        VStack(spacing: 0) {
+            HStack(spacing: .spacing4) {
+                sketchToolButton(type: .pen, icon: "modify")
+                sketchToolButton(type: .marker, icon: "design")
+                sketchToolButton(type: .pencil, icon: "pencil")
+
+                Divider().frame(height: 24)
+
+                ForEach(colors, id: \.self) { color in
+                    Circle()
+                        .fill(Color(uiColor: color))
+                        .frame(width: 24, height: 24)
+                        .overlay {
+                            if selectedColor == color {
+                                Circle().stroke(Color.grey0, lineWidth: 2)
+                                    .frame(width: 20, height: 20)
+                            }
+                        }
+                        .onTapGesture { selectedColor = color }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Send") { saveAndSend() }
+
+                Divider().frame(height: 24)
+
+                ForEach(widths, id: \.self) { width in
+                    Circle()
+                        .fill(Color.fontPrimary)
+                        .frame(width: width + 8, height: width + 8)
+                        .opacity(selectedWidth == width ? 1 : 0.3)
+                        .onTapGesture { selectedWidth = width }
                 }
+
+                Spacer()
+
+                Button(action: onCancel) {
+                    Icon("close", size: 20).foregroundStyle(Color.fontSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppStrings.cancel)
+
+                Button(action: saveAndSend) {
+                    Text(AppStrings.sendAction)
+                        .font(.omSmall.weight(.medium))
+                        .foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing8)
+                        .frame(height: 40)
+                        .background(Color.buttonPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppStrings.sendAction)
             }
+            .padding(.horizontal, .spacing5)
+            .frame(height: 53)
+            .background(Color.grey0.opacity(0.94))
+
+            CanvasRepresentable(
+                canvasView: $canvasView,
+                toolType: toolType,
+                color: selectedColor,
+                width: selectedWidth
+            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .clipped()
     }
 
-    private var toolBar: some View {
-        HStack(spacing: .spacing4) {
-            // Tool type picker
-            Picker("Tool", selection: $toolType) {
-                Icon("modify", size: 18).tag(PKInkingTool.InkType.pen)
-                Icon("modify", size: 18).tag(PKInkingTool.InkType.marker)
-                Icon("design", size: 18).tag(PKInkingTool.InkType.pencil)
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 140)
-
-            Divider().frame(height: 24)
-
-            // Color picker
-            ForEach(colors, id: \.self) { color in
-                Circle()
-                    .fill(Color(uiColor: color))
-                    .frame(width: 24, height: 24)
-                    .overlay {
-                        if selectedColor == color {
-                            Circle().stroke(.white, lineWidth: 2)
-                                .frame(width: 20, height: 20)
-                        }
-                    }
-                    .onTapGesture { selectedColor = color }
-            }
-
-            Divider().frame(height: 24)
-
-            // Width picker
-            ForEach(widths, id: \.self) { width in
-                Circle()
-                    .fill(Color.primary)
-                    .frame(width: width + 8, height: width + 8)
-                    .opacity(selectedWidth == width ? 1 : 0.3)
-                    .onTapGesture { selectedWidth = width }
-            }
-
-            Spacer()
-
-            // Undo / Clear
-            Button { canvasView.undoManager?.undo() } label: {
-                Icon("restore", size: 20)
-            }
-            Button { canvasView.drawing = PKDrawing() } label: {
-                Icon("delete", size: 20)
-            }
+    private func sketchToolButton(type: PKInkingTool.InkType, icon: String) -> some View {
+        Button { toolType = type } label: {
+            Icon(icon, size: 18)
+                .foregroundStyle(toolType == type ? Color.fontButton : Color.fontSecondary)
+                .frame(width: 32, height: 32)
+                .background(toolType == type ? Color.buttonPrimary : Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
         }
-        .padding(.horizontal, .spacing4)
-        .padding(.vertical, .spacing2)
+        .buttonStyle(.plain)
     }
 
     private func saveAndSend() {
@@ -110,6 +111,15 @@ struct SketchView: View {
             let filename = "sketch-\(ISO8601DateFormatter().string(from: Date())).png"
             onSave(data, filename)
         }
+    }
+}
+
+struct SketchView: View {
+    let onSave: (Data, String) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        SketchComposerOverlay(onSave: onSave, onCancel: onCancel)
     }
 }
 

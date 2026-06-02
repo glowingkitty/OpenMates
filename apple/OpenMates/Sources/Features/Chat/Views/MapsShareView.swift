@@ -5,121 +5,112 @@
 import SwiftUI
 import MapKit
 
-struct MapsShareView: View {
+struct ComposerLocationOverlay: View {
     let onShare: (Double, Double, String) -> Void
     let onCancel: () -> Void
 
     @State private var position: MapCameraPosition = .automatic
     @State private var selectedLocation: CLLocationCoordinate2D?
-    @State private var selectedName: String = ""
+    @State private var selectedName = ""
     @State private var searchText = ""
     @State private var searchResults: [MKMapItem] = []
-    @State private var isSearching = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack(alignment: .top) {
+            MapReader { proxy in
                 Map(position: $position) {
-                    if let loc = selectedLocation {
-                        Marker(selectedName.isEmpty ? "Selected" : selectedName, coordinate: loc)
-                            .tint(.red)
+                    if let selectedLocation {
+                        Marker(selectedName.isEmpty ? AppStrings.selectedLocation : selectedName, coordinate: selectedLocation)
+                            .tint(Color.error)
                     }
                     ForEach(searchResults, id: \.self) { item in
-                        if let coord = item.placemark.location?.coordinate {
-                            Marker(
-                                item.name ?? "Location",
-                                coordinate: coord
-                            )
+                        if let coordinate = item.placemark.location?.coordinate {
+                            Marker(item.name ?? AppStrings.selectedLocation, coordinate: coordinate)
                         }
                     }
                 }
                 .mapStyle(.standard(elevation: .realistic))
-                .accessibilityLabel(selectedLocation != nil ? "Map with selected location: \(selectedName.isEmpty ? "unnamed" : selectedName)" : "Map — search for a place or tap to pin a location")
-                .onTapGesture { location in
-                    // MapKit tap-to-pin requires MapReader in iOS 17+
-                }
-
-                VStack {
-                    searchBar
-                    Spacer()
-                    if selectedLocation != nil {
-                        shareButton
+                .onTapGesture { point in
+                    if let coordinate = proxy.convert(point, from: .local) {
+                        selectedLocation = coordinate
+                        selectedName = AppStrings.selectedLocation
                     }
                 }
             }
-            .navigationTitle("Share Location")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { onCancel() }
+
+            VStack(spacing: .spacing4) {
+                HStack(spacing: .spacing3) {
+                    Icon("search", size: 18)
+                        .foregroundStyle(Color.fontTertiary)
+                    TextField(AppStrings.search, text: $searchText)
+                        .textFieldStyle(.plain)
+                        .font(.omSmall)
+                        .onSubmit { searchPlaces() }
+                    Button(action: onCancel) {
+                        Icon("close", size: 18)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.cancel)
+                }
+                .padding(.horizontal, .spacing5)
+                .frame(height: 44)
+                .background(Color.grey0.opacity(0.94))
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 2)
+                .padding(.horizontal, .spacing5)
+                .padding(.top, .spacing5)
+
+                Spacer()
+
+                if let selectedLocation {
+                    Button {
+                        onShare(selectedLocation.latitude, selectedLocation.longitude, selectedName)
+                    } label: {
+                        HStack(spacing: .spacing3) {
+                            Icon("current_location", size: 16)
+                            Text(AppStrings.shareLocation)
+                                .font(.omSmall.weight(.medium))
+                        }
+                        .foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing8)
+                        .frame(height: 40)
+                        .background(Color.buttonPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, .spacing5)
                 }
             }
         }
-    }
-
-    private var searchBar: some View {
-        HStack {
-            Icon("search", size: 18)
-                .foregroundStyle(Color.fontTertiary)
-                .accessibilityHidden(true)
-            TextField("Search places", text: $searchText)
-                .autocorrectionDisabled()
-                .onSubmit { searchPlaces() }
-                .accessibleInput("Search places", hint: "Enter a place name or address and submit to find it on the map")
-        }
-        .padding(.spacing3)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .padding(.horizontal)
-        .padding(.top, .spacing2)
-    }
-
-    private var shareButton: some View {
-        Button {
-            if let loc = selectedLocation {
-                onShare(loc.latitude, loc.longitude, selectedName)
-            }
-        } label: {
-            HStack {
-                Icon("current_location", size: 16)
-                    .accessibilityHidden(true)
-                Text(LocalizationManager.shared.text("enter_message.attachments.share_location"))
-                    .fontWeight(.medium)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.spacing3)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(Color.buttonPrimary)
-        .padding(.horizontal)
-        .padding(.bottom, .spacing4)
-        .accessibleButton(
-            selectedName.isEmpty ? "Share selected location" : "Share \(selectedName)",
-            hint: "Sends the pinned location to the chat"
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey100)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .clipped()
     }
 
     private func searchPlaces() {
-        guard !searchText.isEmpty else { return }
-        isSearching = true
-
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = searchText
-
-        let search = MKLocalSearch(request: request)
-        search.start { response, error in
-            isSearching = false
+        MKLocalSearch(request: request).start { response, _ in
             guard let response else { return }
-
             searchResults = response.mapItems
             if let first = response.mapItems.first,
-               let coord = first.placemark.location?.coordinate {
-                selectedLocation = coord
-                selectedName = first.name ?? searchText
-                position = .camera(MapCamera(centerCoordinate: coord, distance: 5000))
+               let coordinate = first.placemark.location?.coordinate {
+                selectedLocation = coordinate
+                selectedName = first.name ?? AppStrings.selectedLocation
+                position = .camera(MapCamera(centerCoordinate: coordinate, distance: 5000))
             }
         }
+    }
+}
+
+struct MapsShareView: View {
+    let onShare: (Double, Double, String) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ComposerLocationOverlay(onShare: onShare, onCancel: onCancel)
     }
 }

@@ -43,7 +43,11 @@ Every primitive should consume generated design tokens from the web app where po
 - `ComponentTokens.generated.swift`
 - `Icons.xcassets`
 
-The Svelte app is the source of truth for component structure and behavior. Native SwiftUI should mirror the Svelte components intentionally instead of approximating them with platform defaults.
+The rendered Svelte app is the source of truth for component structure, behavior, and visual values. Native SwiftUI should mirror the browser-computed component intentionally instead of approximating it from platform defaults or source files alone.
+
+Before touching native product UI, inspect the actual web app route where the component appears and record the rendered element tree plus computed CSS values. Prefer the regular product route because it includes real parent layout, container widths, runtime classes, stores, and responsive state. Use `/dev/preview` only when the regular app cannot expose the needed state or an isolated harness is more accurate.
+
+If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
 
 ## SwiftUI / UIKit Strategy
 

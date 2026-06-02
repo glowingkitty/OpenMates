@@ -4,7 +4,7 @@ The Apple app must not be implemented with stock iOS/macOS product UI. Use the c
 
 OpenMates is SwiftUI-first, not SwiftUI-only. Keep app chrome, screen composition, and Svelte-to-native product UI parity in SwiftUI by default. Use UIKit selectively for measured performance bottlenecks, platform-owned capabilities, and surfaces where UIKit's reuse/direct-manipulation model is clearly better.
 
-The web Svelte app is the source of truth for:
+The rendered web Svelte app is the source of truth for:
 
 - chat header structure
 - message input/composer behavior
@@ -12,6 +12,10 @@ The web Svelte app is the source of truth for:
 - embed cards, grouping, and fullscreen
 - custom menus, overlays, and action buttons
 - spacing, color, typography, gradients, icons, and interaction states
+
+Before reproducing or changing Apple product UI, load the actual web app route where the component appears and inspect the rendered DOM plus computed CSS values. Prefer the regular product route; use `/dev/preview` only for isolated states that are not reachable in the normal app. For complex interaction states, drive the existing `*.spec.ts` test or a temporary scripted browser flow based on existing tests, then inspect the rendered state.
+
+Svelte and CSS source files are required context, but they are not the final visual contract. The browser-computed output wins when CSS variables, media/container queries, inherited styles, runtime classes, pseudo-elements, transitions, or parent layout affect the result.
 
 Do not introduce product UI using:
 

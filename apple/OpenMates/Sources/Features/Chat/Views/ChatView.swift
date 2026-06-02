@@ -47,6 +47,12 @@ private enum ChatScrollSentinelEdge: Hashable {
     case bottom
 }
 
+private enum ComposerOverlay: Equatable {
+    case location
+    case sketch
+    case recording
+}
+
 private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     static let defaultValue: [ChatScrollSentinelEdge: CGFloat] = [:]
 
@@ -108,6 +114,8 @@ struct ChatView: View {
     @State private var showReminder = false
     @State private var showPIIPlaceholders = false
     @State private var showAttachmentMenu = false
+    @State private var showCameraCapture = false
+    @State private var composerOverlay: ComposerOverlay?
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
     @State private var chatContainerWidth: CGFloat = 0
@@ -118,6 +126,8 @@ struct ChatView: View {
     @State private var lastReportedVisibleMessageId: String?
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
     @StateObject private var focusModeManager = FocusModeManager()
+    @StateObject private var composerRecorder = VoiceRecorder()
+    @StateObject private var pendingUploads = PendingUploadStore.shared
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -204,6 +214,18 @@ struct ChatView: View {
                 NotificationCenter.default.post(name: .toggleIncognito, object: nil)
             }
         )
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                onCapture: { data, filename in
+                    showCameraCapture = false
+                    Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                },
+                onCancel: { showCameraCapture = false }
+            )
+            .ignoresSafeArea()
+        }
+        #endif
         .task(id: chatId) {
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
@@ -831,16 +853,23 @@ struct ChatView: View {
     }
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
-        OMMessageInputField(
-            text: $messageText,
-            isFocused: $isInputFocused,
-            compact: compact,
-            placeholder: placeholder,
-            expandedMinHeight: expandedMinHeight,
-            accessibilityHint: AppStrings.typeMessage,
-            onSubmit: sendMessage
-        ) {
-            HStack(spacing: .spacing6) {
+        let overlayActive = composerOverlay != nil
+        return VStack(spacing: .spacing2) {
+            if let chatId = viewModel.chat?.id {
+                UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
+            }
+
+            OMMessageInputField(
+                text: $messageText,
+                isFocused: $isInputFocused,
+                compact: compact && !overlayActive,
+                placeholder: placeholder,
+                expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
+                accessibilityHint: AppStrings.typeMessage,
+                overlayContent: composerOverlayView(),
+                onSubmit: sendMessage
+            ) {
+                HStack(spacing: .spacing6) {
                 AttachmentPicker(
                     isPresented: $showAttachmentMenu,
                     onImageSelected: { data, filename in
@@ -853,27 +882,37 @@ struct ChatView: View {
                 .accessibilityLabel(AppStrings.attachFiles)
 
                 inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
-                    ToastManager.shared.show(AppStrings.shareLocation, type: .info)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        composerOverlay = .location
+                        isInputFocused = true
+                    }
                 }
 
                 inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
+                    #if os(iOS)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        composerOverlay = .sketch
+                        isInputFocused = true
+                    }
+                    #else
                     ToastManager.shared.show(AppStrings.sketchAction, type: .info)
+                    #endif
                 }
 
                 Spacer()
 
                 #if os(iOS)
                 inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
-                    ToastManager.shared.show(AppStrings.takePhoto, type: .info)
+                    showCameraCapture = true
                 }
                 #endif
 
                 if messageText.isEmpty && !viewModel.isStreaming {
-                    VoiceRecordingButton { url in
-                        Task {
-                            if let data = try? Data(contentsOf: url) {
-                                await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent)
-                            }
+                    inputActionButton(icon: "recordaudio", label: AppStrings.recordAudio) {
+                        composerRecorder.startRecording()
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            composerOverlay = .recording
+                            isInputFocused = true
                         }
                     }
                 } else {
@@ -897,9 +936,57 @@ struct ChatView: View {
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
                 }
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing6)
             }
-            .padding(.horizontal, .spacing5)
-            .padding(.bottom, .spacing6)
+        }
+    }
+
+    private func composerOverlayView() -> AnyView? {
+        guard let composerOverlay else { return nil }
+        switch composerOverlay {
+        case .location:
+            return AnyView(
+                ComposerLocationOverlay(
+                    onShare: { latitude, longitude, name in
+                        let label = name.isEmpty ? AppStrings.selectedLocation : name
+                        messageText += messageText.isEmpty ? "📍 \(label) (\(latitude), \(longitude))" : "\n📍 \(label) (\(latitude), \(longitude))"
+                        self.composerOverlay = nil
+                    },
+                    onCancel: { self.composerOverlay = nil }
+                )
+            )
+        case .sketch:
+            #if os(iOS)
+            return AnyView(
+                SketchComposerOverlay(
+                    onSave: { data, filename in
+                        self.composerOverlay = nil
+                        Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                    },
+                    onCancel: { self.composerOverlay = nil }
+                )
+            )
+            #else
+            return nil
+            #endif
+        case .recording:
+            return AnyView(
+                ComposerRecordingOverlay(
+                    recorder: composerRecorder,
+                    onStop: { url in
+                        self.composerOverlay = nil
+                        if let data = try? Data(contentsOf: url) {
+                            Task { await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent) }
+                        }
+                    },
+                    onCancel: {
+                        composerRecorder.cancelRecording()
+                        self.composerOverlay = nil
+                    }
+                )
+            )
         }
     }
 
@@ -982,6 +1069,12 @@ struct ChatView: View {
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
+            let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
+            pendingUploads.addPendingSend(chatId: chatId, content: text, blockingUploadIds: blockingIds)
+            messageText = ""
+            return
+        }
         messageText = ""
 
         Task {

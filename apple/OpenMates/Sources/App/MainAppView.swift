@@ -3813,8 +3813,11 @@ private struct WelcomeComposer: View {
             OMMessageInputField(
                 text: $text,
                 isFocused: $isFocused,
-                compact: !isOpen,
+                compact: !hasContent,
                 placeholder: AppStrings.typeMessage,
+                compactHeight: 60,
+                compactCornerRadius: 24,
+                showActionButtonsWhenCompact: isOpen,
                 expandedMinHeight: 112,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { isAuthenticated ? onSend() : onOpenAuth() }

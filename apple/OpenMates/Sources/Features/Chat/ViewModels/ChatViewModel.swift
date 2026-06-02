@@ -957,6 +957,8 @@ final class ChatViewModel: ObservableObject {
 
     func uploadAttachment(data: Data, filename: String) async {
         guard let chatId = chat?.id else { return }
+        let uploadId = UUID().uuidString
+        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
         let boundary = UUID().uuidString
         var body = Data()
@@ -983,10 +985,13 @@ final class ChatViewModel: ObservableObject {
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode) else {
                 print("[Chat] Upload failed")
+                PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
                 return
             }
+            PendingUploadStore.shared.markFinished(id: uploadId)
         } catch {
             print("[Chat] Upload error: \(error)")
+            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
         }
     }
 

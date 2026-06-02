@@ -174,8 +174,7 @@ struct UploadProgressBar: View {
             VStack(spacing: .spacing2) {
                 ForEach(uploads) { upload in
                     HStack(spacing: .spacing3) {
-                        Image(systemName: iconForStatus(upload.status))
-                            .font(.system(size: 12))
+                        Icon(iconForStatus(upload.status), size: 12)
                             .foregroundStyle(colorForStatus(upload.status))
 
                         Text(upload.filename)
@@ -186,11 +185,11 @@ struct UploadProgressBar: View {
                         Spacer()
 
                         if case .error(let msg) = upload.status {
-                            Text(msg)
+                            Text(msg.isEmpty ? AppStrings.uploadProgressError : msg)
                                 .font(.omTiny)
                                 .foregroundStyle(Color.error)
                         } else if !upload.status.isComplete {
-                            Text("\(Int(upload.progress * 100))%")
+                            Text(statusText(for: upload))
                                 .font(.omTiny).monospacedDigit()
                                 .foregroundStyle(Color.fontTertiary)
                         }
@@ -206,23 +205,38 @@ struct UploadProgressBar: View {
             .padding(.vertical, .spacing2)
             .background(Color.grey10.opacity(0.5))
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Uploading \(uploads.count) file\(uploads.count == 1 ? "" : "s")")
+            .accessibilityLabel(AppStrings.waitingForUpload)
         }
     }
 
     private func iconForStatus(_ status: PendingUploadStore.EmbedUploadProgress.UploadStatus) -> String {
         switch status {
-        case .uploading: return "arrow.up.circle"
-        case .processing, .transcribing: return "gearshape"
-        case .finished: return "checkmark.circle.fill"
-        case .error: return "exclamationmark.circle"
+        case .uploading: return "files"
+        case .processing, .transcribing: return "settings"
+        case .finished: return "check"
+        case .error: return "warning"
+        }
+    }
+
+    private func statusText(for upload: PendingUploadStore.EmbedUploadProgress) -> String {
+        switch upload.status {
+        case .uploading:
+            return AppStrings.uploadProgressUploading(percent: "\(Int(upload.progress * 100))")
+        case .processing:
+            return AppStrings.uploadProgressProcessing
+        case .transcribing:
+            return AppStrings.uploadProgressTranscribing
+        case .finished:
+            return ""
+        case .error(let message):
+            return message.isEmpty ? AppStrings.uploadProgressError : message
         }
     }
 
     private func colorForStatus(_ status: PendingUploadStore.EmbedUploadProgress.UploadStatus) -> Color {
         switch status {
         case .uploading, .processing, .transcribing: return Color.buttonPrimary
-        case .finished: return .green
+        case .finished: return Color.buttonPrimary
         case .error: return Color.error
         }
     }
