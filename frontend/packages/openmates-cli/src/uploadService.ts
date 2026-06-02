@@ -65,6 +65,19 @@ function getUploadUrl(apiUrl: string): string {
   return "https://upload.openmates.org";
 }
 
+function getUploadOrigin(apiUrl: string): string {
+  try {
+    const url = new URL(apiUrl);
+    if (url.hostname === "localhost") return "http://localhost:5173";
+    if (url.hostname.startsWith("api.")) {
+      return `${url.protocol}//app.${url.hostname.slice(4)}`;
+    }
+  } catch {
+    // Fall back to production app origin below.
+  }
+  return "https://app.openmates.org";
+}
+
 // ── Upload function ────────────────────────────────────────────────────
 
 /**
@@ -88,6 +101,7 @@ export async function uploadFile(
   const fileBytes = readFileSync(filePath);
 
   const uploadUrl = `${getUploadUrl(session.apiUrl)}/v1/upload/file`;
+  const origin = getUploadOrigin(session.apiUrl);
 
   // Construct cookie header from session
   const cookies: string[] = [];
@@ -110,6 +124,7 @@ export async function uploadFile(
         method: "POST",
         body: formData,
         headers: {
+          Origin: origin,
           ...(cookies.length > 0 ? { Cookie: cookies.join("; ") } : {}),
         },
         signal: AbortSignal.timeout(10 * 60 * 1000), // 10-minute timeout
