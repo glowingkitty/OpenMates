@@ -1580,3 +1580,53 @@ compression.messages_compressed:
   sv: "{count} meddelanden sammanfattade"
   he: "{count} הודעות סוכמו"
   verified_by_human: []
+
+sub_chats.confirmation_title:
+  context: Title for inline confirmation card before starting a large batch of sub-chats. {count} is the number of proposed sub-chats.
+  en: Start {count} background chats?
+  verified_by_human: []
+
+sub_chats.confirmation_description:
+  context: Description for inline sub-chat confirmation. {auto} is the number allowed without confirmation, {max} is the hard direct sub-chat cap.
+  en: OpenMates starts up to {auto} automatically. Larger batches need your approval, and each chat can have up to {max} direct sub-chats.
+  verified_by_human: []
+
+sub_chats.confirmation_more:
+  context: Collapsed list footer in sub-chat confirmation card. {count} is the number of hidden proposed sub-chats.
+  en: +{count} more
+  verified_by_human: []
+
+sub_chats.start_all:
+  context: Button to approve all proposed sub-chats. {count} is the number of sub-chats.
+  en: Start all {count}
+  verified_by_human: []
+
+sub_chats.start_first:
+  context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
+  en: Start first {count}
+  verified_by_human: []
+
+sub_chats.confirmation_failed:
+  context: Error notification when sending sub-chat confirmation failed.
+  en: Failed to update sub-chat approval.
+  verified_by_human: []
+
+sub_chats.limit_exceeded:
+  context: Fallback error notification when sub-chat limit is exceeded.
+  en: This chat has reached its sub-chat limit.
+  verified_by_human: []
+
+sub_chats.progress_label:
+  context: Label above sequential sub-chat progress bar. {completed} is completed count and {total} is total count.
+  en: 'Sequential sub-chats: {completed} / {total} complete'
+  verified_by_human: []
+
+sub_chats.progress_stopping:
+  context: Status label shown while a sequential sub-chat queue is being stopped.
+  en: Stopping sequential sub-chats...
+  verified_by_human: []
+
+sub_chats.stop_queue:
+  context: Button label for stopping a sequential sub-chat queue.
+  en: Stop queue
+  verified_by_human: []
