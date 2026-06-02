@@ -12,9 +12,8 @@ Two distinct country sets:
    - Everyone else (incl. CH, NO, GB, US…) → Stripe Managed Payments
      (Checkout Sessions, Stripe collects + remits VAT automatically)
 
-2. EU_STRIPE_COUNTRY_CODES (EU27 + EEA + CH + GB) — kept for legacy callers
-   that relied on the old Polar vs Stripe routing. Not used by the payment
-   flow since Polar was deactivated on 2026-04-23.
+2. EU_STRIPE_COUNTRY_CODES (EU27 + EEA + CH + GB) — kept for legacy callers.
+   Use EU_VAT_COUNTRY_CODES for current payment flow decisions.
 """
 
 import logging
@@ -56,7 +55,6 @@ EU_VAT_COUNTRY_CODES = frozenset({
 })
 
 # Legacy set — EU27 + EEA + CH + GB.
-# Previously used for Polar vs Stripe routing (Polar deactivated 2026-04-23).
 # Kept so existing callers of is_eu_stripe_country() don't break.
 EU_STRIPE_COUNTRY_CODES = EU_VAT_COUNTRY_CODES | frozenset({
     "NO",  # Norway (EEA)
@@ -107,5 +105,8 @@ def is_eu_stripe_country(country_code: Optional[str]) -> bool:
         return True
 
     result = country_code.upper() in EU_STRIPE_COUNTRY_CODES
-    logger.debug(f"Provider routing for country '{country_code.upper()}': {'Stripe (EU)' if result else 'Polar (non-EU)'}")
+    logger.debug(
+        f"Legacy Stripe-country check for '{country_code.upper()}': "
+        f"{'included' if result else 'not included'}"
+    )
     return result

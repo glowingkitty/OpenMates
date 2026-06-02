@@ -3994,7 +3994,7 @@ promises.payment_data_minimization.heading:
   verified_by_human: []
 promises.payment_data_minimization.description:
   context: Privacy promise description — payment data minimization
-  en: Payments flow directly from your browser to Stripe or Polar. We store only their provider tokens and customer identifiers. We never see, receive, or persist full card numbers, security codes, or bank account details.
+  en: Payments flow directly from your browser to Stripe. We store only provider tokens and customer identifiers. We never see, receive, or persist full card numbers, security codes, or bank account details.
   verified_by_human: []
 promises.logging_redaction.heading:
   context: Privacy promise heading — logging redaction
@@ -4026,7 +4026,7 @@ promises.no_external_resources.heading:
   verified_by_human: []
 promises.no_external_resources.description:
   context: Privacy promise description — no external images or scripts
-  en: "Every external image, favicon, or preview shown in the app is fetched through our own preview.openmates.org proxy — the originating website never sees your IP address. The only third-party scripts the web app loads are the payment SDKs (Stripe and Polar) needed to process a purchase, and those only when you explicitly open the payment flow. There is no ad network, tag manager, CDN font loader, or third-party analytics library."
+  en: "Every external image, favicon, or preview shown in the app is fetched through our own preview.openmates.org proxy — the originating website never sees your IP address. The only third-party script the web app loads is the Stripe payment SDK needed to process a purchase, and only when you explicitly open the payment flow. There is no ad network, tag manager, CDN font loader, or third-party analytics library."
   verified_by_human: []
 promises.cli_no_credential_prompts.heading:
   context: Privacy promise heading — CLI never prompts for credentials
@@ -4645,58 +4645,6 @@ providers.payments.stripe.description:
   he: "Stripe מעבדת רכישות קרדיטים חד-פעמיות ומנויי טעינה חודשית אוטומטית. אנחנו שולחים ל-Stripe את כתובת האימייל שלך, אמצעי תשלום מוצפן (אנחנו לעולם לא רואים את מספר הכרטיס שלך), כתובת לחיוב ופרטי מע\"מ במידת הצורך להפקת חשבונית, ונתוני מטא של העסקה."
   pt: A Stripe processa compras únicas de créditos e assinaturas de recarga automática mensal. Enviamos à Stripe seu endereço de e-mail, um método de pagamento tokenizado (nunca vemos o número do seu cartão), endereço de faturamento e informações de IVA quando necessário para faturamento, além de metadados da transação.
   fr: "Stripe traite les achats de crédits ponctuels et les abonnements de recharge automatique mensuelle. Nous envoyons à Stripe ton adresse e-mail, un mode de paiement tokenisé (nous ne voyons jamais ton numéro de carte), l'adresse de facturation et les informations de TVA si nécessaire pour la facturation, ainsi que les métadonnées de transaction."
-  verified_by_human: []
-providers.payments.polar.heading:
-  context: Heading for Polar provider entry
-  en: Polar.sh (Merchant of Record for non-EU customers)
-  de: Polar.sh (Merchant of Record für Kunden außerhalb der EU)
-  zh: Polar.sh（非欧盟客户的代收代缴商）
-  es: Polar.sh (Comerciante de registro para clientes fuera de la UE)
-  ru: Polar.sh (торговый посредник для клиентов за пределами ЕС)
-  ja: Polar.sh（EU外の顧客向けの販売代行業者）
-  ko: Polar.sh (비 EU 고객 대상 결제 대행사)
-  it: Polar.sh (Merchant of Record per clienti extra-UE)
-  tr: Polar.sh (AB dışındaki müşteriler için Kayıtlı Satıcı)
-  vi: Polar.sh (Đơn vị bán hàng chính thức cho khách hàng ngoài EU)
-  id: Polar.sh (Merchant of Record untuk pelanggan non-UE)
-  pl: Polar.sh (Merchant of Record dla klientów spoza UE)
-  nl: Polar.sh (Merchant of Record voor klanten buiten de EU)
-  ar: Polar.sh (تاجر مسجل للعملاء خارج الاتحاد الأوروبي)
-  hi: Polar.sh (गैर-EU ग्राहकों के लिए मर्चेंट ऑफ रिकॉर्ड)
-  th: Polar.sh (ตัวแทนจำหน่ายสำหรับลูกค้าที่อยู่นอกสหภาพยุโรป)
-  cs: Polar.sh (Merchant of Record pro zákazníky mimo EU)
-  sv: Polar.sh (Merchant of Record för kunder utanför EU)
-  he: Polar.sh (סוחר רשום עבור לקוחות מחוץ לאיחוד האירופי)
-  pt: Polar.sh (Merchant of Record para clientes fora da UE)
-  fr: Polar.sh (Vendeur Officiel pour les clients hors UE)
-  verified_by_human: []
-providers.payments.polar.description:
-  context: Polar description
-  en: >-
-    Polar acts as a Merchant of Record for one-time credit purchases by non-EU
-    customers, handling international tax compliance on our behalf. Polar sees
-    the same data as Stripe: email, tokenized payment method, billing address,
-    and transaction metadata.
-  de: "Polar fungiert als Merchant of Record für einmalige Credit-Käufe von Kunden außerhalb der EU und übernimmt in unserem Namen die internationale Steuerkonformität. Polar sieht dieselben Daten wie Stripe: E-Mail, tokenisierte Zahlungsmethode, Rechnungsadresse und Transaktions-Metadaten."
-  zh: Polar 为非欧盟客户的单次额度购买担任代收代缴商 (Merchant of Record)，代表我们处理国际税务合规。Polar 看到的数据与 Stripe 相同：电子邮件、令牌化的支付方式、账单地址和交易元数据。
-  es: "Polar actúa como Comerciante de registro para compras de crédito únicas por parte de clientes de fuera de la UE, gestionando el cumplimiento fiscal internacional en nuestro nombre. Polar ve los mismos datos que Stripe: correo electrónico, método de pago tokenizado, dirección de facturación y metadatos de la transacción."
-  ru: "Polar выступает в качестве торгового посредника (Merchant of Record) для разовых покупок кредитов клиентами из-за пределов ЕС, обеспечивая соблюдение международных налоговых норм от нашего имени. Polar видит те же данные, что и Stripe: электронную почту, токенизированный способ оплаты, платежный адрес и метаданные транзакции."
-  ja: Polarは、EU外の顧客による単発のクレジット購入の販売代行業者（Merchant of Record）として機能し、弊社に代わって国際的な税務コンプライアンスを処理します。Polarは、Stripeと同じデータ（メールアドレス、トークン化された支払い方法、請求先住所、取引メタデータ）を閲覧します。
-  ko: Polar는 비 EU 고객의 일회성 크레딧 구매에 대한 결제 대행사(Merchant of Record) 역할을 수행하며, 당사를 대신해 국제 세무 규정 준수를 처리합니다. Polar는 Stripe와 동일한 데이터(이메일, 토큰화된 결제 수단, 청구 주소, 거래 메타데이터)를 확인합니다.
-  it: "Polar agisce come Merchant of Record per gli acquisti di crediti una tantum da parte di clienti extra-UE, gestendo la conformità fiscale internazionale per nostro conto. Polar vede gli stessi dati di Stripe: email, metodo di pagamento tokenizzato, indirizzo di fatturazione e metadati della transazione."
-  tr: "Polar, AB dışındaki müşterilerin tek seferlik kredi satın alımları için Kayıtlı Satıcı (Merchant of Record) olarak hareket eder ve bizim adımıza uluslararası vergi uyumluluğunu yönetir. Polar, Stripe ile aynı verileri görür: e-posta, simgeleştirilmiş ödeme yöntemi, fatura adresi ve işlem meta verileri."
-  vi: "Polar đóng vai trò là Đơn vị bán hàng chính thức (Merchant of Record) cho các giao dịch mua tín dụng một lần của khách hàng ngoài EU, thay mặt chúng tôi xử lý việc tuân thủ thuế quốc tế. Polar nhìn thấy các dữ liệu tương tự như Stripe: email, phương thức thanh toán được mã hóa mã thông báo, địa chỉ thanh toán và siêu dữ liệu giao dịch."
-  id: "Polar bertindak sebagai Merchant of Record untuk pembelian kredit satu kali oleh pelanggan non-UE, menangani kepatuhan pajak internasional atas nama kami. Polar melihat data yang sama dengan Stripe: email, metode pembayaran yang ditokenisasi, alamat penagihan, dan metadata transaksi."
-  pl: "Polar działa jako Merchant of Record dla jednorazowych zakupów kredytów przez klientów spoza UE, zajmując się w naszym imieniu międzynarodową zgodnością podatkową. Polar widzi te same dane co Stripe: e-mail, ztokenizowaną metodę płatności, adres rozliczeniowy i metadane transakcji."
-  nl: "Polar treedt op als Merchant of Record voor eenmalige aankopen van credits door klanten buiten de EU en regelt namens ons de internationale belastingnaleving. Polar ziet dezelfde gegevens als Stripe: e-mailadres, getokeniseerde betaalmethode, factuuradres en transactiemetadata."
-  ar: "تعمل Polar كتاجر مسجل (Merchant of Record) لعمليات شراء الرصيد لمرة واحدة من قبل العملاء خارج الاتحاد الأوروبي، وتتولى الامتثال الضريبي الدولي نيابة عنا. ترى Polar نفس البيانات التي يراها Stripe: البريد الإلكتروني، وطريقة الدفع المرمزة، وعنوان الفواتير، وبيانات المعاملة الوصفية."
-  hi: "Polar गैर-यूरोपीय संघ के ग्राहकों द्वारा एक बार की क्रेडिट खरीदारी के लिए मर्चेंट ऑफ रिकॉर्ड (Merchant of Record) के रूप में कार्य करता है, जो हमारी ओर से अंतरराष्ट्रीय कर अनुपालन को संभालता है। Polar वही डेटा देखता है जो Stripe देखता है: ईमेल, टोकनयुक्त भुगतान विधि, बिलिंग पता और ट्रांज़ैक्शन मेटाडेटा।"
-  th: "Polar ทำหน้าที่เป็นตัวแทนจำหน่าย (Merchant of Record) สำหรับการซื้อเครดิตแบบครั้งเดียวโดยลูกค้าที่อยู่นอกสหภาพยุโรป โดยจัดการเรื่องภาษีระหว่างประเทศแทนเรา Polar จะเห็นข้อมูลเดียวกับ Stripe: อีเมล, วิธีการชำระเงินแบบโทเค็น, ที่อยู่สำหรับเรียกเก็บเงิน และข้อมูลเมตาของรายการ"
-  cs: "Polar působí jako Merchant of Record pro nákupy kreditů zákazníky mimo EU a naším jménem zajišťuje dodržování mezinárodních daňových předpisů. Polar vidí stejné údaje jako Stripe: e-mail, tokenizovanou platební metodu, fakturační adresu a metadata transakce."
-  sv: "Polar agerar som \"Merchant of Record\" för köp av krediter gjorda av kunder utanför EU och hanterar internationell skatteefterlevnad för vår räkning. Polar ser samma data som Stripe: e-post, tokeniserad betalningsmetod, faktureringsadress och transaktionsmetadata."
-  he: "Polar פועלת כסוחר רשום (Merchant of Record) עבור רכישות קרדיטים חד-פעמיות על ידי לקוחות מחוץ לאיחוד האירופי, ומטפלת בציות למס בינלאומי מטעמנו. Polar רואה את אותם הנתונים כמו Stripe: אימייל, אמצעי תשלום מוצפן, כתובת לחיוב ונתוני מטא של העסקה."
-  pt: "A Polar atua como Merchant of Record para compras únicas de créditos por clientes fora da UE, lidando com a conformidade fiscal internacional em nosso nome. A Polar vê os mesmos dados que a Stripe: e-mail, método de pagamento tokenizado, endereço de faturamento e metadados da transação."
-  fr: "Polar agit en tant que Vendeur Officiel (Merchant of Record) pour les achats de crédits ponctuels par des clients hors UE, gérant la conformité fiscale internationale en notre nom. Polar voit les mêmes données que Stripe : e-mail, mode de paiement tokenisé, adresse de facturation et métadonnées de transaction."
   verified_by_human: []
 providers.ai_models.heading:
   context: Subheading for Group C providers (AI models)

@@ -15,12 +15,12 @@ OpenMates has an **unusually strong privacy foundation** for an AI product: clie
 
 The 2026-04-08/09 remediation wave closed the largest category of findings — the transparency gap. The privacy policy is now restructured around provider-trigger groups (A–J), discloses every LLM, image, search, travel, events, health, shopping and community subprocessor that the code actually calls, and adds an explicit "Limitations of erasure" section. Dead code (Revolut, Mailjet, Azure OpenAI scaffold) was removed rather than disclosed. Cookie and browser-storage inventories now exist in `docs/architecture/compliance/{cookies,browser-storage}.yml`. A twice-weekly legal-compliance scanner feeds `top-10-recommendations.md`.
 
-**Overall posture:** ~90% GDPR-aligned in *implementation*; ~90% aligned in *documented disclosure*. Remaining exposure is concentrated in (a) four GDPR rights endpoints that the policy still promises but the code does not yet implement (Art. 16 email rectification, Art. 18 restriction, Art. 21 objection, Art. 7(3) granular withdraw), (b) compliance-log plaintext `user_id` after erasure, (c) Polar customer and push-subscription cleanup missing from the erasure cascade, and (d) the open ePrivacy decision on whether a cookie banner is required given the now-documented inventory.
+**Overall posture:** ~90% GDPR-aligned in *implementation*; ~90% aligned in *documented disclosure*. Remaining exposure is concentrated in (a) four GDPR rights endpoints that the policy still promises but the code does not yet implement (Art. 16 email rectification, Art. 18 restriction, Art. 21 objection, Art. 7(3) granular withdraw), (b) compliance-log plaintext `user_id` after erasure, (c) push-subscription cleanup missing from the erasure cascade, and (d) the open ePrivacy decision on whether a cookie banner is required given the now-documented inventory.
 
 | Severity | Open | Closed in 04-08/09 wave |
 |---|---|---|
 | 🔴 Critical | 3 (C4 compliance-log user_id, C7 cookie banner decision, C9 rights promised vs delivered) | C1 LLM subprocessor disclosure, C2 Revolut (deleted as dead code), C3 S3 PDF deletion, C5 Stripe customer delete, C6 temp-images bucket, C8 Discord sync |
-| 🟠 High | 7 (H2–H5 rights endpoints, H7 Polar/push cleanup, H9 push unregister, H11 failed-login IP SLA) | H1 ~18 aggregators undisclosed, H6 Mailjet (deleted as dead code), H8 LLM residual retention disclosed |
+| 🟠 High | 6 (H2–H5 rights endpoints, H9 push unregister, H11 failed-login IP SLA) | H1 ~18 aggregators undisclosed, H6 Mailjet (deleted as dead code), H7 legacy payment provider removed, H8 LLM residual retention disclosed |
 | 🟡 Medium | 7 (M1–M6 compliance-log IP hashing, Caddy SLA, safety_audit_log, OTel retention doc, chat export UX, consent versioning) | M7 `newsletter` category, M8 stale `lastUpdated` |
 | 🟢 Low | 4 (L1 Safari WS token, L2 demo cleartext, L3 default model cleartext, L4 export fields) | — |
 
@@ -45,7 +45,7 @@ Directus is the system of record. Most user PII is encrypted at rest with a per-
 - `api_keys` / `api_key_devices` — `encrypted_key_prefix`, `key_hash`, `encrypted_anonymized_ip` (first 2 octets), `encrypted_country_code`/`_region`/`_city`, `encrypted_machine_identifier`.
 - `user_passkeys` — `credential_id`, `public_key_jwk`/`public_key_cose`, `aaguid`, `sign_count`, `encrypted_device_name`.
 - `usage` — `user_id_hash`, `device_hash`, encrypted model / credit-cost / token fields, encrypted server region.
-- `invoices` / `credit_notes` — `encrypted_amount`, `encrypted_s3_object_key`, `encrypted_aes_key`, `encrypted_currency`, `provider` enum `stripe`/`polar` (plus legacy `revolut` values for historical rows only — the Revolut integration was removed in `OPE-373`).
+- `invoices` / `credit_notes` — `encrypted_amount`, `encrypted_s3_object_key`, `encrypted_aes_key`, `encrypted_currency`, `provider` enum `stripe` (plus historical legacy provider values).
 - `reminders` — `encrypted_user_id`, `encrypted_prompt`, `encrypted_chat_history`, repeat/random configs.
 - `user_app_settings_and_memories` — `encrypted_app_key`, `encrypted_item_json`.
 - `user_daily_inspirations` — encrypted phrases, AI responses, video metadata.
@@ -103,7 +103,7 @@ The privacy policy is restructured into provider-trigger groups (commit `7b1c22e
 | Group | Trigger | Providers |
 |---|---|---|
 | A | Always active | Vercel, Hetzner, IP-API, Brevo, OpenObserve (self-hosted) |
-| B | Payments | Stripe, Polar |
+| B | Payments | Stripe |
 | C | AI models | Anthropic (direct + Bedrock), OpenAI (direct + OpenRouter), Vertex MaaS (DeepSeek), Together AI, Groq, Cerebras, Mistral |
 | D | Image generation | FAL (Flux), Recraft |
 | E | Web / search | Brave, Firecrawl, SerpAPI, Google (Maps, Vision safety, Lens via SerpAPI) |
@@ -128,7 +128,7 @@ The privacy policy is restructured into provider-trigger groups (commit `7b1c22e
 |---|---|---|---|
 | **Art. 15 — Access** | ✅ Implemented | `GET /v1/settings/export-account-manifest`, `/export-account-data`, `/usage/export` in `settings.py`. Logged via `compliance.log_data_access()`. | Chat content not server-rendered (client must sync from IndexedDB first); email returned encrypted with master key. |
 | **Art. 16 — Rectification** | ⚠️ Partial | Endpoints for username, language, darkmode, timezone, auto-topup. | **No email change endpoint.** `hashed_email` + `encrypted_email_address` cannot be updated by the user. Hard Art. 16 gap (**H2**). |
-| **Art. 17 — Erasure** | ✅ Strong | `POST /v1/settings/delete-account` → `user_cache_tasks.py` runs a 5-phase cascade: auth, payments+refunds, content+S3 PDFs, Redis cache, final user row + compliance log. Reauth required. Includes Stripe subscription cancel + customer delete (`OPE-371`) and S3 invoice / credit-note PDF delete (`OPE-370`). | Polar customer delete missing (**H7**); push-subscription unregister missing (**H9**); LLM provider logs out of band (documented as limitation). |
+| **Art. 17 — Erasure** | ✅ Strong | `POST /v1/settings/delete-account` → `user_cache_tasks.py` runs a 5-phase cascade: auth, payments+refunds, content+S3 PDFs, Redis cache, final user row + compliance log. Reauth required. Includes Stripe subscription cancel + customer delete (`OPE-371`) and S3 invoice / credit-note PDF delete (`OPE-370`). | Push-subscription unregister missing (**H9**); LLM provider logs out of band (documented as limitation). |
 | **Art. 18 — Restriction** | ❌ Not implemented | No endpoint, no `processing_restricted` flag. | **H5** — required by law; needs explicit pause-of-processing path. |
 | **Art. 20 — Portability** | ✅ Implemented (JSON) | Same export endpoints. | No standardized schema; chat-content portion incomplete (**M5**). |
 | **Art. 21 — Objection** | ❌ Not implemented | Consent *recording* exists (`/user/consent/privacy-apps`, `/user/consent/mates`) — those are Art. 7 grants, not Art. 21 objections. | **H4** — required because `legal_basis.legitimate_interests` appears in the policy. |
@@ -146,7 +146,6 @@ The cascade in `backend/core/api/app/tasks/user_cache_tasks.py` now covers Postg
 | **Compliance logs (`audit-compliance.log`, `financial-compliance.log`)** | ❌ Plaintext `user_id` retained 2–10 y (`compliance.py:75-79` bypasses `SensitiveDataFilter`). Replace with `account_id` + irreversible hash for new entries; document legitimate-interest basis for past entries within the financial window. | 🔴 Critical (**C4**) |
 | **OpenTelemetry / OpenObserve traces** | ❌ No deletion path. The daily-rotating pseudonymization salt makes traces older than ~24 h unjoinable, but document the effective retention window. | 🟡 Medium (**M4**) |
 | **Caddy access logs** | ❌ 30-day rotation, IPs not redacted. Extend retention or correct the policy's 2-year claim. | 🟡 Medium (**M2**) |
-| **Polar customer** | ❌ Refund-only; no customer delete. | 🟠 High (**H7**) |
 | **LLM provider conversation history** | ❌ Out of band — no erasure notification to Anthropic / OpenAI / Google / Together. **Documented** in the privacy policy's "Limitations of erasure" section; consider a manual purge runbook. | — (documented) |
 | **Push notification subscriptions (FCM / Web Push)** | ❌ The `directus_users.push_notification_subscription` row is deleted, but no DELETE call is made to FCM or the Web Push endpoint. | 🟡 Medium (**H9**) |
 | **Vector / search index** | ✅ N/A — no external vector DB. | — |
@@ -170,7 +169,7 @@ The cascade in `backend/core/api/app/tasks/user_cache_tasks.py` now covers Postg
 
 `auth_refresh_token`: `HttpOnly=True`, `Secure=True`, `SameSite=Strict`, `Domain=parent-of-Origin`, `max_age={24h | 30d}`. CSP, HSTS (1 y `includeSubDomains; preload`), `X-Frame-Options: DENY`, `Permissions-Policy` (camera/microphone/geolocation/interest-cohort all `()`), `Referrer-Policy: strict-origin-when-cross-origin`, set in both `Caddyfile` and `frontend/apps/web_app/src/hooks.server.ts`.
 
-**C7 — cookie consent decision still open.** `cookies.yml` now lists every cookie the site sets. Before deciding whether a banner is required, confirm that *every* listed cookie is strictly necessary (auth, CSRF) — in particular that no analytics cookie, no Stripe.js persistent cookie (outside an active checkout), no Polar cookie, and no embed-iframe third-party cookie ships. If any non-essential cookie is present, GDPR + ePrivacy require opt-in.
+**C7 — cookie consent decision still open.** `cookies.yml` now lists every cookie the site sets. Before deciding whether a banner is required, confirm that *every* listed cookie is strictly necessary (auth, CSRF) — in particular that no analytics cookie, no Stripe.js persistent cookie (outside an active checkout), and no embed-iframe third-party cookie ships. If any non-essential cookie is present, GDPR + ePrivacy require opt-in.
 
 ### 7.3 Safari iOS WebSocket token fallback (L1)
 
@@ -218,7 +217,6 @@ The cascade in `backend/core/api/app/tasks/user_cache_tasks.py` now covers Postg
 | H3 | No granular consent withdrawal | Add `/v1/settings/withdraw-consent/{type}`. |
 | H4 | No Art. 21 objection endpoint | Add `/v1/settings/object-to-processing/{category}` and honor the flag in the relevant processors. |
 | H5 | No Art. 18 restriction endpoint | Add `processing_restricted` flag + endpoints; pause AI processing, credit charges, analytics ingestion when set. |
-| H7 | Polar customer delete missing from erasure cascade | Add explicit `polar_service.delete_customer()` call in `user_cache_tasks.py` Phase 2. |
 | H9 | Push notification subscriptions not unregistered on erasure | Call FCM / Web Push DELETE before clearing the Directus row. |
 | H10 | `aes_key` plaintext field in `upload_files` alongside `vault_wrapped_aes_key` | Confirm the plaintext field is never read in production; drop it. |
 | H11 | 30-day failed-login IP retention claim — verify enforcement in `auth_routes`. | |
@@ -251,7 +249,7 @@ The cascade in `backend/core/api/app/tasks/user_cache_tasks.py` now covers Postg
 1. **GDPR rights endpoints** (C9, H2–H5) — single biggest gap between policy promises and code; highest legal risk.
 2. **Compliance-log user_id replacement** (C4) — schema + logger refactor; needs a migration plan for past entries inside the financial window.
 3. **Cookie banner decision** (C7) — review `cookies.yml`, confirm strictly-necessary classification, add the section to the policy, and ship a banner if anything else is present.
-4. **Erasure cascade hardening** — Polar customer delete (H7), push-subscription unregister (H9), S3 chat-file verification.
+4. **Erasure cascade hardening** — push-subscription unregister (H9), S3 chat-file verification.
 5. **Compliance-log IP standardization** (M1) and Caddy SLA reconciliation (M2).
 6. **Schema cleanups** — `safety_audit_log.user_id` (M3), `upload_files.aes_key` plaintext (H10), OTel retention doc (M4), consent-versioning hash (M6), export field completeness (L4).
 
@@ -287,7 +285,7 @@ backend/shared/python_utils/tracing/privacy_filter.py    # OTel 3-tier filter
 backend/apps/ai/llm_providers/                    # All LLM client modules
 backend/shared/providers/                         # Shared external API wrappers
 backend/apps/{events,travel,health,shopping}/providers/  # Vertical aggregators
-backend/core/api/app/services/payment/{stripe,polar}_service.py
+backend/core/api/app/services/payment/stripe_service.py
 backend/core/api/app/services/email/brevo_provider.py
 deployment/dev_server/Caddyfile                   # TLS, HSTS, CSP, access logs
 frontend/packages/ui/src/services/db.ts           # IndexedDB schema

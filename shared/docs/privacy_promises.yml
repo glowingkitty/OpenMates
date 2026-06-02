@@ -262,7 +262,7 @@ promises:
       - file: frontend/packages/ui/src/config/api.ts
         what: Canonical preview-server URL (preview.openmates.org) used by proxyImage/proxyFavicon
       - file: frontend/apps/web_app/src/hooks.server.ts
-        what: CSP headers restrict frame and base-uri; payment iframes (Stripe/Polar) are the only permitted third-party embeds
+        what: CSP headers restrict frame and base-uri; Stripe payment iframes are the only permitted third-party embeds
       - file: frontend/packages/ui/src/components/Payment.svelte
         what: Payment component is the single controlled entry point for third-party scripts (@stripe/stripe-js)
       - file: .claude/hooks/external-resources-guard.sh

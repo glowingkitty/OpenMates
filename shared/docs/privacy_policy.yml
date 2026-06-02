@@ -121,8 +121,8 @@ data_categories:
       encrypted before transmission.
   payments:
     description: >
-      Payment-related data processed by our payment processors (Stripe,
-      Polar, and Revolut Business for SEPA bank transfers), such as payment
+      Payment-related data processed by our payment processors (Stripe and
+      Revolut Business for SEPA bank transfers), such as payment
       method token, transaction ID, billing address and VAT information when
       required for invoicing. We do not store full card numbers.
   newsletter:
@@ -214,16 +214,6 @@ provider_groups:
           - Payment method token (Stripe tokenizes the card; we never see it)
           - Billing address and VAT information when required for invoicing
           - Transaction metadata (amount, currency, timestamp)
-      polar:
-        privacy_policy: https://polar.sh/legal/privacy
-        location: US
-        used_for:
-          - one-time credit purchases for non-EU customers (Polar acts as Merchant of Record for tax compliance)
-        data_shared:
-          - Email address
-          - Payment method token
-          - Billing address and VAT information
-          - Transaction metadata
       revolut_business:
         privacy_policy: https://www.revolut.com/en-LT/legal/privacy/
         location: EU

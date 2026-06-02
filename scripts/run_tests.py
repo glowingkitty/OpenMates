@@ -98,7 +98,7 @@ HOURLY_DEV_SPECS: list[str] = [
     # dev-smoke doesn't use account credentials, so it can safely run on any slot.
     "chat-flow.spec.ts",
     "settings-buy-credits-stripe.spec.ts",
-    "signup-flow-polar.spec.ts",
+    "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
 

@@ -598,7 +598,6 @@ _EXTERNAL_RESOURCE_ALLOWLIST = [
     "js.stripe.com",
     "checkout.stripe.com",
     "stripe.com",
-    "polar.sh",
 ]
 
 _SKIP_EXTERNAL_SCAN = (

@@ -100,7 +100,7 @@ MAX_NVD_ENRICHMENTS = 20
 # (encryption, auth, data storage, payment)
 USER_DISCLOSURE_PACKAGES = {
     "tweetnacl", "cryptography", "pynacl", "argon2-cffi",
-    "stripe", "@stripe/stripe-js", "polar-sdk", "@polar-sh/checkout",
+    "stripe", "@stripe/stripe-js",
     "@revolut/checkout", "webauthn", "pyotp", "dompurify",
     "httpx", "aiohttp", "redis", "boto3",
 }
@@ -911,8 +911,6 @@ def _disclosure_reason(package_name: str) -> str:
         "argon2-cffi": "password hashing",
         "stripe": "payment processing (server)",
         "@stripe/stripe-js": "payment processing (client)",
-        "polar-sdk": "payment processing (Polar)",
-        "@polar-sh/checkout": "payment checkout (Polar)",
         "@revolut/checkout": "payment checkout (Revolut)",
         "webauthn": "WebAuthn/Passkey authentication",
         "pyotp": "TOTP 2FA",

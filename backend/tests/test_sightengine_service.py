@@ -37,8 +37,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 # ---------------------------------------------------------------------------
 # Import health_check_tasks directly from the file (not via the tasks package
-# __init__.py) to avoid a polar_sdk dependency that isn't installed in the
-# local venv (polar_sdk is only available inside the Docker containers).
+# __init__.py) so this test only imports the module under test.
 # ---------------------------------------------------------------------------
 
 def _load_health_check_tasks_module():
@@ -398,8 +397,7 @@ class TestHealthCheckProbe:
     the real upload pipeline and eliminating any external URL dependency.
 
     Note: imports are resolved from the pre-loaded _hct module-level variable
-    to avoid triggering the tasks/__init__.py which transitively imports
-    polar_sdk (only available inside Docker containers, not in the local venv).
+    to avoid triggering unrelated task package imports.
     """
 
     def test_health_check_image_constant_is_valid_jpeg(self):

@@ -25,7 +25,7 @@ export {};
  * - Verifies unused-credit refund flow.
  *
  * ARCHITECTURE NOTES:
- * - Non-EU users are routed to Stripe Managed Payments (not Polar — Polar is removed).
+ * - Non-EU users are routed to Stripe Managed Payments.
  * - Payment.svelte calls stripe.initEmbeddedCheckout() and mounts into #checkout.
  * - After onComplete, SettingsBuyCreditsPayment waits for payment_completed WebSocket
  *   event, then navigates to confirmation screen.

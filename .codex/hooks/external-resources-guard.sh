@@ -26,7 +26,7 @@
 #
 # Allowlist (documented in the privacy promise):
 #   openmates.org, preview.openmates.org, api.dev.openmates.org,
-#   js.stripe.com, checkout.stripe.com, *.polar.sh
+#   js.stripe.com, checkout.stripe.com
 #
 # Strictness: WARN ONLY (exit 0).
 # Related: frontend/packages/ui/src/utils/imageProxy.ts, .claude/rules/privacy.md

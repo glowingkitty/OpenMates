@@ -455,7 +455,7 @@ Already implemented at `backend/upload/routes/upload_route.py:369-421`:
 - **On ban:**
   1. Stop all in-flight Celery tasks for user
   2. Compute remaining credit balance
-  3. Refund via payment provider (Stripe/Polar/Revolut) — existing refund path
+  3. Refund via payment provider (Stripe/Revolut) — existing refund path
   4. Hard-delete account data per existing `delete_account` flow
   5. Add email hash + normalized email to permanent signup blocklist
   6. Add IP to **soft** block list (flagged for manual review on signup attempt, not hard-blocked due to VPN/shared-IP collateral)
