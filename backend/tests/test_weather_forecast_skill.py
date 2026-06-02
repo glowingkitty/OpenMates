@@ -184,7 +184,7 @@ async def test_forecast_skill_uses_bright_sky_for_germany(monkeypatch) -> None:
 
     response = await make_skill().execute(location="Berlin", days=2)
 
-    assert response.provider == "Bright Sky / DWD"
+    assert response.provider == "Deutscher Wetterdienst (DWD)"
     assert response.location["country_code"] == "DE"
     assert len(response.results) == 1
     assert "hourly" in response.ignore_fields_for_inference

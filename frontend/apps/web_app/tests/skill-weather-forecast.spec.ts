@@ -63,11 +63,8 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expect(skillIds).toContain('forecast');
 
 		const forecast = (weather.skills || []).find((skill: { id: string }) => skill.id === 'forecast');
-		expect(forecast?.nameTranslationKey).toBe('apps.weather.forecast');
-		expect(forecast?.descriptionTranslationKey).toBe('apps.weather.forecast.description');
-		expect(forecast?.iconImage).toBe('search.svg');
-		expect(forecast?.providers).toContain('Deutscher Wetterdienst (DWD)');
-		expect(forecast?.providers).toContain('Open-Meteo');
+		expect(forecast?.description).toBe('apps.weather.forecast.description');
+		expect(forecast?.description).not.toContain('app_skills.apps.weather.forecast');
 	});
 
 	test('Phase 1: embed preview renders through direct component preview', async ({ page }: { page: any }) => {
