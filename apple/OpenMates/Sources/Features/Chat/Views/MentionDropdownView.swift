@@ -1,9 +1,12 @@
-// Mention dropdown — shows @-mention suggestions for apps, skills, and memories.
-// Mirrors the web app's enter_message/MentionDropdown.svelte: triggered when user
-// types @ in the message input, shows filterable list of mentionable items.
+// Mention dropdown — shows @-mention suggestions for models, mates, skills, and focus modes.
+// Mirrors the web app's enter_message/MentionDropdown.svelte trigger and insertion contract:
+// @ at the start of a word opens suggestions, selection inserts backend mention syntax.
+// Uses local native suggestions because the web source builds mention data client-side.
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+// TS:      frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+// CSS:     MentionDropdown.svelte .mention-dropdown, .mention-result
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
@@ -14,123 +17,214 @@ struct MentionDropdownView: View {
     let onSelect: (MentionItem) -> Void
     let onDismiss: () -> Void
 
-    @State private var items: [MentionItem] = []
-    @State private var isLoading = true
-
-    struct MentionItem: Identifiable {
-        let id: String
-        let type: MentionType
-        let name: String
-        let description: String?
-        let iconName: String?
-
-        enum MentionType: String {
-            case app, skill, memory, focusMode
-        }
-    }
-
     private var filteredItems: [MentionItem] {
-        guard !query.isEmpty else { return items }
-        let q = query.lowercased()
-        return items.filter {
-            $0.name.lowercased().contains(q) ||
-            ($0.description?.lowercased().contains(q) ?? false)
+        let allItems = MentionItem.defaultItems
+        guard !query.isEmpty else { return allItems }
+        let normalized = query.lowercased()
+        return allItems.filter { item in
+            item.searchTerms.contains { $0.contains(normalized) }
         }
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            if isLoading {
-                ProgressView().padding(.spacing4)
-                    .accessibilityLabel("Loading mention suggestions")
-            } else if filteredItems.isEmpty {
-                Text(LocalizationManager.shared.text("chat.suggestions.filter_no_match"))
-                    .font(.omSmall).foregroundStyle(Color.fontTertiary)
-                    .padding(.spacing4)
-                    .accessibilityLabel("No mention suggestions match \(query)")
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(filteredItems) { item in
-                            Button {
-                                onSelect(item)
-                            } label: {
-                                HStack(spacing: .spacing3) {
-                                    if let icon = item.iconName {
-                                        AppIconView(appId: icon, size: 24)
-                                            .accessibilityHidden(true)
-                                    } else {
-                                        Icon(iconForType(item.type), size: 24)
-                                            .foregroundStyle(Color.fontSecondary)
-                                            .accessibilityHidden(true)
-                                    }
+            header
 
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        Text(item.name)
-                                            .font(.omSmall).fontWeight(.medium)
-                                            .foregroundStyle(Color.fontPrimary)
-                                        if let desc = item.description {
-                                            Text(desc)
-                                                .font(.omTiny).foregroundStyle(Color.fontTertiary)
-                                                .lineLimit(1)
-                                        }
-                                    }
-
-                                    Spacer()
-
-                                    Text(item.type.rawValue)
-                                        .font(.omTiny).foregroundStyle(Color.fontTertiary)
-                                }
-                                .padding(.horizontal, .spacing4)
-                                .padding(.vertical, .spacing2)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("\(item.name), \(item.type.rawValue)\(item.description.map { ", \($0)" } ?? "")")
-                            .accessibilityHint("Inserts @\(item.name) mention into the message")
-                            .accessibilityAddTraits(.isButton)
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(filteredItems) { item in
+                        Button {
+                            onSelect(item)
+                        } label: {
+                            row(for: item)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(item.name), \(item.type.label)")
+                        .accessibilityIdentifier("mention-result")
                     }
                 }
-                .frame(maxHeight: 240)
-                .accessibilityLabel("Mention suggestions, \(filteredItems.count) available")
+            }
+            .frame(maxHeight: 240)
+
+            if !query.isEmpty {
+                Text(LocalizationManager.shared.text("enter_message.mention_dropdown.autocomplete_hint"))
+                    .font(.omTiny)
+                    .foregroundStyle(Color.fontTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing8)
+                    .padding(.vertical, .spacing4)
             }
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .shadow(color: .black.opacity(0.1), radius: 8, y: -4)
-        .task { await loadMentionItems() }
+        .frame(maxWidth: 380)
+        .background(Color.greyBlue)
+        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 4)
+        .accessibilityIdentifier("mention-dropdown")
     }
 
-    private func iconForType(_ type: MentionItem.MentionType) -> String {
-        switch type {
-        case .app: return "app"
-        case .skill: return "skill"
-        case .memory: return "reasoning"
-        case .focusMode: return "select"
-        }
-    }
+    private var header: some View {
+        HStack(alignment: .top, spacing: .spacing6) {
+            Text(LocalizationManager.shared.text("enter_message.mention_dropdown.header"))
+                .font(.omP)
+                .foregroundStyle(Color.fontTertiary)
+                .lineLimit(2)
 
-    private func loadMentionItems() async {
-        do {
-            let response: [[String: AnyCodable]] = try await APIClient.shared.request(
-                .get, path: "/v1/mentions/suggestions"
-            )
-            items = response.compactMap { dict in
-                guard let id = dict["id"]?.value as? String,
-                      let name = dict["name"]?.value as? String,
-                      let typeStr = dict["type"]?.value as? String,
-                      let type = MentionItem.MentionType(rawValue: typeStr) else { return nil }
-                return MentionItem(
-                    id: id, type: type, name: name,
-                    description: dict["description"]?.value as? String,
-                    iconName: dict["icon"]?.value as? String
-                )
+            Spacer()
+
+            Button(action: onDismiss) {
+                Icon("close", size: 16)
+                    .foregroundStyle(Color.fontTertiary)
+                    .frame(width: 32, height: 32)
+                    .background(Color.grey15)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
             }
-        } catch {
-            print("[Mention] Load error: \(error)")
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.close)
         }
-        isLoading = false
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing8)
+        .padding(.bottom, .spacing6)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.grey20)
+                .frame(height: 1)
+        }
     }
+
+    private func row(for item: MentionItem) -> some View {
+        HStack(spacing: .spacing6) {
+            AppIconView(appId: item.iconAppId, size: 32)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(item.name)
+                    .font(.omSmall)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+                Text(item.subtitle)
+                    .font(.omTiny)
+                    .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: .spacing3)
+
+            Text(item.type.label)
+                .font(.omTiny)
+                .foregroundStyle(Color.fontTertiary)
+        }
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing5)
+        .contentShape(Rectangle())
+    }
+}
+
+struct MentionItem: Identifiable, Equatable {
+    let id: String
+    let type: MentionType
+    let nameKey: String
+    let subtitleKey: String
+    let iconAppId: String
+    let mentionSyntax: String
+    let searchTerms: [String]
+
+    var name: String { AppStrings.localized(nameKey) }
+    var subtitle: String { AppStrings.localized(subtitleKey) }
+
+    enum MentionType: String, Equatable {
+        case modelAlias
+        case mate
+        case skill
+        case focusMode
+
+        var label: String {
+            switch self {
+            case .modelAlias:
+                return AppStrings.localized("enter_message.mention_dropdown.type_labels.model_alias")
+            case .mate:
+                return AppStrings.localized("enter_message.mention_dropdown.type_labels.mate")
+            case .skill:
+                return AppStrings.localized("enter_message.mention_dropdown.type_labels.skill")
+            case .focusMode:
+                return AppStrings.localized("enter_message.mention_dropdown.type_labels.focus_mode")
+            }
+        }
+    }
+
+    static let defaultItems: [MentionItem] = [
+        MentionItem(
+            id: "alias:best",
+            type: .modelAlias,
+            nameKey: "enter_message.mention_dropdown.model_alias.best.name",
+            subtitleKey: "enter_message.mention_dropdown.model_alias.best.description",
+            iconAppId: "ai",
+            mentionSyntax: "@best-model:best",
+            searchTerms: ["best", "model", "ai"]
+        ),
+        MentionItem(
+            id: "alias:fast",
+            type: .modelAlias,
+            nameKey: "enter_message.mention_dropdown.model_alias.fast.name",
+            subtitleKey: "enter_message.mention_dropdown.model_alias.fast.description",
+            iconAppId: "ai",
+            mentionSyntax: "@best-model:fast",
+            searchTerms: ["fast", "quick", "model", "ai"]
+        ),
+        MentionItem(
+            id: "mate:software_development",
+            type: .mate,
+            nameKey: "mates.software_development",
+            subtitleKey: "mate_descriptions.software_development",
+            iconAppId: "code",
+            mentionSyntax: "@mate:software_development",
+            searchTerms: ["developer", "software", "code", "mate"]
+        ),
+        MentionItem(
+            id: "skill:web:search",
+            type: .skill,
+            nameKey: "app_skills.web.search",
+            subtitleKey: "app_skills.web.search.description",
+            iconAppId: "web",
+            mentionSyntax: "@skill:web:search",
+            searchTerms: ["web", "search", "internet"]
+        ),
+        MentionItem(
+            id: "skill:images:generate",
+            type: .skill,
+            nameKey: "app_skills.images.generate",
+            subtitleKey: "app_skills.images.generate.description",
+            iconAppId: "images",
+            mentionSyntax: "@skill:images:generate",
+            searchTerms: ["image", "images", "generate", "photo"]
+        ),
+        MentionItem(
+            id: "skill:code:get_docs",
+            type: .skill,
+            nameKey: "app_skills.code.get_docs",
+            subtitleKey: "app_skills.code.get_docs.description",
+            iconAppId: "code",
+            mentionSyntax: "@skill:code:get_docs",
+            searchTerms: ["code", "docs", "documentation"]
+        ),
+        MentionItem(
+            id: "skill:travel:search_connections",
+            type: .skill,
+            nameKey: "app_skills.travel.search_connections",
+            subtitleKey: "app_skills.travel.search_connections.description",
+            iconAppId: "travel",
+            mentionSyntax: "@skill:travel:search_connections",
+            searchTerms: ["travel", "flight", "flights", "connections"]
+        ),
+        MentionItem(
+            id: "focus:web:research",
+            type: .focusMode,
+            nameKey: "app_focus_modes.web.check_reputation",
+            subtitleKey: "app_focus_modes.web.check_reputation.description",
+            iconAppId: "web",
+            mentionSyntax: "@focus:web:check_reputation",
+            searchTerms: ["focus", "research", "web"]
+        )
+    ]
 }

@@ -124,6 +124,7 @@ struct ChatView: View {
     @State private var recordHintTask: Task<Void, Never>?
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions: Set<String> = []
+    @State private var mentionQuery: String?
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
     @State private var chatContainerWidth: CGFloat = 0
@@ -271,6 +272,7 @@ struct ChatView: View {
         }
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
+            updateMentionQuery(for: newValue)
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
@@ -882,6 +884,17 @@ struct ChatView: View {
                 viewModel.removePendingComposerEmbed(id: embed.id)
             }
 
+            if let mentionQuery {
+                MentionDropdownView(
+                    query: mentionQuery,
+                    onSelect: insertMention,
+                    onDismiss: { self.mentionQuery = nil }
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacing5)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
             OMMessageInputField(
                 text: $messageText,
                 isFocused: $isInputFocused,
@@ -1258,6 +1271,7 @@ struct ChatView: View {
         messageText = ""
         detectedPIIMatches = []
         piiExclusions = []
+        mentionQuery = nil
 
         Task {
             await viewModel.sendMessage(sanitizedText)
@@ -1279,6 +1293,36 @@ struct ChatView: View {
         detectedPIIMatches = PIIDetector.detect(in: text)
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
+    }
+
+    private func updateMentionQuery(for text: String) {
+        mentionQuery = extractMentionQuery(from: text)
+    }
+
+    private func extractMentionQuery(from text: String) -> String? {
+        guard let atIndex = text.lastIndex(of: "@") else { return nil }
+        if atIndex != text.startIndex {
+            let previousIndex = text.index(before: atIndex)
+            let previousCharacter = text[previousIndex]
+            guard previousCharacter == " " || previousCharacter == "\n" || previousCharacter == "\t" else {
+                return nil
+            }
+        }
+        let queryStart = text.index(after: atIndex)
+        let query = String(text[queryStart...])
+        guard !query.contains(" "), !query.contains("\n"), !query.contains("\t") else { return nil }
+        return query
+    }
+
+    private func insertMention(_ item: MentionItem) {
+        guard let atIndex = messageText.lastIndex(of: "@") else {
+            messageText += messageText.isEmpty ? "\(item.mentionSyntax) " : " \(item.mentionSyntax) "
+            mentionQuery = nil
+            return
+        }
+        messageText.replaceSubrange(atIndex..<messageText.endIndex, with: "\(item.mentionSyntax) ")
+        mentionQuery = nil
+        isInputFocused = true
     }
 
     private func publicChatIconName(for chatId: String) -> String? {
