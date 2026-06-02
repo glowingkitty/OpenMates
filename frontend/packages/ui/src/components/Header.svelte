@@ -59,6 +59,40 @@
     }
 
     let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
+    let webappWorkspaceTabs = $derived([
+        {
+            href: '/',
+            testId: 'chats-nav-link',
+            label: $text('common.chat'),
+            iconClass: 'chat-icon',
+            active: !isProjectsRoute,
+            disabled: false,
+        },
+        {
+            href: '/projects',
+            testId: 'projects-nav-link',
+            label: $text('navigation.projects'),
+            iconClass: 'project-icon',
+            active: isProjectsRoute,
+            disabled: false,
+        },
+        {
+            href: '',
+            testId: 'workflows-nav-link',
+            label: $text('navigation.workflows'),
+            iconClass: 'workflow-icon',
+            active: false,
+            disabled: true,
+        },
+        {
+            href: '',
+            testId: 'tasks-nav-link',
+            label: $text('navigation.tasks'),
+            iconClass: 'task-icon',
+            active: false,
+            disabled: true,
+        },
+    ]);
 
     // Define the type for social links
     type SocialLink = {
@@ -268,6 +302,11 @@
                             rel={serverEdition === 'self_hosted' || serverEdition === 'development' ? 'noopener noreferrer' : undefined}
                         >
                             <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
+                            <span class="mobile-logo-icon" aria-hidden="true">
+                                <span class="mobile-logo-mate"></span>
+                                <span class="mobile-logo-badge"></span>
+                                <span class="mobile-logo-ai"></span>
+                            </span>
                         </a>
                         {#if serverEdition === 'self_hosted' || serverEdition === 'development'}
                             <div
@@ -346,26 +385,31 @@
                     </div>
                 {:else if context === 'webapp' && isLoggedIn}
                     <div class="webapp-center-tabs" aria-label="Workspace switcher">
-                        <a
-                            href="/"
-                            class="workspace-tab"
-                            class:active={!isProjectsRoute}
-                            data-testid="chats-nav-link"
-                            aria-label="Chats"
-                            onclick={(e) => handleClick(e, '/')}
-                        >
-                            <span class="workspace-icon chat-icon" aria-hidden="true"></span>
-                        </a>
-                        <a
-                            href="/projects"
-                            class="workspace-tab"
-                            class:active={isProjectsRoute}
-                            data-testid="projects-nav-link"
-                            aria-label={$text('navigation.projects')}
-                            onclick={(e) => handleClick(e, '/projects')}
-                        >
-                            <span class="workspace-icon project-icon" aria-hidden="true"></span>
-                        </a>
+                        {#each webappWorkspaceTabs as item}
+                            {#if item.disabled}
+                                <button
+                                    type="button"
+                                    class="workspace-tab"
+                                    class:active={item.active}
+                                    data-testid={item.testId}
+                                    aria-label={item.label}
+                                    aria-disabled="true"
+                                >
+                                    <span class={`workspace-icon ${item.iconClass}`} aria-hidden="true"></span>
+                                </button>
+                            {:else}
+                                <a
+                                    href={item.href}
+                                    class="workspace-tab"
+                                    class:active={item.active}
+                                    data-testid={item.testId}
+                                    aria-label={item.label}
+                                    onclick={(e) => handleClick(e, item.href)}
+                                >
+                                    <span class={`workspace-icon ${item.iconClass}`} aria-hidden="true"></span>
+                                </a>
+                            {/if}
+                        {/each}
                     </div>
                 {/if}
 
@@ -489,6 +533,65 @@
         background-color: var(--color-primary);
         color: var(--color-grey-20);
         padding: 0 0.2rem;
+    }
+
+    .mobile-logo-icon {
+        display: none;
+        position: relative;
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
+    }
+
+    .mobile-logo-mate {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: var(--gradient-primary, linear-gradient(135deg, var(--color-primary), var(--color-button-primary)));
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .mobile-logo-mate::after {
+        content: "";
+        position: absolute;
+        inset: 6px;
+        background: var(--color-grey-0);
+        -webkit-mask-image: url('@openmates/ui/static/icons/mate.svg');
+        mask-image: url('@openmates/ui/static/icons/mate.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    .mobile-logo-badge {
+        position: absolute;
+        right: -3px;
+        bottom: -3px;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--color-grey-0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+    }
+
+    .mobile-logo-ai {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 8px;
+        height: 8px;
+        background: var(--color-primary);
+        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+        mask-image: url('@openmates/ui/static/icons/ai.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
     }
     
     /* Server edition text displayed under the logo - absolutely positioned to not affect header height */
@@ -831,6 +934,16 @@
         width: 34px;
         height: 30px;
         padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        box-sizing: border-box;
+        font: inherit;
+    }
+
+    .workspace-tab[aria-disabled="true"] {
+        cursor: default;
+        opacity: 0.7;
     }
 
     .docs-tab:hover,
@@ -867,11 +980,54 @@
         mask-image: url('@openmates/ui/static/icons/project.svg');
     }
 
+    .workflow-icon {
+        -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
+        mask-image: url('@openmates/ui/static/icons/workflow.svg');
+    }
+
+    .task-icon {
+        -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+        mask-image: url('@openmates/ui/static/icons/task.svg');
+    }
+
     @media (max-width: 600px) {
-    .docs-tabs,
-    .webapp-center-tabs {
+        nav.webapp {
+            min-height: 36px;
+        }
+
+        .logo-link :global(strong) {
+            display: none;
+        }
+
+        .mobile-logo-icon {
+            display: block;
+        }
+
+        .server-edition {
+            display: none;
+        }
+
+        .webapp-center-tabs {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 1px;
+            padding: 2px;
+        }
+
+        .docs-tabs {
             position: static;
             transform: none;
+        }
+
+        .workspace-tab {
+            width: 30px;
+            height: 28px;
+        }
+
+        .workspace-icon {
+            width: 18px;
+            height: 18px;
         }
     }
 </style>
