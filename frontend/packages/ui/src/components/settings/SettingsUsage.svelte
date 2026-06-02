@@ -21,6 +21,8 @@ Usage Settings - View usage statistics and export usage data
     import { messageHighlightStore } from '../../stores/messageHighlightStore';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { computeSHA256 } from '../../message_parsing/utils';
+    import { demoMode } from '../../stores/demoModeStore';
+    import { buildDemoUsageEntries, demoUsageMetadata } from '../../demo_chats/usageDemoData';
 
     const dispatch = createEventDispatcher<{
         chatSelected: { chat: Chat };
@@ -389,6 +391,12 @@ Usage Settings - View usage statistics and export usage data
         errorMessage = null;
 
         try {
+            if ($demoMode) {
+                await applyDemoUsageSummaries(type);
+                hasMoreMonths = false;
+                return;
+            }
+
             // Optionally load API keys as fallback (backend now provides encrypted data in summaries)
             // This is kept for backward compatibility if encrypted data is missing
             // Only attempt if we haven't attempted before (prevents infinite retry loops)
@@ -462,6 +470,11 @@ Usage Settings - View usage statistics and export usage data
         errorMessage = null;
 
         try {
+            if ($demoMode) {
+                usageEntries = getDemoEntriesForSummary(type, identifier, yearMonth);
+                return;
+            }
+
             // Map tab type to API type for details
             const apiTypeMap: Record<string, string> = {
                 'chats': 'chat',
@@ -516,6 +529,11 @@ Usage Settings - View usage statistics and export usage data
         errorMessage = null;
 
         try {
+            if ($demoMode) {
+                applyDemoDailyOverview();
+                return;
+            }
+
             const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDailyOverview)}?days=${days}`;
             console.log('Fetching daily overview from:', endpoint);
             
@@ -606,6 +624,11 @@ Usage Settings - View usage statistics and export usage data
         overviewChatEntries = [];
         
         try {
+            if ($demoMode) {
+                overviewChatEntries = buildDemoUsageEntries().filter(entry => entry.chat_id === chatId);
+                return;
+            }
+
             const endpoint = `${getApiEndpoint(apiEndpoints.usage.getChatEntries)}?chat_id=${encodeURIComponent(chatId)}`;
             console.log('Fetching chat entries from:', endpoint);
             
@@ -1000,6 +1023,14 @@ Usage Settings - View usage statistics and export usage data
      * Note: For hidden chats, metadata can only be decrypted when hidden chats are unlocked
      */
     async function loadChatMetadata(chatId: string): Promise<{ chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean }> {
+        if ($demoMode) {
+            const demoResult = demoMetadataResult(chatId);
+            if (demoResult) {
+                chatMetadataMap.set(chatId, demoResult);
+                return demoResult;
+            }
+        }
+
         // Check cache first, but invalidate if unlock status changed
         // (We check unlock status on each load to handle dynamic unlock/lock)
         const cached = chatMetadataMap.get(chatId);
@@ -1106,12 +1137,148 @@ Usage Settings - View usage statistics and export usage data
     // App usage summaries grouped by month
     let appsByMonth = $state<Map<string, AppUsageSummary[]>>(new Map());
 
+    const monthKeyForTimestamp = (timestamp: number) => getMonthYear(timestamp);
+
+    const dateKeyForTimestamp = (timestamp: number) => {
+        const date = new Date(timestamp * 1000);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const demoMetadataResult = (chatId: string): { chat: Chat | null; metadata: DecryptedChatMetadata | null; isDeleted?: boolean } | null => {
+        const demoMeta = demoUsageMetadata[chatId];
+        if (!demoMeta) return null;
+
+        return {
+            chat: null,
+            metadata: {
+                chat_id: chatId,
+                title: demoMeta.title,
+                category: demoMeta.category,
+                icon: demoMeta.icon,
+                summary: null,
+                draftPreview: null,
+                activeFocusId: null,
+                lastDecrypted: Date.now(),
+            },
+            isDeleted: false,
+        };
+    };
+
+    const primeDemoMetadata = () => {
+        const next = new Map(chatMetadataMap);
+        for (const chatId of Object.keys(demoUsageMetadata)) {
+            const result = demoMetadataResult(chatId);
+            if (result) next.set(chatId, result);
+        }
+        chatMetadataMap = next;
+    };
+
+    const getDemoEntriesForSummary = (type: UsageTab, identifier: string, yearMonth: string) => {
+        return buildDemoUsageEntries().filter((entry) => {
+            const matchesMonth = monthKeyForTimestamp(entry.created_at) === yearMonth;
+            if (!matchesMonth) return false;
+            if (type === 'chats') return entry.chat_id === identifier;
+            if (type === 'apps') return entry.app_id === identifier;
+            if (type === 'api') return false;
+            return false;
+        });
+    };
+
+    async function applyDemoUsageSummaries(type: UsageTab) {
+        const entries = buildDemoUsageEntries();
+        primeDemoMetadata();
+
+        if (type === 'chats') {
+            const grouped = new Map<string, ChatUsageSummary[]>();
+            for (const entry of entries) {
+                const month = monthKeyForTimestamp(entry.created_at);
+                const existing = grouped.get(month) ?? [];
+                const found = existing.find((summary) => summary.chat_id === entry.chat_id);
+                if (found) {
+                    found.totalCredits += entry.credits;
+                } else {
+                    const metadata = demoMetadataResult(entry.chat_id)?.metadata ?? null;
+                    existing.push({chat_id: entry.chat_id, month, totalCredits: entry.credits, chat: null, metadata});
+                }
+                grouped.set(month, existing);
+            }
+            grouped.forEach((summaries) => summaries.sort((a, b) => b.totalCredits - a.totalCredits));
+            chatsByMonth = grouped;
+            return;
+        }
+
+        if (type === 'apps') {
+            const grouped = new Map<string, AppUsageSummary[]>();
+            for (const entry of entries) {
+                const month = monthKeyForTimestamp(entry.created_at);
+                const existing = grouped.get(month) ?? [];
+                const found = existing.find((summary) => summary.app_id === entry.app_id);
+                if (found) {
+                    found.totalCredits += entry.credits;
+                } else {
+                    existing.push({app_id: entry.app_id, month, totalCredits: entry.credits});
+                }
+                grouped.set(month, existing);
+            }
+            grouped.forEach((summaries) => summaries.sort((a, b) => b.totalCredits - a.totalCredits));
+            appsByMonth = grouped;
+            return;
+        }
+
+        if (type === 'api') {
+            apiKeysByMonth = new Map();
+            apiKeyLabels = new Map();
+        }
+    }
+
+    function applyDemoDailyOverview() {
+        const days = new Map<string, DailyOverviewDay>();
+        primeDemoMetadata();
+
+        for (const entry of buildDemoUsageEntries()) {
+            const date = dateKeyForTimestamp(entry.created_at);
+            const day = days.get(date) ?? {date, total_credits: 0, items: []};
+            day.total_credits += entry.credits;
+            const item = day.items.find((candidate) => candidate.type === 'chat' && candidate.chat_id === entry.chat_id);
+            if (item) {
+                item.total_credits += entry.credits;
+                item.entry_count += 1;
+                item.updated_at = new Date(entry.updated_at * 1000).toISOString();
+            } else {
+                day.items.push({
+                    type: 'chat',
+                    chat_id: entry.chat_id,
+                    api_key_hash: null,
+                    total_credits: entry.credits,
+                    entry_count: 1,
+                    updated_at: new Date(entry.updated_at * 1000).toISOString(),
+                    is_deleted: false,
+                });
+            }
+            days.set(date, day);
+        }
+
+        dailyOverview = Array.from(days.values()).sort((a, b) => b.date.localeCompare(a.date));
+        hasMoreDays = false;
+    }
+
     /**
      * Load API keys from the API endpoint
      * Sets hasAttemptedApiKeysLoad to true after attempting to load (success or failure)
      * to prevent infinite retry loops when there are no API keys or when the request fails
      */
     async function loadApiKeys() {
+        if ($demoMode) {
+            hasAttemptedApiKeysLoad = true;
+            apiKeys = [];
+            apiKeysByMonth = new Map();
+            apiKeyLabels = new Map();
+            return;
+        }
+
         // Prevent multiple simultaneous loads
         if (isLoadingApiKeys) {
             return;
