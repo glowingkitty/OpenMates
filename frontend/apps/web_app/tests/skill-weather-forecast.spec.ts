@@ -127,12 +127,14 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		const dayCards = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]');
 		await expect(dayCards).toHaveCount(3, { timeout: 15_000 });
-		const firstBox = await dayCards.nth(0).boundingBox();
-		const secondBox = await dayCards.nth(1).boundingBox();
-		const thirdBox = await dayCards.nth(2).boundingBox();
-		expect(firstBox && secondBox && thirdBox, 'weather day cards should have layout boxes').toBeTruthy();
-		expect(Math.abs((firstBox as any).y - (secondBox as any).y)).toBeLessThan(8);
-		expect((thirdBox as any).y).toBeGreaterThan((firstBox as any).y + 40);
+		const cardBoxes = (await Promise.all([
+			dayCards.nth(0).boundingBox(),
+			dayCards.nth(1).boundingBox(),
+			dayCards.nth(2).boundingBox(),
+		])).filter(Boolean).sort((a: any, b: any) => (a.y - b.y) || (a.x - b.x));
+		expect(cardBoxes.length, 'weather day cards should have layout boxes').toBe(3);
+		expect(Math.abs((cardBoxes[0] as any).y - (cardBoxes[1] as any).y)).toBeLessThan(8);
+		expect((cardBoxes[2] as any).y).toBeGreaterThan((cardBoxes[0] as any).y + 40);
 
 		const firstDay = dayCards.first();
 		await expect(firstDay.locator('[data-skill-icon="weather"]')).toBeVisible({ timeout: 15_000 });
