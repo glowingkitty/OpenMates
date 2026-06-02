@@ -316,8 +316,21 @@ enum AppStrings {
     static var imageGenerateGeneratedBy: String { L("embeds.image_generate.generated_by") }
     static var imageGenerateGeneratingVia: String { L("embeds.image_generate.generating_via") }
     static var copy: String { L("common.copy") }
+    static var download: String { L("common.download") }
     static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
     static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
+    static var codeRun: String { L("app_skills.code.run") }
+    static var codeRunCode: String { L("app_skills.code.run_code") }
+    static var codeRunOutput: String { L("app_skills.code.run.output") }
+    static var codeRunAgain: String { L("app_skills.code.run.again") }
+    static var codeRunCopyOutput: String { L("app_skills.code.run.copy_output") }
+    static var codeRunOutputCopied: String { L("app_skills.code.run.output_copied") }
+    static var codeRunOutputCopyFailed: String { L("app_skills.code.run.output_copy_failed") }
+    static var codeRunStop: String { L("app_skills.code.run.stop") }
+    static var codeRunCancelling: String { L("app_skills.code.run.cancelling_button") }
+    static var codeRunShowOutput: String { L("app_skills.code.run.show_output") }
+    static var codeRunHideOutput: String { L("app_skills.code.run.hide_output") }
+    static var codeRunRequiredFile: String { L("app_skills.code.run.required_file") }
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
 
     static func openOnProvider(_ provider: String) -> String {
