@@ -177,6 +177,36 @@ async function openNewChat(page: any, logCheckpoint: (msg: string) => void): Pro
 	logCheckpoint('New chat opened and editor ready.');
 }
 
+async function navigateToChatById(
+	page: any,
+	chatId: string,
+	logCheckpoint: (msg: string) => void
+): Promise<void> {
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+
+	const activeChatContainer = page.getByTestId('active-chat-container');
+	const chatHasMessages = await activeChatContainer
+		.locator('[data-testid="message-user"], [data-testid="message-assistant"]')
+		.first()
+		.waitFor({ state: 'visible', timeout: 8000 })
+		.then(() => true)
+		.catch(() => false);
+	if (chatHasMessages) return;
+
+	const chatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+	if (!(await chatItem.first().isVisible().catch(() => false))) {
+		const sidebarToggle = page.getByRole('button', { name: /open sidebar|toggle sidebar|menu/i });
+		await sidebarToggle.first().click().catch(() => undefined);
+		await page.waitForTimeout(500);
+	}
+
+	await expect(chatItem.first()).toBeVisible({ timeout: 15000 });
+	await chatItem.first().click();
+	await expect(activeChatContainer.locator('[data-testid="message-user"]').first()).toBeVisible({ timeout: 15000 });
+	logCheckpoint(`Opened chat ${chatId} from chat list fallback.`);
+}
+
 /**
  * Attach files via the hidden file input element.
  * Uses Playwright's setInputFiles() which triggers the onchange event directly.
@@ -386,7 +416,8 @@ test('attaches a Python code file, renders a code embed, and sends without JSON 
 	await screenshot(page, 'code-embed-in-editor');
 
 	// Add text and send
-	await editor.click();
+	await page.keyboard.press('Escape');
+	await editor.press('End');
 	await page.keyboard.type('Please review this Python code:');
 
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
@@ -829,8 +860,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	await page.waitForTimeout(5000);
 
 	// Navigate directly to the chat in case the reload changed the active chat
-	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
-	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+	await navigateToChatById(page, chatId, log);
 	await page.waitForTimeout(4000);
 
 	// After reload, encrypted image bytes can arrive after chat structure depending
@@ -875,8 +905,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// Wait 8 seconds after navigation: after relogin, the app must restore IndexedDB
 	// keys from the persisted "Stay logged in" session before it can decrypt images.
 	log(`Navigating to chat ${chatId} after re-login...`);
-	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
-	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+	await navigateToChatById(page, chatId, log);
 	await page.waitForTimeout(8000);
 	await screenshot(page, '11-after-relogin');
 
