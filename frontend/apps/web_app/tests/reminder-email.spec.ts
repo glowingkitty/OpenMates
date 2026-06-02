@@ -100,14 +100,14 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'settings-menu');
 
-	const chatItem = settingsMenu.getByRole('menuitem', { name: /^chat$/i }).first();
-	await expect(chatItem).toBeVisible({ timeout: 10000 });
-	await chatItem.click();
-	await page.waitForTimeout(800);
-
-	const notificationsItem = settingsMenu.getByRole('menuitem', { name: /notifications/i }).first();
+	const notificationsItem = settingsMenu.getByRole('menuitem', { name: /^notifications$/i }).first();
 	await expect(notificationsItem).toBeVisible({ timeout: 10000 });
 	await notificationsItem.click();
+	await page.waitForTimeout(800);
+
+	const chatNotificationsItem = settingsMenu.getByRole('menuitem', { name: /chat/i }).first();
+	await expect(chatNotificationsItem).toBeVisible({ timeout: 10000 });
+	await chatNotificationsItem.click();
 	await page.waitForTimeout(800);
 	await screenshot(page, 'notifications-settings');
 
