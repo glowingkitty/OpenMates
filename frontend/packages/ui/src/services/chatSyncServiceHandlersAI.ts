@@ -4976,6 +4976,64 @@ export async function handleSpawnSubChatsImpl(
   }
 }
 
+export function handleSubChatConfirmationRequiredImpl(
+  payload: {
+    type: "sub_chat_confirmation_required";
+    chat_id: string;
+    task_id: string;
+    message_id: string;
+    sub_chats: Array<{
+      id: string;
+      user_message_id: string;
+      prompt: string;
+      wait_for_completion?: boolean;
+    }>;
+    max_auto_sub_chats?: number;
+    max_direct_sub_chats?: number;
+    existing_sub_chats?: number;
+    remaining_sub_chats?: number;
+  },
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("subChatConfirmationRequired", { detail: payload }),
+  );
+}
+
+export function handleSubChatConfirmationResolvedImpl(
+  payload: {
+    chat_id: string;
+    task_id: string;
+    status: "approved" | "cancelled" | "expired" | "limit_exceeded";
+    message?: string;
+    approved_count?: number;
+  },
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("subChatConfirmationResolved", { detail: payload }),
+  );
+}
+
+export function handleSubChatProgressImpl(
+  payload: {
+    type: "sub_chat_progress";
+    chat_id: string;
+    task_id?: string;
+    message_id?: string;
+    execution_mode?: "parallel" | "sequential";
+    status?: "running" | "stopping" | "stopped" | "completed";
+    total?: number;
+    completed?: number;
+    active_sub_chat_id?: string | null;
+  },
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("subChatProgress", { detail: payload }),
+  );
+}
+
 export async function handleAwaitingUserInputImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {

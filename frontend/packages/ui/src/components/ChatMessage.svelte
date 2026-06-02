@@ -196,13 +196,47 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let thinkingExpanded = $state(false);
 
   // --- Sub-chats tracking for assistant message turn ---
+
   type SubChatPreview = Chat & {
     previewSummary?: string | null;
     previewCategory?: string | null;
     previewIcon?: string | null;
   };
 
+  type SubChatConfirmationRequest = {
+    chat_id: string;
+    task_id: string;
+    message_id: string;
+    sub_chats: Array<{
+      id: string;
+      user_message_id: string;
+      prompt: string;
+      wait_for_completion?: boolean;
+    }>;
+    max_auto_sub_chats?: number;
+    max_direct_sub_chats?: number;
+    existing_sub_chats?: number;
+    remaining_sub_chats?: number;
+    execution_mode?: 'parallel' | 'sequential';
+    context_policy?: 'none' | 'previous_summary' | 'cumulative_summaries';
+  };
+
+  type SubChatProgress = {
+    chat_id: string;
+    task_id?: string;
+    message_id?: string;
+    execution_mode?: 'parallel' | 'sequential';
+    status?: 'running' | 'stopping' | 'stopped' | 'completed';
+    total?: number;
+    completed?: number;
+    active_sub_chat_id?: string | null;
+  };
+
   let subChatsOfThisMessage = $state<SubChatPreview[]>([]);
+  let subChatConfirmationRequest = $state<SubChatConfirmationRequest | null>(null);
+  let subChatConfirmationSubmitting = $state(false);
+  let subChatProgress = $state<SubChatProgress | null>(null);
+  let subChatStopSubmitting = $state(false);
   let subChatContextMenuChat = $state<SubChatPreview | null>(null);
   let subChatContextMenuX = $state(0);
   let subChatContextMenuY = $state(0);
@@ -228,10 +262,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       const all = await getSubChatsForParentChat(currentChatId);
       const msgTime = original_message?.created_at || 0;
       // Filter sub-chats created close to this assistant message (within 60s)
-      const matchingSubChats = all.filter(c => 
-        (c.is_sub_chat || c.parent_id !== null) &&
-        Math.abs(c.created_at - msgTime) < 60
-      );
+      const matchingSubChats = all
+        .filter(c => 
+          (c.is_sub_chat || c.parent_id !== null) &&
+          Math.abs(c.created_at - msgTime) < 60
+        );
       const previews: SubChatPreview[] = [];
       const fallbackKey = await chatKeyManager.getKey(currentChatId);
 
@@ -274,6 +309,48 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       subChatsOfThisMessage = previews;
     } catch (e) {
       console.error('Error loading sub-chats for message:', e);
+    }
+  }
+
+  function isForThisAssistantMessage(detail: { chat_id?: string; message_id?: string; task_id?: string }): boolean {
+    const thisMessageId = messageId || original_message?.message_id;
+    return role === 'assistant' && detail.chat_id === currentChatId && (detail.message_id === thisMessageId || detail.task_id === thisMessageId);
+  }
+
+  async function sendSubChatConfirmation(action: 'approve' | 'cancel', approveCount?: number) {
+    if (!subChatConfirmationRequest) return;
+    subChatConfirmationSubmitting = true;
+    try {
+      await chatSyncService.sendSubChatConfirmation(
+        subChatConfirmationRequest.chat_id,
+        subChatConfirmationRequest.task_id,
+        action,
+        approveCount,
+      );
+      if (action === 'cancel') {
+        subChatConfirmationRequest = null;
+      }
+    } catch (error) {
+      console.error('[ChatMessage] Failed to send sub-chat confirmation:', error);
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.error($text('chat.sub_chats.confirmation_failed'));
+    } finally {
+      subChatConfirmationSubmitting = false;
+    }
+  }
+
+  async function stopSequentialSubChats() {
+    if (!currentChatId || !subChatProgress) return;
+    subChatStopSubmitting = true;
+    try {
+      await chatSyncService.sendSubChatStop(currentChatId, subChatProgress.task_id || subChatProgress.message_id);
+      subChatProgress = { ...subChatProgress, status: 'stopping' };
+    } catch (error) {
+      console.error('[ChatMessage] Failed to stop sub-chat queue:', error);
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.error($text('chat.sub_chats.confirmation_failed'));
+    } finally {
+      subChatStopSubmitting = false;
     }
   }
 
@@ -334,10 +411,36 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       if (currentChatId) clearSubChatsForParentCache(currentChatId);
       loadSubChats();
     };
+    const handleConfirmationRequired = (event: Event) => {
+      const detail = (event as CustomEvent<SubChatConfirmationRequest>).detail;
+      if (!isForThisAssistantMessage(detail)) return;
+      subChatConfirmationRequest = detail;
+    };
+    const handleConfirmationResolved = (event: Event) => {
+      const detail = (event as CustomEvent<{ chat_id?: string; task_id?: string; status?: string; message?: string }>).detail;
+      if (!isForThisAssistantMessage(detail)) return;
+      subChatConfirmationRequest = null;
+      if (detail.status === 'limit_exceeded' && detail.message) {
+        import('../stores/notificationStore').then(({ notificationStore }) => {
+          notificationStore.error(detail.message || $text('chat.sub_chats.limit_exceeded'));
+        });
+      }
+    };
+    const handleSubChatProgress = (event: Event) => {
+      const detail = (event as CustomEvent<SubChatProgress>).detail;
+      if (!isForThisAssistantMessage(detail)) return;
+      subChatProgress = detail;
+    };
     if (typeof window !== 'undefined') {
       window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
+      window.addEventListener('subChatConfirmationRequired', handleConfirmationRequired);
+      window.addEventListener('subChatConfirmationResolved', handleConfirmationResolved);
+      window.addEventListener('subChatProgress', handleSubChatProgress);
       return () => {
         window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleListChange);
+        window.removeEventListener('subChatConfirmationRequired', handleConfirmationRequired);
+        window.removeEventListener('subChatConfirmationResolved', handleConfirmationResolved);
+        window.removeEventListener('subChatProgress', handleSubChatProgress);
       };
     }
   });
@@ -2763,6 +2866,96 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
         <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,
              even after the parent continuation summary arrives below. -->
+        {#if subChatConfirmationRequest && subChatsOfThisMessage.length === 0 && role === 'assistant'}
+          <div class="sub-chat-confirmation-card" data-testid="sub-chat-confirmation-card">
+            <div class="sub-chat-confirmation-header">
+              <div class="sub-chat-confirmation-icon" aria-hidden="true">
+                <Icon name="sparkles" size="22px" />
+              </div>
+              <div>
+                <h3 data-testid="sub-chat-confirmation-title">
+                  {$text('chat.sub_chats.confirmation_title', { values: { count: subChatConfirmationRequest.sub_chats.length } })}
+                </h3>
+                <p>
+                  {$text('chat.sub_chats.confirmation_description', { values: { auto: subChatConfirmationRequest.max_auto_sub_chats ?? 3, max: subChatConfirmationRequest.max_direct_sub_chats ?? 20 } })}
+                </p>
+              </div>
+            </div>
+
+            <div class="sub-chat-confirmation-list" data-testid="sub-chat-confirmation-list">
+              {#each subChatConfirmationRequest.sub_chats.slice(0, 5) as sc, index (sc.id)}
+                <div class="sub-chat-confirmation-item" data-testid="sub-chat-confirmation-item">
+                  <span>{index + 1}</span>
+                  <p>{sc.prompt}</p>
+                </div>
+              {/each}
+              {#if subChatConfirmationRequest.sub_chats.length > 5}
+                <div class="sub-chat-confirmation-more">
+                  {$text('chat.sub_chats.confirmation_more', { values: { count: subChatConfirmationRequest.sub_chats.length - 5 } })}
+                </div>
+              {/if}
+            </div>
+
+            <div class="sub-chat-confirmation-actions">
+              <button
+                type="button"
+                class="sub-chat-confirmation-primary"
+                data-testid="sub-chat-confirm-start-all"
+                disabled={subChatConfirmationSubmitting}
+                onclick={() => sendSubChatConfirmation('approve')}
+              >
+                {$text('chat.sub_chats.start_all', { values: { count: subChatConfirmationRequest.sub_chats.length } })}
+              </button>
+              <button
+                type="button"
+                class="sub-chat-confirmation-secondary"
+                data-testid="sub-chat-confirm-start-first"
+                disabled={subChatConfirmationSubmitting}
+                onclick={() => sendSubChatConfirmation('approve', subChatConfirmationRequest?.max_auto_sub_chats ?? 3)}
+              >
+                {$text('chat.sub_chats.start_first', { values: { count: subChatConfirmationRequest.max_auto_sub_chats ?? 3 } })}
+              </button>
+              <button
+                type="button"
+                class="sub-chat-confirmation-ghost"
+                data-testid="sub-chat-confirm-cancel"
+                disabled={subChatConfirmationSubmitting}
+                onclick={() => sendSubChatConfirmation('cancel')}
+              >
+                {$text('common.cancel')}
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        {#if subChatProgress?.execution_mode === 'sequential' && role === 'assistant'}
+          {@const progressTotal = Math.max(subChatProgress.total ?? subChatsOfThisMessage.length, 1)}
+          {@const progressCompleted = Math.min(subChatProgress.completed ?? 0, progressTotal)}
+          <div class="sub-chat-progress" data-testid="sub-chat-progress">
+            <div class="sub-chat-progress-row">
+              <span data-testid="sub-chat-progress-label">
+                {subChatProgress.status === 'stopping'
+                  ? $text('chat.sub_chats.progress_stopping')
+                  : $text('chat.sub_chats.progress_label', { values: { completed: progressCompleted, total: progressTotal } })}
+              </span>
+              {#if subChatProgress.status !== 'stopped' && subChatProgress.status !== 'completed'}
+                <button
+                  type="button"
+                  class="sub-chat-stop-button"
+                  data-testid="sub-chat-stop-button"
+                  disabled={subChatStopSubmitting || subChatProgress.status === 'stopping'}
+                  onclick={stopSequentialSubChats}
+                >
+                  {$text('chat.sub_chats.stop_queue')}
+                </button>
+              {/if}
+            </div>
+            <div class="sub-chat-progress-track" aria-hidden="true">
+              <div class="sub-chat-progress-fill" style={`width: ${(progressCompleted / progressTotal) * 100}%`}></div>
+            </div>
+          </div>
+        {/if}
+
         {#if subChatsOfThisMessage.length > 0 && role === 'assistant'}
           <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
             {#each subChatsOfThisMessage as sc (sc.chat_id)}
@@ -3170,6 +3363,178 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .sub-chats-carousel::-webkit-scrollbar {
     display: none;
+  }
+
+  .sub-chat-progress {
+    width: min(100%, 640px);
+    margin: 0 0 var(--spacing-6) 0;
+    padding: var(--spacing-8) var(--spacing-10);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-7);
+    background: var(--color-grey-0);
+  }
+
+  .sub-chat-progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-8);
+    margin-bottom: var(--spacing-6);
+    color: var(--color-font-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .sub-chat-stop-button {
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: var(--spacing-4) var(--spacing-8);
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+  }
+
+  .sub-chat-stop-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .sub-chat-progress-track {
+    height: 6px;
+    overflow: hidden;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-20);
+  }
+
+  .sub-chat-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-button-primary);
+    transition: width 0.25s ease;
+  }
+
+  .sub-chat-confirmation-card {
+    width: min(100%, 640px);
+    margin: 0 0 14px 0;
+    padding: 16px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: 22px;
+    background: var(--color-grey-0);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  }
+
+  .sub-chat-confirmation-header {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .sub-chat-confirmation-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+  }
+
+  .sub-chat-confirmation-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 1rem;
+    line-height: 1.25;
+    color: var(--color-font-primary);
+  }
+
+  .sub-chat-confirmation-header p {
+    margin: 0;
+    color: var(--color-grey-70);
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  .sub-chat-confirmation-list {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .sub-chat-confirmation-item {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 8px;
+    align-items: start;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: var(--color-grey-5);
+  }
+
+  .sub-chat-confirmation-item span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--color-grey-20);
+    color: var(--color-font-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .sub-chat-confirmation-item p {
+    margin: 0;
+    color: var(--color-font-primary);
+    font-size: 0.88rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .sub-chat-confirmation-more {
+    color: var(--color-grey-60);
+    font-size: 0.84rem;
+    padding: 0 10px;
+  }
+
+  .sub-chat-confirmation-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sub-chat-confirmation-actions button {
+    border: 0;
+    border-radius: 999px;
+    padding: 9px 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .sub-chat-confirmation-actions button:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+
+  .sub-chat-confirmation-primary {
+    background: var(--color-button-primary);
+    color: var(--color-font-button);
+  }
+
+  .sub-chat-confirmation-secondary {
+    background: var(--color-grey-15);
+    color: var(--color-font-primary);
+  }
+
+  .sub-chat-confirmation-ghost {
+    background: transparent;
+    color: var(--color-grey-70);
   }
 
   .sub-chat-card {

@@ -37,6 +37,8 @@ from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
 from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
+from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_sub_chat_confirmation # Handler for large sub-chat batch approval
+from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
@@ -576,7 +578,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     continue
 
                 event_type = redis_payload.get("type")
-                if event_type in ("spawn_sub_chats", "awaiting_sub_chats_completion", "sub_chat_completed", "awaiting_user_input"):
+                if event_type in ("spawn_sub_chats", "sub_chat_confirmation_required", "awaiting_sub_chats_completion", "sub_chat_completed", "sub_chat_progress", "awaiting_user_input"):
                     user_id_uuid = redis_payload.get("user_id_uuid")
                     chat_id_from_payload = redis_payload.get("parent_id") or redis_payload.get("chat_id")
                     
@@ -2367,6 +2369,27 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     directus_service=directus_service,
                     encryption_service=encryption_service,
+                    user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "sub_chat_confirmation":
+                # Handle explicit approval/rejection before creating large sub-chat batches
+                await handle_sub_chat_confirmation(
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "sub_chat_stop":
+                await handle_sub_chat_stop(
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "update_encrypted_active_focus_id":

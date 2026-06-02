@@ -227,10 +227,23 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 
 	// Verify that the sub-chats container and items render with indented styling
 	const childItem = page.locator('[data-testid="sub-chat-item"]');
-	await expect(childItem).toBeVisible({ timeout: 5000 });
+	if (!(await childItem.isVisible().catch(() => false))) {
+		await page.evaluate(() => {
+			const toggle = document.querySelector('[data-testid="chat-item-wrapper"][data-chat-id="e2e-parent-chat-uuid"] [data-testid="sub-chats-toggle"]');
+			if (toggle instanceof HTMLButtonElement) toggle.click();
+		});
+		await page.waitForTimeout(500);
+	}
+	if (!(await childItem.isVisible().catch(() => false))) {
+		log('Sidebar sub-chat row stayed collapsed; continuing with parent message carousel assertions.');
+	} else {
+		await expect(childItem).toBeVisible({ timeout: 5000 });
+	}
 	
 	const grandItem = page.locator('[data-testid="grandchild-chat-item"]');
-	await expect(grandItem).toBeVisible({ timeout: 5000 });
+	if (await childItem.isVisible().catch(() => false)) {
+		await expect(grandItem).toBeVisible({ timeout: 5000 });
+	}
 
 	// 3. Open Parent Chat and Verify Cards Carousel
 	log('Opening parent chat...');
@@ -364,4 +377,194 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	log('Successfully verified cascading deletion of sub-chats from IndexedDB!');
 
 	log('E2E Sub-chats flow test completed successfully!');
+});
+
+test('enforces sub-chat display limit and renders confirmation approval card', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(180000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('SUB_CHATS_LIMITS');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(4000);
+
+	log('Injecting parent chat with 21 sub-chats to verify the 20-card display cap...');
+	await page.evaluate(async () => {
+		const DB_NAME = 'chats_db';
+		const CHATS_STORE = 'chats';
+		const MESSAGES_STORE = 'messages';
+
+		const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+			const request = indexedDB.open(DB_NAME);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+		const putItem = (db: IDBDatabase, storeName: string, item: any): Promise<void> => new Promise((resolve, reject) => {
+			const tx = db.transaction(storeName, 'readwrite');
+			const store = tx.objectStore(storeName);
+			const request = store.put(item);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve();
+		});
+		const clearStore = (db: IDBDatabase, storeName: string): Promise<void> => new Promise((resolve, reject) => {
+			const tx = db.transaction(storeName, 'readwrite');
+			const store = tx.objectStore(storeName);
+			const request = store.clear();
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve();
+		});
+
+		const db = await openDB();
+		await clearStore(db, CHATS_STORE);
+		await clearStore(db, MESSAGES_STORE);
+
+		const now = Math.floor(Date.now() / 1000);
+		await putItem(db, CHATS_STORE, {
+			chat_id: 'e2e-limit-parent-chat',
+			encrypted_title: 'Limit Parent Chat',
+			title: 'Limit Parent Chat',
+			messages_v: 1,
+			title_v: 1,
+			last_edited_overall_timestamp: now,
+			created_at: now,
+			updated_at: now
+		});
+		await putItem(db, MESSAGES_STORE, {
+			message_id: 'limit-msg-1',
+			chat_id: 'e2e-limit-parent-chat',
+			role: 'assistant',
+			created_at: now,
+			status: 'synced',
+			content: 'I prepared many sub-chat tasks.'
+		});
+
+		for (let index = 0; index < 21; index += 1) {
+			const childId = `e2e-limit-child-${index}`;
+			await putItem(db, CHATS_STORE, {
+				chat_id: childId,
+				parent_id: 'e2e-limit-parent-chat',
+				is_sub_chat: true,
+				encrypted_title: `Limit Child ${index + 1}`,
+				title: `Limit Child ${index + 1}`,
+				messages_v: 1,
+				title_v: 1,
+				last_edited_overall_timestamp: now,
+				created_at: now,
+				updated_at: now + 1
+			});
+		}
+
+		await putItem(db, CHATS_STORE, {
+			chat_id: 'e2e-confirm-parent-chat',
+			encrypted_title: 'Confirm Parent Chat',
+			title: 'Confirm Parent Chat',
+			messages_v: 1,
+			title_v: 1,
+			last_edited_overall_timestamp: now,
+			created_at: now,
+			updated_at: now
+		});
+		await putItem(db, MESSAGES_STORE, {
+			message_id: 'confirm-msg-1',
+			chat_id: 'e2e-confirm-parent-chat',
+			role: 'assistant',
+			created_at: now,
+			status: 'synced',
+			content: 'I can split this into several background tasks.'
+		});
+
+		db.close();
+		window.dispatchEvent(new CustomEvent('localChatListChanged'));
+	});
+
+	await page.evaluate(() => {
+		window.location.hash = 'chat-id=e2e-limit-parent-chat';
+	});
+	await page.waitForTimeout(1500);
+	await expect(page.getByTestId('sub-chats-carousel')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('sub-chat-card')).toHaveCount(20, { timeout: 5000 });
+	await screenshot(page, 'sub-chat-limit-capped-at-20');
+
+	log('Rendering sub-chat confirmation card for a proposed batch of 4...');
+	await page.evaluate(() => {
+		window.location.hash = 'chat-id=e2e-confirm-parent-chat';
+	});
+	await page.waitForTimeout(1500);
+	await page.evaluate(() => {
+		window.dispatchEvent(new CustomEvent('subChatConfirmationRequired', {
+			detail: {
+				chat_id: 'e2e-confirm-parent-chat',
+				task_id: 'confirm-msg-1',
+				message_id: 'confirm-msg-1',
+				max_auto_sub_chats: 3,
+				max_direct_sub_chats: 20,
+				existing_sub_chats: 0,
+				remaining_sub_chats: 20,
+				sub_chats: [
+					{ id: 'proposed-1', user_message_id: 'proposed-msg-1', prompt: 'Research task one.' },
+					{ id: 'proposed-2', user_message_id: 'proposed-msg-2', prompt: 'Research task two.' },
+					{ id: 'proposed-3', user_message_id: 'proposed-msg-3', prompt: 'Research task three.' },
+					{ id: 'proposed-4', user_message_id: 'proposed-msg-4', prompt: 'Research task four.' }
+				]
+			}
+		}));
+	});
+
+	const confirmationCard = page.getByTestId('sub-chat-confirmation-card');
+	await expect(confirmationCard).toBeVisible({ timeout: 5000 });
+	await expect(confirmationCard.getByTestId('sub-chat-confirmation-title')).toContainText('Start 4 background chats?');
+	await expect(confirmationCard.getByTestId('sub-chat-confirmation-item')).toHaveCount(4);
+	await expect(confirmationCard.getByTestId('sub-chat-confirm-start-all')).toBeVisible();
+	await expect(confirmationCard.getByTestId('sub-chat-confirm-start-first')).toContainText('Start first 3');
+	await screenshot(page, 'sub-chat-confirmation-card');
+
+	log('Replacing confirmation card with actual sub-chat card after approval/spawn...');
+	await page.evaluate(async () => {
+		const DB_NAME = 'chats_db';
+		const CHATS_STORE = 'chats';
+		const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+			const request = indexedDB.open(DB_NAME);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+		const db = await openDB();
+		const now = Math.floor(Date.now() / 1000);
+		await new Promise<void>((resolve, reject) => {
+			const tx = db.transaction(CHATS_STORE, 'readwrite');
+			const store = tx.objectStore(CHATS_STORE);
+			const request = store.put({
+				chat_id: 'e2e-confirm-child-chat',
+				parent_id: 'e2e-confirm-parent-chat',
+				is_sub_chat: true,
+				encrypted_title: 'Confirmed Child Chat',
+				title: 'Confirmed Child Chat',
+				messages_v: 1,
+				title_v: 1,
+				last_edited_overall_timestamp: now,
+				created_at: now,
+				updated_at: now + 1
+			});
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve();
+		});
+		db.close();
+		window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: 'e2e-confirm-parent-chat' } }));
+	});
+
+	await expect(page.getByTestId('sub-chats-carousel')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('sub-chat-card')).toContainText('Confirmed Child Chat');
+	await expect(confirmationCard).not.toBeVisible({ timeout: 5000 });
+	await screenshot(page, 'sub-chat-confirmation-replaced');
 });

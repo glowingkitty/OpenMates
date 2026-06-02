@@ -53,6 +53,19 @@ from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
 )
+from backend.apps.ai.sub_chat_orchestration import (
+    MAX_AUTO_SUB_CHATS_PER_TURN,
+    MAX_DIRECT_SUB_CHATS_PER_PARENT,
+    count_direct_sub_chats,
+    create_and_dispatch_sub_chats,
+    create_sub_chat_records,
+    dispatch_sub_chat_task,
+    expand_sub_chat_requests,
+    get_sub_chat_context_policy,
+    get_sub_chat_execution_mode,
+    store_pending_sub_chat_confirmation,
+    validate_sub_chat_capacity,
+)
 # Import skill executor
 from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
@@ -2041,14 +2054,29 @@ async def handle_main_processing(
         "function": {
             "name": "start_sub_chats",
             "description": (
-                "Spawn one or multiple autonomous background sub-chats to parallelize complex tasks. "
+                "Spawn one or multiple autonomous background sub-chats to parallelize or sequence complex tasks. "
                 "You can specify a list of sub-chats, each with its own prompt. "
                 "Supports loops/templates where you specify a list of items and a prompt_template "
-                "containing '{x}' which will be replaced with each item from the list."
+                "containing '{x}' which will be replaced with each item from the list. "
+                "Use execution_mode='sequential' when child tasks could collide, must build on each other, or should run one after another. "
+                f"Start at most {MAX_AUTO_SUB_CHATS_PER_TURN} sub-chats without explicit user approval; "
+                f"larger batches require confirmation. Parallel batches can have at most {MAX_DIRECT_SUB_CHATS_PER_PARENT} direct sub-chats; sequential queues have no direct-child count limit."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "execution_mode": {
+                        "type": "string",
+                        "enum": ["parallel", "sequential"],
+                        "description": "parallel starts all approved sub-chats immediately. sequential creates the queue but runs only one sub-chat at a time. Default parallel.",
+                        "default": "parallel"
+                    },
+                    "context_policy": {
+                        "type": "string",
+                        "enum": ["none", "previous_summary", "cumulative_summaries"],
+                        "description": "For sequential execution, choose whether later sub-chats receive no prior context, only the immediately previous summary, or all prior summaries. Default previous_summary.",
+                        "default": "previous_summary"
+                    },
                     "sub_chats": {
                         "type": "array",
                         "description": "List of sub-chats to spawn.",
@@ -3740,114 +3768,152 @@ async def handle_main_processing(
 
                     elif skill_id == "start_sub_chats":
                         sub_chats_args = parsed_args.get("sub_chats", [])
-                        logger.info(f"{log_prefix} [SUB_CHAT] LLM requested start_sub_chats with {len(sub_chats_args)} chats")
-                        
-                        spawned_sub_chats = []
-                        import uuid
-                        for sc in sub_chats_args:
-                            prompt = sc.get("prompt")
-                            prompt_template = sc.get("prompt_template")
-                            sc_list = sc.get("list", [])
-                            wait_for_completion = sc.get("wait_for_completion", True)
-                            budget_limit = sc.get("budget_limit")
-                            report_trigger = sc.get("report_trigger", "all")
-                            
-                            # Support loop templating
-                            if prompt_template and sc_list:
-                                for item in sc_list:
-                                    resolved_prompt = prompt_template.replace("{x}", str(item))
-                                    sc_id = str(uuid.uuid4())
-                                    user_msg_id = f"{sc_id[-10:]}-{uuid.uuid4()}"
-                                    spawned_sub_chats.append({
-                                        "id": sc_id,
-                                        "user_message_id": user_msg_id,
-                                        "prompt": resolved_prompt,
-                                        "wait_for_completion": wait_for_completion,
-                                        "budget_limit": budget_limit,
-                                        "report_trigger": report_trigger
-                                    })
-                            else:
-                                sc_id = str(uuid.uuid4())
-                                user_msg_id = f"{sc_id[-10:]}-{uuid.uuid4()}"
-                                spawned_sub_chats.append({
-                                    "id": sc_id,
-                                    "user_message_id": user_msg_id,
-                                    "prompt": prompt or prompt_template or "",
-                                    "wait_for_completion": wait_for_completion,
-                                    "budget_limit": budget_limit,
-                                    "report_trigger": report_trigger
-                                })
-                        
-                        # Create and dispatch sub-chats in Directus/Celery
-                        logger.info(f"{log_prefix} [SUB_CHAT] Debug: directus_service={directus_service}, spawned_sub_chats={spawned_sub_chats}")
-                        if directus_service:
-                            for sc in spawned_sub_chats:
-                                try:
-                                    sc_id = sc["id"]
-                                    prompt = sc["prompt"]
-                                    msg_id = sc["user_message_id"]
-                                    
-                                    # Create the sub-chat record in Directus
-                                    sub_chat_payload = {
-                                        "id": sc_id,
-                                        "hashed_user_id": request_data.user_id_hash,
+                        execution_mode = get_sub_chat_execution_mode(parsed_args)
+                        context_policy = get_sub_chat_context_policy(parsed_args)
+                        logger.info(f"{log_prefix} [SUB_CHAT] LLM requested start_sub_chats with {len(sub_chats_args)} chats mode={execution_mode}")
+
+                        spawned_sub_chats = expand_sub_chat_requests(sub_chats_args)
+                        existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
+                        capacity_result = validate_sub_chat_capacity(existing_sub_chat_count, len(spawned_sub_chats))
+
+                        if not capacity_result["allowed"]:
+                            tool_result_content_str = json.dumps({
+                                "status": "rejected",
+                                "reason": "sub_chat_limit_exceeded",
+                                "max_direct_sub_chats": MAX_DIRECT_SUB_CHATS_PER_PARENT,
+                                "existing_sub_chats": existing_sub_chat_count,
+                                "requested_sub_chats": len(spawned_sub_chats),
+                                "remaining_sub_chats": capacity_result["remaining"],
+                                "message": capacity_result["message"],
+                            })
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": tool_result_content_str,
+                            })
+                            logger.warning(
+                                f"{log_prefix} [SUB_CHAT] Rejected spawn request: existing={existing_sub_chat_count}, "
+                                f"requested={len(spawned_sub_chats)}, max={MAX_DIRECT_SUB_CHATS_PER_PARENT}"
+                            )
+                            continue
+
+                        if len(spawned_sub_chats) > MAX_AUTO_SUB_CHATS_PER_TURN:
+                            pending_context = {
+                                "parent_request_data": request_data.model_dump(mode="json"),
+                                "skill_config_dict": skill_config_dict or {},
+                                "sub_chats": spawned_sub_chats,
+                                "report_trigger": spawned_sub_chats[0].get("report_trigger", "all") if spawned_sub_chats else "all",
+                                "execution_mode": execution_mode,
+                                "context_policy": context_policy,
+                                "created_at": int(time.time()),
+                            }
+                            await store_pending_sub_chat_confirmation(
+                                cache_service=cache_service,
+                                chat_id=request_data.chat_id,
+                                task_id=task_id,
+                                context=pending_context,
+                            )
+                            logger.info(
+                                f"{log_prefix} [SUB_CHAT] Stored confirmation request for {len(spawned_sub_chats)} sub-chats"
+                            )
+                            yield {
+                                "__sub_chat_confirmation_required__": True,
+                                "chat_id": request_data.chat_id,
+                                "task_id": task_id,
+                                "message_id": task_id,
+                                "sub_chats": spawned_sub_chats,
+                                "max_auto_sub_chats": MAX_AUTO_SUB_CHATS_PER_TURN,
+                                "max_direct_sub_chats": MAX_DIRECT_SUB_CHATS_PER_PARENT,
+                                "existing_sub_chats": existing_sub_chat_count,
+                                "remaining_sub_chats": capacity_result["remaining"],
+                                "execution_mode": execution_mode,
+                                "context_policy": context_policy,
+                            }
+                            return
+
+                        if execution_mode == "sequential":
+                            logger.info(f"{log_prefix} [SUB_CHAT] Creating sequential queue with {len(spawned_sub_chats)} sub-chat(s)")
+                            await create_sub_chat_records(
+                                directus_service=directus_service,
+                                request_data=request_data,
+                                spawned_sub_chats=spawned_sub_chats,
+                                log_prefix=log_prefix,
+                            )
+
+                            active_task_id = None
+                            if spawned_sub_chats:
+                                active_task_id = await dispatch_sub_chat_task(
+                                    request_data=request_data,
+                                    skill_config_dict=skill_config_dict or {},
+                                    sub_chat=spawned_sub_chats[0],
+                                    log_prefix=log_prefix,
+                                )
+                                if cache_service and active_task_id:
+                                    await cache_service.set_active_ai_task(spawned_sub_chats[0]["id"], active_task_id)
+
+                            if cache_service:
+                                await cache_service.set(
+                                    f"sub_chat_pending:{request_data.chat_id}",
+                                    {
+                                        "parent_task_id": task_id,
+                                        "parent_request_data": request_data.model_dump(mode="json"),
+                                        "skill_config_dict": skill_config_dict or {},
+                                        "expected_sub_chat_ids": [str(sc.get("id")) for sc in spawned_sub_chats if sc.get("id")],
+                                        "sub_chats": spawned_sub_chats,
+                                        "completed": {},
+                                        "report_trigger": spawned_sub_chats[0].get("report_trigger", "all") if spawned_sub_chats else "all",
+                                        "execution_mode": "sequential",
+                                        "context_policy": context_policy,
+                                        "next_index": 1 if spawned_sub_chats else 0,
+                                        "active_sub_chat_id": spawned_sub_chats[0].get("id") if spawned_sub_chats else None,
+                                        "active_task_id": active_task_id,
                                         "created_at": int(time.time()),
-                                        "updated_at": int(time.time()),
-                                        "messages_v": 1,
-                                        "title_v": 0,
-                                        "last_edited_overall_timestamp": int(time.time()),
-                                        "last_message_timestamp": int(time.time()),
-                                        "unread_count": 0,
-                                        "encrypted_title": "",
-                                        "title": prompt[:30] + "..." if len(prompt) > 30 else prompt,
-                                        "parent_id": request_data.chat_id,
-                                        "is_sub_chat": True
-                                    }
-                                    await directus_service.chat.create_chat_in_directus(sub_chat_payload)
-                                    logger.info(f"{log_prefix} [SUB_CHAT] Created child chat record {sc_id} in Directus")
-                                    
-                                    # Note: Zero-knowledge architecture - the first user message is encrypted
-                                    # and persisted by the client when it receives the 'spawn_sub_chats' WS event.
-                                    # Writing a plaintext user message here violates zero-knowledge rules and
-                                    # throws a 403 Forbidden because Directus 'messages' collection has no 'content' field.
-                                    
-                                    # Construct child AskSkillRequest data
-                                    child_request_data = {
-                                        "chat_id": sc_id,
-                                        "message_id": msg_id,
-                                        "user_id": request_data.user_id,
-                                        "user_id_hash": request_data.user_id_hash,
-                                        "message_history": [
-                                            {
-                                                "role": "user",
-                                                "content": prompt,
-                                                "created_at": int(time.time()),
-                                                "sender_name": "user"
-                                            }
-                                        ],
-                                        "chat_has_title": False,
-                                        "parent_id": request_data.chat_id,
-                                        "is_sub_chat": True,
-                                        "is_incognito": request_data.is_incognito,
-                                        "is_external": request_data.is_external,
-                                        "mate_id": "george", # Default mate for sub-chat processing
-                                        "user_preferences": request_data.user_preferences or {}
-                                    }
-                                    
-                                    # Dispatch Celery task for the sub-chat execution
-                                    from backend.apps.ai.tasks.ask_skill_task import process_ai_skill_ask_task
-                                    process_ai_skill_ask_task.apply_async(
-                                        kwargs={
-                                            "request_data_dict": child_request_data,
-                                            "skill_config_dict": skill_config_dict or {}
-                                        },
-                                        queue="app_ai",
-                                        exchange="app_ai",
-                                        routing_key="app_ai"
-                                    )
-                                    logger.info(f"{log_prefix} [SUB_CHAT] Dispatched process_ai_skill_ask_task for child chat {sc_id}")
-                                except Exception as sc_err:
-                                    logger.error(f"{log_prefix} [SUB_CHAT] Error creating or dispatching sub-chat: {sc_err}", exc_info=True)
+                                    },
+                                    ttl=60 * 60 * 24,
+                                )
+
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps({
+                                    "status": "spawned",
+                                    "execution_mode": "sequential",
+                                    "sub_chats": spawned_sub_chats,
+                                    "message": f"Successfully queued {len(spawned_sub_chats)} sequential sub-chats. The parent will continue after the queue finishes.",
+                                }),
+                            })
+
+                            yield {
+                                "__spawn_sub_chats__": True,
+                                "parent_id": request_data.chat_id,
+                                "sub_chats": spawned_sub_chats,
+                                "report_trigger": spawned_sub_chats[0].get("report_trigger", "all") if spawned_sub_chats else "all",
+                                "execution_mode": "sequential",
+                            }
+                            yield {
+                                "__sub_chat_progress__": True,
+                                "chat_id": request_data.chat_id,
+                                "message_id": task_id,
+                                "task_id": task_id,
+                                "execution_mode": "sequential",
+                                "status": "running",
+                                "total": len(spawned_sub_chats),
+                                "completed": 0,
+                                "active_sub_chat_id": spawned_sub_chats[0].get("id") if spawned_sub_chats else None,
+                            }
+                            yield {"__awaiting_sub_chats_completion__": True, "chat_id": request_data.chat_id}
+                            return
+
+                        logger.info(f"{log_prefix} [SUB_CHAT] Creating {len(spawned_sub_chats)} sub-chat(s)")
+                        await create_and_dispatch_sub_chats(
+                            directus_service=directus_service,
+                            request_data=request_data,
+                            skill_config_dict=skill_config_dict or {},
+                            spawned_sub_chats=spawned_sub_chats,
+                            log_prefix=log_prefix,
+                        )
 
                         # Set up the tool response
                         tool_result_content_str = json.dumps({
@@ -3869,13 +3935,13 @@ async def handle_main_processing(
                             "__spawn_sub_chats__": True,
                             "parent_id": request_data.chat_id,
                             "sub_chats": spawned_sub_chats,
-                            "report_trigger": sub_chats_args[0].get("report_trigger", "all") if sub_chats_args else "all"
+                            "report_trigger": spawned_sub_chats[0].get("report_trigger", "all") if spawned_sub_chats else "all"
                         }
                         
                         # Stop parent execution now because we need to wait for completion of sub-chats
                         # unless they are marked as independent (wait_for_completion=False).
                         # Let's check if there are any that require waiting
-                        any_wait = any(sc.get("wait_for_completion", True) for sc in sub_chats_args)
+                        any_wait = any(sc.get("wait_for_completion", True) for sc in spawned_sub_chats)
                         if any_wait:
                             logger.info(f"{log_prefix} [SUB_CHAT] Yielding wait marker and pausing parent execution")
                             yield {"__awaiting_sub_chats_completion__": True, "chat_id": request_data.chat_id}
