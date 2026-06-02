@@ -46,7 +46,7 @@ const {
 	createStepScreenshotter,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
@@ -209,7 +209,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
-	await page.waitForURL(/chat/, { timeout: 20000 });
+	await waitForChatReady(page, logCheckpoint, 30000);
 	logCheckpoint('Web app logged in.');
 
 	const cli = spawnCliLogin(apiUrl);

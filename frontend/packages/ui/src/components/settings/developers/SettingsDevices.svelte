@@ -11,8 +11,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
     const _dispatch = createEventDispatcher();
 
-    // State using Svelte 5 $state() runes
-    let devices = $state<Array<{
+    type ApiKeyDevice = {
         id: string;
         api_key_id: string;
         anonymized_ip: string;
@@ -26,7 +25,10 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
         machine_identifier?: string;
         encrypted_device_name?: string;
         device_name?: string | null; // Decrypted device name for display
-    }>>([]);
+    };
+
+    // State using Svelte 5 $state() runes
+    let devices = $state<ApiKeyDevice[]>([]);
     let loading = $state(true);
     let error = $state<string>('');
     let processingDeviceId = $state<string | null>(null);
@@ -76,9 +78,9 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                 });
             }
             devices = decryptedDevices;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error loading devices:', err);
-            error = err.message || 'Failed to load devices';
+            error = err instanceof Error ? err.message : 'Failed to load devices';
         } finally {
             loading = false;
         }
@@ -104,9 +106,9 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
             // Reload devices after approval
             await loadDevices();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error approving device:', err);
-            error = err.message || 'Failed to approve device';
+            error = err instanceof Error ? err.message : 'Failed to approve device';
         } finally {
             processingDeviceId = null;
         }
@@ -136,9 +138,9 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
             // Reload devices after revocation
             await loadDevices();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error revoking device:', err);
-            error = err.message || 'Failed to revoke device';
+            error = err instanceof Error ? err.message : 'Failed to revoke device';
         } finally {
             processingDeviceId = null;
         }
@@ -165,7 +167,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     }
 
     // Start editing a device name
-    function startEdit(device: any) {
+    function startEdit(device: ApiKeyDevice) {
         editingDeviceId = device.id;
         editingDeviceName = device.device_name || '';
     }
@@ -214,9 +216,9 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
             await loadDevices();
             editingDeviceId = null;
             editingDeviceName = '';
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error renaming device:', err);
-            error = err.message || 'Failed to rename device';
+            error = err instanceof Error ? err.message : 'Failed to rename device';
         } finally {
             processingDeviceId = null;
         }
@@ -240,7 +242,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     {:else}
         <div class="devices-list">
             {#each devices as device (device.id)}
-                <div class="device-card" class:pending={!device.approved_at}>
+                <div class="device-card" class:pending={!device.approved_at} data-testid="device-card">
                     <div class="device-header">
                         <div class="device-info">
                             {#if editingDeviceId === device.id}
@@ -283,9 +285,9 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                         </div>
                         <div class="device-status">
                             {#if device.approved_at}
-                                <span class="status-badge approved">{$text('settings.developers_devices_status_approved')}</span>
+                                <span class="status-badge approved" data-testid="status-badge">{$text('settings.developers_devices_status_approved')}</span>
                             {:else}
-                                <span class="status-badge pending">{$text('settings.developers_devices_status_pending')}</span>
+                                <span class="status-badge pending" data-testid="status-badge">{$text('settings.developers_devices_status_pending')}</span>
                             {/if}
                         </div>
                     </div>

@@ -67,7 +67,7 @@ test.describe('Chat replay demo mode', () => {
 			{ timeout: 5000 }
 		);
 
-		await expect(page.getByTestId('header-demo-profile-btn')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 5000 });
 		await expect(exampleBadge).toHaveCount(0, { timeout: 5000 });
 
 		const demoModeStored = await page.evaluate(() => window.localStorage.getItem('demo_mode_enabled'));

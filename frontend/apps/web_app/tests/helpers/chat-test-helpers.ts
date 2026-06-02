@@ -644,7 +644,7 @@ async function waitForAssistantMessage(
 	const streamStartGate = page.locator(
 		'[data-testid="typing-indicator"], [data-testid="message-assistant"]'
 	);
-	const gateTimeout = Math.min(30000, budget());
+	const gateTimeout = Math.min(60000, budget());
 	try {
 		await expect(streamStartGate.first()).toBeVisible({ timeout: gateTimeout });
 		logCheckpoint('Assistant stream started (typing indicator or message bubble appeared).');

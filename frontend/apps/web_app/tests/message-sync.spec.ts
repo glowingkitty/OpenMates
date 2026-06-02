@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Message Sync Test: Verifies that all messages are correctly synced between 
@@ -339,7 +338,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	await page.waitForTimeout(5000); // Wait for phased sync
 
 	// Navigate back to the chat
-	await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/chat?chat-id=${chatId}`);
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	
 	// Wait for messages to be loaded after navigation (should have all 4)
 	const statsAfterRefresh = await waitForMessageCount(page, chatId, 4, 15000);

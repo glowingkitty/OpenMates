@@ -160,10 +160,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 
 	// Click on "Apps" menu item (it's a SettingsItem with .menu-item class)
-	const appStoreItem = settingsMenu
-		.getByTestId('menu-item')
-		.filter({ hasText: /^Apps$/i })
-		.first();
+	const appStoreItem = settingsMenu.getByRole('menuitem', { name: /apps/i }).first();
 	await expect(appStoreItem).toBeVisible({ timeout: 10000 });
 	await appStoreItem.click();
 	logCheckpoint('Clicked Apps menu item.');

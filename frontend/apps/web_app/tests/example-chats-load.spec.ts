@@ -182,11 +182,12 @@ test.describe('Example chats loading for new users', () => {
 			);
 
 			const jsonLd = extractJsonLd(html);
-			expect(jsonLd['@type'], `/example/${slug} JSON-LD type`).toBe('Article');
-			expect(jsonLd.headline, `/example/${slug} JSON-LD headline`).toBeTruthy();
-			expect(jsonLd.description, `/example/${slug} JSON-LD description`).toBeTruthy();
-			expect(jsonLd.dateModified, `/example/${slug} JSON-LD dateModified`).toBeTruthy();
-			expect(jsonLd.mainEntityOfPage?.['@id'], `/example/${slug} JSON-LD canonical`).toContain(
+			const qaPage = jsonLd['@graph']?.find((node: Record<string, any>) => node['@type'] === 'QAPage');
+			expect(qaPage, `/example/${slug} JSON-LD QAPage`).toBeTruthy();
+			expect(qaPage.name, `/example/${slug} JSON-LD name`).toBeTruthy();
+			expect(qaPage.description, `/example/${slug} JSON-LD description`).toBeTruthy();
+			expect(qaPage.dateModified, `/example/${slug} JSON-LD dateModified`).toBeTruthy();
+			expect(qaPage.url, `/example/${slug} JSON-LD canonical`).toContain(
 				`/example/${slug}`
 			);
 		}

@@ -68,7 +68,8 @@ test.describe('SEO example chat pages', () => {
 
 		expect(html).toContain('application/ld+json');
 		expect(html).toContain('"@context":"https://schema.org"');
-		expect(html).toContain('"headline"');
+		expect(html).toContain('"@type":"QAPage"');
+		expect(html).toContain('"name"');
 	});
 
 	test('individual example chat page has OG meta tags', async ({ request }) => {

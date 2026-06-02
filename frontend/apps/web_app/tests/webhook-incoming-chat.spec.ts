@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -38,7 +37,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -247,9 +247,7 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 	log('Waiting for webhook_chat WS event to propagate to the browser...');
 	await page.waitForTimeout(8000);
 
-	const currentFullUrl = page.url();
-	const originAndPath = currentFullUrl.split('#')[0];
-	const newChatUrl = `${originAndPath}#chat-id=${expectedChatId}`;
+	const newChatUrl = getE2EDebugUrl(`/#chat-id=${expectedChatId}`);
 	log(`Navigating to webhook chat: ${newChatUrl}`);
 	await page.goto(newChatUrl);
 	await page.waitForTimeout(3000);
