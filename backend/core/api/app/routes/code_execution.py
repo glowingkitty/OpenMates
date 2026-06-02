@@ -543,12 +543,14 @@ def _normalize_javascript_package(specifier: str) -> str | None:
 def _infer_javascript_import_packages(code: str) -> list[tuple[str, str]]:
     seen: set[str] = set()
     imports: list[tuple[str, str]] = []
+    matches: list[tuple[int, str]] = []
     for pattern in JAVASCRIPT_IMPORT_PATTERNS:
-        for specifier in pattern.findall(code):
-            package = _normalize_javascript_package(specifier)
-            if package and package not in seen:
-                imports.append((specifier, package))
-                seen.add(package)
+        matches.extend((match.start(), match.group(1)) for match in pattern.finditer(code))
+    for _position, specifier in sorted(matches, key=lambda item: item[0]):
+        package = _normalize_javascript_package(specifier)
+        if package and package not in seen:
+            imports.append((specifier, package))
+            seen.add(package)
     return imports[:MAX_INFERRED_DEPENDENCIES]
 
 
