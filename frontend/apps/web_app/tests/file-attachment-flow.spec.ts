@@ -829,8 +829,8 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	await page.waitForTimeout(5000);
 
 	// Navigate directly to the chat in case the reload changed the active chat
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
 	await page.waitForTimeout(4000);
 
 	// After reload, encrypted image bytes can arrive after chat structure depending
@@ -875,7 +875,8 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// Wait 8 seconds after navigation: after relogin, the app must restore IndexedDB
 	// keys from the persisted "Stay logged in" session before it can decrypt images.
 	log(`Navigating to chat ${chatId} after re-login...`);
-	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
 	await page.waitForTimeout(8000);
 	await screenshot(page, '11-after-relogin');
 
