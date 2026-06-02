@@ -232,6 +232,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     active_sub_chat_id?: string | null;
   };
 
+  const MAX_DISPLAYED_SUB_CHAT_CARDS = 20;
+
   let subChatsOfThisMessage = $state<SubChatPreview[]>([]);
   let subChatConfirmationRequest = $state<SubChatConfirmationRequest | null>(null);
   let subChatConfirmationSubmitting = $state(false);
@@ -306,7 +308,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         previews.push(preview);
       }
 
-      subChatsOfThisMessage = previews;
+      subChatsOfThisMessage = previews.slice(0, MAX_DISPLAYED_SUB_CHAT_CARDS);
     } catch (e) {
       console.error('Error loading sub-chats for message:', e);
     }
