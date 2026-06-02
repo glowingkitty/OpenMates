@@ -9,6 +9,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
+  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   interface WeatherDaySummary {
     date?: string;
@@ -111,8 +112,8 @@
   }
 
   function getProviderLogoUrl(providerName: string): string | undefined {
-    if (providerName.includes('DWD') || providerName.includes('Wetterdienst')) return '/icons/deutscher_wetterdienst.svg';
-    if (providerName.includes('Open-Meteo')) return '/icons/open_meteo.svg';
+    if (providerName.includes('DWD') || providerName.includes('Wetterdienst')) return getProviderIconUrl('icons/deutscher_wetterdienst.svg');
+    if (providerName.includes('Open-Meteo')) return getProviderIconUrl('icons/open_meteo.svg');
     return undefined;
   }
 
