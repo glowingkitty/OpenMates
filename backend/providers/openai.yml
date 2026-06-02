@@ -139,13 +139,14 @@ models:
 
   - id: "gpt-oss-120b" # Model ID without provider prefix
     name: "GPT-OSS-120b"
-    description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter."
+    description: "OpenAI's open-weight 120B reasoning model, served by default through AWS Bedrock in the EU for stronger regional privacy."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-08-01" # Model release date (based on Llama 3.1 release)
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "llama-3.1-405b-instruct"
+      lmarena: "gpt-oss-120b"
+      bedrock: "openai.gpt-oss-120b-1:0"
       openrouter: "openai/gpt-oss-120b"
     input_types:
       - text
@@ -160,6 +161,7 @@ models:
         region: "EU"
       - id: "openrouter"
         name: "OpenRouter API"
+        model_id: "openai/gpt-oss-120b"
         region: "US"
     # Provider overrides to force Cerebras as the provider
     provider_overrides:
@@ -169,22 +171,67 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 1300 # 1 credit per 1300 input tokens (0.25 USD per 1M tokens)
+          per_credit_unit: 2200 # Bedrock standard tier: $0.15 / 1M input tokens
         output:
-          per_credit_unit: 500 # 1 credit per 500 output tokens (0.69 USD per 1M tokens)
+          per_credit_unit: 550 # Bedrock standard tier: $0.60 / 1M output tokens
     costs:
       input_per_million_token:
-        price: 0.25
+        price: 0.15
         currency: USD
         max_context: 131000 # Max context window for GPT-OSS-120b
       output_per_million_token:
-        price: 0.69
+        price: 0.60
         currency: USD
         max_context: 131000
     characteristics:
       - "reasoning model, with the tendency to create long responses"
       - "fast responses"
       - "has a very strong tendency to always include tables in the response"
+
+  - id: "gpt-oss-20b" # Model ID without provider prefix
+    name: "GPT-OSS-20b"
+    description: "OpenAI's open-weight 20B reasoning model, served by default through AWS Bedrock in the EU for stronger regional privacy."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2025-08-01"
+    allow_auto_select: true
+    external_ids:
+      lmarena: "gpt-oss-20b"
+      bedrock: "openai.gpt-oss-20b-1:0"
+      openrouter: "openai/gpt-oss-20b"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "aws_bedrock" # Default to AWS Bedrock (EU), with OpenRouter as fallback
+    servers:
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "openai.gpt-oss-20b-1:0" # Bedrock model ID
+        aws_region: "eu-central-1"
+        region: "EU"
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-oss-20b"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 4700 # Bedrock standard tier: $0.07 / 1M input tokens
+        output:
+          per_credit_unit: 1100 # Bedrock standard tier: $0.30 / 1M output tokens
+    costs:
+      input_per_million_token:
+        price: 0.07
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 131000
+    characteristics:
+      - "reasoning model, with the tendency to create long responses"
+      - "fast responses"
 
   - id: "gpt-oss-safeguard-20b-openrouter" # OpenRouter-primary alias for bulk/import scanning (avoids Groq daily cap)
     name: "GPT-OSS-Safeguard-20b (OpenRouter)"

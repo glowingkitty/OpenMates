@@ -11,9 +11,9 @@ metadata:
       url: https://openrouter.ai/rankings
       models_fetched: 0
       valid: false
-  total_models: 17
+  total_models: 19
   ranked_models: 10
-  unranked_models: 7
+  unranked_models: 9
 rankings:
   - rank: 1
     model_id: gemini-3.1-pro-preview
@@ -108,6 +108,10 @@ rankings:
 unranked:
   - model_id: gpt-oss-120b
     name: GPT-OSS-120b
+    provider_id: openai
+    country_origin: US
+  - model_id: gpt-oss-20b
+    name: GPT-OSS-20b
     provider_id: openai
     country_origin: US
   - model_id: gpt-oss-safeguard-20b
