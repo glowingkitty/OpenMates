@@ -43,11 +43,11 @@ function expectForecastPayload(parsed: any, expectedProvider: string): void {
 	expect(parsed.data?.provider).toContain(expectedProvider);
 }
 
-async function expectImageLoaded(locator: any): Promise<void> {
+async function expectImageLoaded(locator: any, label = 'image'): Promise<void> {
 	await expect(locator).toBeVisible({ timeout: 15_000 });
 	await expect(async () => {
 		const loaded = await locator.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
-		expect(loaded).toBe(true);
+		expect(loaded, `${label} should finish loading`).toBe(true);
 	}).toPass({ timeout: 15_000 });
 }
 
@@ -111,13 +111,13 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		await expect(settingsMenu.locator('[data-testid="skill-provider-item"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first()).toBeVisible({ timeout: 15_000 });
 		await expect(settingsMenu.locator('[data-testid="skill-provider-item"][data-provider-name="Open-Meteo"]').first()).toBeVisible({ timeout: 15_000 });
-		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first());
-		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Open-Meteo"]').first());
+		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first(), 'DWD provider logo');
+		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Open-Meteo"]').first(), 'Open-Meteo provider logo');
 
 		const exampleCard = settingsMenu.locator('[data-testid="app-store-example-card"][data-app-id="weather"][data-skill-id="forecast"]').first();
 		await expect(exampleCard).toBeVisible({ timeout: 15_000 });
 		await expect(exampleCard).toContainText('Forecast');
-		await expectImageLoaded(exampleCard.locator('[data-testid="embed-title-favicon"]').first());
+		await expectImageLoaded(exampleCard.locator('[data-testid="embed-title-favicon"]').first(), 'weather example favicon');
 		await exampleCard.click();
 
 		const fullscreen = page.getByTestId('embed-fullscreen-overlay').first();
