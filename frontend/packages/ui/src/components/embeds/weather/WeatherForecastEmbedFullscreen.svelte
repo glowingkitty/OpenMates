@@ -26,6 +26,7 @@
     precipitation_probability_max_pct?: number;
     rain_hours?: number;
     wind_speed_max_kmh?: number;
+    hourly?: unknown[];
   }
 
   interface Props {
@@ -63,7 +64,7 @@
   let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
   let selectedDayIndex = $state(-1);
   let loadedDays = $state<WeatherDayResult[]>([]);
-  let selectedDay = $derived(selectedDayIndex >= 0 ? loadedDays[selectedDayIndex] ?? null : null);
+  let selectedDay = $state<WeatherDayResult | null>(null);
 
 
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {
@@ -80,6 +81,7 @@
       precipitation_probability_max_pct: content.precipitation_probability_max_pct as number | undefined,
       rain_hours: content.rain_hours as number | undefined,
       wind_speed_max_kmh: content.wind_speed_max_kmh as number | undefined,
+      hourly: Array.isArray(content.hourly) ? content.hourly : undefined,
     };
   }
 
@@ -97,6 +99,7 @@
       precipitation_probability_max_pct: result.precipitation_probability_max_pct as number | undefined,
       rain_hours: result.rain_hours as number | undefined,
       wind_speed_max_kmh: result.wind_speed_max_kmh as number | undefined,
+      hourly: Array.isArray(result.hourly) ? result.hourly : undefined,
     }));
   }
 
@@ -111,6 +114,7 @@
   function openDay(index: number, days: WeatherDayResult[]): void {
     updateLoadedDays(days);
     selectedDayIndex = index;
+    selectedDay = days[index] ?? null;
   }
 
   function handleDayKeydown(event: KeyboardEvent, index: number, days: WeatherDayResult[]): void {
@@ -122,16 +126,19 @@
 
   function closeDay(): void {
     selectedDayIndex = -1;
+    selectedDay = null;
   }
 
   function previousDay(): void {
     if (selectedDayIndex <= 0) return;
     selectedDayIndex -= 1;
+    selectedDay = loadedDays[selectedDayIndex] ?? null;
   }
 
   function nextDay(): void {
     if (selectedDayIndex >= loadedDays.length - 1) return;
     selectedDayIndex += 1;
+    selectedDay = loadedDays[selectedDayIndex] ?? null;
   }
 </script>
 
