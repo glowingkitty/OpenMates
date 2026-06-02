@@ -58,13 +58,13 @@
   {id}
   appId="weather"
   skillId="weather_day"
-  skillIconName=""
+  skillIconName="weather"
   {status}
   skillName={dayTitle}
   {taskId}
   {isMobile}
   {onFullscreen}
-  showSkillIcon={false}
+  showSkillIcon={true}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">

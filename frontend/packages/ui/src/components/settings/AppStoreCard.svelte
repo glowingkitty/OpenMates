@@ -153,6 +153,8 @@
         if (providerName === 'Bluesky') return 'bluesky';
         if (providerName === 'Reddit') return 'reddit';
         if (providerName === 'Deutsche Bahn') return 'deutsche_bahn';
+        if (providerName === 'Deutscher Wetterdienst (DWD)') return 'deutscher_wetterdienst';
+        if (providerName === 'Open-Meteo') return 'open_meteo';
         if (providerName === 'FlixBus / FlixTrain') return 'flix';
 
         // Convert to lowercase and handle special cases
@@ -306,6 +308,7 @@
 <div
     class="app-store-card app-card"
     data-testid="app-store-card"
+    data-app-id={app.id}
     class:app-unavailable={isUnavailable}
     class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
     role="menuitem"

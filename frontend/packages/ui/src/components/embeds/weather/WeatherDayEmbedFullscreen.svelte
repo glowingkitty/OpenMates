@@ -57,8 +57,8 @@
 <UnifiedEmbedFullscreen
   appId="weather"
   skillId="weather_day"
-  skillIconName=""
-  showSkillIcon={false}
+  skillIconName="weather"
+  showSkillIcon={true}
   embedHeaderTitle={date || $text('apps.weather.day')}
   embedHeaderSubtitle={[locationName, provider].filter(Boolean).join(' · ')}
   {onClose}

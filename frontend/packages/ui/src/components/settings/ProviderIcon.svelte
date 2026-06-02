@@ -24,6 +24,8 @@
         if (providerName === 'Bluesky') return '--icon-url-bluesky';
         if (providerName === 'Reddit') return '--icon-url-reddit';
         if (providerName === 'Deutsche Bahn') return '--icon-url-deutsche_bahn';
+        if (providerName === 'Deutscher Wetterdienst (DWD)') return '--icon-url-deutscher_wetterdienst';
+        if (providerName === 'Open-Meteo') return '--icon-url-open_meteo';
         if (providerName === 'FlixBus / FlixTrain') return '--icon-url-flix';
 
         const normalized = providerName.toLowerCase()
@@ -47,6 +49,9 @@
 <!-- Wrapper div with white background and icon at 0.5 opacity (entire element) -->
 <div 
     class="provider-icon-wrapper" 
+    data-testid="provider-icon"
+    data-provider-name={name}
+    data-icon-var={iconUrlVar}
     style={`
         width: ${size};
         height: ${size};

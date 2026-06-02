@@ -204,17 +204,25 @@
 
   .forecast-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-    padding: 24px 16px 120px;
-    max-width: 1000px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-8);
+    width: calc(100% - 20px);
+    max-width: 720px;
+    padding: var(--spacing-12) var(--spacing-5) 120px;
     margin: 0 auto;
   }
 
-  @container fullscreen (max-width: 520px) {
+  .forecast-grid :global(.unified-embed-preview) {
+    width: 100% !important;
+    min-width: unset !important;
+    max-width: 320px !important;
+    margin: 0 auto;
+  }
+
+  @container fullscreen (max-width: 680px) {
     .forecast-grid {
       grid-template-columns: 1fr;
-      padding-inline: 12px;
+      max-width: 340px;
     }
   }
 </style>

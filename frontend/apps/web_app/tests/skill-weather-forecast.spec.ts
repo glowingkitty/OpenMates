@@ -16,6 +16,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	getE2EDebugUrl,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
@@ -40,6 +41,14 @@ function expectForecastPayload(parsed: any, expectedProvider: string): void {
 	expect(results.every((day) => day.type === 'weather_day')).toBeTruthy();
 	expect(results.every((day) => Array.isArray(day.hourly) && day.hourly.length > 0)).toBeTruthy();
 	expect(parsed.data?.provider).toContain(expectedProvider);
+}
+
+async function expectImageLoaded(locator: any): Promise<void> {
+	await expect(locator).toBeVisible({ timeout: 15_000 });
+	await expect(async () => {
+		const loaded = await locator.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+		expect(loaded).toBe(true);
+	}).toPass({ timeout: 15_000 });
 }
 
 test.describe('App: Weather / Skill: forecast', () => {
@@ -77,6 +86,59 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		await expect(page.getByTestId('render-error')).not.toBeVisible({ timeout: 10_000 });
 		await expect(page.getByTestId('weather-forecast-preview').first()).toBeVisible();
+	});
+
+	test('Phase 1b: app store weather example has translations, provider icons, responsive fullscreen, and day drilldown', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 1600, height: 900 });
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/weather/skill/forecast'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/weather/skill/forecast', {
+			timeout: 15_000
+		});
+
+		await expect(settingsMenu).toContainText('Forecast', { timeout: 15_000 });
+		await expect(settingsMenu).toContainText('Get daily and hourly weather forecasts.', { timeout: 15_000 });
+		const settingsText = await settingsMenu.innerText();
+		expect(settingsText).not.toContain('[T:');
+		expect(settingsText).not.toContain('app_skills.apps.weather');
+
+		await expect(settingsMenu.locator('[data-testid="provider-icon"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first()).toBeVisible({ timeout: 15_000 });
+		await expect(settingsMenu.locator('[data-testid="provider-icon"][data-provider-name="Open-Meteo"]').first()).toBeVisible({ timeout: 15_000 });
+		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first());
+		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Open-Meteo"]').first());
+
+		const exampleCard = settingsMenu.locator('[data-testid="app-store-example-card"][data-app-id="weather"][data-skill-id="forecast"]').first();
+		await expect(exampleCard).toBeVisible({ timeout: 15_000 });
+		await expect(exampleCard).toContainText('Forecast');
+		await expectImageLoaded(exampleCard.locator('[data-testid="embed-title-favicon"]').first());
+		await exampleCard.click();
+
+		const fullscreen = page.getByTestId('embed-fullscreen-overlay').first();
+		await expect(fullscreen).toBeVisible({ timeout: 15_000 });
+		const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
+		await expect(grid).toBeVisible({ timeout: 15_000 });
+
+		const dayCards = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]');
+		await expect(dayCards).toHaveCount(3, { timeout: 15_000 });
+		const firstBox = await dayCards.nth(0).boundingBox();
+		const secondBox = await dayCards.nth(1).boundingBox();
+		const thirdBox = await dayCards.nth(2).boundingBox();
+		expect(firstBox && secondBox && thirdBox, 'weather day cards should have layout boxes').toBeTruthy();
+		expect(Math.abs((firstBox as any).y - (secondBox as any).y)).toBeLessThan(8);
+		expect((thirdBox as any).y).toBeGreaterThan((firstBox as any).y + 40);
+
+		const firstDay = dayCards.first();
+		await expect(firstDay.locator('[data-skill-icon="weather"]')).toBeVisible({ timeout: 15_000 });
+		await firstDay.click();
+		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-skill-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
 	});
 
 	test('Phase 2: CLI apps weather forecast returns daily child results for Germany and international cities', async () => {
