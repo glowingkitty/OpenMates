@@ -48,6 +48,7 @@ final class PendingUploadStore: ObservableObject {
         let chatId: String
         let messageContent: String
         let blockingUploadIds: Set<String>
+        let dispatchThroughActiveComposer: Bool
         let createdAt: Date
     }
 
@@ -95,10 +96,17 @@ final class PendingUploadStore: ObservableObject {
 
     // MARK: - Queue a deferred send
 
-    func addPendingSend(chatId: String, content: String, blockingUploadIds: Set<String>) {
+    func addPendingSend(
+        chatId: String,
+        content: String,
+        blockingUploadIds: Set<String>,
+        dispatchThroughActiveComposer: Bool = false
+    ) {
         let context = PendingSendContext(
             chatId: chatId, messageContent: content,
-            blockingUploadIds: blockingUploadIds, createdAt: Date()
+            blockingUploadIds: blockingUploadIds,
+            dispatchThroughActiveComposer: dispatchThroughActiveComposer,
+            createdAt: Date()
         )
         pendingSends[chatId, default: []].append(context)
     }
@@ -132,7 +140,8 @@ final class PendingUploadStore: ObservableObject {
             object: nil,
             userInfo: [
                 "chatId": context.chatId,
-                "content": context.messageContent
+                "content": context.messageContent,
+                "dispatchThroughActiveComposer": context.dispatchThroughActiveComposer
             ]
         )
     }

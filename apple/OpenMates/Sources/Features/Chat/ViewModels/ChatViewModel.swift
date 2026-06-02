@@ -18,6 +18,11 @@ final class ChatViewModel: ObservableObject {
     @Published var streamingMessageId: String?
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
+    @Published private(set) var pendingComposerEmbeds: [ComposerPendingEmbed] = []
+
+    var hasPendingComposerEmbeds: Bool {
+        !pendingComposerEmbeds.isEmpty
+    }
 
     /// Number of messages to show initially and per page when scrolling up.
     private let messagesPageSize = 50
@@ -470,16 +475,19 @@ final class ChatViewModel: ObservableObject {
     func sendMessage(_ content: String) async {
         guard let currentChat = chat else { return }
         do {
+            let composerEmbeds = pendingComposerEmbeds
             let result = try await sendPipeline.sendUserMessage(
-                content: content,
+                content: contentWithComposerEmbedReferences(content, embeds: composerEmbeds),
                 in: currentChat,
                 existingMessages: allMessages,
                 wsManager: wsManager,
-                chatStore: chatStore
+                chatStore: chatStore,
+                composerEmbeds: composerEmbeds
             )
             chat = result.chat
             pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
+            pendingComposerEmbeds.removeAll()
             isStreaming = true
             streamingContent = ""
         } catch {
@@ -961,16 +969,19 @@ final class ChatViewModel: ObservableObject {
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
-        return await uploadData(
+        guard let upload = await uploadData(
             data,
             filename: filename,
             uploadId: uploadId,
             contentType: "application/octet-stream",
-            markFinishedOnSuccess: true
-        )
+            markFinishedOnSuccess: false
+        ) else { return nil }
+        registerPendingComposerEmbed(upload, localData: data, transcript: nil, duration: nil)
+        PendingUploadStore.shared.markFinished(id: uploadId)
+        return upload
     }
 
-    func uploadRecording(url: URL, duration _: TimeInterval) async -> String? {
+    func uploadRecording(url: URL, duration: TimeInterval) async -> String? {
         guard let chatId = chat?.id,
               let data = try? Data(contentsOf: url) else { return nil }
         let uploadId = UUID().uuidString
@@ -1016,8 +1027,10 @@ final class ChatViewModel: ObservableObject {
                 path: "apps/audio/skills/transcribe",
                 body: request
             )
+            let transcript = response.data.results.first?.results.first?.transcript
+            registerPendingComposerEmbed(upload, localData: data, transcript: transcript, duration: duration)
             PendingUploadStore.shared.markFinished(id: uploadId)
-            return response.data.results.first?.results.first?.transcript
+            return transcript
         } catch {
             print("[Chat] Recording transcription error: \(error)")
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
@@ -1080,22 +1093,208 @@ final class ChatViewModel: ObservableObject {
         guard let data = try? Data(contentsOf: url) else { return }
         await uploadAttachment(data: data, filename: url.lastPathComponent)
     }
+
+    func removePendingComposerEmbed(id: String) {
+        pendingComposerEmbeds.removeAll { $0.id == id }
+    }
+
+    private func registerPendingComposerEmbed(
+        _ upload: UploadFileResponse,
+        localData: Data?,
+        transcript: String?,
+        duration: TimeInterval?
+    ) {
+        let embed = ComposerPendingEmbed.from(
+            upload: upload,
+            localData: localData,
+            transcript: transcript,
+            duration: duration
+        )
+        pendingComposerEmbeds.removeAll { $0.id == embed.id }
+        pendingComposerEmbeds.append(embed)
+        embedRecords[embed.record.id] = embed.record
+        if let chatId = chat?.id {
+            chatStore?.upsertEmbeds([embed.record], for: chatId)
+        }
+    }
+
+    private func contentWithComposerEmbedReferences(_ content: String, embeds: [ComposerPendingEmbed]) -> String {
+        guard !embeds.isEmpty else { return content }
+        let references = embeds.map(\.markdownReference).joined(separator: "\n")
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? references : "\(trimmed)\n\n\(references)"
+    }
 }
 
 struct UploadFileResponse: Decodable {
     let embedId: String
     let filename: String
     let contentType: String
+    let contentHash: String?
     let files: [String: UploadedFileVariant]
     let s3BaseUrl: String
     let aesKey: String
     let aesNonce: String
     let vaultWrappedAesKey: String
+    let pageCount: Int?
+    let deduplicated: Bool?
 }
 
 struct UploadedFileVariant: Decodable {
     let s3Key: String
     let sizeBytes: Int?
+    let width: Int?
+    let height: Int?
+    let format: String?
+}
+
+struct ComposerPendingEmbed: Identifiable {
+    let id: String
+    let type: String
+    let referenceType: String
+    let status: String
+    let content: String?
+    let textPreview: String?
+    let record: EmbedRecord
+    let localData: Data?
+    let filename: String
+    let size: Int
+
+    var markdownReference: String {
+        "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
+    }
+
+    var serverPayload: [String: Any]? {
+        guard let content else { return nil }
+        var payload: [String: Any] = [
+            "embed_id": id,
+            "type": type,
+            "status": status,
+            "content": content,
+            "createdAt": Int(Date().timeIntervalSince1970),
+            "updatedAt": Int(Date().timeIntervalSince1970)
+        ]
+        if let textPreview { payload["text_preview"] = textPreview }
+        return payload
+    }
+
+    var canPersistDirectly: Bool {
+        content != nil
+    }
+
+    static func from(
+        upload: UploadFileResponse,
+        localData: Data?,
+        transcript: String?,
+        duration: TimeInterval?
+    ) -> ComposerPendingEmbed {
+        let classification = ComposerUploadClassification(upload: upload)
+        let contentObject = classification.contentObject(upload: upload, transcript: transcript, duration: duration)
+        let content = classification.shouldSendContent ? jsonString(contentObject) : nil
+        let preview = transcript ?? upload.filename
+        let record = EmbedRecord(
+            id: upload.embedId,
+            type: classification.embedType,
+            status: EmbedStatus(rawValue: classification.status) ?? .finished,
+            data: .raw(contentObject.mapValues { AnyCodable($0) }),
+            parentEmbedId: nil,
+            appId: classification.appId,
+            skillId: classification.skillId,
+            embedIds: nil,
+            createdAt: String(Int(Date().timeIntervalSince1970))
+        )
+        return ComposerPendingEmbed(
+            id: upload.embedId,
+            type: classification.embedType,
+            referenceType: classification.referenceType,
+            status: classification.status,
+            content: content,
+            textPreview: preview,
+            record: record,
+            localData: localData,
+            filename: upload.filename,
+            size: localData?.count ?? upload.files.values.compactMap(\.sizeBytes).max() ?? 0
+        )
+    }
+
+    private static func jsonString(_ object: [String: Any]) -> String {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return string
+    }
+}
+
+private struct ComposerUploadClassification {
+    let embedType: String
+    let referenceType: String
+    let status: String
+    let appId: String
+    let skillId: String?
+    let shouldSendContent: Bool
+
+    init(upload: UploadFileResponse) {
+        let mime = upload.contentType.lowercased()
+        let ext = (upload.filename as NSString).pathExtension.lowercased()
+        if mime.hasPrefix("audio/") || ["m4a", "mp3", "wav", "webm", "mp4"].contains(ext) {
+            embedType = "audio-recording"
+            referenceType = "audio-recording"
+            status = "finished"
+            appId = "audio"
+            skillId = "transcribe"
+            shouldSendContent = true
+        } else if mime.hasPrefix("image/") || ["jpg", "jpeg", "png", "gif", "heic", "webp"].contains(ext) {
+            embedType = "images-image"
+            referenceType = "image"
+            status = "finished"
+            appId = "images"
+            skillId = "upload"
+            shouldSendContent = true
+        } else if mime == "application/pdf" || ext == "pdf" {
+            embedType = "pdf"
+            referenceType = "pdf"
+            status = upload.deduplicated == true ? "finished" : "processing"
+            appId = "pdf"
+            skillId = nil
+            shouldSendContent = upload.deduplicated == true
+        } else {
+            embedType = "docs-doc"
+            referenceType = "file"
+            status = "finished"
+            appId = "docs"
+            skillId = nil
+            shouldSendContent = true
+        }
+    }
+
+    func contentObject(upload: UploadFileResponse, transcript: String?, duration: TimeInterval?) -> [String: Any] {
+        var object: [String: Any] = [
+            "app_id": appId,
+            "type": referenceType,
+            "status": status,
+            "filename": upload.filename,
+            "s3_base_url": upload.s3BaseUrl,
+            "files": upload.files.mapValues { variant in
+                var item: [String: Any] = ["s3_key": variant.s3Key]
+                if let size = variant.sizeBytes { item["size_bytes"] = size }
+                if let width = variant.width { item["width"] = width }
+                if let height = variant.height { item["height"] = height }
+                if let format = variant.format { item["format"] = format }
+                return item
+            },
+            "aes_key": upload.aesKey,
+            "aes_nonce": upload.aesNonce,
+            "vault_wrapped_aes_key": upload.vaultWrappedAesKey
+        ]
+        if let skillId { object["skill_id"] = skillId }
+        if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
+        if let pageCount = upload.pageCount { object["page_count"] = pageCount }
+        if let transcript { object["transcript"] = transcript }
+        if let duration { object["duration"] = duration }
+        return object
+    }
 }
 
 private struct TranscribeSkillResponse: Decodable {
@@ -1905,7 +2104,8 @@ final class ChatSendPipeline {
         existingMessages: [Message],
         wsManager: WebSocketManager?,
         chatStore: ChatStore?,
-        activateChat: Bool = true
+        activateChat: Bool = true,
+        composerEmbeds: [ComposerPendingEmbed] = []
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
         let now = Date()
@@ -1914,6 +2114,12 @@ final class ChatSendPipeline {
         let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
         let encryptedContent = try await crypto.encryptContent(content, key: keyMaterial.key)
+        let encryptedEmbedPayloads = try await encryptedEmbeds(
+            composerEmbeds,
+            chatId: chat.id,
+            messageId: messageId,
+            chatKey: keyMaterial.key
+        )
         let nextMessagesV = max(chat.messagesV ?? existingMessages.count, existingMessages.count) + 1
         let updatedChat = copyChat(
             chat,
@@ -1932,7 +2138,9 @@ final class ChatSendPipeline {
             updatedAt: nil,
             appId: nil,
             isStreaming: nil,
-            embedRefs: nil
+            embedRefs: composerEmbeds.isEmpty ? nil : composerEmbeds.map { embed in
+                EmbedRef(id: embed.id, type: embed.type, status: embed.status, data: nil)
+            }
         )
 
         chatStore?.upsertChat(updatedChat)
@@ -1953,13 +2161,22 @@ final class ChatSendPipeline {
             messagePayload["current_chat_title"] = updatedChat.title
         }
 
+        var outboundPayload: [String: Any] = [
+            "chat_id": chat.id,
+            "message": messagePayload,
+            "encrypted_chat_key": keyMaterial.encryptedChatKey
+        ]
+        let sendableEmbeds = composerEmbeds.compactMap(\.serverPayload)
+        if !sendableEmbeds.isEmpty {
+            outboundPayload["embeds"] = sendableEmbeds
+        }
+        if !encryptedEmbedPayloads.isEmpty {
+            outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
+        }
+
         try await wsManager.send(WSOutboundMessage(
             type: "chat_message_added",
-            payload: [
-                "chat_id": chat.id,
-                "message": messagePayload,
-                "encrypted_chat_key": keyMaterial.encryptedChatKey
-            ]
+            payload: outboundPayload
         ))
 
         return SendResult(chat: updatedChat, message: message)
@@ -2203,6 +2420,98 @@ final class ChatSendPipeline {
         let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
         let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
         return (key, encrypted)
+    }
+
+    private func encryptedEmbeds(
+        _ embeds: [ComposerPendingEmbed],
+        chatId: String,
+        messageId: String,
+        chatKey: SymmetricKey
+    ) async throws -> [[String: Any]] {
+        let persistableEmbeds = embeds.filter(\.canPersistDirectly)
+        guard !persistableEmbeds.isEmpty else { return [] }
+        guard let userId = await AuthManager.currentUserId(),
+              let masterKey = try await crypto.loadMasterKey(for: userId) else {
+            throw ChatSendError.missingMasterKey
+        }
+
+        let hashedChatId = sha256Hex(chatId)
+        let hashedMessageId = sha256Hex(messageId)
+        let hashedUserId = sha256Hex(userId)
+        let now = Int(Date().timeIntervalSince1970)
+
+        var encryptedPayloads: [[String: Any]] = []
+        for embed in persistableEmbeds {
+            guard let content = embed.content else { continue }
+            let embedKey = deriveEmbedKey(from: chatKey, embedId: embed.id)
+            let hashedEmbedId = sha256Hex(embed.id)
+            let wrappedWithMaster = try await encryptRawKey(embedKey, wrappingKey: masterKey)
+            let wrappedWithChat = try await encryptRawKey(embedKey, wrappingKey: chatKey)
+            var payload: [String: Any] = [
+                "embed_id": embed.id,
+                "encrypted_type": try await encryptEmbedField(embed.type, key: embedKey),
+                "encrypted_content": try await encryptEmbedField(content, key: embedKey),
+                "status": embed.status,
+                "hashed_chat_id": hashedChatId,
+                "hashed_message_id": hashedMessageId,
+                "hashed_user_id": hashedUserId,
+                "created_at": now,
+                "updated_at": now,
+                "embed_keys": [
+                    [
+                        "hashed_embed_id": hashedEmbedId,
+                        "key_type": "master",
+                        "hashed_chat_id": NSNull(),
+                        "encrypted_embed_key": wrappedWithMaster,
+                        "hashed_user_id": hashedUserId,
+                        "created_at": now
+                    ],
+                    [
+                        "hashed_embed_id": hashedEmbedId,
+                        "key_type": "chat",
+                        "hashed_chat_id": hashedChatId,
+                        "encrypted_embed_key": wrappedWithChat,
+                        "hashed_user_id": hashedUserId,
+                        "created_at": now
+                    ]
+                ]
+            ]
+            if let textPreview = embed.textPreview {
+                payload["encrypted_text_preview"] = try await encryptEmbedField(textPreview, key: embedKey)
+            }
+            encryptedPayloads.append(payload)
+        }
+        return encryptedPayloads
+    }
+
+    private func deriveEmbedKey(from chatKey: SymmetricKey, embedId: String) -> SymmetricKey {
+        HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: chatKey,
+            salt: Data("openmates-embed-key-v1".utf8),
+            info: Data(embedId.utf8),
+            outputByteCount: 32
+        )
+    }
+
+    private func encryptEmbedField(_ value: String, key: SymmetricKey) async throws -> String {
+        try await encryptRawData(Data(value.utf8), key: key)
+    }
+
+    private func encryptRawKey(_ key: SymmetricKey, wrappingKey: SymmetricKey) async throws -> String {
+        let raw = key.withUnsafeBytes { Data($0) }
+        return try await encryptRawData(raw, key: wrappingKey)
+    }
+
+    private func encryptRawData(_ data: Data, key: SymmetricKey) async throws -> String {
+        let encrypted = try await crypto.encrypt(data, using: key)
+        var combined = Data()
+        combined.append(encrypted.nonce)
+        combined.append(encrypted.ciphertext)
+        return combined.base64EncodedString()
+    }
+
+    private func sha256Hex(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     private func encryptOptional(_ value: String?, key: SymmetricKey) async throws -> String? {

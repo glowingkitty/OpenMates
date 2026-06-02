@@ -272,6 +272,9 @@ struct ChatView: View {
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
+            handleComposerDeferredSend(notification)
+        }
     }
 
     private var initialMessageSyncSignature: String {
@@ -923,7 +926,7 @@ struct ChatView: View {
                 }
                 #endif
 
-                if messageText.isEmpty && !viewModel.isStreaming {
+                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
                     recordActionControls
                 } else {
                     Button(action: sendMessage) {
@@ -938,8 +941,8 @@ struct ChatView: View {
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
                     .buttonStyle(.plain)
-                    .disabled(messageText.isEmpty || viewModel.isStreaming)
-                    .opacity(messageText.isEmpty ? 0.6 : 1.0)
+                    .disabled((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) || viewModel.isStreaming)
+                    .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
                     .accessibilityLabel(AppStrings.sendMessage)
                     .accessibilityHint(AppStrings.typeMessage)
                     #if os(macOS)
@@ -1235,11 +1238,16 @@ struct ChatView: View {
 
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
         let sanitizedText = PIIDetector.redactedText(text, matches: detectedPIIMatches, excludedIds: piiExclusions)
         if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
             let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
-            pendingUploads.addPendingSend(chatId: chatId, content: sanitizedText, blockingUploadIds: blockingIds)
+            pendingUploads.addPendingSend(
+                chatId: chatId,
+                content: sanitizedText,
+                blockingUploadIds: blockingIds,
+                dispatchThroughActiveComposer: true
+            )
             messageText = ""
             return
         }
@@ -1249,6 +1257,17 @@ struct ChatView: View {
 
         Task {
             await viewModel.sendMessage(sanitizedText)
+        }
+    }
+
+    private func handleComposerDeferredSend(_ notification: Notification) {
+        guard let routeThroughComposer = notification.userInfo?["dispatchThroughActiveComposer"] as? Bool,
+              routeThroughComposer,
+              let deferredChatId = notification.userInfo?["chatId"] as? String,
+              deferredChatId == viewModel.chat?.id,
+              let content = notification.userInfo?["content"] as? String else { return }
+        Task {
+            await viewModel.sendMessage(content)
         }
     }
 

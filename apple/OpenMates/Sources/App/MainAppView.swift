@@ -2109,6 +2109,9 @@ struct MainAppView: View {
     }
 
     private func handlePendingDeferredSend(_ notification: Notification) {
+        if notification.userInfo?["dispatchThroughActiveComposer"] as? Bool == true {
+            return
+        }
         guard let chatId = notification.userInfo?["chatId"] as? String,
               let content = notification.userInfo?["content"] as? String,
               let chat = chatStore.chat(for: chatId) else { return }
