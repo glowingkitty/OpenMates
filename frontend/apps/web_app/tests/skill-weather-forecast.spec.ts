@@ -109,8 +109,8 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expect(settingsText).not.toContain('[T:');
 		expect(settingsText).not.toContain('app_skills.apps.weather');
 
-		await expect(settingsMenu.locator('[data-testid="provider-icon"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first()).toBeVisible({ timeout: 15_000 });
-		await expect(settingsMenu.locator('[data-testid="provider-icon"][data-provider-name="Open-Meteo"]').first()).toBeVisible({ timeout: 15_000 });
+		await expect(settingsMenu.locator('[data-testid="skill-provider-item"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first()).toBeVisible({ timeout: 15_000 });
+		await expect(settingsMenu.locator('[data-testid="skill-provider-item"][data-provider-name="Open-Meteo"]').first()).toBeVisible({ timeout: 15_000 });
 		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Deutscher Wetterdienst (DWD)"]').first());
 		await expectImageLoaded(settingsMenu.locator('[data-testid="settings-provider-logo"][data-provider-name="Open-Meteo"]').first());
 
