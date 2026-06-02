@@ -22,14 +22,58 @@
 local_storage:
 - key: demo_mode_enabled
   first_observed: '2026-05-21'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - chat-replay-demo-mode.spec.ts
   purpose: null
   notes: null
+- key: openmates.daily_inspiration.visit_index.5b6cl8
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - saved-payment-invoice-flow.spec.ts
+  purpose: null
+  notes: null
+- key: openmates.daily_inspiration.visit_index.h3pwnq
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - unauthenticated-app-load.spec.ts
+  - test-account-preflight.spec.ts
+  purpose: null
+  notes: null
+- key: openmates.daily_inspiration.visit_index.i8sfcu
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - signup-flow-stripe-managed.spec.ts
+  purpose: null
+  notes: null
+- key: openmates.daily_inspiration.visit_index.lrwy7x
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - signup-skip-2fa-flow.spec.ts
+  purpose: null
+  notes: null
+- key: openmates.daily_inspiration.visit_index.o8romv
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - saved-payment-invoice-flow.spec.ts
+  purpose: null
+  notes: null
+- key: openmates:last-auth-method
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - signup-skip-2fa-flow.spec.ts
+  - sub-chats-flow.spec.ts
+  purpose: null
+  notes: null
 - key: openmates_chats_db_initialized
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -38,14 +82,15 @@ local_storage:
   notes: null
 - key: openmates_email_encrypted_master
   first_observed: '2026-05-27'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - signup-flow-stripe-eu.spec.ts
+  - signup-flow-stripe-managed.spec.ts
   purpose: null
   notes: null
 - key: openmates_email_encryption_key
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
@@ -56,7 +101,7 @@ local_storage:
   notes: null
 - key: openmates_email_salt
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
@@ -67,7 +112,7 @@ local_storage:
   notes: null
 - key: openmates_push_banner_shown
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - connection-resilience.spec.ts
   - message-sync.spec.ts
@@ -78,7 +123,7 @@ local_storage:
   notes: null
 - key: openmates_push_enabled
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - connection-resilience.spec.ts
   - message-sync.spec.ts
@@ -89,7 +134,7 @@ local_storage:
   notes: null
 - key: openmates_push_preferences
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - connection-resilience.spec.ts
   - message-sync.spec.ts
@@ -98,9 +143,16 @@ local_storage:
   - file-attachment-flow.spec.ts
   purpose: null
   notes: null
+- key: openmates_sw_cleanup_v2
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - unauthenticated-chat-navigation.spec.ts
+  purpose: null
+  notes: null
 - key: openmates_user_db_initialized
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -109,7 +161,7 @@ local_storage:
   notes: null
 - key: openmates_was_stay_logged_in
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
@@ -120,7 +172,7 @@ local_storage:
   notes: null
 - key: preferredLanguage
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - language-settings-flow.spec.ts
   - language-switch-welcome-screen.spec.ts
@@ -128,14 +180,14 @@ local_storage:
   notes: null
 - key: theme_mode
   first_observed: '2026-05-26'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - signup-skip-2fa-flow.spec.ts
   purpose: null
   notes: null
 - key: ui_font
   first_observed: '2026-05-26'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - signup-skip-2fa-flow.spec.ts
   purpose: null
@@ -143,7 +195,7 @@ local_storage:
 session_storage:
 - key: _om_action_history
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -153,49 +205,50 @@ session_storage:
   notes: null
 - key: draft_2d55f960-4191-4711-8f26-f4483e52e2d5
   first_observed: '2026-05-06'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - audio-recording.spec.ts
   purpose: null
   notes: null
 - key: draft_30449e1f-4ff4-4ba8-a606-d91df8a04463
   first_observed: '2026-05-06'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - audio-recording.spec.ts
   purpose: null
   notes: null
-- key: draft_557ff88a-81a7-4201-a534-a5b93d1a272a
-  first_observed: '2026-05-27'
-  last_observed: '2026-05-27'
+- key: draft_60cee5a9-99e2-431e-a34e-b36e003e5732
+  first_observed: '2026-06-02'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - audio-recording.spec.ts
+  purpose: null
+  notes: null
+- key: draft_65d440e1-ea6e-44fa-8b3e-aae5ee793695
+  first_observed: '2026-06-02'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - not-found-404-flow.spec.ts
   purpose: null
   notes: null
-- key: draft_9a5a4a34-7bdb-4ceb-acdc-1227a35af189
-  first_observed: '2026-05-27'
-  last_observed: '2026-05-27'
+- key: draft_a2ea53f2-4e60-47dc-9116-087b0e0def62
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
   seen_in_specs:
-  - audio-recording.spec.ts
-  purpose: null
-  notes: null
-- key: draft_cee4c2ea-318c-448c-93db-cf82bf36d26c
-  first_observed: '2026-05-27'
-  last_observed: '2026-05-27'
-  seen_in_specs:
-  - audio-recording.spec.ts
+  - paste-classification.spec.ts
   purpose: null
   notes: null
 - key: draft_chat_ids
   first_observed: '2026-05-06'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - not-found-404-flow.spec.ts
+  - paste-classification.spec.ts
   purpose: null
   notes: null
 - key: ephemeral_session_id
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -206,7 +259,7 @@ session_storage:
   notes: null
 - key: openmates_email_encrypted_master
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -217,7 +270,7 @@ session_storage:
   notes: null
 - key: openmates_email_encryption_key
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - skill-images-generate-safety.spec.ts
   - settings-change-email.spec.ts
@@ -225,7 +278,7 @@ session_storage:
   notes: null
 - key: openmates_email_salt
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - skill-images-generate-safety.spec.ts
   - settings-change-email.spec.ts
@@ -233,17 +286,18 @@ session_storage:
   notes: null
 - key: openmates_pair_encrypted_key
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
   - settings-support-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
+  - sub-chats-flow.spec.ts
   purpose: null
   notes: null
 - key: openmates_pair_lookup_hash
   first_observed: '2026-05-06'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - cli-pair-login.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -251,24 +305,32 @@ session_storage:
   notes: null
 - key: openmates_pair_salt
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
   - settings-support-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
+  - sub-chats-flow.spec.ts
+  purpose: null
+  notes: null
+- key: openmates_session_id
+  first_observed: '2026-05-29'
+  last_observed: '2026-06-02'
+  seen_in_specs:
+  - signup-flow-passkey.spec.ts
   purpose: null
   notes: null
 - key: openmates_skip_orphan_detection
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - shared-chat-open.spec.ts
   purpose: null
   notes: null
 - key: session_id
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -277,7 +339,7 @@ session_storage:
   notes: null
 - key: sveltekit:scroll
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - page-load-performance.spec.ts
   - pdf-flow.spec.ts
@@ -288,7 +350,7 @@ session_storage:
   notes: null
 - key: sveltekit:snapshot
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - page-load-performance.spec.ts
   - pdf-flow.spec.ts
@@ -299,7 +361,7 @@ session_storage:
   notes: null
 - key: ws_token
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -311,7 +373,7 @@ session_storage:
 indexed_db:
 - name: chats_db
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -320,7 +382,7 @@ indexed_db:
   notes: null
 - name: demo_chats_db
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -331,7 +393,7 @@ indexed_db:
   notes: null
 - name: openmates_admin_client_log_queue
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -342,7 +404,7 @@ indexed_db:
   notes: null
 - name: openmates_crypto
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -351,7 +413,7 @@ indexed_db:
   notes: null
 - name: openmates_shared_keys
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -360,7 +422,7 @@ indexed_db:
   notes: null
 - name: user_db
   first_observed: '2026-04-08'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -369,10 +431,11 @@ indexed_db:
   notes: null
 - name: workbox-expiration
   first_observed: '2026-04-09'
-  last_observed: '2026-05-27'
+  last_observed: '2026-06-02'
   seen_in_specs:
   - page-load-performance.spec.ts
   - language-switch-welcome-screen.spec.ts
   - seo-demo-chat.spec.ts
+  - signup-skip-2fa-flow.spec.ts
   purpose: null
   notes: null

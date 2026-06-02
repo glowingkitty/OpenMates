@@ -205,3 +205,16 @@ skills:
               - query
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search:
+      enabled: true
+      keywords:
+        - apartment search AI assistant
+        - find rental listings
+        - home search across platforms
+      pain_points:
+        - housing search takes many tabs
+      demo_angles:
+        - show home search results in chat

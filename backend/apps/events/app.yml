@@ -215,3 +215,16 @@ skills:
               - location
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search:
+      enabled: true
+      keywords:
+        - finding events across Meetup Luma platforms
+        - AI events workshops near me
+        - event discovery is fragmented
+      pain_points:
+        - users search many event platforms manually
+      demo_angles:
+        - show events search across providers

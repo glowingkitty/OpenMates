@@ -255,3 +255,36 @@ skills:
           description: "ID of the reminder to cancel"
       required:
         - reminder_id
+
+marketing_discovery:
+  skills:
+    set-reminder:
+      enabled: true
+      keywords:
+        - set reminders in AI chat
+        - natural language reminder
+        - AI reminder assistant
+      pain_points:
+        - task reminders get forgotten
+      demo_angles:
+        - show setting a reminder
+    list-reminders:
+      enabled: true
+      keywords:
+        - list reminders in chat
+        - AI task reminder overview
+        - manage reminders
+      pain_points:
+        - users lose track of reminders
+      demo_angles:
+        - show reminder list
+    cancel-reminder:
+      enabled: true
+      keywords:
+        - cancel reminders in chat
+        - manage reminders with AI
+        - remove reminder assistant
+      pain_points:
+        - reminder management is tedious
+      demo_angles:
+        - show cancelling a reminder

@@ -213,3 +213,17 @@ skills:
       # Note: Keep this list minimal to avoid token waste.
       always_include_skills:
         - web-search
+
+marketing_discovery:
+  skills:
+    ask:
+      enabled: true
+      keywords:
+        - AI chatbot for everyday tasks
+        - AI assistant with app skills
+        - chatbot workflow automation
+      pain_points:
+        - generic chatbot gives wall of text
+        - users need practical AI workflows
+      demo_angles:
+        - show OpenMates routing a task to useful app skills

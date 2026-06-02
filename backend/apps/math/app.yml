@@ -136,3 +136,16 @@ skills:
           maximum: 100
       required:
         - expression
+
+marketing_discovery:
+  skills:
+    calculate:
+      enabled: true
+      keywords:
+        - AI calculator with steps
+        - solve math in chat
+        - calculation verification
+      pain_points:
+        - LLMs make arithmetic mistakes
+      demo_angles:
+        - show deterministic calculation result

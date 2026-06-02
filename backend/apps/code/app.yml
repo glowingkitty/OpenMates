@@ -465,3 +465,37 @@ focuses:
     name_translation_key: code.check_security
     description_translation_key: code.check_security.description
     stage: development
+
+marketing_discovery:
+  skills:
+    search_repos:
+      enabled: true
+      keywords:
+        - AI codebase research
+        - understand unfamiliar GitHub repository
+        - search code repositories with AI
+      pain_points:
+        - developers waste time orienting in repos
+      demo_angles:
+        - show repository research in OpenMates
+    get_docs:
+      enabled: true
+      keywords:
+        - AI reads latest developer docs
+        - documentation lookup while coding
+        - framework API docs search
+      pain_points:
+        - LLMs use stale docs
+        - developers need current docs
+      demo_angles:
+        - show docs-grounded coding help
+    run:
+      enabled: true
+      keywords:
+        - run code in AI chat
+        - AI assistant executes Python code
+        - interactive code sandbox
+      pain_points:
+        - chatbots cannot verify code output
+      demo_angles:
+        - show code execution result in chat

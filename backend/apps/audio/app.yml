@@ -76,3 +76,17 @@ skills:
               - aes_nonce
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    transcribe:
+      enabled: true
+      keywords:
+        - audio transcription AI
+        - voice note transcript cleanup
+        - meeting recording transcript
+      pain_points:
+        - manual transcription is slow
+        - raw transcripts need correction
+      demo_angles:
+        - show audio transcription with corrected transcript

@@ -397,3 +397,36 @@ skills:
               - query
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    generate:
+      enabled: true
+      keywords:
+        - generate short AI video
+        - AI video generation workflow
+        - make video clip from prompt
+      pain_points:
+        - video generation tools are separate from workflows
+      demo_angles:
+        - show generated video result
+    get_transcript:
+      enabled: true
+      keywords:
+        - summarize YouTube transcript
+        - fact check YouTube video
+        - YouTube video analysis AI
+      pain_points:
+        - video content is hard to skim
+      demo_angles:
+        - show transcript extraction and analysis
+    search:
+      enabled: true
+      keywords:
+        - find useful videos for learning
+        - video search AI assistant
+        - search videos by topic
+      pain_points:
+        - video search is noisy
+      demo_angles:
+        - show video search results
