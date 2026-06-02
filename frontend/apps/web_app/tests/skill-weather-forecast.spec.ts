@@ -138,6 +138,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		const firstDay = dayCards.first();
 		await expect(firstDay.locator('[data-skill-icon="weather"]')).toBeVisible({ timeout: 15_000 });
+		await expect(firstDay, 'weather day card should be interactive before drilldown').toHaveAttribute('role', 'button');
 		await firstDay.click();
 		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-skill-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
