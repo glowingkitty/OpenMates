@@ -19,9 +19,13 @@ import UIKit
 
 struct CodeEmbedRenderer: View {
     let data: [String: AnyCodable]?
+    let embedId: String
+    let chatId: String?
     let mode: EmbedDisplayMode
     var previewActive = false
+    var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var code: String {
         (data?["code"]?.value as? String ?? "")
@@ -66,25 +70,69 @@ struct CodeEmbedRenderer: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
         case .fullscreen:
-            if previewActive, isPreviewable {
-                CodePreviewPane(code: code, language: language, filename: filename)
+            VStack(spacing: 0) {
+                if outputPaneActive {
+                    GeometryReader { proxy in
+                        HStack(spacing: 1) {
+                            if horizontalSizeClass != .compact {
+                                codeSourcePanel(isSplit: true)
+                                    .frame(width: proxy.size.width * 0.3)
+                            }
+
+                            outputPanel
+                                .frame(width: horizontalSizeClass == .compact ? proxy.size.width : proxy.size.width * 0.7)
+                        }
+                        .background(Color.grey20)
+                    }
                     .frame(minHeight: 420)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
-            } else {
-                ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                    CodeLinesView(
-                        code: code,
-                        language: language,
-                        showsLineNumbers: true,
-                        fontSize: 15,
-                        clipsLongLines: false
-                    )
-                        .padding(.top, .spacing6)
-                        .padding(.bottom, .spacing8)
-                        .padding(.trailing, .spacing4)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                } else {
+                    codeSourcePanel(isSplit: false)
                 }
             }
+            .background(Color.grey15)
         }
+    }
+
+    private var outputPaneActive: Bool {
+        previewActive || (codeRunViewModel?.isPanelOpen == true)
+    }
+
+    @ViewBuilder
+    private func codeSourcePanel(isSplit: Bool) -> some View {
+        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+            CodeLinesView(
+                code: code,
+                language: language,
+                showsLineNumbers: true,
+                fontSize: isSplit ? 13 : 15,
+                clipsLongLines: false,
+                gutterWidth: isSplit ? 40 : 40
+            )
+                .padding(.top, .spacing6)
+                .padding(.bottom, .spacing8)
+                .padding(.trailing, .spacing4)
+        }
+        .background(Color.grey15)
+        .accessibilityIdentifier("code-source-panel")
+    }
+
+    @ViewBuilder
+    private var outputPanel: some View {
+        if previewActive, isPreviewable {
+            CodePreviewPane(code: code, language: language, filename: filename)
+                .frame(minHeight: 420)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        } else if let codeRunViewModel {
+            CodeRunTerminalView(viewModel: codeRunViewModel, chatId: chatId, embedId: embedId, file: runClientFile)
+                .frame(minHeight: 420)
+        } else {
+            EmptyView()
+        }
+    }
+
+    private var runClientFile: CodeRunClientFile {
+        CodeRunClientFile(embedId: embedId, code: code, language: language, filename: filename, isTarget: true)
     }
 
     private var isPreviewable: Bool {
@@ -120,12 +168,116 @@ struct CodeEmbedRenderer: View {
     }
 }
 
+private struct CodeRunTerminalView: View {
+    @ObservedObject var viewModel: CodeRunViewModel
+    let chatId: String?
+    let embedId: String
+    let file: CodeRunClientFile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(viewModel.events) { event in
+                        Text(event.text)
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(color(for: event.kind))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.horizontal, .spacing6)
+                .padding(.vertical, .spacing5)
+            }
+            .background(Color(hex: 0x050B12))
+        }
+        .background(Color(hex: 0x050B12))
+        .overlay(RoundedRectangle(cornerRadius: .radius3).stroke(Color(hex: 0x2D3748), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .shadow(color: .black.opacity(0.38), radius: 30, x: 0, y: 10)
+        .accessibilityIdentifier("code-run-terminal")
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(AppStrings.codeRunOutput)
+                    .font(.omSmall)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color(hex: 0xF8FAFC))
+                Text(statusText)
+                    .font(.omXs)
+                    .foregroundStyle(Color(hex: 0x94A3B8))
+            }
+
+            Spacer(minLength: .spacing4)
+
+            HStack(spacing: .spacing3) {
+                terminalButton(AppStrings.codeRunCopyOutput, disabled: viewModel.programOutputText.isEmpty) {
+                    viewModel.copyOutput()
+                }
+                terminalButton(viewModel.isCancelling ? AppStrings.codeRunCancelling : AppStrings.codeRunStop, kind: .danger, disabled: !viewModel.isActive || viewModel.isCancelling) {
+                    viewModel.cancel()
+                }
+                terminalButton(AppStrings.codeRunAgain, disabled: viewModel.isActive) {
+                    Task { await viewModel.start(chatId: chatId, embedId: embedId, file: file) }
+                }
+            }
+        }
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing5)
+        .background(Color(hex: 0x0B1220))
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color(hex: 0x1F2937)).frame(height: 1)
+        }
+    }
+
+    private var statusText: String {
+        let fileText = "\(viewModel.files.count) file\(viewModel.files.count == 1 ? "" : "s") included"
+        return viewModel.files.isEmpty ? viewModel.status.rawValue : "\(viewModel.status.rawValue) · \(fileText)"
+    }
+
+    private enum TerminalButtonKind {
+        case normal
+        case danger
+    }
+
+    private func terminalButton(_ title: String, kind: TerminalButtonKind = .normal, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.omXs)
+                .foregroundStyle(kind == .danger ? Color(hex: 0xFECACA) : Color(hex: 0xE5E7EB))
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .background(kind == .danger ? Color(hex: 0x450A0A) : Color(hex: 0x111827))
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius2)
+                        .stroke(kind == .danger ? Color(hex: 0x7F1D1D) : Color(hex: 0x334155), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                .opacity(disabled ? 0.55 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+
+    private func color(for kind: CodeRunEvent.Kind) -> Color {
+        switch kind {
+        case .status: return Color(hex: 0x7DD3FC)
+        case .stdout: return Color(hex: 0xD1D5DB)
+        case .stderr: return Color(hex: 0xFCA5A5)
+        }
+    }
+}
+
 private struct CodeLinesView: View {
     let code: String
     let language: String
     let showsLineNumbers: Bool
     let fontSize: CGFloat
     let clipsLongLines: Bool
+    var gutterWidth: CGFloat = 34
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -135,7 +287,7 @@ private struct CodeLinesView: View {
                         Text("\(index + 1)")
                             .font(.system(size: fontSize, design: .monospaced))
                             .foregroundStyle(Color.grey60)
-                            .frame(width: 34, alignment: .trailing)
+                            .frame(width: gutterWidth, alignment: .trailing)
                     }
                     HighlightedCodeLine(
                         line: line,

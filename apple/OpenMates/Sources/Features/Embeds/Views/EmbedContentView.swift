@@ -20,6 +20,8 @@ struct EmbedContentView: View {
     let mode: EmbedDisplayMode
     let allEmbedRecords: [String: EmbedRecord]
     let codePreviewActive: Bool
+    let codeRunViewModel: CodeRunViewModel?
+    let chatId: String?
     let previewVariant: EmbedPreviewCardVariant
     let onOpenEmbed: (EmbedRecord) -> Void
 
@@ -28,6 +30,8 @@ struct EmbedContentView: View {
         mode: EmbedDisplayMode,
         allEmbedRecords: [String: EmbedRecord] = [:],
         codePreviewActive: Bool = false,
+        codeRunViewModel: CodeRunViewModel? = nil,
+        chatId: String? = nil,
         previewVariant: EmbedPreviewCardVariant = .compact,
         onOpenEmbed: @escaping (EmbedRecord) -> Void = { _ in }
     ) {
@@ -35,6 +39,8 @@ struct EmbedContentView: View {
         self.mode = mode
         self.allEmbedRecords = allEmbedRecords
         self.codePreviewActive = codePreviewActive
+        self.codeRunViewModel = codeRunViewModel
+        self.chatId = chatId
         self.previewVariant = previewVariant
         self.onOpenEmbed = onOpenEmbed
     }
@@ -72,8 +78,11 @@ struct EmbedContentView: View {
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,
+                    embedId: embed.id,
+                    chatId: chatId,
                     mode: mode,
                     previewActive: codePreviewActive,
+                    codeRunViewModel: codeRunViewModel,
                     isLargePreview: previewVariant == .large
                 )
             case .codeGetDocs:
