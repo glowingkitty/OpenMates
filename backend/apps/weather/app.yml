@@ -1,1 +1,83 @@
-# add Google Pollen map api?
+name_translation_key: apps.weather
+description_translation_key: apps.weather.description
+icon_image: |
+  weather.svg
+category: personal
+last_updated: "2026-06-02"
+embed_types:
+  - id: forecast
+    category: app-skill-use
+    skill_id: forecast
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: weather_day
+    child_frontend_type: weather-day
+    groupable: false
+    preview_component: weather/WeatherForecastEmbedPreview.svelte
+    fullscreen_component: weather/WeatherForecastEmbedFullscreen.svelte
+    child_preview_component: weather/WeatherDayEmbedPreview.svelte
+    child_fullscreen_component: weather/WeatherDayEmbedFullscreen.svelte
+    icon: weather
+    gradient_var: "--color-app-weather"
+    i18n_namespace: embeds.weather.forecast
+settings_and_memories: []
+instructions:
+  - instruction: |
+      When you use the weather-forecast tool, the tool returns compact daily summaries for inference and creates one detailed weather day embed per requested day. Use the summaries for normal answers. If the user asks for exact hourly details, refer to or inspect the relevant day embed instead of guessing.
+skills:
+  - id: forecast
+    name_translation_key: apps.weather.forecast
+    description_translation_key: apps.weather.forecast.description
+    icon_image: weather.svg
+    preprocessor_hint: >
+      Get current and upcoming weather forecasts for a place, including daily weather, temperatures,
+      rain likelihood, and hourly details stored in day embeds. Use this for weather questions,
+      forecast requests, and trip/day planning involving weather.
+    stage: production
+    class_path: |
+      backend.apps.weather.skills.forecast_skill.ForecastSkill
+    providers:
+      - name: Bright Sky
+        no_api_key: true
+      - name: Open-Meteo
+        no_api_key: true
+    suggestions_follow_up_requests:
+      - "When will it rain exactly?"
+      - "Show the hourly forecast for one day"
+      - "Compare the next few days"
+    exclude_fields_for_llm:
+      - type
+      - hourly
+      - source
+      - provider_raw
+      - fallback_source_ids
+      - data_quality
+    tool_schema:
+      type: object
+      properties:
+        location:
+          type: string
+          description: "Place name for the forecast, e.g. Berlin, Karlsruhe, Tokyo. Required unless latitude and longitude are provided."
+        days:
+          type: integer
+          description: "Number of forecast days to return. Defaults to 7. Maximum 14."
+          minimum: 1
+          maximum: 14
+          default: 7
+        latitude:
+          type: number
+          description: "Optional latitude in decimal degrees. Use with longitude for exact coordinates."
+        longitude:
+          type: number
+          description: "Optional longitude in decimal degrees. Use with latitude for exact coordinates."
+        timezone:
+          type: string
+          description: "Optional IANA timezone. Defaults to provider/location timezone."
+        units:
+          type: string
+          description: "Unit system. Only metric is currently supported."
+          enum: ["metric"]
+          default: "metric"
+      required:
+        - location

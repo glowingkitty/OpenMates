@@ -2206,3 +2206,123 @@ shopping.description:
   sv: Jämför supermarketpriser och hitta erbjudanden.
   he: השוואת מחירי סופרמרקטים ומציאת מבצעים.
   verified_by_human: [en, de]
+weather:
+  context: App name for the Weather app
+  en: Weather
+  de: Wetter
+  zh: 天气
+  es: Tiempo
+  fr: Météo
+  pt: Tempo
+  ru: Погода
+  ja: 天気
+  ko: 날씨
+  it: Meteo
+  tr: Hava durumu
+  vi: Thời tiết
+  id: Cuaca
+  pl: Pogoda
+  nl: Weer
+  ar: الطقس
+  hi: मौसम
+  th: สภาพอากาศ
+  cs: Počasí
+  sv: Väder
+  he: מזג אוויר
+  verified_by_human: [en, de]
+weather.description:
+  context: Description for the Weather app
+  en: Get local forecasts and rain information.
+  de: Lokale Vorhersagen und Regeninformationen abrufen.
+  zh: 获取本地预报和降雨信息。
+  es: Obtén pronósticos locales e información de lluvia.
+  fr: Obtenez les prévisions locales et la pluie.
+  pt: Obtenha previsões locais e informações de chuva.
+  ru: Получайте местные прогнозы и данные о дожде.
+  ja: 地域の予報と雨情報を取得します。
+  ko: 지역 예보와 비 정보를 확인하세요.
+  it: Ottieni previsioni locali e informazioni sulla pioggia.
+  tr: Yerel tahminleri ve yağmur bilgilerini alın.
+  vi: Xem dự báo địa phương và thông tin mưa.
+  id: Dapatkan prakiraan lokal dan info hujan.
+  pl: Sprawdzaj lokalne prognozy i informacje o deszczu.
+  nl: Krijg lokale voorspellingen en regeninformatie.
+  ar: احصل على التوقعات المحلية ومعلومات المطر.
+  hi: स्थानीय पूर्वानुमान और बारिश की जानकारी पाएं।
+  th: รับพยากรณ์ท้องถิ่นและข้อมูลฝน
+  cs: Získejte místní předpovědi a informace o dešti.
+  sv: Få lokala prognoser och regninformation.
+  he: קבלת תחזיות מקומיות ומידע על גשם.
+  verified_by_human: [en, de]
+weather.forecast:
+  context: Skill name for forecast in Weather app
+  en: Forecast
+  de: Vorhersage
+  zh: 预报
+  es: Pronóstico
+  fr: Prévision
+  pt: Previsão
+  ru: Прогноз
+  ja: 予報
+  ko: 예보
+  it: Previsione
+  tr: Tahmin
+  vi: Dự báo
+  id: Prakiraan
+  pl: Prognoza
+  nl: Verwachting
+  ar: التوقعات
+  hi: पूर्वानुमान
+  th: พยากรณ์
+  cs: Předpověď
+  sv: Prognos
+  he: תחזית
+  verified_by_human: [en, de]
+weather.forecast.description:
+  context: Description for forecast skill in Weather app
+  en: Get daily and hourly weather forecasts.
+  de: Tägliche und stündliche Wettervorhersagen abrufen.
+  zh: 获取每日和每小时天气预报。
+  es: Obtén pronósticos diarios y por hora.
+  fr: Obtenez des prévisions météo quotidiennes et horaires.
+  pt: Obtenha previsões diárias e horárias.
+  ru: Получайте дневные и почасовые прогнозы.
+  ja: 日別・時間別の天気予報を取得します。
+  ko: 일별 및 시간별 날씨 예보를 확인하세요.
+  it: Ottieni previsioni giornaliere e orarie.
+  tr: Günlük ve saatlik hava tahminleri alın.
+  vi: Xem dự báo thời tiết theo ngày và giờ.
+  id: Dapatkan prakiraan cuaca harian dan per jam.
+  pl: Sprawdzaj prognozy dzienne i godzinowe.
+  nl: Krijg dagelijkse en uurlijkse weersverwachtingen.
+  ar: احصل على توقعات يومية وساعية للطقس.
+  hi: दैनिक और प्रति घंटा मौसम पूर्वानुमान पाएं।
+  th: รับพยากรณ์อากาศรายวันและรายชั่วโมง
+  cs: Získejte denní a hodinové předpovědi počasí.
+  sv: Få dagliga och timvisa väderprognoser.
+  he: קבלת תחזית יומית ושעתית.
+  verified_by_human: [en, de]
+weather.day:
+  context: Label for a single Weather day embed
+  en: Weather day
+  de: Wettertag
+  zh: 天气日
+  es: Día meteorológico
+  fr: Journée météo
+  pt: Dia do tempo
+  ru: День погоды
+  ja: 天気の日
+  ko: 날씨 일자
+  it: Giorno meteo
+  tr: Hava günü
+  vi: Ngày thời tiết
+  id: Hari cuaca
+  pl: Dzień pogody
+  nl: Weerdag
+  ar: يوم الطقس
+  hi: मौसम दिन
+  th: วันสภาพอากาศ
+  cs: Den počasí
+  sv: Väderdag
+  he: יום מזג אוויר
+  verified_by_human: [en, de]

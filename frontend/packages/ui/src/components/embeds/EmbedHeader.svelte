@@ -817,6 +817,10 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/nutrition.svg');
     mask-image: url('@openmates/ui/static/icons/nutrition.svg');
   }
+  :global([data-skill-icon="weather"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/weather.svg');
+    mask-image: url('@openmates/ui/static/icons/weather.svg');
+  }
   :global([data-skill-icon="socialmedia"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/socialmedia.svg');
     mask-image: url('@openmates/ui/static/icons/socialmedia.svg');

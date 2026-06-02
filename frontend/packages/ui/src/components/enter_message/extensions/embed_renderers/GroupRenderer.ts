@@ -49,6 +49,7 @@ import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMe
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
+import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
@@ -301,6 +302,16 @@ export class GroupRenderer implements EmbedRenderer {
         "nutrition-recipe",
         (item, embedData, decodedContent, content) =>
           this.renderNutritionRecipeComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "weather-day",
+        (item, embedData, decodedContent, content) =>
+          this.renderWeatherDayComponent(
             item,
             embedData,
             decodedContent,
@@ -603,6 +614,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "nutrition-recipe":
         return this.renderNutritionRecipeItem(item, embedData, decodedContent);
+      case "weather-day":
+        return this.renderWeatherDayItem(item, embedData, decodedContent);
       case "social-media-post":
         return this.renderSocialMediaPostItem(item, embedData, decodedContent);
       default:
@@ -4415,6 +4428,7 @@ export class GroupRenderer implements EmbedRenderer {
       "home-listing": "listing",
       "shopping-product": "product",
       "electronics-component": "component",
+      "weather-day": "weather day",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
@@ -4949,6 +4963,103 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${totalTime ? `<div class="embed-text-subline">${esc(totalTime)}</div>` : ""}
         ${difficulty ? `<div class="embed-text-subline">${esc(difficulty)}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * Render a weather-day child embed using WeatherDayEmbedPreview.
+   */
+  private async renderWeatherDayComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping WeatherDayEmbedPreview mount - target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(WeatherDayEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          date: decodedContent?.date as string | undefined,
+          locationName: decodedContent?.location_name as string | undefined,
+          provider: (decodedContent?.provider as string | undefined) || "Weather",
+          condition: decodedContent?.condition as string | undefined,
+          icon: decodedContent?.icon as string | undefined,
+          temperatureMinC: decodedContent?.temperature_min_c as number | undefined,
+          temperatureMaxC: decodedContent?.temperature_max_c as number | undefined,
+          precipitationTotalMm: decodedContent?.precipitation_total_mm as number | undefined,
+          precipitationProbabilityMaxPct: decodedContent?.precipitation_probability_max_pct as number | undefined,
+          rainHours: decodedContent?.rain_hours as number | undefined,
+          status: (embedData?.status || item.status || "finished") as
+            | "processing"
+            | "finished"
+            | "error"
+            | "cancelled",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted WeatherDayEmbedPreview:", {
+        embedId,
+        date: decodedContent?.date,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount WeatherDayEmbedPreview:",
+        err,
+      );
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Weather preview unavailable</div>`;
+    }
+  }
+
+  /**
+   * HTML fallback renderer for weather-day embeds.
+   */
+  private async renderWeatherDayItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const date = decodedContent?.date || "Weather day";
+    const condition = decodedContent?.condition || "forecast";
+    const min = decodedContent?.temperature_min_c;
+    const max = decodedContent?.temperature_max_c;
+    const temp = typeof min === "number" && typeof max === "number"
+      ? `${Math.round(min)}° / ${Math.round(max)}°`
+      : "";
+
+    return `
+      <div class="embed-app-icon weather">
+        <span class="icon icon_weather"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${esc(String(date))}</div>
+        <div class="embed-text-subline">${esc(String(condition))}${temp ? ` · ${esc(temp)}` : ""}</div>
       </div>
     `;
   }
