@@ -7,9 +7,12 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import WeatherDayEmbedPreview from './WeatherDayEmbedPreview.svelte';
+  import WeatherDayEmbedFullscreen from './WeatherDayEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { activeEmbedStore } from '../../../stores/activeEmbedStore';
 
   interface WeatherDayResult {
     embed_id: string;
@@ -59,6 +62,9 @@
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Weather');
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let selectedDayIndex = $state(-1);
+  let loadedDays = $state<WeatherDayResult[]>([]);
+  let selectedDay = $derived(selectedDayIndex >= 0 ? loadedDays[selectedDayIndex] ?? null : null);
 
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {
     return {
@@ -93,12 +99,46 @@
       wind_speed_max_kmh: result.wind_speed_max_kmh as number | undefined,
     }));
   }
+
+  function getDays(children: unknown[]): WeatherDayResult[] {
+    return (children.length > 0 ? children : transformLegacyResults(legacyResults)) as WeatherDayResult[];
+  }
+
+  function updateLoadedDays(days: WeatherDayResult[]): void {
+    loadedDays = days;
+  }
+
+  function openDay(index: number, days: WeatherDayResult[]): void {
+    updateLoadedDays(days);
+    selectedDayIndex = index;
+    const day = days[index];
+    if (day?.embed_id) activeEmbedStore.setActiveEmbed(day.embed_id, null);
+  }
+
+  function closeDay(): void {
+    selectedDayIndex = -1;
+    if (embedId) activeEmbedStore.setActiveEmbed(embedId, null);
+  }
+
+  function previousDay(): void {
+    if (selectedDayIndex <= 0) return;
+    selectedDayIndex -= 1;
+    const day = loadedDays[selectedDayIndex];
+    if (day?.embed_id) activeEmbedStore.setActiveEmbed(day.embed_id, null);
+  }
+
+  function nextDay(): void {
+    if (selectedDayIndex >= loadedDays.length - 1) return;
+    selectedDayIndex += 1;
+    const day = loadedDays[selectedDayIndex];
+    if (day?.embed_id) activeEmbedStore.setActiveEmbed(day.embed_id, null);
+  }
 </script>
 
 <UnifiedEmbedFullscreen
   appId="weather"
   skillId="forecast"
-  skillIconName="weather"
+  skillIconName="search"
   embedHeaderTitle={locationName || $text('apps.weather.forecast')}
   embedHeaderSubtitle={provider}
   {onClose}
@@ -113,9 +153,10 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  onChildrenLoaded={(children) => updateLoadedDays(children as WeatherDayResult[])}
 >
   {#snippet content(ctx)}
-    {@const days = (ctx.children.length > 0 ? ctx.children : transformLegacyResults(legacyResults)) as WeatherDayResult[]}
+    {@const days = getDays(ctx.children)}
 
     {#if ctx.isLoadingChildren}
       <div class="state">{$text('embeds.loading')}</div>
@@ -123,7 +164,7 @@
       <div class="state">{$text('embeds.no_results')}</div>
     {:else}
       <div class="forecast-grid" data-testid="weather-forecast-fullscreen-grid">
-        {#each days as day}
+        {#each days as day, index}
           <WeatherDayEmbedPreview
             id={day.embed_id}
             date={day.date}
@@ -138,13 +179,27 @@
             rainHours={day.rain_hours}
             status="finished"
             isMobile={false}
-            onFullscreen={() => {}}
+            onFullscreen={() => openDay(index, days)}
           />
         {/each}
       </div>
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+{#if selectedDay}
+  <ChildEmbedOverlay>
+    <WeatherDayEmbedFullscreen
+      data={{ decodedContent: selectedDay, embedData: {} }}
+      onClose={closeDay}
+      embedId={selectedDay.embed_id}
+      hasPreviousEmbed={selectedDayIndex > 0}
+      hasNextEmbed={selectedDayIndex < loadedDays.length - 1}
+      onNavigatePrevious={previousDay}
+      onNavigateNext={nextDay}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   .state {
@@ -157,8 +212,8 @@
 
   .forecast-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
     padding: 24px 16px 120px;
     max-width: 1000px;
     margin: 0 auto;

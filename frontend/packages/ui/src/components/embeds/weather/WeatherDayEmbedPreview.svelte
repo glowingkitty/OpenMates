@@ -44,7 +44,7 @@
     onFullscreen
   }: Props = $props();
 
-  let skillName = $derived($text('apps.weather.day'));
+  let dayTitle = $derived(date || $text('apps.weather.day'));
 
   function formatTemp(min?: number, max?: number): string {
     if (min === undefined && max === undefined) return '—';
@@ -58,12 +58,13 @@
   {id}
   appId="weather"
   skillId="weather_day"
-  skillIconName="weather"
+  skillIconName=""
   {status}
-  {skillName}
+  skillName={dayTitle}
   {taskId}
   {isMobile}
   {onFullscreen}
+  showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">

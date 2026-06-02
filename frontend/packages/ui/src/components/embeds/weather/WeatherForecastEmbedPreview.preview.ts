@@ -37,7 +37,7 @@ const defaultProps = {
   id: 'preview-weather-forecast-1',
   query: 'Berlin weather forecast',
   locationName: 'Berlin',
-  provider: 'Bright Sky / DWD',
+  provider: 'Deutscher Wetterdienst (DWD)',
   status: 'finished' as const,
   results,
   isMobile: false,

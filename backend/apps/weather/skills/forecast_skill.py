@@ -30,6 +30,8 @@ MAX_FORECAST_DAYS = 14
 GERMANY_COUNTRY_CODE = "DE"
 DEFAULT_TIMEZONE = "Europe/Berlin"
 METRIC_UNITS = "metric"
+DWD_PROVIDER_LABEL = "Deutscher Wetterdienst (DWD)"
+OPEN_METEO_PROVIDER_LABEL = "Open-Meteo"
 WEATHER_INFERENCE_EXCLUDE_FIELDS = [
     "type",
     "hourly",
@@ -114,7 +116,7 @@ class ForecastSkill(BaseSkill):
             "query": f"{location} weather forecast",
             "location": location,
             "days_requested": days,
-            "provider": "Bright Sky / DWD + Open-Meteo",
+            "provider": f"{DWD_PROVIDER_LABEL} + {OPEN_METEO_PROVIDER_LABEL}",
         }
 
     async def _resolve_location(self, request: ForecastRequest) -> dict[str, Any]:
@@ -181,7 +183,7 @@ class ForecastSkill(BaseSkill):
                     timezone=resolved_timezone,
                     requested_days=request.days,
                 )
-                provider = "Bright Sky / DWD"
+                provider = DWD_PROVIDER_LABEL
             else:
                 provider_payload = await fetch_forecast(
                     latitude=lat,
@@ -196,7 +198,7 @@ class ForecastSkill(BaseSkill):
                     timezone=resolved_timezone,
                     requested_days=request.days,
                 )
-                provider = "Open-Meteo"
+                provider = OPEN_METEO_PROVIDER_LABEL
 
             return ForecastResponse(
                 results=results,

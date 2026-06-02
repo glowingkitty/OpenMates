@@ -18,7 +18,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 BRIGHT_SKY_BASE_URL = "https://api.brightsky.dev"
-BRIGHT_SKY_PROVIDER_LABEL = "Bright Sky / DWD"
+BRIGHT_SKY_PROVIDER_LABEL = "Deutscher Wetterdienst (DWD)"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 
 

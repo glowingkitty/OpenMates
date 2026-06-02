@@ -2,7 +2,7 @@
  * App-store examples for the weather forecast skill.
  *
  * Captured from real forecast skill responses covering both supported provider
- * routes: Germany uses Bright Sky / DWD, while international locations use
+ * routes: Germany uses Deutscher Wetterdienst (DWD), while international locations use
  * Open-Meteo. The result shape matches WeatherForecastEmbedPreview and the
  * fullscreen's legacy results fallback.
  */
@@ -35,14 +35,14 @@ const examples: WeatherForecastStoreExample[] = [
       longitude: 13.405,
       country_code: 'DE',
     },
-    provider: 'Bright Sky / DWD',
+    provider: 'Deutscher Wetterdienst (DWD)',
     status: 'finished',
     results: [
       {
         embed_id: 'store-example-weather-day-berlin-1',
         date: '2026-06-02',
         location_name: 'Berlin',
-        provider: 'Bright Sky / DWD',
+        provider: 'Deutscher Wetterdienst (DWD)',
         condition: 'dry',
         temperature_min_c: 15,
         temperature_max_c: 26,
@@ -55,7 +55,7 @@ const examples: WeatherForecastStoreExample[] = [
         embed_id: 'store-example-weather-day-berlin-2',
         date: '2026-06-03',
         location_name: 'Berlin',
-        provider: 'Bright Sky / DWD',
+        provider: 'Deutscher Wetterdienst (DWD)',
         condition: 'rain',
         temperature_min_c: 14,
         temperature_max_c: 19,
@@ -68,7 +68,7 @@ const examples: WeatherForecastStoreExample[] = [
         embed_id: 'store-example-weather-day-berlin-3',
         date: '2026-06-04',
         location_name: 'Berlin',
-        provider: 'Bright Sky / DWD',
+        provider: 'Deutscher Wetterdienst (DWD)',
         condition: 'rain',
         temperature_min_c: 13,
         temperature_max_c: 21,

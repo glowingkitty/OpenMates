@@ -5,7 +5,7 @@ export default {
     decodedContent: {
       date: '2026-06-03',
       location_name: 'Berlin',
-      provider: 'Bright Sky / DWD',
+      provider: 'Deutscher Wetterdienst (DWD)',
       condition: 'rain',
       temperature_min_c: 14,
       temperature_max_c: 19,

@@ -61,6 +61,13 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		const skillIds = (weather.skills || []).map((skill: { id: string }) => skill.id);
 		expect(skillIds).toContain('forecast');
+
+		const forecast = (weather.skills || []).find((skill: { id: string }) => skill.id === 'forecast');
+		expect(forecast?.name_translation_key).toBe('apps.weather.forecast');
+		expect(forecast?.description_translation_key).toBe('apps.weather.forecast.description');
+		expect(forecast?.icon_image).toBe('search.svg');
+		expect(forecast?.providers).toContain('Deutscher Wetterdienst (DWD)');
+		expect(forecast?.providers).toContain('Open-Meteo');
 	});
 
 	test('Phase 1: embed preview renders through direct component preview', async ({ page }: { page: any }) => {
@@ -91,7 +98,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expectCliSuccess(berlinResult, 'weather/forecast CLI Berlin');
 		const berlinParsed = parseCliJson(berlinResult);
 		expect(berlinParsed.success).toBe(true);
-		expectForecastPayload(berlinParsed, 'Bright Sky');
+		expectForecastPayload(berlinParsed, 'Deutscher Wetterdienst');
 
 		const tokyoResult = await runCli(
 			apiUrl,
@@ -162,7 +169,10 @@ test.describe('App: Weather / Skill: forecast', () => {
 			const fullscreen = await openFullscreen(page, weatherParent);
 			const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
 			await expect(grid).toBeVisible({ timeout: 30_000 });
-			await expect(grid.getByTestId('weather-day-preview').first()).toBeVisible({ timeout: 30_000 });
+			const firstDay = grid.getByTestId('weather-day-preview').first();
+			await expect(firstDay).toBeVisible({ timeout: 30_000 });
+			await firstDay.click();
+			await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 			await closeFullscreen(page, fullscreen);
 		} else {
 			await expect(weatherDay).toBeVisible({ timeout: 15_000 });

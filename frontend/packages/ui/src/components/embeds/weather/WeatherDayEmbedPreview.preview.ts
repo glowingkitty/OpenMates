@@ -7,7 +7,7 @@ const defaultProps = {
   id: 'preview-weather-day-1',
   date: '2026-06-03',
   locationName: 'Berlin',
-  provider: 'Bright Sky / DWD',
+  provider: 'Deutscher Wetterdienst (DWD)',
   condition: 'rain',
   temperatureMinC: 14,
   temperatureMaxC: 19,

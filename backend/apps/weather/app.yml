@@ -29,7 +29,7 @@ skills:
   - id: forecast
     name_translation_key: apps.weather.forecast
     description_translation_key: apps.weather.forecast.description
-    icon_image: weather.svg
+    icon_image: search.svg
     preprocessor_hint: >
       Get current and upcoming weather forecasts for a place, including daily weather, temperatures,
       rain likelihood, and hourly details stored in day embeds. Use this for weather questions,
@@ -38,7 +38,7 @@ skills:
     class_path: |
       backend.apps.weather.skills.forecast_skill.ForecastSkill
     providers:
-      - name: Bright Sky
+      - name: Deutscher Wetterdienst (DWD)
         no_api_key: true
       - name: Open-Meteo
         no_api_key: true
