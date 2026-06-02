@@ -342,8 +342,23 @@
     let panelHeightTransitionOverride = $state<string | null>(null);
     let suppressHeightChangeDispatch = $state(false);
     
-    // Draft preview mode: field has content but is not focused — show truncated text, hide buttons.
-    let isDraftPreview = $derived(hasContent && !isMessageFieldFocused && !isFullscreen);
+    let hasEmbedContent = $state(false);
+
+    function editorHasEmbedContent(editor: Editor): boolean {
+        let found = false;
+        editor.state.doc.descendants((node) => {
+            if (node.type.name === 'embed') {
+                found = true;
+                return false;
+            }
+            return !found;
+        });
+        return found;
+    }
+
+    // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
+    // File/PDF/image embeds must keep actions visible so users can send after upload completion.
+    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -356,6 +371,7 @@
         !startNewChatOnClick && !isDraftPreview && (
             isFullscreen ||
             showActionButtons ||
+            hasEmbedContent ||
             isMessageFieldFocused ||
             $recordingState.isRecordButtonPressed ||
             $recordingState.showRecordAudioUI
@@ -2529,6 +2545,7 @@
         }
         
         const newHasContent = !isContentEmptyExceptMention(editor);
+        hasEmbedContent = editorHasEmbedContent(editor);
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
             if (!newHasContent) {
@@ -3110,6 +3127,7 @@
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
+            hasEmbedContent = editorHasEmbedContent(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -3525,6 +3543,7 @@
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
+            hasEmbedContent = editorHasEmbedContent(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -3567,6 +3586,7 @@
         // isRecording=false: camera photos are not recordings; isAuthenticated controls upload path
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
         hasContent = true;
+        hasEmbedContent = true;
         tick().then(() => {
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
