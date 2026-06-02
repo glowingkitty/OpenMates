@@ -379,7 +379,7 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	log('E2E Sub-chats flow test completed successfully!');
 });
 
-test('enforces sub-chat display limit and renders confirmation approval card', async ({
+test('renders all sub-chat cards and confirmation approval card', async ({
 	page
 }: {
 	page: any;
@@ -400,7 +400,7 @@ test('enforces sub-chat display limit and renders confirmation approval card', a
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(4000);
 
-	log('Injecting parent chat with 21 sub-chats to verify the 20-card display cap...');
+	log('Injecting parent chat with 21 sub-chats to verify historical sub-chats are not display-capped...');
 	await page.evaluate(async () => {
 		const DB_NAME = 'chats_db';
 		const CHATS_STORE = 'chats';
@@ -494,8 +494,8 @@ test('enforces sub-chat display limit and renders confirmation approval card', a
 	});
 	await page.waitForTimeout(1500);
 	await expect(page.getByTestId('sub-chats-carousel')).toBeVisible({ timeout: 5000 });
-	await expect(page.getByTestId('sub-chat-card')).toHaveCount(20, { timeout: 5000 });
-	await screenshot(page, 'sub-chat-limit-capped-at-20');
+	await expect(page.getByTestId('sub-chat-card')).toHaveCount(21, { timeout: 5000 });
+	await screenshot(page, 'sub-chat-cards-not-display-capped');
 
 	log('Rendering sub-chat confirmation card for a proposed batch of 4...');
 	await page.evaluate(() => {

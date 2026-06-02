@@ -3772,9 +3772,16 @@ async def handle_main_processing(
                         context_policy = get_sub_chat_context_policy(parsed_args)
                         logger.info(f"{log_prefix} [SUB_CHAT] LLM requested start_sub_chats with {len(sub_chats_args)} chats mode={execution_mode}")
 
-                        spawned_sub_chats = expand_sub_chat_requests(sub_chats_args)
+                        spawned_sub_chats = expand_sub_chat_requests(
+                            sub_chats_args,
+                            max_template_items=MAX_DIRECT_SUB_CHATS_PER_PARENT if execution_mode != "sequential" else None,
+                        )
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
-                        capacity_result = validate_sub_chat_capacity(existing_sub_chat_count, len(spawned_sub_chats))
+                        capacity_result = (
+                            {"allowed": True, "remaining": None, "message": ""}
+                            if execution_mode == "sequential"
+                            else validate_sub_chat_capacity(existing_sub_chat_count, len(spawned_sub_chats))
+                        )
 
                         if not capacity_result["allowed"]:
                             tool_result_content_str = json.dumps({
@@ -3794,7 +3801,7 @@ async def handle_main_processing(
                             })
                             logger.warning(
                                 f"{log_prefix} [SUB_CHAT] Rejected spawn request: existing={existing_sub_chat_count}, "
-                                f"requested={len(spawned_sub_chats)}, max={MAX_DIRECT_SUB_CHATS_PER_PARENT}"
+                                f"requested={len(spawned_sub_chats)}, max_concurrent={MAX_DIRECT_SUB_CHATS_PER_PARENT}"
                             )
                             continue
 

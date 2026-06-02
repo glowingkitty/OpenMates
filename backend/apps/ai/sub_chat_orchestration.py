@@ -1,7 +1,7 @@
 # backend/apps/ai/sub_chat_orchestration.py
 #
 # Shared sub-chat orchestration helpers for the AI app.
-# Keeps fan-out limits, pending confirmation state, and child task dispatch in
+# Keeps fan-out concurrency limits, pending confirmation state, and child task dispatch in
 # one backend-owned place so the frontend never becomes the enforcement layer.
 # Sub-chats are zero-knowledge shells until the client receives spawn events and
 # persists the encrypted first user message.
@@ -15,7 +15,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-MAX_DIRECT_SUB_CHATS_PER_PARENT = 20
+MAX_CONCURRENT_SUB_CHATS_PER_PARENT = 20
+MAX_DIRECT_SUB_CHATS_PER_PARENT = MAX_CONCURRENT_SUB_CHATS_PER_PARENT
 MAX_AUTO_SUB_CHATS_PER_TURN = 3
 MAX_TEMPLATE_EXPANSION_ITEMS = 20
 SUB_CHAT_CONFIRMATION_TTL_SECONDS = 15 * 60
@@ -27,7 +28,7 @@ def sub_chat_confirmation_key(chat_id: str, task_id: str) -> str:
     return f"{SUB_CHAT_CONFIRMATION_KEY_PREFIX}:{chat_id}:{task_id}"
 
 
-def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]], max_template_items: int | None = None) -> list[dict[str, Any]]:
     """Expand model-proposed sub-chat arguments into concrete child specs."""
     spawned_sub_chats: list[dict[str, Any]] = []
     for sc in sub_chats_args:
@@ -39,7 +40,8 @@ def expand_sub_chat_requests(sub_chats_args: list[dict[str, Any]]) -> list[dict[
         report_trigger = sc.get("report_trigger", "all")
 
         if prompt_template and sc_list:
-            for item in sc_list[:MAX_TEMPLATE_EXPANSION_ITEMS]:
+            items = sc_list[:max_template_items] if max_template_items is not None else sc_list
+            for item in items:
                 resolved_prompt = prompt_template.replace("{x}", str(item))
                 sc_id = str(uuid.uuid4())
                 spawned_sub_chats.append({
@@ -91,14 +93,14 @@ async def count_direct_sub_chats(directus_service: Any, parent_chat_id: str) -> 
 
 
 def validate_sub_chat_capacity(existing_count: int, requested_count: int) -> dict[str, Any]:
-    remaining = max(MAX_DIRECT_SUB_CHATS_PER_PARENT - existing_count, 0)
-    if requested_count > remaining:
+    remaining = max(MAX_CONCURRENT_SUB_CHATS_PER_PARENT - requested_count, 0)
+    if requested_count > MAX_CONCURRENT_SUB_CHATS_PER_PARENT:
         return {
             "allowed": False,
             "remaining": remaining,
             "message": (
-                f"This chat can have at most {MAX_DIRECT_SUB_CHATS_PER_PARENT} direct sub-chats. "
-                f"It already has {existing_count}, so only {remaining} more can be started."
+                f"This chat can start at most {MAX_CONCURRENT_SUB_CHATS_PER_PARENT} concurrent sub-chats. "
+                "Use sequential execution for larger queues."
             ),
         }
 

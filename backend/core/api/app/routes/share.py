@@ -18,7 +18,6 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
-from backend.apps.ai.sub_chat_orchestration import MAX_DIRECT_SUB_CHATS_PER_PARENT
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +223,7 @@ async def get_shared_chat(
                 "filter[parent_id][_eq]": chat_id,
                 "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
                 "sort": "created_at",
-                "limit": MAX_DIRECT_SUB_CHATS_PER_PARENT,
+                "limit": -1,
             },
             admin_required=True,
         ) or []

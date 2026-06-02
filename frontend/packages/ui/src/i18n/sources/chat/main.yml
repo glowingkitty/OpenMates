@@ -1587,8 +1587,8 @@ sub_chats.confirmation_title:
   verified_by_human: []
 
 sub_chats.confirmation_description:
-  context: Description for inline sub-chat confirmation. {auto} is the number allowed without confirmation, {max} is the hard direct sub-chat cap.
-  en: OpenMates starts up to {auto} automatically. Larger batches need your approval, and each chat can have up to {max} direct sub-chats.
+  context: Description for inline sub-chat confirmation. {auto} is the number allowed without confirmation, {max} is the concurrent parallel sub-chat cap.
+  en: OpenMates starts up to {auto} automatically. Larger batches need your approval, and parallel batches can start up to {max} sub-chats at once. Sequential queues can be larger.
   verified_by_human: []
 
 sub_chats.confirmation_more:
@@ -1612,8 +1612,8 @@ sub_chats.confirmation_failed:
   verified_by_human: []
 
 sub_chats.limit_exceeded:
-  context: Fallback error notification when sub-chat limit is exceeded.
-  en: This chat has reached its sub-chat limit.
+  context: Fallback error notification when the parallel sub-chat concurrency limit is exceeded.
+  en: This chat can start up to 20 parallel sub-chats at once. Use a sequential queue for larger batches.
   verified_by_human: []
 
 sub_chats.progress_label:
