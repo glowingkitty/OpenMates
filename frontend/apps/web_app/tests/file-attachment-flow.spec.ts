@@ -576,9 +576,9 @@ async function assertImageEmbedsHealthy(
 	//               > (ImageEmbedPreview) .image-preview > .image-content > img.preview-image
 	const userEmbedWrapper = activeChatContainer
 		.locator('[data-testid="message-user"]')
-		.locator('[data-testid="embed-full-width-wrapper"]');
+		.locator('[data-testid="embed-preview"], [data-testid="embed-full-width-wrapper"]');
 	await expect(userEmbedWrapper.first()).toBeVisible({ timeout: 20000 });
-	logCheckpoint(`[${phase}] User embed wrapper (.embed-full-width-wrapper) is visible.`);
+	logCheckpoint(`[${phase}] User image embed wrapper is visible.`);
 
 	if (requireImages) {
 		// img.preview-image inside the user message — src must be non-empty (blob: URL).
