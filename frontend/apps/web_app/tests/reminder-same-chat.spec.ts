@@ -161,22 +161,24 @@ test('reminder — same-chat: system message fires in the same chat', async ({
 	expect(sysText).toContain('Reminder');
 	expect(sysText?.toLowerCase()).toContain('check the test results');
 
-	// Verify ordering: last system message index < last assistant message index
-	log('Verifying message ordering (system before assistant follow-up)...');
+	// Verify ordering: the reminder system message should appear after the initial
+	// assistant confirmation in the same chat. Same-chat reminders are notification
+	// messages; they do not always produce a separate assistant follow-up.
+	log('Verifying message ordering (assistant confirmation before system reminder)...');
 	await expect(async () => {
 		const all = page.locator('[data-testid^="message-"]');
 		const count = await all.count();
 		let lastSys = -1;
-		let lastAsst = -1;
+		let firstAsst = -1;
 		for (let i = 0; i < count; i++) {
 			const cls = await all.nth(i).getAttribute('class');
 			if (cls?.includes('system')) lastSys = i;
-			if (cls?.includes('assistant')) lastAsst = i;
+			if (cls?.includes('assistant') && firstAsst === -1) firstAsst = i;
 		}
 		expect(lastSys, 'system message must exist').toBeGreaterThan(-1);
-		expect(lastAsst, 'assistant message must exist').toBeGreaterThan(-1);
-		expect(lastSys, `system (${lastSys}) must precede assistant (${lastAsst})`).toBeLessThan(
-			lastAsst
+		expect(firstAsst, 'assistant confirmation must exist').toBeGreaterThan(-1);
+		expect(lastSys, `system (${lastSys}) must follow assistant confirmation (${firstAsst})`).toBeGreaterThan(
+			firstAsst
 		);
 	}).toPass({ timeout: 120000, intervals: [3000] });
 
