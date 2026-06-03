@@ -31,6 +31,28 @@ MAX_TOPICS_PER_BATCH = 20
 MAX_429_RETRIES = 3
 DEFAULT_RETRY_DELAY = 1.0
 REQUEST_TIMEOUT = 15.0
+DEFAULT_WIKIPEDIA_LANGUAGE = "en"
+SUPPORTED_WIKIPEDIA_LANGUAGES = {
+    "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it",
+    "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv",
+}
+
+
+def normalize_wikipedia_language(
+    language: Optional[str],
+    fallback: str = DEFAULT_WIKIPEDIA_LANGUAGE,
+) -> str:
+    """Resolve a user/UI locale to a supported Wikipedia language subdomain."""
+    fallback_code = (
+        fallback or DEFAULT_WIKIPEDIA_LANGUAGE
+    ).strip().lower().replace("_", "-").split("-")[0]
+    if fallback_code not in SUPPORTED_WIKIPEDIA_LANGUAGES:
+        fallback_code = DEFAULT_WIKIPEDIA_LANGUAGE
+
+    code = (language or "").strip().lower().replace("_", "-").split("-")[0]
+    if code in SUPPORTED_WIKIPEDIA_LANGUAGES:
+        return code
+    return fallback_code
 
 
 class WikipediaTopic(BaseModel):
@@ -62,6 +84,8 @@ async def batch_validate_topics(
     Returns:
         List of WikipediaTopic for topics with confirmed Wikipedia articles.
     """
+    language = normalize_wikipedia_language(language)
+
     if not topics:
         return []
 
@@ -188,6 +212,7 @@ async def fetch_page_summary(
     Returns:
         Summary dict or None if article not found.
     """
+    language = normalize_wikipedia_language(language)
     rest_api_url = WIKIPEDIA_REST_API_TEMPLATE.format(lang=language)
     url = f"{rest_api_url}/page/summary/{title}"
 

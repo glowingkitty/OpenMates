@@ -38,6 +38,7 @@ from backend.apps.ai.llm_providers.bedrock_shared import ParsedBedrockToolCall, 
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
+from backend.shared.providers.wikipedia.wikipedia_api import normalize_wikipedia_language
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
 
@@ -1529,6 +1530,11 @@ async def handle_main_processing(
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
     prompt_parts.append(base_instructions.get("base_wikipedia_linking_instruction", ""))
+    wikipedia_language = normalize_wikipedia_language((request_data.user_preferences or {}).get("language"))
+    prompt_parts.append(
+        f"For all `wiki:` inline links, use article titles from {wikipedia_language}.wikipedia.org "
+        f"only. Do not use English Wikipedia titles unless the user's UI language is English."
+    )
     
     # Add app deep linking instruction so the AI uses correct relative hash links
     # Only include when apps are available (no point linking to apps that don't exist)

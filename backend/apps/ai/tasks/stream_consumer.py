@@ -60,6 +60,19 @@ SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
 
 
+def _resolve_wikipedia_validation_language(
+    request_data: AskSkillRequest,
+    preprocessing_result: PreprocessingResult,
+) -> str:
+    from backend.shared.providers.wikipedia.wikipedia_api import normalize_wikipedia_language
+
+    user_preferences = request_data.user_preferences or {}
+    return normalize_wikipedia_language(
+        user_preferences.get("language"),
+        fallback=preprocessing_result.output_language or "en",
+    )
+
+
 def _sub_chat_pending_key(parent_chat_id: str) -> str:
     return f"{SUB_CHAT_PENDING_KEY_PREFIX}:{parent_chat_id}"
 
@@ -4980,7 +4993,8 @@ async def _consume_main_processing_stream(
         )
         try:
             from backend.shared.providers.wikipedia.wikipedia_api import batch_validate_topics
-            _validated = await batch_validate_topics(topics=_unique_titles, language="en")
+            _wiki_language = _resolve_wikipedia_validation_language(request_data, preprocessing_result)
+            _validated = await batch_validate_topics(topics=_unique_titles, language=_wiki_language)
             _valid_titles = {t.wiki_title for t in _validated} | {t.topic for t in _validated}
             _invalid_titles = [t for t in _unique_titles if t not in _valid_titles]
 
