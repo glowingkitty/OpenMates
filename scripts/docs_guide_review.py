@@ -16,7 +16,10 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import subprocess
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +27,7 @@ from docs_guide_verify import REPO_ROOT, USER_GUIDE_ROOT, GuideMetadata, parse_g
 
 
 TMP_DIR = REPO_ROOT / "scripts" / ".tmp" / "docs-guide-review"
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 @dataclass(frozen=True)
@@ -82,6 +86,24 @@ def read_file(path: str) -> str:
     if not full_path.exists():
         return f"[missing file: {path}]"
     return full_path.read_text(encoding="utf-8", errors="replace")
+
+
+def read_env_file() -> dict[str, str]:
+    env_path = REPO_ROOT / ".env"
+    env_vars: dict[str, str] = {}
+    if not env_path.is_file():
+        return env_vars
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        env_vars[key.strip()] = value.strip().strip("'\"")
+    return env_vars
+
+
+def get_env(key: str, dot_env: dict[str, str], default: str = "") -> str:
+    return os.environ.get(key) or dot_env.get(key) or default
 
 
 def build_prompt(
@@ -234,6 +256,199 @@ def validate_result_file(result_path: Path) -> dict[str, object]:
     return data
 
 
+def build_notification_text(result: dict[str, object], commit_sha: str) -> tuple[str, str]:
+    changed_files = [str(path) for path in result.get("changed_files", [])]
+    subject = f"[OpenMates] User guide docs updated ({commit_sha[:12]})"
+    lines = [
+        "User-guide docs were updated after a linked spec review.",
+        "",
+        f"Commit: {commit_sha}",
+        "Changed files:",
+        *(f"- {path}" for path in changed_files),
+        "",
+        "Reason:",
+        str(result.get("reason") or "not provided"),
+        "",
+        "Notification summary:",
+        str(result.get("notification_summary") or "not provided"),
+    ]
+    return subject, "\n".join(lines)
+
+
+def post_discord_notification(result: dict[str, object], commit_sha: str, dry_run: bool) -> bool:
+    dot_env = read_env_file()
+    url = get_env("DISCORD_WEBHOOK_DOCS", dot_env) or get_env("DISCORD_WEBHOOK_DEV_NIGHTLY", dot_env)
+    subject, text = build_notification_text(result, commit_sha)
+    payload = {
+        "username": "OpenMates Docs Review",
+        "avatar_url": "https://openmates.org/favicon.png",
+        "embeds": [
+            {
+                "title": subject,
+                "description": text[:4000],
+                "color": 0x3B82F6,
+                "timestamp": dt.datetime.now(dt.UTC).isoformat(),
+            }
+        ],
+    }
+    if dry_run:
+        print("Dry-run Discord notification payload:")
+        print(json.dumps(payload, indent=2))
+        return True
+    if not url:
+        print("DISCORD_WEBHOOK_DOCS and DISCORD_WEBHOOK_DEV_NIGHTLY not set; skipping Discord.")
+        return False
+
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "User-Agent": "OpenMates-DocsGuideReview/0.1"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response.read()
+        print("Discord docs notification sent.")
+        return True
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        print(f"Discord docs notification failed: HTTP {exc.code}: {body}")
+    except Exception as exc:
+        print(f"Discord docs notification failed: {exc}")
+    return False
+
+
+def send_email_notification(result: dict[str, object], commit_sha: str, dry_run: bool) -> bool:
+    dot_env = read_env_file()
+    admin_email = get_env("ADMIN_NOTIFY_EMAIL", dot_env)
+    brevo_api_key = get_env("BREVO_API_KEY", dot_env)
+    internal_token = get_env("INTERNAL_API_SHARED_TOKEN", dot_env)
+    internal_api_url = get_env("INTERNAL_API_URL", dot_env, "http://localhost:8000").rstrip("/")
+    subject, text = build_notification_text(result, commit_sha)
+    payload = {
+        "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
+        "to": [{"email": admin_email or "<ADMIN_NOTIFY_EMAIL>"}],
+        "subject": subject,
+        "textContent": text,
+        "headers": {
+            "Precedence": "bulk",
+            "Auto-Submitted": "auto-generated",
+        },
+    }
+    if dry_run:
+        print("Dry-run email notification payload:")
+        redacted = {**payload, "to": [{"email": "<ADMIN_NOTIFY_EMAIL>"}]}
+        print(json.dumps(redacted, indent=2))
+        return True
+    if not admin_email:
+        print("ADMIN_NOTIFY_EMAIL not set; skipping email.")
+        return False
+    if not brevo_api_key and internal_token:
+        return send_internal_email_notification(
+            admin_email=admin_email,
+            internal_api_url=internal_api_url,
+            internal_token=internal_token,
+            subject=subject,
+            text=text,
+            result=result,
+            commit_sha=commit_sha,
+        )
+    if not brevo_api_key:
+        print("BREVO_API_KEY and INTERNAL_API_SHARED_TOKEN not set; skipping email.")
+        return False
+
+    request = urllib.request.Request(
+        BREVO_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"accept": "application/json", "api-key": brevo_api_key, "content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response.read()
+        print(f"Email docs notification sent to {admin_email}.")
+        return True
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        print(f"Email docs notification failed: HTTP {exc.code}: {body}")
+    except Exception as exc:
+        print(f"Email docs notification failed: {exc}")
+    return False
+
+
+def send_internal_email_notification(
+    *,
+    admin_email: str,
+    internal_api_url: str,
+    internal_token: str,
+    subject: str,
+    text: str,
+    result: dict[str, object],
+    commit_sha: str,
+) -> bool:
+    changed_files = [str(path) for path in result.get("changed_files", [])]
+    payload = {
+        "recipient_email": admin_email,
+        "environment": "development",
+        "run_id": f"docs-guide-review-{commit_sha[:12]}",
+        "git_sha": commit_sha,
+        "git_branch": run_git(["branch", "--show-current"]) or "dev",
+        "duration_seconds": 0,
+        "total": len(changed_files) or 1,
+        "passed": len(changed_files) or 1,
+        "failed": 0,
+        "skipped": 0,
+        "not_started": 0,
+        "suites": [
+            {
+                "name": "docs-guide-review",
+                "total": len(changed_files) or 1,
+                "passed": len(changed_files) or 1,
+                "failed": 0,
+                "dispatch_error": 0,
+                "not_started": 0,
+                "status": "passed",
+            }
+        ],
+        "failed_tests": [],
+        "all_tests": [
+            {"suite": "docs-guide-review", "name": path, "status": "passed", "duration_seconds": 0}
+            for path in changed_files
+        ],
+        "subject_override": subject,
+        "opencode_chat_url": text[:1000],
+    }
+    request = urllib.request.Request(
+        f"{internal_api_url}/internal/dispatch-test-summary-email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Internal-Service-Token": internal_token},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response.read()
+        print(f"Internal API docs notification email dispatched to {admin_email}.")
+        return True
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        print(f"Internal API docs notification email failed: HTTP {exc.code}: {body}")
+    except Exception as exc:
+        print(f"Internal API docs notification email failed: {exc}")
+    return False
+
+
+def notify_admin(result: dict[str, object], commit_sha: str, dry_run: bool = False) -> int:
+    if not result.get("notification_required"):
+        print("Review result does not require admin notification.")
+        return 0
+    discord_sent = post_discord_notification(result, commit_sha, dry_run)
+    email_sent = send_email_notification(result, commit_sha, dry_run)
+    if discord_sent and email_sent:
+        return 0
+    print("Docs notification did not reach both required channels.")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--since", default="HEAD~1", help="Git ref to diff against.")
@@ -258,7 +473,30 @@ def main() -> int:
         "--result-file",
         help="Path where the reviewer must write result JSON. Defaults to scripts/.tmp/docs-guide-review/.",
     )
+    parser.add_argument(
+        "--notify-admin",
+        action="store_true",
+        help="Notify admin after a direct review writes a result that requires notification.",
+    )
+    parser.add_argument(
+        "--notify-result",
+        help="Validate an existing result JSON and send its admin notification.",
+    )
+    parser.add_argument(
+        "--commit-sha",
+        help="Deployed commit SHA to include in admin notifications. Defaults to HEAD.",
+    )
+    parser.add_argument(
+        "--dry-run-notify",
+        action="store_true",
+        help="Print Discord and email notification payloads without sending them.",
+    )
     args = parser.parse_args()
+
+    commit_sha = args.commit_sha or run_git(["rev-parse", "HEAD"])
+    if args.notify_result:
+        result = validate_result_file((REPO_ROOT / args.notify_result).resolve())
+        return notify_admin(result, commit_sha, args.dry_run_notify)
 
     changed_paths = changed_files_since(args.since)
     affected = find_affected_guides(changed_paths, set(args.spec))
@@ -292,6 +530,8 @@ def main() -> int:
             result = validate_result_file(result_path)
             print("OpenCode direct review completed with result:")
             print(json.dumps(result, indent=2))
+            if args.notify_admin:
+                return notify_admin(result, commit_sha, args.dry_run_notify)
         else:
             spawn_review(prompt_path)
             print("Spawned OpenCode docs guide review session.")
