@@ -51,36 +51,47 @@
     if (max === undefined) return `${Math.round(min)}°`;
     return `${Math.round(min)}° / ${Math.round(max)}°`;
   }
+
+  function handlePointerUp(event: PointerEvent): void {
+    if (event.button !== 0 || status !== 'finished') return;
+    onFullscreen();
+  }
 </script>
 
-<UnifiedEmbedPreview
-  {id}
-  appId="weather"
-  skillId="weather_day"
-  skillIconName="weather"
-  {status}
-  skillName={dayTitle}
-  {taskId}
-  {isMobile}
-  {onFullscreen}
-  showSkillIcon={false}
-  customStatusText={provider ? `${$text('embeds.via')} ${provider}` : undefined}
->
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">
-      <div class="day-title" data-testid="weather-day-date">{date || $text('apps.weather.day')}</div>
-      <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
-      <div class="day-condition" data-testid="weather-day-condition">{condition || '—'}</div>
-      <div class="day-metrics" data-testid="weather-day-metrics">
-        <span>{precipitationTotalMm ?? 0} mm</span>
-        <span>{precipitationProbabilityMaxPct ?? 0}%</span>
-        <span>{rainHours ?? 0}h rain</span>
+<div class="weather-day-preview-wrapper" role="presentation" onpointerup={handlePointerUp}>
+  <UnifiedEmbedPreview
+    {id}
+    appId="weather"
+    skillId="weather_day"
+    skillIconName="weather"
+    {status}
+    skillName={dayTitle}
+    {taskId}
+    {isMobile}
+    {onFullscreen}
+    showSkillIcon={false}
+    customStatusText={provider ? `${$text('embeds.via')} ${provider}` : undefined}
+  >
+    {#snippet details({ isMobile: isMobileLayout })}
+      <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">
+        <div class="day-title" data-testid="weather-day-date">{date || $text('apps.weather.day')}</div>
+        <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
+        <div class="day-condition" data-testid="weather-day-condition">{condition || '—'}</div>
+        <div class="day-metrics" data-testid="weather-day-metrics">
+          <span>{precipitationTotalMm ?? 0} mm</span>
+          <span>{precipitationProbabilityMaxPct ?? 0}%</span>
+          <span>{rainHours ?? 0}h rain</span>
+        </div>
       </div>
-    </div>
-  {/snippet}
-</UnifiedEmbedPreview>
+    {/snippet}
+  </UnifiedEmbedPreview>
+</div>
 
 <style>
+  .weather-day-preview-wrapper {
+    display: contents;
+  }
+
   .weather-day-details {
     display: flex;
     flex-direction: column;
