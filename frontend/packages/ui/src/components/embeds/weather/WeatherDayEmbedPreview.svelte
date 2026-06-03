@@ -114,7 +114,8 @@
 
 <style>
   .weather-day-preview-wrapper {
-    display: contents;
+    display: block;
+    width: 100%;
   }
 
   .weather-day-details {
