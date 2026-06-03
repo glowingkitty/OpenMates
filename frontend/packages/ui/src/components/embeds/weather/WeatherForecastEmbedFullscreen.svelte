@@ -63,7 +63,7 @@
   let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
   let selectedDayIndex = $state(-1);
   let loadedDays = $state<WeatherDayResult[]>([]);
-  let selectedDay = $state<WeatherDayResult | null>(null);
+  let selectedDay = $derived(selectedDayIndex >= 0 ? loadedDays[selectedDayIndex] ?? null : null);
 
 
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {
@@ -110,10 +110,18 @@
     loadedDays = days;
   }
 
+  $effect(() => {
+    const hasEmbedIds =
+      (typeof embedIds === 'string' && embedIds.trim().length > 0) ||
+      (Array.isArray(embedIds) && embedIds.length > 0);
+    if (hasEmbedIds) return;
+    if (legacyResults.length === 0) return;
+    updateLoadedDays(transformLegacyResults(legacyResults));
+  });
+
   function openDay(index: number, days: WeatherDayResult[], day: WeatherDayResult): void {
-    updateLoadedDays(days);
+    updateLoadedDays(days.length > 0 ? days : [day]);
     selectedDayIndex = index;
-    selectedDay = day;
   }
 
   function handleDayPointerDown(event: PointerEvent, index: number, days: WeatherDayResult[], day: WeatherDayResult): void {
@@ -130,19 +138,16 @@
 
   function closeDay(): void {
     selectedDayIndex = -1;
-    selectedDay = null;
   }
 
   function previousDay(): void {
     if (selectedDayIndex <= 0) return;
     selectedDayIndex -= 1;
-    selectedDay = loadedDays[selectedDayIndex] ?? null;
   }
 
   function nextDay(): void {
     if (selectedDayIndex >= loadedDays.length - 1) return;
     selectedDayIndex += 1;
-    selectedDay = loadedDays[selectedDayIndex] ?? null;
   }
 </script>
 
