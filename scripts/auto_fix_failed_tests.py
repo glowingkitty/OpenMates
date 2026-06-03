@@ -322,40 +322,73 @@ def run_opencode(
     )
     message = f"Read {prompt_path.relative_to(PROJECT_ROOT)} in full and follow it exactly."
     opencode_env, isolated_data_home = isolated_opencode_env(group_dir, attempt)
+    output_path = group_dir / f"opencode-output-attempt-{attempt}.jsonl"
+    output_lines: list[str] = []
+    opencode_session_id = ""
+    opencode_session_url = ""
+    logged_session = False
+    command = [
+        "opencode",
+        "run",
+        "--title",
+        f"auto-fix failed tests {group.id} attempt {attempt}",
+        "--format",
+        "json",
+        "--dangerously-skip-permissions",
+        message,
+    ]
+    env = build_env()
+    env.update(opencode_env)
     try:
-        result = run_command_with_env(
-            [
-                "opencode",
-                "run",
-                "--title",
-                f"auto-fix failed tests {group.id} attempt {attempt}",
-                "--format",
-                "json",
-                "--dangerously-skip-permissions",
-                message,
-            ],
-            timeout=timeout,
-            extra_env=opencode_env,
+        process = subprocess.Popen(
+            command,
+            cwd=PROJECT_ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         )
+        assert process.stdout is not None
+        deadline = datetime.now(timezone.utc).timestamp() + timeout
+        while True:
+            line = process.stdout.readline()
+            if line:
+                output_lines.append(line)
+                if not opencode_session_id:
+                    opencode_session_id = extract_opencode_session_id(line)
+                    if opencode_session_id:
+                        opencode_session_url = build_opencode_session_url(opencode_session_id)
+                        if expose_opencode_chats():
+                            log(f"OpenCode chat for {group.id}: {opencode_session_url or opencode_session_id}")
+                        elif delete_opencode_session(opencode_session_id):
+                            log(f"Deleted hidden OpenCode session for {group.id}: {opencode_session_id}")
+                        elif isolated_data_home is not None:
+                            log(f"Isolated OpenCode session for {group.id}: {opencode_session_id}")
+                        else:
+                            log(f"OpenCode session for {group.id}: {opencode_session_id}")
+                        logged_session = True
+            if process.poll() is not None:
+                remainder = process.stdout.read()
+                if remainder:
+                    output_lines.append(remainder)
+                break
+            if datetime.now(timezone.utc).timestamp() > deadline:
+                process.kill()
+                output_lines.append(f"\n[auto-fix] OpenCode timed out after {timeout} seconds.\n")
+                break
+        return_code = process.wait()
     finally:
         if isolated_data_home is not None:
             shutil.rmtree(isolated_data_home, ignore_errors=True)
-    output_path = group_dir / f"opencode-output-attempt-{attempt}.jsonl"
-    combined_output = (result.stdout or "") + "\n" + (result.stderr or "")
+    combined_output = "".join(output_lines)
     output_path.write_text(combined_output, encoding="utf-8")
-    opencode_session_id = extract_opencode_session_id(combined_output)
-    opencode_session_url = build_opencode_session_url(opencode_session_id) if opencode_session_id else ""
-    if opencode_session_id:
-        if expose_opencode_chats():
-            log(f"OpenCode chat for {group.id}: {opencode_session_url or opencode_session_id}")
-        elif isolated_data_home is not None:
-            log(f"Isolated OpenCode session for {group.id}: {opencode_session_id}")
-        elif delete_opencode_session(opencode_session_id):
-            log(f"Deleted hidden OpenCode session for {group.id}: {opencode_session_id}")
-        else:
-            log(f"OpenCode session for {group.id}: {opencode_session_id}")
+    if not opencode_session_id:
+        opencode_session_id = extract_opencode_session_id(combined_output)
+        opencode_session_url = build_opencode_session_url(opencode_session_id) if opencode_session_id else ""
+    if opencode_session_id and not logged_session:
+        delete_opencode_session(opencode_session_id)
     return (
-        result.returncode,
+        return_code,
         str(output_path.relative_to(PROJECT_ROOT)),
         summary_path,
         opencode_session_id,
