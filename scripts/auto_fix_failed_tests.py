@@ -37,7 +37,7 @@ STATE_FILE = RESULTS_DIR / "auto-fix-state.json"
 GH_BRANCH = "dev"
 
 DEFAULT_TIMEOUT_SECONDS = 1800
-DEFAULT_MAX_GROUPS = 1
+DEFAULT_MAX_GROUPS = 999
 DEFAULT_MAX_ATTEMPTS_PER_GROUP = 5
 DEFAULT_MAX_CHANGED_FILES = 5
 DEFAULT_MAX_DIFF_LINES = 200
@@ -386,8 +386,17 @@ def track_session_files(session_id: str, files: list[str]) -> None:
         )
 
 
-def classify_diff(summary: dict[str, Any], max_files: int, max_lines: int) -> tuple[bool, str]:
-    files = normalize_summary_files(summary)
+def cumulative_changed_files(attempts: list[dict[str, Any]], summary: dict[str, Any]) -> list[str]:
+    files: list[str] = []
+    for attempt in attempts:
+        attempt_files = attempt.get("changed_files", [])
+        if isinstance(attempt_files, list):
+            files.extend(path for path in attempt_files if isinstance(path, str))
+    files.extend(normalize_summary_files(summary))
+    return sorted(set(path for path in files if path and not path.startswith(IGNORED_CHANGED_FILE_PREFIXES)))
+
+
+def classify_diff(summary: dict[str, Any], files: list[str], max_files: int, max_lines: int) -> tuple[bool, str]:
     lines = diff_line_count(files)
     if summary.get("scope_classification") == "requires_human_approval":
         return False, "agent marked fix as requiring human approval"
@@ -575,7 +584,7 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
             summary["opencode_session_id"] = opencode_session_id or "unknown"
             summary["opencode_session_url"] = opencode_session_url
             summary["opencode_chat"] = opencode_session_url or opencode_session_id or "unknown"
-            summary_files = normalize_summary_files(summary)
+            summary_files = cumulative_changed_files(attempts, summary)
             summary["changed_files"] = summary_files
             track_session_files(session_id, summary_files)
 
@@ -584,9 +593,11 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
                 summary["scope_classification"] = "requires_human_approval"
                 summary["reason"] = "opencode exited non-zero after reporting fixed"
 
-            safe, safety_reason = classify_diff(summary, args.max_changed_files, args.max_diff_lines)
+            safe, safety_reason = classify_diff(summary, summary_files, args.max_changed_files, args.max_diff_lines)
             summary["safety_check"] = safety_reason
             if not safe or summary.get("status") in {"blocked", "failed", "skipped"}:
+                if summary.get("status") == "fixed":
+                    summary["status"] = "failed"
                 summary.setdefault("reason", safety_reason)
                 summary["verification_result"] = "not_run"
                 summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
@@ -691,8 +702,7 @@ def main() -> int:
             state["last_updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             save_state(state)
             if result.get("status") in {"blocked", "failed"}:
-                log(f"Stopping after {group.id}: {result.get('status')}")
-                break
+                log(f"Finished {group.id} with {result.get('status')}; continuing to next independent group.")
 
         return 0
 

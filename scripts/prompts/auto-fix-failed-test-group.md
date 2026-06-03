@@ -97,3 +97,7 @@ Schema:
 ```
 
 `verification_result` must be `not_run` because the controller verifies after you exit.
+
+`changed_files` must include every source/test file that is part of the current
+fix, including files changed by earlier attempts for this same group. Do not
+include controller temp files, logs, screenshots, or test-results paths.
