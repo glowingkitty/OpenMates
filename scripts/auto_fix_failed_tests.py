@@ -41,6 +41,7 @@ DEFAULT_MAX_GROUPS = 1
 DEFAULT_MAX_CHANGED_FILES = 5
 DEFAULT_MAX_DIFF_LINES = 200
 MAX_FAILURES_PER_GROUP = 8
+IGNORED_CHANGED_FILE_PREFIXES = ("test-results/", "logs/", "scripts/.tmp/")
 
 RISKY_PATH_RE = re.compile(
     r"(^|/)(auth|payments?|billing|stripe|encryption|sync|websockets?|migrations?|privacy|legal)(/|$)",
@@ -348,7 +349,7 @@ def normalize_summary_files(summary: dict[str, Any]) -> list[str]:
         if not isinstance(file_path, str):
             continue
         clean_path = file_path.strip()
-        if clean_path and not clean_path.startswith(("/", "..")):
+        if clean_path and not clean_path.startswith(("/", "..", *IGNORED_CHANGED_FILE_PREFIXES)):
             normalized.append(clean_path)
     return sorted(set(normalized))
 
