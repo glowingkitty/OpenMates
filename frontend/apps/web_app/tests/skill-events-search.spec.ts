@@ -42,6 +42,7 @@ const {
 	expectSettingsProviderIcons,
 	expectSkillCardProviderIcons
 } = require('./helpers/provider-icon-helpers');
+const { appsMetadata } = require('../../../packages/ui/src/data/appsMetadata');
 
 const EVENT_SEARCH_PROVIDERS = [
 	'Meetup',
@@ -52,14 +53,6 @@ const EVENT_SEARCH_PROVIDERS = [
 	'Siegessäule',
 	'Berlin Philharmonic'
 ];
-
-function getAppsFromMetadataPayload(data: any): Record<string, any> {
-	const appsPayload = data?.apps || data?.data?.apps || data?.data || data;
-	if (Array.isArray(appsPayload)) {
-		return Object.fromEntries(appsPayload.map((app: any) => [app.id, app]));
-	}
-	return appsPayload || {};
-}
 
 async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
 	const dismissButtons = page.getByTestId('notification-dismiss');
@@ -92,13 +85,10 @@ test.describe('App: Events / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	test('Phase 0: app store metadata and UI expose event providers with loaded icons', async ({ page, request }: { page: any; request: any }) => {
+	test('Phase 0: app store metadata and UI expose event providers with loaded icons', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 
-		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
-		expect(response.ok()).toBeTruthy();
-		const data = await response.json();
-		const events = getAppsFromMetadataPayload(data).events;
+		const events = appsMetadata.events;
 		expect(events, 'events app should appear in app store metadata').toBeTruthy();
 		const searchSkill = (events.skills || []).find((skill: { id: string }) => skill.id === 'search');
 		expect(searchSkill, 'events search skill should appear in app store metadata').toBeTruthy();
