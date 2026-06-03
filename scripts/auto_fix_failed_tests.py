@@ -134,15 +134,10 @@ def git_status_porcelain() -> list[str]:
     return [line for line in result.stdout.splitlines() if not line.startswith(ignored_prefixes)]
 
 
-def assert_clean_worktree(allow_dirty: bool) -> bool:
+def log_dirty_worktree_context() -> None:
     dirty = git_status_porcelain()
-    if not dirty:
-        return True
-    log(f"Worktree has {len(dirty)} non-ignored change(s); auto-fix requires a clean worktree.")
-    if allow_dirty:
-        log("AUTO_FIX_ALLOW_DIRTY=true, continuing despite dirty worktree.")
-        return True
-    return False
+    if dirty:
+        log(f"Worktree has {len(dirty)} unrelated non-ignored change(s); continuing with session-scoped deploy.")
 
 
 def load_failed_tests() -> tuple[str, list[dict[str, Any]]]:
@@ -327,8 +322,10 @@ def changed_files() -> list[str]:
     return sorted({path for path in tracked + extra if not path.startswith(ignored)})
 
 
-def diff_line_count() -> int:
-    result = run_command(["git", "diff", "--numstat"], timeout=60)
+def diff_line_count(files: list[str]) -> int:
+    if not files:
+        return 0
+    result = run_command(["git", "diff", "--numstat", "--", *files], timeout=60)
     if result.returncode != 0:
         return 0
     total = 0
@@ -342,11 +339,35 @@ def diff_line_count() -> int:
     return total
 
 
+def normalize_summary_files(summary: dict[str, Any]) -> list[str]:
+    files = summary.get("changed_files") or []
+    if not isinstance(files, list):
+        return []
+    normalized = []
+    for file_path in files:
+        if not isinstance(file_path, str):
+            continue
+        clean_path = file_path.strip()
+        if clean_path and not clean_path.startswith(("/", "..")):
+            normalized.append(clean_path)
+    return sorted(set(normalized))
+
+
+def track_session_files(session_id: str, files: list[str]) -> None:
+    for file_path in files:
+        run_command(
+            [sys.executable, "scripts/sessions.py", "track", "--session", session_id, "--file", file_path],
+            timeout=60,
+        )
+
+
 def classify_diff(summary: dict[str, Any], max_files: int, max_lines: int) -> tuple[bool, str]:
-    files = changed_files()
-    lines = diff_line_count()
+    files = normalize_summary_files(summary)
+    lines = diff_line_count(files)
     if summary.get("scope_classification") == "requires_human_approval":
         return False, "agent marked fix as requiring human approval"
+    if not files and summary.get("status") == "fixed":
+        return False, "agent reported fixed but did not list changed files"
     if len(files) > max_files:
         return False, f"changed {len(files)} files, over limit {max_files}"
     if lines > max_lines:
@@ -506,7 +527,9 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
         summary["opencode_session_id"] = opencode_session_id or "unknown"
         summary["opencode_session_url"] = opencode_session_url
         summary["opencode_chat"] = opencode_session_url or opencode_session_id or "unknown"
-        summary["changed_files"] = changed_files()
+        summary_files = normalize_summary_files(summary)
+        summary["changed_files"] = summary_files
+        track_session_files(session_id, summary_files)
 
         if opencode_rc != 0 and summary.get("status") == "fixed":
             summary["status"] = "failed"
@@ -565,7 +588,6 @@ def main() -> int:
     parser.add_argument("--deploy-timeout-seconds", type=int, default=int(os.environ.get("AUTO_FIX_DEPLOY_TIMEOUT_SECONDS", "1800")))
     parser.add_argument("--max-changed-files", type=int, default=int(os.environ.get("AUTO_FIX_MAX_CHANGED_FILES", DEFAULT_MAX_CHANGED_FILES)))
     parser.add_argument("--max-diff-lines", type=int, default=int(os.environ.get("AUTO_FIX_MAX_DIFF_LINES", DEFAULT_MAX_DIFF_LINES)))
-    parser.add_argument("--allow-dirty", action="store_true", default=os.environ.get("AUTO_FIX_ALLOW_DIRTY", "").lower() in {"1", "true", "yes"})
     parser.add_argument("--no-deploy", action="store_true", default=os.environ.get("AUTO_FIX_NO_DEPLOY", "").lower() in {"1", "true", "yes"})
     parser.add_argument("--dry-run", action="store_true", help="Build queue and post summaries without running OpenCode")
     parser.add_argument("--discord-smoke", action="store_true", help="Post a smoke message to the configured Discord webhook")
@@ -582,18 +604,8 @@ def main() -> int:
             log("Another auto-fix run is already in progress; exiting.")
             return 0
 
-        if not args.dry_run and not assert_clean_worktree(args.allow_dirty):
-            summary = {
-                "group_id": "startup",
-                "status": "blocked",
-                "scope_classification": "requires_human_approval",
-                "verification_result": "not_run",
-                "root_cause": "Auto-fix startup blocked by dirty worktree.",
-                "changes_applied": [],
-                "reason": "clean worktree required before unattended fixes",
-            }
-            post_discord(summary, color=0xF59E0B)
-            return 2
+        if not args.dry_run:
+            log_dirty_worktree_context()
 
         run_id, tests = load_failed_tests()
         if not tests:
