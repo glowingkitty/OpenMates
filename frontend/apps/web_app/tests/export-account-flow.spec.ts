@@ -175,7 +175,7 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const downloadPromise = page.waitForEvent('download', { timeout: 180000 });
 	await exportButton.click();
 	const download = await downloadPromise;
-	expect(download.suggestedFilename()).toMatch(/openmates-export-.*\.zip$/);
+	expect(download.suggestedFilename()).toMatch(/^openmates_export_.+_\d{8}_\d{6}\.zip$/);
 	await download.saveAs(exportPath);
 	log('Saved account export ZIP.', { exportPath, filename: download.suggestedFilename() });
 
