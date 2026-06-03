@@ -60,15 +60,15 @@
 	<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 </svelte:head>
 
-<div class="welcome-container">
+<div class="welcome-container" data-testid="docs-landing">
 	<div class="welcome-hero">
 		<h1 class="welcome-title">{$text('documentation.welcome.title')}</h1>
 		<p class="welcome-subtitle">{$text('documentation.welcome.subtitle')}</p>
 	</div>
 
-	<div class="quick-links">
+	<div class="quick-links" data-testid="docs-section-grid">
 		<!-- API Reference card -->
-		<a href="/docs/api" class="section-card api-card">
+		<a href="/docs/api" class="section-card api-card" data-testid="docs-section-card">
 			<div class="card-icon">
 				<svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
 					<path
@@ -89,7 +89,7 @@
 			{@const gradColors = getCategoryGradientColors(category)}
 			{@const FolderCardIcon = getLucideIcon(folderIconName)}
 			{@const fileCount = countFiles(folder)}
-			<a href="/docs/{folder.path}" class="section-card">
+			<a href="/docs/{folder.path}" class="section-card" data-testid="docs-section-card">
 				<div
 					class="card-icon-circle"
 					style="background: linear-gradient(135deg, {gradColors?.start ??
