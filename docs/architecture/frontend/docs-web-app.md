@@ -1,25 +1,27 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-03
 key_files:
   - frontend/apps/web_app/scripts/process-docs.js
   - frontend/apps/web_app/scripts/vite-plugin-docs.js
   - frontend/apps/web_app/src/routes/docs/+layout.svelte
+  - frontend/apps/web_app/src/routes/docs/+page.ts
   - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+  - frontend/apps/web_app/src/routes/docs/[...slug]/+page.ts
   - frontend/apps/web_app/src/routes/docs/api/+page.svelte
   - frontend/apps/web_app/src/lib/components/docs/DocsSidebar.svelte
-  - frontend/apps/web_app/src/lib/components/docs/DocsContent.svelte
-  - frontend/apps/web_app/src/lib/components/docs/DocsSearch.svelte
-  - frontend/apps/web_app/src/lib/generated/docs-data.json
+  - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+  - frontend/apps/web_app/src/lib/generated/docs-manifest.json
+  - frontend/apps/web_app/static/generated/docs/
 ---
 
 # Docs Web App
 
-> Documentation system integrated into the main web app at `openmates.org/docs`, rendering repository markdown files with search, navigation, and API reference.
+> Documentation system integrated into the main web app at `openmates.org/docs`, rendering repository markdown files with fast static payloads, search, navigation, and API reference.
 
 ## Why This Exists
 
-Keeps all documentation in a single codebase (`/docs/**/*.md`) and serves it through the web app rather than a separate docs site. Users get seamless access with their existing session, and offline access via the service worker.
+Keeps all documentation in a single codebase (`/docs/**/*.md`) and serves it through the web app rather than a separate docs site. The runtime architecture optimizes first load by shipping a small navigation manifest up front, then loading only the current page or search index when needed.
 
 ## How It Works
 
@@ -28,12 +30,9 @@ Keeps all documentation in a single codebase (`/docs/**/*.md`) and serves it thr
 1. Scans `/docs/**/*.md` (respects `.docsignore` exclusion patterns)
 2. Converts markdown to HTML using `markdown-it` with `highlight.js` syntax highlighting
 3. Generates heading IDs for anchor links, resolves relative links, fixes image paths
-4. Outputs `src/lib/generated/docs-data.json` containing:
-   - Navigation tree structure
-   - HTML content per page
-   - Original markdown (for copy functionality)
-   - Metadata (titles, slugs, paths)
-5. Generates FlexSearch index for full-text search
+4. Outputs `src/lib/generated/docs-manifest.json` containing only navigation metadata: titles, slugs, descriptions, word counts, and static payload URLs.
+5. Outputs one static JSON payload per page under `static/generated/docs/pages/` containing rendered HTML and original markdown for download/copy.
+6. Outputs `static/generated/docs/search.json` for full-text search. This file is loaded only when search is used.
 
 ### Dev Mode (`vite-plugin-docs.js`)
 
@@ -45,9 +44,8 @@ Located in `frontend/apps/web_app/src/lib/components/docs/`:
 
 | Component | Purpose |
 |-----------|---------|
-| `DocsSidebar.svelte` | Collapsible tree navigation, active page highlighting, mobile drawer |
-| `DocsContent.svelte` | HTML renderer with table of contents, copy-to-clipboard, PDF download, "Edit on GitHub" link |
-| `DocsSearch.svelte` | FlexSearch full-text search with context snippets, Cmd/Ctrl+K shortcut |
+| `DocsSidebar.svelte` | Collapsible tree navigation, active page highlighting, mobile drawer, lazy full-text search |
+| `DocsMessage.svelte` | Static HTML renderer styled like an assistant docs message; Mermaid is enhanced on demand |
 
 ### Layout
 
@@ -56,7 +54,7 @@ The docs layout (`+layout.svelte`) mirrors the main chat page pattern:
 - Main content area offset by sidebar width
 - Responsive: sidebar slides off-screen on mobile
 
-Individual doc pages (`[...slug]/+page.svelte`) render content as a single assistant message using `DocsMessage` + TipTap, matching the chat UI style.
+Individual doc pages (`[...slug]/+page.svelte`) render content as a single assistant-style docs message using build-time HTML. The docs route intentionally does not use TipTap or chat message parsing so the first load stays small.
 
 ### URL Structure
 
@@ -73,7 +71,7 @@ Individual doc pages (`[...slug]/+page.svelte`) render content as a single assis
 
 ### Offline Support
 
-Integrated with the web app's PWA service worker. `docs-data.json` and search index are cached for offline access.
+The docs page does not provide a dedicated offline mode. The web app's legacy service worker unregisters itself, and docs assets rely on normal browser/CDN caching. This keeps the docs implementation simpler and prioritizes fast online loading.
 
 ## Related Docs
 

@@ -18,16 +18,32 @@ export interface DocFile {
     slug: string;
     /** Processed HTML content for rendering */
     content: string;
-    /** Markdown with links fixed (relative .md → /docs/ routes, code files → GitHub) for TipTap rendering */
-    processedMarkdown: string;
     /** Original markdown content for copy functionality */
     originalMarkdown: string;
-    /** Plain text content for search indexing */
-    plainText: string;
     /** Word count of the document */
     wordCount: number;
     /** Short description extracted from first paragraph (max 160 chars) for SEO */
     description: string;
+}
+
+/**
+ * Lightweight documentation file entry used by navigation manifests.
+ */
+export interface DocManifestFile {
+    /** Filename (e.g., "chats.md") */
+    name: string;
+    /** Human-readable title extracted from first heading */
+    title: string;
+    /** Relative path from docs root (e.g., "architecture/chats.md") */
+    path: string;
+    /** URL slug without .md extension (e.g., "architecture/chats") */
+    slug: string;
+    /** Word count of the document */
+    wordCount: number;
+    /** Short description extracted from first paragraph (max 160 chars) for SEO */
+    description: string;
+    /** Static JSON payload path for this page */
+    pagePayload: string;
 }
 
 /**
@@ -47,6 +63,22 @@ export interface DocFolder {
 }
 
 /**
+ * Lightweight documentation folder for the navigation manifest.
+ */
+export interface DocManifestFolder {
+    /** Folder name (e.g., "architecture") */
+    name: string;
+    /** Human-readable title */
+    title: string;
+    /** Relative path from docs root */
+    path: string;
+    /** Files in this folder */
+    files: DocManifestFile[];
+    /** Subfolders */
+    folders: DocManifestFolder[];
+}
+
+/**
  * Root documentation structure
  */
 export interface DocStructure {
@@ -54,6 +86,16 @@ export interface DocStructure {
     files: DocFile[];
     /** Top-level folders in /docs */
     folders: DocFolder[];
+}
+
+/**
+ * Lightweight documentation structure for fast initial docs loading.
+ */
+export interface DocManifestStructure {
+    /** Top-level files in /docs */
+    files: DocManifestFile[];
+    /** Top-level folders in /docs */
+    folders: DocManifestFolder[];
 }
 
 /**
@@ -82,6 +124,26 @@ export interface DocsData {
     generated: string;
     /** Documentation structure tree */
     structure: DocStructure;
+    /** Search index entries */
+    searchIndex: SearchIndexEntry[];
+}
+
+/**
+ * Lightweight docs manifest generated for route navigation.
+ */
+export interface DocsManifest {
+    /** ISO timestamp when docs were generated */
+    generated: string;
+    /** Lightweight documentation structure tree */
+    structure: DocManifestStructure;
+}
+
+/**
+ * Static search payload loaded only when docs search is used.
+ */
+export interface DocsSearchData {
+    /** ISO timestamp when docs were generated */
+    generated: string;
     /** Search index entries */
     searchIndex: SearchIndexEntry[];
 }

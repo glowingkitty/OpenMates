@@ -7,15 +7,20 @@
 	 *
 	 * Architecture: docs/architecture/docs-web-app.md
 	 */
-	import { text, getCategoryGradientColors, getLucideIcon } from '@repo/ui';
-	import docsData from '$lib/generated/docs-data.json';
-	import type { DocFolder } from '$lib/types/docs';
+	import { text } from '@openmates/ui/src/i18n/translations';
+	import { getCategoryGradientColors, getLucideIcon } from '@openmates/ui/src/utils/categoryUtils';
+	import type { DocManifestFolder, DocsManifest } from '$lib/types/docs';
 	import { DOCS_FOLDER_CATEGORY, DOCS_FOLDER_ICON, DOCS_FOLDER_ORDER } from '$lib/utils/docsCategoryMap';
 
-	const { structure } = docsData;
+	interface Props {
+		data: { manifest: DocsManifest };
+	}
+
+	let { data }: Props = $props();
+	let structure = $derived(data.manifest.structure);
 
 	/** Count all files recursively in a folder */
-	function countFiles(folder: DocFolder): number {
+	function countFiles(folder: DocManifestFolder): number {
 		let count = folder.files.length;
 		for (const sub of folder.folders) {
 			count += countFiles(sub);

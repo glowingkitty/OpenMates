@@ -1,11 +1,11 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-03
 ---
 
 # Documentation Site
 
-> All OpenMates documentation is available as a searchable, offline-capable website integrated into the main app.
+> All OpenMates documentation is available as a searchable, fast-loading website integrated into the main app.
 
 ## What It Does
 
@@ -20,9 +20,9 @@ Visit the **/docs** section of the OpenMates web app. From there you can:
 - **Copy** a page (or an entire folder of pages) as markdown to your clipboard.
 - **Download** any page or folder as a PDF.
 
-## Offline Access
+## Loading Behavior
 
-The documentation works offline as part of the Progressive Web App (PWA). Once you have visited the docs, they are cached on your device and available without an internet connection.
+The documentation is optimized for fast online loading. The docs index loads a small navigation manifest first, individual pages load only their own content, and the full-text search index loads only when you use search.
 
 ## Interactive Testing (for Developers)
 

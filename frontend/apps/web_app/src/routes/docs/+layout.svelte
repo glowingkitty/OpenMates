@@ -14,15 +14,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { Header, Settings, authStore, panelState } from '@repo/ui';
 	import DocsSidebar from '$lib/components/docs/DocsSidebar.svelte';
 	import DocsMessageInput from '$lib/components/docs/DocsMessageInput.svelte';
 	import { docsPanelState } from '$lib/stores/docsPanelState';
-
-	let isSettingsOpen = $state(false);
-	const unsubSettings = panelState.subscribe((s: { isSettingsOpen: boolean }) => {
-		isSettingsOpen = s.isSettingsOpen;
-	});
 
 	let { children } = $props();
 
@@ -84,7 +78,6 @@
 
 	onDestroy(() => {
 		unsubscribe();
-		unsubSettings();
 	});
 </script>
 
@@ -97,14 +90,18 @@
 </div>
 
 <div class="main-content" class:menu-closed={!isSidebarOpen} class:initial-load={isInitialLoad}>
-	<Header
-		context="webapp"
-		isLoggedIn={$authStore.isAuthenticated}
-		docsMode={true}
-		onToggleSidebar={() => docsPanelState.toggle()}
-		{isSidebarOpen}
-	/>
-	<div class="docs-container" class:menu-open={isSettingsOpen}>
+	<header class="docs-top-header">
+		<button class="docs-header-button" type="button" aria-label="Toggle documentation sidebar" onclick={() => docsPanelState.toggle()}>
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+				<line x1="4" y1="6" x2="20" y2="6" />
+				<line x1="4" y1="12" x2="20" y2="12" />
+				<line x1="4" y1="18" x2="20" y2="18" />
+			</svg>
+		</button>
+		<a class="docs-brand" href="/docs">OpenMates Docs</a>
+		<a class="docs-open-chat" href="/">Open Chat</a>
+	</header>
+	<div class="docs-container">
 		<div class="docs-wrapper">
 			<div class="active-docs-container">
 				<div class="docs-content-scroll">
@@ -112,9 +109,6 @@
 				</div>
 				<DocsMessageInput />
 			</div>
-		</div>
-		<div class="settings-wrapper">
-			<Settings isLoggedIn={$authStore.isAuthenticated} />
 		</div>
 	</div>
 </div>
@@ -185,6 +179,47 @@
 		transition: none;
 	}
 
+	.docs-top-header {
+		height: 82px;
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 0 20px 0 10px;
+		box-sizing: border-box;
+		background-color: var(--color-grey-0);
+	}
+
+	.docs-header-button {
+		width: 44px;
+		height: 44px;
+		border: none;
+		border-radius: 999px;
+		background: var(--color-grey-20);
+		color: var(--color-font-primary);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+	}
+
+	.docs-brand {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-font-primary);
+		text-decoration: none;
+	}
+
+	.docs-open-chat {
+		margin-inline-start: auto;
+		padding: 0.55rem 0.9rem;
+		border-radius: 999px;
+		background: var(--color-grey-20);
+		color: var(--color-font-primary);
+		font-size: 0.9rem;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
 	.docs-container {
 		display: flex;
 		flex-direction: row;
@@ -195,30 +230,13 @@
 		padding-inline-end: 20px;
 	}
 
-	/* Settings gap — matches chat page .chat-container.menu-open */
-	@media (min-width: 1100px) {
-		.docs-container {
-			transition: gap 0.3s ease;
-		}
-		.docs-container.menu-open {
-			gap: 20px;
-		}
-	}
-
-	@media (max-width: 1099px) {
-		.docs-container.menu-open {
-			gap: 0px;
-		}
-	}
-
 	.docs-wrapper {
 		flex: 1;
 		display: flex;
 		min-width: 0;
 	}
 
-	.docs-wrapper,
-	.settings-wrapper {
+	.docs-wrapper {
 		transition: opacity 0.3s ease;
 	}
 
@@ -260,12 +278,6 @@
 
 	.docs-content-scroll::-webkit-scrollbar-thumb:hover {
 		background-color: var(--color-grey-50);
-	}
-
-	.settings-wrapper {
-		display: flex;
-		align-items: flex-start;
-		min-width: fit-content;
 	}
 
 	/* Mobile styles */

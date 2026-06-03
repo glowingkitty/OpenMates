@@ -11,7 +11,8 @@ vite.config.ts.timestamp-*
 .vercel
 
 # Generated documentation data (regenerated on build)
-src/lib/generated/docs-data.json
+src/lib/generated/docs-manifest.json
+static/generated/
 
 # Generated PWA service worker files (legacy @vite-pwa/sveltekit output)
 # static/sw.js is intentionally tracked as an unregister-only migration endpoint.

@@ -1,7 +1,13 @@
 /**
  * Docs index page — prerender + SSR config for SEO.
- * Docs content is statically bundled at build time in docs-data.json,
- * so full prerendering is possible and desirable for search engine indexing.
+ * Loads only the lightweight docs manifest so the landing page does not hydrate
+ * the full documentation corpus.
  */
+import manifest from '$lib/generated/docs-manifest.json';
+
 export const prerender = true;
 export const ssr = true;
+
+export function load() {
+	return { manifest };
+}

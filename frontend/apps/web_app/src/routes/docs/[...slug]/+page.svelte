@@ -2,9 +2,8 @@
     /**
      * Dynamic Docs Page
      *
-     * Renders individual documentation pages using ChatHeader + DocsMessage,
-     * matching the chat UI pattern. Content is rendered as a single assistant
-     * message via ReadOnlyMessage/TipTap.
+     * Renders individual documentation pages using a lightweight docs header
+     * and static HTML content styled as a single assistant message.
      *
      * URL patterns:
      * - /docs/architecture -> Shows architecture folder index or README
@@ -12,65 +11,37 @@
      *
      * Architecture: docs/architecture/docs-web-app.md
      */
-    import { page } from '$app/state';
-    import { ChatHeader, text } from '@repo/ui';
+    import { text } from '@openmates/ui/src/i18n/translations';
+    import { getCategoryGradientColors, getLucideIcon } from '@openmates/ui/src/utils/categoryUtils';
     import DocsMessage from '$lib/components/docs/DocsMessage.svelte';
     import DocsActionBar from '$lib/components/docs/DocsActionBar.svelte';
     import DocsBreadcrumb from '$lib/components/docs/DocsBreadcrumb.svelte';
-    import docsData from '$lib/generated/docs-data.json';
-    import type { DocFile, DocFolder, DocStructure } from '$lib/types/docs';
+    import type { DocFile, DocManifestFolder, DocsManifest } from '$lib/types/docs';
     import { getDocCategoryInfo } from '$lib/utils/docsCategoryMap';
 
-    let currentSlug = $derived(page.params.slug || '');
-    let pageData = $derived(findPageData(currentSlug));
+    interface Props {
+        data: {
+            slug: string;
+            pageData: { type: 'file'; data: DocFile } | { type: 'folder'; data: DocManifestFolder } | null;
+            manifest: DocsManifest;
+        };
+    }
+
+    let { data }: Props = $props();
+    let currentSlug = $derived(data.slug || '');
+    let pageData = $derived(data.pageData);
 
     /** Category info derived from the slug's top-level folder */
     let catInfo = $derived(getDocCategoryInfo(currentSlug));
+    let gradColors = $derived(getCategoryGradientColors(catInfo.category));
+    let HeaderIcon = $derived(getLucideIcon(catInfo.icon));
 
-    /** First paragraph of content as summary for ChatHeader */
+    /** First paragraph of content as summary for the docs header */
     let summary = $derived.by(() => {
         if (pageData?.type !== 'file') return null;
         const file = pageData.data as DocFile;
-        const plain = file.plainText || '';
-        // Skip the title line, get the first real paragraph
-        const lines = plain.split('\n').filter((l: string) => l.trim());
-        const firstPara = lines.find((l: string) =>
-            l.trim() && l.trim() !== file.title
-        ) || '';
-        return firstPara.length > 150 ? firstPara.substring(0, 150) + '...' : firstPara;
+        return file.description || null;
     });
-
-    function findPageData(slug: string): { type: 'file' | 'folder'; data: DocFile | DocFolder } | null {
-        const parts = slug.split('/').filter(Boolean);
-        if (parts.length === 0) return null;
-
-        let current: DocStructure | DocFolder = docsData.structure as DocStructure;
-
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            const isLast = i === parts.length - 1;
-
-            const file = current.files.find(
-                (f: DocFile) => f.slug === slug || f.name.replace('.md', '') === part
-            );
-            if (file && isLast) return { type: 'file', data: file };
-
-            const folder: DocFolder | undefined = current.folders.find((f: DocFolder) => f.name === part);
-            if (folder) {
-                if (isLast) {
-                    const indexFile = folder.files.find(
-                        (f: DocFile) => f.name === 'README.md' || f.name === 'index.md'
-                    );
-                    if (indexFile) return { type: 'file', data: indexFile };
-                    return { type: 'folder', data: folder };
-                }
-                current = folder;
-            } else {
-                return null;
-            }
-        }
-        return null;
-    }
 
     let pageTitle = $derived(
         pageData?.type === 'file'
@@ -84,10 +55,7 @@
     let pageDescription = $derived.by(() => {
         if (pageData?.type !== 'file') return 'OpenMates documentation';
         const file = pageData.data as DocFile;
-        const plain = file.plainText || '';
-        const lines = plain.split('\n').filter((l: string) => l.trim());
-        const desc = lines.find((l: string) => l.trim() && l.trim() !== file.title) || '';
-        return desc.length > 160 ? desc.substring(0, 157) + '...' : desc || 'OpenMates documentation';
+        return file.description || 'OpenMates documentation';
     });
 </script>
 
@@ -119,27 +87,31 @@
         <div class="docs-page-content">
             <DocsActionBar title={file.title} originalMarkdown={file.originalMarkdown} fileName={file.name} />
             <DocsBreadcrumb slug={currentSlug} />
-            <ChatHeader
-                title={file.title}
-                category={catInfo.category}
-                icon={catInfo.icon}
-                summary={summary}
-            />
+            <header class="docs-header" style="background: linear-gradient(135deg, {gradColors?.start ?? '#6366f1'}, {gradColors?.end ?? '#4f46e5'});">
+                <div class="docs-header-icon">
+                    <HeaderIcon size={34} color="white" strokeWidth={2} />
+                </div>
+                <h1>{file.title}</h1>
+                {#if summary}
+                    <p>{summary}</p>
+                {/if}
+            </header>
             <DocsMessage
-                content={file.processedMarkdown}
+                content={file.content}
                 category={catInfo.category}
             />
         </div>
     {/key}
 {:else if pageData?.type === 'folder'}
-    {@const folder = pageData.data as DocFolder}
+    {@const folder = pageData.data as DocManifestFolder}
     <div class="docs-page-content">
         <DocsBreadcrumb slug={currentSlug} />
-        <ChatHeader
-            title={folder.title}
-            category={catInfo.category}
-            icon={catInfo.icon}
-        />
+        <header class="docs-header" style="background: linear-gradient(135deg, {gradColors?.start ?? '#6366f1'}, {gradColors?.end ?? '#4f46e5'});">
+            <div class="docs-header-icon">
+                <HeaderIcon size={34} color="white" strokeWidth={2} />
+            </div>
+            <h1>{folder.title}</h1>
+        </header>
         <div class="folder-index">
             {#if folder.files.length > 0}
                 <div class="folder-section">
@@ -173,6 +145,41 @@
     .docs-page-content {
         min-height: 100%;
         position: relative;
+    }
+
+    .docs-header {
+        margin: 0 1rem 1rem;
+        min-height: 190px;
+        border-radius: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+        padding: 2rem;
+        overflow: hidden;
+    }
+
+    .docs-header-icon {
+        margin-bottom: 0.75rem;
+        opacity: 0.95;
+    }
+
+    .docs-header h1 {
+        margin: 0;
+        font-size: 1.4rem;
+        line-height: 1.25;
+        font-weight: 700;
+        max-width: 760px;
+    }
+
+    .docs-header p {
+        margin: 0.75rem 0 0;
+        max-width: 720px;
+        font-size: 0.95rem;
+        line-height: 1.45;
+        opacity: 0.85;
     }
 
     .folder-index {

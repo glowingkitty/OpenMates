@@ -7,19 +7,17 @@
 	 * width-limiting (from ChatHistory.svelte), and chat-message/mate-profile/
 	 * mate-message-content for message rendering (from ChatMessage).
 	 *
-	 * Post-processes TipTap-rendered DOM to:
-	 * 1. Render Mermaid diagram blocks as interactive SVGs
-	 * 2. Replace code blocks with CodeEmbedPreview/Fullscreen components
+     * Post-processes rendered HTML to enhance Mermaid diagram blocks as
+     * interactive SVGs, loading Mermaid only on pages that need it.
 	 *
 	 * Architecture: docs/architecture/frontend/docs-web-app.md
 	 * Test: N/A — visual component, tested via E2E
 	 */
-	import { onMount, tick, mount, unmount } from 'svelte';
-	import { ReadOnlyMessage, text } from '@repo/ui';
-	import DocsCodeBlock from './DocsCodeBlock.svelte';
+	import { onMount } from 'svelte';
+	import { text } from '@openmates/ui/src/i18n/translations';
 
 	interface Props {
-		/** Processed markdown (links fixed) to render via TipTap */
+		/** Trusted HTML generated at build time from repository markdown */
 		content: string;
 		/** Category is kept for API compatibility but not used for avatar (always shows OpenMates logo) */
 		category: string;
@@ -28,56 +26,32 @@
 	let { content, category: _category }: Props = $props();
 
 	let messageContainer: HTMLElement;
-	let mountedComponents: ReturnType<typeof mount>[] = [];
 
 	/**
-	 * Post-process TipTap DOM after render:
-	 * - Mermaid code blocks → rendered SVG diagrams
-	 * - Other code blocks → CodeEmbedPreview components
+	 * Post-process rendered HTML after mount:
+	 * - Mermaid code blocks → rendered SVG diagrams, loaded only when needed.
 	 */
-	async function postProcessCodeBlocks() {
+	async function postProcessMermaidBlocks() {
 		if (!messageContainer) return;
 
-		// Wait for TipTap to finish rendering
-		await tick();
-		// Additional delay to ensure the lazy-loaded TipTap editor (IntersectionObserver) has mounted
-		await new Promise(resolve => setTimeout(resolve, 300));
-
-		const codeBlocks = messageContainer.querySelectorAll('.markdown-code-block');
+		const codeBlocks = messageContainer.querySelectorAll('pre code.language-mermaid');
 		if (codeBlocks.length === 0) return;
 
-		// Dynamically import mermaid only when needed (large dependency)
-		let mermaidModule: typeof import('mermaid') | null = null;
+		const mermaidModule = await import('mermaid');
+		const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+		mermaidModule.default.initialize({
+			startOnLoad: false,
+			theme: isDark ? 'dark' : 'default',
+			securityLevel: 'strict',
+			fontFamily: 'var(--font-family-sans, system-ui, sans-serif)',
+		});
 
 		for (let i = 0; i < codeBlocks.length; i++) {
-			const block = codeBlocks[i] as HTMLElement;
-			const preEl = block.querySelector('pre');
-			const codeEl = preEl?.querySelector('code');
-			if (!codeEl) continue;
-
+			const codeEl = codeBlocks[i] as HTMLElement;
+			const block = codeEl.closest('pre');
+			if (!block) continue;
 			const codeText = codeEl.textContent || '';
-
-			// Detect language from TipTap's code block attributes or CSS class
-			let language = '';
-			const langClass = Array.from(codeEl.classList).find(c => c.startsWith('language-'));
-			if (langClass) {
-				language = langClass.replace('language-', '');
-			}
-
-			// Handle Mermaid blocks
-			if (language === 'mermaid') {
-				try {
-					if (!mermaidModule) {
-						mermaidModule = await import('mermaid');
-						const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-						mermaidModule.default.initialize({
-							startOnLoad: false,
-							theme: isDark ? 'dark' : 'default',
-							securityLevel: 'strict',
-							fontFamily: 'var(--font-family-sans, system-ui, sans-serif)',
-						});
-					}
-
+			try {
 					const mermaidId = `docs-mermaid-${i}`;
 					const { svg } = await mermaidModule.default.render(mermaidId, codeText.trim());
 
@@ -85,44 +59,14 @@
 					wrapper.className = 'docs-mermaid-diagram';
 					wrapper.innerHTML = svg;
 					block.replaceWith(wrapper);
-				} catch (err) {
-					console.warn('[DocsMessage] Mermaid render failed, keeping code block:', err);
-					// Leave the original code block visible on error
-				}
-				continue;
+			} catch (err) {
+				console.warn('[DocsMessage] Mermaid render failed, keeping code block:', err);
 			}
-
-			// Handle regular code blocks → mount CodeEmbedPreview
-			const wrapper = document.createElement('div');
-			wrapper.className = 'docs-code-block-wrapper';
-			block.replaceWith(wrapper);
-
-			const component = mount(DocsCodeBlock, {
-				target: wrapper,
-				props: {
-					code: codeText,
-					language,
-					blockId: `docs-code-${i}`,
-				},
-			});
-			mountedComponents.push(component);
 		}
 	}
 
 	onMount(() => {
-		postProcessCodeBlocks();
-
-		return () => {
-			// Cleanup mounted components
-			for (const comp of mountedComponents) {
-				try {
-					unmount(comp);
-				} catch {
-					// Component may already be unmounted
-				}
-			}
-			mountedComponents = [];
-		};
+		postProcessMermaidBlocks();
 	});
 </script>
 
@@ -135,7 +79,8 @@
 			<div class="mate-message-content" data-testid="mate-message-content" role="article">
 				<div class="chat-mate-name">{$text('documentation.sender_name')}</div>
 				<div class="chat-message-text">
-					<ReadOnlyMessage {content} role="assistant" selectable={true} />
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- Generated from trusted repository markdown at build time. -->
+					<div class="docs-rendered-content">{@html content}</div>
 				</div>
 			</div>
 		</div>
@@ -231,9 +176,42 @@
 		height: auto;
 	}
 
-	/* --- Code block wrapper — provides container query context for CodeEmbedPreview --- */
-	.docs-message :global(.docs-code-block-wrapper) {
-		margin: 0.75rem 0;
-		min-width: 0;
+	.docs-rendered-content :global(pre) {
+		margin: 0.9rem 0;
+		padding: 1rem;
+		border-radius: 10px;
+		background: var(--color-grey-10);
+		overflow-x: auto;
+	}
+
+	.docs-rendered-content :global(code) {
+		font-family: var(--font-family-mono, monospace);
+		font-size: 0.9em;
+	}
+
+	.docs-rendered-content :global(:not(pre) > code) {
+		padding: 0.12rem 0.3rem;
+		border-radius: 0.3rem;
+		background: var(--color-grey-10);
+	}
+
+	.docs-rendered-content :global(img) {
+		max-width: 100%;
+		height: auto;
+		border-radius: 10px;
+	}
+
+	.docs-rendered-content :global(table) {
+		width: 100%;
+		border-collapse: collapse;
+		display: block;
+		overflow-x: auto;
+	}
+
+	.docs-rendered-content :global(th),
+	.docs-rendered-content :global(td) {
+		border: 1px solid var(--color-grey-30);
+		padding: 0.5rem 0.65rem;
+		text-align: start;
 	}
 </style>

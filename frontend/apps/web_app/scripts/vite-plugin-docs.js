@@ -2,7 +2,7 @@
  * Vite Plugin for Documentation Hot Reload
  * 
  * Watches the /docs directory for changes during development and
- * automatically regenerates the docs-data.json file.
+ * automatically regenerates the lightweight docs manifest and static payloads.
  * 
  * Features:
  * - Watches markdown files in /docs directory recursively
@@ -73,9 +73,9 @@ export function docsPlugin() {
             try {
                 await processDocs();
                 
-                // Trigger HMR for the generated file
+                // Trigger HMR for the generated manifest file
                 const module = server.moduleGraph.getModulesByFile(
-                    path.resolve(__dirname, '../src/lib/generated/docs-data.json')
+                    path.resolve(__dirname, '../src/lib/generated/docs-manifest.json')
                 );
                 
                 if (module && module.size > 0) {

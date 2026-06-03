@@ -1,22 +1,76 @@
 /**
  * Docs slug page — prerender + SSR config for SEO.
  *
- * The entries() function generates all known doc slugs at build time,
- * allowing SvelteKit to prerender every docs page to static HTML.
- * This is critical for SEO — without it, the Vercel catch-all rewrite
- * would serve the SPA shell instead of the docs content.
+ * The entries() function generates all known doc slugs at build time while
+ * load() fetches only the current page's static payload.
  */
-import docsData from '$lib/generated/docs-data.json';
-import type { DocFolder, DocStructure } from '$lib/types/docs';
+import manifest from '$lib/generated/docs-manifest.json';
+import type { DocFile, DocManifestFile, DocManifestFolder, DocManifestStructure } from '$lib/types/docs';
 
 export const prerender = true;
 export const ssr = true;
+
+type PageData =
+	| { type: 'file'; data: DocFile }
+	| { type: 'folder'; data: DocManifestFolder }
+	| null;
+
+function findManifestData(slug: string): { type: 'file'; data: DocManifestFile } | { type: 'folder'; data: DocManifestFolder } | null {
+	const parts = slug.split('/').filter(Boolean);
+	if (parts.length === 0) return null;
+
+	let current: DocManifestStructure | DocManifestFolder = manifest.structure as DocManifestStructure;
+
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i];
+		const isLast = i === parts.length - 1;
+
+		const file = current.files.find((f) => f.slug === slug || f.name.replace('.md', '') === part);
+		if (file && isLast) return { type: 'file', data: file };
+
+		const folder = current.folders.find((f) => f.name === part);
+		if (folder) {
+			if (isLast) {
+				const indexFile = folder.files.find((f) => f.name === 'README.md' || f.name === 'index.md');
+				if (indexFile) return { type: 'file', data: indexFile };
+				return { type: 'folder', data: folder };
+			}
+			current = folder;
+			continue;
+		}
+
+		return null;
+	}
+
+	return null;
+}
+
+export async function load({ fetch, params }: { fetch: typeof globalThis.fetch; params: { slug?: string } }) {
+	const slug = params.slug || '';
+	const manifestData = findManifestData(slug);
+	let pageData: PageData = null;
+
+	if (manifestData?.type === 'file') {
+		const response = await fetch(manifestData.data.pagePayload);
+		if (response.ok) {
+			pageData = { type: 'file', data: await response.json() };
+		}
+	} else if (manifestData?.type === 'folder') {
+		pageData = manifestData;
+	}
+
+	return {
+		slug,
+		pageData,
+		manifest,
+	};
+}
 
 /** Generate all doc page slugs for prerendering */
 export function entries() {
 	const slugs: Array<{ slug: string }> = [];
 
-	function collectSlugs(folder: DocFolder | DocStructure, parentPath = '') {
+	function collectSlugs(folder: DocManifestFolder | DocManifestStructure, parentPath = '') {
 		// Collect file slugs
 		for (const file of folder.files) {
 			slugs.push({ slug: file.slug });
@@ -31,6 +85,6 @@ export function entries() {
 		}
 	}
 
-	collectSlugs(docsData.structure as DocStructure);
+	collectSlugs(manifest.structure as DocManifestStructure);
 	return slugs;
 }

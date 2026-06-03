@@ -4,12 +4,11 @@
 	 *
 	 * Reuses the same left-buttons > new-chat-button-wrapper pattern from
 	 * ActiveChat.svelte for design consistency. Provides share (copy URL),
-	 * download as PDF, and report issue buttons.
+	 * download as markdown, and report issue buttons.
 	 *
 	 * Architecture: docs/architecture/docs-web-app.md
 	 */
-	import { text, notificationStore, settingsDeepLink, panelState } from '@repo/ui';
-	import { tick } from 'svelte';
+	import { text } from '@openmates/ui/src/i18n/translations';
 
 	interface Props {
 		title: string;
@@ -18,11 +17,13 @@
 	}
 
 	let { title, originalMarkdown = '', fileName = '' }: Props = $props();
+    let copied = $state(false);
 
 	async function handleShare() {
 		try {
 			await navigator.clipboard.writeText(window.location.href);
-			notificationStore.success($text('documentation.actions.share_copied'), 2000);
+			copied = true;
+			setTimeout(() => copied = false, 2000);
 		} catch {
 			const input = document.createElement('input');
 			input.value = window.location.href;
@@ -30,7 +31,8 @@
 			input.select();
 			document.execCommand('copy');
 			document.body.removeChild(input);
-			notificationStore.success($text('documentation.actions.share_copied'), 2000);
+			copied = true;
+			setTimeout(() => copied = false, 2000);
 		}
 	}
 
@@ -47,11 +49,9 @@
 		URL.revokeObjectURL(url);
 	}
 
-	async function handleReportIssue() {
-		panelState.openSettings();
-		await tick();
-		await new Promise(resolve => setTimeout(resolve, 100));
-		settingsDeepLink.set('report_issue');
+	function handleReportIssue() {
+		const body = encodeURIComponent(`Docs page: ${window.location.href}\n\nWhat should be improved?\n`);
+		window.open(`https://github.com/glowingkitty/OpenMates/issues/new?title=Docs%20issue:%20${encodeURIComponent(title)}&body=${body}`, '_blank', 'noopener,noreferrer');
 	}
 </script>
 
@@ -60,7 +60,7 @@
 		<div class="new-chat-button-wrapper">
 			<button
 				class="clickable-icon icon_share top-button"
-				title={$text('documentation.actions.share')}
+				title={copied ? $text('documentation.actions.share_copied') : $text('documentation.actions.share')}
 				onclick={handleShare}
 			></button>
 		</div>
