@@ -235,8 +235,8 @@ def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versio
     
     # Add version info if available (helps client determine if it needs to fetch messages)
     if cached_versions:
-        chat_details["messages_v"] = cached_versions.get("messages_v", 0)
-        chat_details["title_v"] = cached_versions.get("title_v", 0)
+        chat_details["messages_v"] = cached_versions.messages_v
+        chat_details["title_v"] = cached_versions.title_v
     
     return {
         "chat_details": chat_details,
