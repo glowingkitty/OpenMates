@@ -110,15 +110,15 @@
     loadedDays = days;
   }
 
-  function openDay(index: number, days: WeatherDayResult[]): void {
+  function openDay(index: number, days: WeatherDayResult[], day: WeatherDayResult): void {
     updateLoadedDays(days);
     selectedDayIndex = index;
-    selectedDay = days[index] ?? null;
+    selectedDay = day;
   }
 
-  function handleDayPointerDown(event: PointerEvent, index: number, days: WeatherDayResult[]): void {
+  function handleDayPointerDown(event: PointerEvent, index: number, days: WeatherDayResult[], day: WeatherDayResult): void {
     event.stopPropagation();
-    openDay(index, days);
+    openDay(index, days, day);
   }
 
   function formatTemp(min?: number, max?: number): string {
@@ -184,8 +184,8 @@
             data-skill-id="weather_day"
             data-status="finished"
             aria-label={`${$text('apps.weather.day')}: ${day.date ?? index + 1}`}
-            onpointerdown={(event) => handleDayPointerDown(event, index, days)}
-            onclick={() => openDay(index, days)}
+            onpointerdown={(event) => handleDayPointerDown(event, index, days, day)}
+            onclick={() => openDay(index, days, day)}
           >
             <div class="day-content" data-testid="weather-day-preview">
               <div class="day-title" data-testid="weather-day-date">{day.date || $text('apps.weather.day')}</div>
