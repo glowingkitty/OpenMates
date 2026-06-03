@@ -574,6 +574,7 @@ async function loadImageEmbedsRecursively(
     generated_at?: string;
     /** Whether this is a user upload (true) or AI-generated (false/undefined) */
     is_upload?: boolean;
+    data_url?: string;
     s3_base_url?: string;
     s3_key: string;
     aes_key: string;
@@ -588,6 +589,7 @@ async function loadImageEmbedsRecursively(
     model?: string;
     generated_at?: string;
     is_upload?: boolean;
+    data_url?: string;
     s3_base_url?: string;
     s3_key: string;
     aes_key: string;
@@ -683,7 +685,18 @@ async function loadImageEmbedsRecursively(
           selectedKey: fileEntry?.s3_key,
         });
 
-        if (fileEntry?.s3_key) {
+        if (decodedContent.data_url && decodedContent.filename) {
+          imageEmbeds.push({
+            embed_id: embed.embed_id,
+            filename: decodedContent.filename as string,
+            is_upload: true,
+            data_url: decodedContent.data_url as string,
+            s3_key: "",
+            aes_key: "",
+            aes_nonce: "",
+            format: fileEntry?.format || "png",
+          });
+        } else if (fileEntry?.s3_key) {
           const isUpload = decodedContent.skill_id === "upload";
           imageEmbeds.push({
             embed_id: embed.embed_id,
@@ -759,6 +772,26 @@ async function loadImageEmbedsRecursively(
 }
 
 /**
+ * Convert a local data URL from an imported chat fixture into a Blob for export.
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+  if (!match) {
+    throw new Error("Invalid image data URL in imported embed");
+  }
+
+  const mimeType = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || "";
+  const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+/**
  * Gets all image embeds from a chat including nested embeds.
  * Downloads, decrypts, and embeds PNG metadata for each image.
  * @returns Array of image data ready to be added to zip
@@ -828,13 +861,16 @@ export async function getImageEmbedsForChat(messages: Message[]): Promise<
 
     for (const imageInfo of imageEmbedInfos) {
       try {
-        // Fetch and decrypt the image from S3
-        const blob = await fetchAndDecryptImage(
-          imageInfo.s3_base_url,
-          imageInfo.s3_key,
-          imageInfo.aes_key,
-          imageInfo.aes_nonce,
-        );
+        // Imported image embeds can already contain decrypted local data URLs.
+        // Regular uploaded/generated images still go through S3 + AES decryption.
+        const blob = imageInfo.data_url
+          ? dataUrlToBlob(imageInfo.data_url)
+          : await fetchAndDecryptImage(
+              imageInfo.s3_base_url,
+              imageInfo.s3_key,
+              imageInfo.aes_key,
+              imageInfo.aes_nonce,
+            );
 
         // For PNG images, embed metadata (prompt, model, etc.)
         let downloadBlob: Blob = blob;

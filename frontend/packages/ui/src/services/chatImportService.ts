@@ -405,11 +405,13 @@ export function estimateImportCost(
 // ============================================================================
 
 const PURE_DATA_EMBED_TYPES = new Set([
+  "code",
   "code-code",
   "docs-doc",
   "sheets-sheet",
   "web-website",
   "videos-video",
+  "images-image",
   "maps-location",
   "maps-directions",
   "focus-mode-activation",

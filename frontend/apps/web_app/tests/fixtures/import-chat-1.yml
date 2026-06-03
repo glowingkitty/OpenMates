@@ -12,9 +12,19 @@ messages:
   - role: 'assistant'
     completed_at: '2026-03-01T10:00:10.000Z'
     assistant_category: 'code'
-    content: "Sure! Here's a simple Python function to calculate factorial:\n\n```python\ndef factorial(n):\n    if n == 0 or n == 1:\n        return 1\n    return n * factorial(n - 1)\n\nprint(factorial(5))  # Output: 120\n```\n\nThis uses recursion. Would you like an iterative version too?"
+    content: "Sure! Here's a simple Python function to calculate factorial:\n\n```json\n{\"type\":\"code\",\"embed_id\":\"import-test-code-embed\"}\n```\n\nThis uses recursion. Would you like an iterative version too?"
   - role: 'user'
     completed_at: '2026-03-01T10:00:20.000Z'
-    content: 'Yes please, show me the iterative version as well.'
+    content: "Yes please, and keep this test image with the chat too.\n\n```json\n{\"type\":\"images-image\",\"embed_id\":\"import-test-image-embed\"}\n```"
 
-embeds: []
+embeds:
+  - embed_id: 'import-test-code-embed'
+    type: 'code'
+    status: 'finished'
+    text_preview: 'sample.py'
+    content: '{"language":"python","filename":"code/sample.py","code":"def factorial(n):\n    if n == 0 or n == 1:\n        return 1\n    return n * factorial(n - 1)\n\nprint(factorial(5))\n"}'
+  - embed_id: 'import-test-image-embed'
+    type: 'images-image'
+    status: 'finished'
+    text_preview: 'import-test-image.png'
+    content: '{"app_id":"images","skill_id":"upload","type":"images-image","filename":"import-test-image.png","data_url":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=","files":{"original":{"format":"png"}}}'

@@ -15,11 +15,10 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
+const { docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -29,6 +28,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const IMPORT_CHAT_TITLE_1 = 'Playwright Import Test Chat 1';
 const IMPORT_CHAT_TITLE_2 = 'Playwright Import Test Chat 2';
 const IMPORT_CHAT_TITLES = [IMPORT_CHAT_TITLE_1, IMPORT_CHAT_TITLE_2];
+const IMPORT_GUIDE_PATH = 'docs/user-guide/import-account.md';
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -120,6 +120,12 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	await openImportSettings(page);
 	log('Opened Settings > Account > Import.');
 	await screenshot(page, 'import-page');
+	await docCheckpoint(page, {
+		id: 'import-page',
+		guide: IMPORT_GUIDE_PATH,
+		title: 'Choose an OpenMates import file',
+		screenshot: 'docs/images/user-guide/import-account/import-page.jpg'
+	});
 
 	const zipFilePath = path.resolve(__dirname, 'fixtures', 'import-chats-test.zip');
 	await page.setInputFiles('#import-file-input', zipFilePath);
@@ -141,6 +147,12 @@ test('imports chats from ZIP in account settings and shows success results', asy
 		importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-meta"]', { hasText: /2\s+messages/i })
 	).toBeVisible();
 	await screenshot(page, 'parsed-chat-list');
+	await docCheckpoint(page, {
+		id: 'parsed-chat-list',
+		guide: IMPORT_GUIDE_PATH,
+		title: 'Review chats found in the import file',
+		screenshot: 'docs/images/user-guide/import-account/parsed-chat-list.jpg'
+	});
 
 	const importButton = page.getByRole('button', { name: /import selected chats/i });
 	await expect(importButton).toBeEnabled({ timeout: 10000 });
@@ -158,6 +170,12 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	await expect(resultForChat2).toContainText(/2\s+messages imported/i);
 	await expect(page.getByRole('button', { name: /import another file/i })).toBeVisible();
 	await screenshot(page, 'import-success');
+	await docCheckpoint(page, {
+		id: 'import-success',
+		guide: IMPORT_GUIDE_PATH,
+		title: 'Import completed successfully',
+		screenshot: 'docs/images/user-guide/import-account/import-success.jpg'
+	});
 	log('Import success UI verified.');
 
 	for (const title of IMPORT_CHAT_TITLES) {
