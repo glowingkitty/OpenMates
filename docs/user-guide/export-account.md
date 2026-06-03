@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-03
 tested_by:
   - spec: frontend/apps/web_app/tests/export-account-flow.spec.ts
     test: exports account data ZIP from account settings
@@ -15,7 +15,7 @@ tested_by:
 
 ## What It Does
 
-You can export everything OpenMates knows about you -- chats, messages, usage history, invoices, settings, and memories -- as a downloadable ZIP archive. The export is processed entirely on your device, so your data is never stored unencrypted on the server.
+You can export everything OpenMates knows about you -- chats, messages, usage history, invoices, settings, and memories -- as a downloadable ZIP archive. Chat folders can also include supported embedded files, such as imported code files and images. The export is processed entirely on your device, so your data is never stored unencrypted on the server.
 
 ## How to Export
 
@@ -46,7 +46,7 @@ Your export ZIP contains:
 |--------------|----------|
 | `profile.yml` | Your account info (username, email, preferences, credit balance) |
 | `compliance_logs.yml` | Your consent history (privacy policy, terms of service) |
-| `chats/` | One folder per chat, each with a structured file and a readable markdown version |
+| `chats/` | One folder per chat, each with a structured file, a readable markdown version, and any supported embedded files saved inside that chat folder |
 | `usage/usage_history.yml` | All your usage records (credits, models, tokens) |
 | `payments/invoices.yml` | Invoice history |
 | `payments/invoice_pdfs/` | PDF copies of every invoice |

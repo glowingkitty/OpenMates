@@ -84,7 +84,9 @@ def read_file(path: str) -> str:
     return full_path.read_text(encoding="utf-8", errors="replace")
 
 
-def build_prompt(affected: list[AffectedGuide], since: str, changed_paths: set[str]) -> str:
+def build_prompt(
+    affected: list[AffectedGuide], since: str, changed_paths: set[str], result_path: Path
+) -> str:
     today = dt.date.today().isoformat()
     payload = {
         "review_date": today,
@@ -112,6 +114,8 @@ def build_prompt(affected: list[AffectedGuide], since: str, changed_paths: set[s
         "- After any doc edit, run: python3 scripts/docs_guide_verify.py --guide <changed-guide> for every changed guide.",
         "- If docs changed, admin notification is mandatory: include the changed guide path, linked spec, commit SHA once deployed, and a short explanation for Discord and email review.",
         "- Preserve the existing user-guide tone: plain language, no engineering jargon.",
+        f"- Before finishing, write a machine-readable result JSON to `{result_path.relative_to(REPO_ROOT)}`.",
+        "- The result JSON must have: docs_updated (boolean), changed_files (array), reason (string), notification_required (boolean), notification_summary (string).",
         "",
         "Structured review payload:",
         "```json",
@@ -152,16 +156,23 @@ def build_prompt(affected: list[AffectedGuide], since: str, changed_paths: set[s
         "- State whether docs needed updates.",
         "- If updated, list files changed and the exact user-visible behavior that changed.",
         "- If not updated, explain why the spec change did not affect the guide.",
+        f"- Confirm that you wrote `{result_path.relative_to(REPO_ROOT)}`.",
     ])
     return "\n".join(sections)
 
 
-def write_prompt(prompt: str) -> Path:
+def make_run_paths(result_file: str | None) -> tuple[Path, Path]:
     TMP_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
-    path = TMP_DIR / f"review-{timestamp}.md"
-    path.write_text(prompt, encoding="utf-8")
-    return path
+    prompt_path = TMP_DIR / f"review-{timestamp}.md"
+    result_path = (REPO_ROOT / result_file).resolve() if result_file else TMP_DIR / f"result-{timestamp}.json"
+    return prompt_path, result_path
+
+
+def write_prompt(prompt: str, prompt_path: Path) -> Path:
+    prompt_path.parent.mkdir(parents=True, exist_ok=True)
+    prompt_path.write_text(prompt, encoding="utf-8")
+    return prompt_path
 
 
 def spawn_review(prompt_path: Path) -> None:
@@ -183,6 +194,46 @@ def spawn_review(prompt_path: Path) -> None:
     )
 
 
+def run_direct_review(prompt_path: Path) -> None:
+    message = (
+        "Review the attached user-guide freshness prompt. Follow the prompt exactly, "
+        "including writing the required result JSON file."
+    )
+    subprocess.run(
+        [
+            "opencode",
+            "run",
+            message,
+            "--file",
+            str(prompt_path),
+            "--title",
+            "docs guide review",
+            "--dangerously-skip-permissions",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+    )
+
+
+def validate_result_file(result_path: Path) -> dict[str, object]:
+    if not result_path.exists():
+        raise FileNotFoundError(f"Review result file was not written: {result_path}")
+    data = json.loads(result_path.read_text(encoding="utf-8"))
+    required = {
+        "docs_updated": bool,
+        "changed_files": list,
+        "reason": str,
+        "notification_required": bool,
+        "notification_summary": str,
+    }
+    for key, expected_type in required.items():
+        if key not in data:
+            raise ValueError(f"Review result missing required key: {key}")
+        if not isinstance(data[key], expected_type):
+            raise TypeError(f"Review result key {key} must be {expected_type.__name__}")
+    return data
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--since", default="HEAD~1", help="Git ref to diff against.")
@@ -195,7 +246,17 @@ def main() -> int:
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="Spawn an OpenCode execute-mode review session. Dry-run is the default.",
+        help="Run an OpenCode review. Dry-run is the default.",
+    )
+    parser.add_argument(
+        "--execute-mode",
+        choices=("spawn", "direct"),
+        default="spawn",
+        help="Execution backend. spawn opens a Zellij session; direct waits for opencode run.",
+    )
+    parser.add_argument(
+        "--result-file",
+        help="Path where the reviewer must write result JSON. Defaults to scripts/.tmp/docs-guide-review/.",
     )
     args = parser.parse_args()
 
@@ -205,8 +266,9 @@ def main() -> int:
         print("No linked user guides affected by changed specs.")
         return 0
 
-    prompt = build_prompt(affected, args.since, changed_paths)
-    prompt_path = write_prompt(prompt)
+    prompt_path, result_path = make_run_paths(args.result_file)
+    prompt = build_prompt(affected, args.since, changed_paths, result_path)
+    prompt_path = write_prompt(prompt, prompt_path)
 
     print(f"Affected guides: {len(affected)}")
     for item in affected:
@@ -219,13 +281,21 @@ def main() -> int:
         "affected_guides": [str(item.guide.path.relative_to(REPO_ROOT)) for item in affected],
         "linked_specs": sorted({spec for item in affected for spec in item.changed_specs}),
         "prompt_file": str(prompt_path.relative_to(REPO_ROOT)),
+        "result_file": str(result_path.relative_to(REPO_ROOT)),
     }
     print("Admin notification payload for any resulting docs change:")
     print(json.dumps(notification_payload, indent=2))
 
     if args.execute:
-        spawn_review(prompt_path)
-        print("Spawned OpenCode docs guide review session.")
+        if args.execute_mode == "direct":
+            run_direct_review(prompt_path)
+            result = validate_result_file(result_path)
+            print("OpenCode direct review completed with result:")
+            print(json.dumps(result, indent=2))
+        else:
+            spawn_review(prompt_path)
+            print("Spawned OpenCode docs guide review session.")
+            print(f"Expected result file: {result_path.relative_to(REPO_ROOT)}")
     else:
         print("Dry-run only. Re-run with --execute to spawn the review session.")
     return 0
