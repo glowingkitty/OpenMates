@@ -1,0 +1,16 @@
+# backend/providers/berlin_philharmonic.yml
+#
+# Configuration for Berlin Philharmonic event provider.
+# Used by the Events app for classical concerts in Berlin.
+
+provider_id: "berlin_philharmonic"
+name: "Berlin Philharmonic"
+description: "Official Berliner Philharmoniker concert calendar for classical music events in Berlin. Privacy URL verified 2026-06-03."
+logo_svg: "icons/berlin_philharmonic.svg"
+region: "EU"
+privacy_policy: "https://www.berliner-philharmoniker.de/en/privacy/"
+
+no_api_key: true
+
+pricing:
+  per_request_credits: 5

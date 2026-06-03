@@ -633,7 +633,7 @@
         height: 36px;
         border-radius: var(--radius-3);
         object-fit: contain;
-        background: var(--color-grey-10);
+        background: #ffffff;
         padding: var(--spacing-2);
     }
 
@@ -850,7 +850,7 @@
         height: 36px;
         border-radius: var(--radius-3);
         object-fit: contain;
-        background: var(--color-grey-10);
+        background: #ffffff;
         padding: var(--spacing-2);
     }
     
@@ -938,6 +938,6 @@
     }
     
     :global(.dark) .provider-logo {
-        background: var(--color-grey-20);
+        background: #ffffff;
     }
 </style>

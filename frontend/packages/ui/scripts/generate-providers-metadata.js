@@ -108,11 +108,13 @@ function parseProviderYaml(providerId, filePath) {
       }
     }
 
+    const logoPath = (data.logo_svg || `icons/${providerId}.svg`).replace(/^logos\//, "icons/");
+
     return {
       id: data.provider_id || providerId,
       name: data.name || providerId,
       description: data.description || "",
-      logo_svg: `icons/${providerId}.svg`,
+      logo_svg: logoPath,
       country,
       privacy_policy: data.privacy_policy || "",
     };
@@ -187,7 +189,11 @@ ${providers.map((p) => `    ${JSON.stringify(p.id)}: {\n        id: ${JSON.strin
 export function findProviderByName(name: string): ProviderMetadata | undefined {
     const lowerName = name.toLowerCase().trim();
     const aliases: Record<string, string> = {
+        "bfl": "bfl",
+        "brave": "brave",
         "flixbus / flixtrain": "flix",
+        "mistral": "mistral",
+        "protonmail": "protonmail",
     };
     if (aliases[lowerName]) return providersMetadata[aliases[lowerName]];
     return Object.values(providersMetadata).find(

@@ -72,7 +72,7 @@ skills:
       networking events, parties, concerts, or any community gathering. Use ONLY this
       skill for event searches — do NOT additionally call web.search or any other
       search skill for the same query.
-      Sources: Meetup, Luma, Google Events, Resident Advisor (electronic music/clubs),
+      Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs),
       Siegessäule (Berlin LGBTQ+ events), and Berlin Philharmonic (classical concerts in Berlin).
       Use 'auto' provider for best coverage.
       Use 'Resident Advisor' when user asks about clubs, DJs, electronic music, raves,
@@ -100,6 +100,10 @@ skills:
         no_api_key: true
       - name: Luma
         id: luma
+        scope: global
+        no_api_key: true
+      - name: Eventbrite
+        id: eventbrite
         scope: global
         no_api_key: true
       - name: Google Events
@@ -140,12 +144,14 @@ skills:
           description: >
             The event provider to use. 'auto' (default) queries all providers in
             parallel for best coverage. Use specific providers when the user asks
-            about a particular type: 'Resident Advisor' for electronic music/clubs,
+            about a particular platform/type: 'Eventbrite' for Eventbrite-only results,
+            'Resident Advisor' for electronic music/clubs,
             'Siegessäule' for Berlin LGBTQ+ events.
           enum:
             - "auto"
             - "Meetup"
             - "Luma"
+            - "Eventbrite"
             - "Google Events"
             - "Resident Advisor"
             - "Siegessäule"

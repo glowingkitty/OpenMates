@@ -6,6 +6,9 @@
 -->
 
 <script lang="ts">
+    import { findProviderByName } from '../../data/providersMetadata';
+    import { getProviderIconUrl } from '../../data/providerIcons';
+
     /**
      * Props for ProviderIcon component.
      */
@@ -16,67 +19,54 @@
     
     let { name, size = '30px' }: Props = $props();
     
-    /**
-     * Get the CSS variable name for the icon URL.
-     * Converts provider name to lowercase with underscores.
-     */
-    function getIconUrlVar(providerName: string): string {
-        if (providerName === 'Bluesky') return '--icon-url-bluesky';
-        if (providerName === 'Reddit') return '--icon-url-reddit';
-        if (providerName === 'Deutsche Bahn') return '--icon-url-deutsche_bahn';
-        if (providerName === 'Deutscher Wetterdienst (DWD)') return '--icon-url-deutscher_wetterdienst';
-        if (providerName === 'Open-Meteo') return '--icon-url-open_meteo';
-        if (providerName === 'FlixBus / FlixTrain') return '--icon-url-flix';
-
-        const normalized = providerName.toLowerCase()
-            .replace(/\s+/g, '_')
-            .replace(/\./g, '');
-        return `--icon-url-${normalized}`;
-    }
-    
-    /**
-     * Get the icon URL CSS variable name.
-     */
-    let iconUrlVar = $derived(getIconUrlVar(name));
-    
-    /**
-     * Get the computed background image style.
-     * This ensures the CSS variable is properly referenced.
-     */
-    let backgroundImageStyle = $derived(`var(${iconUrlVar})`);
+    let providerMeta = $derived(findProviderByName(name));
+    let iconUrl = $derived(providerMeta ? getProviderIconUrl(providerMeta.logo_svg) : '/icons/server.svg');
+    let providerDisplayName = $derived(providerMeta?.name || name);
 </script>
 
-<!-- Wrapper div with white background and icon at 0.5 opacity (entire element) -->
+<!-- Wrapper keeps all provider logos readable on gradients and dark themes. -->
 <div 
     class="provider-icon-wrapper" 
     data-testid="provider-icon"
-    data-provider-name={name}
-    data-icon-var={iconUrlVar}
+    data-provider-name={providerDisplayName}
     style={`
         width: ${size};
         height: ${size};
-        --provider-bg-image: ${backgroundImageStyle};
     `}
-    aria-label={name}
-></div>
+    aria-label={providerDisplayName}
+>
+    <img
+        src={iconUrl}
+        alt={providerDisplayName}
+        data-testid="provider-icon-image"
+        data-provider-name={providerDisplayName}
+    />
+</div>
 
 <style>
     .provider-icon-wrapper {
         border-radius: var(--radius-2);
         flex-shrink: 0;
-        /* Subtle appearance — entire element at 0.5 opacity */
-        opacity: 0.5;
         /* Always-white background (theme-independent — provider logos need light bg in both themes) */
         background-color: #ffffff;
-        /* Use CSS variable for background image */
-        background-image: var(--provider-bg-image);
-        /* Icon image should be 60% of container size, not edge-to-edge */
-        background-size: 60%;
-        background-position: center;
-        background-repeat: no-repeat;
         /* No filters - show original colors */
         filter: none !important;
         /* Ensure original colors are preserved */
+        -webkit-filter: none !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 4px;
+        box-sizing: border-box;
+    }
+
+    .provider-icon-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        filter: none !important;
         -webkit-filter: none !important;
     }
 </style>

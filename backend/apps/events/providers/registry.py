@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # with ReadTimeout when the proxy is slow. Re-enable after OPE-XXX fixes
 # the timeout hierarchy and makes Siegessäule opt-in for LGBTQ+ queries only (OPE-301).
 _VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "google_events", "resident_advisor", "berlin_philharmonic",
+    "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "berlin_philharmonic",
 })
 
 # Map display names (from app.yml "name" field) to internal provider IDs.
@@ -35,6 +35,7 @@ _VALID_PROVIDER_IDS = frozenset({
 _NAME_TO_ID: Dict[str, str] = {
     "meetup": "meetup",
     "luma": "luma",
+    "eventbrite": "eventbrite",
     "google events": "google_events",
     "resident advisor": "resident_advisor",
     "siegessäule": "siegessaeule",
@@ -106,9 +107,13 @@ def filter_providers(
         )
         return applicable
 
-    # LLM made a selection — validate against applicable set
-    validated = [p for p in requested_providers if p in applicable_set]
-    stripped = [p for p in requested_providers if p not in applicable_set]
+    # LLM made a selection — normalize display names/aliases, then validate.
+    normalized_requested = [
+        _NAME_TO_ID.get(str(provider).lower().strip(), str(provider).lower().strip())
+        for provider in requested_providers
+    ]
+    validated = [p for p in normalized_requested if p in applicable_set]
+    stripped = [p for p in normalized_requested if p not in applicable_set]
 
     if stripped:
         logger.warning(

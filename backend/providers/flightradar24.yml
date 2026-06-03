@@ -1,0 +1,16 @@
+# backend/providers/flightradar24.yml
+#
+# Configuration for Flightradar24 flight tracking provider.
+# Used by the Travel app for live flight lookup and tracking metadata.
+
+provider_id: "flightradar24"
+name: "Flightradar24"
+description: "Live flight tracking platform for real-time aircraft, route, and flight status information. Privacy URL verified 2026-06-03."
+logo_svg: "icons/flightradar24.svg"
+region: "EU"
+privacy_policy: "https://www.flightradar24.com/privacy-policy"
+
+no_api_key: true
+
+pricing:
+  per_request_credits: 5
