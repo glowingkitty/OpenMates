@@ -12,6 +12,14 @@ const { deriveApiUrl } = require('./helpers/cli-test-helpers');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { expectSettingsProviderIcons } = require('./helpers/provider-icon-helpers');
 
+function getAppsFromMetadataPayload(data: any): Record<string, any> {
+	const appsPayload = data?.apps || data?.data?.apps || data?.data || data;
+	if (Array.isArray(appsPayload)) {
+		return Object.fromEntries(appsPayload.map((app: any) => [app.id, app]));
+	}
+	return appsPayload || {};
+}
+
 test.describe('App Store skill provider icons', () => {
 	test.setTimeout(360_000);
 
@@ -29,7 +37,7 @@ test.describe('App Store skill provider icons', () => {
 		const data = await response.json();
 
 		const targets: Array<{ appId: string; skillId: string; providers: string[] }> = [];
-		for (const [appId, app] of Object.entries(data.apps || {}) as Array<[string, any]>) {
+		for (const [appId, app] of Object.entries(getAppsFromMetadataPayload(data)) as Array<[string, any]>) {
 			for (const skill of app.skills || []) {
 				if (Array.isArray(skill.providers) && skill.providers.length > 0) {
 					targets.push({ appId, skillId: skill.id, providers: skill.providers });

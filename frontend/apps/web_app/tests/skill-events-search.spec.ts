@@ -53,6 +53,14 @@ const EVENT_SEARCH_PROVIDERS = [
 	'Berlin Philharmonic'
 ];
 
+function getAppsFromMetadataPayload(data: any): Record<string, any> {
+	const appsPayload = data?.apps || data?.data?.apps || data?.data || data;
+	if (Array.isArray(appsPayload)) {
+		return Object.fromEntries(appsPayload.map((app: any) => [app.id, app]));
+	}
+	return appsPayload || {};
+}
+
 async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
 	const dismissButtons = page.getByTestId('notification-dismiss');
 	const dismissCount = await dismissButtons.count();
@@ -90,7 +98,7 @@ test.describe('App: Events / Skill: search', () => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBeTruthy();
 		const data = await response.json();
-		const events = data.apps?.events;
+		const events = getAppsFromMetadataPayload(data).events;
 		expect(events, 'events app should appear in app store metadata').toBeTruthy();
 		const searchSkill = (events.skills || []).find((skill: { id: string }) => skill.id === 'search');
 		expect(searchSkill, 'events search skill should appear in app store metadata').toBeTruthy();
