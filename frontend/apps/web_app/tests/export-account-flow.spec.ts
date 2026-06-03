@@ -138,7 +138,7 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	await startNewChat(page, log);
 	await sendMessage(
 		page,
-		withMockMarker(EXPORT_PROMPT, 'account_export_flow'),
+		withMockMarker(EXPORT_PROMPT, 'share_chat_flow'),
 		log,
 		screenshot,
 		'export-account'
