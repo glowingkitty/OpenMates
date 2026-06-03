@@ -3,6 +3,9 @@
 You are running inside the OpenMates sequential auto-test-fix controller.
 The controller already owns sequencing, verification, Discord reporting, and deploy.
 Fix only the root-cause group described below, then write the required summary JSON and exit.
+The controller may call you multiple times for the same group. If a previous
+attempt failed verification, use that verification output as the next thing to
+investigate and fix.
 
 ## Hard Rules
 
@@ -21,6 +24,9 @@ Fix only the root-cause group described below, then write the required summary J
 - Missing exports/imports, moved symbols, mocks, fixtures, or test setup.
 - Async/test-environment issues, monkeypatch targets, fixture cleanup, or narrow compatibility fixes.
 - Small defensive handling when the failed test exposes a real narrow bug.
+- Additional narrow fixes uncovered by the controller verification rerun for
+  this same spec/group, including a second failure surfaced after the original
+  failure was fixed.
 
 ## Must Block Instead Of Fixing
 
@@ -42,6 +48,7 @@ Use it only for context. Do not start or end a session yourself.
 
 Group id: `{{GROUP_ID}}`
 Run id: `{{RUN_ID}}`
+Attempt: `{{ATTEMPT_NUMBER}}` of `{{MAX_ATTEMPTS}}`
 Verification command the controller will run:
 
 ```bash
@@ -53,6 +60,18 @@ Failed tests:
 ```json
 {{FAILED_TESTS_JSON}}
 ```
+
+Previous attempts and verification output:
+
+```json
+{{PREVIOUS_ATTEMPTS_JSON}}
+```
+
+If previous attempts are present, do not repeat the same fix. Read the latest
+`verification_output_tail`, inspect the relevant current files, and address the
+new failure if it is still a narrow test/regression fix. If the new failure
+requires meaningful product/frontend/backend behavior changes, write
+`status: "blocked"` with `scope_classification: "requires_human_approval"`.
 
 ## Required Summary JSON
 
@@ -70,7 +89,7 @@ Schema:
   "session_id": "{{SESSION_ID}}",
   "root_cause": "one concise paragraph",
   "changes_applied": ["concise change summary"],
-  "changed_files": ["relative/path"],
+  "changed_files": ["relative/source/or/test/path"],
   "verification_command": "{{VERIFY_COMMAND}}",
   "verification_result": "not_run",
   "reason": "empty unless blocked/failed/skipped"

@@ -38,6 +38,7 @@ GH_BRANCH = "dev"
 
 DEFAULT_TIMEOUT_SECONDS = 1800
 DEFAULT_MAX_GROUPS = 1
+DEFAULT_MAX_ATTEMPTS_PER_GROUP = 5
 DEFAULT_MAX_CHANGED_FILES = 5
 DEFAULT_MAX_DIFF_LINES = 200
 MAX_FAILURES_PER_GROUP = 8
@@ -223,16 +224,28 @@ def start_controller_session(group: FixGroup) -> str:
     return match.group(1)
 
 
-def render_prompt(group: FixGroup, run_id: str, session_id: str, summary_path: Path) -> str:
+def render_prompt(
+    group: FixGroup,
+    run_id: str,
+    session_id: str,
+    summary_path: Path,
+    attempt: int,
+    max_attempts: int,
+    previous_attempts: list[dict[str, Any]],
+) -> str:
     template = PROMPT_TEMPLATE.read_text()
     failed_tests_json = json.dumps(group.tests, indent=2)
+    previous_attempts_json = json.dumps(previous_attempts, indent=2)
     verify_command = " ".join(group.verify_command)
     replacements = {
         "{{SESSION_ID}}": session_id,
         "{{GROUP_ID}}": group.id,
         "{{RUN_ID}}": run_id,
+        "{{ATTEMPT_NUMBER}}": str(attempt),
+        "{{MAX_ATTEMPTS}}": str(max_attempts),
         "{{VERIFY_COMMAND}}": verify_command,
         "{{FAILED_TESTS_JSON}}": failed_tests_json,
+        "{{PREVIOUS_ATTEMPTS_JSON}}": previous_attempts_json,
         "{{SUMMARY_PATH}}": str(summary_path.relative_to(PROJECT_ROOT)),
     }
     for token, value in replacements.items():
@@ -240,20 +253,31 @@ def render_prompt(group: FixGroup, run_id: str, session_id: str, summary_path: P
     return template
 
 
-def run_opencode(group: FixGroup, run_id: str, session_id: str, timeout: int) -> tuple[int, str, Path, str, str]:
+def run_opencode(
+    group: FixGroup,
+    run_id: str,
+    session_id: str,
+    timeout: int,
+    attempt: int,
+    max_attempts: int,
+    previous_attempts: list[dict[str, Any]],
+) -> tuple[int, str, Path, str, str]:
     TMP_DIR.mkdir(parents=True, exist_ok=True)
     group_dir = TMP_DIR / group.id
     group_dir.mkdir(parents=True, exist_ok=True)
-    summary_path = group_dir / "summary.json"
-    prompt_path = group_dir / "prompt.md"
-    prompt_path.write_text(render_prompt(group, run_id, session_id, summary_path), encoding="utf-8")
+    summary_path = group_dir / f"summary-attempt-{attempt}.json"
+    prompt_path = group_dir / f"prompt-attempt-{attempt}.md"
+    prompt_path.write_text(
+        render_prompt(group, run_id, session_id, summary_path, attempt, max_attempts, previous_attempts),
+        encoding="utf-8",
+    )
     message = f"Read {prompt_path.relative_to(PROJECT_ROOT)} in full and follow it exactly."
     result = run_command(
         [
             "opencode",
             "run",
             "--title",
-            f"auto-fix failed tests {group.id}",
+            f"auto-fix failed tests {group.id} attempt {attempt}",
             "--format",
             "json",
             "--dangerously-skip-permissions",
@@ -261,7 +285,7 @@ def run_opencode(group: FixGroup, run_id: str, session_id: str, timeout: int) ->
         ],
         timeout=timeout,
     )
-    output_path = group_dir / "opencode-output.jsonl"
+    output_path = group_dir / f"opencode-output-attempt-{attempt}.jsonl"
     combined_output = (result.stdout or "") + "\n" + (result.stderr or "")
     output_path.write_text(combined_output, encoding="utf-8")
     opencode_session_id = extract_opencode_session_id(combined_output)
@@ -495,9 +519,25 @@ def discord_smoke() -> int:
     return 0 if post_discord(summary) else 1
 
 
+def compact_attempt_feedback(summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "attempt": summary.get("attempt"),
+        "status": summary.get("status"),
+        "root_cause": summary.get("root_cause"),
+        "changes_applied": summary.get("changes_applied", []),
+        "changed_files": summary.get("changed_files", []),
+        "verification_result": summary.get("verification_result"),
+        "verification_output_tail": summary.get("verification_output_tail", ""),
+        "reason": summary.get("reason", ""),
+        "safety_check": summary.get("safety_check", ""),
+        "opencode_chat": summary.get("opencode_chat", ""),
+    }
+
+
 def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dict[str, Any]:
     session_id = start_controller_session(group)
     summary: dict[str, Any] = {}
+    attempts: list[dict[str, Any]] = []
     try:
         log(f"Processing {group.id}: {len(group.tests)} test(s) from suite {group.suite}")
         if args.dry_run:
@@ -516,48 +556,66 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
             post_discord(summary, color=0x94A3B8)
             return summary
 
-        opencode_rc, output_path, summary_path, opencode_session_id, opencode_session_url = run_opencode(
-            group,
-            run_id,
-            session_id,
-            args.timeout_seconds,
-        )
-        summary = load_summary(summary_path, group, session_id)
-        summary["opencode_exit_code"] = opencode_rc
-        summary["opencode_output"] = output_path
-        summary["opencode_session_id"] = opencode_session_id or "unknown"
-        summary["opencode_session_url"] = opencode_session_url
-        summary["opencode_chat"] = opencode_session_url or opencode_session_id or "unknown"
-        summary_files = normalize_summary_files(summary)
-        summary["changed_files"] = summary_files
-        track_session_files(session_id, summary_files)
+        for attempt in range(1, args.max_attempts_per_group + 1):
+            log(f"Attempt {attempt}/{args.max_attempts_per_group} for {group.id}")
+            opencode_rc, output_path, summary_path, opencode_session_id, opencode_session_url = run_opencode(
+                group,
+                run_id,
+                session_id,
+                args.timeout_seconds,
+                attempt,
+                args.max_attempts_per_group,
+                attempts,
+            )
+            summary = load_summary(summary_path, group, session_id)
+            summary["attempt"] = attempt
+            summary["attempts"] = attempts
+            summary["opencode_exit_code"] = opencode_rc
+            summary["opencode_output"] = output_path
+            summary["opencode_session_id"] = opencode_session_id or "unknown"
+            summary["opencode_session_url"] = opencode_session_url
+            summary["opencode_chat"] = opencode_session_url or opencode_session_id or "unknown"
+            summary_files = normalize_summary_files(summary)
+            summary["changed_files"] = summary_files
+            track_session_files(session_id, summary_files)
 
-        if opencode_rc != 0 and summary.get("status") == "fixed":
-            summary["status"] = "failed"
-            summary["scope_classification"] = "requires_human_approval"
-            summary["reason"] = "opencode exited non-zero after reporting fixed"
+            if opencode_rc != 0 and summary.get("status") == "fixed":
+                summary["status"] = "failed"
+                summary["scope_classification"] = "requires_human_approval"
+                summary["reason"] = "opencode exited non-zero after reporting fixed"
 
-        safe, safety_reason = classify_diff(summary, args.max_changed_files, args.max_diff_lines)
-        summary["safety_check"] = safety_reason
-        if not safe or summary.get("status") in {"blocked", "failed", "skipped"}:
-            summary.setdefault("reason", safety_reason)
-            summary["verification_result"] = "not_run"
-            post_discord(summary, color=0xF59E0B)
-            return summary
+            safe, safety_reason = classify_diff(summary, args.max_changed_files, args.max_diff_lines)
+            summary["safety_check"] = safety_reason
+            if not safe or summary.get("status") in {"blocked", "failed", "skipped"}:
+                summary.setdefault("reason", safety_reason)
+                summary["verification_result"] = "not_run"
+                summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
+                post_discord(summary, color=0xF59E0B)
+                return summary
 
-        verify_status, verify_rc, verify_output = run_verification(group, args.verify_timeout_seconds)
-        summary["verification_result"] = verify_status
-        summary["verification_exit_code"] = verify_rc
-        summary["verification_output_tail"] = verify_output
+            verify_status, verify_rc, verify_output = run_verification(group, args.verify_timeout_seconds)
+            summary["verification_result"] = verify_status
+            summary["verification_exit_code"] = verify_rc
+            summary["verification_output_tail"] = verify_output
 
-        if verify_status != "passed":
-            summary["status"] = "failed"
+            if verify_status == "passed":
+                break
+
+            summary["status"] = "retrying" if attempt < args.max_attempts_per_group else "failed"
             summary["reason"] = "controller verification failed"
+            attempts.append(compact_attempt_feedback(summary))
+            if attempt < args.max_attempts_per_group:
+                log(f"Verification failed for {group.id}; retrying with failure output.")
+                continue
+
+            summary["reason"] = f"controller verification failed after {args.max_attempts_per_group} attempt(s)"
+            summary["attempts"] = attempts
             post_discord(summary, color=0xEF4444)
             return summary
 
         if args.no_deploy:
             summary["commit_sha"] = "not deployed (--no-deploy)"
+            summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
             post_discord(summary, color=0x22C55E)
             return summary
 
@@ -566,11 +624,13 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
         if not deploy_ok:
             summary["status"] = "failed"
             summary["reason"] = f"deploy failed: {deploy_detail}"
+            summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
             post_discord(summary, color=0xEF4444)
             return summary
 
         summary["status"] = "fixed"
         summary["session_closed_by_deploy"] = True
+        summary["attempts"] = attempts + [compact_attempt_feedback(summary)]
         post_discord(summary, color=0x22C55E)
         return summary
     finally:
@@ -584,6 +644,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Sequential OpenCode failed-test auto-fixer")
     parser.add_argument("--from-daily-run", action="store_true", help="Run after daily tests; non-interactive")
     parser.add_argument("--max-groups", type=int, default=int(os.environ.get("AUTO_FIX_MAX_GROUPS_PER_RUN", DEFAULT_MAX_GROUPS)))
+    parser.add_argument("--max-attempts-per-group", type=int, default=int(os.environ.get("AUTO_FIX_MAX_ATTEMPTS_PER_GROUP", DEFAULT_MAX_ATTEMPTS_PER_GROUP)))
     parser.add_argument("--timeout-seconds", type=int, default=int(os.environ.get("AUTO_FIX_OPENCODE_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)))
     parser.add_argument("--verify-timeout-seconds", type=int, default=int(os.environ.get("AUTO_FIX_VERIFY_TIMEOUT_SECONDS", "3600")))
     parser.add_argument("--deploy-timeout-seconds", type=int, default=int(os.environ.get("AUTO_FIX_DEPLOY_TIMEOUT_SECONDS", "1800")))
