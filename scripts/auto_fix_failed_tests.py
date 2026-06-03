@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 import urllib.error
@@ -41,6 +42,7 @@ DEFAULT_MAX_GROUPS = 999
 DEFAULT_MAX_ATTEMPTS_PER_GROUP = 5
 DEFAULT_MAX_CHANGED_FILES = 5
 DEFAULT_MAX_DIFF_LINES = 200
+OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 MAX_FAILURES_PER_GROUP = 8
 IGNORED_CHANGED_FILE_PREFIXES = ("test-results/", "logs/", "scripts/.tmp/")
 
@@ -108,6 +110,37 @@ def build_opencode_session_url(opencode_session_id: str) -> str:
     if not base_url:
         return ""
     return f"{base_url.rstrip('/')}/{project_path_token(PROJECT_ROOT)}/session/{opencode_session_id}"
+
+
+def expose_opencode_chats() -> bool:
+    return os.environ.get("AUTO_FIX_EXPOSE_OPENCODE_CHATS", "").lower() in {"1", "true", "yes"}
+
+
+def archive_opencode_session(opencode_session_id: str) -> bool:
+    if not opencode_session_id or expose_opencode_chats():
+        return False
+    if not OPENCODE_DB_PATH.is_file():
+        return False
+    archived_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+    try:
+        with sqlite3.connect(OPENCODE_DB_PATH, timeout=10) as connection:
+            cursor = connection.execute(
+                "update session set time_archived = ? where id = ? and time_archived is null",
+                (archived_at, opencode_session_id),
+            )
+            connection.commit()
+            return cursor.rowcount > 0
+    except sqlite3.Error as exc:
+        log(f"Could not archive hidden OpenCode session {opencode_session_id}: {exc}")
+        return False
+
+
+def opencode_status_label(opencode_session_id: str, opencode_session_url: str) -> str:
+    if not opencode_session_id:
+        return "unknown"
+    if expose_opencode_chats():
+        return opencode_session_url or opencode_session_id
+    return f"hidden:{opencode_session_id}"
 
 
 def extract_opencode_session_id(output: str) -> str:
@@ -291,7 +324,13 @@ def run_opencode(
     opencode_session_id = extract_opencode_session_id(combined_output)
     opencode_session_url = build_opencode_session_url(opencode_session_id) if opencode_session_id else ""
     if opencode_session_id:
-        log(f"OpenCode chat for {group.id}: {opencode_session_url or opencode_session_id}")
+        archived = archive_opencode_session(opencode_session_id)
+        if expose_opencode_chats():
+            log(f"OpenCode chat for {group.id}: {opencode_session_url or opencode_session_id}")
+        elif archived:
+            log(f"Hidden OpenCode session for {group.id}: {opencode_session_id}")
+        else:
+            log(f"OpenCode session for {group.id}: {opencode_session_id}")
     return (
         result.returncode,
         str(output_path.relative_to(PROJECT_ROOT)),
@@ -582,8 +621,9 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
             summary["opencode_exit_code"] = opencode_rc
             summary["opencode_output"] = output_path
             summary["opencode_session_id"] = opencode_session_id or "unknown"
-            summary["opencode_session_url"] = opencode_session_url
-            summary["opencode_chat"] = opencode_session_url or opencode_session_id or "unknown"
+            summary["opencode_session_url"] = opencode_session_url if expose_opencode_chats() else ""
+            summary["opencode_visible"] = expose_opencode_chats()
+            summary["opencode_chat"] = opencode_status_label(opencode_session_id, opencode_session_url)
             summary_files = cumulative_changed_files(attempts, summary)
             summary["changed_files"] = summary_files
             track_session_files(session_id, summary_files)
