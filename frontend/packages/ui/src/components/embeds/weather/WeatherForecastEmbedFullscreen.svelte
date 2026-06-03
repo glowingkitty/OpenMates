@@ -116,6 +116,11 @@
     selectedDay = days[index] ?? null;
   }
 
+  function handleDayPointerDown(event: PointerEvent, index: number, days: WeatherDayResult[]): void {
+    event.stopPropagation();
+    openDay(index, days);
+  }
+
   function formatTemp(min?: number, max?: number): string {
     if (min === undefined && max === undefined) return '—';
     if (min === undefined) return `${Math.round(max as number)}°`;
@@ -169,7 +174,7 @@
     {:else if days.length === 0}
       <div class="state">{$text('embeds.no_results')}</div>
     {:else}
-      <div class="forecast-grid" data-testid="weather-forecast-fullscreen-grid">
+      <div class="forecast-grid" data-testid="weather-forecast-fullscreen-grid" data-selected-day-index={selectedDayIndex}>
         {#each days as day, index}
           <button
             type="button"
@@ -179,6 +184,7 @@
             data-skill-id="weather_day"
             data-status="finished"
             aria-label={`${$text('apps.weather.day')}: ${day.date ?? index + 1}`}
+            onpointerdown={(event) => handleDayPointerDown(event, index, days)}
             onclick={() => openDay(index, days)}
           >
             <div class="day-content" data-testid="weather-day-preview">

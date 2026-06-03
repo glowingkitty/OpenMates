@@ -148,6 +148,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(firstDay).not.toContainText('Berlin · Deutscher Wetterdienst');
 		expect(await firstDay.evaluate((element: HTMLElement) => element.tagName)).toBe('BUTTON');
 		await firstDay.click();
+		await expect(grid).toHaveAttribute('data-selected-day-index', '0', { timeout: 15_000 });
 		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-app-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
 	});
@@ -247,6 +248,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(firstDay).toBeVisible({ timeout: 30_000 });
 			await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 30_000 });
 			await firstDay.click();
+			await expect(grid).toHaveAttribute('data-selected-day-index', '0', { timeout: 15_000 });
 			await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 			await closeFullscreen(page, fullscreen);
 		} else {
