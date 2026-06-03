@@ -64,7 +64,6 @@
   let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
   let selectedDayIndex = $state(-1);
   let loadedDays = $state<WeatherDayResult[]>([]);
-  let selectedDay = $derived(selectedDayIndex >= 0 ? loadedDays[selectedDayIndex] ?? null : null);
 
 
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {
@@ -225,7 +224,8 @@
   {/snippet}
 </UnifiedEmbedFullscreen>
 
-{#if selectedDay}
+{#if selectedDayIndex >= 0 && loadedDays[selectedDayIndex]}
+  {@const selectedDay = loadedDays[selectedDayIndex]}
   <ChildEmbedOverlay>
     <WeatherDayEmbedFullscreen
       data={{ decodedContent: selectedDay, embedData: {} }}
