@@ -939,7 +939,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
-          status: status as "processing" | "finished" | "error",
+          status: status as "processing" | "finished" | "error" | "cancelled",
           results,
           taskId,
           skillTaskId, // For individual skill cancellation
@@ -1701,14 +1701,33 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || (attrs as any).provider || "Meetup";
+    const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
     const providers: string[] = Array.isArray(decodedContent?.providers)
       ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
       : Array.isArray((attrs as any).providers)
         ? (attrs as any).providers
         : [];
+    const decodedStatus =
+      decodedContent?.status === "processing" ||
+      decodedContent?.status === "finished" ||
+      decodedContent?.status === "error" ||
+      decodedContent?.status === "cancelled"
+        ? decodedContent.status
+        : null;
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids;
+    const hasEmbedIds = Array.isArray(rawEmbedIds)
+      ? rawEmbedIds.length > 0
+      : typeof rawEmbedIds === "string" && rawEmbedIds.length > 0;
+    const hasFinishedContent =
+      decodedStatus !== "error" &&
+      decodedStatus !== "cancelled" &&
+      (hasEmbedIds ||
+        (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
+        (typeof decodedContent?.result_count === "number" && decodedContent.result_count > 0));
     const status =
-      decodedContent?.status ||
+      (hasFinishedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       attrs.status ||
       "processing";
@@ -1744,7 +1763,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           query,
           provider,
           providers,
-          status: status as "processing" | "finished" | "error",
+          status: status as "processing" | "finished" | "error" | "cancelled",
           results,
           taskId,
           skillTaskId,

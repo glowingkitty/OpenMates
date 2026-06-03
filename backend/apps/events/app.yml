@@ -206,6 +206,31 @@ skills:
                 minimum: 1
                 maximum: 50
                 default: 10
+              provider:
+                type: string
+                description: "Provider for this request. Overrides the top-level provider when set."
+                enum:
+                  - "auto"
+                  - "Meetup"
+                  - "Luma"
+                  - "Eventbrite"
+                  - "Google Events"
+                  - "Resident Advisor"
+                  - "Siegessäule"
+                  - "Berlin Philharmonic"
+              providers:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    - "Meetup"
+                    - "Luma"
+                    - "Eventbrite"
+                    - "Google Events"
+                    - "Resident Advisor"
+                    - "Siegessäule"
+                    - "Berlin Philharmonic"
+                description: "Specific providers for this request. Use only when the user asks to search multiple named event platforms."
               concert_tags:
                 type: array
                 items:

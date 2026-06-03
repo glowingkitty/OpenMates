@@ -122,11 +122,12 @@ def filter_providers(
         )
 
     if not validated:
-        # LLM chose only non-applicable providers — fall back to all applicable
+        # The caller made an explicit provider choice. Do not broaden it to auto;
+        # returning no providers lets the skill surface a visible provider error.
         logger.warning(
-            "All LLM-chosen providers stripped for city=%r, falling back to auto: %s",
-            city, applicable,
+            "All LLM-chosen providers stripped for city=%r: %s",
+            city, normalized_requested,
         )
-        return applicable
+        return []
 
     return validated

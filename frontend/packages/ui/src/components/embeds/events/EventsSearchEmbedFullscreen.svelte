@@ -5,7 +5,7 @@
   Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
 
   Shows:
-  - Header with search query and "via {provider}" formatting
+  - Header with search query and selected provider label when available
   - Grid of EventEmbedPreview cards (one per event)
   - Drill-down: clicking a card opens EventEmbedFullscreen overlay with sibling nav
 
@@ -27,6 +27,22 @@
   function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
     if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
     return 'finished';
+  }
+
+  /** Map backend provider slugs to human-readable display names. */
+  function getProviderLabel(slug: string): string {
+    switch (slug?.toLowerCase()) {
+      case 'meetup':              return 'Meetup';
+      case 'luma':                return 'Luma';
+      case 'eventbrite':          return 'Eventbrite';
+      case 'google_events':       return 'Google';
+      case 'resident_advisor':    return 'Resident Advisor';
+      case 'siegessaeule':        return 'Siegessäule';
+      case 'classictic':          return 'Classictic';
+      case 'berlin_philharmonic': return 'Berlin Philharmonic';
+      case 'bachtrack':           return 'Bachtrack';
+      default:                    return slug || '';
+    }
   }
 
   interface EventResult {
@@ -117,20 +133,38 @@
 
   // Local reactive state for streaming updates
   let localQuery    = $state('');
-  let localProvider = $state('Meetup');
+  let localProvider = $state('');
+  let localProviders = $state<string[]>([]);
   let localStatus   = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
 
   $effect(() => {
     localQuery    = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
-    localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Meetup';
+    localProvider = typeof data.decodedContent?.provider === 'string'
+      ? data.decodedContent.provider
+      : typeof data.embedData?.provider === 'string' ? data.embedData.provider : '';
+    localProviders = Array.isArray(data.decodedContent?.providers)
+      ? data.decodedContent.providers as string[]
+      : Array.isArray(data.embedData?.providers) ? data.embedData.providers as string[] : [];
     localStatus   = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
   });
 
   let query    = $derived(localQuery);
   let provider = $derived(localProvider);
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  let providers = $derived(localProviders);
+  let viaProvider = $derived.by(() => {
+    const via = $text('embeds.via');
+    if (providers.length > 0) {
+      const labels = providers.map(getProviderLabel);
+      if (labels.length <= 2) return `${via} ${labels.join(', ')}`;
+      return `${via} ${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+    }
+    if (provider && provider !== 'auto' && provider !== 'none') {
+      return `${via} ${getProviderLabel(provider)}`;
+    }
+    return '';
+  });
   let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   /**
@@ -236,6 +270,7 @@
     const c = data.decodedContent;
     if (typeof c.query    === 'string') localQuery    = c.query;
     if (typeof c.provider === 'string') localProvider = c.provider;
+    if (Array.isArray(c.providers)) localProviders = c.providers as string[];
     if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
   }
 </script>

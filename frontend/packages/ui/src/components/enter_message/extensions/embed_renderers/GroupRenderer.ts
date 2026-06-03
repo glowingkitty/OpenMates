@@ -1245,7 +1245,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Meetup",
+            provider: provider || "",
             providers,
             status,
             results,

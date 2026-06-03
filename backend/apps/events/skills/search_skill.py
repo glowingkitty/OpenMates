@@ -215,6 +215,14 @@ class SearchRequest(BaseModel):
             "radius_miles, count."
         ),
     )
+    provider: Optional[str] = Field(
+        default=None,
+        description="Top-level provider applied to every request unless overridden per request.",
+    )
+    providers: Optional[List[str]] = Field(
+        default=None,
+        description="Top-level provider list applied to every request unless overridden per request.",
+    )
 
 
 class SearchResponse(BaseModel):
@@ -727,11 +735,11 @@ class SearchSkill(BaseSkill):
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
             if provider_choice not in _VALID_PROVIDERS:
                 logger.warning(
-                    "Unknown provider %r for request %s — falling back to 'auto'",
+                    "Unknown provider %r for request %s — refusing provider fallback",
                     provider_choice,
                     request_id,
                 )
-                provider_choice = "auto"
+                return (request_id, [], f"Unknown events provider: {provider_choice}", 0)
             # Single specific provider → use directly (no registry filtering)
             requested_providers = None if provider_choice == "auto" else None
 
@@ -1051,6 +1059,15 @@ class SearchSkill(BaseSkill):
             r.model_dump() if hasattr(r, "model_dump") else r
             for r in request.requests
         ]
+        top_level_providers = request.providers
+        top_level_provider = request.provider
+        if top_level_providers or top_level_provider:
+            for req in requests_list:
+                if not req.get("providers") and not req.get("provider"):
+                    if top_level_providers:
+                        req["providers"] = top_level_providers
+                    elif top_level_provider:
+                        req["provider"] = top_level_provider
         validated_requests, error = self._validate_requests_array(
             requests=requests_list,
             required_field="query",
