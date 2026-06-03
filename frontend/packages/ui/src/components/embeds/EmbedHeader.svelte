@@ -219,7 +219,7 @@
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
           {:else}
-            <div class="header-app-icon icon_rounded {appId}"></div>
+            <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
           {/if}
         </button>
       {:else}
@@ -227,7 +227,7 @@
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
           {:else}
-            <div class="header-app-icon icon_rounded {appId}"></div>
+            <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
           {/if}
         </div>
       {/if}
@@ -249,7 +249,7 @@
       {/if}
 
       {#if subtitle}
-        <div class="header-subtitle">{subtitle}</div>
+        <div class="header-subtitle" data-testid="embed-header-subtitle">{subtitle}</div>
       {/if}
     </div>
 
@@ -560,6 +560,10 @@
   .header-app-icon::after {
     filter: brightness(0) invert(1) !important;
     background-size: 20px 20px !important;
+  }
+
+  .header-app-icon.weather::after {
+    background-image: url('@openmates/ui/static/icons/weather.svg');
   }
 
   /* Title row: optional favicon + text */

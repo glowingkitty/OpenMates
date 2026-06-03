@@ -2,7 +2,7 @@
 /**
  * Unified E2E coverage for weather/forecast.
  *
- * Phase 0: App metadata exposes Weather / Forecast.
+ * Phase 0: App metadata exposes Weather / Get forecast.
  * Phase 1: Embed preview renders at /dev/preview/embeds/weather.
  * Phase 2: CLI direct skill command returns one weather_day per requested day for Germany and international cities.
  * Phase 3: CLI chat send triggers weather forecast.
@@ -103,7 +103,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 			timeout: 15_000
 		});
 
-		await expect(settingsMenu).toContainText('Forecast', { timeout: 15_000 });
+		await expect(settingsMenu).toContainText('Get forecast', { timeout: 15_000 });
 		await expect(settingsMenu).toContainText('Get daily and hourly weather forecasts.', { timeout: 15_000 });
 		const settingsText = await settingsMenu.innerText();
 		expect(settingsText).not.toContain('[T:');
@@ -116,12 +116,18 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		const exampleCard = settingsMenu.locator('[data-testid="app-store-example-card"][data-app-id="weather"][data-skill-id="forecast"]').first();
 		await expect(exampleCard).toBeVisible({ timeout: 15_000 });
-		await expect(exampleCard).toContainText('Forecast');
-		await expectImageLoaded(exampleCard.locator('[data-testid="embed-title-favicon"]').first(), 'weather example favicon');
+		await expect(exampleCard).toContainText('Get forecast');
+		await expect(exampleCard).toContainText('via Deutscher Wetterdienst (DWD)');
+		await expect(exampleCard).not.toContainText('Berlin · Deutscher Wetterdienst');
+		await expect(exampleCard.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]').first()).toBeVisible({ timeout: 15_000 });
+		await expect(exampleCard.locator('[data-testid="embed-title-favicon"]')).toHaveCount(0);
 		await exampleCard.click();
 
 		const fullscreen = page.getByTestId('embed-fullscreen-overlay').first();
 		await expect(fullscreen).toBeVisible({ timeout: 15_000 });
+		await expect(fullscreen.getByTestId('embed-header-title')).toHaveText('Get forecast', { timeout: 15_000 });
+		await expect(fullscreen.getByTestId('embed-header-subtitle')).toHaveText('(Berlin)', { timeout: 15_000 });
+		await expect(fullscreen.locator('[data-app-icon="weather"]').first()).toBeVisible({ timeout: 15_000 });
 		const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
 		await expect(grid).toBeVisible({ timeout: 15_000 });
 
@@ -137,11 +143,13 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expect((cardBoxes[2] as any).y).toBeGreaterThan((cardBoxes[0] as any).y + 40);
 
 		const firstDay = dayCards.first();
-		await expect(firstDay.locator('[data-skill-icon="weather"]')).toBeVisible({ timeout: 15_000 });
-		await expect(firstDay, 'weather day card should be interactive before drilldown').toHaveAttribute('role', 'button');
+		await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 15_000 });
+		await expect(firstDay).toContainText('via Deutscher Wetterdienst (DWD)');
+		await expect(firstDay).not.toContainText('Berlin · Deutscher Wetterdienst');
+		expect(await firstDay.evaluate((element: HTMLElement) => element.tagName)).toBe('BUTTON');
 		await firstDay.click();
 		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
-		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-skill-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
+		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-app-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
 	});
 
 	test('Phase 2: CLI apps weather forecast returns daily child results for Germany and international cities', async () => {
@@ -229,11 +237,15 @@ test.describe('App: Weather / Skill: forecast', () => {
 		if (await weatherParent.isVisible().catch(() => false)) {
 			await expect(weatherParent).toHaveAttribute('data-status', 'finished', { timeout: 180_000 });
 			await expect(weatherParent.getByTestId('weather-forecast-preview')).toBeVisible({ timeout: 15_000 });
+			await expect(weatherParent).toContainText('Get forecast', { timeout: 15_000 });
+			await expect(weatherParent).toContainText('via Deutscher Wetterdienst', { timeout: 15_000 });
+			await expect(weatherParent.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 15_000 });
 			const fullscreen = await openFullscreen(page, weatherParent);
 			const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
 			await expect(grid).toBeVisible({ timeout: 30_000 });
 			const firstDay = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]').first();
 			await expect(firstDay).toBeVisible({ timeout: 30_000 });
+			await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 30_000 });
 			await firstDay.click();
 			await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 			await closeFullscreen(page, fullscreen);

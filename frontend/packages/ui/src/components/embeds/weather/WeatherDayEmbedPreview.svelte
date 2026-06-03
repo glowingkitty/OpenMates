@@ -30,7 +30,6 @@
   let {
     id,
     date,
-    locationName = '',
     provider = 'Weather',
     condition = '',
     temperatureMinC,
@@ -64,12 +63,12 @@
   {taskId}
   {isMobile}
   {onFullscreen}
-  showSkillIcon={true}
+  showSkillIcon={false}
+  customStatusText={provider ? `${$text('embeds.via')} ${provider}` : undefined}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">
       <div class="day-title" data-testid="weather-day-date">{date || $text('apps.weather.day')}</div>
-      <div class="day-location" data-testid="weather-day-location">{locationName} · {provider}</div>
       <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
       <div class="day-condition" data-testid="weather-day-condition">{condition || '—'}</div>
       <div class="day-metrics" data-testid="weather-day-metrics">
@@ -108,7 +107,6 @@
     font-size: 24px;
   }
 
-  .day-location,
   .day-condition,
   .day-metrics {
     color: var(--color-grey-70);

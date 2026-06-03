@@ -2256,8 +2256,8 @@ weather.description:
   verified_by_human: [en, de]
 weather.forecast:
   context: Skill name for forecast in Weather app
-  en: Forecast
-  de: Vorhersage
+  en: Get forecast
+  de: Vorhersage abrufen
   zh: 预报
   es: Pronóstico
   fr: Prévision

@@ -8,7 +8,6 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
-  import WeatherDayEmbedPreview from './WeatherDayEmbedPreview.svelte';
   import WeatherDayEmbedFullscreen from './WeatherDayEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
@@ -117,6 +116,13 @@
     selectedDay = days[index] ?? null;
   }
 
+  function formatTemp(min?: number, max?: number): string {
+    if (min === undefined && max === undefined) return '—';
+    if (min === undefined) return `${Math.round(max as number)}°`;
+    if (max === undefined) return `${Math.round(min)}°`;
+    return `${Math.round(min)}° / ${Math.round(max)}°`;
+  }
+
   function closeDay(): void {
     selectedDayIndex = -1;
     selectedDay = null;
@@ -138,9 +144,9 @@
 <UnifiedEmbedFullscreen
   appId="weather"
   skillId="forecast"
-  skillIconName="search"
-  embedHeaderTitle={locationName || $text('apps.weather.forecast')}
-  embedHeaderSubtitle={provider}
+  showSkillIcon={false}
+  embedHeaderTitle={$text('apps.weather.forecast')}
+  embedHeaderSubtitle={locationName ? `(${locationName})` : ''}
   {onClose}
   currentEmbedId={embedId}
   {embedIds}
@@ -165,26 +171,36 @@
     {:else}
       <div class="forecast-grid" data-testid="weather-forecast-fullscreen-grid">
         {#each days as day, index}
-          <div
+          <button
+            type="button"
             class="forecast-day-card"
+            data-testid="embed-preview"
+            data-app-id="weather"
+            data-skill-id="weather_day"
+            data-status="finished"
+            aria-label={`${$text('apps.weather.day')}: ${day.date ?? index + 1}`}
+            onclick={() => openDay(index, days)}
           >
-            <WeatherDayEmbedPreview
-              id={day.embed_id}
-              date={day.date}
-              locationName={day.location_name || locationName}
-              provider={day.provider || provider}
-              condition={day.condition}
-              icon={day.icon}
-              temperatureMinC={day.temperature_min_c}
-              temperatureMaxC={day.temperature_max_c}
-              precipitationTotalMm={day.precipitation_total_mm}
-              precipitationProbabilityMaxPct={day.precipitation_probability_max_pct}
-              rainHours={day.rain_hours}
-              status="finished"
-              isMobile={false}
-              onFullscreen={() => openDay(index, days)}
-            />
-          </div>
+            <div class="day-content" data-testid="weather-day-preview">
+              <div class="day-title" data-testid="weather-day-date">{day.date || $text('apps.weather.day')}</div>
+              <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(day.temperature_min_c, day.temperature_max_c)}</div>
+              <div class="day-condition" data-testid="weather-day-condition">{day.condition || '—'}</div>
+              <div class="day-metrics" data-testid="weather-day-metrics">
+                <span>{day.precipitation_total_mm ?? 0} mm</span>
+                <span>{day.precipitation_probability_max_pct ?? 0}%</span>
+                <span>{day.rain_hours ?? 0}h rain</span>
+              </div>
+            </div>
+            <div class="day-info-bar">
+              <div class="app-icon-circle weather" data-testid="app-icon-circle" data-app-icon="weather">
+                <div class="icon_rounded weather"></div>
+              </div>
+              <div class="day-info-text">
+                <div class="day-info-title">{day.date || $text('apps.weather.day')}</div>
+                <div class="day-info-provider">{$text('embeds.via')} {day.provider || provider}</div>
+              </div>
+            </div>
+          </button>
         {/each}
       </div>
     {/if}
@@ -224,17 +240,118 @@
     margin: 0 auto;
   }
 
-  .forecast-grid :global(.unified-embed-preview) {
-    width: 100% !important;
-    min-width: unset !important;
-    max-width: 320px !important;
-    margin: 0 auto;
-  }
-
   .forecast-day-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 190px;
     width: 100%;
     max-width: 320px;
     margin: 0 auto;
+    padding: 18px 0 0;
+    border: 0;
+    border-radius: 20px;
+    background: var(--color-grey-20);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--color-grey-100) 18%, transparent);
+    color: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    text-align: left;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+
+  .forecast-day-card:hover,
+  .forecast-day-card:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--color-grey-100) 22%, transparent);
+    outline: none;
+  }
+
+  .day-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 18px 14px;
+  }
+
+  .day-title,
+  .day-temp,
+  .day-info-title {
+    color: var(--color-grey-100);
+    font-weight: 600;
+  }
+
+  .day-title {
+    font-size: 15px;
+  }
+
+  .day-temp {
+    font-size: 24px;
+  }
+
+  .day-condition,
+  .day-metrics,
+  .day-info-provider {
+    color: var(--color-grey-70);
+    font-size: 13px;
+  }
+
+  .day-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .day-metrics span {
+    border-radius: 999px;
+    background: var(--color-grey-10);
+    border: 1px solid var(--color-grey-20);
+    padding: 3px 7px;
+  }
+
+  .day-info-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-5);
+    min-height: 61px;
+    background: var(--color-grey-30);
+    border-radius: 30px;
+  }
+
+  .app-icon-circle {
+    width: 61px;
+    height: 61px;
+    min-width: 61px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-app-weather);
+  }
+
+  .app-icon-circle .icon_rounded {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: 26px;
+    height: 26px;
+    background: transparent !important;
+  }
+
+  .app-icon-circle .icon_rounded.weather::after {
+    background-image: url('@openmates/ui/static/icons/weather.svg');
+  }
+
+  .day-info-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .day-info-provider {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   @container fullscreen (max-width: 680px) {

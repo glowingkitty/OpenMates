@@ -9,7 +9,6 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import { getProviderIconUrl } from '../../../data/providerIcons';
 
   interface WeatherDaySummary {
     date?: string;
@@ -37,8 +36,6 @@
 
   let {
     id,
-    query: queryProp = '',
-    locationName: locationNameProp = '',
     provider: providerProp = 'Weather',
     status: statusProp,
     results: resultsProp = [],
@@ -48,8 +45,6 @@
     onFullscreen
   }: Props = $props();
 
-  let localQuery = $state('');
-  let localLocationName = $state('');
   let localProvider = $state('Weather');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<WeatherDaySummary[]>([]);
@@ -57,8 +52,6 @@
   let localSkillTaskId = $state<string | undefined>();
 
   $effect(() => {
-    localQuery = queryProp;
-    localLocationName = locationNameProp;
     localProvider = providerProp;
     localStatus = statusProp || 'processing';
     localResults = resultsProp || [];
@@ -66,8 +59,6 @@
     localSkillTaskId = skillTaskIdProp;
   });
 
-  let query = $derived(localQuery || `${localLocationName} weather forecast`.trim());
-  let locationName = $derived(localLocationName || query.replace(/ weather forecast$/i, ''));
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
@@ -75,7 +66,6 @@
   let skillTaskId = $derived(localSkillTaskId);
   let visibleDays = $derived(results.slice(0, isMobile ? 3 : 4));
   let skillName = $derived($text('apps.weather.forecast'));
-  let providerLogoUrl = $derived(getProviderLogoUrl(provider));
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
@@ -83,10 +73,7 @@
     }
     const content = data.decodedContent;
     if (!content) return;
-    if (typeof content.query === 'string') localQuery = content.query;
     if (typeof content.provider === 'string') localProvider = content.provider;
-    const location = content.location as Record<string, unknown> | undefined;
-    if (location && typeof location.name === 'string') localLocationName = location.name;
     if (Array.isArray(content.results)) localResults = content.results as WeatherDaySummary[];
     if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
   }
@@ -111,12 +98,6 @@
     return `${Math.round(min)}° / ${Math.round(max)}°`;
   }
 
-  function getProviderLogoUrl(providerName: string): string | undefined {
-    if (providerName.includes('DWD') || providerName.includes('Wetterdienst')) return getProviderIconUrl('icons/deutscher_wetterdienst.svg');
-    if (providerName.includes('Open-Meteo')) return getProviderIconUrl('icons/open_meteo.svg');
-    return undefined;
-  }
-
   function getDayLabel(date?: string): string {
     return date ? date.slice(5) : '—';
   }
@@ -133,24 +114,18 @@
   {id}
   appId="weather"
   skillId="forecast"
-  skillIconName="search"
   {status}
   {skillName}
   {taskId}
   {isMobile}
   {onFullscreen}
-  faviconUrl={providerLogoUrl}
+  showSkillIcon={false}
   customStatusText={provider ? `${$text('embeds.via')} ${provider}` : undefined}
   onStop={handleStop}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="weather-forecast-details" class:mobile={isMobileLayout} data-testid="weather-forecast-preview">
-      <div class="forecast-header-line">
-        <div class="forecast-title" data-testid="weather-forecast-title">{locationName || query || $text('apps.weather.forecast')}</div>
-        <div class="forecast-subtitle" data-testid="weather-forecast-provider">{provider}</div>
-      </div>
-
       {#if status === 'finished' && visibleDays.length > 0}
         <div class="forecast-columns" data-testid="weather-forecast-day-strip">
           {#each visibleDays as day}
@@ -184,26 +159,6 @@
     justify-content: flex-start;
   }
 
-  .forecast-header-line {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .forecast-title {
-    color: var(--color-grey-100);
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .forecast-subtitle,
   .loading-copy {
     color: var(--color-grey-70);
     font-size: 13px;
