@@ -3,7 +3,8 @@ status: active
 last_verified: 2026-03-27
 key_files:
   - scripts/check-deploy-status.sh
-  - scripts/run-tests-daily.sh
+  - scripts/run_tests.py
+  - scripts/auto_fix_failed_tests.py
   - scripts/nightly-dead-code-removal.sh
   - scripts/weekly-codebase-audit.sh
   - scripts/security-audit.sh
@@ -38,7 +39,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `02:30 Wed+Sat`               | `red-teaming.sh`                       | External attacker simulation (GET only)   |
 | `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
-| `03:00 Mon-Fri`               | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
+| `03:00 Mon-Fri`               | `run_tests.py --daily`                 | Full test suite (Playwright + pytest)     |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
 | `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
@@ -58,7 +59,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
-**Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76). On failure, dispatches claude analysis session. Archives to `test-results/daily-run-YYYY-MM-DD.json`. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional — no-op when unset).
+**Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76). If failures occur, runs `scripts/auto_fix_failed_tests.py --from-daily-run` unless `E2E_AUTO_FIX_FAILED_TESTS=false`: one blocking OpenCode fix chat per root-cause group, controller-owned verification, Discord summary after each group, and deploy only after a safe green fix. OpenCode chats are created with `opencode run --title ... --format json` and the controller records `opencode_session_id` plus an `${OPENCODE_WEB_BASE_URL}/.../session/...` link when configured. If auto-fix is disabled, the daily runner sends notifications only. Archives to `test-results/daily-run-YYYY-MM-DD.json`. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `OPENCODE_WEB_BASE_URL`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional), `DISCORD_WEBHOOK_TEST_FIXES` (optional dedicated auto-fix channel), `E2E_AUTO_FIX_FAILED_TESTS=false` (optional opt-out).
 
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
 

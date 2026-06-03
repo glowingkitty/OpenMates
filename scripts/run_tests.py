@@ -4814,15 +4814,24 @@ class TestOrchestrator:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
-        # Start claude analysis on failures (reuse helper)
+        # Start sequential OpenCode auto-fix on failures unless explicitly disabled.
+        # The controller is still safety-gated: it stops on dirty worktrees and
+        # only deploys small verified fixes.
         if _problem_count(result.summary) > 0:
-            helper = PROJECT_ROOT / "scripts" / "_daily_runner_helper.py"
-            if helper.is_file():
-                _log("Starting claude analysis for failures...")
+            auto_fix_setting = os.environ.get("E2E_AUTO_FIX_FAILED_TESTS", "true").lower()
+            auto_fix_enabled = auto_fix_setting not in {"0", "false", "no", "off"}
+            auto_fix_script = PROJECT_ROOT / "scripts" / "auto_fix_failed_tests.py"
+            if auto_fix_enabled and auto_fix_script.is_file():
+                _log("Starting sequential OpenCode auto-fix for failures...")
                 subprocess.run(
-                    [sys.executable, str(helper), "start-claude-analysis"],
+                    [sys.executable, str(auto_fix_script), "--from-daily-run"],
                     env={**os.environ, "RESULTS_DIR": str(RESULTS_DIR)},
                 )
+            else:
+                if auto_fix_enabled:
+                    _log("Auto-fix enabled but scripts/auto_fix_failed_tests.py is missing", "WARN")
+                else:
+                    _log("Auto-fix disabled by E2E_AUTO_FIX_FAILED_TESTS; regular failure notifications only")
 
         # Send summary email
         _log("Sending summary email...")
