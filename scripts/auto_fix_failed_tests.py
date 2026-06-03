@@ -116,22 +116,18 @@ def expose_opencode_chats() -> bool:
     return os.environ.get("AUTO_FIX_EXPOSE_OPENCODE_CHATS", "").lower() in {"1", "true", "yes"}
 
 
-def archive_opencode_session(opencode_session_id: str) -> bool:
+def delete_opencode_session(opencode_session_id: str) -> bool:
     if not opencode_session_id or expose_opencode_chats():
         return False
     if not OPENCODE_DB_PATH.is_file():
         return False
-    archived_at = int(datetime.now(timezone.utc).timestamp() * 1000)
     try:
         with sqlite3.connect(OPENCODE_DB_PATH, timeout=10) as connection:
-            cursor = connection.execute(
-                "update session set time_archived = ? where id = ? and time_archived is null",
-                (archived_at, opencode_session_id),
-            )
+            cursor = connection.execute("delete from session where id = ?", (opencode_session_id,))
             connection.commit()
             return cursor.rowcount > 0
     except sqlite3.Error as exc:
-        log(f"Could not archive hidden OpenCode session {opencode_session_id}: {exc}")
+        log(f"Could not delete hidden OpenCode session {opencode_session_id}: {exc}")
         return False
 
 
@@ -324,11 +320,11 @@ def run_opencode(
     opencode_session_id = extract_opencode_session_id(combined_output)
     opencode_session_url = build_opencode_session_url(opencode_session_id) if opencode_session_id else ""
     if opencode_session_id:
-        archived = archive_opencode_session(opencode_session_id)
+        deleted = delete_opencode_session(opencode_session_id)
         if expose_opencode_chats():
             log(f"OpenCode chat for {group.id}: {opencode_session_url or opencode_session_id}")
-        elif archived:
-            log(f"Hidden OpenCode session for {group.id}: {opencode_session_id}")
+        elif deleted:
+            log(f"Deleted hidden OpenCode session for {group.id}: {opencode_session_id}")
         else:
             log(f"OpenCode session for {group.id}: {opencode_session_id}")
     return (
