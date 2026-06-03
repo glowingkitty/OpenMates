@@ -16,6 +16,13 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.shared.testing.caching_http_transport import create_http_client
+from backend.core.api.app.services.degraded_services_report import (
+    build_degraded_issue_report,
+    collect_recent_degraded_log_rows,
+    format_degraded_report_message,
+    select_degraded_report_webhook_url,
+    send_discord_degraded_report,
+)
 from backend.apps.ai.utils.llm_utils import (
     PROVIDER_CLIENT_REGISTRY,
     _get_provider_client,
@@ -2435,6 +2442,41 @@ def check_external_services_health(self):
         logger.info("Health check: Async external service health checks completed successfully")
     except Exception as e:
         logger.error(f"Health check: Error running external service health checks: {e}", exc_info=True)
+        raise
+
+
+@app.task(name="health_check.send_degraded_services_discord_report", bind=True)
+def send_degraded_services_discord_report(self):
+    """
+    Weekday Discord digest for repeated degraded API/container issues.
+
+    The report reads the last 24h of OpenObserve WARNING/ERROR/CRITICAL logs,
+    groups exact inner log messages by service/container, and posts repeated
+    issues to Discord. It sends an all-clear message too so missed weekdays are
+    visible when the scheduler or webhook is broken.
+    """
+    environment = os.getenv("SERVER_ENVIRONMENT", "development")
+    webhook_url = select_degraded_report_webhook_url(environment)
+    if not webhook_url:
+        logger.info("[DEGRADED_REPORT] Discord webhook not configured; skipping report")
+        return {"sent": False, "reason": "webhook_not_configured"}
+
+    async def run_report() -> dict[str, Any]:
+        rows = await collect_recent_degraded_log_rows()
+        issues = build_degraded_issue_report(rows)
+        content = format_degraded_report_message(environment=environment, issues=issues)
+        await send_discord_degraded_report(content, webhook_url)
+        return {"sent": True, "issues": len(issues), "rows_scanned": len(rows)}
+
+    try:
+        result = asyncio.run(run_report())
+        logger.info(
+            f"[DEGRADED_REPORT] Sent Discord report: "
+            f"issues={result['issues']} rows_scanned={result['rows_scanned']}"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"[DEGRADED_REPORT] Failed to send Discord report: {e}", exc_info=True)
         raise
 
 
