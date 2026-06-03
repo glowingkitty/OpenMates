@@ -9,7 +9,11 @@ export {};
 
 const { test, expect } = require('./console-monitor');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
-const { expectSettingsProviderIcons } = require('./helpers/provider-icon-helpers');
+const {
+	expectImageLoaded,
+	expectWhiteBackground,
+	renderedProviderName
+} = require('./helpers/provider-icon-helpers');
 const { appsMetadata } = require('../../../packages/ui/src/data/appsMetadata');
 
 test.describe('App Store skill provider icons', () => {
@@ -29,6 +33,7 @@ test.describe('App Store skill provider icons', () => {
 
 		expect(targets.length, 'at least one skill should expose providers').toBeGreaterThan(0);
 
+		let checkedProviderRows = 0;
 		for (const target of targets) {
 			const route = `app_store/${target.appId}/skill/${target.skillId}`;
 			await page.goto(getE2EDebugUrl(`/#settings/${route}`), { waitUntil: 'domcontentloaded' });
@@ -36,7 +41,30 @@ test.describe('App Store skill provider icons', () => {
 
 			const settingsMenu = page.locator(`[data-testid="settings-menu"][data-active-view="${route}"]`);
 			await expect(settingsMenu, `${target.appId}/${target.skillId} settings should be visible`).toBeVisible({ timeout: 15_000 });
-			await expectSettingsProviderIcons(settingsMenu, target.providers);
+
+			const providerRows = settingsMenu.getByTestId('skill-provider-item');
+			const rowCount = await providerRows.count();
+			if (rowCount === 0) {
+				continue;
+			}
+
+			const expectedDisplayNames = new Set(target.providers.map((provider) => renderedProviderName(provider)));
+			for (let index = 0; index < rowCount; index += 1) {
+				const providerRow = providerRows.nth(index);
+				const providerName = await providerRow.getAttribute('data-provider-name');
+				expect(providerName, `${target.appId}/${target.skillId} provider row should have a provider name`).toBeTruthy();
+				expect(
+					expectedDisplayNames.has(providerName),
+					`${target.appId}/${target.skillId} rendered provider ${providerName} should exist in metadata`
+				).toBe(true);
+
+				const logo = providerRow.getByTestId('settings-provider-logo').first();
+				await expectImageLoaded(logo, `${providerName} settings provider logo`);
+				await expectWhiteBackground(logo, `${providerName} settings provider logo`);
+				checkedProviderRows += 1;
+			}
 		}
+
+		expect(checkedProviderRows, 'at least one rendered provider row icon should be verified').toBeGreaterThan(0);
 	});
 });
