@@ -101,9 +101,7 @@ test.describe('App: Events / Skill: search', () => {
 		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/events"]');
 		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
 
-		const searchSkillCard = settingsMenu.getByTestId('app-store-card').filter({
-			has: settingsMenu.getByTestId('app-card-name').filter({ hasText: /^Search$/ })
-		}).first();
+		const searchSkillCard = settingsMenu.getByTestId('app-store-card').filter({ hasText: /^Search\b/ }).first();
 		await expectSkillCardProviderIcons(searchSkillCard, EVENT_SEARCH_PROVIDERS);
 
 		await page.goto(getE2EDebugUrl('/#settings/app_store/events/skill/search'), { waitUntil: 'domcontentloaded' });
