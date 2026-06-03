@@ -1,6 +1,12 @@
 ---
 status: active
 last_verified: 2026-03-24
+tested_by:
+  - spec: frontend/apps/web_app/tests/export-account-flow.spec.ts
+    test: exports account data ZIP from account settings
+    checkpoints:
+      - export-options
+      - export-downloaded
 ---
 
 # Export Your Data
