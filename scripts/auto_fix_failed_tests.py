@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -77,10 +78,21 @@ def load_dotenv() -> None:
 
 
 def run_command(command: list[str], timeout: int | None = None) -> subprocess.CompletedProcess[str]:
+    return run_command_with_env(command, timeout=timeout)
+
+
+def run_command_with_env(
+    command: list[str],
+    timeout: int | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    env = build_env()
+    if extra_env:
+        env.update(extra_env)
     return subprocess.run(
         command,
         cwd=PROJECT_ROOT,
-        env=build_env(),
+        env=env,
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -137,6 +149,14 @@ def opencode_status_label(opencode_session_id: str, opencode_session_url: str) -
     if expose_opencode_chats():
         return opencode_session_url or opencode_session_id
     return f"hidden:{opencode_session_id}"
+
+
+def isolated_opencode_env(group_dir: Path, attempt: int) -> tuple[dict[str, str], Path | None]:
+    if expose_opencode_chats():
+        return {}, None
+    data_home = group_dir / f"opencode-data-attempt-{attempt}"
+    data_home.mkdir(parents=True, exist_ok=True)
+    return {"XDG_DATA_HOME": str(data_home)}, data_home
 
 
 def extract_opencode_session_id(output: str) -> str:
@@ -301,29 +321,36 @@ def run_opencode(
         encoding="utf-8",
     )
     message = f"Read {prompt_path.relative_to(PROJECT_ROOT)} in full and follow it exactly."
-    result = run_command(
-        [
-            "opencode",
-            "run",
-            "--title",
-            f"auto-fix failed tests {group.id} attempt {attempt}",
-            "--format",
-            "json",
-            "--dangerously-skip-permissions",
-            message,
-        ],
-        timeout=timeout,
-    )
+    opencode_env, isolated_data_home = isolated_opencode_env(group_dir, attempt)
+    try:
+        result = run_command_with_env(
+            [
+                "opencode",
+                "run",
+                "--title",
+                f"auto-fix failed tests {group.id} attempt {attempt}",
+                "--format",
+                "json",
+                "--dangerously-skip-permissions",
+                message,
+            ],
+            timeout=timeout,
+            extra_env=opencode_env,
+        )
+    finally:
+        if isolated_data_home is not None:
+            shutil.rmtree(isolated_data_home, ignore_errors=True)
     output_path = group_dir / f"opencode-output-attempt-{attempt}.jsonl"
     combined_output = (result.stdout or "") + "\n" + (result.stderr or "")
     output_path.write_text(combined_output, encoding="utf-8")
     opencode_session_id = extract_opencode_session_id(combined_output)
     opencode_session_url = build_opencode_session_url(opencode_session_id) if opencode_session_id else ""
     if opencode_session_id:
-        deleted = delete_opencode_session(opencode_session_id)
         if expose_opencode_chats():
             log(f"OpenCode chat for {group.id}: {opencode_session_url or opencode_session_id}")
-        elif deleted:
+        elif isolated_data_home is not None:
+            log(f"Isolated OpenCode session for {group.id}: {opencode_session_id}")
+        elif delete_opencode_session(opencode_session_id):
             log(f"Deleted hidden OpenCode session for {group.id}: {opencode_session_id}")
         else:
             log(f"OpenCode session for {group.id}: {opencode_session_id}")
