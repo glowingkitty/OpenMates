@@ -226,6 +226,8 @@ Three layers keep docs up to date:
    - `sessions.py draft-docs` lists incomplete draft docs
    - Deploy warns about stale docs related to modified files
 
+4. **Test-backed user guides:** user-guide docs can declare `tested_by` entries that link them to Playwright specs and `docCheckpoint()` IDs. Run `python3 scripts/docs_guide_verify.py` to validate guide/spec/checkpoint links. When a linked spec changes, run `python3 scripts/docs_guide_review.py --since <ref>` to prepare a dry-run review package, or add `--execute` in automation to spawn an OpenCode docs-review session.
+
 When updating code, check if it appears in `docs/architecture/code-mapping.yml` and update the corresponding doc.
 
 ## File Naming
