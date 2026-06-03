@@ -11,7 +11,6 @@
   import WeatherDayEmbedPreview from './WeatherDayEmbedPreview.svelte';
   import WeatherDayEmbedFullscreen from './WeatherDayEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { activeEmbedStore } from '../../../stores/activeEmbedStore';
   import { text } from '@repo/ui';
 
   interface WeatherDayResult {
@@ -123,26 +122,20 @@
   function openDay(index: number, days: WeatherDayResult[], day: WeatherDayResult): void {
     updateLoadedDays(days.length > 0 ? days : [day]);
     selectedDayIndex = index;
-    if (day.embed_id) activeEmbedStore.setActiveEmbed(day.embed_id, null);
   }
 
   function closeDay(): void {
     selectedDayIndex = -1;
-    if (embedId) activeEmbedStore.setActiveEmbed(embedId, null);
   }
 
   function previousDay(): void {
     if (selectedDayIndex <= 0) return;
     selectedDayIndex -= 1;
-    const day = loadedDays[selectedDayIndex];
-    if (day?.embed_id) activeEmbedStore.setActiveEmbed(day.embed_id, null);
   }
 
   function nextDay(): void {
     if (selectedDayIndex >= loadedDays.length - 1) return;
     selectedDayIndex += 1;
-    const day = loadedDays[selectedDayIndex];
-    if (day?.embed_id) activeEmbedStore.setActiveEmbed(day.embed_id, null);
   }
 </script>
 
@@ -179,7 +172,7 @@
           <WeatherDayEmbedPreview
             id={day.embed_id}
             date={day.date}
-            locationName={day.location_name}
+            locationName={day.location_name || locationName}
             provider={day.provider || provider}
             condition={day.condition}
             icon={day.icon}
