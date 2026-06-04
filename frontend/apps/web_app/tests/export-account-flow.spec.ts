@@ -264,7 +264,6 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	expect(zipBuffer.length, 'Export ZIP should not be empty.').toBeGreaterThan(1000);
 	const entries = parseZipEntries(zipBuffer);
 	const names = Array.from(entries.keys());
-	log('Parsed account export ZIP entries.', { names });
 
 	for (const requiredFile of ['README.md', 'metadata.yml', 'profile/profile.yml']) {
 		expect(entries.has(requiredFile), `Expected ${requiredFile} in export ZIP.`).toBe(true);
