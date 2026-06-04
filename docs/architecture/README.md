@@ -103,4 +103,4 @@ Technical implementation details for the apps system. For user-facing app guides
 
 ## Contributing
 
-- [Contributing Guide](../contributing/contributing.md) - How to contribute to OpenMates
+- [Contributing Guide](../../CONTRIBUTING.md) - How to contribute to OpenMates

@@ -5,11 +5,11 @@ last_verified: 2026-03-24
 
 # Contributing
 
-Thank you for your interest in contributing to OpenMates! This section covers everything you need to get started as a contributor.
+Thank you for your interest in contributing to OpenMates. This section collects the technical docs for contributors.
 
 ## Getting Involved
 
-- [How to Contribute](./contributing.md) - Ways to contribute, community channels, and getting started
+- [How to Contribute](../../CONTRIBUTING.md) - Ways to report bugs, suggest improvements, join discussions, and contribute
 
 ## Community
 
@@ -26,4 +26,4 @@ Thank you for your interest in contributing to OpenMates! This section covers ev
 
 ## Code of Conduct
 
-Be respectful, inclusive, and constructive. We're building something for everyone.
+Be respectful, inclusive, and constructive.

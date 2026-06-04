@@ -379,4 +379,4 @@ This will:
 
 ## License & Contributing
 
-OpenMates is licensed under AGPL v3. Contributions welcome! See [contributing.md](../contributing/contributing.md) for guidelines.
+OpenMates is licensed under AGPL v3. Contributions welcome! See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
