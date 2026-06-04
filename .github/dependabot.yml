@@ -1,4 +1,4 @@
-# Disable Dependabot auto-PRs — upgrades are handled manually.
-# Security alerts remain enabled via repo settings (Settings > Code security).
+# Disable Dependabot auto-PRs. Security alerts remain enabled in GitHub repo
+# settings and are processed by scripts/check-dependabot-daily.sh.
 version: 2
 updates: []
