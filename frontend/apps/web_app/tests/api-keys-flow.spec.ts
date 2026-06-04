@@ -35,6 +35,9 @@ const {
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -118,9 +121,9 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	const log = createSignupLogger('API_KEYS_CREATE');
-	const screenshot = createStepScreenshotter(log);
-	await archiveExistingScreenshots(log);
+	const log = createSignupLogger('API_KEYS_CREATE', { artifactsDirname: ARTIFACTS_DIR });
+	const screenshot = createStepScreenshotter(log, { artifactsDirname: ARTIFACTS_DIR });
+	await archiveExistingScreenshots(log, { artifactsDirname: ARTIFACTS_DIR });
 
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
@@ -241,9 +244,9 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	const log = createSignupLogger('API_KEYS_EMPTY_NAME');
-	const screenshot = createStepScreenshotter(log);
-	await archiveExistingScreenshots(log);
+	const log = createSignupLogger('API_KEYS_EMPTY_NAME', { artifactsDirname: ARTIFACTS_DIR });
+	const screenshot = createStepScreenshotter(log, { artifactsDirname: ARTIFACTS_DIR });
+	await archiveExistingScreenshots(log, { artifactsDirname: ARTIFACTS_DIR });
 
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
@@ -308,7 +311,38 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 // ---------------------------------------------------------------------------
 
 const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
-const ARTIFACTS_DIR = process.env.PLAYWRIGHT_ARTIFACTS_DIR || '/workspace/artifacts';
+
+function resolveWritableArtifactsDir(): string {
+	const configuredDir = process.env.PLAYWRIGHT_ARTIFACTS_DIR || path.resolve(process.cwd(), 'artifacts');
+
+	try {
+		fs.mkdirSync(configuredDir, { recursive: true });
+		const probePath = path.join(configuredDir, `.write-test-${process.pid}-${Date.now()}`);
+		fs.writeFileSync(probePath, 'ok');
+		fs.unlinkSync(probePath);
+		return configuredDir;
+	} catch (error: any) {
+		if (!['EACCES', 'EROFS'].includes(error?.code)) {
+			throw error;
+		}
+
+		for (const base of ['/tmp', os.tmpdir(), process.cwd()]) {
+			try {
+				const fallbackDir = fs.mkdtempSync(path.join(base, 'openmates-api-keys-'));
+				console.warn(
+					`Configured artifacts directory is not writable (${configuredDir}); using temporary directory ${fallbackDir} instead.`
+				);
+				return fallbackDir;
+			} catch {
+				continue;
+			}
+		}
+
+		throw error;
+	}
+}
+
+const ARTIFACTS_DIR = resolveWritableArtifactsDir();
 
 test('creates API key, verifies device approval flow, and saves working key', async ({
 	page,
@@ -324,9 +358,9 @@ test('creates API key, verifies device approval flow, and saves working key', as
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	const log = createSignupLogger('API_KEY_DEVICE_APPROVAL');
-	const screenshot = createStepScreenshotter(log);
-	await archiveExistingScreenshots(log);
+	const log = createSignupLogger('API_KEY_DEVICE_APPROVAL', { artifactsDirname: ARTIFACTS_DIR });
+	const screenshot = createStepScreenshotter(log, { artifactsDirname: ARTIFACTS_DIR });
+	await archiveExistingScreenshots(log, { artifactsDirname: ARTIFACTS_DIR });
 
 	// ── Phase 1: Login ────────────────────────────────────────────────────────
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
@@ -481,12 +515,6 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call succeeded after device approval!');
 
 	// ── Phase 6: Save the working API key to artifacts ───────────────────────
-	const fs = require('fs');
-	const path = require('path');
-
-	if (!fs.existsSync(ARTIFACTS_DIR)) {
-		fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
-	}
 	const keyFilePath = path.join(ARTIFACTS_DIR, 'api_key.txt');
 	fs.writeFileSync(keyFilePath, rawApiKey, 'utf8');
 	log(`Saved working API key to: ${keyFilePath}`);
@@ -516,9 +544,9 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	const log = createSignupLogger('API_KEYS_LIMIT');
-	const screenshot = createStepScreenshotter(log);
-	await archiveExistingScreenshots(log);
+	const log = createSignupLogger('API_KEYS_LIMIT', { artifactsDirname: ARTIFACTS_DIR });
+	const screenshot = createStepScreenshotter(log, { artifactsDirname: ARTIFACTS_DIR });
+	await archiveExistingScreenshots(log, { artifactsDirname: ARTIFACTS_DIR });
 
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
 	await page.waitForTimeout(2000);
