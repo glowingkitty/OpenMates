@@ -185,16 +185,25 @@ async function importKnownChats(page: any, log: (message: string, details?: unkn
  await importButton.click();
  log('Started chat import.');
 
- const resultsContainer = page.getByTestId('import-results-container');
- await expect(resultsContainer).toBeVisible({ timeout: 45000 });
- await expect(resultsContainer).toContainText(/import complete!/i, { timeout: 45000 });
- await expect(resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_1 })).toBeVisible();
- await expect(resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_2 })).toBeVisible();
- await screenshot(page, 'import-success');
- log('Imported known chats for export verification.');
+const resultsContainer = page.getByTestId('import-results-container');
+	await expect(resultsContainer).toBeVisible({ timeout: 45000 });
+	await expect(resultsContainer).toContainText(/import complete!/i, { timeout: 45000 });
+	await expect(resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_1 })).toBeVisible();
+	await expect(resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_2 })).toBeVisible();
+	await screenshot(page, 'import-success');
+
+	// Close the settings menu after import so openExportSettings can work
+	// without the close-icon-container overlaying profile-container.
+	// Click the visible close button (data-testid="icon-button-close") which
+	// calls toggleMenu() directly via Svelte's onclick handler.
+	const closeButton = page.getByTestId('icon-button-close');
+	await expect(closeButton).toBeVisible({ timeout: 5000 });
+	await closeButton.click();
+	await expect(page.getByTestId('settings-menu')).not.toBeVisible({ timeout: 5000 });
+	log('Closed settings menu after import.');
 }
 
-test('exports account data ZIP from account settings', async ({ page }: { page: any }) => {
+test('exports account data ZIP from account settings', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(300000);
 
@@ -231,9 +240,9 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	await page.getByRole('button', { name: /^select all$/i }).click();
 	await expect(exportButton).toBeEnabled();
 
-	const artifactsDir = path.resolve(process.cwd(), 'artifacts');
+	const exportPath = testInfo.outputPath('account-export-flow.zip');
+	const artifactsDir = path.dirname(exportPath);
 	fs.mkdirSync(artifactsDir, { recursive: true });
-	const exportPath = path.join(artifactsDir, 'account-export-flow.zip');
 
 	const downloadPromise = page.waitForEvent('download', { timeout: 180000 });
 	await exportButton.click();

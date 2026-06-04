@@ -90,7 +90,10 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	/\[CLIENT_DECRYPT\].*Failed to decrypt/,
 	// Svelte 5 runtime teardown race — querySelector called on null during page.reload()
 	// when the component tree is being destroyed. Not user code, no functional impact.
-	/Cannot read properties of null \(reading 'querySelector'\)/
+	/Cannot read properties of null \(reading 'querySelector'\)/,
+	// Metadata chat sync error — server-side data quirk for test accounts.
+	// Background sync for expanded search; unrelated to any feature being tested.
+	/\[ChatSyncService\] Server error syncing metadata chats/
 ];
 
 /**

@@ -19,6 +19,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { getTestAccount } = require('./signup-flow-helpers');
 
 test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 	test.beforeEach(async ({ page }) => {
@@ -193,6 +194,10 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 test.describe('InteractiveQuestions Chat Integration', () => {
 	test('triggers interactive questions, handles selections, submissions, and state locking in real-time chat', async ({ page }) => {
 		test.setTimeout(90000);
+
+		const account = getTestAccount();
+		test.skip(!account.email || !account.password || !account.otpKey, 'Test account credentials not configured');
+
 		const log = createSignupLogger('INTERACTIVE_QUESTIONS_FLOW');
 		const screenshot = createStepScreenshotter(log);
 		await archiveExistingScreenshots(log);

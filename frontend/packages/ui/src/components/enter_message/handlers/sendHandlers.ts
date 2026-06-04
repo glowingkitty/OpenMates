@@ -1210,15 +1210,35 @@ export async function handleSend(
             // Ensure we have a chat key for encryption (this device is creating the chat)
             chatKeyManager.createKeyForNewChat(chatIdToUse);
 
-            // NOTE: Demo messages are NOT saved to IndexedDB. They were previously
-            // copied as AI "context", but the backend receives full conversation context
-            // via the API call — storing them in IDB caused demo messages to bleed into
-            // the real chat view when IDB was reloaded after streaming completed.
-            // The demo greeting ("Digital team mates for everyone...") is not meaningful
-            // context for the AI response to the user's actual question.
+            const { isExampleChat: isExampleChatCheck } =
+              await import("../../../demo_chats");
+            if (isExampleChatCheck(sourceDemoId)) {
+              // Example chat messages contain embed references needed to render
+              // embed previews in the cloned chat. Save them to IndexedDB so that
+              // the cloned chat displays messages with embeds and the data survives
+              // page reloads and cross-device sync.
+              for (const demoMsg of demoMessages) {
+                await chatDB.saveMessage({
+                  ...demoMsg,
+                  chat_id: chatIdToUse,
+                  message_id: `${chatIdToUse}-${demoMsg.message_id}`,
+                });
+              }
+              console.info(
+                `[handleSend] Saved ${demoMessages.length} example messages to IndexedDB for cloned chat ${chatIdToUse}`,
+              );
+              newChatData.messages_v = demoMessages.length + 1;
+            } else {
+              // NOTE: Demo messages are NOT saved to IndexedDB. They were previously
+              // copied as AI "context", but the backend receives full conversation context
+              // via the API call — storing them in IDB caused demo messages to bleed into
+              // the real chat view when IDB was reloaded after streaming completed.
+              // The demo greeting ("Digital team mates for everyone...") is not meaningful
+              // context for the AI response to the user's actual question.
 
-            // Update messages_v count (only the new user message being sent)
-            newChatData.messages_v = 1;
+              // Update messages_v count (only the new user message being sent)
+              newChatData.messages_v = 1;
+            }
           }
 
           // Clone example chat embeds into the embedStore (IndexedDB)

@@ -40,29 +40,35 @@ async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 2000
 
 async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promise<boolean> {
 	const loginResponse = page.waitForResponse(
-		async (response: any) => {
-			if (!response.url().includes('/v1/auth/login') || response.request().method() !== 'POST') {
-				return false;
-			}
-
-			try {
-				const data = await response.json();
-				return response.ok() && data?.success === true && data?.tfa_required !== true;
-			} catch {
-				return false;
-			}
-		},
+		(response: any) => response.url().includes('/v1/auth/login') && response.request().method() === 'POST',
 		{ timeout: 20000 }
-	).then(() => 'response' as const).catch(() => false as const);
+	).catch(() => null);
 
 	const authUi = waitForAuthenticatedUi(page, authSignal).then((success) => success ? 'ui' as const : false as const);
-	const firstSignal = await Promise.race([loginResponse, authUi]);
+	const firstSignal = await Promise.race([
+		loginResponse.then((response) => response ? 'response' as const : false as const),
+		authUi
+	]);
 
 	if (firstSignal === 'ui') {
 		return true;
 	}
 
 	if (firstSignal !== 'response') {
+		return false;
+	}
+
+	const response = await loginResponse;
+	if (!response) {
+		return false;
+	}
+
+	try {
+		const data = await response.json();
+		if (!response.ok() || data?.success !== true || data?.tfa_required === true) {
+			return false;
+		}
+	} catch {
 		return false;
 	}
 
@@ -86,9 +92,16 @@ async function loginToTestAccount(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
-	options: { waitForEditor?: boolean } = {}
+	options: {
+		waitForEditor?: boolean;
+		credentials?: { email?: string; password?: string; otpKey?: string };
+	} = {}
 ): Promise<void> {
-	const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+	const {
+		email: TEST_EMAIL,
+		password: TEST_PASSWORD,
+		otpKey: TEST_OTP_KEY
+	} = options.credentials ?? getTestAccount();
 
 	// Monitor for 429 rate limit responses during login flow
 	let hit429 = false;

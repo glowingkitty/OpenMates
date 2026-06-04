@@ -187,23 +187,23 @@
         {/each}
       </div>
 
-      {#if selectedDayIndex >= 0 && days[selectedDayIndex]}
-        {@const selectedDay = days[selectedDayIndex]}
-        <ChildEmbedOverlay>
-          <WeatherDayEmbedFullscreen
-            data={{ decodedContent: selectedDay, embedData: {} }}
-            onClose={closeDay}
-            embedId={selectedDay.embed_id}
-            hasPreviousEmbed={selectedDayIndex > 0}
-            hasNextEmbed={selectedDayIndex < days.length - 1}
-            onNavigatePrevious={previousDay}
-            onNavigateNext={nextDay}
-          />
-        </ChildEmbedOverlay>
-      {/if}
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+{#if selectedDayIndex >= 0 && loadedDays[selectedDayIndex]}
+  <ChildEmbedOverlay>
+    <WeatherDayEmbedFullscreen
+      data={{ decodedContent: loadedDays[selectedDayIndex], embedData: {} }}
+      onClose={closeDay}
+      embedId={loadedDays[selectedDayIndex].embed_id}
+      hasPreviousEmbed={selectedDayIndex > 0}
+      hasNextEmbed={selectedDayIndex < loadedDays.length - 1}
+      onNavigatePrevious={previousDay}
+      onNavigateNext={nextDay}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   .state {

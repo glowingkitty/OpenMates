@@ -50,10 +50,19 @@ export async function getPresignedUrl(s3Key: string): Promise<string> {
   const apiUrl = getApiUrl();
   const endpoint = `${apiUrl}/v1/embeds/presigned-url?s3_key=${encodeURIComponent(s3Key)}`;
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    credentials: "include", // Send session cookie for authentication
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "GET",
+      credentials: "include", // Send session cookie for authentication
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new PresignedUrlError(
@@ -78,24 +87,38 @@ export async function getPresignedUrl(s3Key: string): Promise<string> {
  * @returns ArrayBuffer containing the raw S3 object bytes (encrypted ciphertext)
  * @throws Error if both attempts fail
  */
+/**
+ * 30-second timeout for presigned URL fetches. Prevents the export pipeline
+ * from hanging indefinitely when an S3 object or the backend presigned URL
+ * endpoint is unreachable (orphaned reference, network partition, etc.).
+ */
+const FETCH_TIMEOUT_MS = 30_000;
+
 export async function fetchWithPresignedUrl(
   s3Key: string,
 ): Promise<ArrayBuffer> {
-  // First attempt: get a presigned URL and fetch the blob
-  let presignedUrl = await getPresignedUrl(s3Key);
-  let response = await fetch(presignedUrl);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  // If 403 (expired URL), retry once with a fresh presigned URL
-  if (response.status === 403) {
-    presignedUrl = await getPresignedUrl(s3Key);
-    response = await fetch(presignedUrl);
+  try {
+    // First attempt: get a presigned URL and fetch the blob
+    let presignedUrl = await getPresignedUrl(s3Key);
+    let response = await fetch(presignedUrl, { signal: controller.signal });
+
+    // If 403 (expired URL), retry once with a fresh presigned URL
+    if (response.status === 403) {
+      presignedUrl = await getPresignedUrl(s3Key);
+      response = await fetch(presignedUrl, { signal: controller.signal });
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `S3 fetch failed for ${s3Key}: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return response.arrayBuffer();
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    throw new Error(
-      `S3 fetch failed for ${s3Key}: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  return response.arrayBuffer();
 }

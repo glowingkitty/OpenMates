@@ -625,6 +625,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let committedToolbarAnchor = $state<HighlightAnchor | null>(null);
   /** Pending debounce timer for committedToolbarAnchor updates. */
   let _toolbarCommitTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Pending debounce timer for hiding the toolbar on collapsed selection. */
+  let _toolbarHideTimer: ReturnType<typeof setTimeout> | null = null;
   /** Commit window — selectionchange events batch within this window.
    *  80ms is short enough to feel instantaneous while being wide enough
    *  to swallow the stray event iOS fires when the user lifts their finger
@@ -638,11 +640,25 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     }
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      // Don't overwrite the committed anchor on collapsed events — the tap
-      // path still needs the last good value even if iOS briefly clears the
-      // selection during the tap itself.
-      selectionToolbarVisible = false;
+      // On mobile/touch contexts a stray collapsed selectionchange can fire
+      // immediately after a valid programmatic selection (selection-handle
+      // init). Defer the hide so a re-selection in the same tick cancels it.
+      if (selectionToolbarVisible) {
+        if (_toolbarHideTimer === null) {
+          _toolbarHideTimer = setTimeout(() => {
+            selectionToolbarVisible = false;
+            _toolbarHideTimer = null;
+          }, TOOLBAR_COMMIT_DEBOUNCE_MS);
+        }
+      } else {
+        selectionToolbarVisible = false;
+      }
       return;
+    }
+    // Clear any pending hide timer — the user made a valid selection.
+    if (_toolbarHideTimer !== null) {
+      clearTimeout(_toolbarHideTimer);
+      _toolbarHideTimer = null;
     }
     const range = sel.getRangeAt(0);
     if (!messageBodyElement.contains(range.commonAncestorContainer)) {

@@ -660,31 +660,32 @@ async function loadImageEmbedsRecursively(
       // If this is an image embed (AI-generated OR user-uploaded), process it.
       // AI-generated images: app_id="images", skill_id="generate"/"generate_draft"
       // User-uploaded images: app_id="images", skill_id="upload" (type "images-image")
+      // Imported images (from ZIP/YAML fixtures) have data_url but no aes_key/aes_nonce.
       if (
         decodedContent &&
         typeof decodedContent === "object" &&
         decodedContent.app_id === "images" &&
         (decodedContent.skill_id === "generate" ||
           decodedContent.skill_id === "generate_draft" ||
-          decodedContent.skill_id === "upload") &&
-        decodedContent.aes_key &&
-        decodedContent.aes_nonce &&
-        decodedContent.files
+          decodedContent.skill_id === "upload")
       ) {
-        // Prefer the original PNG for download, fall back to full, then preview
         const fileEntry =
-          decodedContent.files.original ||
-          decodedContent.files.full ||
-          decodedContent.files.preview;
+          decodedContent.files?.original ||
+          decodedContent.files?.full ||
+          decodedContent.files?.preview;
 
         console.warn("[ZipExportService] Found image embed, fileEntry:", {
           embed_id: embed.embed_id,
-          hasOriginal: !!decodedContent.files.original,
-          hasFull: !!decodedContent.files.full,
-          hasPreview: !!decodedContent.files.preview,
+          hasOriginal: !!decodedContent.files?.original,
+          hasFull: !!decodedContent.files?.full,
+          hasPreview: !!decodedContent.files?.preview,
           selectedKey: fileEntry?.s3_key,
+          hasDataUrl: !!decodedContent.data_url,
+          hasFilename: !!decodedContent.filename,
+          hasAesKey: !!decodedContent.aes_key,
         });
 
+        // Imported images embed the raw data URL directly (no S3, no encryption)
         if (decodedContent.data_url && decodedContent.filename) {
           imageEmbeds.push({
             embed_id: embed.embed_id,
@@ -696,7 +697,11 @@ async function loadImageEmbedsRecursively(
             aes_nonce: "",
             format: fileEntry?.format || "png",
           });
-        } else if (fileEntry?.s3_key) {
+        } else if (
+          decodedContent.aes_key &&
+          decodedContent.aes_nonce &&
+          fileEntry?.s3_key
+        ) {
           const isUpload = decodedContent.skill_id === "upload";
           imageEmbeds.push({
             embed_id: embed.embed_id,

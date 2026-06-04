@@ -80,7 +80,8 @@ class ChatMetadataCache {
         decryptedMetadata.icon ||
         decryptedMetadata.category ||
         decryptedMetadata.summary ||
-        decryptedMetadata.draftPreview;
+        decryptedMetadata.draftPreview ||
+        decryptedMetadata.activeFocusId;
       if (hasDecryptedContent) {
         this.setCachedMetadata(chat.chat_id, decryptedMetadata);
       }

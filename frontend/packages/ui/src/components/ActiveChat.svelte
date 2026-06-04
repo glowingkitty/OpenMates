@@ -5929,7 +5929,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentChat = { chat_id: message.chat_id } as Chat;
                 }
             }
-            currentMessages = [message]; // Initialize messages with the first message
+            // For cloned-from-example chats, include the original example messages
+            // so that embed references render in the cloned chat immediately
+            if (currentChat?.source_demo_id && isExampleChat(currentChat.source_demo_id)) {
+                const exampleMsgs = getDemoMessages(currentChat.source_demo_id, DEMO_CHATS, LEGAL_CHATS);
+                if (exampleMsgs.length > 0) {
+                    const updatedMsgs = exampleMsgs.map(msg => ({
+                        ...msg,
+                        chat_id: message.chat_id,
+                    }));
+                    currentMessages = [...updatedMsgs, message];
+                } else {
+                    currentMessages = [message]; // Initialize messages with the first message
+                }
+            } else {
+                currentMessages = [message]; // Initialize messages with the first message
+            }
             
             // Clear temporary chat ID since we now have a real chat
             temporaryChatId = null;
@@ -10744,6 +10759,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 data-testid="continue-priority-card"
                                                 data-priority-reason={item.priority.reason}
                                                 data-item-kind={item.kind}
+                                                data-chat-id={priorityChat.chat_id}
                                                 style={getResumeCardGradientStyle(priorityGradientColors)}
                                                 onclick={() => handleOpenRecentChat(priorityChat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, priorityChat)}
@@ -10797,6 +10813,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 data-testid="continue-priority-card"
                                                 data-priority-reason={item.priority.reason}
                                                 data-item-kind={item.kind}
+                                                data-chat-id={item.kind === 'chat' ? item.chat.chat_id : ''}
                                                 style={getResumeCardGradientStyle(priorityGradientColors)}
                                                 onclick={() => item.kind === 'chat' ? handleOpenRecentChat(item.chat) : handleOpenPriorityEmbed(item)}
                                                 oncontextmenu={(e) => { if (item.kind === 'chat') handleResumeCardContextMenu(e, item.chat); }}
@@ -10831,6 +10848,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
                                                 style={getResumeLargeCardStyle(gradientColors)}
+                                                data-chat-id={resumeChatData.chat_id}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
                                                 ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
@@ -10891,6 +10909,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(compactGradientColors)}
+                                                data-chat-id={resumeChatData.chat_id}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
                                                 ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}

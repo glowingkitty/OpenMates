@@ -33,10 +33,23 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 async function handleLocalFocusActivation(chatId: string, focusId: string): Promise<void> {
   const chat = await chatDB.getChat(chatId);
-  if (!chat) return;
+  if (!chat) {
+    console.warn(
+      "[handleLocalFocusActivation] Chat not found in IndexedDB:",
+      chatId,
+    );
+    return;
+  }
 
   const chatKey = await chatKeyManager.getKey(chatId);
-  if (!chatKey) return;
+  if (!chatKey) {
+    console.warn(
+      "[handleLocalFocusActivation] No chat key available for",
+      chatId,
+      "- skipping focus activation persistence",
+    );
+    return;
+  }
 
   const { ensureChatKeySafeForWrite } = await import(
     "../../../../services/chatKeyWriteGuard"
@@ -45,8 +58,16 @@ async function handleLocalFocusActivation(chatId: string, focusId: string): Prom
     chatId,
     chatKey,
     "active focus id encryption",
+    { allowMissingEncryptedChatKey: true },
   );
-  if (!isSafe) return;
+  if (!isSafe) {
+    console.warn(
+      "[handleLocalFocusActivation] Write guard rejected for",
+      chatId,
+      "- encrypted_chat_key validation failed or key unavailable",
+    );
+    return;
+  }
 
   const { encryptWithChatKey } = await import(
     "../../../../services/encryption/MessageEncryptor"
