@@ -26,6 +26,8 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
+GENERIC_EMAIL_CODE_MESSAGE = "If this email can create an account, a verification code will be sent."
+
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
 async def request_confirm_email_code(
@@ -143,11 +145,10 @@ async def request_confirm_email_code(
             )
 
         if exists_result:
-            logger.warning("Attempted to register with existing email")
+            logger.warning("Signup email-code request matched an existing email; returning generic response")
             return RequestEmailCodeResponse(
-                success=False,
-                message="This email is already registered. Please log in instead.",
-                error_code="EMAIL_ALREADY_EXISTS"
+                success=True,
+                message=GENERIC_EMAIL_CODE_MESSAGE,
             )
 
         logger.info("Email check passed, not already registered")

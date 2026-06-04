@@ -39,11 +39,63 @@ const {
 	createEmailClient,
 	checkEmailQuota,
 	assertNoMissingTranslations,
+	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+
+function deriveApiUrl(baseUrl: string): string {
+	if (process.env.PLAYWRIGHT_TEST_API_URL) return process.env.PLAYWRIGHT_TEST_API_URL;
+	if (!baseUrl) return 'https://api.dev.openmates.org';
+	return baseUrl.replace('://app.', '://api.').replace('://www.', '://api.').replace('://openmates.org', '://api.openmates.org');
+}
+
+function sha256Base64(value: string): string {
+	const nodeCrypto = require('crypto');
+	return nodeCrypto.createHash('sha256').update(value).digest('base64');
+}
+
+test('lookup response does not reveal whether an account exists', async ({ request }: { request: any }) => {
+	const { email: existingEmail } = getTestAccount();
+	test.skip(!existingEmail, 'OPENMATES_TEST_ACCOUNT_EMAIL is required for enumeration protection check.');
+
+	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+	const apiUrl = deriveApiUrl(baseUrl);
+	const origin = new URL(baseUrl).origin;
+	const nonce = Date.now().toString(36);
+	const missingEmail = `missing-${nonce}@enumeration.invalid`;
+
+	async function lookup(email: string) {
+		const response = await request.post(`${apiUrl}/v1/auth/lookup`, {
+			headers: { Origin: origin },
+			data: {
+				hashed_email: sha256Base64(email.trim().toLowerCase()),
+				stay_logged_in: false
+			}
+		});
+		expect(response.ok(), `lookup request for ${email} should succeed`).toBeTruthy();
+		return response.json();
+	}
+
+	const existingFirst = await lookup(existingEmail);
+	const existingSecond = await lookup(existingEmail);
+	const missingFirst = await lookup(missingEmail);
+	const missingSecond = await lookup(missingEmail);
+
+	const publicShape = (body: Record<string, unknown>) => ({
+		login_method: body.login_method,
+		available_login_methods: body.available_login_methods,
+		tfa_app_name: body.tfa_app_name ?? null,
+		tfa_enabled: body.tfa_enabled,
+		stay_logged_in: body.stay_logged_in
+	});
+
+	expect(publicShape(existingFirst)).toEqual(publicShape(missingFirst));
+	expect(existingFirst.user_email_salt).toEqual(existingSecond.user_email_salt);
+	expect(missingFirst.user_email_salt).toEqual(missingSecond.user_email_salt);
+});
 
 test('completes password signup, login with password, and delete account via email OTP', async ({
 	page,
