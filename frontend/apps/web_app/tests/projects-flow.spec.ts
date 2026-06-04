@@ -19,9 +19,8 @@ test.describe('Projects v1 flow', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('projects-load-error')).toHaveCount(0);
-    await expect(page.getByTestId('chats-nav-link')).toBeVisible();
-    await expect(page.getByTestId('projects-nav-link')).toBeVisible();
-    await expect(page.getByTestId('projects-nav-link')).toHaveClass(/active/);
+    await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
+    await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
     await expect(page.getByTestId('all-projects-section')).toBeVisible();
 
     const projectName = `E2E Project ${Date.now()}`;

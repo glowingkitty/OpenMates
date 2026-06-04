@@ -58,40 +58,50 @@
         text: string;
     }
 
-    let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
-    let webappWorkspaceTabs = $derived([
-        {
-            href: '/',
-            testId: 'chats-nav-link',
-            label: $text('common.chat'),
-            iconClass: 'chat-icon',
-            active: !isProjectsRoute,
-            disabled: false,
-        },
-        {
-            href: '/projects',
-            testId: 'projects-nav-link',
-            label: $text('navigation.projects'),
-            iconClass: 'project-icon',
-            active: isProjectsRoute,
-            disabled: false,
-        },
-        {
-            href: '',
-            testId: 'workflows-nav-link',
-            label: $text('navigation.workflows'),
-            iconClass: 'workflow-icon',
-            active: false,
-            disabled: true,
-        },
-        {
-            href: '',
-            testId: 'tasks-nav-link',
-            label: $text('navigation.tasks'),
-            iconClass: 'task-icon',
-            active: false,
-            disabled: true,
-        },
+    type WorkspaceTab = {
+        href: string;
+        testId: string;
+        label: string;
+        iconClass: string;
+        active: boolean;
+        disabled: boolean;
+    };
+
+    // let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
+    let webappWorkspaceTabs: WorkspaceTab[] = $derived([
+        // Workspace navigation is temporarily hidden until these sections are ready.
+        // {
+        //     href: '/',
+        //     testId: 'chats-nav-link',
+        //     label: $text('common.chat'),
+        //     iconClass: 'chat-icon',
+        //     active: !isProjectsRoute,
+        //     disabled: false,
+        // },
+        // {
+        //     href: '/projects',
+        //     testId: 'projects-nav-link',
+        //     label: $text('navigation.projects'),
+        //     iconClass: 'project-icon',
+        //     active: isProjectsRoute,
+        //     disabled: false,
+        // },
+        // {
+        //     href: '',
+        //     testId: 'workflows-nav-link',
+        //     label: $text('navigation.workflows'),
+        //     iconClass: 'workflow-icon',
+        //     active: false,
+        //     disabled: true,
+        // },
+        // {
+        //     href: '',
+        //     testId: 'tasks-nav-link',
+        //     label: $text('navigation.tasks'),
+        //     iconClass: 'task-icon',
+        //     active: false,
+        //     disabled: true,
+        // },
     ]);
 
     // Define the type for social links
@@ -383,7 +393,7 @@
                         <a href="/docs" class="docs-tab active">{$text('common.docs')}</a>
                         <a href="/" class="docs-tab">{$text('common.chat')}</a>
                     </div>
-                {:else if context === 'webapp' && isLoggedIn}
+                {:else if context === 'webapp' && isLoggedIn && webappWorkspaceTabs.length > 0}
                     <div class="webapp-center-tabs" aria-label="Workspace switcher">
                         {#each webappWorkspaceTabs as item}
                             {#if item.disabled}
