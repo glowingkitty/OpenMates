@@ -87,6 +87,7 @@ export interface ImportedChatResult {
   messages_imported: number;
   messages_blocked: number;
   credits_charged: number;
+  messages?: ParsedImportMessage[];
 }
 
 export interface ImportChatApiResponse {
@@ -546,9 +547,10 @@ async function cacheAcceptedImportsLocally(
   for (let index = 0; index < imported.length; index++) {
     const result = imported[index];
     const source = chats[index];
-    if (!source || result.messages_blocked > 0) continue;
+    if (!source) continue;
+    const acceptedMessages = result.messages ?? source.messages;
 
-    const timestamps = source.messages.map((message) =>
+    const timestamps = acceptedMessages.map((message) =>
       parseImportTimestamp(message.completed_at, nowSeconds),
     );
     const createdAt = timestamps[0] ?? nowSeconds;
@@ -558,7 +560,7 @@ async function cacheAcceptedImportsLocally(
       chat_id: result.chat_id,
       title: result.title ?? source.title ?? undefined,
       encrypted_title: null,
-      messages_v: source.messages.length,
+      messages_v: acceptedMessages.length,
       title_v: result.title || source.title ? 1 : 0,
       last_edited_overall_timestamp: updatedAt,
       unread_count: 0,
@@ -567,7 +569,7 @@ async function cacheAcceptedImportsLocally(
       chat_summary: source.summary,
     };
 
-    const messages: Message[] = source.messages.map((message, messageIndex) => ({
+    const messages: Message[] = acceptedMessages.map((message, messageIndex) => ({
       message_id: `${result.chat_id.slice(-10)}-${crypto.randomUUID()}`,
       chat_id: result.chat_id,
       role: message.role,

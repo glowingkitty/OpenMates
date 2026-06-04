@@ -6202,6 +6202,7 @@ class ImportedChatResult(BaseModel):
     messages_imported: int
     messages_blocked: int
     credits_charged: int
+    messages: List[ImportMessageModel] = Field(default_factory=list)
 
 
 class ImportChatResponse(BaseModel):
@@ -6415,6 +6416,7 @@ async def import_chat(
             messages_imported=messages_imported,
             messages_blocked=messages_blocked,
             credits_charged=credits_to_charge,
+            messages=[ImportMessageModel(**msg) for msg in sanitized_messages],
         ))
 
         logger.info(
