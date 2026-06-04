@@ -530,7 +530,9 @@ export async function importChats(
   }
 
   const data = (await response.json()) as ImportChatApiResponse;
-  await cacheAcceptedImportsLocally(chats, data.imported);
+  await cacheAcceptedImportsLocally(chats, data.imported).catch((error) => {
+    console.warn("[ChatImport] Local import cache failed:", error);
+  });
   onProgress?.("done", "Import complete.");
   return data;
 }
@@ -578,7 +580,7 @@ async function cacheAcceptedImportsLocally(
       thinking_content: message.thinking,
     }));
 
-    await chatDB.addChat(chat, undefined, { isFromSync: true });
+    await chatDB.addChat(chat);
     await chatDB.batchSaveMessages(messages);
   }
 }
