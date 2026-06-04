@@ -37,7 +37,10 @@ import {
   getPDFEmbedsForChat,
   getVideoTranscriptEmbedsForChat,
 } from "./zipExportService";
-import { getRecentImportedChatData } from "./chatImportService";
+import {
+  getAllRecentImportedChatData,
+  getRecentImportedChatData,
+} from "./chatImportService";
 import { userProfile, updateProfile } from "../stores/userProfile";
 import { get } from "svelte/store";
 import type { Chat, Message } from "../types/chat";
@@ -503,6 +506,14 @@ async function loadAllChatsAndMessages(
         message: `Loading chats... ${processed}/${chatIds.length}`,
       });
     }
+  }
+
+  const includedChatIds = new Set(chats.map((chat) => chat.chat_id));
+  for (const recentImport of getAllRecentImportedChatData()) {
+    if (includedChatIds.has(recentImport.chat.chat_id)) continue;
+    chats.push(recentImport.chat);
+    messagesMap.set(recentImport.chat.chat_id, recentImport.messages);
+    includedChatIds.add(recentImport.chat.chat_id);
   }
 
   return { chats, messagesMap };

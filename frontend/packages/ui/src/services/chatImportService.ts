@@ -113,6 +113,10 @@ export function getRecentImportedChatData(
   return recentImportedChats.get(chatId);
 }
 
+export function getAllRecentImportedChatData(): RecentImportedChatData[] {
+  return Array.from(recentImportedChats.values());
+}
+
 // ============================================================================
 // FILE TYPE DETECTION
 // ============================================================================
