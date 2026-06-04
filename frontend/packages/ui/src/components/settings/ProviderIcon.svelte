@@ -22,11 +22,13 @@
     let providerMeta = $derived(findProviderByName(name));
     let iconUrl = $derived(providerMeta ? getProviderIconUrl(providerMeta.logo_svg) : '/icons/server.svg');
     let providerDisplayName = $derived(providerMeta?.name || name);
+    let isOpenMatesProvider = $derived(providerMeta?.id === 'openmates');
 </script>
 
 <!-- Wrapper keeps all provider logos readable on gradients and dark themes. -->
 <div 
     class="provider-icon-wrapper" 
+    class:openmates-provider={isOpenMatesProvider}
     data-testid="provider-icon"
     data-provider-name={providerDisplayName}
     style={`
@@ -68,5 +70,14 @@
         display: block;
         filter: none !important;
         -webkit-filter: none !important;
+    }
+
+    .provider-icon-wrapper.openmates-provider {
+        background-color: transparent;
+        padding: 0;
+    }
+
+    .provider-icon-wrapper.openmates-provider img {
+        object-fit: cover;
     }
 </style>

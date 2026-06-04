@@ -1,0 +1,10 @@
+# backend/providers/openmates.yml
+#
+# Configuration for OpenMates' own platform-provided skills.
+
+provider_id: "openmates"
+name: "OpenMates"
+description: "OpenMates platform services for onboarding, documentation lookup, and product support."
+logo_svg: "logos/openmates.svg"
+region: "EU"
+privacy_policy: ""
