@@ -139,7 +139,16 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
         try:
             with open(prod_smoke_path) as f:
                 prod_smoke_data = json.load(f)
-            prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
+            run_date = str(data.get("run_id", ""))[:10]
+            prod_smoke_date = str(prod_smoke_data.get("run_id", ""))[:10]
+            if prod_smoke_date != run_date:
+                print(
+                    f"[daily-runner] Ignoring stale prod smoke results from {prod_smoke_date or 'unknown'} "
+                    f"for daily run {run_date or 'unknown'}"
+                )
+                prod_smoke_suite = None
+            else:
+                prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
             if prod_smoke_suite:
                 for test_entry in prod_smoke_suite.get("tests", []):
                     total += 1

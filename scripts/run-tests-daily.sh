@@ -274,9 +274,12 @@ fi
 echo "[daily-runner] Dispatching test run summary email to $ADMIN_EMAIL..."
 export ADMIN_NOTIFY_EMAIL="$ADMIN_EMAIL"
 
-# --- Start OpenCode analysis chat on failures (before email so session ID is included) ---
-# Only runs if there were test failures. The helper writes the session ID to stdout
-# so we can capture it and pass it to the summary email.
+# Dispatch the summary before OpenCode analysis. The failure count must reach
+# the admin before any automated follow-up can take hours or hang.
+python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-email
+
+# --- Start OpenCode analysis chat on failures ---
+# Only runs if there were test failures. The helper writes the session ID to stdout.
 OPENCODE_SESSION_ID=""
 FAILED_COUNT=$(python3 -c "
 import json, sys
@@ -288,7 +291,7 @@ except Exception as e:
 " 2>/dev/null || echo "0")
 
 if [[ "$FAILED_COUNT" -gt 0 ]]; then
-  echo "[daily-runner] $FAILED_COUNT test(s) failed — starting OpenCode analysis chat..."
+  echo "[daily-runner] Auto fixing is started after summary email dispatch..."
   OPENCODE_SESSION_ID=$(python3 "$SCRIPT_DIR/_daily_runner_helper.py" start-opencode-analysis 2>&1 | grep "^OPENCODE_SESSION_ID:" | sed 's/^OPENCODE_SESSION_ID://' | tr -d '[:space:]') || true
   if [[ -n "$OPENCODE_SESSION_ID" ]]; then
     echo "[daily-runner] OpenCode analysis session: $OPENCODE_SESSION_ID"
@@ -299,8 +302,6 @@ if [[ "$FAILED_COUNT" -gt 0 ]]; then
 else
   echo "[daily-runner] All tests passed — skipping OpenCode analysis."
 fi
-
-python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-email
 
 # Combine exit codes: fail the overall run if either the dev suite or prod smoke test failed
 OVERALL_EXIT_CODE=$(( RUN_EXIT_CODE > PROD_SMOKE_EXIT_CODE ? RUN_EXIT_CODE : PROD_SMOKE_EXIT_CODE ))

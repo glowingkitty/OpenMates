@@ -4952,6 +4952,11 @@ class TestOrchestrator:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
+        # Send summary email before any automated fixing starts. The failure
+        # count must reach the admin even if auto-fix takes hours or hangs.
+        _log("Sending summary email...")
+        self.notification.send_summary_email(result)
+
         # Start sequential OpenCode auto-fix on failures unless explicitly disabled.
         # The controller is still safety-gated: it stops on dirty worktrees and
         # only deploys small verified fixes.
@@ -4960,7 +4965,7 @@ class TestOrchestrator:
             auto_fix_enabled = auto_fix_setting not in {"0", "false", "no", "off"}
             auto_fix_script = PROJECT_ROOT / "scripts" / "auto_fix_failed_tests.py"
             if auto_fix_enabled and auto_fix_script.is_file():
-                _log("Starting sequential OpenCode auto-fix for failures...")
+                _log("Auto fixing is started after summary email dispatch...")
                 subprocess.run(
                     [sys.executable, str(auto_fix_script), "--from-daily-run"],
                     env={**os.environ, "RESULTS_DIR": str(RESULTS_DIR)},
@@ -4970,10 +4975,6 @@ class TestOrchestrator:
                     _log("Auto-fix enabled but scripts/auto_fix_failed_tests.py is missing", "WARN")
                 else:
                     _log("Auto-fix disabled by E2E_AUTO_FIX_FAILED_TESTS; regular failure notifications only")
-
-        # Send summary email
-        _log("Sending summary email...")
-        self.notification.send_summary_email(result)
 
     def _print_summary(self, result: RunResult) -> None:
         """Print a formatted summary."""
