@@ -157,9 +157,11 @@ class SearchRequestItem(BaseModel):
             "Auto-generated as a sequential integer if not provided.",
     )
 
-    query: str = Field(
+    query: Optional[str] = Field(
+        default=None,
         description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
-        "'startup', 'networking'). Do NOT include platform names like 'meetup', 'luma', or 'eventbrite'."
+        "'startup', 'networking'). Required for city searches; optional when conference is set. "
+        "Do NOT include platform names like 'meetup', 'luma', or 'eventbrite'."
     )
     location: Optional[str] = Field(
         default=None,
@@ -760,7 +762,12 @@ class SearchSkill(BaseSkill):
         Returns:
             Tuple (request_id, results_list, error_or_None, total_available).
         """
-        query = req.get("query") or req.get("q")
+        provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
+        conference: Optional[str] = req.get("conference") or None
+        if not conference:
+            conference = pretalx_provider.resolve_conference(str(provider_hint))
+
+        query = req.get("query") or req.get("q") or conference
         if not query:
             return (request_id, [], "Missing 'query' parameter", 0)
 
@@ -854,10 +861,6 @@ class SearchSkill(BaseSkill):
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
-        conference: Optional[str] = req.get("conference") or None
-        if not conference:
-            provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
-            conference = pretalx_provider.resolve_conference(str(provider_hint))
         past_events: bool = bool(req.get("past_events", False))
 
         if event_type and event_type not in ("PHYSICAL", "ONLINE"):
@@ -1169,6 +1172,14 @@ class SearchSkill(BaseSkill):
                         req["providers"] = top_level_providers
                     elif top_level_provider:
                         req["provider"] = top_level_provider
+        for req in requests_list:
+            if req.get("query") or req.get("q"):
+                continue
+            provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
+            conference = req.get("conference") or pretalx_provider.resolve_conference(str(provider_hint))
+            if conference:
+                req["conference"] = conference
+                req["query"] = conference
         validated_requests, error = self._validate_requests_array(
             requests=requests_list,
             required_field="query",
