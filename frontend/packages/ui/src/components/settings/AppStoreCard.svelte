@@ -54,11 +54,8 @@
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
     
-    /**
-     * Opacity values for provider icons (decreasing from left to right).
-     * Index 0 = first icon (leftmost), index 4 = fifth icon (rightmost).
-     */
-    const PROVIDER_ICON_OPACITIES = [1, 0.85, 0.7, 0.55, 0.4];
+    /** Consistent opacity for provider icons on app cards and skill cards. */
+    const PROVIDER_ICON_OPACITY = 0.4;
     
     /** Maximum number of provider icons to display */
     const MAX_PROVIDER_ICONS = 5;
@@ -200,21 +197,6 @@
     });
     
     /**
-     * Get the opacity for a provider icon based on its position.
-     * Uses the PROVIDER_ICON_OPACITIES array for decreasing opacity.
-     * 
-     * @param index - The index of the provider icon (0-based)
-     * @returns The opacity value (0-1)
-     */
-    function getProviderIconOpacity(index: number): number {
-        if (index < 0 || index >= PROVIDER_ICON_OPACITIES.length) {
-            return PROVIDER_ICON_OPACITIES[PROVIDER_ICON_OPACITIES.length - 1];
-        }
-        return PROVIDER_ICON_OPACITIES[index];
-    }
-    
-    
-    /**
      * Get app gradient from theme.css based on app id.
      * Constructs CSS variable name directly from app ID: var(--color-app-{appId})
      * 
@@ -272,14 +254,14 @@
         <div class="app-icon-container" bind:this={appIconContainer}>
             <!-- Provider icons behind the app icon - first centered, others to the right (max 5) -->
             <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
-            <!-- Icons have decreasing opacity from left to right: 1, 0.85, 0.7, 0.55, 0.4 -->
+            <!-- Icons use a consistent opacity so no provider appears visually preferred. -->
             {#if orderedProviders.length > 0 && !isSkillCard}
                 <div class="provider-icons-background" aria-hidden="true">
                     {#each orderedProviders.slice(0, MAX_PROVIDER_ICONS) as provider, index}
                         <div 
                             class="provider-icon-container"
                             class:provider-icon-first={index === 0}
-                            style="opacity: {getProviderIconOpacity(index)}"
+                            style="opacity: {PROVIDER_ICON_OPACITY}"
                         >
                             <ProviderIcon 
                                 name={provider}
@@ -321,15 +303,15 @@
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
-    <!-- Skill cards show first 4 providers with decreasing opacity, plus a "+N" counter if more exist -->
+    <!-- Skill cards show first 4 providers with consistent opacity, plus a "+N" counter if more exist -->
     {#if isSkillCard && orderedProviders.length > 0}
         {@const maxSkillProviderIcons = 4}
         {@const displayedProviders = orderedProviders.slice(0, maxSkillProviderIcons)}
         {@const remainingCount = orderedProviders.length - maxSkillProviderIcons}
         <div class="skill-providers" aria-hidden="true">
             <span class="via-text">via</span>
-            {#each displayedProviders as provider, index}
-                <div class="skill-provider-icon" style="opacity: {getProviderIconOpacity(index)}">
+            {#each displayedProviders as provider}
+                <div class="skill-provider-icon" style="opacity: {PROVIDER_ICON_OPACITY}">
                     <ProviderIcon name={provider} size="30px" />
                 </div>
             {/each}
@@ -557,7 +539,7 @@
         display: flex;
         align-items: center;
         flex-shrink: 0;
-        /* Opacity is now set dynamically via inline style for decreasing opacity effect */
+        /* Opacity is set inline from the shared provider icon constant. */
     }
     
     /* Remaining provider count shown after the last visible icon (e.g., "+3") */
