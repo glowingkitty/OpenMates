@@ -172,29 +172,29 @@ class NewsletterCampaignService:
 
     async def send_preview(self, slug: str, admin_email: str) -> Dict[str, Any]:
         campaign = await self._require_campaign(slug)
-        self._materialize_legacy_files(campaign)
         from backend.scripts import send_newsletter
 
         sent_langs: list[str] = []
-        for lang in self._available_langs(campaign):
-            rc = await send_newsletter.run(argparse.Namespace(
-                slug=slug,
-                lang=lang,
-                dry_run=False,
-                render_to=None,
-                test_to=admin_email,
-                send=False,
-                admin_email=None,
-                resume=False,
-                simulate=False,
-                limit=None,
-                base_url=None,
-                resend_confirm=False,
-                non_interactive_approved=False,
-            ))
-            if rc != 0:
-                raise RuntimeError(f"Preview send failed for {lang}")
-            sent_langs.append(lang)
+        with self._legacy_files(campaign):
+            for lang in self._available_langs(campaign):
+                rc = await send_newsletter.run(argparse.Namespace(
+                    slug=slug,
+                    lang=lang,
+                    dry_run=False,
+                    render_to=None,
+                    test_to=admin_email,
+                    send=False,
+                    admin_email=None,
+                    resume=False,
+                    simulate=False,
+                    limit=None,
+                    base_url=None,
+                    resend_confirm=False,
+                    non_interactive_approved=False,
+                ))
+                if rc != 0:
+                    raise RuntimeError(f"Preview send failed for {lang}")
+                sent_langs.append(lang)
 
         updated = await self.directus.update_item(
             COLLECTION,
@@ -252,7 +252,6 @@ class NewsletterCampaignService:
             {"status": "sending", "locked_at": _now_iso(), "last_error": None, "updated_at": _now_iso()},
             admin_required=True,
         )
-        self._materialize_legacy_files(campaign)
 
         from backend.scripts import send_newsletter
 
@@ -261,21 +260,22 @@ class NewsletterCampaignService:
                 live = await send_newsletter.check_landing_page_live(campaign["public_page_url"])
                 if not live:
                     raise NewsletterCampaignError(f"Public newsletter page is not live: {campaign['public_page_url']}")
-            rc = await send_newsletter.run(argparse.Namespace(
-                slug=slug,
-                lang=None,
-                dry_run=False,
-                render_to=None,
-                test_to=None,
-                send=True,
-                admin_email=os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL") or "admin@openmates.org",
-                resume=True,
-                simulate=simulate,
-                limit=None,
-                base_url=None,
-                resend_confirm=False,
-                non_interactive_approved=True,
-            ))
+            with self._legacy_files(campaign):
+                rc = await send_newsletter.run(argparse.Namespace(
+                    slug=slug,
+                    lang=None,
+                    dry_run=False,
+                    render_to=None,
+                    test_to=None,
+                    send=True,
+                    admin_email=os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL") or "admin@openmates.org",
+                    resume=True,
+                    simulate=simulate,
+                    limit=None,
+                    base_url=None,
+                    resend_confirm=False,
+                    non_interactive_approved=True,
+                ))
             status = "sent" if rc == 0 and not simulate else "approved" if simulate else "failed"
             patch: Dict[str, Any] = {"status": status, "updated_at": _now_iso(), "locked_at": None}
             if rc == 0 and not simulate:
@@ -323,6 +323,36 @@ class NewsletterCampaignService:
         body = campaign.get("body_markdown") or {}
         langs = [lang for lang in SUPPORTED_LANGS if body.get(lang)]
         return langs or ["en"]
+
+    def _legacy_paths(self, campaign: Dict[str, Any]) -> tuple[Path, Path]:
+        slug = campaign["slug"]
+        snake_name = f"{campaign['kind']}_{_snake(slug)}"
+        return ISSUES_DIR / f"{slug}.yml", I18N_DIR / f"{snake_name}.yml"
+
+    def _legacy_files(self, campaign: Dict[str, Any]):
+        service = self
+
+        class LegacyFilesContext:
+            def __enter__(self_inner):
+                self_inner.paths = service._legacy_paths(campaign)
+                self_inner.previous = []
+                for path in self_inner.paths:
+                    self_inner.previous.append(path.read_text(encoding="utf-8") if path.exists() else None)
+                service._materialize_legacy_files(campaign)
+                return self_inner
+
+            def __exit__(self_inner, exc_type, exc, tb):
+                for path, previous in zip(self_inner.paths, self_inner.previous):
+                    if previous is None:
+                        try:
+                            path.unlink()
+                        except FileNotFoundError:
+                            pass
+                    else:
+                        path.write_text(previous, encoding="utf-8")
+                return False
+
+        return LegacyFilesContext()
 
     def _materialize_legacy_files(self, campaign: Dict[str, Any]) -> None:
         slug = campaign["slug"]
