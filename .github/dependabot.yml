@@ -1,4 +1,27 @@
-# Disable Dependabot auto-PRs. Security alerts remain enabled in GitHub repo
-# settings and are processed by scripts/check-dependabot-daily.sh.
 version: 2
-updates: []
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "daily"
+      time: "04:30"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 2
+      semver-major-days: 14
+      semver-minor-days: 2
+      semver-patch-days: 2
+    groups:
+      npm-routine:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
