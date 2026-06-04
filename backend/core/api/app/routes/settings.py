@@ -4240,25 +4240,36 @@ async def get_export_manifest(
     logger.info(f"[EXPORT] Fetching export manifest for user {user_id}")
     
     try:
-        # Get all chat IDs for the user (no limit - we need ALL chats for export)
-        # Try cache first
+        # Get all chat IDs for the user (no limit - GDPR export must be complete).
+        # Merge cache and Directus so newly imported chats are included even if the
+        # Redis chat list has not caught up yet.
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=-1)
-        
+        chats = await directus_service.get_items(
+            "chats",
+            params={
+                "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                "fields": "id",
+                "limit": -1,
+                "sort": "-last_edited_overall_timestamp"
+            }
+        )
+        directus_chat_ids = [chat["id"] for chat in (chats or [])]
+
         if cached_chat_ids:
-            all_chat_ids = cached_chat_ids
-            logger.info(f"[EXPORT] Found {len(all_chat_ids)} chat IDs from cache for user {user_id}")
-        else:
-            # Fallback to Directus - get ALL chats (no limit)
-            chats = await directus_service.get_items(
-                "chats",
-                params={
-                    "filter": {"hashed_user_id": {"_eq": user_id_hash}},
-                    "fields": "id",
-                    "limit": -1,  # No limit - get ALL chats
-                    "sort": "-last_edited_overall_timestamp"
-                }
+            seen_chat_ids = set()
+            all_chat_ids = []
+            for chat_id in [*cached_chat_ids, *directus_chat_ids]:
+                if chat_id in seen_chat_ids:
+                    continue
+                seen_chat_ids.add(chat_id)
+                all_chat_ids.append(chat_id)
+            logger.info(
+                f"[EXPORT] Found {len(all_chat_ids)} merged chat IDs "
+                f"({len(cached_chat_ids)} cache, {len(directus_chat_ids)} Directus) "
+                f"for user {user_id}"
             )
-            all_chat_ids = [chat["id"] for chat in (chats or [])]
+        else:
+            all_chat_ids = directus_chat_ids
             logger.info(f"[EXPORT] Found {len(all_chat_ids)} chat IDs from Directus for user {user_id}")
         
         # Count other data types
