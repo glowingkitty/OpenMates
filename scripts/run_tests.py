@@ -45,6 +45,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -83,10 +84,13 @@ POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
+VERCEL_WAIT_TIMEOUT = 1200  # 20 min max to wait for dev deployment before E2E specs
+VERCEL_WAIT_POLL_INTERVAL = 15
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
 TEST_RECORDINGS_S3_PREFIX = "latest"
+VERCEL_API = "https://api.vercel.com"
 
 # Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
@@ -288,6 +292,127 @@ def _get_env(key: str, dot_env: Optional[dict] = None, default: str = "") -> str
     if not val and dot_env:
         val = dot_env.get(key, "")
     return val or default
+
+
+def _vercel_project_config() -> tuple[str, str]:
+    """Return (team_id, project_id) for the web app Vercel project."""
+    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    if not project_json.is_file():
+        raise RuntimeError(f"Vercel project config not found: {project_json}")
+    try:
+        data = json.loads(project_json.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read Vercel project config: {exc}") from exc
+
+    team_id = str(data.get("orgId", ""))
+    project_id = str(data.get("projectId", ""))
+    if not team_id or not project_id:
+        raise RuntimeError("Vercel project config is missing orgId or projectId")
+    return team_id, project_id
+
+
+def _vercel_api_get(path: str, token: str, params: dict[str, str | int]) -> dict:
+    """GET a Vercel API endpoint using stdlib urllib."""
+    query = urllib.parse.urlencode(params)
+    request = urllib.request.Request(
+        f"{VERCEL_API}{path}?{query}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        raw = response.read().decode("utf-8")
+    return json.loads(raw)
+
+
+def _latest_vercel_deployment_for_sha(
+    token: str,
+    team_id: str,
+    project_id: str,
+    git_sha: str,
+) -> Optional[dict]:
+    """Return the newest dev deployment for the current git SHA, if Vercel has seen it."""
+    data = _vercel_api_get(
+        "/v6/deployments",
+        token,
+        {
+            "teamId": team_id,
+            "projectId": project_id,
+            "limit": 20,
+        },
+    )
+    for deployment in data.get("deployments", []):
+        meta = deployment.get("meta", {})
+        if meta.get("githubCommitRef") != GH_BRANCH:
+            continue
+        deployed_sha = str(meta.get("githubCommitSha", ""))
+        if deployed_sha.startswith(git_sha) or git_sha.startswith(deployed_sha):
+            return deployment
+    return None
+
+
+def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> bool:
+    """Block Playwright dispatch until Vercel has deployed the current dev commit."""
+    if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
+        _log("OPENMATES_SKIP_VERCEL_WAIT=true — skipping Vercel wait", "WARN")
+        return True
+
+    token = _get_env("VERCEL_TOKEN", dot_env)
+    if not token:
+        _log("VERCEL_TOKEN is required before running development Playwright specs", "ERROR")
+        return False
+
+    try:
+        team_id, project_id = _vercel_project_config()
+    except RuntimeError as exc:
+        _log(str(exc), "ERROR")
+        return False
+
+    timeout = int(_get_env("OPENMATES_VERCEL_WAIT_TIMEOUT", dot_env, str(VERCEL_WAIT_TIMEOUT)))
+    poll_interval = int(
+        _get_env("OPENMATES_VERCEL_WAIT_POLL_INTERVAL", dot_env, str(VERCEL_WAIT_POLL_INTERVAL))
+    )
+    deadline = time.time() + timeout
+    last_status = "not found"
+
+    _log(f"Waiting for Vercel dev deployment for commit {git_sha} before Playwright specs...")
+    while time.time() < deadline:
+        try:
+            deployment = _latest_vercel_deployment_for_sha(token, team_id, project_id, git_sha)
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+            last_status = f"Vercel API error: {exc}"
+            _log(last_status, "WARN")
+            time.sleep(poll_interval)
+            continue
+
+        if deployment is None:
+            if last_status != "not found":
+                _log("Vercel deployment not visible yet")
+            last_status = "not found"
+            time.sleep(poll_interval)
+            continue
+
+        deploy_id = deployment.get("uid", deployment.get("id", "unknown"))
+        state = str(deployment.get("state", deployment.get("readyState", "unknown"))).upper()
+        if state != last_status:
+            _log(f"Vercel deployment {deploy_id}: {state}")
+            last_status = state
+
+        if state == "READY":
+            _log("Vercel deployment is Ready — dispatching Playwright specs", "OK")
+            return True
+        if state in {"ERROR", "CANCELED"}:
+            _log(
+                f"Vercel deployment {deploy_id} is {state}; fix the deployment before running specs",
+                "ERROR",
+            )
+            return False
+
+        time.sleep(poll_interval)
+
+    _log(
+        f"Timed out after {timeout}s waiting for Vercel deployment for {git_sha} (last status: {last_status})",
+        "ERROR",
+    )
+    return False
 
 
 def _safe_write_json(path: Path, data: dict) -> None:
@@ -4338,6 +4463,7 @@ class TestOrchestrator:
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.dry_run = args.dry_run
+        self.dot_env = _read_env_file()
 
         self.git_sha, self.git_branch = _git_info()
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -4648,6 +4774,18 @@ class TestOrchestrator:
             for s in specs:
                 print(f"    {s}")
             return SuiteResult(status="skipped", reason="dry run")
+
+        if self.environment == "development" and not _wait_for_vercel_deployment(self.git_sha, self.dot_env):
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": "vercel-deployment-gate",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": "Vercel deployment was not ready for the current dev commit before Playwright dispatch",
+                }],
+                reason="vercel deployment not ready",
+            )
 
         client = GitHubActionsClient()
 
