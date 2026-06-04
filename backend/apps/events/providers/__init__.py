@@ -7,6 +7,7 @@
 #   - eventbrite:          Eventbrite web API search with event-page descriptions
 #   - google_events:       Google Events search via SerpAPI (aggregates multiple ticketing platforms)
 #   - berlin_philharmonic: Berlin Philharmonic calendar (Typesense JSON API, Berlin-only)
+#   - pretalx:             Official conference schedules (GPN/Congress) via C3VOC JSON exports
 #
 # Inactive providers (in code but not wired into search_skill.py):
 #   - classictic:  Concert listings (Berlin-focused, HTML scraper)

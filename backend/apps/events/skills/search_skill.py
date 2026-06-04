@@ -51,6 +51,7 @@ from backend.apps.events.providers import eventbrite as eventbrite_provider
 from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
+from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.providers import resident_advisor as ra_provider
 from backend.apps.events.providers import siegessaeule as siegessaeule_provider
 from backend.apps.events.providers.registry import filter_providers
@@ -59,7 +60,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic"}
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic", "pretalx"}
 
 # Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
 _PROVIDER_ALIASES: Dict[str, str] = {
@@ -80,6 +81,14 @@ _PROVIDER_ALIASES: Dict[str, str] = {
     "berlin philharmonic": "berlin_philharmonic",
     "berliner philharmoniker": "berlin_philharmonic",
     "bphil": "berlin_philharmonic",
+    "pretalx": "pretalx",
+    "gpn": "pretalx",
+    "gpn24": "pretalx",
+    "39c3": "pretalx",
+    "38c3": "pretalx",
+    "37c3": "pretalx",
+    "chaos congress": "pretalx",
+    "chaos communication congress": "pretalx",
 }
 
 _PROVIDER_LABELS: Dict[str, str] = {
@@ -90,6 +99,7 @@ _PROVIDER_LABELS: Dict[str, str] = {
     "resident_advisor": "Resident Advisor",
     "siegessaeule": "Siegessäule",
     "berlin_philharmonic": "Berlin Philharmonic",
+    "pretalx": "GPN/Congress Schedule",
 }
 
 # Platform-brand and generic filler words that narrow provider results unnecessarily.
@@ -197,6 +207,20 @@ class SearchRequestItem(BaseModel):
             "Ignored by all other providers."
         ),
     )
+    conference: Optional[str] = Field(
+        default=None,
+        description=(
+            "Known conference schedule to search with the Conference Schedule provider. "
+            "Supported values include GPN24, 39C3, 38C3, and 37C3."
+        ),
+    )
+    past_events: bool = Field(
+        default=False,
+        description=(
+            "When false, conference schedule searches return only current and upcoming sessions. "
+            "Set true to include sessions that have already ended."
+        ),
+    )
 
 
 class SearchRequest(BaseModel):
@@ -211,8 +235,9 @@ class SearchRequest(BaseModel):
         ...,
         description=(
             "Array of event search request objects. Each object must contain 'query' "
-            "and 'location' (or 'lat'/'lon'). Optional: start_date, end_date, event_type, "
-            "radius_miles, count."
+            "and 'location' (or 'lat'/'lon') for city searches, or 'conference' for "
+            "Conference Schedule searches. Optional: start_date, end_date, event_type, "
+            "radius_miles, count, past_events."
         ),
     )
     provider: Optional[str] = Field(
@@ -641,6 +666,38 @@ class SearchSkill(BaseSkill):
             logger.warning("Berlin Philharmonic search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
+    async def _search_pretalx(
+        self,
+        query: str,
+        location_str: str,
+        conference: Optional[str],
+        start_date: Optional[str],
+        end_date: Optional[str],
+        count: int,
+        past_events: bool,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search known pretalx/C3VOC conference schedules and return (events, total, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+        """
+        try:
+            events, total = await pretalx_provider.search_events_async(
+                query=query,
+                conference=conference,
+                location=location_str,
+                start_date=start_date,
+                end_date=end_date,
+                count=count,
+                past_events=past_events,
+            )
+            return events, total, None
+        except ValueError:
+            # No known conference was requested. In auto mode this is not an error.
+            return [], 0, None
+        except Exception as exc:
+            logger.warning("Conference schedule search failed for query=%r: %s", query, exc)
+            return [], 0, str(exc)
+
     @staticmethod
     def _merge_and_sort(
         *provider_results: List[Dict[str, Any]],
@@ -759,21 +816,33 @@ class SearchSkill(BaseSkill):
                 return (request_id, [], f"Invalid lat/lon values: {exc}", 0)
         else:
             if not location_str:
-                return (
-                    request_id,
-                    [],
-                    "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
-                    0,
-                )
-            try:
-                lat, lon, city, country = meetup_provider.resolve_location(location_str)
-            except ValueError as exc:
-                # Location cannot be resolved for Meetup geocoder.
-                # If provider is location-text based only, we don't need Meetup coordinates.
-                if provider_choice in {"luma", "eventbrite"}:
+                if provider_choice == "pretalx" or pretalx_provider.is_conference_query(query):
                     lat, lon = 0.0, 0.0
+                    city, country = "", ""
                 else:
-                    return (request_id, [], f"Location resolution failed: {exc}", 0)
+                    return (
+                        request_id,
+                        [],
+                        "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
+                        0,
+                    )
+            if lat is None or lon is None:
+                if not location_str:
+                    return (
+                        request_id,
+                        [],
+                        "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
+                        0,
+                    )
+                try:
+                    lat, lon, city, country = meetup_provider.resolve_location(location_str)
+                except ValueError as exc:
+                    # Location cannot be resolved for Meetup geocoder.
+                    # If provider is location-text based only, we don't need Meetup coordinates.
+                    if provider_choice in {"luma", "eventbrite", "pretalx"}:
+                        lat, lon = 0.0, 0.0
+                    else:
+                        return (request_id, [], f"Location resolution failed: {exc}", 0)
 
         # Use provided location string as city for Luma if city wasn't set by geocoder.
         luma_city = city or location_str
@@ -785,6 +854,11 @@ class SearchSkill(BaseSkill):
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
+        conference: Optional[str] = req.get("conference") or None
+        if not conference:
+            provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
+            conference = pretalx_provider.resolve_conference(str(provider_hint))
+        past_events: bool = bool(req.get("past_events", False))
 
         if event_type and event_type not in ("PHYSICAL", "ONLINE"):
             logger.warning(
@@ -907,6 +981,22 @@ class SearchSkill(BaseSkill):
             all_events = bp_events
             total_available = total
 
+        elif provider_choice == "pretalx":
+            # Conference Schedule only (known pretalx/C3VOC schedules)
+            pretalx_events, total, pretalx_err = await self._search_pretalx(
+                query=query,
+                location_str=luma_city,
+                conference=conference,
+                start_date=start_date,
+                end_date=end_date,
+                count=count,
+                past_events=past_events,
+            )
+            if pretalx_err and not pretalx_events:
+                return (request_id, [], f"Conference schedule search failed: {pretalx_err}", 0)
+            all_events = pretalx_events
+            total_available = total
+
         else:
             # "auto" or per-request providers list: query applicable providers
             # in parallel with extra headroom for deduplication.
@@ -956,7 +1046,18 @@ class SearchSkill(BaseSkill):
                     query=query, location_str=luma_city,
                     concert_tags=concert_tags, count=per_provider_count,
                 ),
+                "pretalx": lambda: self._search_pretalx(
+                    query=query, location_str=luma_city, conference=conference,
+                    start_date=start_date, end_date=end_date, count=per_provider_count,
+                    past_events=past_events,
+                ),
             }
+
+            if (
+                "pretalx" not in applicable_ids
+                and pretalx_provider.is_conference_query(query, luma_city)
+            ):
+                applicable_ids.append("pretalx")
 
             # Execute only applicable providers in parallel
             task_entries = [

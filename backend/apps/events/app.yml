@@ -73,7 +73,8 @@ skills:
       skill for event searches — do NOT additionally call web.search or any other
       search skill for the same query.
       Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs),
-      Siegessäule (Berlin LGBTQ+ events), and Berlin Philharmonic (classical concerts in Berlin).
+      Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin),
+      and official event schedules for GPN24, 39C3, 38C3, and 37C3.
       Use 'auto' provider for best coverage.
       Use 'Resident Advisor' when user asks about clubs, DJs, electronic music, raves,
       or techno events. Use 'Siegessäule' when user asks about LGBTQ+ events in Berlin.
@@ -81,6 +82,11 @@ skills:
       (e.g. concert_tags: ["Piano"] for piano concerts, ["Chamber Music"] for chamber music,
       ["Jazz"] for jazz, ["Organ"] for organ). Known tags: Piano, Chamber Music, Jazz, Organ,
       Modern, Lunch Concerts, Singers, Children and Family, World.
+      Use the specific event provider name (GPN24, 39C3, 38C3, or 37C3) when the
+      user asks about official talks/workshops for that event. Set conference to the
+      requested event when known. By default, event schedule searches only current and
+      upcoming sessions; set past_events=true only when the user explicitly asks for
+      past events or older completed sessions.
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
       When the user explicitly asks for online or virtual events, use ONLINE filter.
       Always limit results to 10 (default) unless the user explicitly requests more.
@@ -124,6 +130,10 @@ skills:
         scope: city
         region: Berlin
         no_api_key: true
+      - name: GPN/Congress Schedule
+        id: pretalx
+        scope: conference
+        no_api_key: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
@@ -146,7 +156,8 @@ skills:
             parallel for best coverage. Use specific providers when the user asks
             about a particular platform/type: 'Eventbrite' for Eventbrite-only results,
             'Resident Advisor' for electronic music/clubs,
-            'Siegessäule' for Berlin LGBTQ+ events.
+            'Siegessäule' for Berlin LGBTQ+ events,
+            'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.
           enum:
             - "auto"
             - "Meetup"
@@ -156,6 +167,10 @@ skills:
             - "Resident Advisor"
             - "Siegessäule"
             - "Berlin Philharmonic"
+            - "GPN24"
+            - "39C3"
+            - "38C3"
+            - "37C3"
         requests:
           type: array
           description: |
@@ -163,7 +178,8 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
             Example for single search: {"requests": [{"query": "AI", "location": "Berlin, Germany"}]}
             Example for multiple searches: {"requests": [{"query": "AI", "location": "Berlin"}, {"query": "Python", "location": "Munich"}]}
-            Each object must contain 'query' and 'location' (or lat/lon). All other parameters are optional.
+            Each object must contain 'query' and either 'location' (or lat/lon) for city searches,
+            or 'conference' for GPN/Congress schedule searches. All other parameters are optional.
             Note: The 'id' field is auto-generated if not provided.
           items:
             type: object
@@ -177,7 +193,7 @@ skills:
                   and reduce result quality.
               location:
                 type: string
-                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided."
+                description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Not required when using a GPN/Congress event schedule provider with a conference value."
               lat:
                 type: number
                 description: "Latitude of search center (decimal degrees). Overrides location string if provided."
@@ -218,6 +234,10 @@ skills:
                   - "Resident Advisor"
                   - "Siegessäule"
                   - "Berlin Philharmonic"
+                  - "GPN24"
+                  - "39C3"
+                  - "38C3"
+                  - "37C3"
               providers:
                 type: array
                 items:
@@ -230,7 +250,23 @@ skills:
                     - "Resident Advisor"
                     - "Siegessäule"
                     - "Berlin Philharmonic"
+                    - "GPN24"
+                    - "39C3"
+                    - "38C3"
+                    - "37C3"
                 description: "Specific providers for this request. Use only when the user asks to search multiple named event platforms."
+              conference:
+                type: string
+                description: "Known GPN/Congress schedule to search. Supported values: GPN24, 39C3, 38C3, 37C3."
+                enum:
+                  - "GPN24"
+                  - "39C3"
+                  - "38C3"
+                  - "37C3"
+              past_events:
+                type: boolean
+                description: "Default false. Set true only when the user explicitly asks to include past/completed conference sessions."
+                default: false
               concert_tags:
                 type: array
                 items:
@@ -243,7 +279,6 @@ skills:
                   Ignored by all other providers.
             required:
               - query
-              - location
       required:
         - requests
 

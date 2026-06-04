@@ -85,3 +85,88 @@ async def test_unknown_explicit_provider_is_visible_error(monkeypatch: pytest.Mo
 
     assert called == []
     assert response.results[0]["error"] == "Unknown events provider: luna"
+
+
+@pytest.mark.asyncio
+async def test_event_schedule_provider_allows_conference_without_location(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Conference searches should not require a city location when conference is set."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [
+            {
+                "id": "talk-1",
+                "provider": "gpn24",
+                "title": "Evaluating machine learning models",
+                "url": "https://cfp.gulas.ch/gpn24/talk/WMNWXJ/",
+                "date_start": "2026-06-04T18:45:00+02:00",
+            }
+        ], 1, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
+
+    response = await skill.execute(
+        SearchRequest(
+            provider="GPN24",
+            requests=[{"query": "machine learning", "conference": "GPN24"}],
+        )
+    )
+
+    assert response.error is None
+    assert response.results[0]["results"][0]["provider"] == "gpn24"
+    assert response.results[0]["results"][0]["title"] == "Evaluating machine learning models"
+
+
+@pytest.mark.asyncio
+async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Auto mode should include pretalx only when the query names a known conference."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def empty_provider(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [], 0, None
+
+    async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [
+            {
+                "id": "talk-39c3",
+                "provider": "39c3",
+                "title": "AI Agent, AI Spy",
+                "url": "https://cfp.cccv.de/39c3/talk/example/",
+                "date_start": "2025-12-27T12:00:00+01:00",
+            }
+        ], 1, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_meetup", empty_provider)
+    monkeypatch.setattr(skill, "_search_luma", empty_provider)
+    monkeypatch.setattr(skill, "_search_eventbrite", empty_provider)
+    monkeypatch.setattr(skill, "_search_google_events", empty_provider)
+    monkeypatch.setattr(skill, "_search_resident_advisor", empty_provider)
+    monkeypatch.setattr(skill, "_search_berlin_philharmonic", empty_provider)
+    monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
+
+    response = await skill.execute(
+        SearchRequest(
+            requests=[{"query": "AI at 39C3", "location": "Hamburg, Germany"}],
+        )
+    )
+
+    assert response.error is None
+    assert response.results[0]["results"][0]["provider"] == "39c3"

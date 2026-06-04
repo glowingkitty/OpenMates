@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # with ReadTimeout when the proxy is slow. Re-enable after OPE-XXX fixes
 # the timeout hierarchy and makes Siegessäule opt-in for LGBTQ+ queries only (OPE-301).
 _VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "berlin_philharmonic",
+    "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "berlin_philharmonic", "pretalx",
 })
 
 # Map display names (from app.yml "name" field) to internal provider IDs.
@@ -43,6 +43,16 @@ _NAME_TO_ID: Dict[str, str] = {
     "berlin philharmonic": "berlin_philharmonic",
     "berliner philharmoniker": "berlin_philharmonic",
     "berlin_philharmonic": "berlin_philharmonic",
+    "pretalx": "pretalx",
+    "conference schedule": "pretalx",
+    "conference schedules": "pretalx",
+    "gpn": "pretalx",
+    "gpn24": "pretalx",
+    "39c3": "pretalx",
+    "38c3": "pretalx",
+    "37c3": "pretalx",
+    "chaos congress": "pretalx",
+    "chaos communication congress": "pretalx",
 }
 
 
@@ -93,6 +103,11 @@ def filter_providers(
         elif scope == "continent":
             # Future: continent-level matching
             applicable.append(pid)
+        elif scope == "conference":
+            # Conference schedules are opt-in. They are added explicitly by the
+            # search skill when a known conference alias is present.
+            if requested_providers:
+                applicable.append(pid)
         else:
             # Unknown scope — include as fallback
             applicable.append(pid)
