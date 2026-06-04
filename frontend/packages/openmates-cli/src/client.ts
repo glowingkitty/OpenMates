@@ -18,6 +18,7 @@ import {
   decryptBundle,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
   base64ToBytes,
@@ -752,6 +753,8 @@ export class OpenMatesClient {
       authorizerDeviceName: complete.data.authorizer_device_name ?? null,
       autoLogoutMinutes: complete.data.auto_logout_minutes ?? null,
     };
+
+    await this.hydrateEmailEncryptionKey(session);
 
     saveSession(session);
   }
@@ -2142,11 +2145,9 @@ export class OpenMatesClient {
     );
   }
 
-  async requestRefund(
-    invoiceId: string,
-    emailEncryptionKey: string,
-  ): Promise<unknown> {
-    this.requireSession();
+  async requestRefund(invoiceId: string): Promise<unknown> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post(
       "/v1/payments/refund",
       { invoice_id: invoiceId, email_encryption_key: emailEncryptionKey },
@@ -2895,6 +2896,39 @@ export class OpenMatesClient {
       filename: filenameFromContentDisposition(response.headers.get("content-disposition")) ?? fallbackFilename,
       data: response.data,
     };
+  }
+
+  private async ensureEmailEncryptionKey(session: OpenMatesSession): Promise<string> {
+    if (session.emailEncryptionKeyB64) return session.emailEncryptionKeyB64;
+    await this.hydrateEmailEncryptionKey(session);
+    if (session.emailEncryptionKeyB64) return session.emailEncryptionKeyB64;
+    throw new Error(
+      "Email encryption key is missing. Run `openmates login` again to refresh your local encryption keys.",
+    );
+  }
+
+  private async hydrateEmailEncryptionKey(session: OpenMatesSession): Promise<void> {
+    const response = await this.http.post<{
+      success?: boolean;
+      user?: Record<string, unknown>;
+    }>(
+      "/v1/auth/session",
+      { session_id: session.sessionId },
+      this.getCliRequestHeaders(),
+    );
+    const encryptedEmail = response.data.user?.encrypted_email_with_master_key;
+    if (!response.ok || !response.data.success || typeof encryptedEmail !== "string") {
+      return;
+    }
+    const email = await decryptWithAesGcmCombined(
+      encryptedEmail,
+      base64ToBytes(session.masterKeyExportedB64),
+    );
+    if (!email) return;
+    session.emailEncryptionKeyB64 = await deriveEmailEncryptionKeyB64(
+      email,
+      session.userEmailSalt,
+    );
   }
 
   private requireSession(): OpenMatesSession {

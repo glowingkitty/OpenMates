@@ -64,7 +64,7 @@ The main exceptions are browser-bound or high-risk account operations: passkeys,
 | Billing overview | Full | `settings billing overview`. |
 | Usage history/export | Full | `settings billing usage`, `usage summaries`, `usage daily`, and `usage export`. |
 | Buy credits/payment checkout | Web-only | Payment-provider checkout must remain browser-bound. |
-| Invoices | Full | `settings billing invoices list/download/credit-note/refund`; refund requires explicit `--email-encryption-key`. |
+| Invoices | Full | `settings billing invoices list/download/credit-note/refund`; refund uses the locally stored email encryption key from CLI login. |
 | Auto top-up | Partial | Low-balance command is implemented; monthly auto-topup remains web-only until policy is decided. |
 | Gift card redeem/list | Full | `settings gift-card redeem/list`. |
 | Gift card buy/manage | Web-only | Payment/purchase flow. |

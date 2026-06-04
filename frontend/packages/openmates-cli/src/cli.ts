@@ -1495,7 +1495,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "invoices", "list"], description: "List invoices", examples: ["openmates settings billing invoices list --json"] },
   { path: ["billing", "invoices", "download"], description: "Download an invoice PDF", examples: ["openmates settings billing invoices download <invoice-id> --output ./invoices"] },
   { path: ["billing", "invoices", "credit-note"], description: "Download a credit note PDF", examples: ["openmates settings billing invoices credit-note <invoice-id> --output ./invoices"] },
-  { path: ["billing", "invoices", "refund"], description: "Request a refund for an invoice", examples: ["openmates settings billing invoices refund <invoice-id> --email-encryption-key <base64>"] },
+  { path: ["billing", "invoices", "refund"], description: "Request a refund for an invoice", examples: ["openmates settings billing invoices refund <invoice-id> --yes"] },
   { path: ["billing", "gift-card", "redeem"], description: "Redeem a gift card", examples: ["openmates settings billing gift-card redeem ABCD-1234"] },
   { path: ["billing", "gift-card", "list"], description: "List redeemed gift cards", examples: ["openmates settings billing gift-card list"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
@@ -2023,11 +2023,9 @@ async function handleSettings(
 
   if (matches(tokens, ["billing", "invoices", "refund"])) {
     const invoiceId = rest[2];
-    const emailEncryptionKey = typeof flags["email-encryption-key"] === "string" ? flags["email-encryption-key"] : undefined;
     if (!invoiceId) throw new Error("Missing invoice ID.");
-    if (!emailEncryptionKey) throw new Error("Missing --email-encryption-key. The backend requires the encrypted email key for refund requests.");
     if (flags.yes !== true) await confirmOrExit(`Request refund for invoice ${invoiceId}? [y/N] `);
-    await printSettingsMutationResult(client.requestRefund(invoiceId, emailEncryptionKey), flags);
+    await printSettingsMutationResult(client.requestRefund(invoiceId), flags);
     return;
   }
 

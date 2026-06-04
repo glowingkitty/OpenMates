@@ -71,6 +71,17 @@ describe("saveSession / loadSession", () => {
     assert.deepEqual(loaded.cookies, SAMPLE_SESSION.cookies);
   });
 
+  it("saves and loads the email encryption key when present", () => {
+    const session = {
+      ...SAMPLE_SESSION,
+      emailEncryptionKeyB64: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+    };
+    saveSession(session);
+    const loaded = loadSession();
+    assert.ok(loaded, "should return a session");
+    assert.strictEqual(loaded.emailEncryptionKeyB64, session.emailEncryptionKeyB64);
+  });
+
   it("returns null when no session file exists", () => {
     clearSession();
     const loaded = loadSession();

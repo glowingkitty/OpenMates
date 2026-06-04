@@ -80,7 +80,7 @@ openmates settings billing usage export --json
 openmates settings billing invoices list
 openmates settings billing invoices download <invoice-id> --output ./invoices
 openmates settings billing invoices credit-note <invoice-id> --output ./invoices
-openmates settings billing invoices refund <invoice-id> --email-encryption-key <base64> --yes
+openmates settings billing invoices refund <invoice-id> --yes
 openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com
 openmates settings billing gift-card redeem <CODE>
 openmates settings billing gift-card list
@@ -88,7 +88,7 @@ openmates settings billing gift-card list
 
 Redemption shows the credits added and your updated balance.
 
-Invoice downloads write PDFs to the current directory by default, or to `--output <dir-or-file.pdf>`. Refund requests require `--email-encryption-key` because the backend requires the encrypted email key that browser sessions keep locally.
+Invoice downloads write PDFs to the current directory by default, or to `--output <dir-or-file.pdf>`. Refund requests use the email encryption key stored during CLI login; if you logged in with an older CLI version, run `openmates login` again to refresh local encryption keys.
 
 Buy credits, gift card purchases, support payments, and recurring payment setup remain web-only because payment checkout must use browser/payment-provider UI.
 

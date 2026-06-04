@@ -17,6 +17,7 @@ import {
   encryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveEmailEncryptionKeyB64,
   hashItemKey,
 } from "../src/crypto.ts";
 
@@ -45,6 +46,17 @@ describe("base64ToBytes / bytesToBase64", () => {
     // Standard base64 uses + and /, not - and _
     assert.ok(!b64.includes("-"), "should not contain URL-safe '-'");
     assert.ok(!b64.includes("_"), "should not contain URL-safe '_'");
+  });
+});
+
+describe("deriveEmailEncryptionKeyB64", () => {
+  it("derives SHA-256(email + salt) as base64", async () => {
+    const salt = new Uint8Array([1, 2, 3, 4]);
+    const derived = await deriveEmailEncryptionKeyB64(
+      "user@example.com",
+      bytesToBase64(salt),
+    );
+    assert.strictEqual(derived, "iL9MLsZR1cIgat2zQ1t2dfBf0/PdIXlYzN3PK5TxGoE=");
   });
 });
 

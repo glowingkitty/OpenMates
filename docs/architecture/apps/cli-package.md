@@ -27,6 +27,8 @@ The REST API cannot decrypt/encrypt chats (zero-knowledge architecture). The CLI
 
 Pair-auth login via magic link + PIN (no password/email prompt). Session stored in `~/.openmates` with strict `0o600` permissions.
 
+CLI login derives and stores the email encryption key after pair-auth by decrypting the account email with the master key and applying the same `SHA256(email + user_email_salt)` derivation as the web app. The key uses the same tiered local protection path as the master key and is used for backend flows such as invoice refund requests.
+
 ### Implemented Commands
 
 **Auth:** `login`, `logout`, `whoami`
