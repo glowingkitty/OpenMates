@@ -23,7 +23,9 @@
 import JSZip from "jszip";
 import { parse } from "yaml";
 import { getApiEndpoint, apiEndpoints } from "../config/api";
+import { chatDB } from "./db";
 import { resolveEmbed, storeEmbed, type EmbedData } from "./embedResolver";
+import type { Chat, Message } from "../types/chat";
 
 // ============================================================================
 // CONSTANTS
@@ -528,6 +530,61 @@ export async function importChats(
   }
 
   const data = (await response.json()) as ImportChatApiResponse;
+  await cacheAcceptedImportsLocally(chats, data.imported);
   onProgress?.("done", "Import complete.");
   return data;
+}
+
+async function cacheAcceptedImportsLocally(
+  chats: ParsedImportChat[],
+  imported: ImportedChatResult[],
+): Promise<void> {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
+  for (let index = 0; index < imported.length; index++) {
+    const result = imported[index];
+    const source = chats[index];
+    if (!source || result.messages_blocked > 0) continue;
+
+    const timestamps = source.messages.map((message) =>
+      parseImportTimestamp(message.completed_at, nowSeconds),
+    );
+    const createdAt = timestamps[0] ?? nowSeconds;
+    const updatedAt = timestamps[timestamps.length - 1] ?? nowSeconds;
+
+    const chat: Chat = {
+      chat_id: result.chat_id,
+      title: result.title ?? source.title ?? undefined,
+      encrypted_title: null,
+      messages_v: source.messages.length,
+      title_v: result.title || source.title ? 1 : 0,
+      last_edited_overall_timestamp: updatedAt,
+      unread_count: 0,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      chat_summary: source.summary,
+    };
+
+    const messages: Message[] = source.messages.map((message, messageIndex) => ({
+      message_id: `${result.chat_id.slice(-10)}-${crypto.randomUUID()}`,
+      chat_id: result.chat_id,
+      role: message.role,
+      created_at: timestamps[messageIndex] ?? nowSeconds,
+      status: "synced",
+      content: message.content,
+      category: message.assistant_category,
+      has_thinking: message.has_thinking,
+      thinking_token_count: message.thinking_tokens,
+      thinking_content: message.thinking,
+    }));
+
+    await chatDB.addChat(chat, undefined, { isFromSync: true });
+    await chatDB.batchSaveMessages(messages);
+  }
+}
+
+function parseImportTimestamp(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : fallback;
 }
