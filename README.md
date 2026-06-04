@@ -8,7 +8,7 @@ OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus
 
 [Support OpenMates financially](https://openmates.org/#settings/support)
 
-> _The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and some features are still missing._
+> _OpenMates is currently in a stable alpha stage. New features are still being added, occasional bugs can happen, and some UI elements still need improvements._
 
 ### Goal
 
