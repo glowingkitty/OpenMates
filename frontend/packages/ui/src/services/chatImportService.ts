@@ -427,9 +427,6 @@ async function resolveEmbeds(rawEmbeds: RawYamlEmbed[]): Promise<void> {
   for (const raw of rawEmbeds) {
     if (!raw.embed_id) continue;
 
-    const existing = await resolveEmbed(raw.embed_id);
-    if (existing) continue; // Already in local store — nothing to do
-
     if (PURE_DATA_EMBED_TYPES.has(raw.type) && raw.content) {
       try {
         const nowMs = Date.now();
@@ -445,7 +442,11 @@ async function resolveEmbeds(rawEmbeds: RawYamlEmbed[]): Promise<void> {
       } catch {
         // Non-fatal — embed just won't be resolvable locally
       }
+      continue;
     }
+
+    const existing = await resolveEmbed(raw.embed_id);
+    if (existing) continue; // Already in local store — nothing to do
   }
 }
 
