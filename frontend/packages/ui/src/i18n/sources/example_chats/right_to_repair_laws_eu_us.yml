@@ -1,0 +1,1359 @@
+title:
+  context: "Title of example chat: Right-to-Repair Laws in the EU and US"
+  en: "Right-to-Repair Laws in the EU and US"
+  de: Recht-auf-Reparatur-Gesetze in der EU und den USA
+  zh: 欧盟和美国的维修权法案
+  es: Leyes del derecho a la reparación en la UE y EE. UU.
+  fr: "Lois sur le droit à la réparation dans l'UE et aux États-Unis"
+  pt: Leis de Direito ao Reparo na UE e nos EUA
+  ru: Законы о праве на ремонт в ЕС и США
+  ja: EUと米国の「修理する権利」法
+  ko: EU와 미국의 수리할 권리 법안
+  it: Leggi sul diritto alla riparazione in UE e USA
+  tr: "AB ve ABD'deki Tamir Hakkı Yasaları"
+  vi: Luật Quyền được sửa chữa tại EU và Hoa Kỳ
+  id: Undang-Undang Hak untuk Memperbaiki di UE dan AS
+  pl: Prawo do naprawy w UE i USA
+  nl: Recht op reparatie-wetgeving in de EU en de VS
+  ar: قوانين الحق في الإصلاح في الاتحاد الأوروبي والولايات المتحدة
+  hi: EU और US में मरम्मत का अधिकार (Right-to-Repair) कानून
+  th: กฎหมายสิทธิในการซ่อมแซมในสหภาพยุโรปและสหรัฐอเมริกา
+  cs: Zákony o právu na opravu v EU a USA
+  sv: Lagstiftning om rätten att reparera i EU och USA
+  he: "חוקי \"הזכות לתיקון\" באיחוד האירופי ובארה\"ב"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Right-to-Repair Laws in the EU and US"
+  en: "OpenMates searches recent news and expert commentary about right-to-repair laws in the EU and US, then links exact source quotes back to the connected source embed."
+  de: OpenMates durchsucht aktuelle Nachrichten und Expertenkommentare zu Gesetzen zum Recht auf Reparatur in der EU und den USA und verknüpft dann exakte Quellenzitate mit dem zugehörigen Quellen-Embed.
+  zh: OpenMates 搜索有关欧盟和美国维修权法案的最新新闻和专家评论，然后将准确的来源引用链接回相关的来源嵌入。
+  es: OpenMates busca noticias recientes y comentarios de expertos sobre las leyes del derecho a la reparación en la UE y EE. UU., y luego vincula las citas textuales con la fuente insertada correspondiente.
+  fr: "OpenMates recherche les actualités récentes et les commentaires d'experts sur les lois relatives au droit à la réparation dans l'UE et aux États-Unis, puis lie les citations exactes des sources à l'intégration de la source connectée."
+  pt: O OpenMates pesquisa notícias recentes e comentários de especialistas sobre as leis de direito ao reparo na UE e nos EUA, vinculando citações exatas das fontes ao embed da fonte conectada.
+  ru: OpenMates ищет последние новости и комментарии экспертов о законах о праве на ремонт в ЕС и США, а затем связывает точные цитаты с соответствующим встроенным источником.
+  ja: OpenMatesは、EUと米国における「修理する権利」法に関する最新ニュースや専門家の見解を検索し、正確な引用元を接続されたソースの埋め込みにリンクします。
+  ko: OpenMates는 EU와 미국의 수리할 권리 법안에 관한 최신 뉴스와 전문가 의견을 검색한 후, 정확한 소스 인용구를 연결된 소스 임베드에 링크합니다.
+  it: "OpenMates cerca notizie recenti e commenti di esperti sulle leggi sul diritto alla riparazione in UE e USA, poi collega le citazioni esatte delle fonti all'embed della fonte collegata."
+  tr: "OpenMates, AB ve ABD'deki tamir hakkı yasaları hakkında güncel haberleri ve uzman yorumlarını arar, ardından tam kaynak alıntılarını bağlı kaynak yerleştirmesine geri bağlar."
+  vi: OpenMates tìm kiếm tin tức gần đây và bình luận của chuyên gia về luật quyền được sửa chữa tại EU và Hoa Kỳ, sau đó liên kết các trích dẫn nguồn chính xác trở lại phần nhúng nguồn được kết nối.
+  id: OpenMates mencari berita terbaru dan komentar ahli tentang undang-undang hak untuk memperbaiki di UE dan AS, lalu menautkan kutipan sumber yang tepat kembali ke sematan sumber yang terhubung.
+  pl: OpenMates przeszukuje najnowsze wiadomości i komentarze ekspertów na temat przepisów dotyczących prawa do naprawy w UE i USA, a następnie linkuje dokładne cytaty źródłowe do powiązanego osadzonego źródła.
+  nl: OpenMates doorzoekt recent nieuws en commentaar van experts over recht op reparatie-wetgeving in de EU en de VS, en koppelt vervolgens exacte broncitaten aan de verbonden bron-embed.
+  ar: يبحث OpenMates في الأخبار الأخيرة وتعليقات الخبراء حول قوانين الحق في الإصلاح في الاتحاد الأوروبي والولايات المتحدة، ثم يربط اقتباسات المصادر الدقيقة بتضمين المصدر المتصل.
+  hi: OpenMates EU और US में मरम्मत के अधिकार (right-to-repair) कानूनों के बारे में हालिया समाचार और विशेषज्ञों की टिप्पणियां खोजता है, फिर सटीक स्रोत उद्धरणों को संबंधित स्रोत एम्बेड (source embed) से जोड़ता है।
+  th: OpenMates ค้นหาข่าวล่าสุดและความคิดเห็นจากผู้เชี่ยวชาญเกี่ยวกับกฎหมายสิทธิในการซ่อมแซมในสหภาพยุโรปและสหรัฐอเมริกา พร้อมเชื่อมโยงข้อความอ้างอิงจากแหล่งที่มาโดยตรงกลับไปยังไฟล์แนบต้นฉบับที่เกี่ยวข้อง
+  cs: OpenMates vyhledává aktuální zprávy a komentáře odborníků o zákonech o právu na opravu v EU a USA a poté propojuje přesné citace přímo s připojeným vloženým zdrojem.
+  sv: OpenMates söker efter senaste nyheter och expertkommentarer om lagstiftning gällande rätten att reparera i EU och USA, och länkar sedan exakta källcitat tillbaka till den anslutna källinbäddningen.
+  he: "OpenMates מחפש חדשות אחרונות ופרשנויות מומחים לגבי חוקי \"הזכות לתיקון\" באיחוד האירופי ובארה\"ב, ולאחר מכן מקשר ציטוטים מדויקים מהמקורות בחזרה להטמעה של המקור המחובר."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Right-to-Repair Laws in the EU and US. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find recent news about right-to-repair laws in the EU and US. And what are experts saying about it?"
+  de: "Finde aktuelle Nachrichten zu Gesetzen zum Recht auf Reparatur in der EU und den USA. Und was sagen Experten dazu?"
+  zh: 查找有关欧盟和美国维修权法案的最新新闻。专家对此有何看法？
+  es: "Busca noticias recientes sobre las leyes del derecho a la reparación en la UE y EE. UU. ¿Y qué dicen los expertos al respecto?"
+  fr: "Trouve des actualités récentes sur les lois relatives au droit à la réparation dans l'UE et aux États-Unis. Et qu'en disent les experts ?"
+  pt: "Encontre notícias recentes sobre as leis de direito ao reparo na UE e nos EUA. E o que os especialistas estão dizendo sobre isso?"
+  ru: "Найди последние новости о законах о праве на ремонт в ЕС и США. И что об этом говорят эксперты?"
+  ja: EUと米国における「修理する権利」法に関する最新ニュースを探してください。また、専門家はそれについて何と言っていますか？
+  ko: "EU와 미국의 수리할 권리 법안에 관한 최신 뉴스를 찾아줘. 그리고 전문가들은 이에 대해 뭐라고 해?"
+  it: "Trova notizie recenti sulle leggi sul diritto alla riparazione in UE e USA. E cosa dicono gli esperti a riguardo?"
+  tr: "AB ve ABD'deki tamir hakkı yasaları hakkında güncel haberleri bul. Peki uzmanlar bu konuda ne diyor?"
+  vi: "Tìm tin tức gần đây về luật quyền được sửa chữa tại EU và Hoa Kỳ. Và các chuyên gia đang nói gì về vấn đề này?"
+  id: "Cari berita terbaru tentang undang-undang hak untuk memperbaiki di UE dan AS. Dan apa yang dikatakan para ahli tentang hal itu?"
+  pl: "Znajdź najnowsze wiadomości na temat przepisów dotyczących prawa do naprawy w UE i USA. A co mówią o tym eksperci?"
+  nl: "Vind recent nieuws over recht op reparatie-wetgeving in de EU en de VS. En wat zeggen experts erover?"
+  ar: ابحث عن أخبار حديثة حول قوانين الحق في الإصلاح في الاتحاد الأوروبي والولايات المتحدة. وماذا يقول الخبراء عنها؟
+  hi: "EU और US में मरम्मत के अधिकार (right-to-repair) कानूनों के बारे में हालिया समाचार खोजें। और विशेषज्ञ इसके बारे में क्या कह रहे हैं?"
+  th: "ค้นหาข่าวล่าสุดเกี่ยวกับกฎหมายสิทธิในการซ่อมแซมในสหภาพยุโรปและสหรัฐอเมริกา แล้วผู้เชี่ยวชาญมีความคิดเห็นอย่างไรเกี่ยวกับเรื่องนี้บ้าง?"
+  cs: "Najdi aktuální zprávy o zákonech o právu na opravu v EU a USA. A co na to říkají odborníci?"
+  sv: "Hitta senaste nyheterna om lagstiftning gällande rätten att reparera i EU och USA. Och vad säger experterna om det?"
+  he: "מצא חדשות אחרונות לגבי חוקי \"הזכות לתיקון\" באיחוד האירופי ובארה\"ב. ומה אומרים על כך המומחים?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Right-to-Repair Laws in the EU and US. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    As of June 2026, the "Right to Repair" movement has reached a critical implementation phase in both the [European Union](wiki:European_Union) and the [United States](wiki:United_States). While the EU is moving toward a unified continental mandate, the US continues to see a patchwork of state-level victories and intense lobbying battles.
+    
+    ### Recent Developments in the European Union
+    
+    The most significant recent event is the EU's unveiling of its **"Tech Sovereignty" package** on June 3, 2026. This initiative aims to reduce dependence on US Big Tech by fostering homegrown alternatives and strengthening consumer rights.
+    
+    *   **Implementation Countdown:** The landmark [EU Right to Repair Directive](wiki:Right_to_repair) (Directive (EU) 2024/1799) is set to be fully enforceable across all member states by **July 31, 2026**. 
+    *   **Digital Product Passports:** Starting July 19, 2026, the EU will launch the **Digital Product Passport (DPP)** registry. This will require products (starting with batteries and textiles) to carry a QR code that provides data on durability and repairability.
+    *   **Legal Warnings:** On June 4, 2026, the European Commission issued formal warnings to **20 member states** that missed the March 2026 deadline to transpose the "Green Transition" directive into national law. This directive is crucial for preventing [greenwashing](wiki:Greenwashing) and "premature [obsolescence](wiki:Obsolescence)."
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Recent Developments in the United States
+    
+    In the US, the movement remains focused on the state level, as federal legislation remains stalled in [Congress](wiki:United_States_Congress).
+    
+    *   **State-Level Expansion:** As of mid-2026, over **one-quarter of Americans** live in states with enforceable Right to Repair laws. This is expected to jump to **35% by fall 2026** as new laws in **Texas** and **Connecticut** take full effect.
+    *   **Corporate Lobbying:** Advocacy groups like the [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) have reported continued lobbying efforts from companies like [Google](wiki:Google) and [Apple](wiki:Apple_Inc.) against "parts pairing" restrictions—a practice where software locks replacement parts to a specific device.
+    
+    ### What Experts are Saying
+    
+    Legal and technical experts are offering a mix of optimism and caution regarding these new laws:
+    
+    1.  **The "Tech Liberation" Debate:** While EU officials have hailed June 3, 2026, as "Tech Liberation Day," experts from the *Computer & Communications Industry Association* argue that true independence from [Big Tech](wiki:Big_Tech) will take decades, noting that Europe still lacks a rival to [Nvidia](wiki:Nvidia) or [TSMC](wiki:TSMC).
+    2.  **Loopholes and Parts Pairing:** Experts at *Cybernews* and *Earth911* warn that while the laws mandate the *right* to repair, manufacturers still "hold the cards" through the high cost of original parts and [software locks](wiki:Digital_rights_management) (parts pairing). They argue that without stricter price controls on spare parts, repair may remain more expensive than replacement.
+    3.  **Warranty Incentives:** Legal analysts from *Fieldfisher* highlight a "hidden gem" in the EU law: if a consumer chooses repair over replacement during the warranty period, the **warranty is extended by 12 months**. This is viewed as a major incentive to shift consumer behavior away from a "throwaway culture."
+    
+    > [Manufacturers will be obliged to repair in scope products, even if those products were purchased by consumers before 31 July 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Summary Table: 2026 Milestones
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    How would you like to proceed? I can help you look into specific state laws in the US or provide more details on the Digital Product Passport requirements.
+    
+    *   [Check US state-by-state status](/#settings/apps/web)
+    *   [Find a local repair shop](/#settings/apps/maps)
+    ---
+    *⚠️ This is educational information only and not legal advice. Consult a lawyer for legal advice.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Stand Juni 2026 hat die „Recht auf Reparatur“-Bewegung sowohl in der [Europäischen Union](wiki:European_Union) als auch in den [Vereinigten Staaten](wiki:United_States) eine kritische Umsetzungsphase erreicht. Während die EU sich auf ein einheitliches kontinentales Mandat zubewegt, gibt es in den USA weiterhin ein Mosaik aus Siegen auf Bundesstaatsebene und intensiven Lobbykämpfen.
+    
+    ### Aktuelle Entwicklungen in der Europäischen Union
+    
+    Das bedeutendste Ereignis der letzten Zeit ist die Vorstellung des **„Tech-Souveränitäts-Pakets“** der EU am 3. Juni 2026. Diese Initiative zielt darauf ab, die Abhängigkeit von US-Big-Tech zu verringern, indem heimische Alternativen gefördert und Verbraucherrechte gestärkt werden.
+    
+    *   **Countdown zur Umsetzung:** Die wegweisende [EU-Richtlinie zum Recht auf Reparatur](wiki:Right_to_repair) (Richtlinie (EU) 2024/1799) soll bis zum **31. Juli 2026** in allen Mitgliedstaaten vollständig durchsetzbar sein.
+    *   **Digitale Produktpässe:** Ab dem 19. Juli 2026 wird die EU das Register für den **Digitalen Produktpass (DPP)** einführen. Dies erfordert, dass Produkte (beginnend mit Batterien und Textilien) einen QR-Code tragen, der Daten zur Haltbarkeit und Reparierbarkeit liefert.
+    *   **Rechtliche Verwarnungen:** Am 4. Juni 2026 sprach die Europäische Kommission formelle Verwarnungen gegen **20 Mitgliedstaaten** aus, die die Frist im März 2026 zur Umsetzung der Richtlinie zum „grünen Wandel“ in nationales Recht versäumt hatten. Diese Richtlinie ist entscheidend, um [Greenwashing](wiki:Greenwashing) und „vorzeitige [Obsoleszenz](wiki:Obsolescence)“ zu verhindern.
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Aktuelle Entwicklungen in den Vereinigten Staaten
+    
+    In den USA konzentriert sich die Bewegung weiterhin auf die Ebene der Bundesstaaten, da die Bundesgesetzgebung im [Kongress](wiki:United_States_Congress) feststeckt.
+    
+    *   **Ausweitung auf Bundesstaatsebene:** Seit Mitte 2026 lebt über **ein Viertel der Amerikaner** in Bundesstaaten mit durchsetzbaren „Right to Repair“-Gesetzen. Es wird erwartet, dass dieser Anteil bis **Herbst 2026 auf 35 %** ansteigt, wenn neue Gesetze in **Texas** und **Connecticut** voll in Kraft treten.
+    *   **Lobbyarbeit von Unternehmen:** Interessengruppen wie die [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) berichten von anhaltenden Lobbybemühungen von Unternehmen wie [Google](wiki:Google) und [Apple](wiki:Apple_Inc.) gegen Beschränkungen beim „Parts Pairing“ – einer Praxis, bei der Software Ersatzteile an ein bestimmtes Gerät koppelt.
+    
+    ### Was Experten sagen
+    
+    Rechts- und Technikexperten äußern sich mit einer Mischung aus Optimismus und Vorsicht zu diesen neuen Gesetzen:
+    
+    1.  **Die Debatte über die „Tech-Befreiung“:** Während EU-Beamte den 3. Juni 2026 als „Tag der Tech-Befreiung“ feierten, argumentieren Experten der *Computer & Communications Industry Association*, dass eine echte Unabhängigkeit von [Big Tech](wiki:Big_Tech) Jahrzehnte dauern wird, und weisen darauf hin, dass Europa immer noch ein Pendant zu [Nvidia](wiki:Nvidia) oder [TSMC](wiki:TSMC) fehlt.
+    2.  **Schlupflöcher und Parts Pairing:** Experten von *Cybernews* und *Earth911* warnen, dass die Hersteller trotz der gesetzlich verankerten *Rechte* auf Reparatur durch hohe Kosten für Originalteile und [Softwaresperren](wiki:Digital_rights_management) (Parts Pairing) weiterhin „am längeren Hebel sitzen“. Sie argumentieren, dass Reparaturen ohne strengere Preiskontrollen für Ersatzteile teurer bleiben könnten als ein Neukauf.
+    3.  **Garantieanreize:** Rechtsanalysten von *Fieldfisher* heben einen „versteckten Schatz“ im EU-Recht hervor: Wenn sich ein Verbraucher während der Garantiezeit für eine Reparatur statt für einen Ersatz entscheidet, wird die **Garantie um 12 Monate verlängert**. Dies wird als wichtiger Anreiz gesehen, das Verbraucherverhalten weg von einer „Wegwerfkultur“ zu lenken.
+    
+    > [Hersteller sind verpflichtet, Produkte im Anwendungsbereich zu reparieren, auch wenn diese Produkte vor dem 31. Juli 2026 von Verbrauchern gekauft wurden.](embed:fieldfisher.com-e9q)
+    
+    ### Zusammenfassende Tabelle: Meilensteine 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Wie möchtest du fortfahren? Ich kann dir helfen, spezifische Gesetze der US-Bundesstaaten zu recherchieren oder weitere Details zu den Anforderungen für den digitalen Produktpass zu liefern.
+    
+    *   [Status der US-Bundesstaaten prüfen](/#settings/apps/web)
+    *   [Reparaturwerkstatt in der Nähe finden](/#settings/apps/maps)
+    ---
+    *⚠️ Dies sind ausschließlich Bildungsinformationen und keine Rechtsberatung. Wende dich für eine Rechtsberatung an einen Anwalt.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Em junho de 2026, o movimento pelo "Direito ao Reparo" atingiu uma fase crítica de implementação tanto na [União Europeia](wiki:European_Union) quanto nos [Estados Unidos](wiki:United_States). Enquanto a UE avança em direção a um mandato continental unificado, os EUA continuam a ver um mosaico de vitórias a nível estadual e intensas batalhas de lobby.
+    
+    ### Desenvolvimentos Recentes na União Europeia
+    
+    O evento recente mais significativo é a apresentação do **pacote de "Soberania Tecnológica"** da UE em 3 de junho de 2026. Esta iniciativa visa reduzir a dependência das Big Tech dos EUA, promovendo alternativas locais e fortalecendo os direitos dos consumidores.
+    
+    *   **Contagem Decrescente para a Implementação:** A histórica [Diretiva da UE sobre o Direito ao Reparo](wiki:Right_to_repair) (Diretiva (UE) 2024/1799) deverá ser totalmente aplicável em todos os Estados-Membros até **31 de julho de 2026**. 
+    *   **Passaportes Digitais de Produtos:** A partir de 19 de julho de 2026, a UE lançará o registo do **Passaporte Digital de Produto (DPP)**. Isto exigirá que os produtos (começando por baterias e têxteis) ostentem um código QR que forneça dados sobre durabilidade e reparabilidade.
+    *   **Avisos Legais:** Em 4 de junho de 2026, a Comissão Europeia emitiu avisos formais a **20 Estados-Membros** que falharam o prazo de março de 2026 para transpor a diretiva da "Transição Verde" para a legislação nacional. Esta diretiva é crucial para prevenir o [greenwashing](wiki:Greenwashing) e a "[obsolescência](wiki:Obsolescence) prematura".
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Desenvolvimentos Recentes nos Estados Unidos
+    
+    Nos EUA, o movimento continua focado no nível estadual, uma vez que a legislação federal permanece estagnada no [Congresso](wiki:United_States_Congress).
+    
+    *   **Expansão a Nível Estadual:** Em meados de 2026, mais de **um quarto dos americanos** vive em estados com leis de Direito ao Reparo aplicáveis. Espera-se que este número salte para **35% até ao outono de 2026**, à medida que novas leis no **Texas** e no **Connecticut** entrem em pleno vigor.
+    *   **Lobbying Corporativo:** Grupos de defesa como o [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) relataram esforços contínuos de lobby de empresas como a [Google](wiki:Google) e a [Apple](wiki:Apple_Inc.) contra restrições de "emparelhamento de peças" — uma prática em que o software bloqueia peças de substituição a um dispositivo específico.
+    
+    ### O que dizem os Especialistas
+    
+    Especialistas jurídicos e técnicos oferecem uma mistura de otimismo e cautela em relação a estas novas leis:
+    
+    1.  **O Debate da "Libertação Tecnológica":** Embora os funcionários da UE tenham saudado o dia 3 de junho de 2026 como o "Dia da Libertação Tecnológica", especialistas da *Computer & Communications Industry Association* argumentam que a verdadeira independência das [Big Tech](wiki:Big_Tech) levará décadas, observando que a Europa ainda carece de um rival para a [Nvidia](wiki:Nvidia) ou a [TSMC](wiki:TSMC).
+    2.  **Lacunas e Emparelhamento de Peças:** Especialistas da *Cybernews* e *Earth911* alertam que, embora as leis exijam o *direito* ao reparo, os fabricantes ainda "têm as cartas na mão" através do elevado custo das peças originais e dos [bloqueios de software](wiki:Digital_rights_management) (emparelhamento de peças). Argumentam que, sem controlos de preços mais rigorosos nas peças sobressalentes, a reparação pode continuar a ser mais cara do que a substituição.
+    3.  **Incentivos de Garantia:** Analistas jurídicos da *Fieldfisher* destacam uma "joia escondida" na lei da UE: se um consumidor optar pela reparação em vez da substituição durante o período de garantia, a **garantia é alargada por 12 meses**. Isto é visto como um grande incentivo para mudar o comportamento do consumidor, afastando-o de uma "cultura do descartável".
+    
+    > [Manufacturers will be obliged to repair in scope products, even if those products were purchased by consumers before 31 July 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Tabela de Resumo: Marcos de 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Como gostarias de proceder? Posso ajudar-te a investigar leis estaduais específicas nos EUA ou fornecer mais detalhes sobre os requisitos do Passaporte Digital de Produto.
+    
+    *   [Verificar o estado dos EUA estado por estado](/#settings/apps/web)
+    *   [Encontrar uma oficina de reparação local](/#settings/apps/maps)
+    ---
+    *⚠️ Esta é apenas informação educativa e não constitui aconselhamento jurídico. Consulta um advogado para obter aconselhamento jurídico.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    По состоянию на июнь 2026 года движение за «право на ремонт» перешло в критическую фазу реализации как в [Европейском союзе](wiki:European_Union), так и в [Соединенных Штатах](wiki:United_States). В то время как ЕС движется к единому континентальному мандату, в США по-прежнему наблюдается мозаика побед на уровне штатов и интенсивные лоббистские баталии.
+    
+    ### Последние события в Европейском союзе
+    
+    Самым значимым недавним событием стало обнародование ЕС 3 июня 2026 года **пакета мер по «технологическому суверенитету»**. Эта инициатива направлена на снижение зависимости от американских бигтехов путем поддержки местных альтернатив и укрепления прав потребителей.
+    
+    *   **Обратный отсчет до внедрения:** Знаковая [Директива ЕС о праве на ремонт](wiki:Right_to_repair) (Директива (ЕС) 2024/1799) должна стать полностью обязательной к исполнению во всех государствах-членах к **31 июля 2026 года**.
+    *   **Цифровые паспорта продукции:** С 19 июля 2026 года ЕС запустит реестр **цифровых паспортов продукции (DPP)**. Это потребует, чтобы товары (начиная с аккумуляторов и текстиля) имели QR-код с данными о долговечности и ремонтопригодности.
+    *   **Юридические предупреждения:** 4 июня 2026 года Европейская комиссия вынесла официальные предупреждения **20 государствам-членам**, которые пропустили крайний срок (март 2026 года) для переноса директивы о «зеленом переходе» в национальное законодательство. Эта директива имеет решающее значение для предотвращения [гринвошинга](wiki:Greenwashing) и «преждевременного [устаревания](wiki:Obsolescence)».
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Последние события в Соединенных Штатах
+    
+    В США движение по-прежнему сосредоточено на уровне штатов, поскольку федеральное законодательство в [Конгрессе](wiki:United_States_Congress) остается в тупике.
+    
+    *   **Расширение на уровне штатов:** По состоянию на середину 2026 года более **четверти американцев** живут в штатах, где действуют законы о праве на ремонт. Ожидается, что к **осени 2026 года** эта цифра вырастет до **35%**, когда вступят в полную силу новые законы в **Техасе** и **Коннектикуте**.
+    *   **Корпоративное лоббирование:** Группы по защите интересов, такие как [Группа по исследованию общественных интересов (PIRG)](wiki:Public_Interest_Research_Group), сообщают о продолжающихся лоббистских усилиях таких компаний, как [Google](wiki:Google) и [Apple](wiki:Apple_Inc.), против ограничений на «сопряжение деталей» (parts pairing) — практики, при которой программное обеспечение привязывает запасные части к конкретному устройству.
+    
+    ### Что говорят эксперты
+    
+    Юридические и технические эксперты выражают смесь оптимизма и осторожности в отношении этих новых законов:
+    
+    1.  **Дискуссия о «технологическом освобождении»:** Хотя официальные лица ЕС провозгласили 3 июня 2026 года «Днем технологического освобождения», эксперты из *Ассоциации компьютерной и коммуникационной индустрии* утверждают, что для достижения истинной независимости от [бигтехов](wiki:Big_Tech) потребуются десятилетия, отмечая, что в Европе все еще нет конкурента [Nvidia](wiki:Nvidia) или [TSMC](wiki:TSMC).
+    2.  **Лазейки и сопряжение деталей:** Эксперты из *Cybernews* и *Earth911* предупреждают, что хотя законы закрепляют *право* на ремонт, производители по-прежнему «держат все карты в руках» из-за высокой стоимости оригинальных запчастей и [программных блокировок](wiki:Digital_rights_management) (сопряжение деталей). Они утверждают, что без более строгого контроля цен на запчасти ремонт может оставаться дороже замены.
+    3.  **Гарантийные стимулы:** Юристы-аналитики из *Fieldfisher* выделяют «скрытую жемчужину» в законе ЕС: если потребитель выбирает ремонт вместо замены в течение гарантийного срока, **гарантия продлевается на 12 месяцев**. Это рассматривается как важный стимул для изменения поведения потребителей и отказа от «культуры одноразовых вещей».
+    
+    > [Производители будут обязаны ремонтировать товары, подпадающие под действие закона, даже если эти товары были приобретены потребителями до 31 июля 2026 года.](embed:fieldfisher.com-e9q)
+    
+    ### Сводная таблица: Вехи 2026 года
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Как бы ты хотел продолжить? Я могу помочь изучить законы конкретных штатов США или предоставить более подробную информацию о требованиях к цифровому паспорту продукции.
+    
+    *   [Проверить статус по штатам США](/#settings/apps/web)
+    *   [Найти местную ремонтную мастерскую](/#settings/apps/maps)
+    ---
+    *⚠️ Данная информация носит исключительно ознакомительный характер и не является юридической консультацией. Для получения юридической помощи обратись к адвокату.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    2026年6月現在、「修理する権利（Right to Repair）」運動は、[欧州連合](wiki:European_Union)と[アメリカ合衆国](wiki:United_States)の両方で重要な実施段階に達しています。EUが大陸全土で統一された義務化へと進んでいる一方で、米国では州レベルでの勝利と激しいロビー活動の攻防が入り混じった状況が続いています。
+    
+    ### 欧州連合における最近の動向
+    
+    最も重要な最近の出来事は、2026年6月3日にEUが発表した**「技術主権（Tech Sovereignty）」パッケージ**です。この取り組みは、自国独自の代替手段を育成し、消費者権利を強化することで、米国のビッグテックへの依存を減らすことを目的としています。
+    
+    *   **実施へのカウントダウン：** 画期的な[EU修理する権利指令](wiki:Right_to_repair)（指令 (EU) 2024/1799）は、**2026年7月31日**までにすべての加盟国で完全に施行される予定です。
+    *   **デジタル製品パスポート：** 2026年7月19日より、EUは**デジタル製品パスポート（DPP）**登録を開始します。これにより、製品（まずはバッテリーと繊維製品から）に耐久性と修理可能性に関するデータを提供するQRコードの貼付が義務付けられます。
+    *   **法的警告：** 2026年6月4日、欧州委員会は「グリーン移行」指令を国内法に置き換える2026年3月の期限を守らなかった**20の加盟国**に対し、正式な警告を発しました。この指令は、[グリーンウォッシング](wiki:Greenwashing)や「早期の[陳腐化](wiki:Obsolescence)」を防ぐために不可欠なものです。
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### アメリカ合衆国における最近の動向
+    
+    米国では、連邦法案が[議会](wiki:United_States_Congress)で停滞しているため、運動の焦点は依然として州レベルにあります。
+    
+    *   **州レベルの拡大：** 2026年半ばの時点で、**アメリカ人の4分の1以上**が、施行可能な修理する権利法を持つ州に居住しています。**テキサス州**と**コネチカット州**の新法が本格的に施行される**2026年秋までには、この割合は35%**に跳ね上がると予想されています。
+    *   **企業のロビー活動：** [公共利益調査グループ（PIRG）](wiki:Public_Interest_Research_Group)などの擁護団体は、[Google](wiki:Google)や[Apple](wiki:Apple_Inc.)といった企業が、ソフトウェアによって交換部品を特定のデバイスにロックする「パーツペアリング」の制限に対して、引き続きロビー活動を行っていると報告しています。
+    
+    ### 専門家の見解
+    
+    法的および技術的な専門家は、これらの新しい法律について、楽観論と慎重論を織り交ぜた見解を示しています。
+    
+    1.  **「テック解放」論争：** EU当局は2026年6月3日を「テック解放の日」と称賛していますが、*コンピュータ・通信産業協会（CCIA）*の専門家は、ヨーロッパには依然として[Nvidia](wiki:Nvidia)や[TSMC](wiki:TSMC)に対抗できる企業が存在しないことを指摘し、[ビッグテック](wiki:Big_Tech)からの真の独立には数十年かかると主張しています。
+    2.  **抜け穴とパーツペアリング：** *Cybernews*や*Earth911*の専門家は、法律が修理する「権利」を義務付けている一方で、純正部品の高コストや[ソフトウェアロック](wiki:Digital_rights_management)（パーツペアリング）を通じて、依然としてメーカーが「主導権を握っている」と警告しています。彼らは、予備部品のより厳格な価格管理がなければ、修理は買い替えよりも高価なままになる可能性があると主張しています。
+    3.  **保証によるインセンティブ：** *Fieldfisher*の法律アナリストは、EU法の「隠れた逸品」を強調しています。保証期間中に消費者が交換ではなく修理を選択した場合、**保証期間が12ヶ月延長される**というものです。これは、消費者の行動を「使い捨て文化」から脱却させるための大きなインセンティブと見なされています。
+    
+    > [メーカーは、2026年7月31日より前に消費者が購入した製品であっても、対象製品を修理する義務を負います。](embed:fieldfisher.com-e9q)
+    
+    ### まとめ表：2026年のマイルストーン
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    次に何を調べますか？米国の特定の州法について調査したり、デジタル製品パスポートの要件について詳細を提供したりすることができます。
+    
+    *   [米国の州別の状況を確認する](/#settings/apps/web)
+    *   [地元の修理店を探す](/#settings/apps/maps)
+    ---
+    *⚠️ これは教育目的の情報提供のみを目的としており、法的助言ではありません。法的アドバイスについては弁護士にご相談ください。*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    2026년 6월 현재, "수리할 권리(Right to Repair)" 운동은 [유럽 연합](wiki:European_Union)과 [미국](wiki:United_States) 모두에서 중요한 실행 단계에 도달했습니다. EU가 대륙 전체의 통합된 의무화 방향으로 나아가고 있는 반면, 미국은 주 단위의 승리와 치열한 로비전이 엇갈리는 양상을 보이고 있습니다.
+    
+    ### 유럽 연합(EU)의 최근 동향
+    
+    가장 중요한 최근 사건은 2026년 6월 3일에 발표된 EU의 **"기술 주권(Tech Sovereignty) 패키지"**입니다. 이 이니셔티브는 자체적인 대안을 육성하고 소비자 권리를 강화함으로써 미국 빅테크 기업에 대한 의존도를 낮추는 것을 목표로 합니다.
+    
+    *   **구현 카운트다운:** 획기적인 [EU 수리할 권리 지침](wiki:Right_to_repair)(지침 (EU) 2024/1799)이 **2026년 7월 31일**까지 모든 회원국에서 전면 시행될 예정입니다.
+    *   **디지털 제품 여권:** 2026년 7월 19일부터 EU는 **디지털 제품 여권(DPP)** 등록을 시작합니다. 이에 따라 배터리와 섬유를 시작으로 제품에 내구성과 수리 가능성에 대한 데이터를 제공하는 QR 코드를 부착해야 합니다.
+    *   **법적 경고:** 2026년 6월 4일, 유럽 집행위원회는 "녹색 전환(Green Transition)" 지침을 국가 법률로 전환해야 하는 2026년 3월 마감 기한을 지키지 못한 **20개 회원국**에 공식 경고를 발령했습니다. 이 지침은 [그린워싱](wiki:Greenwashing)과 "조기 [노후화](wiki:Obsolescence)"를 방지하는 데 매우 중요합니다.
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### 미국의 최근 동향
+    
+    미국에서는 연방 입법이 [의회](wiki:United_States_Congress)에서 정체됨에 따라 운동의 초점이 주 단위에 머물러 있습니다.
+    
+    *   **주 단위의 확대:** 2026년 중반 현재, **미국인의 4분의 1 이상**이 수리할 권리 법이 시행되는 주에 거주하고 있습니다. **텍사스**와 **커네티컷**의 새로운 법안이 전면 시행됨에 따라 이 수치는 **2026년 가을까지 35%**로 급증할 것으로 예상됩니다.
+    *   **기업 로비:** [공익연구그룹(PIRG)](wiki:Public_Interest_Research_Group)과 같은 옹호 단체들은 소프트웨어를 통해 교체 부품을 특정 기기에 고정하는 관행인 "부품 페어링(parts pairing)" 제한에 반대하는 [구글](wiki:Google) 및 [애플](wiki:Apple_Inc.)과 같은 기업들의 지속적인 로비 활동을 보고했습니다.
+    
+    ### 전문가 의견
+    
+    법률 및 기술 전문가들은 이러한 새로운 법안에 대해 낙관론과 신중론이 섞인 의견을 내놓고 있습니다.
+    
+    1.  **"기술 해방" 논쟁:** EU 관리들은 2026년 6월 3일을 "기술 해방의 날"로 칭송했지만, *컴퓨터 및 통신 산업 협회(CCIA)* 전문가들은 유럽에 여전히 [엔비디아](wiki:Nvidia)나 [TSMC](wiki:TSMC)에 필적할 만한 경쟁자가 없다는 점을 지적하며 [빅테크](wiki:Big_Tech)로부터의 진정한 독립에는 수십 년이 걸릴 것이라고 주장합니다.
+    2.  **허점 및 부품 페어링:** *Cybernews* 및 *Earth911*의 전문가들은 법이 수리할 *권리*를 의무화하고 있지만, 제조업체들이 여전히 순정 부품의 높은 가격과 [소프트웨어 잠금](wiki:Digital_rights_management)(부품 페어링)을 통해 "주도권을 쥐고 있다"고 경고합니다. 이들은 예비 부품에 대한 엄격한 가격 통제가 없다면 수리 비용이 교체 비용보다 여전히 더 비쌀 수 있다고 주장합니다.
+    3.  **보증 혜택:** *Fieldfisher*의 법률 분석가들은 EU 법의 "숨겨진 보석"을 강조합니다. 소비자가 보증 기간 동안 교체 대신 수리를 선택하면 **보증 기간이 12개월 연장**됩니다. 이는 소비자의 행동을 "일회용 문화"에서 벗어나게 하는 주요 유인책으로 간주됩니다.
+    
+    > [제조업체는 소비자가 2026년 7월 31일 이전에 구매한 제품이라 하더라도 해당 범위 내의 제품을 수리할 의무가 있습니다.](embed:fieldfisher.com-e9q)
+    
+    ### 요약 표: 2026년 주요 이정표
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    어떻게 진행하시겠습니까? 미국의 특정 주법을 살펴보거나 디지털 제품 여권 요구 사항에 대한 자세한 정보를 제공해 드릴 수 있습니다.
+    
+    *   [미국 주별 현황 확인](/#settings/apps/web)
+    *   [현지 수리점 찾기](/#settings/apps/maps)
+    ---
+    *⚠️ 이 정보는 교육용으로만 제공되며 법적 조언이 아닙니다. 법적 조언이 필요한 경우 변호사와 상담하십시오.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Haziran 2026 itibarıyla, "Onarım Hakkı" hareketi hem [Avrupa Birliği](wiki:European_Union) hem de [Amerika Birleşik Devletleri](wiki:United_States)'nde kritik bir uygulama aşamasına ulaştı. AB kıta çapında birleşik bir yetkiye doğru ilerlerken, ABD eyalet düzeyindeki zaferler ve yoğun lobi mücadelelerinden oluşan parçalı bir yapı görmeye devam ediyor.
+    
+    ### Avrupa Birliği'ndeki Son Gelişmeler
+    
+    En önemli son gelişme, AB'nin 3 Haziran 2026'da duyurduğu **"Teknoloji Egemenliği" paketidir**. Bu girişim, yerli alternatifleri teşvik ederek ve tüketici haklarını güçlendirerek ABD'li Büyük Teknoloji şirketlerine olan bağımlılığı azaltmayı hedefliyor.
+    
+    *   **Uygulama Geri Sayımı:** Dönüm noktası niteliğindeki [AB Onarım Hakkı Direktifi](wiki:Right_to_repair) (Direktif (AB) 2024/1799), **31 Temmuz 2026** tarihine kadar tüm üye devletlerde tam olarak uygulanabilir hale gelecek. 
+    *   **Dijital Ürün Pasaportları:** 19 Temmuz 2026'dan itibaren AB, **Dijital Ürün Pasaportu (DPP)** sicilini başlatacak. Bu, ürünlerin (piller ve tekstil ürünlerinden başlayarak) dayanıklılık ve onarılabilirlik hakkında veri sağlayan bir QR kodu taşımasını gerektirecek.
+    *   **Yasal Uyarılar:** 4 Haziran 2026'da Avrupa Komisyonu, "Yeşil Geçiş" direktifini ulusal hukuka aktarmak için Mart 2026 son tarihini kaçıran **20 üye devlete** resmi uyarıda bulundu. Bu direktif, [yeşil aklamayı](wiki:Greenwashing) ve "erken [eskimeyi](wiki:Obsolescence)" önlemek için kritik öneme sahip.
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Amerika Birleşik Devletleri'ndeki Son Gelişmeler
+    
+    ABD'de hareket eyalet düzeyinde odaklanmaya devam ediyor, zira federal mevzuat [Kongre](wiki:United_States_Congress)'de duraksamış durumda.
+    
+    *   **Eyalet Düzeyinde Genişleme:** 2026 ortası itibarıyla, **Amerikalıların dörtte birinden fazlası** uygulanabilir Onarım Hakkı yasalarına sahip eyaletlerde yaşıyor. **Teksas** ve **Connecticut**'taki yeni yasaların tam olarak yürürlüğe girmesiyle bu oranın **2026 sonbaharına kadar %35'e** çıkması bekleniyor.
+    *   **Kurumsal Lobicilik:** [Kamu Yararı Araştırma Grubu (PIRG)](wiki:Public_Interest_Research_Group) gibi savunucu gruplar, [Google](wiki:Google) ve [Apple](wiki:Apple_Inc.) gibi şirketlerin, yazılımın yedek parçaları belirli bir cihaza kilitlediği bir uygulama olan "parça eşleştirme" kısıtlamalarına karşı lobi faaliyetlerini sürdürdüğünü bildirdi.
+    
+    ### Uzmanlar Ne Diyor?
+    
+    Hukuk ve teknik uzmanlar bu yeni yasalarla ilgili iyimserlik ve temkinli bir yaklaşım sergiliyor:
+    
+    1.  **"Teknoloji Özgürleşmesi" Tartışması:** AB yetkilileri 3 Haziran 2026'yı "Teknoloji Özgürleşme Günü" olarak selamlasa da, *Bilgisayar ve İletişim Endüstrisi Birliği* uzmanları, Avrupa'nın hala [Nvidia](wiki:Nvidia) veya [TSMC](wiki:TSMC)'ye rakip bir kuruluşu olmadığını belirterek, [Büyük Teknoloji](wiki:Big_Tech) şirketlerinden gerçek bağımsızlığın on yıllar alacağını savunuyor.
+    2.  **Boşluklar ve Parça Eşleştirme:** *Cybernews* ve *Earth911* uzmanları, yasalar onarım *hakkını* zorunlu kılsa da, üreticilerin orijinal parçaların yüksek maliyeti ve [yazılım kilitleri](wiki:Digital_rights_management) (parça eşleştirme) yoluyla hala "ipleri elinde tuttuğu" konusunda uyarıyor. Yedek parçalar üzerinde daha sıkı fiyat kontrolleri olmazsa, onarımın yenisiyle değiştirmekten daha pahalı kalabileceğini savunuyorlar.
+    3.  **Garanti Teşvikleri:** *Fieldfisher* hukuk analistleri, AB yasasındaki "gizli bir cevhere" dikkat çekiyor: Bir tüketici garanti süresi içinde değişim yerine onarımı seçerse, **garanti 12 ay uzatılıyor**. Bu, tüketici davranışını "kullan-at kültürü"nden uzaklaştırmak için büyük bir teşvik olarak görülüyor.
+    
+    > [Üreticiler, kapsam dahilindeki ürünleri, bu ürünler tüketiciler tarafından 31 Temmuz 2026'dan önce satın alınmış olsa dahi onarmakla yükümlü olacaklardır.](embed:fieldfisher.com-e9q)
+    
+    ### Özet Tablo: 2026 Dönüm Noktaları
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Nasıl devam etmek istersin? ABD'deki belirli eyalet yasalarına bakmana yardımcı olabilirim veya Dijital Ürün Pasaportu gereklilikleri hakkında daha fazla ayrıntı sunabilirim.
+    
+    *   [ABD eyalet bazında durumu kontrol et](/#settings/apps/web)
+    *   [Yerel bir tamirhane bul](/#settings/apps/maps)
+    ---
+    *⚠️ Bu sadece eğitim amaçlı bilgidir ve hukuki tavsiye değildir. Hukuki danışmanlık için bir avukata danışın.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Tính đến tháng 6 năm 2026, phong trào "Quyền được sửa chữa" đã bước vào giai đoạn thực thi quan trọng ở cả [Liên minh Châu Âu](wiki:European_Union) và [Hoa Kỳ](wiki:United_States). Trong khi EU đang hướng tới một quy định thống nhất trên toàn châu lục, Hoa Kỳ tiếp tục chứng kiến sự chắp vá của các chiến thắng ở cấp tiểu bang và các cuộc chiến vận động hành lang gay gắt.
+    
+    ### Những diễn biến gần đây tại Liên minh Châu Âu
+    
+    Sự kiện gần đây quan trọng nhất là việc EU công bố **gói "Chủ quyền Công nghệ"** vào ngày 3 tháng 6 năm 2026. Sáng kiến này nhằm giảm bớt sự phụ thuộc vào các Big Tech của Hoa Kỳ bằng cách thúc đẩy các giải pháp thay thế nội địa và tăng cường quyền lợi của người tiêu dùng.
+    
+    *   **Đếm ngược thời gian thực thi:** [Chỉ thị về Quyền được sửa chữa của EU](wiki:Right_to_repair) mang tính bước ngoặt (Chỉ thị (EU) 2024/1799) dự kiến sẽ có hiệu lực đầy đủ tại tất cả các quốc gia thành viên trước ngày **31 tháng 7 năm 2026**. 
+    *   **Hộ chiếu Sản phẩm Kỹ thuật số:** Bắt đầu từ ngày 19 tháng 7 năm 2026, EU sẽ triển khai hệ thống đăng ký **Hộ chiếu Sản phẩm Kỹ thuật số (DPP)**. Hệ thống này yêu cầu các sản phẩm (bắt đầu với pin và dệt may) phải có mã QR cung cấp dữ liệu về độ bền và khả năng sửa chữa.
+    *   **Cảnh báo pháp lý:** Vào ngày 4 tháng 6 năm 2026, Ủy ban Châu Âu đã đưa ra cảnh báo chính thức cho **20 quốc gia thành viên** đã bỏ lỡ thời hạn tháng 3 năm 2026 để chuyển đổi chỉ thị "Chuyển đổi Xanh" thành luật quốc gia. Chỉ thị này rất quan trọng để ngăn chặn tình trạng [tẩy xanh](wiki:Greenwashing) và "[lỗi thời](wiki:Obsolescence) sớm".
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Những diễn biến gần đây tại Hoa Kỳ
+    
+    Tại Hoa Kỳ, phong trào vẫn tập trung ở cấp tiểu bang, vì luật pháp liên bang vẫn đang bị đình trệ tại [Quốc hội](wiki:United_States_Congress).
+    
+    *   **Mở rộng ở cấp tiểu bang:** Tính đến giữa năm 2026, hơn **một phần tư người Mỹ** sống ở các tiểu bang có luật Quyền được sửa chữa có hiệu lực. Con số này dự kiến sẽ tăng lên **35% vào mùa thu năm 2026** khi các luật mới tại **Texas** và **Connecticut** có hiệu lực đầy đủ.
+    *   **Vận động hành lang của doanh nghiệp:** Các nhóm vận động như [Nhóm Nghiên cứu Lợi ích Công cộng (PIRG)](wiki:Public_Interest_Research_Group) đã báo cáo về những nỗ lực vận động hành lang liên tục từ các công ty như [Google](wiki:Google) và [Apple](wiki:Apple_Inc.) chống lại các hạn chế về "ghép nối linh kiện" (parts pairing) — một hành vi mà phần mềm khóa các linh kiện thay thế vào một thiết bị cụ thể.
+    
+    ### Các chuyên gia nói gì
+    
+    Các chuyên gia pháp lý và kỹ thuật đang đưa ra những ý kiến trái chiều về sự lạc quan và thận trọng đối với các luật mới này:
+    
+    1.  **Cuộc tranh luận về "Giải phóng Công nghệ":** Trong khi các quan chức EU ca ngợi ngày 3 tháng 6 năm 2026 là "Ngày Giải phóng Công nghệ", các chuyên gia từ *Hiệp hội Công nghiệp Máy tính & Truyền thông* lập luận rằng sự độc lập thực sự khỏi [Big Tech](wiki:Big_Tech) sẽ mất nhiều thập kỷ, lưu ý rằng Châu Âu vẫn thiếu một đối thủ cạnh tranh với [Nvidia](wiki:Nvidia) hoặc [TSMC](wiki:TSMC).
+    2.  **Lỗ hổng và Ghép nối linh kiện:** Các chuyên gia tại *Cybernews* và *Earth911* cảnh báo rằng mặc dù luật pháp quy định *quyền* được sửa chữa, các nhà sản xuất vẫn "nắm đằng chuôi" thông qua chi phí cao của các linh kiện chính hãng và [khóa phần mềm](wiki:Digital_rights_management) (ghép nối linh kiện). Họ lập luận rằng nếu không có sự kiểm soát giá chặt chẽ hơn đối với các phụ tùng thay thế, việc sửa chữa có thể vẫn đắt hơn so với việc thay mới.
+    3.  **Ưu đãi bảo hành:** Các nhà phân tích pháp lý từ *Fieldfisher* nhấn mạnh một "viên ngọc ẩn" trong luật của EU: nếu người tiêu dùng chọn sửa chữa thay vì thay thế trong thời gian bảo hành, **thời gian bảo hành sẽ được gia hạn thêm 12 tháng**. Đây được coi là một động lực lớn để thay đổi hành vi của người tiêu dùng, thoát khỏi "văn hóa dùng rồi bỏ".
+    
+    > [Các nhà sản xuất sẽ có nghĩa vụ sửa chữa các sản phẩm trong phạm vi điều chỉnh, ngay cả khi những sản phẩm đó được người tiêu dùng mua trước ngày 31 tháng 7 năm 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Bảng tóm tắt: Các cột mốc năm 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Bạn muốn tiếp tục như thế nào? Tôi có thể giúp bạn tìm hiểu các luật cụ thể của từng tiểu bang ở Hoa Kỳ hoặc cung cấp thêm chi tiết về các yêu cầu của Hộ chiếu Sản phẩm Kỹ thuật số.
+    
+    *   [Kiểm tra tình trạng theo từng tiểu bang của Hoa Kỳ](/#settings/apps/web)
+    *   [Tìm cửa hàng sửa chữa địa phương](/#settings/apps/maps)
+    ---
+    *⚠️ Đây chỉ là thông tin giáo dục và không phải là lời khuyên pháp lý. Hãy tham khảo ý kiến luật sư để được tư vấn pháp lý.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Hingga Juni 2026, gerakan "Hak untuk Memperbaiki" (Right to Repair) telah mencapai fase implementasi kritis baik di [Uni Eropa](wiki:European_Union) maupun [Amerika Serikat](wiki:United_States). Sementara UE bergerak menuju mandat kontinental yang terpadu, AS terus menyaksikan perpaduan kemenangan di tingkat negara bagian dan pertempuran lobi yang sengit.
+    
+    ### Perkembangan Terkini di Uni Eropa
+    
+    Peristiwa terbaru yang paling signifikan adalah peluncuran **paket "Kedaulatan Teknologi"** oleh UE pada 3 Juni 2026. Inisiatif ini bertujuan untuk mengurangi ketergantungan pada Raksasa Teknologi AS dengan membina alternatif lokal dan memperkuat hak-hak konsumen.
+    
+    *   **Hitung Mundur Implementasi:** [Petunjuk Hak untuk Memperbaiki UE](wiki:Right_to_repair) yang bersejarah (Petunjuk (UE) 2024/1799) akan diberlakukan sepenuhnya di seluruh negara anggota pada **31 Juli 2026**. 
+    *   **Paspor Produk Digital:** Mulai 19 Juli 2026, UE akan meluncurkan registri **Paspor Produk Digital (DPP)**. Ini akan mewajibkan produk (dimulai dengan baterai dan tekstil) untuk menyertakan kode QR yang menyediakan data tentang daya tahan dan kemampuan perbaikan.
+    *   **Peringatan Hukum:** Pada 4 Juni 2026, Komisi Eropa mengeluarkan peringatan resmi kepada **20 negara anggota** yang melewatkan tenggat waktu Maret 2026 untuk mentransposisikan petunjuk "Transisi Hijau" ke dalam hukum nasional. Petunjuk ini sangat penting untuk mencegah [greenwashing](wiki:Greenwashing) dan "[keusangan](wiki:Obsolescence) dini."
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Perkembangan Terkini di Amerika Serikat
+    
+    Di AS, gerakan ini tetap terfokus pada tingkat negara bagian, karena undang-undang federal masih tertahan di [Kongres](wiki:United_States_Congress).
+    
+    *   **Ekspansi Tingkat Negara Bagian:** Hingga pertengahan 2026, lebih dari **seperempat warga Amerika** tinggal di negara bagian dengan undang-undang Hak untuk Memperbaiki yang dapat ditegakkan. Angka ini diperkirakan akan melonjak menjadi **35% pada musim gugur 2026** seiring dengan berlakunya undang-undang baru di **Texas** dan **Connecticut**.
+    *   **Lobi Korporat:** Kelompok advokasi seperti [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) melaporkan upaya lobi yang terus berlanjut dari perusahaan seperti [Google](wiki:Google) dan [Apple](wiki:Apple_Inc.) terhadap pembatasan "pemasangan suku cadang" (parts pairing)—sebuah praktik di mana perangkat lunak mengunci suku cadang pengganti ke perangkat tertentu.
+    
+    ### Apa yang Dikatakan Para Ahli
+    
+    Para ahli hukum dan teknis menawarkan campuran optimisme dan kehati-hatian terkait undang-undang baru ini:
+    
+    1.  **Debat "Pembebasan Teknologi":** Meskipun pejabat UE memuji 3 Juni 2026 sebagai "Hari Pembebasan Teknologi," para ahli dari *Computer & Communications Industry Association* berpendapat bahwa kemandirian sejati dari [Raksasa Teknologi](wiki:Big_Tech) akan memakan waktu puluhan tahun, mengingat Eropa masih belum memiliki saingan bagi [Nvidia](wiki:Nvidia) atau [TSMC](wiki:TSMC).
+    2.  **Celah Hukum dan Pemasangan Suku Cadang:** Para ahli di *Cybernews* dan *Earth911* memperingatkan bahwa meskipun undang-undang mewajibkan *hak* untuk memperbaiki, produsen masih "memegang kendali" melalui biaya suku cadang asli yang tinggi dan [penguncian perangkat lunak](wiki:Digital_rights_management) (parts pairing). Mereka berpendapat bahwa tanpa kontrol harga yang lebih ketat pada suku cadang, perbaikan mungkin tetap lebih mahal daripada penggantian.
+    3.  **Insentif Garansi:** Analis hukum dari *Fieldfisher* menyoroti "permata tersembunyi" dalam hukum UE: jika konsumen memilih perbaikan daripada penggantian selama masa garansi, **garansi akan diperpanjang selama 12 bulan**. Ini dipandang sebagai insentif utama untuk mengubah perilaku konsumen agar menjauh dari "budaya sekali pakai."
+    
+    > [Produsen akan berkewajiban untuk memperbaiki produk yang masuk dalam cakupan, bahkan jika produk tersebut dibeli oleh konsumen sebelum 31 Juli 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Tabel Ringkasan: Pencapaian 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Bagaimana kamu ingin melanjutkan? Aku dapat membantu mencari tahu undang-undang negara bagian tertentu di AS atau memberikan detail lebih lanjut tentang persyaratan Paspor Produk Digital.
+    
+    *   [Periksa status negara bagian AS](/#settings/apps/web)
+    *   [Cari bengkel perbaikan lokal](/#settings/apps/maps)
+    ---
+    *⚠️ Ini hanya informasi edukasi dan bukan nasihat hukum. Konsultasikan dengan pengacara untuk nasihat hukum.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Według stanu na czerwiec 2026 r. ruch „Prawo do naprawy” (Right to Repair) wszedł w krytyczną fazę wdrażania zarówno w [Unii Europejskiej](wiki:European_Union), jak i w [Stanach Zjednoczonych](wiki:United_States). Podczas gdy UE zmierza w stronę ujednoliconego mandatu kontynentalnego, w USA nadal obserwujemy mozaikę zwycięstw na szczeblu stanowym i intensywne bitwy lobbingowe.
+    
+    ### Najnowsze wydarzenia w Unii Europejskiej
+    
+    Najważniejszym niedawnym wydarzeniem jest zaprezentowanie przez UE **pakietu „Suwerenność Technologiczna”** w dniu 3 czerwca 2026 r. Inicjatywa ta ma na celu zmniejszenie zależności od amerykańskich gigantów technologicznych (Big Tech) poprzez wspieranie rodzimych alternatyw i wzmacnianie praw konsumentów.
+    
+    *   **Odliczanie do wdrożenia:** Przełomowa [dyrektywa UE w sprawie prawa do naprawy](wiki:Right_to_repair) (Dyrektywa (UE) 2024/1799) ma stać się w pełni egzekwowalna we wszystkich państwach członkowskich do **31 lipca 2026 r.** 
+    *   **Cyfrowe Paszporty Produktów:** Od 19 lipca 2026 r. UE uruchomi rejestr **Cyfrowych Paszportów Produktów (DPP)**. Będzie on wymagał, aby produkty (zaczynając od baterii i tekstyliń) posiadały kod QR dostarczający danych na temat trwałości i możliwości naprawy.
+    *   **Ostrzeżenia prawne:** 4 czerwca 2026 r. Komisja Europejska wystosowała formalne ostrzeżenia do **20 państw członkowskich**, które przekroczyły termin (marzec 2026 r.) na transpozycję dyrektywy w sprawie „zielonej transformacji” do prawa krajowego. Dyrektywa ta ma kluczowe znaczenie dla zapobiegania [greenwashingowi](wiki:Greenwashing) i „przedwczesnemu [postarzaniu produktów](wiki:Obsolescence)”.
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Najnowsze wydarzenia w Stanach Zjednoczonych
+    
+    W USA ruch pozostaje skoncentrowany na szczeblu stanowym, ponieważ legislacja federalna utknęła w [Kongresie](wiki:United_States_Congress).
+    
+    *   **Ekspansja na szczeblu stanowym:** Według stanu na połowę 2026 r. ponad **jedna czwarta Amerykanów** mieszka w stanach z egzekwowalnym prawem do naprawy. Oczekuje się, że liczba ta wzrośnie do **35% do jesieni 2026 r.**, gdy w pełni wejdą w życie nowe przepisy w **Teksasie** i **Connecticut**.
+    *   **Lobbing korporacyjny:** Grupy wsparcia, takie jak [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group), donoszą o dalszych wysiłkach lobbingowych firm takich jak [Google](wiki:Google) i [Apple](wiki:Apple_Inc.) przeciwko ograniczeniom „parowania części” (parts pairing) – praktyce, w której oprogramowanie blokuje części zamienne do konkretnego urządzenia.
+    
+    ### Co mówią eksperci
+    
+    Eksperci prawni i techniczni oferują mieszankę optymizmu i ostrożności w odniesieniu do nowych przepisów:
+    
+    1.  **Debata o „wyzwoleniu technologicznym”:** Podczas gdy urzędnicy UE okrzyknęli 3 czerwca 2026 r. „Dniem Wyzwolenia Technologicznego”, eksperci z *Computer & Communications Industry Association* twierdzą, że prawdziwa niezależność od [Big Tech](wiki:Big_Tech) zajmie dziesięciolecia, zauważając, że Europie wciąż brakuje rywala dla [Nvidii](wiki:Nvidia) czy [TSMC](wiki:TSMC).
+    2.  **Luki prawne i parowanie części:** Eksperci z *Cybernews* i *Earth911* ostrzegają, że choć przepisy nakazują *prawo* do naprawy, producenci nadal „rozdają karty” poprzez wysokie koszty oryginalnych części i [blokady programowe](wiki:Digital_rights_management) (parowanie części). Twierdzą oni, że bez ściślejszej kontroli cen części zamiennych, naprawa może pozostać droższa niż wymiana.
+    3.  **Zachęty gwarancyjne:** Analitycy prawni z *Fieldfisher* zwracają uwagę na „ukryty klejnot” w prawie UE: jeśli konsument wybierze naprawę zamiast wymiany w okresie gwarancyjnym, **gwarancja zostaje przedłużona o 12 miesięcy**. Jest to postrzegane jako główna zachęta do zmiany zachowań konsumenckich i odejścia od „kultury wyrzucania”.
+    
+    > [Producenci będą zobowiązani do naprawy produktów objętych zakresem, nawet jeśli produkty te zostały zakupione przez konsumentów przed 31 lipca 2026 r.](embed:fieldfisher.com-e9q)
+    
+    ### Tabela podsumowująca: Kamienie milowe 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Jak chcesz postąpić? Mogę pomóc Ci sprawdzić konkretne przepisy stanowe w USA lub podać więcej szczegółów na temat wymogów Cyfrowego Paszportu Produktu.
+    
+    *   [Sprawdź status w poszczególnych stanach USA](/#settings/apps/web)
+    *   [Znajdź lokalny warsztat naprawczy](/#settings/apps/maps)
+    ---
+    *⚠️ To są wyłącznie informacje edukacyjne, a nie porada prawna. Skonsultuj się z prawnikiem w celu uzyskania porady prawnej.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    Vanaf juni 2026 heeft de "Recht op reparatie"-beweging een kritieke implementatiefase bereikt in zowel de [Europese Unie](wiki:European_Union) als de [Verenigde Staten](wiki:United_States). Terwijl de EU toewerkt naar een uniform continentaal mandaat, blijven de VS een lappendeken zien van overwinningen op staatsniveau en intense lobbygevechten.
+    
+    ### Recente ontwikkelingen in de Europese Unie
+    
+    De belangrijkste recente gebeurtenis is de onthulling door de EU van haar **"Tech Sovereignty"-pakket** op 3 juni 2026. Dit initiatief is bedoeld om de afhankelijkheid van Amerikaanse Big Tech te verminderen door eigen alternatieven te stimuleren en consumentenrechten te versterken.
+    
+    *   **Aftellen naar implementatie:** De baanbrekende [EU-richtlijn inzake het recht op reparatie](wiki:Right_to_repair) (Richtlijn (EU) 2024/1799) moet uiterlijk op **31 juli 2026** volledig afdwingbaar zijn in alle lidstaten.
+    *   **Digitale productpaspoorten:** Vanaf 19 juli 2026 lanceert de EU het register voor het **Digitaal Productpaspoort (DPP)**. Dit vereist dat producten (te beginnen met batterijen en textiel) een QR-code dragen die gegevens bevat over duurzaamheid en herstelbaarheid.
+    *   **Juridische waarschuwingen:** Op 4 juni 2026 heeft de Europese Commissie formele waarschuwingen gestuurd naar **20 lidstaten** die de deadline van maart 2026 hebben gemist voor de omzetting van de richtlijn "Groene transitie" in nationaal recht. Deze richtlijn is cruciaal voor het voorkomen van [greenwashing](wiki:Greenwashing) en "voortijdige [veroudering](wiki:Obsolescence)."
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Recente ontwikkelingen in de Verenigde Staten
+    
+    In de VS blijft de beweging gericht op het niveau van de deelstaten, aangezien federale wetgeving in het [Congres](wiki:United_States_Congress) vastloopt.
+    
+    *   **Uitbreiding op staatsniveau:** Vanaf medio 2026 woont meer dan **een kwart van de Amerikanen** in staten met afdwingbare wetten op het recht op reparatie. Dit zal naar verwachting stijgen naar **35% tegen het najaar van 2026**, wanneer nieuwe wetten in **Texas** en **Connecticut** volledig van kracht worden.
+    *   **Lobbyen door bedrijven:** Belangenorganisaties zoals de [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) hebben melding gemaakt van aanhoudende lobby-inspanningen van bedrijven als [Google](wiki:Google) en [Apple](wiki:Apple_Inc.) tegen beperkingen op "parts pairing" — een praktijk waarbij software vervangende onderdelen koppelt aan een specifiek apparaat.
+    
+    ### Wat experts zeggen
+    
+    Juridische en technische experts bieden een mix van optimisme en voorzichtigheid met betrekking tot deze nieuwe wetten:
+    
+    1.  **Het debat over "Tech-bevrijding":** Hoewel EU-functionarissen 3 juni 2026 hebben uitgeroepen tot "Tech Liberation Day", stellen experts van de *Computer & Communications Industry Association* dat echte onafhankelijkheid van [Big Tech](wiki:Big_Tech) decennia zal duren, waarbij ze opmerken dat Europa nog steeds een rivaal voor [Nvidia](wiki:Nvidia) of [TSMC](wiki:TSMC) mist.
+    2.  **Mazen in de wet en Parts Pairing:** Experts van *Cybernews* en *Earth911* waarschuwen dat hoewel de wetten het *recht* op reparatie verplichten, fabrikanten nog steeds "de touwtjes in handen hebben" door de hoge kosten van originele onderdelen en [softwareblokkades](wiki:Digital_rights_management) (parts pairing). Ze stellen dat zonder strengere prijscontroles op reserveonderdelen, reparatie duurder kan blijven dan vervanging.
+    3.  **Garantieprikkels:** Juridische analisten van *Fieldfisher* wijzen op een "verborgen juweeltje" in de EU-wetgeving: als een consument tijdens de garantieperiode kiest voor reparatie in plaats van vervanging, wordt de **garantie met 12 maanden verlengd**. Dit wordt gezien als een belangrijke stimulans om het consumentengedrag weg te sturen van een "wegwerpcultuur".
+    
+    > [Fabrikanten zijn verplicht om producten die binnen het toepassingsgebied vallen te repareren, zelfs als die producten door consumenten zijn gekocht vóór 31 juli 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Overzichtstabel: Mijlpalen 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Hoe wil je verdergaan? Ik kan je helpen bij het opzoeken van specifieke staatswetten in de VS of meer details geven over de vereisten voor het Digitaal Productpaspoort.
+    
+    *   [Bekijk de status per Amerikaanse staat](/#settings/apps/web)
+    *   [Vind een lokale reparatiewinkel](/#settings/apps/maps)
+    ---
+    *⚠️ Dit is uitsluitend educatieve informatie en geen juridisch advies. Raadpleeg een advocaat voor juridisch advies.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    اعتباراً من يونيو 2026، وصلت حركة "الحق في الإصلاح" إلى مرحلة تنفيذ حرجة في كل من [الاتحاد الأوروبي](wiki:European_Union) و[الولايات المتحدة](wiki:United_States). وبينما يتجه الاتحاد الأوروبي نحو تفويض قاري موحد، لا تزال الولايات المتحدة تشهد مزيجاً من الانتصارات على مستوى الولايات ومعارك ضغط مكثفة.
+    
+    ### التطورات الأخيرة في الاتحاد الأوروبي
+    
+    أهم حدث وقع مؤخراً هو كشف الاتحاد الأوروبي عن **حزمة "السيادة التقنية"** في 3 يونيو 2026. تهدف هذه المبادرة إلى تقليل الاعتماد على شركات التقنية الكبرى في الولايات المتحدة من خلال تعزيز البدائل المحلية وتقوية حقوق المستهلك.
+    
+    *   **العد التنازلي للتنفيذ:** من المقرر أن يصبح [توجيه الاتحاد الأوروبي بشأن الحق في الإصلاح](wiki:Right_to_repair) (التوجيه (EU) 2024/1799) قابلاً للتنفيذ بالكامل في جميع الدول الأعضاء بحلول **31 يوليو 2026**. 
+    *   **جوازات سفر المنتجات الرقمية:** بدءاً من 19 يوليو 2026، سيطلق الاتحاد الأوروبي سجل **جواز سفر المنتج الرقمي (DPP)**. سيتطلب ذلك من المنتجات (بدءاً من البطاريات والمنسوجات) حمل رمز QR يوفر بيانات حول المتانة وقابلية الإصلاح.
+    *   **تحذيرات قانونية:** في 4 يونيو 2026، أصدرت المفوضية الأوروبية تحذيرات رسمية لـ **20 دولة عضواً** فاتت الموعد النهائي في مارس 2026 لنقل توجيه "التحول الأخضر" إلى القانون الوطني. هذا التوجيه ضروري لمنع [الغسل الأخضر](wiki:Greenwashing) و"[التقادم](wiki:Obsolescence) المبكر".
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### التطورات الأخيرة في الولايات المتحدة
+    
+    في الولايات المتحدة، تظل الحركة مركزة على مستوى الولايات، حيث لا يزال التشريع الفيدرالي متعثراً في [الكونغرس](wiki:United_States_Congress).
+    
+    *   **التوسع على مستوى الولايات:** اعتباراً من منتصف عام 2026، يعيش أكثر من **ربع الأمريكيين** في ولايات تطبق قوانين "الحق في الإصلاح". ومن المتوقع أن ترتفع هذه النسبة إلى **35% بحلول خريف 2026** مع دخول القوانين الجديدة في **تكساس** و**كونيتيكت** حيز التنفيذ الكامل.
+    *   **ضغط الشركات:** أفادت مجموعات الدفاع مثل [مجموعة أبحاث المصلحة العامة (PIRG)](wiki:Public_Interest_Research_Group) باستمرار جهود الضغط من شركات مثل [جوجل](wiki:Google) و[أبل](wiki:Apple_Inc.) ضد قيود "ربط القطع"—وهي ممارسة حيث تقفل البرمجيات قطع الغيار بجهاز معين.
+    
+    ### ماذا يقول الخبراء
+    
+    يقدم الخبراء القانونيون والتقنيون مزيجاً من التفاؤل والحذر بشأن هذه القوانين الجديدة:
+    
+    1.  **نقاش "التحرر التقني":** بينما أشاد مسؤولو الاتحاد الأوروبي بيوم 3 يونيو 2026 باعتباره "يوم التحرر التقني"، يرى خبراء من *جمعية صناعة الكمبيوتر والاتصالات* أن الاستقلال الحقيقي عن [شركات التقنية الكبرى](wiki:Big_Tech) سيستغرق عقوداً، مشيرين إلى أن أوروبا لا تزال تفتقر إلى منافس لشركة [إنفيديا](wiki:Nvidia) أو [TSMC](wiki:TSMC).
+    2.  **الثغرات وربط القطع:** يحذر خبراء في *Cybernews* و*Earth911* من أنه بينما تفرض القوانين *الحق* في الإصلاح، لا تزال الشركات المصنعة "تمسك بزمام الأمور" من خلال التكلفة العالية للقطع الأصلية و[الأقفال البرمجية](wiki:Digital_rights_management) (ربط القطع). ويجادلون بأنه بدون ضوابط أكثر صرامة على أسعار قطع الغيار، قد يظل الإصلاح أغلى من الاستبدال.
+    3.  **حوافز الضمان:** يسلط المحللون القانونيون من *Fieldfisher* الضوء على "جوهرة مخفية" في قانون الاتحاد الأوروبي: إذا اختار المستهلك الإصلاح بدلاً من الاستبدال خلال فترة الضمان، **يتم تمديد الضمان لمدة 12 شهراً**. يُنظر إلى هذا كحافز رئيسي لتغيير سلوك المستهلك بعيداً عن "ثقافة الهدر".
+    
+    > [سيكون المصنعون ملزمين بإصلاح المنتجات المشمولة، حتى لو تم شراؤها من قبل المستهلكين قبل 31 يوليو 2026.](embed:fieldfisher.com-e9q)
+    
+    ### جدول ملخص: معالم عام 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    كيف تود المتابعة؟ يمكنني مساعدتك في البحث في قوانين ولايات محددة في الولايات المتحدة أو تقديم مزيد من التفاصيل حول متطلبات جواز سفر المنتج الرقمي.
+    
+    *   [التحقق من حالة الولايات الأمريكية (ولاية بولاية)](/#settings/apps/web)
+    *   [العثور على ورشة إصلاح محلية](/#settings/apps/maps)
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة قانونية. استشر محامياً للحصول على مشورة قانونية.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    जून 2026 तक, "राइट टू रिपेयर" (मरम्मत का अधिकार) आंदोलन [यूरोपीय संघ](wiki:European_Union) और [संयुक्त राज्य अमेरिका](wiki:United_States) दोनों में एक महत्वपूर्ण कार्यान्वयन चरण में पहुंच गया है। जहाँ यूरोपीय संघ एक एकीकृत महाद्वीपीय जनादेश की ओर बढ़ रहा है, वहीं अमेरिका में राज्य-स्तरीय जीत और गहन लॉबिंग की लड़ाई जारी है।
+    
+    ### यूरोपीय संघ में हालिया घटनाक्रम
+    
+    सबसे महत्वपूर्ण हालिया घटना 3 जून, 2026 को यूरोपीय संघ द्वारा अपने **"तकनीकी संप्रभुता" (Tech Sovereignty) पैकेज** का अनावरण है। इस पहल का उद्देश्य स्वदेशी विकल्पों को बढ़ावा देकर और उपभोक्ता अधिकारों को मजबूत करके अमेरिकी बिग टेक पर निर्भरता कम करना है।
+    
+    *   **कार्यान्वयन की उल्टी गिनती:** ऐतिहासिक [यूरोपीय संघ राइट टू रिपेयर निर्देश](wiki:Right_to_repair) (निर्देश (EU) 2024/1799) **31 जुलाई, 2026** तक सभी सदस्य देशों में पूरी तरह से लागू होने वाला है।
+    *   **डिजिटल प्रोडक्ट पासपोर्ट:** 19 जुलाई, 2026 से, यूरोपीय संघ **डिजिटल प्रोडक्ट पासपोर्ट (DPP)** रजिस्ट्री लॉन्च करेगा। इसके लिए उत्पादों (बैटरी और कपड़ों से शुरू) पर एक QR कोड होना आवश्यक होगा जो टिकाऊपन और मरम्मत योग्यता पर डेटा प्रदान करेगा।
+    *   **कानूनी चेतावनियाँ:** 4 जून, 2026 को, यूरोपीय आयोग ने **20 सदस्य देशों** को औपचारिक चेतावनी जारी की, जो "हरित संक्रमण" (Green Transition) निर्देश को राष्ट्रीय कानून में बदलने की मार्च 2026 की समय सीमा से चूक गए थे। यह निर्देश [ग्रीनवाशिंग](wiki:Greenwashing) और "समय से पहले [अप्रचलन](wiki:Obsolescence)" को रोकने के लिए महत्वपूर्ण है।
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### संयुक्त राज्य अमेरिका में हालिया घटनाक्रम
+    
+    अमेरिका में, यह आंदोलन राज्य स्तर पर केंद्रित है, क्योंकि संघीय कानून [कांग्रेस](wiki:United_States_Congress) में अटका हुआ है।
+    
+    *   **राज्य-स्तरीय विस्तार:** 2026 के मध्य तक, **एक-चौथाई से अधिक अमेरिकी** उन राज्यों में रहते हैं जहाँ राइट टू रिपेयर कानून लागू हैं। **टेक्सास** और **कनेक्टिकट** में नए कानूनों के पूरी तरह प्रभावी होने के साथ **2026 की शरद ऋतु तक इसके 35%** तक पहुँचने की उम्मीद है।
+    *   **कॉर्पोरेट लॉबिंग:** [पब्लिक इंटरेस्ट रिसर्च ग्रुप (PIRG)](wiki:Public_Interest_Research_Group) जैसे वकालत समूहों ने [गूगल](wiki:Google) और [एप्पल](wiki:Apple_Inc.) जैसी कंपनियों द्वारा "पार्ट्स पेयरिंग" (parts pairing) प्रतिबंधों के खिलाफ निरंतर लॉबिंग प्रयासों की सूचना दी है—यह एक ऐसी प्रथा है जहाँ सॉफ्टवेयर रिप्लेसमेंट पार्ट्स को एक विशिष्ट डिवाइस के साथ लॉक कर देता है।
+    
+    ### विशेषज्ञ क्या कह रहे हैं
+    
+    कानूनी और तकनीकी विशेषज्ञ इन नए कानूनों के संबंध में आशावाद और सावधानी का मिश्रण पेश कर रहे हैं:
+    
+    1.  **"तकनीकी मुक्ति" (Tech Liberation) पर बहस:** जहाँ यूरोपीय संघ के अधिकारियों ने 3 जून, 2026 को "तकनीकी मुक्ति दिवस" के रूप में सराहा है, वहीं *कंप्यूटर एंड कम्युनिकेशंस इंडस्ट्री एसोसिएशन* के विशेषज्ञों का तर्क है कि [बिग टेक](wiki:Big_Tech) से वास्तविक स्वतंत्रता में दशकों लगेंगे, यह देखते हुए कि यूरोप में अभी भी [एनवीडिया](wiki:Nvidia) या [TSMC](wiki:TSMC) का कोई प्रतिद्वंद्वी नहीं है।
+    2.  **खामियां और पार्ट्स पेयरिंग:** *Cybernews* और *Earth911* के विशेषज्ञों ने चेतावनी दी है कि जहाँ कानून मरम्मत के *अधिकार* को अनिवार्य बनाते हैं, वहीं निर्माता अभी भी मूल पुर्जों की उच्च लागत और [सॉफ्टवेयर लॉक](wiki:Digital_rights_management) (पार्ट्स पेयरिंग) के माध्यम से "कमान अपने हाथ में रखते हैं"। उनका तर्क है कि स्पेयर पार्ट्स पर सख्त मूल्य नियंत्रण के बिना, मरम्मत करना नया खरीदने की तुलना में अधिक महंगा बना रह सकता है।
+    3.  **वारंटी प्रोत्साहन:** *Fieldfisher* के कानूनी विश्लेषकों ने यूरोपीय संघ के कानून में एक "छिपे हुए रत्न" पर प्रकाश डाला है: यदि कोई उपभोक्ता वारंटी अवधि के दौरान रिप्लेसमेंट के बजाय मरम्मत चुनता है, तो **वारंटी 12 महीने के लिए बढ़ा दी जाती है**। इसे उपभोक्ता व्यवहार को "फेंको और नया लो" (throwaway culture) वाली संस्कृति से दूर ले जाने के लिए एक बड़े प्रोत्साहन के रूप में देखा जा रहा है।
+    
+    > [निर्माताओं को दायरे में आने वाले उत्पादों की मरम्मत करने के लिए बाध्य किया जाएगा, भले ही वे उत्पाद उपभोक्ताओं द्वारा 31 जुलाई 2026 से पहले खरीदे गए हों।](embed:fieldfisher.com-e9q)
+    
+    ### सारांश तालिका: 2026 के मील के पत्थर
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    आप आगे कैसे बढ़ना चाहेंगे? मैं अमेरिका में विशिष्ट राज्य कानूनों को देखने या डिजिटल प्रोडक्ट पासपोर्ट आवश्यकताओं पर अधिक विवरण प्रदान करने में आपकी सहायता कर सकता हूँ।
+    
+    *   [अमेरिका की राज्य-दर-राज्य स्थिति देखें](/#settings/apps/web)
+    *   [स्थानीय मरम्मत की दुकान खोजें](/#settings/apps/maps)
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और कानूनी सलाह नहीं है। कानूनी सलाह के लिए किसी वकील से परामर्श लें।*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    ณ เดือนมิถุนายน 2026 ขบวนการ "สิทธิในการซ่อมแซม" (Right to Repair) ได้เข้าสู่ระยะการบังคับใช้ที่สำคัญทั้งใน [สหภาพยุโรป](wiki:European_Union) และ [สหรัฐอเมริกา](wiki:United_States) ในขณะที่ EU กำลังมุ่งหน้าสู่ข้อกำหนดที่เป็นเอกภาพทั่วทั้งทวีป สหรัฐฯ ยังคงเห็นชัยชนะในระดับรัฐที่กระจัดกระจายและการต่อสู้ผ่านการล็อบบี้อย่างเข้มข้น
+    
+    ### พัฒนาการล่าสุดในสหภาพยุโรป
+    
+    เหตุการณ์ล่าสุดที่สำคัญที่สุดคือการเปิดตัวแพ็กเกจ **"อธิปไตยทางเทคโนโลยี" (Tech Sovereignty)** ของ EU เมื่อวันที่ 3 มิถุนายน 2026 ความคิดริเริ่มนี้มีจุดมุ่งหมายเพื่อลดการพึ่งพาบริษัทเทคโนโลยีรายใหญ่ (Big Tech) ของสหรัฐฯ โดยการส่งเสริมทางเลือกภายในท้องถิ่นและเสริมสร้างสิทธิของผู้บริโภค
+    
+    *   **นับถอยหลังการบังคับใช้:** [คำสั่งสิทธิในการซ่อมแซมของ EU](wiki:Right_to_repair) (Directive (EU) 2024/1799) ที่เป็นหมุดหมายสำคัญจะมีผลบังคับใช้อย่างเต็มรูปแบบในทุกประเทศสมาชิกภายในวันที่ **31 กรกฎาคม 2026** 
+    *   **หนังสือเดินทางผลิตภัณฑ์ดิจิทัล:** เริ่มตั้งแต่วันที่ 19 กรกฎาคม 2026 EU จะเปิดตัวทะเบียน **หนังสือเดินทางผลิตภัณฑ์ดิจิทัล (Digital Product Passport - DPP)** ซึ่งจะกำหนดให้ผลิตภัณฑ์ (เริ่มจากแบตเตอรี่และสิ่งทอ) ต้องมีรหัส QR ที่ให้ข้อมูลเกี่ยวกับความทนทานและความสามารถในการซ่อมแซม
+    *   **คำเตือนทางกฎหมาย:** เมื่อวันที่ 4 มิถุนายน 2026 คณะกรรมาธิการยุโรปได้ออกคำเตือนอย่างเป็นทางการไปยัง **20 ประเทศสมาชิก** ที่พลาดกำหนดเส้นตายในเดือนมีนาคม 2026 ในการนำคำสั่ง "การเปลี่ยนผ่านสีเขียว" (Green Transition) มาใช้เป็นกฎหมายระดับชาติ คำสั่งนี้มีความสำคัญอย่างยิ่งในการป้องกัน [การฟอกเขียว](wiki:Greenwashing) และ "[การทำให้ล้าสมัยก่อนเวลาอันควร](wiki:Obsolescence)"
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### พัฒนาการล่าสุดในสหรัฐอเมริกา
+    
+    ในสหรัฐฯ ขบวนการนี้ยังคงมุ่งเน้นไปที่ระดับรัฐ เนื่องจากกฎหมายระดับรัฐบาลกลางยังคงหยุดชะงักใน [สภาคองเกรส](wiki:United_States_Congress)
+    
+    *   **การขยายตัวในระดับรัฐ:** ณ กลางปี 2026 **ชาวอเมริกันมากกว่าหนึ่งในสี่** อาศัยอยู่ในรัฐที่มีกฎหมายสิทธิในการซ่อมแซมที่มีผลบังคับใช้ คาดว่าจะเพิ่มขึ้นเป็น **35% ภายในฤดูใบไม้ร่วงปี 2026** เมื่อกฎหมายใหม่ใน **เท็กซัส** และ **คอนเนตทิคัต** มีผลบังคับใช้อย่างเต็มที่
+    *   **การล็อบบี้ขององค์กร:** กลุ่มรณรงค์อย่าง [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) รายงานว่ายังคงมีความพยายามในการล็อบบี้จากบริษัทต่างๆ เช่น [Google](wiki:Google) และ [Apple](wiki:Apple_Inc.) เพื่อต่อต้านข้อจำกัดเรื่อง "การจับคู่ชิ้นส่วน" (parts pairing) ซึ่งเป็นแนวทางปฏิบัติที่ซอฟต์แวร์จะล็อกชิ้นส่วนอะไหล่ไว้กับอุปกรณ์เฉพาะเครื่อง
+    
+    ### ความคิดเห็นจากผู้เชี่ยวชาญ
+    
+    ผู้เชี่ยวชาญด้านกฎหมายและเทคนิคกำลังให้ความเห็นที่ผสมผสานกันระหว่างความหวังและความระมัดระวังเกี่ยวกับกฎหมายใหม่เหล่านี้:
+    
+    1.  **การถกเถียงเรื่อง "การปลดแอกทางเทคโนโลยี":** แม้ว่าเจ้าหน้าที่ของ EU จะยกย่องให้วันที่ 3 มิถุนายน 2026 เป็น "วันปลดแอกเทคโนโลยี" (Tech Liberation Day) แต่ผู้เชี่ยวชาญจาก *Computer & Communications Industry Association* แย้งว่าการเป็นอิสระจาก [Big Tech](wiki:Big_Tech) อย่างแท้จริงนั้นต้องใช้เวลาหลายทศวรรษ โดยตั้งข้อสังเกตว่ายุโรปยังคงขาดคู่แข่งที่ทัดเทียมกับ [Nvidia](wiki:Nvidia) หรือ [TSMC](wiki:TSMC)
+    2.  **ช่องโหว่และการจับคู่ชิ้นส่วน:** ผู้เชี่ยวชาญจาก *Cybernews* และ *Earth911* เตือนว่าแม้กฎหมายจะกำหนด *สิทธิ* ในการซ่อมแซม แต่ผู้ผลิตยังคง "ถือไพ่เหนือกว่า" ผ่านราคาอะไหล่แท้ที่สูงและ [การล็อกซอฟต์แวร์](wiki:Digital_rights_management) (การจับคู่ชิ้นส่วน) พวกเขาแย้งว่าหากไม่มีการควบคุมราคาอะไหล่ที่เข้มงวดกว่านี้ การซ่อมแซมอาจยังคงมีราคาแพงกว่าการเปลี่ยนเครื่องใหม่
+    3.  **สิ่งจูงใจด้านการรับประกัน:** นักวิเคราะห์กฎหมายจาก *Fieldfisher* เน้นย้ำถึง "อัญมณีที่ซ่อนอยู่" ในกฎหมาย EU: หากผู้บริโภคเลือกการซ่อมแซมแทนการเปลี่ยนเครื่องใหม่ในช่วงระยะเวลาการรับประกัน **การรับประกันจะได้รับการขยายออกไปอีก 12 เดือน** ซึ่งถือเป็นแรงจูงใจสำคัญในการเปลี่ยนพฤติกรรมผู้บริโภคให้ห่างไกลจาก "วัฒนธรรมการใช้แล้วทิ้ง"
+    
+    > [ผู้ผลิตจะมีหน้าที่ต้องซ่อมแซมผลิตภัณฑ์ที่อยู่ในขอบเขต แม้ว่าผลิตภัณฑ์เหล่านั้นจะถูกซื้อโดยผู้บริโภคก่อนวันที่ 31 กรกฎาคม 2026 ก็ตาม](embed:fieldfisher.com-e9q)
+    
+    ### ตารางสรุป: หมุดหมายสำคัญในปี 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    คุณต้องการดำเนินการอย่างไรต่อ? ฉันสามารถช่วยคุณตรวจสอบกฎหมายเฉพาะของแต่ละรัฐในสหรัฐฯ หรือให้รายละเอียดเพิ่มเติมเกี่ยวกับข้อกำหนดของหนังสือเดินทางผลิตภัณฑ์ดิจิทัลได้
+    
+    *   [ตรวจสอบสถานะรายรัฐของสหรัฐฯ](/#settings/apps/web)
+    *   [หาร้านซ่อมใกล้บ้าน](/#settings/apps/maps)
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น และไม่ใช่คำแนะนำทางกฎหมาย โปรดปรึกษาทนายความเพื่อขอคำแนะนำทางกฎหมาย*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    K červnu 2026 dosáhlo hnutí za „právo na opravu“ kritické fáze implementace jak v [Evropské unii](wiki:European_Union), tak ve [Spojených státech](wiki:United_States). Zatímco EU směřuje k jednotnému kontinentálnímu mandátu, v USA je i nadále patrná mozaika vítězství na úrovni jednotlivých států a intenzivní lobbistické bitvy.
+    
+    ### Nedávný vývoj v Evropské unii
+    
+    Nejvýznamnější nedávnou událostí je představení balíčku **„Technologické suverenity“** ze strany EU dne 3. června 2026. Tato iniciativa má za cíl snížit závislost na amerických Big Tech společnostech podporou vlastních alternativ a posílením práv spotřebitelů.
+    
+    *   **Odpočítávání k implementaci:** Přelomová [Směrnice EU o právu na opravu](wiki:Right_to_repair) (směrnice (EU) 2024/1799) má být plně vymahatelná ve všech členských státech do **31. července 2026**.
+    *   **Digitální pasy výrobků:** Od 19. července 2026 spustí EU registr **Digitálních pasů výrobků (DPP)**. Ten bude vyžadovat, aby výrobky (počínaje bateriemi a textilem) obsahovaly QR kód, který poskytne údaje o jejich odolnosti a opravitelnosti.
+    *   **Právní varování:** Dne 4. června 2026 vydala Evropská komise formální varování **20 členským státům**, které zmeškaly březnový termín pro transpozici směrnice o „zelené transformaci“ do vnitrostátního práva. Tato směrnice je klíčová pro prevenci [greenwashingu](wiki:Greenwashing) a „předčasného [zastarávání](wiki:Obsolescence)“.
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Nedávný vývoj ve Spojených státech
+    
+    V USA se hnutí nadále soustředí na úroveň jednotlivých států, protože federální legislativa v [Kongresu](wiki:United_States_Congress) zůstává zablokovaná.
+    
+    *   **Expanze na úrovni států:** K polovině roku 2026 žije více než **čtvrtina Američanů** ve státech s vymahatelnými zákony o právu na opravu. Očekává se, že do **podzimu 2026 tento podíl vzroste na 35 %**, jakmile vstoupí v plnou platnost nové zákony v **Texasu** a **Connecticutu**.
+    *   **Korporátní lobbing:** Zájmové skupiny jako [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) informovaly o pokračujících lobbistických snahách společností jako [Google](wiki:Google) a [Apple](wiki:Apple_Inc.) proti omezením „párování dílů“ – což je praktika, kdy software uzamkne náhradní díly ke konkrétnímu zařízení.
+    
+    ### Co říkají odborníci
+    
+    Právní a techničtí odborníci nabízejí směs optimismu i opatrnosti ohledně těchto nových zákonů:
+    
+    1.  **Debata o „technologickém osvobození“:** Zatímco představitelé EU oslavovali 3. červen 2026 jako „Den technologického osvobození“, odborníci z *Computer & Communications Industry Association* tvrdí, že skutečná nezávislost na [Big Tech](wiki:Big_Tech) potrvá desetiletí, a poznamenávají, že Evropě stále chybí konkurent pro [Nvidia](wiki:Nvidia) nebo [TSMC](wiki:TSMC).
+    2.  **Mezery v zákonech a párování dílů:** Odborníci z *Cybernews* a *Earth911* varují, že ačkoliv zákony nařizují *právo* na opravu, výrobci stále „mají v rukou všechny trumfy“ díky vysokým cenám originálních dílů a [softwarovým zámkům](wiki:Digital_rights_management) (párování dílů). Tvrdí, že bez přísnější regulace cen náhradních dílů může oprava zůstat dražší než výměna.
+    3.  **Záruční pobídky:** Právní analytici z *Fieldfisher* vyzdvihují „skrytý klenot“ v zákoně EU: pokud se spotřebitel během záruční doby rozhodne pro opravu místo výměny, **záruka se prodlužuje o 12 měsíců**. To je vnímáno jako významný podnět ke změně chování spotřebitelů směrem od „kultury vyhazování“.
+    
+    > [Výrobci budou povinni opravovat výrobky spadající do působnosti, i když byly tyto výrobky zakoupeny spotřebiteli před 31. červencem 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Souhrnná tabulka: Milníky roku 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Jak si přeješ pokračovat? Mohu ti pomoci podívat se na konkrétní zákony v jednotlivých státech USA nebo poskytnout více podrobností o požadavcích na Digitální pas výrobku.
+    
+    *   [Zkontrolovat stav v jednotlivých státech USA](/#settings/apps/web)
+    *   [Najít místní opravnu](/#settings/apps/maps)
+    ---
+    *⚠️ Toto jsou pouze informativní údaje a nejedná se o právní poradenství. Právní radu si vyžádej u právníka.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    נכון ליוני 2026, תנועת "הזכות לתיקון" הגיעה לשלב יישום קריטי הן ב[איחוד האירופי](wiki:European_Union) והן ב[ארצות הברית](wiki:United_States). בעוד שהאיחוד האירופי מתקדם לעבר מנדט יבשתי מאוחד, ארצות הברית ממשיכה לראות אוסף של ניצחונות ברמת המדינות לצד מאבקי לוביזם אינטנסיביים.
+    
+    ### התפתחויות אחרונות באיחוד האירופי
+    
+    האירוע המשמעותי ביותר לאחרונה הוא חשיפת **חבילת "הריבונות הטכנולוגית"** של האיחוד האירופי ב-3 ביוני 2026. יוזמה זו נועדה לצמצם את התלות בענקיות הטכנולוגיה האמריקאיות על ידי עידוד חלופות מקומיות וחיזוק זכויות הצרכן.
+    
+    *   **ספירה לאחור ליישום:** [הנחיית הזכות לתיקון של האיחוד האירופי](wiki:Right_to_repair) (Directive (EU) 2024/1799) אמורה להיכנס לתוקף מלא בכל המדינות החברות עד ל-**31 ביולי 2026**. 
+    *   **דרכוני מוצר דיגיטליים:** החל מה-19 ביולי 2026, האיחוד האירופי ישיק את רישום **דרכון המוצר הדיגיטלי (DPP)**. הדבר יחייב מוצרים (החל מסוללות וטקסטיל) לשאת קוד QR המספק נתונים על עמידות ואפשרות לתיקון.
+    *   **אזהרות משפטיות:** ב-4 ביוני 2026, הנציבות האירופית הוציאה אזהרות רשמיות ל-**20 מדינות חברות** שפספסו את המועד האחרון של מרץ 2026 להטמעת הנחיית "המעבר הירוק" בחוק הלאומי. הנחיה זו חיונית למניעת [גרינוושינג](wiki:Greenwashing) ו"התיישנות מוקדמת" ([obsolescence](wiki:Obsolescence)).
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### התפתחויות אחרונות בארצות הברית
+    
+    בארצות הברית, התנועה נותרת ממוקדת ברמת המדינות, שכן החקיקה הפדרלית נותרה תקועה ב[קונגרס](wiki:United_States_Congress).
+    
+    *   **התרחבות ברמת המדינות:** נכון לאמצע 2026, למעלה מ-**רבע מהאמריקאים** חיים במדינות עם חוקי "זכות לתיקון" אכיפים. נתון זה צפוי לזנק ל-**35% עד סתיו 2026** כאשר חוקים חדשים ב**טקסס** וב**קונטיקט** ייכנסו לתוקף מלא.
+    *   **לוביזם תאגידי:** קבוצות תמיכה כמו [הקבוצה למחקר האינטרס הציבורי (PIRG)](wiki:Public_Interest_Research_Group) דיווחו על מאמצי לוביזם מתמשכים מצד חברות כמו [גוגל](wiki:Google) ו[אפל](wiki:Apple_Inc.) נגד הגבלות על "צימוד חלקים" (parts pairing) – פרקטיקה שבה תוכנה נועלת חלקי חילוף למכשיר ספציפי.
+    
+    ### מה אומרים המומחים
+    
+    מומחים משפטיים וטכניים מציעים שילוב של אופטימיות וזהירות בנוגע לחוקים החדשים הללו:
+    
+    1.  **דיון "השחרור הטכנולוגי":** בעוד שגורמים רשמיים באיחוד האירופי הכריזו על ה-3 ביוני 2026 כ"יום השחרור הטכנולוגי", מומחים מ*איגוד תעשיית המחשבים והתקשורת* טוענים כי עצמאות אמיתית מ[ענקיות הטכנולוגיה](wiki:Big_Tech) תיקח עשורים, וציינו כי לאירופה עדיין חסרה מתחרה ל-[Nvidia](wiki:Nvidia) או ל-[TSMC](wiki:TSMC).
+    2.  **פרצות וצימוד חלקים:** מומחים ב-*Cybernews* וב-*Earth911* מזהירים כי בעוד שהחוקים מחייבים את ה*זכות* לתקן, היצרנים עדיין "מחזיקים בקלפים" באמצעות העלות הגבוהה של חלקים מקוריים ו[נעילות תוכנה](wiki:Digital_rights_management) (צימוד חלקים). הם טוענים כי ללא פיקוח הדוק יותר על מחירי חלקי החילוף, התיקון עשוי להישאר יקר יותר מהחלפה.
+    3.  **תמריצי אחריות:** אנליסטים משפטיים מ-*Fieldfisher* מדגישים "פנינה נסתרת" בחוק האירופי: אם צרכן בוחר בתיקון על פני החלפה במהלך תקופת האחריות, **האחריות מוארכת ב-12 חודשים**. הדבר נתפס כתמריץ מרכזי לשינוי התנהגות הצרכנים והתרחקות מתרבות ה"השתמש וזרוק".
+    
+    > [יצרנים יהיו מחויבים לתקן מוצרים הכלולים בהנחיה, גם אם מוצרים אלו נרכשו על ידי צרכנים לפני 31 ביולי 2026.](embed:fieldfisher.com-e9q)
+    
+    ### טבלת סיכום: אבני דרך לשנת 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    איך תרצה להמשיך? אני יכול לעזור לך לבדוק חוקי מדינות ספציפיים בארה"ב או לספק פרטים נוספים על דרישות דרכון המוצר הדיגיטלי.
+    
+    *   [בדיקת סטטוס לפי מדינות בארה"ב](/#settings/apps/web)
+    *   [חיפוש מעבדת תיקונים מקומית](/#settings/apps/maps)
+    ---
+    *⚠️ זהו מידע לימודי בלבד ואינו מהווה ייעוץ משפטי. יש להיוועץ בעורך דין לקבלת ייעוץ משפטי.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    截至2026年6月，“维修权”运动在[欧盟](wiki:European_Union)和[美国](wiki:United_States)都已进入关键的实施阶段。虽然欧盟正朝着统一的大陆指令迈进，但美国仍处于各州层面的胜利与激烈的游说战并存的局面。
+    
+    ### 欧洲联盟的最新进展
+    
+    最近最重要的事件是欧盟在2026年6月3日公布了其**“技术主权”方案**。该倡议旨在通过培育本土替代方案和加强消费者权益，减少对美国大型科技公司的依赖。
+    
+    *   **实施倒计时：** 具有里程碑意义的[《欧盟维修权指令》](wiki:Right_to_repair)（指令 (EU) 2024/1799）定于**2026年7月31日**起在所有成员国全面强制执行。
+    *   **数字产品护照：** 从2026年7月19日开始，欧盟将启动**数字产品护照 (DPP)** 注册。这将要求产品（从电池和纺织品开始）携带二维码，以提供耐用性和可维修性的数据。
+    *   **法律警告：** 2026年6月4日，欧盟委员会向**20个成员国**发出正式警告，这些国家错过了将“绿色转型”指令转化为国内法律的2026年3月截止日期。该指令对于防止[漂绿](wiki:Greenwashing)和“过早[报废](wiki:Obsolescence)”至关重要。
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### 美国的最新进展
+    
+    在美国，由于联邦立法在[国会](wiki:United_States_Congress)陷入停滞，该运动仍集中在州一级。
+    
+    *   **州级扩张：** 截至2026年中期，超过**四分之一的美国人**生活在拥有可执行维修权法律的州。随着**德克萨斯州**和**康涅狄格州**的新法律全面生效，预计到**2026年秋季**这一比例将跳升至**35%**。
+    *   **企业游说：** [公共利益研究小组 (PIRG)](wiki:Public_Interest_Research_Group) 等倡导团体报告称，[谷歌](wiki:Google)和[苹果](wiki:Apple_Inc.)等公司继续针对“零件配对”限制进行游说——这种做法通过软件将更换零件锁定在特定设备上。
+    
+    ### 专家观点
+    
+    法律和技术专家对这些新法律持乐观与谨慎并存的态度：
+    
+    1.  **“技术解放”辩论：** 虽然欧盟官员称2026年6月3日为“技术解放日”，但*计算机与通信工业协会*的专家认为，要真正独立于[大型科技公司](wiki:Big_Tech)还需要几十年的时间，并指出欧洲仍然缺乏能与[英伟达](wiki:Nvidia)或[台积电](wiki:TSMC)抗衡的企业。
+    2.  **漏洞与零件配对：** *Cybernews* 和 *Earth911* 的专家警告说，虽然法律规定了维修*权*，但制造商仍通过原装零件的高昂成本和[软件锁定](wiki:Digital_rights_management)（零件配对）“掌握着主动权”。他们认为，如果不对备件进行更严格的价格控制，维修可能仍然比更换更昂贵。
+    3.  **保修激励：** *Fieldfisher* 的法律分析师强调了欧盟法律中的一个“隐藏亮点”：如果消费者在保修期内选择维修而非更换，**保修期将延长12个月**。这被视为改变消费者行为、摆脱“一次性文化”的主要激励措施。
+    
+    > [制造商将有义务维修范围内的产品，即使这些产品是消费者在2026年7月31日之前购买的。](embed:fieldfisher.com-e9q)
+    
+    ### 2026年里程碑汇总表
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    你希望如何继续？我可以帮你查看美国具体的州法律，或提供有关数字产品护照要求的更多细节。
+    
+    *   [查看美国各州状态](/#settings/apps/web)
+    *   [查找当地维修店](/#settings/apps/maps)
+    ---
+    *⚠️ 这仅供参考，不构成法律建议。如需法律建议，请咨询律师。*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    En juin 2026, le mouvement du « droit à la réparation » a atteint une phase de mise en œuvre critique tant dans l'[Union européenne](wiki:European_Union) que dans les [États-Unis](wiki:United_States). Alors que l'UE s'oriente vers un mandat continental unifié, les États-Unis continuent de voir une mosaïque de victoires au niveau des États et d'intenses batailles de lobbying.
+    
+    ### Développements récents dans l'Union européenne
+    
+    L'événement récent le plus significatif est le dévoilement par l'UE de son **paquet « Souveraineté technologique »** le 3 juin 2026. Cette initiative vise à réduire la dépendance vis-à-vis des Big Tech américaines en favorisant des alternatives locales et en renforçant les droits des consommateurs.
+    
+    *   **Compte à rebours de la mise en œuvre :** La directive historique de l'[UE sur le droit à la réparation](wiki:Right_to_repair) (Directive (UE) 2024/1799) devrait être pleinement applicable dans tous les États membres d'ici le **31 juillet 2026**.
+    *   **Passeports numériques des produits :** À partir du 19 juillet 2026, l'UE lancera le registre du **Passeport numérique des produits (DPP)**. Cela exigera que les produits (en commençant par les batteries et les textiles) portent un code QR fournissant des données sur la durabilité et la réparabilité.
+    *   **Avertissements juridiques :** Le 4 juin 2026, la Commission européenne a adressé des avertissements formels à **20 États membres** qui ont manqué la date limite de mars 2026 pour transposer la directive sur la « Transition verte » dans leur droit national. Cette directive est cruciale pour prévenir l'[écoblanchiment](wiki:Greenwashing) et l'« [obsolescence](wiki:Obsolescence) prématurée ».
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Développements récents aux États-Unis
+    
+    Aux États-Unis, le mouvement reste concentré au niveau des États, car la législation fédérale reste bloquée au [Congrès](wiki:United_States_Congress).
+    
+    *   **Expansion au niveau des États :** À la mi-2026, plus d'**un quart des Américains** vivent dans des États dotés de lois applicables sur le droit à la réparation. Ce chiffre devrait grimper à **35 % d'ici l'automne 2026**, à mesure que les nouvelles lois au **Texas** et dans le **Connecticut** entreront pleinement en vigueur.
+    *   **Lobbying des entreprises :** Des groupes de défense comme le [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) ont signalé des efforts de lobbying continus de la part d'entreprises comme [Google](wiki:Google) et [Apple](wiki:Apple_Inc.) contre les restrictions sur l'« appariement de pièces » — une pratique où le logiciel verrouille les pièces de rechange à un appareil spécifique.
+    
+    ### Ce que disent les experts
+    
+    Les experts juridiques et techniques offrent un mélange d'optimisme et de prudence concernant ces nouvelles lois :
+    
+    1.  **Le débat sur la « libération technologique » :** Alors que les responsables de l'UE ont salué le 3 juin 2026 comme le « Jour de la libération technologique », les experts de la *Computer & Communications Industry Association* soutiennent qu'une véritable indépendance vis-à-vis des [Big Tech](wiki:Big_Tech) prendra des décennies, notant que l'Europe manque encore d'un rival à [Nvidia](wiki:Nvidia) ou [TSMC](wiki:TSMC).
+    2.  **Failles et appariement de pièces :** Les experts de *Cybernews* et *Earth911* préviennent que si les lois imposent le *droit* à la réparation, les fabricants « gardent toujours les cartes en main » en raison du coût élevé des pièces d'origine et des [verrous logiciels](wiki:Digital_rights_management) (appariement de pièces). Ils soutiennent que sans un contrôle plus strict des prix des pièces détachées, la réparation peut rester plus coûteuse que le remplacement.
+    3.  **Incitations liées à la garantie :** Les analystes juridiques de *Fieldfisher* soulignent un « joyau caché » dans la loi européenne : si un consommateur choisit la réparation plutôt que le remplacement pendant la période de garantie, la **garantie est prolongée de 12 mois**. Cela est considéré comme une incitation majeure pour détourner le comportement des consommateurs de la « culture du jetable ».
+    
+    > [Les fabricants seront tenus de réparer les produits concernés, même si ces produits ont été achetés par les consommateurs avant le 31 juillet 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Tableau récapitulatif : Jalons de 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Comment souhaites-tu procéder ? Je peux t'aider à examiner les lois spécifiques de certains États américains ou te fournir plus de détails sur les exigences du passeport numérique des produits.
+    
+    *   [Vérifier le statut État par État aux États-Unis](/#settings/apps/web)
+    *   [Trouver un atelier de réparation local](/#settings/apps/maps)
+    ---
+    *⚠️ Ces informations sont fournies à titre éducatif uniquement et ne constituent pas un avis juridique. Consulte un avocat pour obtenir des conseils juridiques.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    A giugno 2026, il movimento per il "Diritto alla riparazione" ha raggiunto una fase di attuazione critica sia nell'[Unione Europea](wiki:European_Union) che negli [Stati Uniti](wiki:United_States). Mentre l'UE si sta muovendo verso un mandato continentale unificato, gli Stati Uniti continuano a vedere un mosaico di vittorie a livello statale e intense battaglie di lobbying.
+    
+    ### Sviluppi recenti nell'Unione Europea
+    
+    L'evento recente più significativo è la presentazione da parte dell'UE del suo **pacchetto "Sovranità tecnologica"** il 3 giugno 2026. Questa iniziativa mira a ridurre la dipendenza dalle Big Tech statunitensi promuovendo alternative locali e rafforzando i diritti dei consumatori.
+    
+    *   **Conto alla rovescia per l'attuazione:** La storica [Direttiva UE sul diritto alla riparazione](wiki:Right_to_repair) (Direttiva (UE) 2024/1799) diventerà pienamente esecutiva in tutti gli Stati membri entro il **31 luglio 2026**. 
+    *   **Passaporti digitali dei prodotti:** A partire dal 19 luglio 2026, l'UE lancerà il registro del **Passaporto digitale dei prodotti (DPP)**. Questo richiederà che i prodotti (iniziando da batterie e tessili) abbiano un codice QR che fornisca dati sulla durata e sulla riparabilità.
+    *   **Avvertimenti legali:** Il 4 giugno 2026, la Commissione Europea ha emesso avvertimenti formali a **20 Stati membri** che hanno mancato la scadenza di marzo 2026 per recepire la direttiva sulla "Transizione verde" nel diritto nazionale. Questa direttiva è fondamentale per prevenire il [greenwashing](wiki:Greenwashing) e l'"[obsolescenza](wiki:Obsolescence) prematura".
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Sviluppi recenti negli Stati Uniti
+    
+    Negli Stati Uniti, il movimento rimane concentrato a livello statale, poiché la legislazione federale resta bloccata al [Congresso](wiki:United_States_Congress).
+    
+    *   **Espansione a livello statale:** A metà del 2026, oltre **un quarto degli americani** vive in stati con leggi sul diritto alla riparazione applicabili. Si prevede che questa cifra salirà al **35% entro l'autunno 2026**, quando le nuove leggi in **Texas** e **Connecticut** entreranno pienamente in vigore.
+    *   **Lobbying aziendale:** Gruppi di difesa come il [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) hanno segnalato continui sforzi di lobbying da parte di aziende come [Google](wiki:Google) e [Apple](wiki:Apple_Inc.) contro le restrizioni al "parts pairing" (abbinamento dei componenti), una pratica in cui il software blocca le parti di ricambio a un dispositivo specifico.
+    
+    ### Cosa dicono gli esperti
+    
+    Gli esperti legali e tecnici offrono un mix di ottimismo e cautela riguardo a queste nuove leggi:
+    
+    1.  **Il dibattito sulla "Liberazione tecnologica":** Mentre i funzionari dell'UE hanno salutato il 3 giugno 2026 come il "Giorno della liberazione tecnologica", gli esperti della *Computer & Communications Industry Association* sostengono che la vera indipendenza dalle [Big Tech](wiki:Big_Tech) richiederà decenni, notando che l'Europa manca ancora di un rivale per [Nvidia](wiki:Nvidia) o [TSMC](wiki:TSMC).
+    2.  **Scappatoie e abbinamento dei componenti:** Gli esperti di *Cybernews* ed *Earth911* avvertono che, sebbene le leggi impongano il *diritto* alla riparazione, i produttori hanno ancora "il coltello dalla parte del manico" a causa dell'alto costo dei componenti originali e dei [blocchi software](wiki:Digital_rights_management) (parts pairing). Sostengono che senza controlli più severi sui prezzi dei pezzi di ricambio, la riparazione potrebbe rimanere più costosa della sostituzione.
+    3.  **Incentivi sulla garanzia:** Gli analisti legali di *Fieldfisher* evidenziano una "perla nascosta" nella legge UE: se un consumatore sceglie la riparazione invece della sostituzione durante il periodo di garanzia, la **garanzia viene estesa di 12 mesi**. Questo è visto come un importante incentivo per allontanare il comportamento dei consumatori dalla "cultura dell'usa e getta".
+    
+    > [I produttori saranno obbligati a riparare i prodotti che rientrano nell'ambito di applicazione, anche se tali prodotti sono stati acquistati dai consumatori prima del 31 luglio 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Tabella riassuntiva: tappe fondamentali del 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Come vorresti procedere? Posso aiutarti a esaminare le leggi specifiche dei vari stati negli USA o fornirti maggiori dettagli sui requisiti del Passaporto digitale dei prodotti.
+    
+    *   [Controlla lo stato degli USA per ogni singolo stato](/#settings/apps/web)
+    *   [Trova un centro riparazioni locale](/#settings/apps/maps)
+    ---
+    *⚠️ Queste sono solo informazioni a scopo didattico e non costituiscono consulenza legale. Consulta un avvocato per una consulenza legale.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    A junio de 2026, el movimiento por el "derecho a reparar" ha llegado a una fase crítica de implementación tanto en la [Unión Europea](wiki:European_Union) como en los [Estados Unidos](wiki:United_States). Mientras la UE avanza hacia un mandato continental unificado, Estados Unidos sigue viendo un mosaico de victorias a nivel estatal e intensas batallas de lobby.
+    
+    ### Novedades recientes en la Unión Europea
+    
+    El acontecimiento reciente más significativo es la presentación por parte de la UE de su paquete de **"soberanía tecnológica"** el 3 de junio de 2026. Esta iniciativa busca reducir la dependencia de las grandes tecnológicas estadounidenses fomentando alternativas propias y reforzando los derechos de los consumidores.
+    
+    *   **Cuenta atrás para la implementación:** La histórica [Directiva de la UE sobre el derecho a reparar](wiki:Right_to_repair) (Directiva (UE) 2024/1799) será plenamente exigible en todos los Estados miembros para el **31 de julio de 2026**.
+    *   **Pasaportes digitales de producto:** A partir del 19 de julio de 2026, la UE pondrá en marcha el registro del **Pasaporte Digital de Producto (DPP)**. Esto exigirá que los productos (empezando por baterías y textiles) incluyan un código QR con datos sobre durabilidad y reparabilidad.
+    *   **Advertencias legales:** El 4 de junio de 2026, la Comisión Europea emitió advertencias formales a **20 Estados miembros** que incumplieron el plazo de marzo de 2026 para transponer la directiva de "transición verde" a la legislación nacional. Esta directiva es clave para prevenir el [greenwashing](wiki:Greenwashing) y la "[obsolescencia](wiki:Obsolescence) prematura".
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Novedades recientes en Estados Unidos
+    
+    En Estados Unidos, el movimiento sigue centrado en el nivel estatal, ya que la legislación federal continúa estancada en el [Congreso](wiki:United_States_Congress).
+    
+    *   **Expansión a nivel estatal:** A mediados de 2026, más de **una cuarta parte de los estadounidenses** vive en estados con leyes de derecho a reparar exigibles. Se espera que esa cifra suba al **35% para el otoño de 2026**, cuando entren plenamente en vigor nuevas leyes en **Texas** y **Connecticut**.
+    *   **Lobby corporativo:** Grupos de defensa como el [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) han informado de esfuerzos continuos de lobby por parte de empresas como [Google](wiki:Google) y [Apple](wiki:Apple_Inc.) contra las restricciones al "parts pairing", una práctica en la que el software vincula las piezas de repuesto a un dispositivo concreto.
+    
+    ### Qué dicen los expertos
+    
+    Los expertos legales y técnicos ofrecen una mezcla de optimismo y cautela sobre estas nuevas leyes:
+    
+    1.  **El debate sobre la "liberación tecnológica":** Aunque funcionarios de la UE han celebrado el 3 de junio de 2026 como el "Día de la Liberación Tecnológica", expertos de la *Computer & Communications Industry Association* sostienen que la verdadera independencia de las [Big Tech](wiki:Big_Tech) tardará décadas, señalando que Europa todavía carece de un rival para [Nvidia](wiki:Nvidia) o [TSMC](wiki:TSMC).
+    2.  **Lagunas y parts pairing:** Expertos de *Cybernews* y *Earth911* advierten que, aunque las leyes obligan a reconocer el *derecho* a reparar, los fabricantes todavía "tienen las cartas en la mano" gracias al alto coste de las piezas originales y los [bloqueos de software](wiki:Digital_rights_management) (parts pairing). Argumentan que, sin controles de precio más estrictos sobre los repuestos, reparar puede seguir siendo más caro que reemplazar.
+    3.  **Incentivos de garantía:** Analistas legales de *Fieldfisher* destacan una "joya oculta" en la ley de la UE: si un consumidor elige reparar en lugar de reemplazar durante el periodo de garantía, la **garantía se amplía 12 meses**. Esto se considera un incentivo importante para alejar el comportamiento del consumidor de una "cultura de usar y tirar".
+    
+    > [Los fabricantes estarán obligados a reparar los productos incluidos en el ámbito de aplicación, incluso si esos productos fueron comprados por consumidores antes del 31 de julio de 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Tabla resumen: hitos de 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    ¿Cómo te gustaría continuar? Puedo ayudarte a revisar leyes estatales concretas en Estados Unidos o darte más detalles sobre los requisitos del Pasaporte Digital de Producto.
+    
+    *   [Consultar el estado en cada estado de EE. UU.](/#settings/apps/web)
+    *   [Encontrar un taller de reparación local](/#settings/apps/maps)
+    ---
+    *⚠️ Esta información es solo educativa y no constituye asesoramiento legal. Consulta a un abogado para obtener asesoramiento legal.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3031e3c2-e832-40fa-99e0-126fe7a5077f", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws EU recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e7366974-55a3-4025-8a0b-6d40f600fa6a", "app_id": "news", "skill_id": "search", "query": "right-to-repair laws US recent news June 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "af660c08-2d9e-4684-ad3c-deceafd8ab0c", "app_id": "web", "skill_id": "search", "query": "expert analysis right-to-repair laws 2026 EU US", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "e4146998-76de-4683-a010-ceffcdb53005", "app_id": "images", "skill_id": "search", "query": "right to repair electronics repairability label EU", "provider": "Brave Search"}
+    ```
+    
+    I juni 2026 har rörelsen för "rätten att reparera" nått en kritisk genomförandefas i både [Europeiska unionen](wiki:European_Union) och [USA](wiki:United_States). Medan EU rör sig mot ett enhetligt kontinentalt mandat fortsätter USA att se ett lapptäcke av segrar på delstatsnivå och intensiva lobbystrider.
+    
+    ### Senaste utvecklingen i Europeiska unionen
+    
+    Den viktigaste aktuella händelsen är EU:s presentation av sitt **paket för "teknisk suveränitet"** den 3 juni 2026. Initiativet syftar till att minska beroendet av amerikanska Big Tech genom att främja inhemska alternativ och stärka konsumenträttigheter.
+    
+    *   **Nedräkning till genomförande:** Det banbrytande [EU-direktivet om rätten att reparera](wiki:Right_to_repair) (direktiv (EU) 2024/1799) ska vara fullt verkställbart i alla medlemsstater senast **31 juli 2026**.
+    *   **Digitala produktpass:** Från och med den 19 juli 2026 lanserar EU registret för **digitala produktpass (DPP)**. Det innebär att produkter (med start för batterier och textilier) måste bära en QR-kod med data om hållbarhet och reparerbarhet.
+    *   **Juridiska varningar:** Den 4 juni 2026 utfärdade Europeiska kommissionen formella varningar till **20 medlemsstater** som missade tidsfristen i mars 2026 för att införliva direktivet om "grön omställning" i nationell rätt. Direktivet är avgörande för att förhindra [greenwashing](wiki:Greenwashing) och "förtida [föråldring](wiki:Obsolescence)".
+    
+    [!](embed:euronewsweek.co.uk-aq1)
+    [!](embed:termopasty.com-0tB)
+    [!](embed:ecomondo.com-9xC)
+    
+    ### Senaste utvecklingen i USA
+    
+    I USA ligger rörelsens fokus fortfarande på delstatsnivå, eftersom federal lagstiftning fortsatt är blockerad i [kongressen](wiki:United_States_Congress).
+    
+    *   **Expansion på delstatsnivå:** I mitten av 2026 bor mer än **en fjärdedel av amerikanerna** i delstater med verkställbara lagar om rätten att reparera. Den siffran väntas öka till **35% till hösten 2026** när nya lagar i **Texas** och **Connecticut** får full verkan.
+    *   **Företagslobbying:** Intresseorganisationer som [Public Interest Research Group (PIRG)](wiki:Public_Interest_Research_Group) har rapporterat fortsatta lobbyinsatser från företag som [Google](wiki:Google) och [Apple](wiki:Apple_Inc.) mot begränsningar av "parts pairing", en praxis där programvara låser reservdelar till en specifik enhet.
+    
+    ### Vad experterna säger
+    
+    Juridiska och tekniska experter uttrycker en blandning av optimism och försiktighet kring de nya lagarna:
+    
+    1.  **Debatten om "teknisk befrielse":** Medan EU-tjänstemän har hyllat den 3 juni 2026 som "Tech Liberation Day" menar experter från *Computer & Communications Industry Association* att verkligt oberoende från [Big Tech](wiki:Big_Tech) kommer att ta årtionden, och påpekar att Europa fortfarande saknar en rival till [Nvidia](wiki:Nvidia) eller [TSMC](wiki:TSMC).
+    2.  **Kryphål och parts pairing:** Experter på *Cybernews* och *Earth911* varnar för att även om lagarna kräver *rätten* att reparera har tillverkarna fortfarande "korten på handen" genom höga priser på originaldelar och [programvarulås](wiki:Digital_rights_management) (parts pairing). De menar att reparation utan striktare priskontroller på reservdelar kan förbli dyrare än ersättning.
+    3.  **Garantiincitament:** Juridiska analytiker på *Fieldfisher* lyfter fram en "dold pärla" i EU-lagen: om en konsument väljer reparation framför ersättning under garantitiden förlängs **garantin med 12 månader**. Det ses som ett viktigt incitament för att styra konsumentbeteende bort från en "slit och släng-kultur".
+    
+    > [Tillverkare kommer att vara skyldiga att reparera produkter som omfattas, även om dessa produkter köptes av konsumenter före den 31 juli 2026.](embed:fieldfisher.com-e9q)
+    
+    ### Sammanfattningstabell: milstolpar 2026
+    
+    ```json
+    {"type": "sheet", "embed_id": "e4d7b998-1c4c-4680-9ef6-2a0f34ce0249"}
+    ```
+    
+    
+    Hur vill du gå vidare? Jag kan hjälpa dig att titta närmare på specifika delstatslagar i USA eller ge mer information om kraven för digitala produktpass.
+    
+    *   [Kontrollera status delstat för delstat i USA](/#settings/apps/web)
+    *   [Hitta en lokal reparationsverkstad](/#settings/apps/maps)
+    ---
+    *⚠️ Detta är endast utbildande information och inte juridisk rådgivning. Kontakta en advokat för juridisk rådgivning.*
+  verified_by_human: []

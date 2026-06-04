@@ -20,9 +20,34 @@ https://app.dev.openmates.org/share/chat/{uuid}#key={encrypted-blob}
 
 ## Steps
 
+### 0. Scaffold deterministic files
+
+Prefer the scaffold script for the repetitive conversion work. It extracts the shared chat, preserves embeds exactly, creates the TypeScript data file, creates i18n source entries, and registers the chat in `exampleChatStore.ts`.
+
+```bash
+node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
+  --slug "<seo-slug>" \
+  --keywords "keyword one,keyword two,keyword three" \
+  --dry-run
+```
+
+Review the printed plan. If the slug, title, category, icon, or summary need overrides, pass them explicitly:
+
+```bash
+node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
+  --slug "<seo-slug>" \
+  --title "<title>" \
+  --summary "<summary>" \
+  --icon "<lucide-icon-name>" \
+  --category "<category>" \
+  --keywords "keyword one,keyword two,keyword three"
+```
+
+The generated i18n source duplicates English into all supported languages deterministically. After scaffolding, replace those copied values with proper translations before deployment.
+
 ### 1. Extract chat content
 
-Run the extraction script to decrypt the shared chat:
+Only do this manually if the scaffold script fails or you need to inspect the raw decrypted payload. Run the extraction script to decrypt the shared chat:
 
 ```bash
 node scripts/extract-shared-chat.mjs "<SHARE_URL>" 2>/dev/null | python3 -c "
