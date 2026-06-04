@@ -40,6 +40,7 @@ from backend.core.api.app.routes import admin  # noqa: E402 # Import admin route
 from backend.core.api.app.routes.push import router as push_router, notifications_router  # noqa: E402 # Push notification routes
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
+from backend.core.api.app.routes import admin_newsletter_campaigns  # noqa: E402 # Hidden admin newsletter campaign scheduler
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
@@ -1323,6 +1324,7 @@ def create_app() -> FastAPI:
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
+    app.include_router(admin_newsletter_campaigns.router, include_in_schema=False)  # Admin newsletter campaign scheduler - API key admin only
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
     app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required

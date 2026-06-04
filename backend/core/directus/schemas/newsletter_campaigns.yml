@@ -1,0 +1,165 @@
+# Durable newsletter campaign records used by the admin-only scheduler.
+#
+# Campaign source can be authored outside this repo (openmates-marketing) and
+# uploaded through the hidden admin API. Recipient-level idempotency remains in
+# email_deliveries; this collection owns campaign-level status and approvals.
+newsletter_campaigns:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    slug:
+      type: string
+      length: 160
+      unique: true
+      note: "Stable campaign key used for email_deliveries.campaign_key."
+
+    status:
+      type: string
+      length: 30
+      default: "draft"
+      note: "draft, approved, scheduled, sending, sent, failed, cancelled"
+
+    mode:
+      type: string
+      length: 30
+      default: "email_only"
+      note: "email_only or public_page. public_page requires a live landing/chat page before send."
+
+    category:
+      type: string
+      length: 80
+      note: "Newsletter subscriber category filter, e.g. updates_and_announcements."
+
+    kind:
+      type: string
+      length: 40
+      note: "Legacy renderer kind: announcements or tips."
+
+    demo_chat_category:
+      type: string
+      length: 40
+      nullable: true
+
+    chat_id:
+      type: string
+      length: 180
+      nullable: true
+
+    public_page_url:
+      type: string
+      length: 512
+      nullable: true
+
+    scheduled_for:
+      type: datetime
+      nullable: true
+
+    timezone:
+      type: string
+      length: 80
+      default: "UTC"
+
+    subject:
+      type: json
+      note: "Language map, e.g. {en: ..., de: ...}."
+
+    title:
+      type: json
+      note: "Language map used as the visible email title."
+
+    subtitle:
+      type: json
+      nullable: true
+
+    cta_text:
+      type: json
+      nullable: true
+
+    cta_url:
+      type: string
+      length: 512
+      nullable: true
+
+    body_markdown:
+      type: json
+      note: "Language map containing the raw newsletter markdown body."
+
+    video:
+      type: json
+      nullable: true
+
+    hero_image:
+      type: json
+      nullable: true
+
+    header_icon:
+      type: json
+      nullable: true
+
+    metadata:
+      type: json
+      nullable: true
+
+    payload_hash:
+      type: string
+      length: 64
+      note: "SHA-256 of normalized payload to audit exactly what was approved."
+
+    created_by:
+      type: string
+      length: 128
+      nullable: true
+
+    created_at:
+      type: datetime
+
+    updated_at:
+      type: datetime
+
+    preview_sent_at:
+      type: datetime
+      nullable: true
+
+      note: "Set after admin test emails are sent. Required before approval."
+
+    preview_recipient:
+      type: string
+      length: 255
+      nullable: true
+      note: "Masked admin recipient for audit only; no subscriber emails are stored here."
+
+    approved_at:
+      type: datetime
+      nullable: true
+
+    approved_by:
+      type: string
+      length: 128
+      nullable: true
+
+    locked_at:
+      type: datetime
+      nullable: true
+
+    sent_at:
+      type: datetime
+      nullable: true
+
+    failed_at:
+      type: datetime
+      nullable: true
+
+    cancelled_at:
+      type: datetime
+      nullable: true
+
+    last_error:
+      type: text
+      nullable: true
+
+    stats:
+      type: json
+      nullable: true
