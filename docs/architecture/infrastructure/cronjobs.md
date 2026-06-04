@@ -10,6 +10,10 @@ key_files:
   - scripts/nightly-dead-code-removal.sh
   - scripts/weekly-codebase-audit.sh
   - scripts/security-audit.sh
+  - scripts/nightly-ui-design-review.sh
+  - scripts/nightly-apple-parity-review.sh
+  - scripts/nightly-seo-audit.sh
+  - scripts/_scheduled_review_helper.py
   - scripts/nightly-code-structure.sh
   - scripts/daily-meeting.sh
   - scripts/update_obsidian_daily_note.py
@@ -42,6 +46,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
 | `03:00 Mon-Fri`               | `run_tests.py --daily`                 | Full test suite (Playwright + pytest)     |
+| `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
+| `04:30 Mon+Thu`               | `nightly-apple-parity-review.sh`       | Apple/web parity review (plan only)       |
+| `04:50 Sun`                   | `nightly-seo-audit.sh`                 | Deep SEO optimization review (plan only)  |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
 | `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
 | `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
@@ -84,6 +91,12 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Red team probe** (Wed+Sat 02:30): Simulates external attacker against dev endpoints (GET/HEAD/OPTIONS only, max 5 req/endpoint, 20-min timeout). Three phases: reconnaissance, external probing, safe exploitation. No destructive requests. Uses `--permission-mode plan` with `--allowedTools "Read,Grep,Glob,Bash(curl *)"`.
 
 **Code structure cleanup** (02:50 daily): Scans for repository hygiene issues — gitignore gaps, open-source readiness (leaked internal values), folder organization, file consolidation, naming inconsistencies, stale artifacts. Haiku, plan mode, 25-min soft limit / 30-min hard kill. Suggestions only, no code changes. Uses `_nightly_scanner_helper.py` with rotating sector schedule. Output: `logs/nightly-reports/code-structure.json`. Manual: `./scripts/nightly-code-structure.sh [--dry-run]`.
+
+**UI design review** (Tue+Fri 04:10): Starts a read-only OpenCode chat that inspects the current web and Apple UI codebase, using recent UI commits only as prioritization context. Reports top recommendations for design-system consistency, web/Apple UI unification, redundant component/style patterns, readability, settings UI standards, and hook/lint opportunities justified by repeated current-code or recent-commit patterns. Output: `logs/nightly-reports/ui-design-review.json`. Manual: `./scripts/nightly-ui-design-review.sh [--dry-run]`.
+
+**Apple parity review** (Mon+Thu 04:30): Generates `test-results/apple-parity-inventory.json`, then starts a Linux-safe read-only OpenCode chat that inspects current Swift and web source, `apple/SVELTE_SWIFT_COUNTERPARTS.md`, and recent web UI commits to recommend the highest-priority Apple parity follow-ups. Output: `logs/nightly-reports/apple-parity-review.json`. Manual: `./scripts/nightly-apple-parity-review.sh [--dry-run]`.
+
+**SEO audit** (Sun 04:50): Starts a read-only OpenCode chat that combines safe production GET/HEAD checks against `openmates.org` with current SvelteKit source inspection. This is deeper than the daily meeting SEO smoke check and reports prioritized improvements for sitemap coverage, SSR/prerender, metadata, OG/Twitter tags, JSON-LD, hreflang, and internal linking. Output: `logs/nightly-reports/seo-audit.json`. Manual: `./scripts/nightly-seo-audit.sh [--dry-run]`.
 
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 
