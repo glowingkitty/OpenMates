@@ -51,7 +51,11 @@ const EVENT_SEARCH_PROVIDERS = [
 	'Google Events',
 	'Resident Advisor',
 	'Siegessäule',
-	'Berlin Philharmonic'
+	'Berlin Philharmonic',
+	'GPN24',
+	'39C3',
+	'38C3',
+	'37C3'
 ];
 
 async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {

@@ -99,7 +99,7 @@ _PROVIDER_LABELS: Dict[str, str] = {
     "resident_advisor": "Resident Advisor",
     "siegessaeule": "Siegessäule",
     "berlin_philharmonic": "Berlin Philharmonic",
-    "pretalx": "GPN/Congress Schedule",
+    "pretalx": "GPN24/39C3/38C3/37C3",
 }
 
 # Platform-brand and generic filler words that narrow provider results unnecessarily.

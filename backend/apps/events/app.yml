@@ -130,7 +130,19 @@ skills:
         scope: city
         region: Berlin
         no_api_key: true
-      - name: GPN/Congress Schedule
+      - name: GPN24
+        id: pretalx
+        scope: conference
+        no_api_key: true
+      - name: 39C3
+        id: pretalx
+        scope: conference
+        no_api_key: true
+      - name: 38C3
+        id: pretalx
+        scope: conference
+        no_api_key: true
+      - name: 37C3
         id: pretalx
         scope: conference
         no_api_key: true
