@@ -122,7 +122,7 @@ test.describe('App: Events / Skill: search', () => {
 		await page.waitForLoadState('networkidle');
 		const skillSettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/events/skill/search"]');
 		await expect(skillSettingsMenu).toBeVisible({ timeout: 15_000 });
-		await expectSettingsProviderIcons(skillSettingsMenu, EVENT_SEARCH_PROVIDERS);
+		await expectSettingsProviderIcons(skillSettingsMenu, EVENT_SEARCH_CARD_ICON_PROVIDERS);
 	});
 
 	// ── Phase 1: Embed preview renders ─────────────────────────────────────
