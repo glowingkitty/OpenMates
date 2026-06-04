@@ -312,11 +312,7 @@
                             rel={serverEdition === 'self_hosted' || serverEdition === 'development' ? 'noopener noreferrer' : undefined}
                         >
                             <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
-                            <span class="mobile-logo-icon" aria-hidden="true">
-                                <span class="mobile-logo-mate"></span>
-                                <span class="mobile-logo-badge"></span>
-                                <span class="mobile-logo-ai"></span>
-                            </span>
+                            <span class="mobile-logo-icon" aria-hidden="true"></span>
                         </a>
                         {#if serverEdition === 'self_hosted' || serverEdition === 'development'}
                             <div
@@ -547,55 +543,12 @@
 
     .mobile-logo-icon {
         display: none;
-        position: relative;
         width: 30px;
         height: 30px;
         flex-shrink: 0;
-    }
-
-    .mobile-logo-mate {
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
         background: var(--gradient-primary, linear-gradient(135deg, var(--color-primary), var(--color-button-primary)));
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    .mobile-logo-mate::after {
-        content: "";
-        position: absolute;
-        inset: 6px;
-        background: var(--color-grey-0);
         -webkit-mask-image: url('@openmates/ui/static/icons/mate.svg');
         mask-image: url('@openmates/ui/static/icons/mate.svg');
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-    }
-
-    .mobile-logo-badge {
-        position: absolute;
-        right: -3px;
-        bottom: -3px;
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
-        background: var(--color-grey-0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-    }
-
-    .mobile-logo-ai {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        width: 8px;
-        height: 8px;
-        background: var(--color-primary);
-        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-        mask-image: url('@openmates/ui/static/icons/ai.svg');
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-position: center;
@@ -818,7 +771,7 @@
 
         /* Mobile-specific styles for left section and logo */
         .left-section {
-            gap: 0.5rem;
+            gap: calc(0.5rem + 10px);
         }
 
         .logo-link {
