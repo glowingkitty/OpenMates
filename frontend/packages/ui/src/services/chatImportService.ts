@@ -95,10 +95,23 @@ export interface ImportChatApiResponse {
   total_credits_charged: number;
 }
 
+export interface RecentImportedChatData {
+  chat: Chat;
+  messages: Message[];
+}
+
 export type ImportProgressCallback = (
   phase: "parsing" | "resolving-embeds" | "submitting" | "done",
   detail: string,
 ) => void;
+
+const recentImportedChats = new Map<string, RecentImportedChatData>();
+
+export function getRecentImportedChatData(
+  chatId: string,
+): RecentImportedChatData | undefined {
+  return recentImportedChats.get(chatId);
+}
 
 // ============================================================================
 // FILE TYPE DETECTION
@@ -581,6 +594,8 @@ async function cacheAcceptedImportsLocally(
       thinking_token_count: message.thinking_tokens,
       thinking_content: message.thinking,
     }));
+
+    recentImportedChats.set(result.chat_id, { chat, messages });
 
     await chatDB.addChat(chat);
     await chatDB.batchSaveMessages(messages);
