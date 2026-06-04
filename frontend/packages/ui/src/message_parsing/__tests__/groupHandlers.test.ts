@@ -26,4 +26,44 @@ describe("groupHandlerRegistry", () => {
 
     expect(groupHandlerRegistry.canGroup(first, second)).toBe(false);
   });
+
+  it("groups consecutive image search result embeds", () => {
+    const first: EmbedNodeAttributes = {
+      id: "image-a",
+      type: "images-image-result",
+      status: "finished",
+      contentRef: "embed:image-a",
+      title: "First image",
+      thumbnail_url: "https://example.com/first.jpg",
+      source_domain: "example.com",
+    } as EmbedNodeAttributes;
+    const second: EmbedNodeAttributes = {
+      id: "image-b",
+      type: "images-image-result",
+      status: "finished",
+      contentRef: "embed:image-b",
+      title: "Second image",
+      thumbnail_url: "https://example.com/second.jpg",
+      source_domain: "example.com",
+    } as EmbedNodeAttributes;
+
+    expect(groupHandlerRegistry.canGroup(first, second)).toBe(true);
+
+    const group = groupHandlerRegistry.createGroup([first, second]);
+
+    expect(group?.type).toBe("images-image-result-group");
+    expect(group?.groupCount).toBe(2);
+    expect(group?.groupedItems).toEqual([
+      expect.objectContaining({
+        id: "image-a",
+        type: "images-image-result",
+        thumbnail_url: "https://example.com/first.jpg",
+      }),
+      expect.objectContaining({
+        id: "image-b",
+        type: "images-image-result",
+        thumbnail_url: "https://example.com/second.jpg",
+      }),
+    ]);
+  });
 });

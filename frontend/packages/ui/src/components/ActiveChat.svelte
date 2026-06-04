@@ -1869,14 +1869,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (most-recent-first), so we mirror that reversal here so the
         // fullscreen prev/next arrows match the on-screen layout.
         //
-        // Groupable types: web-website, videos-video, code-code, docs-doc,
-        // sheets-sheet, app-skill-use (see groupHandlers.ts).
+        // Groupable types mirror groupHandlers.ts.
         // For app-skill-use, ANY consecutive app-skill-use embeds form a
         // single group regardless of app_id/skill_id.  For other types,
         // only consecutive embeds of the exact same type form a group.
         const GROUPABLE_TYPES = new Set([
             'web-website', 'videos-video', 'code-code',
             'docs-doc', 'sheets-sheet', 'app-skill-use',
+            'images-image-result',
         ]);
         
         const visualOrderIds: string[] = [];

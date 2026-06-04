@@ -1039,6 +1039,22 @@ export class GroupHandlerRegistry {
     this.register(new SheetsSheetGroupHandler());
     this.register(new AppSkillUseGroupHandler());
 
+    this.register(
+      new BaseGroupHandler("images-image-result", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "title",
+        "thumbnail_url",
+        "favicon_url",
+        "source_domain",
+        "sourceDomain",
+        "source_url",
+        "url",
+      ]),
+    );
+
     // Generic handlers for embed types that follow the standard grouping pattern
     this.register(
       new BaseGroupHandler("home-listing", [
