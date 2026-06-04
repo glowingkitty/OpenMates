@@ -19,7 +19,7 @@ if os.getenv("OTEL_TRACING_ENABLED", "true").lower() == "true":
 # --- End Tracing Setup ---
 
 # Now import other modules that might log
-from fastapi import FastAPI, Request  # noqa: E402
+from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.responses import RedirectResponse  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.openapi.utils import get_openapi  # noqa: E402
@@ -1527,11 +1527,47 @@ def create_app() -> FastAPI:
         elif degraded_apps > 0:
             overall_status = "degraded"
 
+        # Public health is consumed by clients for availability decisions, but
+        # must not expose live errors, timestamps, or response timing history.
+        public_providers_health = {
+            provider_id: {
+                "status": provider_data.get("status", "unknown"),
+                "last_check": None,
+                "last_error": None,
+                "response_times_ms": {},
+            }
+            for provider_id, provider_data in providers_health.items()
+        }
+        public_apps_health = {
+            app_id: {
+                "status": app_data.get("status", "unknown"),
+                "api": {
+                    "status": (app_data.get("api") or {}).get("status", "unknown"),
+                    "last_error": None,
+                },
+                "worker": {
+                    "status": (app_data.get("worker") or {}).get("status", "unknown"),
+                    "last_error": None,
+                },
+                "last_check": None,
+            }
+            for app_id, app_data in apps_health.items()
+        }
+        public_external_services_health = {
+            service_id: {
+                "status": service_data.get("status", "unknown"),
+                "last_check": None,
+                "last_error": None,
+                "response_times_ms": {},
+            }
+            for service_id, service_data in external_services_health.items()
+        }
+
         return {
             "status": overall_status,
-            "providers": providers_health,
-            "apps": apps_health,
-            "external_services": external_services_health
+            "providers": public_providers_health,
+            "apps": public_apps_health,
+            "external_services": public_external_services_health,
         }
 
     # Health history endpoint - provides historical health data for incident analysis
@@ -1543,7 +1579,8 @@ def create_app() -> FastAPI:
         service_type: Optional[str] = None,
         service_id: Optional[str] = None,
         since: Optional[int] = None,
-        limit: int = 100
+        limit: int = 100,
+        admin_user = Depends(admin.require_admin),
     ):
         """
         Get historical health events for incident analysis.
@@ -1564,6 +1601,7 @@ def create_app() -> FastAPI:
             - total: Number of events returned
             - filters: Applied filters
         """
+        _ = admin_user
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
         
@@ -1606,7 +1644,8 @@ def create_app() -> FastAPI:
     async def health_incident_summary(
         request: Request,
         service_type: Optional[str] = None,
-        since: Optional[int] = None
+        since: Optional[int] = None,
+        admin_user = Depends(admin.require_admin),
     ):
         """
         Get aggregated incident statistics for all services.
@@ -1623,6 +1662,7 @@ def create_app() -> FastAPI:
         Returns:
             Dict with incident statistics aggregated by service.
         """
+        _ = admin_user
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
         

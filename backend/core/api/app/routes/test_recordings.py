@@ -15,8 +15,10 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.admin import require_admin
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.s3.config import get_bucket_name
 
@@ -163,10 +165,14 @@ def _child_manifests_for_source(recordings_dir: Path, source_slug: str) -> list[
     return children
 
 
-@router.get("", dependencies=[])
+@router.get("")
 @limiter.limit("30/minute")
-async def list_test_recordings(request: Request) -> dict[str, Any]:
+async def list_test_recordings(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """List latest Playwright test recordings for the /tests page."""
+    _ = admin_user
     _ensure_dev_only()
     recordings_dir = _find_recordings_dir()
     if not recordings_dir:
@@ -203,10 +209,15 @@ async def list_test_recordings(request: Request) -> dict[str, Any]:
     return index
 
 
-@router.get("/{slug}", dependencies=[])
+@router.get("/{slug}")
 @limiter.limit("60/minute")
-async def get_test_recording(slug: str, request: Request) -> dict[str, Any]:
+async def get_test_recording(
+    slug: str,
+    request: Request,
+    admin_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """Return one latest Playwright test recording manifest."""
+    _ = admin_user
     _ensure_dev_only()
     if not slug or "/" in slug or ".." in slug:
         raise HTTPException(status_code=400, detail="Invalid recording slug")

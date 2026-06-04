@@ -12,6 +12,8 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from backend.core.api.app.routes import test_recordings
@@ -25,6 +27,17 @@ class FakeS3Service:
 def _fake_request() -> Request:
     app = SimpleNamespace(state=SimpleNamespace(s3_service=FakeS3Service()))
     return Request({"type": "http", "method": "GET", "path": "/", "app": app})
+
+
+def test_test_recordings_require_authentication():
+    app = FastAPI()
+    app.state.directus_service = SimpleNamespace()
+    app.state.cache_service = SimpleNamespace()
+    app.include_router(test_recordings.router)
+
+    response = TestClient(app).get("/v1/test-recordings")
+
+    assert response.status_code == 401
 
 
 def _write_recording_fixture(root, slug: str = "chat-flow") -> None:
