@@ -48,7 +48,7 @@ class LinearError(RuntimeError):
     """Raised when Linear returns an error or the request cannot be completed."""
 
 
-def load_env_file(path: Path) -> None:
+def load_env_file(path: Path, *, override: bool = False) -> None:
     if not path.is_file():
         return
 
@@ -59,7 +59,7 @@ def load_env_file(path: Path) -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
+        if key and (override or key not in os.environ):
             os.environ[key] = value
 
 
@@ -504,7 +504,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    load_env_file(PROJECT_ROOT / ".env")
+    # This CLI is specifically for the OpenMates workspace. Prefer the repo's
+    # .env over inherited shell variables so agents do not accidentally use a
+    # stale Linear token from another project/session.
+    load_env_file(PROJECT_ROOT / ".env", override=True)
     parser = build_parser()
     args = parser.parse_args()
     global credential_source

@@ -99,7 +99,7 @@ More complete development guidelines are coming later.
 
 Existing technical docs are available here:
 
-- Contributor docs: `docs/contributing/README.md`
+- Contributor docs: `CONTRIBUTING.md`
 - Frontend standards: `docs/contributing/standards/frontend.md`
 - Backend standards: `docs/contributing/standards/backend.md`
 - Testing guide: `docs/contributing/guides/testing.md`

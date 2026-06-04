@@ -1,117 +1,186 @@
-# OpenMates™
+# OpenMates
 
-[![OpenMates header image](./marketing/slides/openmates_pitch_slides/intro.jpg)](https://openmates.org)
+AI team mates for everyday tasks & learning. Plan trips, find apartments, discuss videos & news, build projects - and much more. With user interests & privacy above anything else by design.
 
-## What is OpenMates?
+OpenMates is currently in a fairly stable alpha state. The best way to help right now is to test it, report issues, suggest improvements, improve documentation, and contribute to public GitHub issues.
 
-OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. — focused on the best user experience, fulfilling your tasks using a wide range of apps, client-side encryption of your content by default, and compatibility with a wide range of AI models, making it also independent of specific companies. Currently in an alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
+[Try OpenMates](https://openmates.org) · [Self-host](./docs/self-hosting/setup.md) · [Report an issue](https://github.com/glowingkitty/OpenMates/issues) · [Suggest an improvement](https://github.com/glowingkitty/OpenMates/issues) · [Contribute](./CONTRIBUTING.md)
 
-[Click to show project overview slides PDF](./marketing/slides/openmates_overview_slides.pdf)
+> Image TODO: Generate the README hero image with Remotion.
+>
+> It should show a polished OpenMates web app scene: a short product headline, the chat UI, and at least one useful app result or rich embed.
 
-[Support OpenMates financially](https://openmates.org/#settings/support)
+## What You Can Do With OpenMates
 
-> _The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and some features are still missing._
+OpenMates is meant to help with real tasks, not only open-ended chatting.
 
-### Goal
+### Get Everyday Tasks Done
 
-![Goal header image](./marketing/slides/openmates_pitch_slides/goal.jpg)
+Summarize the news, find events across platforms, find train connections and flights including prices and booking links, look for doctor appointments, search apartments, compare options, plan trips, and handle many other everyday tasks from one conversational interface.
 
-OpenMates aims to be the most user-friendly, privacy-focused and provider-independent AI agent software. Beyond being a powerful tool for daily tasks, it is designed with a strong focus on **education and inspiration** — empowering users to learn and discover new ideas through interactive AI assistance.
+Instead of switching between many websites, forms, and search result pages, OpenMates can use apps and skills to collect relevant information, structure it, and keep the result inside the conversation.
 
-#### Apps
+> Image TODO: Generate an everyday-tasks image with Remotion.
+>
+> It should show examples such as news summaries, events, travel connections with prices, or apartment/appointment search results.
 
-![Apps header image](./marketing/slides/openmates_pitch_slides/apps.jpg)
+### Build Projects
 
-Apps are one of the core components of OpenMates. They allow your digital team mates to use various external providers to fullfill your requests - from searching the web, finding meetups, finding restaurants, generating images, transcribing videos, and much more.
+Plan projects, write and execute code snippets in a sandboxed environment from the comfort of a web browser, research technical decisions, find electronics components for a project, compare tools, and turn scattered ideas into concrete next steps.
 
-[Click here to learn more](./docs/user-guide/apps/README.md)
+OpenMates is built for both technical and non-technical project work: drafting plans, collecting references, testing snippets safely, and using specialized apps when a normal chat response is not enough.
 
-### Completed
+> Image TODO: Generate a project-building image with Remotion.
+>
+> It should show a browser-based project workflow: planning, code snippets, sandboxed execution, or component/tool research.
 
-![Completed header image](./marketing/slides/openmates_pitch_slides/completed.jpg)
+### Learn Faster
 
-The [alpha release of OpenMates](https://openmates.org) is available and includes core features like:
+Learn about new topics, explore related Wikipedia articles, compare explanations, ask follow-up questions, and use learning-focused optimizations instead of treating every topic like a generic chat.
 
-- **Apps & AI Agents**: Fulfill tasks using a wide range of integrated apps (Web search, Videos, Maps, News, etc.)
-- **Client-Side Encryption**: Chats, titles, app settings, memories, and other sensitive fields are encrypted in your browser before being sent to our servers, and are stored only as ciphertext. Our servers decrypt content transiently in memory when you need it (for AI responses, invoices, reminders) but never write plaintext to disk, logs, or traces. Before your prompts go to any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is not end-to-end encryption, but it is a stronger guarantee than encryption-at-rest alone — and when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
-- **Unified UI**: A modern interface that seamlessly integrates media previews and app skill details.
-- **Educational Support**: Auto-generated follow-up questions and new chat suggestions to help you explore topics more deeply.
-- **Auto AI Model Selection**: Automatically routes your requests to the best-suited AI model based on complexity.
-- **Developer API**: OpenAI-compatible REST API for external integrations and CLI tools.
+OpenMates should make exploration feel natural: start with a question, branch into related concepts, inspect sources, and keep useful context available as the learning session develops.
 
-A more stable and feature-rich beta release is planned for 2026.
+> Image TODO: Generate a learning image with Remotion.
+>
+> It should show a learning conversation with related articles, follow-up suggestions, or a guided topic map.
 
-### What's next
+### Use Familiar AI Models Better
 
-![What's next header image](./marketing/slides/openmates_pitch_slides/whats_next.jpg)
+OpenMates is designed to work with AI models people are already familiar with, but with better privacy, safety, and usability than typical AI agents.
 
-While many core features are implemented, we are continuously improving OpenMates. Our next focus areas include:
+The goal is not to hide the model behind another black box. The goal is to make model use more practical: better task flows, safer provider use, richer results, clearer controls, and a product that puts the user's interests first.
 
-- **Daily Inspirations**: Personalized daily prompts and insights to keep you learning and inspired.
-- **CLI & REST API**: Implementing a powerful CLI tool and improving the developer REST API.
-- **Expanded App Ecosystem**: Adding more specialized apps and deeper integrations.
-- **Improved AI Model Selection**: Refining the automated process for selecting the best-suited AI model based on task complexity.
-- **Separate documentation page**: A dedicated, searchable documentation site.
+## User Interests First
 
-### How to contribute
+OpenMates is designed around privacy, safety, and usability from the start.
 
-![How to contribute header image](./marketing/slides/openmates_pitch_slides/contribute.jpg)
+- **Privacy by design:** chats, titles, app settings, memories, and other sensitive fields are encrypted in the browser before being stored on the server. Sensitive details can also be detected and replaced with placeholders before prompts are sent to third-party AI providers.
+- **Safety by design:** external providers, app skills, tool use, and sandboxed execution should be understandable and controlled instead of hidden behind opaque automation.
+- **Usability by design:** apps, skills, rich embeds, focus modes, memories, and example flows make AI useful for everyday people, not only prompt experts.
+- **No ecosystem lock-in:** OpenMates can be used with various AI provider APIs and is designed to support offline/local AI models later.
+- **Open source and self-hostable:** run it yourself, inspect how it works, adapt it to your needs, or help improve the public project.
 
-You can help by testing the web app and providing feedback. You can also help by contributing to the code.
+Self-hosting is powerful, but it does not make every connected service free. Many OpenMates app skills require API keys from external providers, and many of those providers require paid subscriptions or usage-based billing.
 
-[Click here to learn how to contribute](./docs/architecture/contributing/contributing.md)
+> Image TODO: Generate a user-interests-first image with Remotion.
+>
+> It should communicate privacy, safety, usability, no lock-in, and open-source/self-hosting without feeling like a dense architecture diagram.
 
-## Cloud web app
+## Feature Highlights
 
-[![Cloud web app header image](./docs/images/cloudwebapp_header.png)](https://openmates.org)
+### Privacy-First AI Assistance
 
-Want to test OpenMates without having to manage the deployment yourself? And also support the development financially at the same time? Then join our Discord group, where invite codes to sign up for OpenMates will be posted on a regular basis.
+OpenMates treats privacy as product infrastructure, not as a marketing add-on. Client-side encryption, account recovery, privacy-preserving observability, and careful prompt preprocessing are part of the core system.
 
-[Open web app](https://openmates.org)
+Server-side processing only decrypts transiently when needed for user-requested AI responses or actions, and plaintext must not be written to disk, logs, or traces.
 
-## License
+Relevant docs: [Security](./docs/architecture/core/security.md), [Client-side encryption](./docs/architecture/core/client-side-encryption.md), [Account recovery](./docs/architecture/core/account-recovery.md), [PII protection](./docs/architecture/privacy/pii-protection.md).
 
-[![License header image](./docs/images/license_header.png)](https://www.gnu.org/licenses/why-affero-gpl.html)
+### Apps, Skills, And Rich Embeds
 
-OpenMates is licensed under AGPL.
+OpenMates uses apps and skills to move beyond generic chat. Skills can search the web, read pages, find events, search maps, generate or analyze media, manage reminders, and return structured results.
 
-### What is allowed?
+Rich embeds keep results inside the conversation so users can inspect, compare, and continue from useful outputs instead of jumping through disconnected links.
 
-- Run OpenMates on your local machine or private server
-- Share access with your team or organization
-- Create new open source software based on OpenMates (commercial use allowed)
-- Use OpenMates alongside other software on the same server
+Relevant docs: [Apps user guide](./docs/user-guide/apps/README.md), [App skills architecture](./docs/architecture/apps/app-skills.md), [Embeds architecture](./docs/architecture/messaging/embeds.md).
 
-### What is prohibited?
+### Focus Modes And Memories
 
-- Offering OpenMates as a service to outside users while keeping your code changes private
-- Creating software based on OpenMates under a different license than AGPL
-- Combining OpenMates code with proprietary code in the same application
+Focus modes help OpenMates behave differently for different situations: learning, career exploration, task workflows, and other guided experiences.
 
-### Key requirement:
+Memories are designed to make OpenMates more useful over time while still giving users control over sensitive data. The goal is helpful personalization without uncontrolled data collection.
 
-If you provide OpenMates as a network service to others (like a public website or API), you must make your complete source code - including any modifications - available to the public.
+Relevant docs: [Focus modes](./docs/architecture/apps/focus-modes.md), [Focus modes implementation](./docs/architecture/apps/focus-modes-implementation.md), [Privacy promises](./docs/architecture/privacy/privacy-promises.md).
 
-[Open GNU website with more details](https://www.gnu.org/licenses/why-affero-gpl.html)
+### Model And Provider Independence
 
-## Self-hosted setup
+OpenMates is not meant to depend on a single AI provider. The app can route tasks across different models and providers, expose which model was used, and give users more control when they need it.
 
-![Self hosted setup header image](./docs/images/selfhostedsetup_header.png)
+For developers, this means provider abstractions, routing, cost/quality tradeoffs, model capability detection, and graceful failure handling are important parts of the system.
 
-Learn how to self-host OpenMates by reading the [Self-Hosting Guide](./docs/self-hosting/setup.md).
+Relevant docs: [AI model selection](./docs/architecture/ai/ai-model-selection.md), [Thinking models](./docs/architecture/ai/thinking-models.md).
 
-## Design Guidelines
+### Developer API And CLI
 
-[![Design Guidelines header image](./docs/images/designguidelines_header.png)](./docs/design-guide/README.md)
+OpenMates includes developer-facing access through an OpenAI-compatible REST API and a CLI package. This makes it possible to connect OpenMates to scripts, local workflows, and other developer tools.
 
-A great UX & UI design that makes OpenMates accessible to everyone and not just tech enthusiasts is one of the key differences from other AI agent software.
+Relevant docs: [CLI](./docs/cli/README.md), [REST API architecture](./docs/architecture/apps/rest-api.md), [CLI package architecture](./docs/architecture/apps/cli-package.md).
 
-[Show design guidelines](./docs/design-guide/README.md)
+## Explore Real Examples
+
+Feature images should link to real examples wherever possible. These examples use deterministic demo chats or public preview pages, not private user data or unstable test accounts.
+
+- Example chats should be used for apps, skills, embeds, focus modes, follow-up suggestions, and learning flows.
+- Short videos should be used for privacy flows, memories, model routing, and anything that is hard to make deterministic in a public chat.
+- Documentation should be used for architecture-heavy topics such as encryption, provider routing, self-hosting, API, and CLI.
+
+> Image TODO: Generate an examples-grid image with Remotion once the first public demo chats and videos are selected.
+
+## Self-Host OpenMates
+
+OpenMates is open source and self-hostable. The self-hosting docs are the starting point if you want to run your own instance, evaluate the architecture, or contribute infrastructure improvements.
+
+[Start the self-hosting guide](./docs/self-hosting/setup.md)
+
+Self-hosting docs:
+
+- [Setup](./docs/self-hosting/setup.md)
+- [Server hardening](./docs/self-hosting/server-hardening.md)
+- [Deployment docs](./deployment/README.md)
+
+Remember that self-hosting OpenMates does not automatically include access to every external service. Many app skills require separate provider API keys, and some providers require paid subscriptions.
+
+> Image TODO: Generate a self-hosting image with Remotion.
+>
+> It should show a simple deployment or architecture overview next to a running OpenMates web app.
+
+## Contributing
+
+The most valuable contributions right now are high-quality issue reports, improvement suggestions, documentation fixes, example improvements, and focused pull requests connected to public GitHub issues.
+
+[Read the contributing guide](./CONTRIBUTING.md)
+
+Good starting points:
+
+- Test the app and report rough edges.
+- Improve self-hosting and setup docs.
+- Add or improve app and skill documentation.
+- Pick a `good first issue` or `help wanted` issue once the public issue tracker is populated.
+- Review architecture docs and suggest clearer explanations.
+- Improve examples, screenshots, Remotion images, and demo chats.
+
+Useful links:
+
+- [Open a GitHub issue](https://github.com/glowingkitty/OpenMates/issues)
+- [Frontend standards](./docs/contributing/standards/frontend.md)
+- [Backend standards](./docs/contributing/standards/backend.md)
+- [Testing guide](./docs/contributing/guides/testing.md)
+- [Documentation structure](./docs/contributing/docs-structure.md)
+
+Community:
+
+- [Discord Community](https://discord.gg/PYXfVrSEaj)
+- [Signal Developer Group](https://signal.group/#CjQKIGQMnJFxYVRMH7TExMhec3PYXjOKexwjbo3rRB-tk8YdEhB87IRJWy7m5p0qXOoGHr0h)
+- [Meetup Events](https://www.meetup.com/openmates/)
 
 ## Architecture
 
-[![Architecture header image](./docs/images/architecture_header.png)](./docs/architecture/README.md)
+OpenMates is a SvelteKit web app with a Python/FastAPI backend, PostgreSQL/Directus CMS, encrypted client-side state, app and skill modules, provider wrappers, model routing, and rich embed renderers.
 
-OpenMates is a web app built with a focus on privacy, separation of concerns, easy setup, and scalability. While the codebase is continuously being refined, it follows a modular architecture designed for high extensibility.
+Start here:
 
-[Show architecture](./docs/architecture/README.md)
+- [Architecture overview](./docs/architecture/README.md)
+- [Frontend app](./frontend/apps/web_app/README.md)
+- [Backend apps](./backend/apps/README.md)
+- [Apps and skills](./docs/architecture/apps/app-skills.md)
+- [Message processing](./docs/architecture/messaging/message-processing.md)
+- [Encryption architecture](./docs/architecture/core/encryption-architecture.md)
+- [Privacy promises](./docs/architecture/privacy/privacy-promises.md)
+
+## License
+
+OpenMates is licensed under the GNU Affero General Public License.
+
+You may run OpenMates on your own machine or server, share access with a team, and create open-source software based on it. If you provide OpenMates as a network service to others, you must make your complete corresponding source code, including modifications, available under the AGPL.
+
+[Learn more about the AGPL](https://www.gnu.org/licenses/why-affero-gpl.html)

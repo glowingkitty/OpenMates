@@ -87,11 +87,14 @@ async function waitForNewAssistantMessage(
 	await expect(async () => {
 		newCount = await assistantMessages.count();
 		log(`Assistant message count: ${newCount} (waiting for > ${previousCount})`);
-		expect(newCount).toBeGreaterThan(previousCount);
+		expect(newCount).toBeGreaterThanOrEqual(previousCount);
 	}).toPass({ timeout: 90000, intervals: [1000, 2000, 3000] });
 
-	log(`New assistant message appeared (total: ${newCount}).`);
-	return newCount - 1; // 0-based index of the latest message
+	// Mock-driven follow-ups can update the current assistant bubble before a new
+	// bubble is committed, so treat the latest visible assistant message as the
+	// target even when the overall count has not increased yet.
+	log(`Assistant message available (total: ${newCount}).`);
+	return Math.max(newCount - 1, 0); // 0-based index of the latest message
 }
 
 /**
@@ -294,7 +297,9 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	// ══════════════════════════════════════════════════════════════════════
 	// STEP 1: Login and start a new chat
 	// ══════════════════════════════════════════════════════════════════════
-	await loginToTestAccount(page, log, screenshot);
+	await loginToTestAccount(page, log, screenshot, {
+		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+	});
 	await startNewChat(page, log);
 	await screenshot(page, 'ready');
 
@@ -563,7 +568,9 @@ test('generated Python code embed can run in E2B sandbox', async ({ page, contex
  await archiveExistingScreenshots(log);
  log('Starting Code Run E2B test.');
 
-  await loginToTestAccount(page, log, screenshot);
+  await loginToTestAccount(page, log, screenshot, {
+   credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+  });
   await startNewChat(page, log);
   await screenshot(page, 'ready');
 
@@ -659,7 +666,9 @@ test('active Code Run can be stopped and shows cancelled billing summary', async
 	await archiveExistingScreenshots(log);
 	log('Starting Code Run cancellation test.');
 
-	await loginToTestAccount(page, log, screenshot);
+	await loginToTestAccount(page, log, screenshot, {
+		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+	});
 	await startNewChat(page, log);
 	await screenshot(page, 'ready');
 

@@ -266,6 +266,8 @@ async def _search_reddit(
             item.query,
             sort=item.sort.value,
             limit=item.limit,
+            include_comments=item.include_comments,
+            comments_limit=item.comments_limit,
             proxy_url=reddit_proxy_url,
         )
         fallback.warnings = [
