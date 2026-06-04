@@ -248,7 +248,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('2FA setup completed successfully.');
 
 	// Click "Done"
-	const doneButton = page.getByRole('button').filter({ hasText: /done/i });
+	const doneButton = successContainer.getByRole('button', { name: /done/i });
 	await doneButton.click();
 	logCheckpoint('Clicked Done on 2FA success.');
 
