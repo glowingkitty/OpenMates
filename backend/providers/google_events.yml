@@ -1,0 +1,16 @@
+# backend/providers/google_events.yml
+#
+# Configuration for Google Events provider.
+# Used by the Events app via SerpAPI's Google Events result surface.
+
+provider_id: "google_events"
+name: "Google Events"
+description: "Google Events result surface for aggregated public event listings from ticketing and venue websites. Privacy URL verified 2026-06-03."
+logo_svg: "icons/google.svg"
+region: "US"
+privacy_policy: "https://policies.google.com/privacy"
+
+no_api_key: false
+
+pricing:
+  per_request_credits: 5

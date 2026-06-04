@@ -630,6 +630,81 @@ export class ChatSynchronizationService extends EventTarget {
         payload as AITypingStartedPayload,
       ),
     );
+    webSocketService.on("spawn_sub_chats", (payload) =>
+      aiHandlers.handleSpawnSubChatsImpl(
+        this,
+        payload as {
+          type: "spawn_sub_chats";
+          chat_id: string;
+          sub_chats: Array<{
+            id: string;
+            user_message_id: string;
+            prompt: string;
+            wait_for_completion?: boolean;
+          }>;
+        },
+      ),
+    );
+    webSocketService.on("sub_chat_confirmation_required", (payload) =>
+      aiHandlers.handleSubChatConfirmationRequiredImpl(
+        payload as {
+          type: "sub_chat_confirmation_required";
+          chat_id: string;
+          task_id: string;
+          message_id: string;
+          sub_chats: Array<{
+            id: string;
+            user_message_id: string;
+            prompt: string;
+            wait_for_completion?: boolean;
+          }>;
+          max_auto_sub_chats?: number;
+          max_direct_sub_chats?: number;
+          existing_sub_chats?: number;
+          remaining_sub_chats?: number;
+        },
+      ),
+    );
+    webSocketService.on("sub_chat_confirmation_resolved", (payload) =>
+      aiHandlers.handleSubChatConfirmationResolvedImpl(
+        payload as {
+          chat_id: string;
+          task_id: string;
+          status: "approved" | "cancelled" | "expired" | "limit_exceeded";
+          message?: string;
+          approved_count?: number;
+        },
+      ),
+    );
+    webSocketService.on("sub_chat_progress", (payload) =>
+      aiHandlers.handleSubChatProgressImpl(
+        payload as {
+          type: "sub_chat_progress";
+          chat_id: string;
+          task_id?: string;
+          message_id?: string;
+          execution_mode?: "parallel" | "sequential";
+          status?: "running" | "stopping" | "stopped" | "completed";
+          total?: number;
+          completed?: number;
+          active_sub_chat_id?: string | null;
+        },
+      ),
+    );
+    webSocketService.on("awaiting_user_input", (payload) =>
+      aiHandlers.handleAwaitingUserInputImpl(
+        this,
+        payload as {
+          type: "awaiting_user_input";
+          chat_id: string;
+          parent_id?: string;
+          message_id: string;
+          task_id?: string;
+          user_message_id?: string;
+          question: string;
+        },
+      ),
+    );
     // Real-time preprocessing step events: title_generated, mate_selected, model_selected.
     // These arrive in a burst after the single preprocessing LLM call resolves.
     // The handler dispatches a "preprocessingStep" CustomEvent for ActiveChat.svelte to consume.
@@ -1642,6 +1717,17 @@ export class ChatSynchronizationService extends EventTarget {
     chatId?: string,
   ): Promise<void> {
     await senders.sendCancelAiTaskImpl(this, taskId, chatId);
+  }
+  public async sendSubChatConfirmation(
+    chatId: string,
+    taskId: string,
+    action: "approve" | "cancel",
+    approveCount?: number,
+  ): Promise<void> {
+    await senders.sendSubChatConfirmationImpl(this, chatId, taskId, action, approveCount);
+  }
+  public async sendSubChatStop(chatId: string, taskId?: string): Promise<void> {
+    await senders.sendSubChatStopImpl(this, chatId, taskId);
   }
   /**
    * Cancel a specific skill execution without stopping the entire AI response.

@@ -13,7 +13,7 @@
     import {
         initializeDraftService,
         cleanupDraftService,
-        setCurrentChatContext,
+        setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
         triggerSaveDraft,
         flushSaveDraft
@@ -34,7 +34,7 @@
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
-    import { messageInputPlaceholderOverride } from './extensions/Placeholder';
+    import { messageInputPlaceholderOverride, messageInputPlaceholderVariant } from './extensions/Placeholder';
 
     // Components
     import CameraView from './CameraView.svelte';
@@ -64,7 +64,8 @@
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
     // Code embed service - creates proper embeds for pasted code/text
-    import { createCodeEmbed, createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { createCodeEmbed, createCodeEmbedFromPastedText, createDocEmbed, createSheetEmbed, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
+    import { classifyPastedContent, plainTextToDocumentHtml, type PastedContentKind } from './services/pasteClassification';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
 
@@ -341,8 +342,23 @@
     let panelHeightTransitionOverride = $state<string | null>(null);
     let suppressHeightChangeDispatch = $state(false);
     
-    // Draft preview mode: field has content but is not focused — show truncated text, hide buttons.
-    let isDraftPreview = $derived(hasContent && !isMessageFieldFocused && !isFullscreen);
+    let hasEmbedContent = $state(false);
+
+    function editorHasEmbedContent(editor: Editor): boolean {
+        let found = false;
+        editor.state.doc.descendants((node) => {
+            if (node.type.name === 'embed') {
+                found = true;
+                return false;
+            }
+            return !found;
+        });
+        return found;
+    }
+
+    // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
+    // File/PDF/image embeds must keep actions visible so users can send after upload completion.
+    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -355,6 +371,7 @@
         !startNewChatOnClick && !isDraftPreview && (
             isFullscreen ||
             showActionButtons ||
+            hasEmbedContent ||
             isMessageFieldFocused ||
             $recordingState.isRecordButtonPressed ||
             $recordingState.showRecordAudioUI
@@ -375,10 +392,78 @@
         }
     });
 
+    const PLACEHOLDER_CYCLE_MS = 8000;
+    const PLACEHOLDER_FADE_MS = 220;
+    let placeholderCycleTimer: ReturnType<typeof setInterval> | null = null;
+    let placeholderCycleFadeTimer: ReturnType<typeof setTimeout> | null = null;
+    let showRecordingPlaceholderHint = $state(false);
+    let isPlaceholderFading = $state(false);
+
+    function isTouchInputDevice(): boolean {
+        if (typeof window === 'undefined') return false;
+        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    }
+
+    function getBasePlaceholderText(): string {
+        if (placeholderText) return placeholderText;
+        const variant = get(messageInputPlaceholderVariant);
+        const suffix = variant === 'followup' ? 'followup_' : '';
+        const deviceType = isTouchInputDevice() ? 'touch' : 'desktop';
+        return $text(`enter_message.placeholder.${suffix}${deviceType}`);
+    }
+
+    function updateCyclingPlaceholderText() {
+        if (showRecordingPlaceholderHint && !isTouchInputDevice()) {
+            messageInputPlaceholderOverride.set($text('enter_message.placeholder.record_shortcut_desktop'));
+        } else {
+            messageInputPlaceholderOverride.set(getBasePlaceholderText());
+        }
+    }
+
+    function startPlaceholderCycle() {
+        if (placeholderCycleTimer || isTouchInputDevice()) return;
+        updateCyclingPlaceholderText();
+        placeholderCycleTimer = setInterval(() => {
+            isPlaceholderFading = true;
+            clearTimeout(placeholderCycleFadeTimer ?? undefined);
+            placeholderCycleFadeTimer = setTimeout(() => {
+                showRecordingPlaceholderHint = !showRecordingPlaceholderHint;
+                updateCyclingPlaceholderText();
+                isPlaceholderFading = false;
+            }, PLACEHOLDER_FADE_MS);
+        }, PLACEHOLDER_CYCLE_MS);
+    }
+
+    function stopPlaceholderCycle() {
+        clearInterval(placeholderCycleTimer ?? undefined);
+        clearTimeout(placeholderCycleFadeTimer ?? undefined);
+        placeholderCycleTimer = null;
+        placeholderCycleFadeTimer = null;
+        showRecordingPlaceholderHint = false;
+        isPlaceholderFading = false;
+        messageInputPlaceholderOverride.set(null);
+    }
+
+    $effect(() => {
+        if (!editor || editor.isDestroyed || startNewChatOnClick || hasContent || isMessageFieldFocused) {
+            stopPlaceholderCycle();
+            return;
+        }
+        startPlaceholderCycle();
+        updateCyclingPlaceholderText();
+    });
+
     // --- Original Markdown Tracking ---
     let originalMarkdown = '';
     let isUpdatingFromMarkdown = false;
     let isConvertingEmbeds = false;
+
+    interface AutoConvertedPasteCandidate {
+        embedId: string;
+        text: string;
+    }
+
+    let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
 
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
@@ -387,6 +472,30 @@
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
+    let isCurrentSubChat = $state(false);
+    let broadcastToSiblings = $state(false);
+
+    async function checkIsSubChat() {
+        if (!currentChatId) {
+            isCurrentSubChat = false;
+            return;
+        }
+        try {
+            const { getChat } = await import('../../services/db/chatCrudOperations');
+            const { chatDB } = await import('../../services/db');
+            await chatDB.init();
+            const chat = await getChat(chatDB, currentChatId);
+            isCurrentSubChat = !!(chat && (chat.parent_id || chat.is_sub_chat));
+        } catch (e) {
+            console.error('[MessageInput] Error checking is sub-chat:', e);
+            isCurrentSubChat = false;
+        }
+    }
+
+    $effect(() => {
+        void checkIsSubChat();
+    });
+
     let activeAITaskId = $state<string | null>(null);
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of reactive statements that depend on this variable
@@ -510,6 +619,135 @@
         if (editor && !editor.isDestroyed) {
             runHeavyParsing(editor);
         }
+    }
+
+    function findEmbedNodeById(editor: Editor, embedId: string): { node: ProseMirrorNode; pos: number } | null {
+        let result: { node: ProseMirrorNode; pos: number } | null = null;
+        editor.state.doc.descendants((node, pos) => {
+            const attrs = node.attrs ?? {};
+            const contentRef = typeof attrs.contentRef === 'string' ? attrs.contentRef : '';
+            if (attrs.id === embedId || contentRef.endsWith(embedId)) {
+                result = { node, pos };
+                return false;
+            }
+            return true;
+        });
+        return result;
+    }
+
+    function updateAutoConvertedPasteCandidateVisibility(editor: Editor) {
+        if (!autoConvertedPasteCandidate) return;
+        const match = findEmbedNodeById(editor, autoConvertedPasteCandidate.embedId);
+        if (!match) {
+            autoConvertedPasteCandidate = null;
+            return;
+        }
+    }
+
+    async function replaceAutoConvertedPasteWithText() {
+        if (!autoConvertedPasteCandidate || !editor || editor.isDestroyed) return;
+        const candidate = autoConvertedPasteCandidate;
+        const match = findEmbedNodeById(editor, candidate.embedId);
+        if (!match) {
+            autoConvertedPasteCandidate = null;
+            return;
+        }
+
+        editor
+            .chain()
+            .focus()
+            .deleteRange({ from: match.pos, to: match.pos + match.node.nodeSize })
+            .run();
+        editor.commands.insertContentAt(match.pos, candidate.text);
+        autoConvertedPasteCandidate = null;
+
+        await tick();
+        hasContent = !isContentEmptyExceptMention(editor);
+        updateOriginalMarkdown(editor);
+        lastEditorUpdateText = editor.getText();
+        triggerSaveDraft(currentChatId);
+    }
+
+    function appendPasteEmbedReference(embedReference: string, embedId: string, originalText: string) {
+        if (!editor || editor.isDestroyed) return;
+        updateOriginalMarkdown(editor);
+
+        if (originalMarkdown.includes(embedId)) {
+            console.debug('[MessageInput] Paste embed already in originalMarkdown, skipping duplicate insertion:', embedId);
+            return;
+        }
+
+        const currentMarkdown = originalMarkdown || '';
+        originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedReference;
+
+        const parsedDoc = parse_message(originalMarkdown, 'write', {
+            unifiedParsingEnabled: true
+        });
+
+        if (parsedDoc && parsedDoc.content) {
+            isConvertingEmbeds = true;
+            try {
+                editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                editor.commands.focus('end');
+                autoConvertedPasteCandidate = { embedId, text: originalText };
+            } finally {
+                isConvertingEmbeds = false;
+            }
+        }
+
+        hasContent = !isContentEmptyExceptMention(editor);
+    }
+
+    function insertPreviewPasteEmbed(kind: PastedContentKind, text: string, content: string, language?: string | null) {
+        if (!editor || editor.isDestroyed) return;
+        const embedId = generateUUID();
+
+        if (kind === 'document') {
+            editor.commands.insertContent({
+                type: 'embed',
+                attrs: {
+                    id: embedId,
+                    type: 'docs-doc',
+                    status: 'finished',
+                    contentRef: `preview:docs-doc:${embedId}`,
+                    code: content,
+                    wordCount: text.split(/\s+/).filter(Boolean).length,
+                }
+            });
+        } else if (kind === 'sheet') {
+            const rows = content.split('\n').filter((line) => line.trim().startsWith('|'));
+            const cols = Math.max(0, (rows[0]?.match(/\|/g) || []).length - 1);
+            editor.commands.insertContent({
+                type: 'embed',
+                attrs: {
+                    id: embedId,
+                    type: 'sheets-sheet',
+                    status: 'finished',
+                    contentRef: `preview:sheets-sheet:${embedId}`,
+                    code: content,
+                    rows: Math.max(0, rows.length - 2),
+                    cols,
+                }
+            });
+        } else {
+            editor.commands.insertContent({
+                type: 'embed',
+                attrs: {
+                    id: embedId,
+                    type: 'code-code',
+                    status: 'finished',
+                    contentRef: `preview:code:${embedId}`,
+                    code: content,
+                    language: language || 'text',
+                    lineCount: content.split('\n').length,
+                }
+            });
+        }
+
+        editor.commands.insertContent(' ');
+        editor.commands.focus('end');
+        autoConvertedPasteCandidate = { embedId, text };
+        hasContent = !isContentEmptyExceptMention(editor);
     }
 
     // --- Unified Parsing Handler ---
@@ -1497,133 +1735,65 @@
                             return true;
                         }
                         
-                        // Check for multi-line text - create a proper code embed for readability
-                        // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
-                        // and stored in EmbedStore (encrypted, synced to server)
-                        const isMultiLine = normalizedPasteText.includes('\n');
-                        const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
+                        const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+                        const htmlPasteText = event.clipboardData?.getData('text/html') || null;
+                        const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
+                        const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
+                        const pasteClassification = classifyPastedContent({
+                            text: normalizedPasteText,
+                            html: htmlPasteText,
+                            vsCodeLanguage,
+                            detectedLanguage,
+                        });
 
-                        if (isMultiLine && !isAlreadyCodeBlock) {
+                        if (pasteClassification.kind !== 'text') {
                             event.preventDefault();
                             event.stopPropagation();
-                            
-                            // Check for VS Code editor data to detect the programming language
-                            // VS Code includes a 'vscode-editor-data' MIME type with JSON containing the 'mode' (language)
-                            const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+
+                            const embedKind = pasteClassification.kind;
+                            const embedContent =
+                                embedKind === 'document'
+                                    ? (pasteClassification.documentHtml || plainTextToDocumentHtml(normalizedPasteText))
+                                    : embedKind === 'sheet'
+                                        ? (pasteClassification.sheetMarkdown || normalizedPasteText)
+                                        : normalizedPasteText;
+                            const language = vsCodeLanguage || detectedLanguage || 'text';
                             
                             if (!$authStore.isAuthenticated) {
                                 // Unauthenticated / demo mode: EmbedStore is unavailable (no encryption keys).
-                                // Insert a preview embed node with the code stored inline in the node `code`
-                                // attribute — GroupRenderer reads this directly without EmbedStore.
-                                const vsCodeLang = detectLanguageFromVSCode(vsCodeEditorData);
-                                const language = vsCodeLang || detectLanguageFromContent(normalizedPasteText) || 'text';
-                                const embedId = generateUUID();
-                                const lineCount = normalizedPasteText.split('\n').length;
-                                
-                                console.debug('[MessageInput] Demo mode — inserting inline code embed:', {
-                                    language, lineCount, embedId
-                                });
-                                
-                                editor.commands.insertContent({
-                                    type: 'embed',
-                                    attrs: {
-                                        id: embedId,
-                                        type: 'code-code',
-                                        status: 'finished',
-                                        // "preview:code:" prefix tells GroupRenderer to read code from item.code attr
-                                        contentRef: `preview:code:${embedId}`,
-                                        code: normalizedPasteText,
-                                        language,
-                                        lineCount,
-                                    }
-                                });
-                                editor.commands.insertContent(' ');
-                                editor.commands.focus('end');
-                                hasContent = !isContentEmptyExceptMention(editor);
+                                // Insert a preview embed node with content stored inline in node attrs.
+                                insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
                                 return true;
                             }
                             
                             // Authenticated path: create a proper embed in EmbedStore (async).
-                            // This follows the same pattern as URL embeds.
-                            // Pass VS Code editor data for automatic language detection.
                             // Mark hasContent immediately so the send button appears and the
                             // user understands their paste was accepted; also track the in-flight
                             // embed so handleSendMessage can defer sends until it resolves.
                             pendingPasteEmbedCount += 1;
                             hasContent = true;
-                            createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData }).then(async (embedResult) => {
-                                console.info('[MessageInput] Created code embed for pasted text:', {
+                            const createPasteEmbedPromise =
+                                embedKind === 'document'
+                                    ? createDocEmbed(embedContent)
+                                    : embedKind === 'sheet'
+                                        ? createSheetEmbed(embedContent)
+                                        : createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData });
+
+                            createPasteEmbedPromise.then(async (embedResult) => {
+                                console.info('[MessageInput] Created embed for pasted content:', {
                                     embed_id: embedResult.embed_id,
-                                    lineCount: normalizedPasteText.split('\n').length,
-                                    charCount: normalizedPasteText.length
+                                    kind: embedKind,
+                                    reason: pasteClassification.reason,
+                                    charCount: normalizedPasteText.length,
                                 });
-                                
-                                // Re-read originalMarkdown from the editor's current state to avoid
-                                // stale-closure race conditions. When the user pastes, deletes, and
-                                // pastes again quickly, multiple async promises can complete out of order.
-                                // Each promise must base its append on the CURRENT editor content — not
-                                // on the value of originalMarkdown that was captured when the paste fired.
-                                // Also guard against duplicate embed references (idempotency).
-                                updateOriginalMarkdown(editor);
-                                
-                                // Guard against duplicate: if this embed_id is already in originalMarkdown
-                                // (e.g. a previous resolution of the same paste already wrote it), skip.
-                                if (originalMarkdown.includes(embedResult.embed_id)) {
-                                    console.debug('[MessageInput] Code embed already in originalMarkdown, skipping duplicate insertion:', embedResult.embed_id);
-                                    return;
-                                }
-                                
-                                // Update originalMarkdown with the embed reference
-                                const currentMarkdown = originalMarkdown || '';
-                                originalMarkdown = currentMarkdown + (currentMarkdown ? '\n' : '') + embedResult.embedReference;
-                                
-                                // Parse and render the updated markdown with the embed reference
-                                const parsedDoc = parse_message(originalMarkdown, 'write', { 
-                                    unifiedParsingEnabled: true 
-                                });
-                                
-                                if (parsedDoc && parsedDoc.content) {
-                                    isConvertingEmbeds = true;
-                                    try {
-                                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
-                                        // Move cursor to end after inserting
-                                        editor.commands.focus('end');
-                                    } finally {
-                                        isConvertingEmbeds = false;
-                                    }
-                                }
-                                
-                                // Update hasContent state
-                                hasContent = !isContentEmptyExceptMention(editor);
-                                
-                                console.debug('[MessageInput] Inserted code embed reference:', {
-                                    embed_id: embedResult.embed_id,
-                                    originalMarkdownLength: originalMarkdown.length
-                                });
+
+                                appendPasteEmbedReference(embedResult.embedReference, embedResult.embed_id, normalizedPasteText);
                             }).catch((error) => {
-                                console.error('[MessageInput] Failed to create code embed, falling back to inline embed:', error);
+                                console.error('[MessageInput] Failed to create paste embed, falling back to inline embed:', error);
                                 // EmbedStore write failed (e.g. encryption keys not ready).
                                 // Fall back to the demo-mode inline embed so the user still sees
-                                // their code in a preview instead of getting an empty field.
-                                const vsCodeLangFallback = detectLanguageFromVSCode(vsCodeEditorData);
-                                const languageFallback = vsCodeLangFallback || detectLanguageFromContent(normalizedPasteText) || 'text';
-                                const embedIdFallback = generateUUID();
-                                const lineCountFallback = normalizedPasteText.split('\n').length;
-                                editor.commands.insertContent({
-                                    type: 'embed',
-                                    attrs: {
-                                        id: embedIdFallback,
-                                        type: 'code-code',
-                                        status: 'finished',
-                                        contentRef: `preview:code:${embedIdFallback}`,
-                                        code: normalizedPasteText,
-                                        language: languageFallback,
-                                        lineCount: lineCountFallback,
-                                    }
-                                });
-                                editor.commands.insertContent(' ');
-                                editor.commands.focus('end');
-                                hasContent = !isContentEmptyExceptMention(editor);
+                                // their pasted content in a preview instead of getting an empty field.
+                                insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
                             }).finally(() => {
                                 pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
                                 // If the user pressed Enter while the embed was being created,
@@ -1713,6 +1883,12 @@
                 // deferred handleClick (which uses setTimeout and may run after a
                 // re-render that destroyed the original <span>).
                 handleDOMEvents: {
+                    keydown: (_view, event) => {
+                        if (autoConvertedPasteCandidate && event.key.length === 1 && event.key.trim().length > 0) {
+                            autoConvertedPasteCandidate = null;
+                        }
+                        return false;
+                    },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
                         const piiEl = target.classList.contains('pii-highlight')
@@ -1739,6 +1915,9 @@
 
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
+        if (!hasContent && !isMessageFieldFocused) {
+            startPlaceholderCycle();
+        }
 
         setupEventListeners();
 
@@ -2358,12 +2537,15 @@
         // depends on cursor position, not content.
         const currentText = editor.getText();
         const textActuallyChanged = currentText !== lastEditorUpdateText;
+
+        updateAutoConvertedPasteCandidateVisibility(editor);
         
         if (textActuallyChanged) {
             lastEditorUpdateText = currentText;
         }
         
         const newHasContent = !isContentEmptyExceptMention(editor);
+        hasEmbedContent = editorHasEmbedContent(editor);
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
             if (!newHasContent) {
@@ -2375,6 +2557,7 @@
                 lastPIIText = '';
                 // Clear the URL ignore list — field is empty so start fresh
                 ignoredEmbedUrls = new Set();
+                autoConvertedPasteCandidate = null;
             }
         }
         
@@ -2454,6 +2637,7 @@
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
+        document.addEventListener('updaterecordingattrs', handleUpdateRecordingAttrs as EventListener);
         // PII click handling: attach to ProseMirror's root element in capture phase
         // so we see the click BEFORE ProseMirror can re-render decorations.
         const proseMirrorEl = editorElement?.querySelector('.ProseMirror');
@@ -2480,6 +2664,7 @@
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focusInput', handleFocusInput as EventListener);
+        window.addEventListener('recordingShortcut', handleRecordingShortcut as EventListener);
         // Deferred send: fires when an upload/transcription finishes so we can auto-dispatch
         // pending sends that were queued while embeds were in-flight.
         window.addEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
@@ -2597,6 +2782,7 @@
     }
 
     function cleanup() {
+        stopPlaceholderCycle();
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
@@ -2623,11 +2809,13 @@
         editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.removeEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
+        document.removeEventListener('updaterecordingattrs', handleUpdateRecordingAttrs as EventListener);
         // PII click handling is via editorProps.handleClick, no cleanup needed
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('focusInput', handleFocusInput as EventListener);
+        window.removeEventListener('recordingShortcut', handleRecordingShortcut as EventListener);
         window.removeEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
@@ -2939,6 +3127,7 @@
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
+            hasEmbedContent = editorHasEmbedContent(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -3073,6 +3262,31 @@
             console.debug('[MessageInput] Updated recording embed transcript for:', embedId);
         }
     }
+
+    /**
+     * Handle attribute updates from RecordingEmbedFullscreen/Preview (pre-send context).
+     * Updates the embed node's attributes so they are saved on send.
+     */
+    function handleUpdateRecordingAttrs(event: CustomEvent) {
+        const { embedId, attrs } = event.detail as { embedId: string; attrs: Record<string, unknown> };
+        if (!editor || editor.isDestroyed || !embedId) return;
+
+        const { state, dispatch } = editor.view;
+        const tr = state.tr;
+        let found = false;
+        state.doc.descendants((node, pos) => {
+            if (node.type.name === 'embed' && node.attrs.id === embedId) {
+                tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs });
+                found = true;
+                return false;
+            }
+            return true;
+        });
+        if (found) {
+            dispatch(tr);
+            console.debug('[MessageInput] Updated recording embed attrs for:', embedId, attrs);
+        }
+    }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }
@@ -3150,6 +3364,23 @@
             return;
         }
         
+        // The mic button starts a press-and-hold gesture. Letting it take focus
+        // blurs TipTap, and the delayed blur handler collapses the composer while
+        // recording is starting. Keep focus in the editor for this one control.
+        if (target.closest('[data-testid="record-audio-button"]')) {
+            event.preventDefault();
+            if (blurTimeoutId) {
+                clearTimeout(blurTimeoutId);
+                blurTimeoutId = null;
+            }
+            if (editor && !editor.isDestroyed) {
+                editor.commands.focus('end');
+            }
+            isMessageFieldFocused = true;
+            isFocused = true;
+            return;
+        }
+
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
@@ -3312,6 +3543,7 @@
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
+            hasEmbedContent = editorHasEmbedContent(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -3354,6 +3586,7 @@
         // isRecording=false: camera photos are not recordings; isAuthenticated controls upload path
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
         hasContent = true;
+        hasEmbedContent = true;
         tick().then(() => {
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
@@ -3423,6 +3656,8 @@
         // It does NOT need a pre-created blob URL — it creates its own internally.
         await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
         hasContent = true;
+        lastEditorUpdateText = editor.getText();
+        triggerSaveDraft(chatIdForRecording || currentChatId);
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
@@ -3807,7 +4042,8 @@
             dispatch,
             (value) => (hasContent = value),
             currentChatId,
-            piiExclusions // Pass PII exclusions so excluded matches are not replaced
+            piiExclusions, // Pass PII exclusions so excluded matches are not replaced
+            broadcastToSiblings
         );
         
         // Clear PII state after sending
@@ -3913,6 +4149,47 @@
             console.debug('[MessageInput] Editor focused successfully');
         } catch (error) {
             console.error('[MessageInput] Error focusing editor:', error);
+        }
+    }
+
+    type RecordingShortcutEvent = CustomEvent<{ action: 'start' | 'stop' | 'cancel' }>;
+
+    function getKeyboardRecordStartPosition(): { x: number; y: number } {
+        const recordButton = messageInputWrapper?.querySelector('[data-testid="record-audio-button"]') as HTMLElement | null;
+        const rect = recordButton?.getBoundingClientRect() ?? messageInputWrapper?.getBoundingClientRect();
+        if (rect) {
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+            };
+        }
+        return {
+            x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
+            y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0,
+        };
+    }
+
+    async function handleRecordingShortcut(event: RecordingShortcutEvent) {
+        if (startNewChatOnClick || !editor || editor.isDestroyed) return;
+
+        const action = event.detail.action;
+        if (action === 'start') {
+            if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            const position = getKeyboardRecordStartPosition();
+            const syntheticMouseDown = new MouseEvent('mousedown', {
+                button: 0,
+                clientX: position.x,
+                clientY: position.y,
+            });
+            handleRecordMouseDownLogic(syntheticMouseDown);
+            return;
+        }
+
+        await tick();
+        if (action === 'stop') {
+            handleRecordMouseUpLogic(recordAudioComponent);
+        } else {
+            handleRecordMouseLeaveLogic(recordAudioComponent);
         }
     }
 
@@ -4086,7 +4363,7 @@
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
-        setCurrentChatContext(chatId, draftContent, version);
+        setDraftServiceCurrentChatContext(chatId, draftContent, version);
         
         // Reset text-change guard so next editor update processes fully after content swap
         lastEditorUpdateText = editor ? editor.getText() : '';
@@ -4113,6 +4390,9 @@
                 console.debug('[MessageInput] Skipped focus after setDraftContent (user must click to focus)');
             }
         }
+    }
+    export function setCurrentChatContext(chatId: string | null, content: Content | null, version: number) {
+        setDraftContent(chatId, content, version, false);
     }
     /**
      * Clears the message input field.
@@ -4472,12 +4752,20 @@
         onUndoAll={handlePIIUndoAll}
     />
     
+    {#if isCurrentSubChat}
+        <div class="sub-chat-broadcast-toggle" style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 4px 8px; font-size: 12px; color: var(--fontSecondary);" data-testid="sub-chat-broadcast-toggle">
+            <span>Share with sibling sub-chats</span>
+            <Toggle bind:checked={broadcastToSiblings} />
+        </div>
+    {/if}
+
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
+        class:placeholder-fading={isPlaceholderFading}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -4602,7 +4890,7 @@
         {/if}
 
         <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
-        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.ts,.html,.css,.json,.svelte,.java,.cpp,.c,.h,.hpp,.rs,.go,.rb,.php,.swift,.kt,.txt,.md,.xml,.yaml,.yml,.sh,.bash,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,Dockerfile" />
+        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
         <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
         <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
@@ -4611,6 +4899,18 @@
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
             </div>
         </div>
+
+        {#if autoConvertedPasteCandidate}
+            <button
+                class="paste-as-text-chip"
+                type="button"
+                data-testid="paste-as-text-chip"
+                onclick={replaceAutoConvertedPasteWithText}
+                transition:fade={{ duration: 160 }}
+            >
+                {$text('enter_message.press_and_hold_menu.paste_as_text')}
+            </button>
+        {/if}
 
         {#if showCamera}
             <!-- on:videorecorded removed — video recording disabled until upload support is added -->
@@ -4738,18 +5038,16 @@
     />
 </div>
 
-<!-- Keyboard Shortcuts Listener -->
-<!-- Audio recording shortcuts removed - feature not yet implemented:
-     - on:startRecording
-     - on:stopRecording
-     - on:cancelRecording
-     - on:insertSpace
--->
+<!-- Keyboard Shortcuts Listener: Shift+Enter focuses input; hold Space on chat surface records audio. -->
 <KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    .message-field.placeholder-fading :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        opacity: 0;
+    }
 
     /* Edit message banner — shown above the editor when editing a previous message */
     .edit-banner {

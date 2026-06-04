@@ -251,6 +251,7 @@ async def handle_postprocessing(
     available_skills: Optional[List[Dict[str, str]]] = None,
     available_focus_modes: Optional[List[Dict[str, str]]] = None,
     is_incognito: bool = False,
+    is_sub_chat: bool = False,
     output_language: str = "en",
     user_system_language: str = "en",
     current_chat_title: Optional[str] = None,
@@ -312,14 +313,18 @@ async def handle_postprocessing(
     tool_parameters = postprocess_tool.get("function", {}).get("parameters", {})
     tool_properties = tool_parameters.get("properties", {})
     tool_required = tool_parameters.get("required", [])
-    if not follow_up_suggestions_enabled:
+    if not follow_up_suggestions_enabled or is_sub_chat:
         tool_properties.pop("follow_up_request_suggestions", None)
         tool_required = [field for field in tool_required if field != "follow_up_request_suggestions"]
-        logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled by user preference")
-    if not quick_tips_enabled:
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled (is_sub_chat={is_sub_chat})")
+    if not quick_tips_enabled or is_sub_chat:
         tool_properties.pop("quick_tip_slug", None)
         tool_required = [field for field in tool_required if field != "quick_tip_slug"]
-        logger.info(f"[Task ID: {task_id}] [PostProcessor] Quick tips disabled by user preference")
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Quick tips disabled (is_sub_chat={is_sub_chat})")
+    if is_sub_chat:
+        tool_properties.pop("top_recommended_apps_for_user", None)
+        tool_required = [field for field in tool_required if field != "top_recommended_apps_for_user"]
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] App recommendations disabled for sub-chat")
     tool_parameters["required"] = tool_required
 
     # Build message history for post-processing LLM call

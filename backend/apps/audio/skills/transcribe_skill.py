@@ -23,6 +23,7 @@
 # Same rationale as TranscriptSkill in videos app.
 
 import logging
+import json
 import base64
 import io
 import os
@@ -427,6 +428,85 @@ class TranscribeSkill(BaseSkill):
         )
         return result
 
+    async def _correct_transcript_with_gemini(
+        self,
+        raw_transcript: str,
+        google_api_key: str,
+    ) -> str:
+        """
+        Use Gemini to auto-correct a raw, potentially incoherent audio transcript.
+
+        Removes filler words, verbal self-corrections, and formatting issues.
+        Returns the clean transcript, falling back to the raw transcript on any error.
+        """
+        if not raw_transcript.strip():
+            return raw_transcript
+
+        # Using gemini-3.5-flash as the default model
+        model = "gemini-3.5-flash"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+        prompt = (
+            "You are correcting a raw speech-to-text transcript from an audio recording.\n"
+            "Your goal is to output a clean, coherent written instruction or message while "
+            "preserving the speaker's original intent, meaning, and informal tone.\n\n"
+            "Rules:\n"
+            "1. Remove speech disfluencies and fillers (e.g., 'umm', 'uhh', 'ahh', 'like', 'ehh').\n"
+            "2. Resolve verbal self-corrections and rambling where the speaker changed their mind "
+            "(e.g., 'umm search for yellow actually no let's search for green boxes' -> 'Search for green boxes').\n"
+            "3. Correct obvious phonetic mistranscriptions or spelling of technical terms.\n"
+            "4. Add capitalization and natural punctuation (periods, commas, question marks).\n"
+            "5. DO NOT rewrite into flowery marketing copy or invent claims. Keep it close to original meaning.\n"
+            "6. If the input is already clean, keep it as-is (with punctuation/formatting adjustments).\n\n"
+            "Return JSON with a single key 'corrected_transcript' containing the corrected text."
+        )
+
+        body = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": prompt},
+                        {"text": f"Raw Transcript:\n\"{raw_transcript}\""}
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json",
+            }
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    url,
+                    params={"key": google_api_key},
+                    json=body,
+                )
+                if response.status_code != 200:
+                    logger.warning(f"[TranscribeSkill] Gemini correction API failed: {response.status_code} {response.text}")
+                    return raw_transcript
+
+                res = response.json()
+                text_content = "".join(
+                    part.get("text", "")
+                    for part in res.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                )
+
+                try:
+                    parsed = json.loads(text_content)
+                    corrected = parsed.get("corrected_transcript", "").strip()
+                    if corrected:
+                        return corrected
+                except Exception as parse_err:
+                    logger.warning(f"[TranscribeSkill] Failed to parse Gemini JSON: {parse_err}. Response text: {text_content}")
+
+        except Exception as e:
+            logger.error(f"[TranscribeSkill] Failed to run Gemini correction: {e}", exc_info=True)
+
+        return raw_transcript
+
     async def _process_single_transcribe_request(
         self,
         req: Dict[str, Any],
@@ -495,20 +575,42 @@ class TranscribeSkill(BaseSkill):
                 mistral_api_key=mistral_api_key,
             )
 
-            # Step 6: Build result
+            # Step 6: Build result & perform Gemini correction
             transcript_text = mistral_result.get("text", "").strip()
             detected_language = mistral_result.get("language")
             duration_seconds = mistral_result.get("duration")
 
+            transcript_corrected = transcript_text
+            use_corrected = True
+            try:
+                # Get Gemini API key from Vault
+                google_api_key = await secrets_manager.get_secret(
+                    secret_path="kv/data/providers/google_ai_studio",
+                    secret_key="api_key"
+                )
+                if google_api_key:
+                    transcript_corrected = await self._correct_transcript_with_gemini(
+                        raw_transcript=transcript_text,
+                        google_api_key=google_api_key,
+                    )
+                else:
+                    logger.warning("[TranscribeSkill] Google AI Studio API key not found in Vault, skipping correction")
+                    use_corrected = False
+            except Exception as correction_err:
+                logger.error(f"[TranscribeSkill] Gemini correction failed: {correction_err}", exc_info=True)
+                use_corrected = False
+
             result_entry = {
                 "type": "transcription_result",
                 "s3_key": s3_key,
-                "transcript": transcript_text,
+                "transcript": transcript_corrected if use_corrected else transcript_text, # Default is corrected transcript
+                "transcript_original": transcript_text,
+                "transcript_corrected": transcript_corrected,
+                "use_corrected": use_corrected,
                 "language": detected_language or language,
                 "duration_seconds": duration_seconds,
-                # Include model ID so frontend can resolve the human-readable name
-                # via getModelDisplayName() without hardcoding the model in JS.
                 "model": VOXTRAL_MODEL,
+                "correction_model": "gemini-3.5-flash" if use_corrected else None,
             }
 
             logger.debug(

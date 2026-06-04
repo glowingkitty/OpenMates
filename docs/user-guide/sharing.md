@@ -1,6 +1,15 @@
 ---
 status: active
 last_verified: 2026-03-24
+tested_by:
+  - spec: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    test: creates and shares a chat link with QR code and short link
+    checkpoints:
+      - share-config-step
+      - link-generated
+      - qr-fullscreen
+      - short-link-generated
+      - with-expiration
 ---
 
 # Sharing

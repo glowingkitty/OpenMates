@@ -100,7 +100,7 @@
 
   .wiki-preview-content-row {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     flex: 1;
     height: 100%;
     min-height: 0;
@@ -124,8 +124,7 @@
     overflow: hidden;
     overflow-wrap: break-word;
     text-overflow: ellipsis;
-    align-self: flex-start;
-    padding-top: var(--spacing-5);
+    align-self: center;
   }
 
   .wiki-preview-details.mobile .wiki-preview-description {

@@ -97,6 +97,24 @@
 		user_message_id?: string;
 	};
 
+	type ShareChatSubChat = {
+		id?: string;
+		encrypted_title?: string | null;
+		created_at?: number;
+		updated_at?: number;
+		messages_v?: number;
+		title_v?: number;
+		last_edited_overall_timestamp?: number;
+		unread_count?: number;
+		encrypted_chat_summary?: string | null;
+		encrypted_icon?: string | null;
+		encrypted_category?: string | null;
+		parent_id?: string | null;
+		is_sub_chat?: boolean;
+		budget_limit?: number | null;
+		budget_spent?: number;
+	};
+
 	type ShareChatHighlight = {
 		id?: string;
 		chat_id?: string;
@@ -176,6 +194,7 @@
 	): Promise<{
 		chat: Chat | null;
 		messages: Message[];
+		subChats: Chat[];
 		embeds: ShareChatEmbedLike[];
 		embed_keys: ShareChatEmbedKey[];
 		code_run_outputs: ShareChatCodeRunOutput[];
@@ -308,9 +327,36 @@
 				group_key: 'shared_by_others'
 			};
 
+			const subChats: Chat[] = ((data.sub_chats || []) as ShareChatSubChat[]).flatMap((subChat) => {
+				if (!subChat.id) return [];
+				const createdAt = subChat.created_at || Math.floor(Date.now() / 1000);
+				return [{
+					chat_id: subChat.id,
+					encrypted_title: subChat.encrypted_title || null,
+					messages_v: subChat.messages_v ?? 0,
+					title_v: subChat.title_v ?? 0,
+					last_edited_overall_timestamp: subChat.last_edited_overall_timestamp || subChat.updated_at || createdAt,
+					unread_count: subChat.unread_count ?? 0,
+					created_at: createdAt,
+					updated_at: subChat.updated_at || createdAt,
+					encrypted_chat_summary: subChat.encrypted_chat_summary || null,
+					encrypted_icon: subChat.encrypted_icon || null,
+					encrypted_category: subChat.encrypted_category || null,
+					parent_id: data.chat_id,
+					is_sub_chat: true,
+					is_shared_by_others: true,
+					share_pii: data.share_pii ?? false,
+					share_highlights: data.share_highlights ?? true,
+					group_key: 'shared_by_others',
+					budget_limit: subChat.budget_limit ?? null,
+					budget_spent: subChat.budget_spent ?? 0
+				}];
+			});
+
 			return {
 				chat,
 				messages,
+				subChats,
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
 				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
 				code_run_outputs: (data.code_run_outputs || []) as ShareChatCodeRunOutput[],
@@ -318,7 +364,7 @@
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
-			return { chat: null, messages: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [] };
+			return { chat: null, messages: [], subChats: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [] };
 		}
 	}
 
@@ -470,6 +516,7 @@
 			const {
 				chat: fetchedChat,
 				messages: fetchedMessages,
+				subChats: fetchedSubChats,
 				embeds: fetchedEmbeds,
 				embed_keys: fetchedEmbedKeys,
 				code_run_outputs: fetchedCodeRunOutputs,
@@ -529,6 +576,14 @@
 
 			// Store chat metadata first (addChat creates its own transaction)
 			await chatDB.addChat(fetchedChat);
+			for (const subChat of fetchedSubChats) {
+				chatDB.setChatKey(subChat.chat_id, keyBytes, 'share_link');
+				await saveSharedChatKey(subChat.chat_id, keyBytes);
+				await chatDB.addChat(subChat);
+			}
+			if (fetchedSubChats.length > 0) {
+				console.debug(`[ShareChat] Stored ${fetchedSubChats.length} shared sub-chat metadata rows`);
+			}
 
 			// Store messages if any (batchSaveMessages creates its own transaction)
 			if (fetchedMessages.length > 0) {

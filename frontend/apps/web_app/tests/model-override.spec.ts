@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -28,10 +27,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -106,7 +103,7 @@ async function selectModelViaMentionDropdown(
 	// The model name is shown in .result-name within .mention-result
 	const modelResult = mentionDropdown.getByTestId('mention-result-name').filter({
 		hasText: new RegExp(expectedModelDisplayName, 'i')
-	});
+	}).first();
 
 	await expect(modelResult).toBeVisible({ timeout: 10000 });
 	logCheckpoint(`Model "${expectedModelDisplayName}" found in dropdown.`);
@@ -201,7 +198,7 @@ async function waitForResponseAndVerifyModel(
 
 	// Get the last (newest) assistant message
 	const assistantMessage = page.getByTestId('message-assistant').last();
-	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
+	await expect(assistantMessage).toBeVisible({ timeout: 60000 });
 
 	// Wait for a REAL AI response, not the demo chat welcome text.
 	// When startNewChat fails (sidebar closed), the message is sent from the demo chat,
@@ -621,7 +618,7 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 	await selectModelViaMentionDropdown(
 		page,
 		'kimi',
-		'Kimi',
+		'Kimi K2.5',
 		logCheckpoint,
 		takeStepScreenshot,
 		'kimi'

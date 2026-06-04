@@ -220,12 +220,12 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		// ── Verify booking CTA is pre-resolved (no loading state) ──
 		// Train results have booking_url set directly, so the CTA should
-		// immediately show "Book on Deutsche Bahn" without a /booking-link call.
+		// immediately show a provider-specific "Book on ..." label without a /booking-link call.
 		const bookingCta = page.getByTestId('booking-cta');
 		await expect(bookingCta).toBeVisible({ timeout: 5000 });
 		const ctaText = await bookingCta.textContent();
 		expect(ctaText?.toLowerCase()).toContain('book on');
-		expect(ctaText).toContain('Deutsche Bahn');
+		expect(ctaText).toMatch(/Deutsche Bahn|FlixBus|FlixTrain/i);
 		logCheckpoint(`Booking CTA: "${ctaText}" (pre-resolved, no API call needed).`);
 
 		await takeStepScreenshot(page, 'train-fullscreen-verified');

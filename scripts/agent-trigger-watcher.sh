@@ -2,7 +2,7 @@
 # agent-trigger-watcher.sh
 #
 # Polls scripts/.agent-triggers/ for JSON trigger files written by the admin
-# sidecar and starts Claude Code investigation sessions in Zellij.
+# sidecar and starts OpenCode investigation chats.
 #
 # Each trigger file is a JSON object with:
 #   issue_id, prompt, session_title, environment, domain, created_at
@@ -10,7 +10,7 @@
 # The watcher:
 #   1. Picks up *.json files from the trigger directory
 #   2. Writes the prompt to a temp file
-#   3. Spawns a new Claude session via sessions.py spawn-chat
+#   3. Starts a new persisted OpenCode chat via opencode run
 #   4. Moves the trigger file to .processed/ so it isn't picked up again
 #
 # Install as systemd user service:
@@ -67,25 +67,25 @@ process_trigger() {
 
     log "Processing trigger: issue_id=$issue_id title='$session_title' action=$agent_action"
 
-    # Write prompt to a temp file for spawn-chat --prompt-file
+    # Write prompt to a temp file for opencode run.
     local prompt_file="$SCRIPT_DIR/.tmp/agent-prompt-${issue_id}.txt"
     mkdir -p "$SCRIPT_DIR/.tmp"
     echo "$prompt" > "$prompt_file"
 
-    # Spawn a Claude Code session in a new Zellij tab
-    # Use plan mode for research-only, execute mode for fix attempts
-    local session_mode="execute"
-    if [[ "$agent_action" == "research" ]]; then
-        session_mode="plan"
-    fi
+    # Start an OpenCode chat. Research triggers are instructed to stay read-only;
+    # fix triggers get full permissions so they can implement and deploy.
     local session_name="investigate-${issue_id:0:8}"
-    if python3 "$SCRIPT_DIR/sessions.py" spawn-chat \
-        --prompt-file "$prompt_file" \
-        --name "$session_name" \
-        --mode "$session_mode" 2>&1 | tee -a "$LOG_FILE"; then
-        log "Spawned session '$session_name' for issue $issue_id"
+    local message="Read ${prompt_file#$PROJECT_DIR/} in full and follow all instructions precisely."
+    local opencode_args=(opencode run --title "$session_name" --format json)
+    if [[ "$agent_action" == "research" ]]; then
+        message="$message This is a read-only research job: do not edit files, do not commit, and do not deploy."
     else
-        log "ERROR: Failed to spawn session for issue $issue_id (exit code $?)"
+        opencode_args+=(--dangerously-skip-permissions)
+    fi
+    if (cd "$PROJECT_DIR" && "${opencode_args[@]}" "$message") 2>&1 | tee -a "$LOG_FILE"; then
+        log "Started OpenCode chat '$session_name' for issue $issue_id"
+    else
+        log "ERROR: Failed to start OpenCode chat for issue $issue_id (exit code $?)"
     fi
 
     # Move trigger file to processed (even on failure — avoid infinite retries)

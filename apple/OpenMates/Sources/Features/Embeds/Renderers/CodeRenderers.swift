@@ -13,12 +13,19 @@
 
 import SwiftUI
 import WebKit
+#if os(iOS)
+import UIKit
+#endif
 
 struct CodeEmbedRenderer: View {
     let data: [String: AnyCodable]?
+    let embedId: String
+    let chatId: String?
     let mode: EmbedDisplayMode
     var previewActive = false
+    var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var code: String {
         (data?["code"]?.value as? String ?? "")
@@ -63,25 +70,69 @@ struct CodeEmbedRenderer: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
         case .fullscreen:
-            if previewActive, isPreviewable {
-                CodePreviewPane(code: code, language: language, filename: filename)
+            VStack(spacing: 0) {
+                if outputPaneActive {
+                    GeometryReader { proxy in
+                        HStack(spacing: 1) {
+                            if horizontalSizeClass != .compact {
+                                codeSourcePanel(isSplit: true)
+                                    .frame(width: proxy.size.width * 0.3)
+                            }
+
+                            outputPanel
+                                .frame(width: horizontalSizeClass == .compact ? proxy.size.width : proxy.size.width * 0.7)
+                        }
+                        .background(Color.grey20)
+                    }
                     .frame(minHeight: 420)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
-            } else {
-                ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                    CodeLinesView(
-                        code: code,
-                        language: language,
-                        showsLineNumbers: true,
-                        fontSize: 15,
-                        clipsLongLines: false
-                    )
-                        .padding(.top, .spacing6)
-                        .padding(.bottom, .spacing8)
-                        .padding(.trailing, .spacing4)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                } else {
+                    codeSourcePanel(isSplit: false)
                 }
             }
+            .background(Color.grey15)
         }
+    }
+
+    private var outputPaneActive: Bool {
+        previewActive || (codeRunViewModel?.isPanelOpen == true)
+    }
+
+    @ViewBuilder
+    private func codeSourcePanel(isSplit: Bool) -> some View {
+        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+            CodeLinesView(
+                code: code,
+                language: language,
+                showsLineNumbers: true,
+                fontSize: isSplit ? 13 : 15,
+                clipsLongLines: false,
+                gutterWidth: isSplit ? 40 : 40
+            )
+                .padding(.top, .spacing6)
+                .padding(.bottom, .spacing8)
+                .padding(.trailing, .spacing4)
+        }
+        .background(Color.grey15)
+        .accessibilityIdentifier("code-source-panel")
+    }
+
+    @ViewBuilder
+    private var outputPanel: some View {
+        if previewActive, isPreviewable {
+            CodePreviewPane(code: code, language: language, filename: filename)
+                .frame(minHeight: 420)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        } else if let codeRunViewModel {
+            CodeRunTerminalView(viewModel: codeRunViewModel, chatId: chatId, embedId: embedId, file: runClientFile)
+                .frame(minHeight: 420)
+        } else {
+            EmptyView()
+        }
+    }
+
+    private var runClientFile: CodeRunClientFile {
+        CodeRunClientFile(embedId: embedId, code: code, language: language, filename: filename, isTarget: true)
     }
 
     private var isPreviewable: Bool {
@@ -117,12 +168,116 @@ struct CodeEmbedRenderer: View {
     }
 }
 
+private struct CodeRunTerminalView: View {
+    @ObservedObject var viewModel: CodeRunViewModel
+    let chatId: String?
+    let embedId: String
+    let file: CodeRunClientFile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(viewModel.events) { event in
+                        Text(event.text)
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(color(for: event.kind))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.horizontal, .spacing6)
+                .padding(.vertical, .spacing5)
+            }
+            .background(Color(hex: 0x050B12))
+        }
+        .background(Color(hex: 0x050B12))
+        .overlay(RoundedRectangle(cornerRadius: .radius3).stroke(Color(hex: 0x2D3748), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .shadow(color: .black.opacity(0.38), radius: 30, x: 0, y: 10)
+        .accessibilityIdentifier("code-run-terminal")
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(AppStrings.codeRunOutput)
+                    .font(.omSmall)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color(hex: 0xF8FAFC))
+                Text(statusText)
+                    .font(.omXs)
+                    .foregroundStyle(Color(hex: 0x94A3B8))
+            }
+
+            Spacer(minLength: .spacing4)
+
+            HStack(spacing: .spacing3) {
+                terminalButton(AppStrings.codeRunCopyOutput, disabled: viewModel.programOutputText.isEmpty) {
+                    viewModel.copyOutput()
+                }
+                terminalButton(viewModel.isCancelling ? AppStrings.codeRunCancelling : AppStrings.codeRunStop, kind: .danger, disabled: !viewModel.isActive || viewModel.isCancelling) {
+                    viewModel.cancel()
+                }
+                terminalButton(AppStrings.codeRunAgain, disabled: viewModel.isActive) {
+                    Task { await viewModel.start(chatId: chatId, embedId: embedId, file: file) }
+                }
+            }
+        }
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing5)
+        .background(Color(hex: 0x0B1220))
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color(hex: 0x1F2937)).frame(height: 1)
+        }
+    }
+
+    private var statusText: String {
+        let fileText = "\(viewModel.files.count) file\(viewModel.files.count == 1 ? "" : "s") included"
+        return viewModel.files.isEmpty ? viewModel.status.rawValue : "\(viewModel.status.rawValue) · \(fileText)"
+    }
+
+    private enum TerminalButtonKind {
+        case normal
+        case danger
+    }
+
+    private func terminalButton(_ title: String, kind: TerminalButtonKind = .normal, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.omXs)
+                .foregroundStyle(kind == .danger ? Color(hex: 0xFECACA) : Color(hex: 0xE5E7EB))
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .background(kind == .danger ? Color(hex: 0x450A0A) : Color(hex: 0x111827))
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius2)
+                        .stroke(kind == .danger ? Color(hex: 0x7F1D1D) : Color(hex: 0x334155), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                .opacity(disabled ? 0.55 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+
+    private func color(for kind: CodeRunEvent.Kind) -> Color {
+        switch kind {
+        case .status: return Color(hex: 0x7DD3FC)
+        case .stdout: return Color(hex: 0xD1D5DB)
+        case .stderr: return Color(hex: 0xFCA5A5)
+        }
+    }
+}
+
 private struct CodeLinesView: View {
     let code: String
     let language: String
     let showsLineNumbers: Bool
     let fontSize: CGFloat
     let clipsLongLines: Bool
+    var gutterWidth: CGFloat = 34
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -132,7 +287,7 @@ private struct CodeLinesView: View {
                         Text("\(index + 1)")
                             .font(.system(size: fontSize, design: .monospaced))
                             .foregroundStyle(Color.grey60)
-                            .frame(width: 34, alignment: .trailing)
+                            .frame(width: gutterWidth, alignment: .trailing)
                     }
                     HighlightedCodeLine(
                         line: line,
@@ -788,96 +943,115 @@ private struct SheetFullscreenTable: View {
                 .background(Color.grey10)
             }
 
-            ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                if table.headers.isEmpty {
-                    Text("No table data available")
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                } else {
-                    Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                        GridRow {
-                            sheetHeaderGutter
-                            ForEach(table.headers.indices, id: \.self) { index in
-                                Text(columnLetter(index))
-                                    .font(.omTiny)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(Color.fontTertiary)
-                                    .frame(width: columnWidth(index), alignment: .center)
-                                    .padding(.vertical, .spacing1)
-                                    .background(Color.grey10)
-                                    .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
-                            }
-                        }
-
-                        GridRow {
-                            Text("")
-                                .frame(width: 40)
-                                .padding(.vertical, .spacing3)
-                                .background(Color.grey10)
-                                .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
-                            ForEach(table.headers.indices, id: \.self) { index in
-                                Button {
-                                    cycleSort(index)
-                                } label: {
-                                    HStack(spacing: .spacing2) {
-                                        Text(table.headers[index])
-                                            .font(.omXs)
-                                            .fontWeight(.bold)
-                                            .foregroundStyle(Color.fontPrimary)
-                                            .lineLimit(1)
-                                        Icon(sortIcon(for: index), size: 10)
-                                            .foregroundStyle(sortColumnIndex == index ? Color.buttonPrimary : Color.fontTertiary)
-                                    }
-                                    .frame(width: columnWidth(index), alignment: .leading)
-                                    .padding(.horizontal, .spacing6)
-                                    .padding(.vertical, .spacing3)
-                                    .background(Color.grey10)
-                                    .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-
-                        ForEach(displayRows.indices, id: \.self) { rowIndex in
-                            GridRow {
-                                Text("\(rowIndex + 1)")
-                                    .font(.omTiny)
-                                    .foregroundStyle(Color.fontTertiary)
-                                    .frame(width: 40)
-                                    .padding(.vertical, .spacing3)
-                                    .background(Color.grey10)
-                                    .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
-                                ForEach(table.headers.indices, id: \.self) { colIndex in
-                                    Text(displayRows[rowIndex].indices.contains(colIndex) ? displayRows[rowIndex][colIndex] : "")
-                                        .font(.omXs)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(Color.fontPrimary)
-                                        .textSelection(.enabled)
-                                        .frame(width: columnWidth(colIndex), alignment: .leading)
-                                        .padding(.horizontal, .spacing6)
-                                        .padding(.vertical, .spacing3)
-                                        .background(rowIndex.isMultiple(of: 2) ? Color.grey20 : Color.grey10)
-                                        .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
-                                }
-                            }
-                        }
-                    }
-                    .padding(.top, 70)
-                }
-            }
+            sheetTableBody
         }
         .onAppear {
             filters = Array(repeating: "", count: table.headers.count)
         }
     }
 
+    @ViewBuilder
+    private var sheetTableBody: some View {
+        if table.headers.isEmpty {
+            Text("No table data available")
+                .font(.omSmall)
+                .foregroundStyle(Color.fontTertiary)
+                .frame(maxWidth: .infinity, minHeight: 200)
+        } else {
+            #if os(iOS)
+            SheetFullscreenCollectionTable(
+                headers: table.headers,
+                rows: displayRows,
+                columnWidths: table.headers.indices.map(columnWidth),
+                sortColumnIndex: sortColumnIndex,
+                sortAscending: sortAscending,
+                showFilters: showFilters,
+                onToggleFilters: toggleFilters,
+                onSortColumn: cycleSort
+            )
+            #else
+            swiftUITableBody
+            #endif
+        }
+    }
+
+    private var swiftUITableBody: some View {
+        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    sheetHeaderGutter
+                    ForEach(table.headers.indices, id: \.self) { index in
+                        Text(columnLetter(index))
+                            .font(.omTiny)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.fontTertiary)
+                            .frame(width: columnWidth(index), alignment: .center)
+                            .padding(.vertical, .spacing1)
+                            .background(Color.grey10)
+                            .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
+                    }
+                }
+
+                GridRow {
+                    Text("")
+                        .frame(width: 40)
+                        .padding(.vertical, .spacing3)
+                        .background(Color.grey10)
+                        .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
+                    ForEach(table.headers.indices, id: \.self) { index in
+                        Button {
+                            cycleSort(index)
+                        } label: {
+                            HStack(spacing: .spacing2) {
+                                Text(table.headers[index])
+                                    .font(.omXs)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .lineLimit(1)
+                                Icon(sortIcon(for: index), size: 10)
+                                    .foregroundStyle(sortColumnIndex == index ? Color.buttonPrimary : Color.fontTertiary)
+                            }
+                            .frame(width: columnWidth(index), alignment: .leading)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing3)
+                            .background(Color.grey10)
+                            .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                ForEach(displayRows.indices, id: \.self) { rowIndex in
+                    GridRow {
+                        Text("\(rowIndex + 1)")
+                            .font(.omTiny)
+                            .foregroundStyle(Color.fontTertiary)
+                            .frame(width: 40)
+                            .padding(.vertical, .spacing3)
+                            .background(Color.grey10)
+                            .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
+                        ForEach(table.headers.indices, id: \.self) { colIndex in
+                            Text(displayRows[rowIndex].indices.contains(colIndex) ? displayRows[rowIndex][colIndex] : "")
+                                .font(.omXs)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontPrimary)
+                                .textSelection(.enabled)
+                                .frame(width: columnWidth(colIndex), alignment: .leading)
+                                .padding(.horizontal, .spacing6)
+                                .padding(.vertical, .spacing3)
+                                .background(rowIndex.isMultiple(of: 2) ? Color.grey20 : Color.grey10)
+                                .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
+                        }
+                    }
+                }
+            }
+            .padding(.top, 70)
+        }
+    }
+
     private var sheetHeaderGutter: some View {
         Button {
-            showFilters.toggle()
-            if !showFilters {
-                filters = Array(repeating: "", count: table.headers.count)
-            }
+            toggleFilters()
         } label: {
             Icon("filter", size: 14)
                 .foregroundStyle(showFilters ? Color.buttonPrimary : Color.fontTertiary)
@@ -886,6 +1060,13 @@ private struct SheetFullscreenTable: View {
                 .overlay(Rectangle().stroke(Color.grey30, lineWidth: 0.7))
         }
         .buttonStyle(.plain)
+    }
+
+    private func toggleFilters() {
+        showFilters.toggle()
+        if !showFilters {
+            filters = Array(repeating: "", count: table.headers.count)
+        }
     }
 
     private func bindingForFilter(_ index: Int) -> Binding<String> {
@@ -937,6 +1118,342 @@ private struct SheetFullscreenTable: View {
         return result
     }
 }
+
+#if os(iOS)
+private struct SheetFullscreenCollectionTable: UIViewRepresentable {
+    let headers: [String]
+    let rows: [[String]]
+    let columnWidths: [CGFloat]
+    let sortColumnIndex: Int?
+    let sortAscending: Bool
+    let showFilters: Bool
+    let onToggleFilters: () -> Void
+    let onSortColumn: (Int) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> UICollectionView {
+        let layout = SheetFullscreenCollectionLayout()
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.backgroundColor = UIColor(Color.grey20)
+        collectionView.alwaysBounceVertical = true
+        collectionView.alwaysBounceHorizontal = true
+        collectionView.showsVerticalScrollIndicator = true
+        collectionView.showsHorizontalScrollIndicator = true
+        collectionView.contentInset.top = 70
+        collectionView.dataSource = context.coordinator
+        collectionView.delegate = context.coordinator
+        collectionView.register(SheetFullscreenCollectionCell.self, forCellWithReuseIdentifier: SheetFullscreenCollectionCell.reuseIdentifier)
+        return collectionView
+    }
+
+    func updateUIView(_ collectionView: UICollectionView, context: Context) {
+        context.coordinator.parent = self
+        if let layout = collectionView.collectionViewLayout as? SheetFullscreenCollectionLayout {
+            layout.columnWidths = [40] + columnWidths
+            layout.rowCount = rows.count + 2
+            layout.invalidateLayout()
+        }
+        collectionView.reloadData()
+    }
+
+    final class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate {
+        var parent: SheetFullscreenCollectionTable
+
+        init(_ parent: SheetFullscreenCollectionTable) {
+            self.parent = parent
+        }
+
+        func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+            (parent.rows.count + 2) * (parent.headers.count + 1)
+        }
+
+        func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+            let cell = collectionView.dequeueReusableCell(
+                withReuseIdentifier: SheetFullscreenCollectionCell.reuseIdentifier,
+                for: indexPath
+            ) as! SheetFullscreenCollectionCell
+            cell.configure(with: cellModel(for: indexPath.item))
+            return cell
+        }
+
+        func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+            let position = position(for: indexPath.item)
+            if position.row == 0 && position.column == 0 {
+                parent.onToggleFilters()
+            } else if position.row == 1 && position.column > 0 {
+                parent.onSortColumn(position.column - 1)
+            }
+        }
+
+        private func cellModel(for item: Int) -> SheetFullscreenCollectionCell.Model {
+            let position = position(for: item)
+            if position.row == 0 {
+                if position.column == 0 {
+                    return .init(text: "", kind: .filter(isActive: parent.showFilters))
+                }
+                return .init(text: columnLetter(position.column - 1), kind: .columnLetter)
+            }
+
+            if position.row == 1 {
+                if position.column == 0 {
+                    return .init(text: "", kind: .rowHeader)
+                }
+                let columnIndex = position.column - 1
+                let header = parent.headers.indices.contains(columnIndex) ? parent.headers[columnIndex] : ""
+                let isActive = parent.sortColumnIndex == columnIndex
+                let sortIndicator = isActive ? (parent.sortAscending ? " ↑" : " ↓") : " ↕"
+                return .init(text: header + sortIndicator, kind: .header(isActive: isActive))
+            }
+
+            let rowIndex = position.row - 2
+            if position.column == 0 {
+                return .init(text: "\(rowIndex + 1)", kind: .rowHeader)
+            }
+            let columnIndex = position.column - 1
+            let row = parent.rows.indices.contains(rowIndex) ? parent.rows[rowIndex] : []
+            let value = row.indices.contains(columnIndex) ? row[columnIndex] : ""
+            return .init(text: value, kind: .value(isAlternate: !rowIndex.isMultiple(of: 2)))
+        }
+
+        private func position(for item: Int) -> (row: Int, column: Int) {
+            let columnCount = parent.headers.count + 1
+            return (item / columnCount, item % columnCount)
+        }
+
+        private func columnLetter(_ index: Int) -> String {
+            var value = index + 1
+            var result = ""
+            while value > 0 {
+                let remainder = (value - 1) % 26
+                result = String(UnicodeScalar(65 + remainder)!) + result
+                value = (value - 1) / 26
+            }
+            return result
+        }
+    }
+}
+
+private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
+    var columnWidths: [CGFloat] = []
+    var rowCount = 0
+    private let rowHeights: [CGFloat] = [24, 44]
+    private let dataRowHeight: CGFloat = 44
+    private var columnOffsets: [CGFloat] = []
+    private var contentSize = CGSize.zero
+
+    override func prepare() {
+        super.prepare()
+        guard let collectionView else { return }
+
+        columnOffsets = []
+        var x: CGFloat = 0
+        for width in columnWidths {
+            columnOffsets.append(x)
+            x += width
+        }
+
+        contentSize = CGSize(
+            width: max(x, collectionView.bounds.width + 1),
+            height: max(totalContentHeight, collectionView.bounds.height - collectionView.adjustedContentInset.vertical + 1)
+        )
+    }
+
+    override var collectionViewContentSize: CGSize {
+        contentSize
+    }
+
+    override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
+        guard !columnWidths.isEmpty, rowCount > 0 else { return [] }
+
+        let rowRange = visibleRowRange(intersecting: rect)
+        let columnRange = visibleColumnRange(intersecting: rect)
+        var visibleAttributes: [UICollectionViewLayoutAttributes] = []
+
+        for row in rowRange {
+            for column in columnRange {
+                let indexPath = IndexPath(item: row * columnWidths.count + column, section: 0)
+                if let itemAttributes = layoutAttributesForItem(at: indexPath) {
+                    visibleAttributes.append(itemAttributes)
+                }
+            }
+        }
+        return visibleAttributes
+    }
+
+    override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        guard !columnWidths.isEmpty else { return nil }
+        let column = indexPath.item % columnWidths.count
+        let row = indexPath.item / columnWidths.count
+        guard row < rowCount, column < columnWidths.count, column < columnOffsets.count else { return nil }
+
+        let itemAttributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
+        itemAttributes.frame = CGRect(
+            x: columnOffsets[column],
+            y: yOffset(for: row),
+            width: columnWidths[column],
+            height: height(for: row)
+        )
+        return itemAttributes
+    }
+
+    override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
+        true
+    }
+
+    private var totalContentHeight: CGFloat {
+        guard rowCount > 0 else { return 0 }
+        return (0..<rowCount).reduce(CGFloat(0)) { total, row in
+            total + height(for: row)
+        }
+    }
+
+    private func height(for row: Int) -> CGFloat {
+        rowHeights.indices.contains(row) ? rowHeights[row] : dataRowHeight
+    }
+
+    private func yOffset(for row: Int) -> CGFloat {
+        guard row > 0 else { return 0 }
+        return (0..<row).reduce(CGFloat(0)) { total, item in
+            total + height(for: item)
+        }
+    }
+
+    private func visibleRowRange(intersecting rect: CGRect) -> Range<Int> {
+        guard rowCount > 0 else { return 0..<0 }
+        let headerHeight = rowHeights.reduce(0, +)
+        let first: Int
+        if rect.minY < rowHeights[0] {
+            first = 0
+        } else if rect.minY < headerHeight {
+            first = 1
+        } else {
+            first = min(max(Int((rect.minY - headerHeight) / dataRowHeight) + rowHeights.count, 0), rowCount)
+        }
+
+        let lastExclusive: Int
+        if rect.maxY <= rowHeights[0] {
+            lastExclusive = 1
+        } else if rect.maxY <= headerHeight {
+            lastExclusive = min(2, rowCount)
+        } else {
+            lastExclusive = min(Int(ceil((rect.maxY - headerHeight) / dataRowHeight)) + rowHeights.count, rowCount)
+        }
+
+        return min(first, lastExclusive)..<max(first, lastExclusive)
+    }
+
+    private func visibleColumnRange(intersecting rect: CGRect) -> Range<Int> {
+        guard !columnWidths.isEmpty else { return 0..<0 }
+        let first = columnOffsets.firstIndex { offset in
+            let column = columnOffsets.firstIndex(of: offset) ?? 0
+            return offset + columnWidths[column] >= rect.minX
+        } ?? 0
+        let last = columnOffsets.lastIndex { offset in offset <= rect.maxX } ?? (columnWidths.count - 1)
+        return first..<min(last + 2, columnWidths.count)
+    }
+}
+
+private final class SheetFullscreenCollectionCell: UICollectionViewCell {
+    static let reuseIdentifier = "SheetFullscreenCollectionCell"
+
+    enum Kind {
+        case filter(isActive: Bool)
+        case columnLetter
+        case header(isActive: Bool)
+        case rowHeader
+        case value(isAlternate: Bool)
+    }
+
+    struct Model {
+        let text: String
+        let kind: Kind
+    }
+
+    private let label = UILabel()
+    private let valueTextView = UITextView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.addSubview(label)
+        contentView.addSubview(valueTextView)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 1
+        label.lineBreakMode = .byTruncatingTail
+        valueTextView.translatesAutoresizingMaskIntoConstraints = false
+        valueTextView.backgroundColor = .clear
+        valueTextView.isEditable = false
+        valueTextView.isScrollEnabled = false
+        valueTextView.textContainer.lineBreakMode = .byTruncatingTail
+        valueTextView.textContainer.maximumNumberOfLines = 1
+        valueTextView.textContainerInset = UIEdgeInsets(top: 3, left: 0, bottom: 3, right: 0)
+        valueTextView.textContainer.lineFragmentPadding = 0
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 3),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -3),
+            valueTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+            valueTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+            valueTextView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            valueTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func configure(with model: Model) {
+        label.isHidden = false
+        valueTextView.isHidden = true
+        label.text = model.text
+        label.textAlignment = .left
+        label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
+        label.textColor = UIColor(Color.fontPrimary)
+        contentView.layer.borderWidth = 0.7
+        contentView.layer.borderColor = UIColor(Color.grey30).cgColor
+
+        switch model.kind {
+        case .filter(let isActive):
+            label.text = LocalizationManager.shared.text("activity.filter")
+            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.textAlignment = .center
+            label.textColor = UIColor(isActive ? Color.buttonPrimary : Color.fontTertiary)
+            contentView.backgroundColor = UIColor(Color.grey10)
+        case .columnLetter:
+            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.textAlignment = .center
+            label.textColor = UIColor(Color.fontTertiary)
+            contentView.backgroundColor = UIColor(Color.grey10)
+        case .header(let isActive):
+            label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .bold)
+            label.textColor = UIColor(isActive ? Color.buttonPrimary : Color.fontPrimary)
+            contentView.backgroundColor = UIColor(Color.grey10)
+        case .rowHeader:
+            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.textAlignment = .center
+            label.textColor = UIColor(Color.fontTertiary)
+            contentView.backgroundColor = UIColor(Color.grey10)
+        case .value(let isAlternate):
+            label.isHidden = true
+            valueTextView.isHidden = false
+            valueTextView.text = model.text
+            valueTextView.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
+            valueTextView.textColor = UIColor(Color.fontPrimary)
+            label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
+            label.textColor = UIColor(Color.fontPrimary)
+            contentView.backgroundColor = UIColor(isAlternate ? Color.grey20 : Color.grey10)
+        }
+    }
+}
+
+private extension UIEdgeInsets {
+    var vertical: CGFloat { top + bottom }
+}
+#endif
 
 struct ParsedSheetTable {
     let title: String?

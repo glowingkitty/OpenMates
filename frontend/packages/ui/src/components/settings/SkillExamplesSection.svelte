@@ -153,6 +153,9 @@
                     {@const resolvedQuery = resolveQuery(example)}
                     <div
                         class="example-card"
+                        data-testid="app-store-example-card"
+                        data-app-id={appId}
+                        data-skill-id={skillId}
                         role="button"
                         tabindex="0"
                         aria-label={$text('settings.app_store.skills.open_example')}

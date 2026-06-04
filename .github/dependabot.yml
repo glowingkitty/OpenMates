@@ -1,4 +1,27 @@
-# Disable Dependabot auto-PRs — upgrades are handled manually.
-# Security alerts remain enabled via repo settings (Settings > Code security).
 version: 2
-updates: []
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "daily"
+      time: "04:30"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 2
+      semver-major-days: 14
+      semver-minor-days: 2
+      semver-patch-days: 2
+    groups:
+      npm-routine:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"

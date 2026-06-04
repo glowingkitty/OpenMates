@@ -227,6 +227,55 @@ models:
         price: 0.50
         currency: USD
 
+  - id: "claude-opus-4-8" # Official Claude API model ID
+    name: "Claude Opus 4.8"
+    description: "Anthropic's latest Opus model for highly complex reasoning, coding, and agentic work. Supported via the direct Claude API."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-05-28"
+    allow_auto_select: true
+    external_ids:
+      lmarena: "claude-opus-4-8"
+    search_aliases:
+      - "opus 4.8"
+      - "claude 4.8 opus"
+      - "claude-opus-4.8"
+      - "opus 4.7"
+      - "claude 4.7 opus"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    reasoning: true
+    default_server: "anthropic"
+    servers:
+      - id: "anthropic"
+        name: "Anthropic API"
+        model_id: "claude-opus-4-8"
+        region: "US"
+    pricing: # Same token pricing as Opus 4.7 per Anthropic model overview
+      tokens:
+        input:
+          per_credit_unit: 70
+        output:
+          per_credit_unit: 15
+    costs:
+      input_per_million_token:
+        price: 5.00
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 25.00
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 6.25
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.50
+        currency: USD
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token

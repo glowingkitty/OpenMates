@@ -31,7 +31,6 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
-	fillStripeCardDetails,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -57,7 +56,6 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
-const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
 /**
  * Attach a virtual authenticator so WebAuthn prompts are satisfied automatically.
@@ -102,25 +100,6 @@ async function teardownVirtualPasskeyAuthenticator(
 	await client.send('WebAuthn.disable');
 }
 
-async function logoutToDemo(page: any): Promise<void> {
-	const headerLogoutButton = page.getByRole('button', { name: /logout/i }).first();
-	const profileMenuButton = page.getByTestId('profile-container');
-	const logoutMenuItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-
-	if (await headerLogoutButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await headerLogoutButton.click();
-	} else {
-		await profileMenuButton.click();
-		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
-		await expect(logoutMenuItem).toBeVisible({ timeout: 10000 });
-		await logoutMenuItem.click();
-	}
-
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 10000
-	});
-}
-
 /**
  * NOTE: PRF extension support is not advertised via getClientCapabilities in
  * Playwright's virtual authenticator environment. Instead, the virtual authenticator
@@ -130,7 +109,7 @@ async function logoutToDemo(page: any): Promise<void> {
  * the PRF error screen, which is also valid behavior to test.
  */
 
-test('completes passkey signup flow with email + purchase', async ({
+test('completes passkey signup flow with email', async ({
 	page,
 	context
 }: {
@@ -156,7 +135,7 @@ test('completes passkey signup flow with email + purchase', async ({
 	});
 
 	test.slow();
-	// Allow extra time for passkey registration + purchase confirmation email.
+	// Allow extra time for passkey registration and account deletion.
 	// GHA runners are slower — 240s was insufficient; 420s provides comfortable margin.
 	test.setTimeout(420000);
 
@@ -179,8 +158,7 @@ test('completes passkey signup flow with email + purchase', async ({
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}
-	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
-		emailClient!;
+	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -280,180 +258,21 @@ test('completes passkey signup flow with email + purchase', async ({
 		await passkeyOption.click();
 		logSignupCheckpoint('Selected passkey signup path.');
 
-		// Recovery key step: wait for passkey registration to complete and the next step to appear.
-		const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
-		await expect(recoveryDownloadButton).toBeVisible({ timeout: 10000 });
-		await takeStepScreenshot(page, 'recovery-key');
-		logSignupCheckpoint('Reached recovery key step after passkey registration.');
-
-		// Recovery key step: download, copy, print, and confirm stored.
-		const [recoveryDownload] = await Promise.all([
-			page.waitForEvent('download'),
-			recoveryDownloadButton.click()
-		]);
-		expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
-		logSignupCheckpoint('Downloaded recovery key.');
-
-		const recoveryCopyButton = page.locator('#signup-recovery-key-copy');
-		await recoveryCopyButton.click();
-
-		const [printPage] = await Promise.all([
-			context.waitForEvent('page'),
-			page.locator('#signup-recovery-key-print').click()
-		]);
-		await printPage.close();
-		await takeStepScreenshot(page, 'recovery-key-actions');
-		logSignupCheckpoint('Completed recovery key actions.');
-
-		const recoveryConfirmToggle = page.locator('#confirm-storage-toggle-step5');
-		await setToggleChecked(recoveryConfirmToggle, true);
-		await takeStepScreenshot(page, 'credits-step');
-		logSignupCheckpoint('Reached credits step.');
-
-		// Credits step: exercise gift card path (cancel) and navigation buttons.
-		const giftCardButton = page.locator('#signup-credits-gift-card');
-		await giftCardButton.scrollIntoViewIfNeeded();
-		await giftCardButton.click();
-		await takeStepScreenshot(page, 'credits-giftcard');
-		await page.locator('#signup-gift-card-cancel').click();
-		await takeStepScreenshot(page, 'credits-ready');
-		logSignupCheckpoint('Completed credits step actions.');
-
-		const moreButton = page.locator('#signup-credits-more');
-		const lessButton = page.locator('#signup-credits-less');
-		if (await moreButton.isVisible()) {
-			await moreButton.click();
-		}
-		if (await lessButton.isVisible()) {
-			await lessButton.click();
-		}
-
-		// Purchase credits to proceed to payment step.
-		await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
-		await takeStepScreenshot(page, 'payment-consent');
-		logSignupCheckpoint('Reached payment consent step.');
-
-		// Payment step: consent to limited refund to reveal payment form.
-		// Dismiss consent overlay BEFORE switching providers (it blocks pointer events).
-		const consentToggle = page.locator('#limited-refund-consent-toggle');
-		await setToggleChecked(consentToggle, true);
-		logSignupCheckpoint('Payment consent accepted.');
-
-		// GHA runners are in the US, so Stripe Managed Payments is auto-selected (non-EU IP).
-		// Switch to Stripe EU card mode for this test — it specifically tests the Stripe payment flow.
-		const switchToStripeBtn = page.getByTestId('switch-to-stripe');
-		if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-			await switchToStripeBtn.click();
-			logSignupCheckpoint('Switched from Managed Payments to Stripe EU card payment.');
-		}
-
-		// Wait for Stripe Payment Element iframe to load after provider switch.
-		const stripeIframe = page.frameLocator('iframe[title="Secure payment input frame"]');
-		const cardInputWait = stripeIframe
-			.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
-			.first();
-		await cardInputWait.waitFor({ state: 'visible', timeout: 30000 });
-		logSignupCheckpoint('Stripe Payment Element loaded.');
-
-		await takeStepScreenshot(page, 'payment-form');
-
-		// Fill Stripe payment element with the test card.
-		await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
-		logSignupCheckpoint('Filled Stripe card details.');
-
-		// Wait for Stripe to validate the card (buy button enabled).
-		const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
-		await expect(buyButton).toBeEnabled({ timeout: 10000 });
-
-		// Submit payment and wait for success.
-		const paymentSubmittedAt = new Date().toISOString();
-		await buyButton.click();
-		await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
-		await takeStepScreenshot(page, 'payment-success');
-		logSignupCheckpoint('Purchase completed successfully.');
-
-		// Auto top-up step: finish setup and confirm redirect into the app.
-		await page.getByTestId('signup-finish-setup').first().click();
+		// Signup now finishes immediately after account creation; security and billing setup live in Settings.
 		await page.waitForURL(/chat/);
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');
-
-		await logoutToDemo(page);
-		await takeStepScreenshot(page, 'logged-out-with-passkey-last-used');
-		logSignupCheckpoint('Logged out after passkey signup to verify last-used login hint.');
-
-		await openSignupInterface(page);
-		const loginTab = page.getByTestId('tab-login');
-		if (await loginTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await loginTab.click();
-		}
-
-		await expect(page.getByTestId('last-used-auth-method-passkey')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('last-used-auth-method-email')).not.toBeVisible();
-		await page.getByTestId('clear-last-used-auth-method').click();
-		await expect(page.getByTestId('last-used-auth-method-passkey')).not.toBeVisible();
-		await expect(page.getByTestId('clear-last-used-auth-method')).not.toBeVisible();
-		logSignupCheckpoint('Verified and cleared passkey last-used hint.');
-
-		await page.getByRole('button', { name: /login with passkey/i }).click();
-		await expect(page.getByTestId('message-editor').or(page.getByTestId('profile-container'))).toBeVisible({
-			timeout: 30000
-		});
-		await takeStepScreenshot(page, 'passkey-relogin-after-last-used-clear');
-		logSignupCheckpoint('Re-logged in with passkey after clearing the local hint.');
 
 		// Verify no missing translations on the main chat page after signup
 		await assertNoMissingTranslations(page);
 		logSignupCheckpoint('No missing translations detected.');
 
-		// Purchase confirmation email: verify key content and refund link.
-		logSignupCheckpoint('Waiting for purchase confirmation email.');
-		const purchaseEmail = await waitForMailosaurMessage({
-			sentTo: signupEmail,
-			subjectContains: 'Purchase confirmation',
-			receivedAfter: paymentSubmittedAt,
-			timeoutMs: 180000
-		});
-		logSignupCheckpoint('Received purchase confirmation email.');
-
-		const purchaseText = purchaseEmail.text?.body || '';
-		expect(purchaseText).toMatch(/thanks for your purchase/i);
-		expect(purchaseText).toMatch(/invoice/i);
-
-		const refundLink = extractRefundLink(purchaseEmail);
-		if (!refundLink) {
-			const allLinks = extractMessageLinks(purchaseEmail);
-			logSignupCheckpoint('Refund link missing from purchase email.', {
-				linkCount: allLinks.length,
-				links: allLinks.slice(0, 10),
-				textSnippet: purchaseText.slice(0, 300)
-			});
-		}
-		expect(refundLink, 'Expected a refund link in the purchase confirmation email.').toBeTruthy();
-		if (!refundLink) {
-			throw new Error('Refund link missing from purchase confirmation email.');
-		}
-		expect(() => new URL(refundLink)).not.toThrow();
-		logSignupCheckpoint('Validated refund link from purchase email.', {
-			refundLink: refundLink.slice(0, 120)
-		});
-
-		// Open settings to verify credit balance and delete the test account.
+		// Open settings to delete the test account.
 		const settingsMenuButton = page.getByTestId('profile-container');
 		await settingsMenuButton.click();
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 		await takeStepScreenshot(page, 'settings-menu-open');
-		logSignupCheckpoint('Opened settings menu for credit verification.');
-
-		// Confirm credits reflect the purchase (should be non-zero after payment).
-		const creditsAmount = page.getByTestId('credits-amount');
-		await expect(creditsAmount).toBeVisible({ timeout: 10000 });
-		const creditsText = (await creditsAmount.textContent()) || '';
-		const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
-		expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(
-			0
-		);
-		logSignupCheckpoint('Verified purchased credits in settings.', { creditsValue, creditsText });
+		logSignupCheckpoint('Opened settings menu for account deletion.');
 
 		// Navigate to Account settings and open delete account flow.
 		await page.getByRole('menuitem', { name: /account/i }).click();

@@ -219,7 +219,7 @@
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
           {:else}
-            <div class="header-app-icon icon_rounded {appId}"></div>
+            <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
           {/if}
         </button>
       {:else}
@@ -227,7 +227,7 @@
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
           {:else}
-            <div class="header-app-icon icon_rounded {appId}"></div>
+            <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
           {/if}
         </div>
       {/if}
@@ -249,7 +249,7 @@
       {/if}
 
       {#if subtitle}
-        <div class="header-subtitle">{subtitle}</div>
+        <div class="header-subtitle" data-testid="embed-header-subtitle">{subtitle}</div>
       {/if}
     </div>
 
@@ -562,6 +562,10 @@
     background-size: 20px 20px !important;
   }
 
+  .header-app-icon.weather::after {
+    background-image: url('@openmates/ui/static/icons/weather.svg');
+  }
+
   /* Title row: optional favicon + text */
   .header-title {
     display: flex;
@@ -816,6 +820,10 @@
   :global([data-skill-icon="nutrition"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/nutrition.svg');
     mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
+  :global([data-skill-icon="weather"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/weather.svg');
+    mask-image: url('@openmates/ui/static/icons/weather.svg');
   }
   :global([data-skill-icon="socialmedia"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/socialmedia.svg');

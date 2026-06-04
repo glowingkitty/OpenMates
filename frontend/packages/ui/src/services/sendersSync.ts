@@ -127,6 +127,60 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
 	}
 }
 
+export async function sendSubChatConfirmationImpl(
+	serviceInstance: ChatSynchronizationService,
+	chatId: string,
+	taskId: string,
+	action: "approve" | "cancel",
+	approveCount?: number
+): Promise<void> {
+	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		console.warn(
+			"[ChatSyncService:Senders] WebSocket not connected. Cannot send 'sub_chat_confirmation'."
+		);
+		return;
+	}
+
+	try {
+		await webSocketService.sendMessage("sub_chat_confirmation", {
+			chat_id: chatId,
+			task_id: taskId,
+			action,
+			approve_count: approveCount ?? null
+		});
+	} catch (error) {
+		console.error(
+			`[ChatSyncService:Senders] Error sending 'sub_chat_confirmation' for chat_id: ${chatId}:`,
+			error
+		);
+	}
+}
+
+export async function sendSubChatStopImpl(
+	serviceInstance: ChatSynchronizationService,
+	chatId: string,
+	taskId?: string
+): Promise<void> {
+	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		console.warn(
+			"[ChatSyncService:Senders] WebSocket not connected. Cannot send 'sub_chat_stop'."
+		);
+		return;
+	}
+
+	try {
+		await webSocketService.sendMessage("sub_chat_stop", {
+			chat_id: chatId,
+			task_id: taskId ?? null
+		});
+	} catch (error) {
+		console.error(
+			`[ChatSyncService:Senders] Error sending 'sub_chat_stop' for chat_id: ${chatId}:`,
+			error
+		);
+	}
+}
+
 /**
  * Sends an app settings/memories entry to server for permanent storage in Directus.
  *

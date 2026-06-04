@@ -46,6 +46,256 @@ context_menu.copy:
   sv: Kopiera
   he: העתקה
   verified_by_human: []
+
+chat.sub_chats.confirmation_title:
+  context: Title for inline confirmation card before starting a large batch of sub-chats. {count} is the number of proposed sub-chats.
+  en: Start {count} background chats?
+  de: '{count} Hintergrund-Chats starten?'
+  zh: 要启动 {count} 个后台聊天吗？
+  es: ¿Iniciar {count} chats en segundo plano?
+  fr: Démarrer {count} discussions en arrière-plan ?
+  pt: Iniciar {count} chats em segundo plano?
+  ru: Запустить {count} фоновых чатов?
+  ja: '{count} 件のバックグラウンドチャットを開始しますか？'
+  ko: 백그라운드 채팅 {count}개를 시작할까요?
+  it: Avviare {count} chat in background?
+  tr: '{count} arka plan sohbeti başlatılsın mı?'
+  vi: Bắt đầu {count} cuộc trò chuyện nền?
+  id: Mulai {count} chat latar belakang?
+  pl: Uruchomić {count} czatów w tle?
+  nl: '{count} achtergrondchats starten?'
+  ar: هل تريد بدء {count} محادثات في الخلفية؟
+  hi: '{count} बैकग्राउंड चैट शुरू करें?'
+  th: เริ่มแชตเบื้องหลัง {count} รายการไหม?
+  cs: Spustit {count} chatů na pozadí?
+  sv: Starta {count} bakgrundschattar?
+  he: להתחיל {count} צ'אטים ברקע?
+  verified_by_human: []
+
+chat.sub_chats.confirmation_description:
+  context: Description for inline sub-chat confirmation. {auto} is the number allowed without confirmation, {max} is the hard direct sub-chat cap.
+  en: OpenMates starts up to {auto} automatically. Larger batches need your approval, and each chat can have up to {max} direct sub-chats.
+  de: OpenMates startet bis zu {auto} automatisch. Größere Gruppen brauchen deine Zustimmung, und jeder Chat kann bis zu {max} direkte Sub-Chats haben.
+  zh: OpenMates 最多会自动启动 {auto} 个。更大的批次需要你的确认，每个聊天最多可有 {max} 个直接子聊天。
+  es: OpenMates inicia hasta {auto} automáticamente. Los lotes más grandes necesitan tu aprobación, y cada chat puede tener hasta {max} subchats directos.
+  fr: OpenMates en démarre jusqu'à {auto} automatiquement. Les lots plus grands nécessitent votre approbation, et chaque discussion peut avoir jusqu'à {max} sous-discussions directes.
+  pt: O OpenMates inicia até {auto} automaticamente. Lotes maiores precisam da sua aprovação, e cada chat pode ter até {max} subchats diretos.
+  ru: OpenMates автоматически запускает до {auto}. Для больших наборов нужно ваше подтверждение, а у каждого чата может быть до {max} прямых подчатов.
+  ja: OpenMates は最大 {auto} 件まで自動で開始します。より大きなバッチには承認が必要で、各チャットには最大 {max} 件の直接サブチャットを作成できます。
+  ko: OpenMates는 최대 {auto}개까지 자동으로 시작합니다. 더 큰 묶음은 승인이 필요하며, 각 채팅에는 직접 하위 채팅을 최대 {max}개까지 만들 수 있습니다.
+  it: OpenMates ne avvia automaticamente fino a {auto}. I gruppi più grandi richiedono la tua approvazione e ogni chat può avere fino a {max} sotto-chat dirette.
+  tr: OpenMates en fazla {auto} tanesini otomatik başlatır. Daha büyük gruplar onayınızı gerektirir ve her sohbet en fazla {max} doğrudan alt sohbete sahip olabilir.
+  vi: OpenMates tự động bắt đầu tối đa {auto}. Các nhóm lớn hơn cần bạn phê duyệt, và mỗi cuộc trò chuyện có thể có tối đa {max} cuộc trò chuyện con trực tiếp.
+  id: OpenMates memulai hingga {auto} secara otomatis. Batch yang lebih besar memerlukan persetujuan Anda, dan setiap chat dapat memiliki hingga {max} sub-chat langsung.
+  pl: OpenMates uruchamia automatycznie maksymalnie {auto}. Większe partie wymagają Twojej zgody, a każdy czat może mieć do {max} bezpośrednich podczatów.
+  nl: OpenMates start er maximaal {auto} automatisch. Grotere batches hebben je goedkeuring nodig, en elke chat kan maximaal {max} directe subchats hebben.
+  ar: يبدأ OpenMates ما يصل إلى {auto} تلقائيًا. تحتاج الدفعات الأكبر إلى موافقتك، ويمكن أن تحتوي كل محادثة على ما يصل إلى {max} محادثات فرعية مباشرة.
+  hi: OpenMates अपने-आप अधिकतम {auto} शुरू करता है। बड़े बैच के लिए आपकी मंजूरी चाहिए, और हर चैट में अधिकतम {max} सीधे सब-चैट हो सकते हैं।
+  th: OpenMates จะเริ่มให้อัตโนมัติสูงสุด {auto} รายการ กลุ่มที่ใหญ่กว่านี้ต้องได้รับการอนุมัติจากคุณ และแต่ละแชตมีแชตย่อยโดยตรงได้สูงสุด {max} รายการ
+  cs: OpenMates automaticky spustí maximálně {auto}. Větší dávky vyžadují vaše schválení a každý chat může mít až {max} přímých podchatů.
+  sv: OpenMates startar upp till {auto} automatiskt. Större grupper kräver ditt godkännande, och varje chatt kan ha upp till {max} direkta underchattar.
+  he: OpenMates מתחיל עד {auto} באופן אוטומטי. קבוצות גדולות יותר דורשות את אישורך, ולכל צ'אט יכולים להיות עד {max} תתי-צ'אטים ישירים.
+  verified_by_human: []
+
+chat.sub_chats.confirmation_more:
+  context: Collapsed list footer in sub-chat confirmation card. {count} is the number of hidden proposed sub-chats.
+  en: +{count} more
+  de: +{count} weitere
+  zh: 另有 {count} 个
+  es: +{count} más
+  fr: +{count} autres
+  pt: +{count} mais
+  ru: еще +{count}
+  ja: さらに {count} 件
+  ko: +{count}개 더
+  it: +{count} altri
+  tr: +{count} tane daha
+  vi: +{count} mục nữa
+  id: +{count} lagi
+  pl: +{count} więcej
+  nl: +{count} meer
+  ar: +{count} أخرى
+  hi: +{count} और
+  th: อีก +{count}
+  cs: +{count} dalších
+  sv: +{count} till
+  he: +{count} נוספים
+  verified_by_human: []
+
+chat.sub_chats.start_all:
+  context: Button to approve all proposed sub-chats. {count} is the number of sub-chats.
+  en: Start all {count}
+  de: Alle {count} starten
+  zh: 启动全部 {count} 个
+  es: Iniciar los {count}
+  fr: Démarrer les {count}
+  pt: Iniciar todos os {count}
+  ru: Запустить все {count}
+  ja: '{count} 件すべて開始'
+  ko: '{count}개 모두 시작'
+  it: Avvia tutti e {count}
+  tr: Tüm {count} sohbeti başlat
+  vi: Bắt đầu tất cả {count}
+  id: Mulai semua {count}
+  pl: Uruchom wszystkie {count}
+  nl: Alle {count} starten
+  ar: بدء كل {count}
+  hi: सभी {count} शुरू करें
+  th: เริ่มทั้งหมด {count} รายการ
+  cs: Spustit všech {count}
+  sv: Starta alla {count}
+  he: להתחיל את כל {count}
+  verified_by_human: []
+
+chat.sub_chats.progress_label:
+  context: Label above sequential sub-chat progress bar. {completed} is completed count and {total} is total count.
+  en: 'Sequential sub-chats: {completed} / {total} complete'
+  de: 'Sequenzielle Sub-Chats: {completed} / {total} abgeschlossen'
+  zh: '顺序子聊天：{completed} / {total} 已完成'
+  es: 'Subchats secuenciales: {completed} / {total} completados'
+  fr: 'Sous-discussions séquentielles : {completed} / {total} terminées'
+  pt: 'Subchats sequenciais: {completed} / {total} concluídos'
+  ru: 'Последовательные подчаты: {completed} / {total} завершено'
+  ja: '順次サブチャット: {completed} / {total} 完了'
+  ko: '순차 하위 채팅: {completed} / {total} 완료'
+  it: 'Sotto-chat sequenziali: {completed} / {total} completate'
+  tr: 'Sıralı alt sohbetler: {completed} / {total} tamamlandı'
+  vi: 'Trò chuyện con tuần tự: {completed} / {total} hoàn tất'
+  id: 'Sub-chat berurutan: {completed} / {total} selesai'
+  pl: 'Sekwencyjne podczaty: {completed} / {total} ukończono'
+  nl: 'Opeenvolgende subchats: {completed} / {total} voltooid'
+  ar: 'المحادثات الفرعية المتسلسلة: اكتمل {completed} / {total}'
+  hi: 'क्रमिक सब-चैट: {completed} / {total} पूर्ण'
+  th: 'แชตย่อยตามลำดับ: เสร็จแล้ว {completed} / {total}'
+  cs: 'Sekvenční podchaty: {completed} / {total} dokončeno'
+  sv: 'Sekventiella underchattar: {completed} / {total} klara'
+  he: 'תתי-צ׳אטים רציפים: {completed} / {total} הושלמו'
+  verified_by_human: []
+
+chat.sub_chats.progress_stopping:
+  context: Status label shown while a sequential sub-chat queue is being stopped.
+  en: Stopping sequential sub-chats...
+  de: Sequenzielle Sub-Chats werden gestoppt...
+  zh: 正在停止顺序子聊天...
+  es: Deteniendo subchats secuenciales...
+  fr: Arrêt des sous-discussions séquentielles...
+  pt: Parando subchats sequenciais...
+  ru: Остановка последовательных подчатов...
+  ja: 順次サブチャットを停止しています...
+  ko: 순차 하위 채팅을 중지하는 중...
+  it: Arresto delle sotto-chat sequenziali...
+  tr: Sıralı alt sohbetler durduruluyor...
+  vi: Đang dừng các cuộc trò chuyện con tuần tự...
+  id: Menghentikan sub-chat berurutan...
+  pl: Zatrzymywanie sekwencyjnych podczatów...
+  nl: Opeenvolgende subchats stoppen...
+  ar: جارٍ إيقاف المحادثات الفرعية المتسلسلة...
+  hi: क्रमिक सब-चैट रोकी जा रही हैं...
+  th: กำลังหยุดแชตย่อยตามลำดับ...
+  cs: Zastavování sekvenčních podchatů...
+  sv: Stoppar sekventiella underchattar...
+  he: עוצר תתי-צ׳אטים רציפים...
+  verified_by_human: []
+
+chat.sub_chats.stop_queue:
+  context: Button label for stopping a sequential sub-chat queue.
+  en: Stop queue
+  de: Warteschlange stoppen
+  zh: 停止队列
+  es: Detener cola
+  fr: Arrêter la file
+  pt: Parar fila
+  ru: Остановить очередь
+  ja: キューを停止
+  ko: 대기열 중지
+  it: Ferma coda
+  tr: Kuyruğu durdur
+  vi: Dừng hàng đợi
+  id: Hentikan antrean
+  pl: Zatrzymaj kolejkę
+  nl: Wachtrij stoppen
+  ar: إيقاف قائمة الانتظار
+  hi: कतार रोकें
+  th: หยุดคิว
+  cs: Zastavit frontu
+  sv: Stoppa kö
+  he: עצור תור
+  verified_by_human: []
+
+chat.sub_chats.start_first:
+  context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
+  en: Start first {count}
+  de: Erste {count} starten
+  zh: 先启动 {count} 个
+  es: Iniciar los primeros {count}
+  fr: Démarrer les {count} premiers
+  pt: Iniciar os primeiros {count}
+  ru: Запустить первые {count}
+  ja: 最初の {count} 件を開始
+  ko: 처음 {count}개 시작
+  it: Avvia i primi {count}
+  tr: İlk {count} sohbeti başlat
+  vi: Bắt đầu {count} mục đầu tiên
+  id: Mulai {count} pertama
+  pl: Uruchom pierwsze {count}
+  nl: Eerste {count} starten
+  ar: بدء أول {count}
+  hi: पहले {count} शुरू करें
+  th: เริ่ม {count} รายการแรก
+  cs: Spustit prvních {count}
+  sv: Starta första {count}
+  he: להתחיל את {count} הראשונים
+  verified_by_human: []
+
+chat.sub_chats.confirmation_failed:
+  context: Error notification when sending sub-chat confirmation failed.
+  en: Failed to update sub-chat approval.
+  de: Sub-Chat-Genehmigung konnte nicht aktualisiert werden.
+  zh: 无法更新子聊天批准。
+  es: No se pudo actualizar la aprobación de subchats.
+  fr: Impossible de mettre à jour l'approbation des sous-discussions.
+  pt: Falha ao atualizar a aprovação dos subchats.
+  ru: Не удалось обновить подтверждение подчатов.
+  ja: サブチャットの承認を更新できませんでした。
+  ko: 하위 채팅 승인을 업데이트하지 못했습니다.
+  it: Impossibile aggiornare l'approvazione delle sotto-chat.
+  tr: Alt sohbet onayı güncellenemedi.
+  vi: Không thể cập nhật phê duyệt cuộc trò chuyện con.
+  id: Gagal memperbarui persetujuan sub-chat.
+  pl: Nie udało się zaktualizować zgody na podczaty.
+  nl: Kan goedkeuring voor subchats niet bijwerken.
+  ar: تعذر تحديث الموافقة على المحادثات الفرعية.
+  hi: सब-चैट स्वीकृति अपडेट नहीं हो सकी।
+  th: อัปเดตการอนุมัติแชตย่อยไม่สำเร็จ
+  cs: Nepodařilo se aktualizovat schválení podchatů.
+  sv: Det gick inte att uppdatera godkännandet för underchattar.
+  he: עדכון האישור לתת-צ'אטים נכשל.
+  verified_by_human: []
+
+chat.sub_chats.limit_exceeded:
+  context: Fallback error notification when sub-chat limit is exceeded.
+  en: This chat has reached its sub-chat limit.
+  de: Dieser Chat hat sein Sub-Chat-Limit erreicht.
+  zh: 此聊天已达到子聊天上限。
+  es: Este chat alcanzó su límite de subchats.
+  fr: Cette discussion a atteint sa limite de sous-discussions.
+  pt: Este chat atingiu o limite de subchats.
+  ru: Этот чат достиг лимита подчатов.
+  ja: このチャットはサブチャットの上限に達しました。
+  ko: 이 채팅은 하위 채팅 한도에 도달했습니다.
+  it: Questa chat ha raggiunto il limite di sotto-chat.
+  tr: Bu sohbet alt sohbet sınırına ulaştı.
+  vi: Cuộc trò chuyện này đã đạt giới hạn cuộc trò chuyện con.
+  id: Chat ini telah mencapai batas sub-chat.
+  pl: Ten czat osiągnął limit podczatów.
+  nl: Deze chat heeft de limiet voor subchats bereikt.
+  ar: وصلت هذه المحادثة إلى حد المحادثات الفرعية.
+  hi: यह चैट अपनी सब-चैट सीमा तक पहुंच गई है।
+  th: แชตนี้ถึงขีดจำกัดแชตย่อยแล้ว
+  cs: Tento chat dosáhl limitu podchatů.
+  sv: Den här chatten har nått sin gräns för underchattar.
+  he: הצ'אט הזה הגיע למגבלת תתי-הצ'אטים שלו.
+  verified_by_human: []
 context_menu.delete:
   context: Menu option to delete chat and all its messages
   en: Delete

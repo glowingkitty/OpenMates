@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 import logging
 import time
 import hashlib
+import hmac
 import base64
 import json
 import pyotp # Added for 2FA verification
@@ -52,6 +53,33 @@ since the decryption keys are never stored on the server.
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+GENERIC_LOOKUP_METHOD = "password"
+GENERIC_LOOKUP_METHODS = ["password", "recovery_key"]
+FAKE_SALT_SECRET_ENV = "AUTH_LOOKUP_FAKE_SALT_SECRET"
+_FALLBACK_FAKE_SALT_SECRET = base64.b64encode(os.urandom(32)).decode("utf-8")
+
+
+def _fake_user_email_salt(hashed_email: str) -> str:
+    """Return a stable decoy salt so repeated missing-account lookups match real accounts."""
+    secret = os.getenv(FAKE_SALT_SECRET_ENV) or os.getenv("INTERNAL_API_SHARED_TOKEN") or _FALLBACK_FAKE_SALT_SECRET
+    digest = hmac.new(secret.encode("utf-8"), hashed_email.encode("utf-8"), hashlib.sha256).digest()
+    return base64.b64encode(digest[:16]).decode("utf-8")
+
+
+def _generic_lookup_response(*, hashed_email: str, stay_logged_in: bool, user_email_salt: Optional[str] = None) -> UserLookupResponse:
+    return UserLookupResponse(
+        login_method=GENERIC_LOOKUP_METHOD,
+        available_login_methods=GENERIC_LOOKUP_METHODS,
+        user_email_salt=user_email_salt or _fake_user_email_salt(hashed_email),
+        tfa_enabled=True,
+        stay_logged_in=stay_logged_in,
+    )
+
+
+def _is_obsolete_signup_resume_path(last_opened_path: Optional[str]) -> bool:
+    """Return True when login should not resume the legacy signup wizard."""
+    return isinstance(last_opened_path, str) and last_opened_path.startswith(("/signup/", "#signup/"))
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("120/minute")
@@ -445,24 +473,11 @@ async def login(
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
             
-            # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
-            # This prevents users from getting stuck in signup flow after login when
-            # signupStore data (email, username) is no longer available.
-            # 
-            # IMPORTANT: Only reset for early steps that REQUIRE signupStore data:
-            # - basics, confirm-email, secure-account, password
-            # 
-            # DO NOT reset for later steps (one-time-codes, backup-codes, recovery-key,
-            # credits, payment, auto-top-up) as users may legitimately need to complete them.
-            early_signup_steps = [
-                "/signup/basics", "#signup/basics",
-                "/signup/confirm-email", "#signup/confirm-email",
-                "/signup/secure-account", "#signup/secure-account",
-                "/signup/password", "#signup/password",
-            ]
-            if last_opened_path and any(last_opened_path.startswith(step) for step in early_signup_steps):
-                logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path} (early signup path). Resetting to 'demo-for-everyone' after login.")
-                last_opened_path = "demo-for-everyone"
+            # The signup wizard now ends immediately after account creation. Any persisted
+            # /signup/* resume path is legacy state and must not reopen security/payment setup.
+            if _is_obsolete_signup_resume_path(last_opened_path):
+                logger.info(f"User {user_id[:6]}... has stale signup last_opened={last_opened_path}. Resetting to '/chat/new' after login.")
+                last_opened_path = "/chat/new"
                 # Update Directus and cache with the new last_opened value and signup_completed flag
                 try:
                     update_success = await directus_service.update_user(user_id, {
@@ -475,7 +490,8 @@ async def login(
                             "signup_completed": True
                         })
                         user_profile["last_opened"] = last_opened_path
-                        logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                        user_profile["signup_completed"] = True
+                        logger.info(f"Successfully reset last_opened to '/chat/new' for user {user_id[:6]}...")
                     else:
                         logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                 except Exception as e:
@@ -1468,145 +1484,21 @@ async def lookup_user(
         # Log the lookup attempt for metrics
         metrics_service.track_login_attempt(exists_result)
         
-        # Step 3: If user doesn't exist, return default response with random salt to prevent email enumeration
+        # Step 3: If user doesn't exist, return a stable decoy response. Random
+        # salts make repeated /lookup calls an account-existence oracle.
         if not exists_result or not user_data:
-            logger.info("User not found in lookup, returning default response with random salt")
-            # Generate a random salt for non-existent users to prevent email enumeration
-            random_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
-            return UserLookupResponse(
-                login_method="password",
-                available_login_methods=["password","recovery_key"],
-                user_email_salt=random_salt,
-                tfa_enabled=True,  # Always True for anti-enumeration
-                stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference even for non-existent users
+            logger.info("User not found in lookup, returning generic anti-enumeration response")
+            return _generic_lookup_response(
+                hashed_email=lookup_data.hashed_email,
+                stay_logged_in=lookup_data.stay_logged_in,
             )
         
-        # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
+        # Step 4: Get the real salt for existing users while keeping public
+        # metadata generic. Password login still needs this salt for the
+        # client-side lookup hash, but login methods and TFA app names are not
+        # safe to expose during lookup.
         user_id = user_data.get("id")
-        tfa_app_name = None
         cached_user_profile = None
-        
-        if user_id:
-            cached_user_profile = await cache_service.get_user_by_id(user_id)
-            required_profile_fields = ("username", "vault_key_id", "hashed_email", "user_email_salt")
-            if cached_user_profile and all(cached_user_profile.get(field) for field in required_profile_fields):
-                tfa_app_name = cached_user_profile.get("tfa_app_name")
-                logger.info(f"Using cached user profile for tfa_app_name lookup: {user_id}")
-            else:
-                if cached_user_profile:
-                    missing_fields = [field for field in required_profile_fields if not cached_user_profile.get(field)]
-                    logger.warning(
-                        f"Cached user profile for {user_id} is missing {missing_fields} during lookup. "
-                        "Evicting and re-fetching before login."
-                    )
-                    await cache_service.delete(f"user_profile:{user_id}")
-
-                # Fetch a validated profile if not cached or if cache was incomplete.
-                profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
-                if profile_success and user_profile:
-                    cached_user_profile = user_profile
-                    tfa_app_name = user_profile.get("tfa_app_name")
-                    logger.info(f"Fetched user profile for tfa_app_name lookup: {user_id}")
-        
-        # Step 5: Determine available login methods
-        available_methods = []
-        preferred_method = "password"  # Default to password
-        
-        # Get hashed_user_id for encryption_keys lookup
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest() if user_id else None
-        
-        if hashed_user_id:
-            # Create a cache key for the user's login methods
-            login_methods_cache_key = f"user:{hashed_user_id}:login_methods"
-            
-            # Try to get login methods from cache first
-            cached_login_methods = await cache_service.get(login_methods_cache_key)
-            login_methods = None
-            
-            if cached_login_methods:
-                logger.info(f"Using cached login methods for user {user_id}")
-                login_methods = cached_login_methods
-            else:
-                # Cache miss - get all encryption keys for this user to determine available login methods
-                logger.info(f"Cache miss for login methods. Fetching from Directus for user {user_id}")
-                params = {
-                    "filter[hashed_user_id][_eq]": hashed_user_id,
-                    "fields": "login_method"
-                }
-                
-                try:
-                    encryption_keys = await directus_service.get_items("encryption_keys", params)
-                    
-                    # Extract login methods from encryption keys
-                    login_methods = [key.get("login_method") for key in encryption_keys if isinstance(key, dict) and key.get("login_method")]
-                    
-                    # Cache the login methods with a 1-hour TTL
-                    if login_methods:
-                        await cache_service.set(login_methods_cache_key, login_methods, ttl=3600)
-                        logger.info(f"Cached login methods for user {user_id}")
-                except Exception as e:
-                    logger.error(f"Error fetching encryption keys for user {user_id}: {str(e)}", exc_info=True)
-                    # Fall back to default methods if we can't get encryption keys
-                    login_methods = []
-            
-            if login_methods:
-                # Initialize flags
-                has_password = False
-                has_passkey = False
-                has_security_key = False
-                has_recovery_key = False
-
-                # Check for password first - prefer password over passkey for better UX
-                # Users expect to enter password after email, not be forced into passkey
-                has_password = any(method == "password" for method in login_methods)
-                if has_password:
-                    available_methods.append("password")
-                    preferred_method = "password"  # Prefer password as default
-                
-                # Check for passkey - verify that actual passkeys exist in user_passkeys table
-                # CRITICAL: Only add passkey to available methods if there are actual passkeys registered
-                # This prevents showing passkey login when encryption key exists but passkey was deleted
-                has_passkey_encryption_key = any(method.startswith("passkey") for method in login_methods)
-                if has_passkey_encryption_key:
-                    # Verify that there are actual passkeys in the user_passkeys table
-                    try:
-                        actual_passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
-                        has_passkey = len(actual_passkeys) > 0
-                        
-                        if has_passkey:
-                            # available_methods.append("passkey") # Removed as per user request - frontend handles passkey availability
-                            # Only set as preferred if password is not available
-                            if not has_password:
-                                preferred_method = "passkey"
-                            logger.info(f"User {user_id} has {len(actual_passkeys)} passkey(s) - passkey login available")
-                        else:
-                            logger.info(f"User {user_id} has passkey encryption key but no actual passkeys - passkey login not available")
-                    except Exception as e:
-                        logger.error(f"Error checking passkeys for user {user_id}: {e}", exc_info=True)
-                        # If we can't verify, don't add passkey to avoid showing unavailable option
-                
-                # Check for security_key
-                has_security_key = any(method.startswith("security_key") for method in login_methods)
-                if has_security_key:
-                    available_methods.append("security_key")
-                    # Only set as preferred if password and passkey are not available
-                    if not has_password and not has_passkey:
-                        preferred_method = "security_key"
-                
-                # Check for recovery_key (always available as fallback, but not preferred)
-                has_recovery_key = any(method == "recovery_key" for method in login_methods)
-                if has_recovery_key:
-                    available_methods.append("recovery_key")
-                
-                logger.info(f"Found login methods for user {user_id}: {login_methods}")
-            else:
-                # Fall back to default methods if no login methods found
-                available_methods = ["password", "recovery_key"]
-                logger.warning(f"No login methods found for user {user_id}, using default")
-        
-        logger.info(f"User lookup successful. Available methods: {available_methods}, preferred: {preferred_method}")
-        
-        # Get user_email_salt and cache complete user data for existing users
         user_email_salt = None
         if user_id:
             # Try to get from cached profile first
@@ -1750,36 +1642,17 @@ async def lookup_user(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # ANTI-ENUMERATION: Always return tfa_enabled=True from the lookup endpoint.
-        #
-        # Returning different values for existing-without-2FA (false) vs non-existing (true)
-        # creates an oracle that lets attackers determine if an account exists.
-        #
-        # The login handler independently verifies the actual 2FA status from the user
-        # profile and encrypted_tfa_secret existence, so this lookup value does NOT
-        # affect security — it only controls whether the frontend shows the OTP input.
-        # Showing it always is correct anti-enumeration behavior.
-        tfa_enabled = True
-
-        # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
-        return UserLookupResponse(
-            login_method=preferred_method,
-            available_login_methods=available_methods,
-            tfa_app_name=tfa_app_name,
+        # Return only generic public auth metadata. The real salt is needed for
+        # password login, but methods/app name would reveal account posture.
+        return _generic_lookup_response(
+            hashed_email=lookup_data.hashed_email,
+            stay_logged_in=lookup_data.stay_logged_in,
             user_email_salt=user_email_salt,
-            tfa_enabled=tfa_enabled,
-            stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference
         )
     
     except Exception as e:
         logger.error(f"Error during user lookup: {str(e)}", exc_info=True)
-        # Generate random salt for error case
-        random_salt_error = base64.b64encode(os.urandom(16)).decode('utf-8')
-        # Return default response to prevent email enumeration
-        return UserLookupResponse(
-            login_method="password",
-            available_login_methods=["password", "recovery_key"],
-            user_email_salt=random_salt_error,
-            tfa_enabled=True,
-            stay_logged_in=False  # Default to False for security
+        return _generic_lookup_response(
+            hashed_email=lookup_data.hashed_email or "lookup-error",
+            stay_logged_in=False,
         )

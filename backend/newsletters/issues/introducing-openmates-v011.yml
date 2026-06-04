@@ -1,0 +1,24 @@
+slug: introducing-openmates-v011
+kind: announcements
+category: updates_and_announcements
+demo_chat_category: news
+chat_id: announcements-introducing-openmates-v011
+subject:
+  en: 'OpenMates v0.11: Code tools, daily inspirations & new media providers'
+  de: 'OpenMates v0.11: Code-Tools, Daily Inspirations & neue Medien-Provider'
+title:
+  en: 'v0.11: Code tools, daily inspirations & new media providers'
+  de: 'v0.11: Code-Tools, Daily Inspirations & neue Medien-Provider'
+subtitle:
+  en: Plus a short recap of the v0.10 improvements
+  de: Plus eine kurze Zusammenfassung der v0.10-Verbesserungen
+cta_url: https://openmates.org
+cta_text:
+  en: Open OpenMates
+  de: OpenMates öffnen
+body_i18n_key: demo_chats.announcements_introducing_openmates_v011.message
+video: null
+hero_image: null
+header_icon: null
+published_at: '2026-05-26T17:11:51+00:00'
+sent_at: null

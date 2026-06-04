@@ -930,11 +930,12 @@ export async function handleAIBackgroundResponseCompletedImpl(
     );
 
     // Show notification and increment unread count for background chat completion.
-    // This is a background handler (chat is not active), so always show the notification.
+    // Sub-chats run as parent-owned background workers; they should only notify when
+    // they explicitly ask for user input, which is handled by awaiting_user_input.
     // The activeChatStore check is a safety guard in case the user switched back
     // to this chat between the server sending the event and us processing it.
     const activeChatId = activeChatStore.get();
-    if (activeChatId !== payload.chat_id) {
+    if (activeChatId !== payload.chat_id && !chat.is_sub_chat && !chat.parent_id) {
       console.debug(
         `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id} (active: ${activeChatId})`,
       );
@@ -1591,6 +1592,14 @@ export async function handleAITypingStartedImpl( // Changed to async
     }
 
     if (!userMessage) {
+      const chatForMissingUserMessage = await chatDB.getChat(payload.chat_id);
+      if (chatForMissingUserMessage?.is_sub_chat) {
+        console.warn(
+          `[ChatSyncService:AI] No local user message found for sub-chat ${payload.chat_id}; skipping encrypted user-message storage package`,
+        );
+        return;
+      }
+
       console.error(
         `[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`,
       );
@@ -4810,4 +4819,338 @@ export async function handleChatCompressionCheckpointStoredImpl(
   serviceInstance.dispatchEvent(
     new CustomEvent("chatCompressionCheckpointStored", { detail: payload }),
   );
+}
+
+export async function handleSpawnSubChatsImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    type: "spawn_sub_chats";
+    chat_id: string;
+    sub_chats: Array<{
+      id: string;
+      user_message_id: string;
+      prompt: string;
+      wait_for_completion?: boolean;
+    }>;
+  },
+): Promise<void> {
+  console.info("[ChatSyncService:AI] Received 'spawn_sub_chats' payload:", payload);
+  try {
+    const parentChatId = payload.chat_id;
+    if (!parentChatId) {
+      console.error(
+        "[ChatSyncService:AI] spawn_sub_chats payload missing chat_id; cannot initialize sub-chats",
+        payload,
+      );
+      return;
+    }
+
+    if (!Array.isArray(payload.sub_chats)) {
+      console.error(
+        "[ChatSyncService:AI] spawn_sub_chats payload missing sub_chats array; cannot initialize sub-chats",
+        payload,
+      );
+      return;
+    }
+
+    // Get parent chat key synchronously from ChatKeyManager (should be loaded since parent is active)
+    const parentKey = chatKeyManager.getKeySync(parentChatId) || await chatKeyManager.getKey(parentChatId);
+    if (!parentKey) {
+      console.error(
+        `[ChatSyncService:AI] Parent chat key missing for ${parentChatId}, cannot initialize sub-chats`,
+      );
+      return;
+    }
+
+    const { userProfile } = await import("../stores/userProfile");
+    const { get } = await import("svelte/store");
+    const currentUserId = get(userProfile).user_id;
+
+    for (const sc of payload.sub_chats) {
+      const subChatPayload = sc as typeof sc & {
+        chat_id?: string;
+        message_id?: string;
+      };
+      const scId = subChatPayload.id || subChatPayload.chat_id;
+      const prompt = subChatPayload.prompt || "";
+      const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
+
+      if (!scId) {
+        console.error(
+          "[ChatSyncService:AI] Skipping malformed sub-chat payload; missing id",
+          { parentChatId, subChatPayload },
+        );
+        continue;
+      }
+
+      // 1. Inject the parent chat's key for the sub-chat.
+      // Under zero-knowledge rules, sub-chats share the parent's encryption key.
+      chatKeyManager.injectKey(scId, parentKey, "master_key");
+      console.info(
+        `[ChatSyncService:AI] Injected parent key into sub-chat ${scId}`,
+      );
+
+      // 2. Retrieve or create sub-chat record locally in IndexedDB
+      let childChat = await chatDB.getChat(scId);
+      if (!childChat) {
+        childChat = {
+          chat_id: scId,
+          parent_id: parentChatId,
+          is_sub_chat: true,
+          title: prompt.substring(0, 30) + (prompt.length > 30 ? "..." : ""),
+          encrypted_title: await encryptWithChatKey(
+            prompt.substring(0, 30),
+            parentKey,
+          ),
+          messages_v: 1,
+          title_v: 0,
+          unread_count: 0,
+          created_at: Math.floor(Date.now() / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+          last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
+          user_id: currentUserId,
+        };
+
+        // Encrypt the chat key with the master key for device sync and storage
+        const encryptedChatKey = await encryptChatKeyWithMasterKey(parentKey);
+        if (encryptedChatKey) {
+          childChat.encrypted_chat_key = encryptedChatKey;
+        }
+
+        await chatDB.addChat(childChat);
+        console.info(
+          `[ChatSyncService:AI] Created child chat record locally for ${scId}`,
+        );
+      }
+      await flushPendingTypingStartedForChat(serviceInstance, scId);
+
+      // 3. Create the first user message in the sub-chat
+      if (!userMessageId) {
+        console.warn(
+          `[ChatSyncService:AI] Sub-chat ${scId} payload missing user_message_id; created local chat shell only`,
+        );
+        continue;
+      }
+
+      let userMsg = await chatDB.getMessage(userMessageId);
+      if (!userMsg) {
+        userMsg = {
+          message_id: userMessageId,
+          chat_id: scId,
+          role: "user",
+          content: prompt,
+          status: "synced",
+          created_at: Math.floor(Date.now() / 1000),
+          encrypted_content: "", // Will be set by saveMessage encryption hook
+        };
+        await chatDB.saveMessage(userMsg);
+        console.info(
+          `[ChatSyncService:AI] Created first user message locally for sub-chat ${scId}`,
+        );
+
+        // 4. Sync the sub-chat and user message to Directus via standard sendEncryptedStoragePackage
+        const { sendEncryptedStoragePackage } = await import(
+          "./sendersChatMessages"
+        );
+        await sendEncryptedStoragePackage(serviceInstance, {
+          chat_id: scId,
+          user_message: userMsg,
+        });
+        console.info(
+          `[ChatSyncService:AI] Synced child chat and user message to Directus for ${scId}`,
+        );
+      }
+    }
+
+    // Dispatch localChatListChanged to update sidebar and carousel
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { chat_id: parentChatId },
+      }),
+    );
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error handling spawn_sub_chats payload:`,
+      error,
+    );
+  }
+}
+
+export function handleSubChatConfirmationRequiredImpl(
+  payload: {
+    type: "sub_chat_confirmation_required";
+    chat_id: string;
+    task_id: string;
+    message_id: string;
+    sub_chats: Array<{
+      id: string;
+      user_message_id: string;
+      prompt: string;
+      wait_for_completion?: boolean;
+    }>;
+    max_auto_sub_chats?: number;
+    max_direct_sub_chats?: number;
+    existing_sub_chats?: number;
+    remaining_sub_chats?: number;
+  },
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("subChatConfirmationRequired", { detail: payload }),
+  );
+}
+
+export function handleSubChatConfirmationResolvedImpl(
+  payload: {
+    chat_id: string;
+    task_id: string;
+    status: "approved" | "cancelled" | "expired" | "limit_exceeded";
+    message?: string;
+    approved_count?: number;
+  },
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("subChatConfirmationResolved", { detail: payload }),
+  );
+}
+
+export function handleSubChatProgressImpl(
+  payload: {
+    type: "sub_chat_progress";
+    chat_id: string;
+    task_id?: string;
+    message_id?: string;
+    execution_mode?: "parallel" | "sequential";
+    status?: "running" | "stopping" | "stopped" | "completed";
+    total?: number;
+    completed?: number;
+    active_sub_chat_id?: string | null;
+  },
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("subChatProgress", { detail: payload }),
+  );
+}
+
+export async function handleAwaitingUserInputImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: {
+    type: "awaiting_user_input";
+    chat_id: string;
+    parent_id?: string;
+    message_id: string;
+    task_id?: string;
+    user_message_id?: string;
+    question: string;
+  },
+): Promise<void> {
+  console.info("[ChatSyncService:AI] Received 'awaiting_user_input' payload:", payload);
+  try {
+    if (!payload.chat_id || !payload.message_id || !payload.question) {
+      console.error(
+        "[ChatSyncService:AI] awaiting_user_input payload missing chat_id, message_id, or question",
+        payload,
+      );
+      return;
+    }
+
+    let chat = await chatDB.getChat(payload.chat_id);
+    if (!chat) {
+      console.error(
+        `[ChatSyncService:AI] Sub-chat ${payload.chat_id} not found for awaiting_user_input`,
+      );
+      return;
+    }
+
+    const existingMessage = await chatDB.getMessage(payload.message_id);
+    const now = Math.floor(Date.now() / 1000);
+    let questionMessage = existingMessage;
+    let createdQuestionMessage = false;
+    if (!questionMessage) {
+      questionMessage = {
+        message_id: payload.message_id,
+        chat_id: payload.chat_id,
+        user_message_id: payload.user_message_id,
+        role: "assistant",
+        content: payload.question,
+        status: "waiting_for_user",
+        created_at: now,
+        encrypted_content: "",
+      };
+      await chatDB.saveMessage(questionMessage);
+      createdQuestionMessage = true;
+      console.info(
+        `[ChatSyncService:AI] Saved awaiting_user_input question as assistant message ${payload.message_id}`,
+      );
+    }
+
+    chat = {
+      ...chat,
+      updated_at: now,
+      last_edited_overall_timestamp: now,
+    };
+    await chatDB.updateChat(chat);
+
+    const taskId = payload.task_id || payload.message_id;
+    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+    if (taskInfo && taskInfo.taskId === taskId) {
+      serviceInstance.activeAITasks.delete(payload.chat_id);
+    }
+
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id: payload.chat_id,
+          chat,
+          newMessage: questionMessage,
+          type: "awaiting_user_input",
+        },
+      }),
+    );
+    window.dispatchEvent(
+      new CustomEvent("localChatListChanged", {
+        detail: { chat_id: payload.parent_id || payload.chat_id },
+      }),
+    );
+    serviceInstance.dispatchEvent(
+      new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: payload.chat_id,
+          taskId,
+          status: "waiting_for_user",
+        },
+      }),
+    );
+
+    const activeChatId = activeChatStore.get();
+    if (activeChatId !== payload.chat_id) {
+      unreadMessagesStore.incrementUnread(payload.chat_id);
+      notificationStore.chatMessage(
+        payload.chat_id,
+        chat.title || "Sub-chat needs input",
+        payload.question,
+        undefined,
+        chat.category || undefined,
+      );
+    }
+
+    if (createdQuestionMessage) {
+      try {
+        await serviceInstance.sendCompletedAIResponse(questionMessage);
+      } catch (error) {
+        console.error(
+          "[ChatSyncService:AI] Error syncing awaiting_user_input question to server:",
+          error,
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      "[ChatSyncService:AI] Error handling awaiting_user_input payload:",
+      error,
+    );
+  }
 }

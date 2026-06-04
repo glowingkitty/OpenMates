@@ -12,7 +12,8 @@
      */
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { authStore, getApiUrl } from '@repo/ui';
+    import { authStore } from '@openmates/ui/src/stores/authStore';
+    import { getApiUrl } from '@openmates/ui/src/config/api';
     
     // State
     let swaggerContainer: HTMLDivElement | null = $state(null);
@@ -37,7 +38,7 @@
     async function loadApiKey() {
         try {
             // Import dynamically to avoid SSR issues
-            const { getKeyFromStorage } = await import('@repo/ui');
+            const { getKeyFromStorage } = await import('@openmates/ui/src/services/cryptoService');
             const storedKey = await getKeyFromStorage('api_key');
             if (storedKey) {
                 apiKey = storedKey;

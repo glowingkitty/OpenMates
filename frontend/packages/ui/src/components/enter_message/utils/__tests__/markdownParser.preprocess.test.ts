@@ -15,16 +15,29 @@ import { describe, it, expect, vi } from "vitest";
 // or fail silently, which causes the whole test file to be skipped. Stub
 // them so the import graph stays minimal and preprocessMarkdown can be
 // exercised in isolation.
-vi.mock("../../../../data/modelsMetadata", () => ({ modelsMetadata: {} }));
+vi.mock("../../../../data/modelsMetadata", () => ({ modelsMetadata: [] }));
 vi.mock("../../../../data/matesMetadata", () => ({ matesMetadata: {} }));
+vi.mock("../../../../data/providersMetadata", () => ({ providersMetadata: {} }));
 vi.mock("../../../../stores/appSettingsMemoriesStore", () => ({
   appSettingsMemoriesStore: { subscribe: () => () => {} },
 }));
 vi.mock("../../../../stores/appSkillsStore", () => ({
-  appSkillsStore: { subscribe: () => () => {} },
+  appSkillsStore: {
+    subscribe: () => () => {},
+    getState: () => ({
+      apps: {
+        openmates: {
+          id: "openmates",
+          skills: [{ id: "share-usecase" }],
+          focus_modes: [],
+          settings_and_memories: [],
+        },
+      },
+    }),
+  },
 }));
 
-import { preprocessMarkdown } from "../markdownParser";
+import { parseMarkdownToTiptap, preprocessMarkdown } from "../markdownParser";
 
 describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
   it("does not inject EMPTY_PARAGRAPH inside a JSON fence containing blank lines", () => {
@@ -79,5 +92,18 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
     const input = "First paragraph.\n\nSecond paragraph.";
     const out = preprocessMarkdown(input);
     expect(out).toContain("EMPTY_PARAGRAPH");
+  });
+
+  it("keeps hallucinated settings links as plain text", () => {
+    const doc = parseMarkdownToTiptap(
+      "Open [billing settings](/#settings/app_store/openmates/settings_memories/billing).",
+    );
+
+    const paragraph = doc.content[0];
+    const billingText = paragraph.content.find(
+      (node: { text?: string }) => node.text === "billing settings",
+    );
+
+    expect(billingText?.marks).toBeUndefined();
   });
 });

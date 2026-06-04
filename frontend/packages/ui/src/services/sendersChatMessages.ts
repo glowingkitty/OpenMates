@@ -665,6 +665,8 @@ export async function sendNewMessageImpl(
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
 		chat_id: string;
+		parent_id?: string | null;
+		broadcast?: boolean;
 		message: {
 			message_id: string;
 			role: string;
@@ -687,6 +689,8 @@ export async function sendNewMessageImpl(
 	}
 	const payload: SendMessagePayload = {
 		chat_id: message.chat_id,
+		parent_id: chat?.parent_id || null,
+		broadcast: ((message as unknown) as Record<string, unknown>).broadcast as boolean || false,
 		message: {
 			message_id: message.message_id,
 			role: message.role,

@@ -583,6 +583,14 @@ export const Embed = Node.create<EmbedOptions>({
       blobUrl: { default: null, rendered: false },
       /** Transcribed text returned by Mistral Voxtral */
       transcript: { default: null, rendered: false },
+      /** Original uncorrected transcript */
+      transcriptOriginal: { default: null, rendered: false },
+      /** Cleaned corrected transcript */
+      transcriptCorrected: { default: null, rendered: false },
+      /** Whether to use the corrected transcript */
+      useCorrected: { default: null, rendered: false },
+      /** Correction model name */
+      correctionModel: { default: null, rendered: false },
       /** Formatted duration string (e.g. "0:42") */
       duration: { default: null, rendered: false },
       /** MIME type of the original recording (e.g. 'audio/webm') */

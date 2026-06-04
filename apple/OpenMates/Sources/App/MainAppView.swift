@@ -2109,6 +2109,9 @@ struct MainAppView: View {
     }
 
     private func handlePendingDeferredSend(_ notification: Notification) {
+        if notification.userInfo?["dispatchThroughActiveComposer"] as? Bool == true {
+            return
+        }
         guard let chatId = notification.userInfo?["chatId"] as? String,
               let content = notification.userInfo?["content"] as? String,
               let chat = chatStore.chat(for: chatId) else { return }
@@ -2304,6 +2307,7 @@ struct MainAppView: View {
                     backgroundSyncFlushTask = nil
                     await flushBackgroundSyncedContent(reason: "syncComplete")
                 }
+                syncBridge?.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
 
             default:
                 await loadInitialData()
@@ -3812,8 +3816,11 @@ private struct WelcomeComposer: View {
             OMMessageInputField(
                 text: $text,
                 isFocused: $isFocused,
-                compact: !isOpen,
+                compact: !hasContent,
                 placeholder: AppStrings.typeMessage,
+                compactHeight: 60,
+                compactCornerRadius: 24,
+                showActionButtonsWhenCompact: isOpen,
                 expandedMinHeight: 112,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { isAuthenticated ? onSend() : onOpenAuth() }

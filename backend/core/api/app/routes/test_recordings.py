@@ -15,8 +15,10 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.admin import require_admin
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.s3.config import get_bucket_name
 
@@ -91,28 +93,131 @@ def _add_signed_asset_urls(request: Request, item: dict[str, Any]) -> dict[str, 
     return item
 
 
-@router.get("", dependencies=[])
+def _index_entry_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    assets = manifest.get("assets") or {}
+    return {
+        "spec": manifest.get("spec"),
+        "slug": manifest.get("slug"),
+        "title": manifest.get("title"),
+        "status": manifest.get("status", "unknown"),
+        "run_id": manifest.get("run_id"),
+        "duration_seconds": manifest.get("duration_seconds", 0),
+        "error": manifest.get("error"),
+        "assets": {
+            "thumbnail_key": assets.get("thumbnail_key"),
+            "video_key": assets.get("video_key"),
+        },
+    }
+
+
+def _manifest_from_artifact_meta(recordings_dir: Path, slug: str) -> dict[str, Any]:
+    bundle_dir = recordings_dir / slug
+    meta = _read_json_file(bundle_dir / "artifact-meta.json")
+    spec = meta.get("spec") or f"{slug}.spec.ts"
+    video_file = (meta.get("video_files") or [None])[0]
+    thumbnail_file = meta.get("thumbnail_file")
+    screenshot_files = meta.get("screenshot_files") or []
+
+    def key_for(file_name: Optional[str]) -> Optional[str]:
+        if not file_name:
+            return None
+        return f"latest/{slug}/{file_name}"
+
+    steps = []
+    for index, screenshot_file in enumerate(screenshot_files, start=1):
+        title = Path(screenshot_file).stem.replace("-", " ").title()
+        steps.append({
+            "index": index,
+            "type": "screenshot",
+            "title": title,
+            "screenshot_key": key_for(screenshot_file),
+            "screenshot_file": screenshot_file,
+        })
+
+    return {
+        "spec": spec,
+        "slug": slug,
+        "title": spec.replace(".spec.ts", "").replace(".test.ts", ""),
+        "status": "unknown",
+        "run_id": None,
+        "duration_seconds": 0,
+        "github_run_url": None,
+        "error": None,
+        "assets": {
+            "video_key": key_for(video_file),
+            "thumbnail_key": key_for(thumbnail_file),
+            "report_key": key_for("report.md") if (bundle_dir / "report.md").is_file() else None,
+            "screenshot_keys": [key for key in (key_for(path) for path in screenshot_files) if key],
+        },
+        "steps": steps,
+    }
+
+
+def _child_manifests_for_source(recordings_dir: Path, source_slug: str) -> list[dict[str, Any]]:
+    children = []
+    for manifest_path in sorted(recordings_dir.glob("*/manifest.json")):
+        try:
+            manifest = _read_json_file(manifest_path)
+        except HTTPException:
+            continue
+        if manifest.get("source_spec_slug") == source_slug:
+            children.append(manifest)
+    return children
+
+
+@router.get("")
 @limiter.limit("30/minute")
-async def list_test_recordings(request: Request) -> dict[str, Any]:
+async def list_test_recordings(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """List latest Playwright test recordings for the /tests page."""
+    _ = admin_user
     _ensure_dev_only()
     recordings_dir = _find_recordings_dir()
     if not recordings_dir:
         return {"run_id": None, "git_sha": None, "git_branch": None, "tests": []}
 
     index = _read_json_file(recordings_dir / "index.json")
-    tests = []
+    tests_by_slug = {}
     for item in index.get("tests", []):
-        if isinstance(item, dict):
-            tests.append(_add_signed_asset_urls(request, dict(item)))
+        if isinstance(item, dict) and item.get("slug"):
+            tests_by_slug[item["slug"]] = item
+
+    for bundle_dir in sorted(path for path in recordings_dir.iterdir() if path.is_dir()):
+        try:
+            manifest = (
+                _read_json_file(bundle_dir / "manifest.json")
+                if (bundle_dir / "manifest.json").is_file()
+                else _manifest_from_artifact_meta(recordings_dir, bundle_dir.name)
+            )
+        except HTTPException:
+            continue
+        slug = manifest.get("slug")
+        if not (bundle_dir / "manifest.json").is_file() and _child_manifests_for_source(recordings_dir, bundle_dir.name):
+            continue
+        if slug:
+            tests_by_slug[slug] = _index_entry_from_manifest(manifest)
+
+    tests = [
+        _add_signed_asset_urls(request, dict(item))
+        for item in tests_by_slug.values()
+        if isinstance(item, dict)
+    ]
+    tests.sort(key=lambda item: (item.get("title") or item.get("slug") or ""))
     index["tests"] = tests
     return index
 
 
-@router.get("/{slug}", dependencies=[])
+@router.get("/{slug}")
 @limiter.limit("60/minute")
-async def get_test_recording(slug: str, request: Request) -> dict[str, Any]:
+async def get_test_recording(
+    slug: str,
+    request: Request,
+    admin_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """Return one latest Playwright test recording manifest."""
+    _ = admin_user
     _ensure_dev_only()
     if not slug or "/" in slug or ".." in slug:
         raise HTTPException(status_code=400, detail="Invalid recording slug")
@@ -121,5 +226,10 @@ async def get_test_recording(slug: str, request: Request) -> dict[str, Any]:
     if not recordings_dir:
         raise HTTPException(status_code=404, detail="No test recordings available")
 
-    manifest = _read_json_file(recordings_dir / slug / "manifest.json")
+    manifest_path = recordings_dir / slug / "manifest.json"
+    if manifest_path.is_file():
+        manifest = _read_json_file(manifest_path)
+    else:
+        child_manifests = _child_manifests_for_source(recordings_dir, slug)
+        manifest = child_manifests[0] if child_manifests else _manifest_from_artifact_meta(recordings_dir, slug)
     return _add_signed_asset_urls(request, manifest)

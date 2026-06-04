@@ -44,7 +44,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 
 
 # ── Constants ────────────────────────────────────────────────────────────────
@@ -756,7 +756,7 @@ def run_meeting_session(data: dict, today: str, yesterday: str) -> tuple[int, st
     session_title = f"daily-meeting {today}"
     prompt = build_meeting_prompt(data, today, yesterday)
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(PROJECT_ROOT),
@@ -806,7 +806,7 @@ def cmd_run_meeting(yesterday: str) -> None:
     returncode, session_id = run_meeting_session(data, today, yesterday)
 
     if session_id:
-        print(f"CLAUDE_SESSION_ID:{session_id}")
+        print(f"OPENCODE_SESSION_ID:{session_id}")
         print(f"{LOG_PREFIX} Resume command: claude resume --dangerous {session_id}")
 
     if returncode != 0:

@@ -1,7 +1,7 @@
 /*
  * OpenMates CLI local session storage.
  *
- * Purpose: persist pair-login session data and local-only incognito chats.
+ * Purpose: persist pair-login session data and encrypted sync cache data.
  * Architecture: filesystem state in ~/.openmates with strict permissions.
  * Architecture doc: docs/architecture/openmates-cli.md
  * Security: master key stored via OS keychain or machine-encrypted file when
@@ -39,6 +39,7 @@ export interface OpenMatesSession {
   wsToken: string | null;
   cookies: Record<string, string>;
   masterKeyExportedB64: string;
+  emailEncryptionKeyB64?: string | null;
   hashedEmail: string;
   userEmailSalt: string;
   createdAt: number;
@@ -61,17 +62,17 @@ interface SessionOnDisk {
   masterKeyStorage?: MasterKeyStorageType;
   /** Base64 AES-256-GCM ciphertext (only when masterKeyStorage is "encrypted") */
   masterKeyEncrypted?: string;
+  /** Present only when emailEncryptionKeyStorage is "plaintext" */
+  emailEncryptionKeyB64?: string | null;
+  /** Where the email encryption key is stored, when available */
+  emailEncryptionKeyStorage?: MasterKeyStorageType;
+  /** Base64 AES-256-GCM ciphertext (only when emailEncryptionKeyStorage is "encrypted") */
+  emailEncryptionKeyEncrypted?: string;
   hashedEmail: string;
   userEmailSalt: string;
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
-}
-
-export interface IncognitoHistoryItem {
-  role: "user" | "assistant";
-  content: string;
-  createdAt: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,6 +143,19 @@ export function saveSession(session: OpenMatesSession): void {
   }
   // For "keychain", the key is not stored on disk at all
 
+  if (session.emailEncryptionKeyB64) {
+    const emailKeyResult = storeMasterKey(
+      session.emailEncryptionKeyB64,
+      `${session.hashedEmail}:email`,
+    );
+    onDisk.emailEncryptionKeyStorage = emailKeyResult.type;
+    if (emailKeyResult.type === "encrypted") {
+      onDisk.emailEncryptionKeyEncrypted = emailKeyResult.encryptedData;
+    } else if (emailKeyResult.type === "plaintext") {
+      onDisk.emailEncryptionKeyB64 = session.emailEncryptionKeyB64;
+    }
+  }
+
   writeJsonFile(filePath, onDisk);
 
   if (result.type !== "plaintext") {
@@ -160,6 +174,7 @@ export function loadSession(): OpenMatesSession | null {
   if (!onDisk) return null;
 
   let masterKey: string | null = null;
+  let emailEncryptionKey: string | null = null;
 
   // Legacy session (no masterKeyStorage field) — key is inline
   if (!onDisk.masterKeyStorage) {
@@ -167,7 +182,8 @@ export function loadSession(): OpenMatesSession | null {
 
     // Auto-migrate: try to move key to keychain/encrypted storage
     if (masterKey) {
-      const session = buildSession(onDisk, masterKey);
+      emailEncryptionKey = getEmailEncryptionKeyFromDisk(onDisk);
+      const session = buildSession(onDisk, masterKey, emailEncryptionKey);
       try {
         saveSession(session);
         process.stderr.write("Decrypting data...\n");
@@ -176,7 +192,7 @@ export function loadSession(): OpenMatesSession | null {
       }
     }
 
-    return masterKey ? buildSession(onDisk, masterKey) : null;
+    return masterKey ? buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk)) : null;
   }
 
   // Retrieve key from the appropriate tier
@@ -205,7 +221,7 @@ export function loadSession(): OpenMatesSession | null {
     return null;
   }
 
-  return buildSession(onDisk, masterKey);
+  return buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk));
 }
 
 /**
@@ -219,6 +235,9 @@ export function clearSession(): void {
   if (onDisk?.masterKeyStorage) {
     deleteMasterKey(onDisk.masterKeyStorage, onDisk.hashedEmail);
   }
+  if (onDisk?.emailEncryptionKeyStorage) {
+    deleteMasterKey(onDisk.emailEncryptionKeyStorage, `${onDisk.hashedEmail}:email`);
+  }
 
   if (existsSync(filePath)) {
     rmSync(filePath);
@@ -226,34 +245,40 @@ export function clearSession(): void {
 }
 
 /** Reconstruct in-memory OpenMatesSession from on-disk data + master key. */
-function buildSession(onDisk: SessionOnDisk, masterKey: string): OpenMatesSession {
+function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
+  if (!onDisk.emailEncryptionKeyStorage) return onDisk.emailEncryptionKeyB64 ?? null;
+  switch (onDisk.emailEncryptionKeyStorage) {
+    case "keychain":
+      return retrieveMasterKey("keychain", `${onDisk.hashedEmail}:email`);
+    case "encrypted":
+      return retrieveMasterKey(
+        "encrypted",
+        `${onDisk.hashedEmail}:email`,
+        onDisk.emailEncryptionKeyEncrypted,
+      );
+    case "plaintext":
+      return onDisk.emailEncryptionKeyB64 ?? null;
+  }
+}
+
+function buildSession(
+  onDisk: SessionOnDisk,
+  masterKey: string,
+  emailEncryptionKey: string | null,
+): OpenMatesSession {
   return {
     apiUrl: onDisk.apiUrl,
     sessionId: onDisk.sessionId,
     wsToken: onDisk.wsToken,
     cookies: onDisk.cookies,
     masterKeyExportedB64: masterKey,
+    emailEncryptionKeyB64: emailEncryptionKey,
     hashedEmail: onDisk.hashedEmail,
     userEmailSalt: onDisk.userEmailSalt,
     createdAt: onDisk.createdAt,
     authorizerDeviceName: onDisk.authorizerDeviceName,
     autoLogoutMinutes: onDisk.autoLogoutMinutes,
   };
-}
-
-export function loadIncognitoHistory(): IncognitoHistoryItem[] {
-  const filePath = join(ensureStateDir(), "incognito.json");
-  return readJsonFile<IncognitoHistoryItem[]>(filePath) ?? [];
-}
-
-export function saveIncognitoHistory(items: IncognitoHistoryItem[]): void {
-  const filePath = join(ensureStateDir(), "incognito.json");
-  writeJsonFile(filePath, items);
-}
-
-export function clearIncognitoHistory(): void {
-  const filePath = join(ensureStateDir(), "incognito.json");
-  writeJsonFile(filePath, []);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,16 @@
+# backend/providers/eventbrite.yml
+#
+# Configuration for Eventbrite event search provider.
+# Used by the Events app for discovering public events from Eventbrite.
+
+provider_id: "eventbrite"
+name: "Eventbrite"
+description: "Event ticketing and discovery platform for public events, classes, concerts, and community gatherings. Privacy URL verified 2026-06-03."
+logo_svg: "icons/eventbrite.svg"
+region: "US"
+privacy_policy: "https://www.eventbrite.com/help/en-us/articles/460838/eventbrite-privacy-policy/"
+
+no_api_key: true
+
+pricing:
+  per_request_credits: 5

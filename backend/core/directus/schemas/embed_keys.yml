@@ -36,15 +36,19 @@ embed_keys:
     
     key_type:
       type: string
-      note: "[Indexed] Type of key wrapper: 'master' (wrapped with user's master key) or 'chat' (wrapped with chat's encryption key)"
+      note: "[Indexed] Type of key wrapper: 'master' (wrapped with user's master key), 'chat' (wrapped with chat key), or 'project' (wrapped with project key)."
     
     hashed_chat_id:
       type: string
       note: "[Indexed, Nullable] For key_type='chat': SHA256(chat_id) indicating which chat's key was used to wrap. Null for key_type='master'."
+
+    hashed_project_id:
+      type: string
+      note: "[Indexed, Nullable] For key_type='project': SHA256(project_id) indicating which project key was used to wrap. Null for master/chat keys."
     
     encrypted_embed_key:
       type: string
-      note: "The embed's encryption key wrapped with the appropriate key. For key_type='master': AES(embed_key, master_key). For key_type='chat': AES(embed_key, chat_key)."
+      note: "The embed's encryption key wrapped with the appropriate key. For key_type='master': AES(embed_key, master_key). For key_type='chat': AES(embed_key, chat_key). For key_type='project': AES(embed_key, project_key)."
     
     hashed_user_id:
       type: string
@@ -53,4 +57,3 @@ embed_keys:
     created_at:
       type: integer
       note: "Unix timestamp (seconds) when this key entry was created"
-

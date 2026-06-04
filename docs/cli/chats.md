@@ -5,7 +5,7 @@ last_verified: 2026-03-24
 
 # Chat Commands
 
-Encrypted chat operations -- list, search, view, send messages, share, download, and manage incognito sessions. All chat data is decrypted client-side using your session's encryption keys.
+Encrypted chat operations -- list, search, view, send messages, share, download, and send incognito messages. All saved chat data is decrypted client-side using your session's encryption keys.
 
 ## Listing Chats
 
@@ -125,7 +125,7 @@ Creates an encrypted share link for the chat. See [embeds-and-sharing.md](./embe
 
 ## Incognito Mode
 
-Incognito messages are not saved to the server. History is stored locally in `~/.openmates/incognito.json`.
+Incognito messages are not saved to the server and are not stored locally by the CLI. There is no incognito transcript to show or clear after the command exits.
 
 ```
 openmates chats incognito "private question"
@@ -133,6 +133,8 @@ openmates chats incognito-history
 openmates chats incognito-history --json
 openmates chats incognito-clear
 ```
+
+`incognito-history` and `incognito-clear` are retained as compatibility no-ops. They explain that incognito chats are not stored.
 
 ## Inspirations
 

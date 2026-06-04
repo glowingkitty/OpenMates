@@ -202,13 +202,11 @@ test.describe('Page load performance — docs regression guard', () => {
 
 		expect(response?.status(), '/docs should return HTTP 200').toBe(200);
 
-		// Sidebar must be present — key output of the docs redesign
-		await expect(
-			page.locator('[data-testid="docs-sidebar"], .docs-sidebar, nav').first()
-		).toBeVisible({ timeout: 10_000 });
+		// Landing page section cards must be present — key output of the lightweight docs shell.
+		await expect(page.getByTestId('docs-section-grid')).toBeVisible({ timeout: 10_000 });
 
 		// At least one doc link must be present
-		await expect(page.locator('a[href^="/docs/"]').first()).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByTestId('docs-section-card').first()).toBeVisible({ timeout: 10_000 });
 
 		console.log(`\n  /docs total load: ${elapsed}ms\n`);
 

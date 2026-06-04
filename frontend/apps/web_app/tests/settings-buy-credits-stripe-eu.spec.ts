@@ -15,8 +15,7 @@ export {};
  * - Opens Settings → Billing → Buy Credits.
  * - Selects a credit tier (first available).
  * - Waits for the Stripe Payment Element iframe to load directly.
- *   (Polar is removed — Stripe always loads for EU and non-EU paths alike;
- *   non-EU path now routes to Stripe Managed Payments instead.)
+ *   Non-EU paths route to Stripe Managed Payments instead.
  * - Fills in the Stripe EU test card (4000 0024 6000 0001 Finland — passes Radar EU rule).
  * - Submits the Stripe payment form.
  * - Verifies "purchase successful" message on the main page.
@@ -190,7 +189,7 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await screenshot(page, 'payment-screen');
 
 	// Wait for the Stripe Payment Element iframe to load directly.
-	// Non-EU geo now routes to Stripe Managed Payments (not Polar).
+	// Non-EU geo now routes to Stripe Managed Payments.
 	// For the EU card test, click "Pay with an EU card instead" (switch-to-stripe)
 	// if the Managed Payments checkout loaded instead.
 	await page.waitForSelector('iframe', { state: 'attached', timeout: 20000 });

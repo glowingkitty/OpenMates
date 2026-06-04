@@ -18,7 +18,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 
 # Maximum error snippet length per failed test entry (characters)
 MAX_ERROR_SNIPPET_LEN = 600
@@ -139,7 +139,16 @@ def _build_test_run_payload(results_dir: str, environment: str) -> dict:
         try:
             with open(prod_smoke_path) as f:
                 prod_smoke_data = json.load(f)
-            prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
+            run_date = str(data.get("run_id", ""))[:10]
+            prod_smoke_date = str(prod_smoke_data.get("run_id", ""))[:10]
+            if prod_smoke_date != run_date:
+                print(
+                    f"[daily-runner] Ignoring stale prod smoke results from {prod_smoke_date or 'unknown'} "
+                    f"for daily run {run_date or 'unknown'}"
+                )
+                prod_smoke_suite = None
+            else:
+                prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
             if prod_smoke_suite:
                 for test_entry in prod_smoke_suite.get("tests", []):
                     total += 1
@@ -316,9 +325,8 @@ def dispatch_email() -> None:
 
     normalized_payload = _build_test_run_payload(results_dir, environment)
 
-    # Include claude analysis session ID if one was produced during this run
-    # (set by run-tests-daily.sh after calling start-claude-analysis).
-    claude_session_id = os.environ.get("CLAUDE_SESSION_ID", "").strip() or None
+    # Include OpenCode analysis session ID if one was produced during this run.
+    opencode_session_id = os.environ.get("OPENCODE_SESSION_ID", "").strip() or None
 
     # Dispatch via internal API endpoint.
     # When running on the host (via crontab), use localhost:8000 since
@@ -330,7 +338,7 @@ def dispatch_email() -> None:
     payload = {
         "recipient_email": admin_email,
         **normalized_payload,
-        "claude_session_id": claude_session_id,
+        "claude_session_id": opencode_session_id,
     }
 
     try:
@@ -532,16 +540,16 @@ def dispatch_start_email() -> None:
         print(f"[daily-runner] WARNING: could not dispatch start email: {e}", file=sys.stderr)
 
 
-def start_claude_analysis() -> None:
+def start_opencode_analysis() -> None:
     """
-    Start a claude analysis session for test failures.
+    Start an OpenCode analysis chat for test failures.
 
     Reads the failed tests from last-failed-tests.json (written by split-results),
     loads the prompt template from scripts/prompts/test-failure-analysis.md,
-    substitutes placeholders, then runs claude in plan mode.
+    substitutes placeholders, then runs OpenCode in read-only mode.
 
     Output convention (for run-tests-daily.sh to capture):
-        Prints "CLAUDE_SESSION_ID:<id>" to stdout when a session ID is found.
+        Prints "OPENCODE_SESSION_ID:<id>" to stdout when a session ID is found.
 
     Only called when failed_count > 0. Non-fatal — does not abort the test run.
     """
@@ -554,7 +562,7 @@ def start_claude_analysis() -> None:
     # Load failed tests
     failed_path = os.path.join(results_dir, "last-failed-tests.json")
     if not os.path.isfile(failed_path):
-        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping claude analysis.", file=sys.stderr)
+        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping OpenCode analysis.", file=sys.stderr)
         return
 
     with open(failed_path) as f:
@@ -564,7 +572,7 @@ def start_claude_analysis() -> None:
     run_id = failed_data.get("run_id", "unknown")
 
     if not failed_tests:
-        print("[daily-runner] No failed tests in last-failed-tests.json — skipping claude analysis.", file=sys.stderr)
+        print("[daily-runner] No failed tests in last-failed-tests.json — skipping OpenCode analysis.", file=sys.stderr)
         return
 
     # Load last-run.json for git info
@@ -586,7 +594,7 @@ def start_claude_analysis() -> None:
     prompt_template_path = os.path.join(script_dir, "prompts", "test-failure-analysis.md")
     if not os.path.isfile(prompt_template_path):
         print(
-            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping claude analysis.",
+            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping OpenCode analysis.",
             file=sys.stderr,
         )
         return
@@ -612,11 +620,11 @@ def start_claude_analysis() -> None:
     )
 
     session_title = f"test-failures {date_str}"
-    print(f"[daily-runner] Running claude analysis for {failed_count} failed test(s)...")
+    print(f"[daily-runner] Running OpenCode analysis for {failed_count} failed test(s)...")
 
     # Non-fatal: test run email is already sent; this is a best-effort analysis session.
     try:
-        _, session_id = run_claude_session(
+        _, session_id = run_opencode_session(
             prompt=prompt,
             session_title=session_title,
             project_root=project_root,
@@ -629,15 +637,15 @@ def start_claude_analysis() -> None:
         )
         if session_id:
             # Emit parseable line for run-tests-daily.sh to capture via grep
-            print(f"CLAUDE_SESSION_ID:{session_id}")
+            print(f"OPENCODE_SESSION_ID:{session_id}")
     except Exception as e:
-        print(f"[daily-runner] WARNING: claude analysis failed: {e} (non-fatal)", file=sys.stderr)
+        print(f"[daily-runner] WARNING: OpenCode analysis failed: {e} (non-fatal)", file=sys.stderr)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-claude-analysis>",
+            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-opencode-analysis>",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -651,8 +659,8 @@ if __name__ == "__main__":
         dispatch_email()
     elif command == "dispatch-openobserve-test-run":
         dispatch_openobserve_test_run()
-    elif command == "start-claude-analysis":
-        start_claude_analysis()
+    elif command == "start-opencode-analysis":
+        start_opencode_analysis()
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         sys.exit(1)

@@ -19,6 +19,10 @@ struct ServerEndpointConfiguration: Equatable {
         Self.httpsURL(for: selectedDomain)
     }
 
+    var uploadBaseURL: URL {
+        Self.uploadBaseURL
+    }
+
     var displayDomain: String {
         webAppURL.host() ?? webAppURL.absoluteString
     }
@@ -39,6 +43,7 @@ struct ServerEndpointConfiguration: Equatable {
 
     static let productionDomain = "openmates.org"
     static let developmentDomain = "app.dev.openmates.org"
+    static let uploadBaseURL = URL(string: "https://upload.openmates.org")!
 
     static var defaultSelectedDomain: String {
         #if DEBUG

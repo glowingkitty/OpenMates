@@ -157,3 +157,36 @@ focuses:
       apps, skills, and focus modes below. Use this information instead of guessing.
 
 settings_and_memories: []
+
+marketing_discovery:
+  skills:
+    share-usecase:
+      enabled: true
+      keywords:
+        - share AI use case
+        - submit product feedback
+        - OpenMates use case
+      pain_points:
+        - good user stories get lost
+      demo_angles:
+        - show sharing a use case
+    get-docs:
+      enabled: true
+      keywords:
+        - OpenMates documentation lookup
+        - learn OpenMates features
+        - OpenMates help docs
+      pain_points:
+        - users need product guidance
+      demo_angles:
+        - show OpenMates docs answer
+    search-docs:
+      enabled: true
+      keywords:
+        - search OpenMates docs
+        - find OpenMates feature docs
+        - OpenMates help search
+      pain_points:
+        - docs are hard to navigate
+      demo_angles:
+        - show docs search

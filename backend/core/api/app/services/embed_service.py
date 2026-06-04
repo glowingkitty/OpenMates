@@ -2324,6 +2324,7 @@ class EmbedService:
         ("web", "search"): "website",
         ("nutrition", "search_recipes"): "recipe",
         ("code", "search_repos"): "repo",
+        ("weather", "forecast"): "weather_day",
     }
 
     @staticmethod

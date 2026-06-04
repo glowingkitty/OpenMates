@@ -65,6 +65,27 @@ Check Open Graph tags for shared chats and embeds.
 python scripts/check_og_tags.py
 ```
 
+### `linear.py`
+
+Manage Linear issues through the Linear API when MCP access is unavailable. The
+script loads `.env` like the Buffer helper: exported environment variables win,
+and `.env` only fills missing values. Use `--credential-source auto|env|openmates-vault`
+to choose between `LINEAR_API_KEY`, OpenMates Vault, or env with Vault fallback.
+
+**Usage:**
+
+```bash
+export LINEAR_API_KEY="<token>"
+python3 scripts/linear.py teams
+python3 scripts/linear.py list --team OPE --state Todo --query "sync"
+python3 scripts/linear.py search "sync" --team OPE
+python3 scripts/linear.py get OPE-123 --comments
+python3 scripts/linear.py create --team OPE --title "Fix: example" --description "Details"
+python3 scripts/linear.py update OPE-123 --state "In Progress" --add-label claude-is-working
+python3 scripts/linear.py comment OPE-123 --body "Investigation update"
+python3 scripts/linear.py delete OPE-123 --yes
+```
+
 ## Server-Side Scripts
 
 For server-side debugging and administrative scripts (including `delete_user_account.py`), see [`backend/scripts/README.md`](../backend/scripts/README.md).

@@ -29,7 +29,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -69,7 +69,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
-	await page.waitForURL(/chat/);
+	await waitForChatReady(page, log);
 	log('Login successful.');
 	await page.waitForTimeout(5000);
 }
@@ -100,14 +100,14 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'settings-menu');
 
-	const chatItem = settingsMenu.getByRole('menuitem', { name: /^chat$/i }).first();
-	await expect(chatItem).toBeVisible({ timeout: 10000 });
-	await chatItem.click();
-	await page.waitForTimeout(800);
-
-	const notificationsItem = settingsMenu.getByRole('menuitem', { name: /notifications/i }).first();
+	const notificationsItem = settingsMenu.getByRole('menuitem', { name: /^notifications$/i }).first();
 	await expect(notificationsItem).toBeVisible({ timeout: 10000 });
 	await notificationsItem.click();
+	await page.waitForTimeout(800);
+
+	const chatNotificationsItem = settingsMenu.getByRole('menuitem', { name: /chat/i }).first();
+	await expect(chatNotificationsItem).toBeVisible({ timeout: 10000 });
+	await chatNotificationsItem.click();
 	await page.waitForTimeout(800);
 	await screenshot(page, 'notifications-settings');
 

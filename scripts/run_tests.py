@@ -45,6 +45,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -83,10 +84,13 @@ POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
+VERCEL_WAIT_TIMEOUT = 1200  # 20 min max to wait for dev deployment before E2E specs
+VERCEL_WAIT_POLL_INTERVAL = 15
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
 TEST_RECORDINGS_S3_PREFIX = "latest"
+VERCEL_API = "https://api.vercel.com"
 
 # Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
@@ -98,7 +102,7 @@ HOURLY_DEV_SPECS: list[str] = [
     # dev-smoke doesn't use account credentials, so it can safely run on any slot.
     "chat-flow.spec.ts",
     "settings-buy-credits-stripe.spec.ts",
-    "signup-flow-polar.spec.ts",
+    "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
 
@@ -288,6 +292,127 @@ def _get_env(key: str, dot_env: Optional[dict] = None, default: str = "") -> str
     if not val and dot_env:
         val = dot_env.get(key, "")
     return val or default
+
+
+def _vercel_project_config() -> tuple[str, str]:
+    """Return (team_id, project_id) for the web app Vercel project."""
+    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    if not project_json.is_file():
+        raise RuntimeError(f"Vercel project config not found: {project_json}")
+    try:
+        data = json.loads(project_json.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read Vercel project config: {exc}") from exc
+
+    team_id = str(data.get("orgId", ""))
+    project_id = str(data.get("projectId", ""))
+    if not team_id or not project_id:
+        raise RuntimeError("Vercel project config is missing orgId or projectId")
+    return team_id, project_id
+
+
+def _vercel_api_get(path: str, token: str, params: dict[str, str | int]) -> dict:
+    """GET a Vercel API endpoint using stdlib urllib."""
+    query = urllib.parse.urlencode(params)
+    request = urllib.request.Request(
+        f"{VERCEL_API}{path}?{query}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        raw = response.read().decode("utf-8")
+    return json.loads(raw)
+
+
+def _latest_vercel_deployment_for_sha(
+    token: str,
+    team_id: str,
+    project_id: str,
+    git_sha: str,
+) -> Optional[dict]:
+    """Return the newest dev deployment for the current git SHA, if Vercel has seen it."""
+    data = _vercel_api_get(
+        "/v6/deployments",
+        token,
+        {
+            "teamId": team_id,
+            "projectId": project_id,
+            "limit": 20,
+        },
+    )
+    for deployment in data.get("deployments", []):
+        meta = deployment.get("meta", {})
+        if meta.get("githubCommitRef") != GH_BRANCH:
+            continue
+        deployed_sha = str(meta.get("githubCommitSha", ""))
+        if deployed_sha.startswith(git_sha) or git_sha.startswith(deployed_sha):
+            return deployment
+    return None
+
+
+def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> bool:
+    """Block Playwright dispatch until Vercel has deployed the current dev commit."""
+    if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
+        _log("OPENMATES_SKIP_VERCEL_WAIT=true — skipping Vercel wait", "WARN")
+        return True
+
+    token = _get_env("VERCEL_TOKEN", dot_env)
+    if not token:
+        _log("VERCEL_TOKEN is required before running development Playwright specs", "ERROR")
+        return False
+
+    try:
+        team_id, project_id = _vercel_project_config()
+    except RuntimeError as exc:
+        _log(str(exc), "ERROR")
+        return False
+
+    timeout = int(_get_env("OPENMATES_VERCEL_WAIT_TIMEOUT", dot_env, str(VERCEL_WAIT_TIMEOUT)))
+    poll_interval = int(
+        _get_env("OPENMATES_VERCEL_WAIT_POLL_INTERVAL", dot_env, str(VERCEL_WAIT_POLL_INTERVAL))
+    )
+    deadline = time.time() + timeout
+    last_status = "not found"
+
+    _log(f"Waiting for Vercel dev deployment for commit {git_sha} before Playwright specs...")
+    while time.time() < deadline:
+        try:
+            deployment = _latest_vercel_deployment_for_sha(token, team_id, project_id, git_sha)
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+            last_status = f"Vercel API error: {exc}"
+            _log(last_status, "WARN")
+            time.sleep(poll_interval)
+            continue
+
+        if deployment is None:
+            if last_status != "not found":
+                _log("Vercel deployment not visible yet")
+            last_status = "not found"
+            time.sleep(poll_interval)
+            continue
+
+        deploy_id = deployment.get("uid", deployment.get("id", "unknown"))
+        state = str(deployment.get("state", deployment.get("readyState", "unknown"))).upper()
+        if state != last_status:
+            _log(f"Vercel deployment {deploy_id}: {state}")
+            last_status = state
+
+        if state == "READY":
+            _log("Vercel deployment is Ready — dispatching Playwright specs", "OK")
+            return True
+        if state in {"ERROR", "CANCELED"}:
+            _log(
+                f"Vercel deployment {deploy_id} is {state}; fix the deployment before running specs",
+                "ERROR",
+            )
+            return False
+
+        time.sleep(poll_interval)
+
+    _log(
+        f"Timed out after {timeout}s waiting for Vercel deployment for {git_sha} (last status: {last_status})",
+        "ERROR",
+    )
+    return False
 
 
 def _safe_write_json(path: Path, data: dict) -> None:
@@ -1089,7 +1214,9 @@ class BatchRunner:
         if dest.exists():
             shutil.rmtree(dest, ignore_errors=True)
         screenshots_dest = dest / "screenshots"
+        videos_dest = dest / "videos"
         screenshots_dest.mkdir(parents=True, exist_ok=True)
+        videos_dest.mkdir(parents=True, exist_ok=True)
 
         video_sources: list[Path] = []
         screenshot_sources: list[Path] = []
@@ -1113,15 +1240,20 @@ class BatchRunner:
                     raw_json_sources.append(src)
 
         copied_videos: list[str] = []
-        if video_sources:
-            # Playwright normally records one video per spec here; choose the
-            # largest if retries leave more than one candidate.
-            video_src = max(video_sources, key=lambda p: p.stat().st_size)
-            video_name = f"video{video_src.suffix.lower()}"
-            shutil.copy2(video_src, dest / video_name)
+        video_records: list[dict[str, str]] = []
+        for src in sorted(video_sources, key=lambda p: p.as_posix()):
+            parent_slug = _test_recording_slug(src.parent.name)
+            video_name = f"videos/{parent_slug}{src.suffix.lower()}"
+            target = dest / video_name
+            if target.exists():
+                target = videos_dest / f"{parent_slug}-{hashlib.sha1(src.as_posix().encode()).hexdigest()[:8]}{src.suffix.lower()}"
+                video_name = f"videos/{target.name}"
+            shutil.copy2(src, target)
             copied_videos.append(video_name)
+            video_records.append({"file": video_name, "source": src.as_posix()})
 
         copied_screenshots: list[str] = []
+        screenshot_records: list[dict[str, str]] = []
         for src in sorted(screenshot_sources, key=lambda p: p.name):
             target = screenshots_dest / src.name
             if target.exists():
@@ -1129,7 +1261,9 @@ class BatchRunner:
                 suffix = target.suffix
                 target = screenshots_dest / f"{stem}-{hashlib.sha1(str(src).encode()).hexdigest()[:8]}{suffix}"
             shutil.copy2(src, target)
-            copied_screenshots.append(f"screenshots/{target.name}")
+            copied_name = f"screenshots/{target.name}"
+            copied_screenshots.append(copied_name)
+            screenshot_records.append({"file": copied_name, "source": src.as_posix()})
 
         thumbnail = None
         step_screenshots = [p for p in copied_screenshots if "test-failed" not in p.lower()]
@@ -1149,7 +1283,9 @@ class BatchRunner:
             "spec": spec,
             "slug": slug,
             "video_files": copied_videos,
+            "video_records": video_records,
             "screenshot_files": copied_screenshots,
+            "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
         }
         (dest / "artifact-meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -3632,15 +3768,14 @@ class TestRecordingPublisher:
         TEST_RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
         manifests = []
         for test in tests:
-            manifest = self._build_manifest(test, result)
-            if not manifest:
-                continue
-            slug = manifest["slug"]
-            bundle_dir = TEST_RECORDINGS_DIR / slug
-            (bundle_dir / "manifest.json").write_text(
-                json.dumps(manifest, indent=2), encoding="utf-8"
-            )
-            manifests.append(self._index_entry(manifest))
+            for manifest in self._build_manifests(test, result):
+                slug = manifest["slug"]
+                bundle_dir = TEST_RECORDINGS_DIR / slug
+                bundle_dir.mkdir(parents=True, exist_ok=True)
+                (bundle_dir / "manifest.json").write_text(
+                    json.dumps(manifest, indent=2), encoding="utf-8"
+                )
+                manifests.append(self._index_entry(manifest))
 
         index = {
             "run_id": result.run_id,
@@ -3652,20 +3787,34 @@ class TestRecordingPublisher:
         self.INDEX_FILE.write_text(json.dumps(index, indent=2), encoding="utf-8")
         self._upload_latest_bundles()
 
-    def _build_manifest(self, test: dict, result: RunResult) -> Optional[dict]:
+    def _build_manifests(self, test: dict, result: RunResult) -> list[dict]:
         spec = test.get("file") or test.get("name")
         if not spec:
-            return None
+            return []
 
         slug = _test_recording_slug(spec)
         bundle_dir = TEST_RECORDINGS_DIR / slug
         if not bundle_dir.is_dir():
-            return None
+            return []
 
         artifact_meta = self._read_json(bundle_dir / "artifact-meta.json") or {}
         video_file = (artifact_meta.get("video_files") or [None])[0]
+        video_records = artifact_meta.get("video_records") or []
         thumbnail_file = artifact_meta.get("thumbnail_file")
         screenshot_files = artifact_meta.get("screenshot_files") or []
+        screenshot_records = artifact_meta.get("screenshot_records") or []
+
+        child_manifests = self._build_playwright_result_manifests(
+            bundle_dir=bundle_dir,
+            test=test,
+            result=result,
+            spec=spec,
+            spec_slug=slug,
+            video_records=video_records,
+            screenshot_records=screenshot_records,
+        )
+        if child_manifests:
+            return child_manifests
 
         safe_name = spec.replace("/", "-").replace("\\", "-")
         md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
@@ -3676,10 +3825,10 @@ class TestRecordingPublisher:
             report_file = "report.md"
             shutil.copy2(report_source, bundle_dir / report_file)
 
-        steps = self._build_steps(bundle_dir, test, slug)
+        steps = self._build_steps(bundle_dir, test, slug, screenshot_files, screenshot_records)
         assets = self._build_assets(slug, video_file, thumbnail_file, report_file, screenshot_files)
 
-        return {
+        return [{
             "spec": spec,
             "slug": slug,
             "title": spec.replace(".spec.ts", ""),
@@ -3692,7 +3841,7 @@ class TestRecordingPublisher:
             "error": test.get("error"),
             "assets": assets,
             "steps": steps,
-        }
+        }]
 
     @staticmethod
     def _read_json(path: Path) -> Optional[dict | list]:
@@ -3703,34 +3852,177 @@ class TestRecordingPublisher:
         except (json.JSONDecodeError, OSError):
             return None
 
-    def _build_steps(self, bundle_dir: Path, test: dict, slug: str) -> list[dict]:
+    @classmethod
+    def _build_playwright_result_manifests(
+        cls,
+        *,
+        bundle_dir: Path,
+        test: dict,
+        result: RunResult,
+        spec: str,
+        spec_slug: str,
+        video_records: list[dict],
+        screenshot_records: list[dict],
+    ) -> list[dict]:
+        playwright_results = cls._playwright_results(bundle_dir / "playwright.json")
+        if len(playwright_results) <= 1 or not video_records:
+            return []
+
+        manifests = []
+        for index, item in enumerate(playwright_results, start=1):
+            video_file = cls._file_for_attachment(item.get("video_source"), video_records)
+            if not video_file:
+                continue
+            screenshot_file = cls._file_for_attachment(item.get("screenshot_source"), screenshot_records)
+            child_slug = f"{spec_slug}--{_test_recording_slug(item['title'])}"
+            screenshot_key = f"{TEST_RECORDINGS_S3_PREFIX}/{spec_slug}/{screenshot_file}" if screenshot_file else None
+            step = {
+                "index": 1,
+                "type": "playwright_test",
+                "title": item["title"],
+                "status": item.get("status"),
+                "duration_seconds": item.get("duration_seconds", 0),
+                "timestamp": item.get("timestamp"),
+                "video_time_seconds": 0,
+            }
+            if screenshot_file:
+                step["screenshot_file"] = screenshot_file
+                step["screenshot_key"] = screenshot_key
+            if item.get("error"):
+                step["error"] = item["error"]
+
+            manifests.append({
+                "spec": spec,
+                "slug": child_slug,
+                "title": item["title"],
+                "status": item.get("status") or test.get("status", "unknown"),
+                "run_id": result.run_id,
+                "git_sha": result.git_sha,
+                "git_branch": result.git_branch,
+                "duration_seconds": item.get("duration_seconds", 0),
+                "github_run_url": test.get("github_run_url"),
+                "error": item.get("error"),
+                "assets": {
+                    "video_key": f"{TEST_RECORDINGS_S3_PREFIX}/{spec_slug}/{video_file}",
+                    "thumbnail_key": screenshot_key,
+                    "report_key": None,
+                    "screenshot_keys": [screenshot_key] if screenshot_key else [],
+                },
+                "steps": [step],
+                "source_spec_slug": spec_slug,
+                "source_result_index": index,
+            })
+        return manifests
+
+    @classmethod
+    def _playwright_results(cls, playwright_json: Path) -> list[dict]:
+        data = cls._read_json(playwright_json)
+        if not isinstance(data, dict):
+            return []
+
+        results: list[dict] = []
+
+        def walk_suite(suite: dict) -> None:
+            for spec in suite.get("specs", []):
+                title = spec.get("title") or spec.get("file") or "Playwright test"
+                for playwright_test in spec.get("tests", []):
+                    for playwright_result in playwright_test.get("results", []):
+                        image_source = None
+                        video_source = None
+                        for attachment in playwright_result.get("attachments", []):
+                            content_type = str(attachment.get("contentType", ""))
+                            if content_type.startswith("image/") and not image_source:
+                                image_source = attachment.get("path")
+                            elif content_type.startswith("video/") and not video_source:
+                                video_source = attachment.get("path")
+                        error = playwright_result.get("error")
+                        results.append({
+                            "title": title,
+                            "status": playwright_result.get("status"),
+                            "duration_seconds": round(float(playwright_result.get("duration", 0)) / 1000, 2),
+                            "timestamp": playwright_result.get("startTime"),
+                            "screenshot_source": image_source,
+                            "video_source": video_source,
+                            "error": error.get("message", str(error)) if isinstance(error, dict) else error,
+                        })
+            for child in suite.get("suites", []):
+                walk_suite(child)
+
+        for suite in data.get("suites", []):
+            if isinstance(suite, dict):
+                walk_suite(suite)
+        return results
+
+    @staticmethod
+    def _file_for_attachment(attachment_path: Optional[str], records: list[dict]) -> Optional[str]:
+        if not attachment_path:
+            return None
+        attachment_suffix = str(attachment_path).split("test-results/", 1)[-1]
+        for record in records:
+            source = record.get("source", "") if isinstance(record, dict) else ""
+            if source == attachment_path or source.endswith(attachment_suffix):
+                return record.get("file")
+        return None
+
+    def _build_steps(
+        self,
+        bundle_dir: Path,
+        test: dict,
+        slug: str,
+        screenshot_files: list[str],
+        screenshot_records: list[dict],
+    ) -> list[dict]:
         step_log = self._read_json(bundle_dir / "step-log.json")
         if isinstance(step_log, list) and step_log:
             return self._steps_from_log(step_log, slug)
-        return self._steps_from_playwright(test)
+        playwright_steps = self._steps_from_playwright(test)
+        if playwright_steps:
+            return playwright_steps
+        json_steps = self._steps_from_playwright_json(
+            bundle_dir / "playwright.json", slug, screenshot_files, screenshot_records
+        )
+        if json_steps:
+            return json_steps
+        return self._steps_from_screenshots(slug, screenshot_files)
 
     @staticmethod
     def _steps_from_log(step_log: list[dict], slug: str) -> list[dict]:
         first_ts = None
-        steps: list[dict] = []
+        noise_prefixes = ("Captured step screenshot", "Archived prior screenshots")
+        screenshot_steps: list[dict] = []
+        checkpoint_steps: list[dict] = []
         for entry in step_log:
+            entry_type = entry.get("type", "checkpoint")
+            message = entry.get("message", "")
+            if entry_type == "checkpoint" and message.startswith(noise_prefixes):
+                continue
+
             timestamp = entry.get("timestamp")
             if timestamp and first_ts is None:
                 first_ts = timestamp
             video_time = _seconds_between(first_ts, timestamp) if first_ts and timestamp else None
-            step = {
-                "index": entry.get("index", len(steps) + 1),
-                "type": entry.get("type", "checkpoint"),
-                "title": entry.get("message", ""),
+            screenshot = entry.get("screenshot")
+
+            if entry_type == "screenshot" and screenshot:
+                screenshot_steps.append({
+                    "index": len(screenshot_steps) + 1,
+                    "type": "screenshot",
+                    "title": message or Path(screenshot).stem.replace("-", " ").title(),
+                    "timestamp": timestamp,
+                    "video_time_seconds": video_time,
+                    "screenshot_key": f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}",
+                    "screenshot_file": f"screenshots/{screenshot}",
+                })
+                continue
+
+            checkpoint_steps.append({
+                "index": len(checkpoint_steps) + 1,
+                "type": entry_type,
+                "title": message if message and not message.startswith(noise_prefixes) else f"Step {len(checkpoint_steps) + 1}",
                 "timestamp": timestamp,
                 "video_time_seconds": video_time,
-            }
-            screenshot = entry.get("screenshot")
-            if screenshot:
-                step["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/screenshots/{screenshot}"
-                step["screenshot_file"] = f"screenshots/{screenshot}"
-            steps.append(step)
-        return steps
+            })
+        return screenshot_steps or checkpoint_steps
 
     @staticmethod
     def _steps_from_playwright(test: dict) -> list[dict]:
@@ -3748,6 +4040,102 @@ class TestRecordingPublisher:
                 "error": step.get("error"),
             })
             elapsed += duration_s
+        return steps
+
+    @classmethod
+    def _steps_from_playwright_json(
+        cls,
+        playwright_json: Path,
+        slug: str,
+        screenshot_files: list[str],
+        screenshot_records: list[dict],
+    ) -> list[dict]:
+        data = cls._read_json(playwright_json)
+        if not isinstance(data, dict):
+            return []
+
+        results: list[dict] = []
+
+        def walk_suite(suite: dict) -> None:
+            for spec in suite.get("specs", []):
+                title = spec.get("title") or spec.get("file") or "Playwright test"
+                for test in spec.get("tests", []):
+                    for result in test.get("results", []):
+                        results.append({"title": title, "result": result})
+            for child in suite.get("suites", []):
+                walk_suite(child)
+
+        for suite in data.get("suites", []):
+            if isinstance(suite, dict):
+                walk_suite(suite)
+
+        if not results:
+            return []
+
+        first_start = next(
+            (item["result"].get("startTime") for item in results if item["result"].get("startTime")),
+            None,
+        )
+        steps = []
+        for index, item in enumerate(results, start=1):
+            result = item["result"]
+            duration_s = round(float(result.get("duration", 0)) / 1000, 2)
+            step: dict = {
+                "index": index,
+                "type": "playwright_test",
+                "title": item["title"],
+                "status": result.get("status"),
+                "duration_seconds": duration_s,
+                "timestamp": result.get("startTime"),
+                "video_time_seconds": _seconds_between(first_start, result.get("startTime")),
+            }
+            error = result.get("error")
+            if error:
+                step["error"] = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+            screenshot_file = cls._screenshot_for_playwright_result(
+                result, screenshot_files, screenshot_records, index - 1
+            )
+            if screenshot_file:
+                step["screenshot_file"] = screenshot_file
+                step["screenshot_key"] = f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/{screenshot_file}"
+            steps.append(step)
+        return steps
+
+    @staticmethod
+    def _screenshot_for_playwright_result(
+        result: dict,
+        screenshot_files: list[str],
+        screenshot_records: list[dict],
+        fallback_index: int,
+    ) -> Optional[str]:
+        attachment_path = None
+        for attachment in result.get("attachments", []):
+            if str(attachment.get("contentType", "")).startswith("image/"):
+                attachment_path = attachment.get("path")
+                break
+
+        if attachment_path:
+            for record in screenshot_records:
+                source = record.get("source", "") if isinstance(record, dict) else ""
+                if source == attachment_path or source.endswith(str(attachment_path).split("test-results/", 1)[-1]):
+                    return record.get("file")
+
+        if fallback_index < len(screenshot_files):
+            return screenshot_files[fallback_index]
+        return None
+
+    @staticmethod
+    def _steps_from_screenshots(slug: str, screenshot_files: list[str]) -> list[dict]:
+        steps = []
+        for index, screenshot_file in enumerate(screenshot_files, start=1):
+            label = Path(screenshot_file).stem.replace("-", " ").title()
+            steps.append({
+                "index": index,
+                "type": "screenshot",
+                "title": label,
+                "screenshot_file": screenshot_file,
+                "screenshot_key": f"{TEST_RECORDINGS_S3_PREFIX}/{slug}/{screenshot_file}",
+            })
         return steps
 
     @staticmethod
@@ -4075,6 +4463,7 @@ class TestOrchestrator:
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.dry_run = args.dry_run
+        self.dot_env = _read_env_file()
 
         self.git_sha, self.git_branch = _git_info()
         self.run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -4386,6 +4775,18 @@ class TestOrchestrator:
                 print(f"    {s}")
             return SuiteResult(status="skipped", reason="dry run")
 
+        if self.environment == "development" and not _wait_for_vercel_deployment(self.git_sha, self.dot_env):
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": "vercel-deployment-gate",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": "Vercel deployment was not ready for the current dev commit before Playwright dispatch",
+                }],
+                reason="vercel deployment not ready",
+            )
+
         client = GitHubActionsClient()
 
         if not self.spec and not self.only_failed:
@@ -4551,19 +4952,29 @@ class TestOrchestrator:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
-        # Start claude analysis on failures (reuse helper)
-        if _problem_count(result.summary) > 0:
-            helper = PROJECT_ROOT / "scripts" / "_daily_runner_helper.py"
-            if helper.is_file():
-                _log("Starting claude analysis for failures...")
-                subprocess.run(
-                    [sys.executable, str(helper), "start-claude-analysis"],
-                    env={**os.environ, "RESULTS_DIR": str(RESULTS_DIR)},
-                )
-
-        # Send summary email
+        # Send summary email before any automated fixing starts. The failure
+        # count must reach the admin even if auto-fix takes hours or hangs.
         _log("Sending summary email...")
         self.notification.send_summary_email(result)
+
+        # Start sequential OpenCode auto-fix on failures unless explicitly disabled.
+        # The controller is still safety-gated: it stops on dirty worktrees and
+        # only deploys small verified fixes.
+        if _problem_count(result.summary) > 0:
+            auto_fix_setting = os.environ.get("E2E_AUTO_FIX_FAILED_TESTS", "true").lower()
+            auto_fix_enabled = auto_fix_setting not in {"0", "false", "no", "off"}
+            auto_fix_script = PROJECT_ROOT / "scripts" / "auto_fix_failed_tests.py"
+            if auto_fix_enabled and auto_fix_script.is_file():
+                _log("Auto fixing is started after summary email dispatch...")
+                subprocess.run(
+                    [sys.executable, str(auto_fix_script), "--from-daily-run"],
+                    env={**os.environ, "RESULTS_DIR": str(RESULTS_DIR)},
+                )
+            else:
+                if auto_fix_enabled:
+                    _log("Auto-fix enabled but scripts/auto_fix_failed_tests.py is missing", "WARN")
+                else:
+                    _log("Auto-fix disabled by E2E_AUTO_FIX_FAILED_TESTS; regular failure notifications only")
 
     def _print_summary(self, result: RunResult) -> None:
         """Print a formatted summary."""

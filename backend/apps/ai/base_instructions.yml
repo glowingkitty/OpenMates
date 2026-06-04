@@ -230,6 +230,9 @@ preprocess_request_tool:
             TRUE for: China-specific political topics (Taiwan, Tibet, Tiananmen, CCP, Xi Jinping, Uyghurs, Hong Kong, Falun Gong), comparative political system questions (democracy vs communism/authoritarianism), criticism of one-party governance, human rights in authoritarian contexts, internet censorship topics.
             FALSE for: Cultural/travel/food/language/business questions about China, neutral factual queries, non-sensitive historical topics, educational questions without value judgment.
             When TRUE, China-origin models will be excluded from model selection.
+        enable_subchats:
+          type: "boolean"
+          description: "True if the request is complex or multi-agent in nature and could benefit from running sub-chats (e.g., comparative research of multiple topics, batch or parallel processing, complex coding/tests), OR if the user explicitly mentions or requests sub-chats, subagents, or parallel processing. False for simple factual requests unless explicitly requested."
         load_app_settings_and_memories:
           type: "array"
           description: "List of app settings and memory item keys (e.g., 'app_id:item_key' with colon separator) to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
@@ -283,6 +286,7 @@ preprocess_request_tool:
         - "task_area"
         - "user_unhappy"
         - "china_model_sensitive"
+        - "enable_subchats"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
         - "relevant_focus_modes"

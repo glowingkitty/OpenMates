@@ -21,7 +21,7 @@
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section padding-bottom="0">
         <mj-column>
-          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" alt="Email icon" css-class="email-icon-50" />
+          <mj-image width="50px" height="50px" src="{{ newsletter_header_icon_src if newsletter_header_icon_src else 'icons/mail.png' }}" align="center" alt="{{ newsletter_header_icon_alt if newsletter_header_icon_alt else 'Email icon' }}" css-class="email-icon-50" />
           <mj-text font-size="30px" padding-bottom="8px">
             <mark>{{ newsletter_title if newsletter_title else t.email.newsletter.title.text }}</mark>
           </mj-text>

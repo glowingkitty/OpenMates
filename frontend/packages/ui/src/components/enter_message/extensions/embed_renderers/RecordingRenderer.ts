@@ -66,6 +66,10 @@ interface RecordingEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   uploadError?: string;
   /** Transcript text from Mistral Voxtral */
   transcript?: string;
+  transcriptOriginal?: string;
+  transcriptCorrected?: string;
+  useCorrected?: boolean;
+  correctionModel?: string;
   /** Formatted duration (e.g. "0:42") */
   duration?: string;
   /** Server-assigned embed_id (populated after upload) */
@@ -122,7 +126,7 @@ export class RecordingRenderer implements EmbedRenderer {
       return embedStore
         .get(attrs.contentRef)
         .then(async (embedData) => {
-          if (!embedData?.content) {
+          if (!embedData || typeof embedData === "string" || !embedData["content"]) {
             // EmbedStore miss — try requesting from server (non-blocking WebSocket)
             console.warn(
               "[RecordingRenderer] EmbedStore miss for read-only recording embed:",
@@ -142,7 +146,7 @@ export class RecordingRenderer implements EmbedRenderer {
           // sendHandlers.ts (keys: s3_base_url, files, aes_key, aes_nonce, transcript,
           // duration, filename, mime_type, model).
           let parsed: Record<string, unknown> = {};
-          const rawContent = embedData.content as string;
+          const rawContent = embedData["content"] as string;
           try {
             const { decode: toonDecode } = await import("@toon-format/toon");
             parsed = toonDecode(rawContent) as Record<string, unknown>;
@@ -164,6 +168,10 @@ export class RecordingRenderer implements EmbedRenderer {
           const aesKey = parsed.aes_key as string | undefined;
           const aesNonce = parsed.aes_nonce as string | undefined;
           const transcript = parsed.transcript as string | undefined;
+          const transcriptOriginal = parsed.transcript_original as string | undefined;
+          const transcriptCorrected = parsed.transcript_corrected as string | undefined;
+          const useCorrected = parsed.use_corrected as boolean | undefined;
+          const correctionModel = parsed.correction_model as string | undefined;
           const duration = (parsed.duration as string) || attrs.duration;
           const filename = (parsed.filename as string) || attrs.filename;
           const mimeType = (parsed.mime_type as string) || attrs.mimeType;
@@ -176,6 +184,10 @@ export class RecordingRenderer implements EmbedRenderer {
             aesKey,
             aesNonce,
             transcript,
+            transcriptOriginal,
+            transcriptCorrected,
+            useCorrected,
+            correctionModel,
             duration,
             filename,
             mimeType,
@@ -255,6 +267,10 @@ export class RecordingRenderer implements EmbedRenderer {
             composed: true,
             detail: {
               transcript: attrs.transcript,
+              transcriptOriginal: attrs.transcriptOriginal,
+              transcriptCorrected: attrs.transcriptCorrected,
+              useCorrected: attrs.useCorrected,
+              correctionModel: attrs.correctionModel,
               blobUrl: attrs.blobUrl,
               filename: attrs.filename,
               duration: attrs.duration,
@@ -265,6 +281,23 @@ export class RecordingRenderer implements EmbedRenderer {
               embedId: attrs.id,
               model: attrs.model,
               isEditable,
+            },
+          }),
+        );
+      };
+
+      const handleToggleCorrected = (useCorrectedVal: boolean) => {
+        const targetTranscript = useCorrectedVal ? attrs.transcriptCorrected : attrs.transcriptOriginal;
+        content.dispatchEvent(
+          new CustomEvent("updaterecordingattrs", {
+            bubbles: true,
+            composed: true,
+            detail: {
+              embedId: attrs.id,
+              attrs: {
+                useCorrected: useCorrectedVal,
+                transcript: targetTranscript,
+              },
             },
           }),
         );
@@ -312,6 +345,10 @@ export class RecordingRenderer implements EmbedRenderer {
           blobUrl: attrs.blobUrl,
           uploadError: attrs.uploadError,
           transcript: attrs.transcript,
+          transcriptOriginal: attrs.transcriptOriginal,
+          transcriptCorrected: attrs.transcriptCorrected,
+          useCorrected: attrs.useCorrected,
+          correctionModel: attrs.correctionModel,
           duration: attrs.duration,
           s3Files: attrs.s3Files,
           s3BaseUrl: attrs.s3BaseUrl,
@@ -326,6 +363,7 @@ export class RecordingRenderer implements EmbedRenderer {
           // and status is 'error' (transcription failed). Guard prevents showing
           // retry when upload itself failed (no S3 data to retry from).
           onRetry: attrs.s3Files ? handleRetry : undefined,
+          onToggleCorrected: handleToggleCorrected,
         },
       });
 

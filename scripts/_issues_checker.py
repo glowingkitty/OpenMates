@@ -6,10 +6,10 @@ Nightly open issue checker — called by nightly-issues-check.sh.
 
 Fetches open user-reported issues from the admin debug API, checks whether each
 issue has been addressed in recent git commits (by searching commit messages for
-the issue ID), then starts an claude analysis session for any unresolved issues.
+the issue ID), then starts an OpenCode analysis chat for any unresolved issues.
 
 Commands:
-    check-issues    Fetch open issues, check git history, dispatch claude if needed
+    check-issues    Fetch open issues, check git history, dispatch OpenCode if needed
 
 Architecture:
     - Issues are stored in Directus and exposed via GET /v1/admin/debug/issues
@@ -35,7 +35,7 @@ import json
 import os
 import subprocess
 
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 import sys
 import urllib.error
 import urllib.request
@@ -43,7 +43,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
-# Maximum number of issues to include in a single claude session
+# Maximum number of issues to include in a single OpenCode chat
 MAX_ISSUES_IN_PROMPT = 15
 
 # How far back to look for open issues (hours)
@@ -169,7 +169,7 @@ def _check_issue_in_git(issue_id: str, project_root: str) -> str | None:
 
 def check_issues() -> None:
     """
-    Main command: fetch open issues, filter unresolved, start claude session if needed.
+    Main command: fetch open issues, filter unresolved, start OpenCode chat if needed.
     """
     script_dir = Path(__file__).parent.resolve()
     project_root = script_dir.parent
@@ -267,9 +267,9 @@ def check_issues() -> None:
     )
 
     session_title = f"issues-investigation {date_str}"
-    print(f"[issues-checker] Starting claude investigation for {len(unresolved)} unresolved issue(s)...")
+    print(f"[issues-checker] Starting OpenCode investigation for {len(unresolved)} unresolved issue(s)...")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(project_root),
@@ -282,7 +282,7 @@ def check_issues() -> None:
     )
 
     if session_id:
-        print(f"CLAUDE_SESSION_ID:{session_id}")
+        print(f"OPENCODE_SESSION_ID:{session_id}")
 
 
 if __name__ == "__main__":

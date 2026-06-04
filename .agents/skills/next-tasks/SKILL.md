@@ -15,16 +15,16 @@ Read all 3 data sources **in parallel**:
 
 1. **Daily meeting state** — read `scripts/.daily-meeting-state.json`
 2. **Recent git commits** — run `git log --oneline -30` to see what's been shipped since the meeting
-3. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority). Also call `mcp__linear__get_issue` for each task in `priorities[]` from the state file to get detailed current status, labels, and completion state
+3. **Current tracker tasks** — list open GitHub Issues by default. Also query retained Linear tasks with `python3 scripts/linear.py list --team OPE --all --limit 100` when the work may involve programmatically stored/recorded issues, marketing, sensitive/private work, or existing OPE priorities. **Every relevant non-Done/non-Canceled task must be fetched — never truncate.** Sort Todo before Backlog when Linear state is present, then by priority.
 
 ### Step 2: Cross-Reference & Detect Staleness
 
-Compare each priority task's `status_at_selection` (from the state file) against its current Linear status and recent git commits.
+Compare each priority task's `status_at_selection` (from the state file) against its current tracker status and recent git commits.
 
 Build two lists:
 
-**Stale Status Tasks** — tasks whose Linear status doesn't match reality:
-- Task is "Todo" or "In Progress" in Linear but git shows commits that fix/complete it → suggest marking Done
+**Stale Status Tasks** — tasks whose tracker status doesn't match reality:
+- Task is open/Todo/In Progress but git shows commits that fix/complete it → suggest closing or marking Done
 - Task has `claude-is-working` label but no recent commits and no active session → suggest removing label
 - Task is "In Progress" but was completed in a previous session → suggest marking Done/In Review
 - Task is "Todo" but another task's commits address the same issue → suggest marking Done or linking
@@ -41,16 +41,13 @@ Show the user which tasks have stale statuses with evidence:
 ```
 ## Status Updates Needed
 
-| Task | Linear Status | Evidence | Suggested Action |
+| Task | Status | Evidence | Suggested Action |
 |------|--------------|----------|-----------------|
 | OPE-XXX | In Progress | Commit abc1234 "fix: ..." merged | → Done |
 | OPE-XXX | Todo | claude-is-working label, no commits in 2h | → Remove label, keep Todo |
 ```
 
-Ask the user to confirm the status updates. Apply confirmed changes:
-```
-mcp__linear__save_issue with id, state, and updated labels
-```
+Ask the user to confirm the status updates. Apply confirmed GitHub changes with GitHub tools. Apply confirmed Linear-only changes with `python3 scripts/linear.py update ...`. Do not use Linear MCP tools.
 
 ### Step 4: Present Available Tasks & Recommend One
 

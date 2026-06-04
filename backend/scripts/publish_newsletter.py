@@ -265,6 +265,8 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
         # URLs for a standalone thumbnail. Missing → no video in email.
         "video": _build_video_section(meta.get("video")) if meta.get("video") else None,
         "hero_image": meta.get("hero_image"),
+        "header_icon": meta.get("header_icon"),
+        "published_at": meta.get("published_at"),
         # Empty until send_newsletter.py broadcasts this issue. Prevents
         # accidental double-sends without an explicit --resend-confirm flag.
         "sent_at": None,
@@ -323,6 +325,7 @@ def write_demo_chat_ts(inputs: Dict[str, Any]) -> Path:
     # First line may be a const declaration (goes before the export), rest are metadata fields
     video_pre_export = video_lines[0] if video_key and video_lines else ""
     video_block = "\n".join(video_lines[1:] if video_key else video_lines) if video_lines else ""
+    published_at_line = f'    publishedAt: "{meta["published_at"]}",' if meta.get("published_at") else ""
 
     content = f'''import type {{ DemoChat }} from "../types";
 {video_import_line}
@@ -357,6 +360,7 @@ export const {export_name}: DemoChat = {{
     featured: false,
     order: 100,
     lastUpdated: new Date().toISOString(),
+{published_at_line}
 {video_block}
   }},
 }};
@@ -414,7 +418,7 @@ def write_i18n_yml(inputs: Dict[str, Any]) -> Path:
     # complete for ``getNewsletterChatBySlug`` and the translation build.
     de = bodies.get("de") or bodies["en"]
     en = bodies["en"]
-    title_block = _block("title", en["subject"], de["subject"])
+    title_block = _block("title", en["title"], de["title"])
     description_block = _block(
         "description",
         en["subtitle"] or en["subject"],

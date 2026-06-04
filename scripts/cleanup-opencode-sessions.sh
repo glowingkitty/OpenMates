@@ -1,6 +1,6 @@
 #!/bin/bash
 # OpenCode Session Cleanup Script
-# Deletes opencode sessions older than 7 days that do NOT have "TODO" (case-insensitive)
+# Deletes opencode sessions older than 14 days that do NOT have "TODO" (case-insensitive)
 # in their title. Sessions with TODO are kept indefinitely until manually addressed.
 #
 # Runs daily via crontab at 01:30 UTC.
@@ -14,7 +14,7 @@ set -euo pipefail
 
 DB_PATH="$HOME/.local/share/opencode/opencode.db"
 OPENCODE_BIN="$HOME/.npm-global/bin/opencode"
-CUTOFF_MS=$(python3 -c "import time; print(int((time.time() - 7*24*3600) * 1000))")
+CUTOFF_MS=$(python3 -c "import time; print(int((time.time() - 14*24*3600) * 1000))")
 
 echo "=========================================="
 echo "OpenCode Session Cleanup"
@@ -22,7 +22,7 @@ echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "=========================================="
 echo ""
 echo "Cutoff: sessions not updated since $(date -u -d "@$(( CUTOFF_MS / 1000 ))" '+%Y-%m-%d %H:%M UTC')"
-echo "Rule: delete if older than 7 days AND title does NOT contain 'TODO' (case-insensitive)"
+echo "Rule: delete if older than 14 days AND title does NOT contain 'TODO' (case-insensitive)"
 echo ""
 
 # Verify DB exists
@@ -68,7 +68,8 @@ for r in rows:
     print(f"{r['id']:<35} {updated:<12} {title}")
 PYEOF
 
-TOTAL=$(grep -c "^ses_" "$CANDIDATES_FILE" 2>/dev/null || echo "0")
+TOTAL=$(grep -c "^ses_" "$CANDIDATES_FILE" 2>/dev/null || true)
+TOTAL=${TOTAL:-0}
 
 if [ "$TOTAL" -eq 0 ]; then
     echo "No sessions to delete — nothing to do."

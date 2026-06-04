@@ -21,14 +21,14 @@
 #   5. Deduplicate against previous runs (eu-vuln-processed.json)
 #   6. Generate summary with: package, old->new version, CVE, relevance,
 #      user disclosure needed
-#   7. Dispatch claude session to fix new/re-dispatched vulns
+#   7. Dispatch OpenCode chat to fix new/re-dispatched vulns
 #
 # Triggered by system crontab (daily at 05:00 UTC, after Dependabot at 04:30):
 #   0 5 * * * bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/check-eu-vulns-daily.sh' >> /path/to/logs/eu-vulns.log 2>&1
 #
 # Can also be invoked manually:
 #   ./scripts/check-eu-vulns-daily.sh
-#   ./scripts/check-eu-vulns-daily.sh --dry-run   # show findings, no claude
+#   ./scripts/check-eu-vulns-daily.sh --dry-run   # show findings, no OpenCode
 #   ./scripts/check-eu-vulns-daily.sh --summary    # output JSON summary only
 #
 # Requirements:

@@ -50,8 +50,8 @@ The task `delete_user_account_task()` in [user_cache_tasks.py](../../backend/cor
 - Delete encryption keys (`encryption_keys` collection)
 
 **Phase 2 -- Payments & Subscriptions:**
-- Auto-refund eligible invoices from last 14 days (via Stripe or Polar API). See `refund_payment()` in `PaymentService`
-- Mark invoices as refunded, deduct credits, record in Invoice Ninja (Stripe/Revolut only, not Polar MoR)
+- Auto-refund eligible invoices from last 14 days via the payment provider API. See `refund_payment()` in `PaymentService`
+- Mark invoices as refunded, deduct credits, record in Invoice Ninja
 - Dispatch credit note email if `email_encryption_key` available
 - Delete gift cards and redemption records
 - Delete invoices (TODO: S3 PDF cleanup)
@@ -98,7 +98,7 @@ The script hashes the email via Vault HMAC (same as frontend), looks up user by 
 ## Edge Cases
 
 - **Refund window:** only invoices from last 14 days are eligible. Gift card credits are never refundable.
-- **Polar vs Stripe refunds:** Polar uses `provider_order_id` (UUID); if missing, falls back to API lookup by checkout ID. Invoice Ninja recording skipped for Polar (merchant of record).
+- **Legacy provider refunds:** historical invoices from unsupported providers are skipped because current refund automation only supports active payment providers.
 - **S3 cleanup:** invoice PDFs and credit note PDFs are TODO -- currently only Directus records are deleted.
 - **Vault key deletion:** marked as TODO in the implementation; depends on Vault service method availability.
 - **Email encryption key:** only available when user is present in browser during deletion. If absent, credit note email is skipped (logged).

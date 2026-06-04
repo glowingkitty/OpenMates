@@ -217,7 +217,7 @@ EVENT_PATTERNS: List[Tuple[str, str, str]] = [
     # Usage / billing
     (r"[Cc]redits.*charged|Credits charged", "usage", "credits_charged"),
     (r"usage.*recorded", "usage", "usage_recorded"),
-    (r"billing|invoice|payment|refund|Polar", "payment", "payment_event"),
+    (r"billing|invoice|payment|refund", "payment", "payment_event"),
 
     # Settings
     (r"[Ll]anguage.*changed|Updating language", "settings", "language_changed"),

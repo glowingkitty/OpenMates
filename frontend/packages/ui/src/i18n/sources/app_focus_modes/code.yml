@@ -566,7 +566,59 @@ refactor_code.description:
   th: ปรับปรุงโครงสร้างและความอ่านง่ายของโค้ด
   cs: Zlepšete strukturu a čitelnost kódu.
   sv: Förbättra kodstruktur och läsbarhet.
-  he: שיפור מבנה הקוד וקריאותו.
+  he: שיפור מבנה הקود וקריאותו.
+  verified_by_human:
+    - en
+    - de
+check_security:
+  context: Focus mode name for check security
+  en: Check security
+  de: Sicherheit überprüfen
+  zh: 检查安全性
+  es: Comprobar seguridad
+  fr: Vérifier la sécurité
+  pt: Verificar segurança
+  ru: Проверить безопасность
+  ja: セキュリティを確認
+  ko: 보안 확인
+  it: Verifica sicurezza
+  tr: Güvenliği kontrol et
+  vi: Kiểm tra bảo mật
+  id: Periksa keamanan
+  pl: Sprawdź bezpieczeństwo
+  nl: Veiligheid controleren
+  ar: التحقق من الأمان
+  hi: सुरक्षा जांचें
+  th: ตรวจสอบความปลอดภัย
+  cs: Zkontrolovat bezpečnost
+  sv: Kontrollera säkerhet
+  he: בדיקת אבטחה
+  verified_by_human:
+    - en
+    - de
+check_security.description:
+  context: Description for check security focus mode
+  en: Audit configuration files for security vulnerabilities and exposure.
+  de: Konfigurationsdateien auf Sicherheitslücken und Exposition überprüfen.
+  zh: 审核配置文件是否存在安全漏洞 and 暴露。
+  es: Audite archivos de configuración para detectar vulnerabilidades y exposición de seguridad.
+  fr: Auditez les fichiers de configuration pour détecter les vulnérabilités de sécurité et l'exposition.
+  pt: Audite arquivos de configuração para vulnerabilidades de segurança e exposición.
+  ru: Аудит конфигурационных файлов на наличие уязвимостей безопасности и раскрытия информации.
+  ja: セキュリティの脆弱性や露出がないか設定ファイルを監査します。
+  ko: 보안 취약점 및 노출에 대해 구성 파일을 감사하십시오.
+  it: Controlla i file di configurazione per vulnerabilità di sicurezza ed esposizione.
+  tr: Güvenlik açıkları ve maruz kalma riskleri için yapılandırma dosyalarını denetleyin.
+  vi: Kiểm tra các tệp cấu hình để phát hiện các lỗ hổng bảo mật và lộ lọt thông tin.
+  id: Audit file konfigurasi untuk kerentanan keamanan dan paparan.
+  pl: Przeprowadź audyt plików konfiguracyjnych pod kątem luk bezpieczeństwa i ekspozycji.
+  nl: Controleer configuratiebestanden op beveiligingsrisico's en blootstelling.
+  ar: تدقيق ملفات التكوين بحثًا عن الثغرات الأمنية والتعرض.
+  hi: सुरक्षा कमजोरियों और जोखिमों के लिए कॉन्फ़िगरेशन फ़ाइलों का ऑडिट करें।
+  th: ตรวจสอบไฟล์กำหนดค่าสำหรับช่องโหว่ความปลอดภัยและการเปิดเผยข้อมูล
+  cs: Prověřte konfigurační soubory na bezpečnostní zranitelnosti a vystavení.
+  sv: Granska konfigurationsfiler för säkerhetsbrister och exponering.
+  he: בדיקת קובצי הגדרה לאיתור פרצות אבטחה וחשיפה.
   verified_by_human:
     - en
     - de

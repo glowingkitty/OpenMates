@@ -102,7 +102,7 @@ These are safe, reliable commands that should never fail. Issue them all in para
 
 #### Parallel Batch 1a-linear — Linear tasks (issue simultaneously with batch 1a):
 
-12. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age. Collect the title of every task.
+12. **Retained Linear tasks** — run `python3 scripts/linear.py list --team OPE --all --limit 100 --json`, then filter out Done/Canceled tasks. These are only for programmatically stored/recorded issues, marketing, sensitive/private work, and explicit OPE tasks. Sort Todo before Backlog, then by priority, then by age.
 
 #### Parallel Batch 1b — potentially-failing commands (issue separately from batch 1a)
 
@@ -127,7 +127,7 @@ These commands may fail due to missing config. Issue them in a SEPARATE parallel
 17. **Prod smoke tests** — Read: `test-results/last-run-prod-smoke.json`
 18. **Nightly reports** — Glob `logs/nightly-reports/*.json` (path: `/home/superdev/projects/OpenMates`), then Read each
 19. **Legal & compliance top 10** — Read: `docs/architecture/compliance/top-10-recommendations.md` (the human-readable ranked findings that back `logs/nightly-reports/legal-compliance.json`)
-20. **Milestone state** — call `mcp__linear__list_projects` (includeMilestones=false), then for each project call `mcp__linear__list_milestones` with the project name. This is the source of truth for milestones — NOT `.planning/PROJECT.md`.
+20. **Milestone state** — use GitHub Issues/milestones as the default public milestone source. Use Linear project/milestone context only for retained Linear categories.
 21. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
 
 ### Step 2: Read Prompt Template & Start Meeting
@@ -162,7 +162,7 @@ After the user confirms (or adjusts) priorities and any milestone changes:
 2. Add `daily-priority` label to today's tasks (up to 10)
 3. **Set all daily priority tasks to Urgent priority** — daily priorities are always Urgent
 4. Post a comment on each top 3: `"Daily priority for <DATE> — Rationale: <reason>"`
-5. Apply confirmed milestone changes (create new, update existing) via Linear MCP tools
+5. Apply confirmed milestone changes through GitHub tools by default, or `scripts/linear.py` for retained Linear categories. Do not use Linear MCP tools.
 6. Save the meeting state to `scripts/.daily-meeting-state.json`
 7. Write meeting summary to `scripts/.tmp/daily-meeting-summary-<DATE>.md`
 

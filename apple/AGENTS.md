@@ -43,7 +43,30 @@ Every primitive should consume generated design tokens from the web app where po
 - `ComponentTokens.generated.swift`
 - `Icons.xcassets`
 
-The Svelte app is the source of truth for component structure and behavior. Native SwiftUI should mirror the Svelte components intentionally instead of approximating them with platform defaults.
+The rendered Svelte app is the source of truth for component structure, behavior, and visual values. Native SwiftUI should mirror the browser-computed component intentionally instead of approximating it from platform defaults or source files alone.
+
+Before touching native product UI, inspect the actual web app route where the component appears and record the rendered element tree plus computed CSS values. Prefer the regular product route because it includes real parent layout, container widths, runtime classes, stores, and responsive state. Use `/dev/preview` only when the regular app cannot expose the needed state or an isolated harness is more accurate.
+
+If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
+
+## SwiftUI / UIKit Strategy
+
+OpenMates is SwiftUI-first for product UI composition, design-token usage, and parity with the Svelte web source of truth. Do not rewrite screens to UIKit by default.
+
+Use UIKit selectively when a surface is performance-critical, platform-owned, or cannot be implemented correctly in SwiftUI:
+
+- long virtualized feeds
+- chat transcript/message lists when profiling shows scroll hitches or streaming jank
+- rich embed grids/lists with many images, videos, maps, PDFs, animations, or dynamically-sized cells
+- gesture-heavy real-time interactions where direct view manipulation avoids SwiftUI state-diffing churn
+- PDF, map, video, web, camera, canvas/sketching, share, authentication, and similar system-backed views
+
+Before replacing a SwiftUI product surface with UIKit:
+
+1. Identify a concrete bottleneck through profiling, visible jank, or a repeatable reproduction.
+2. First reduce expensive SwiftUI body work, broad state invalidation, and avoidable layout churn.
+3. If the issue is scrolling, virtualization, reuse, or frame stability, wrap a UIKit `UICollectionView` or `UIScrollView` implementation in SwiftUI with `UIViewRepresentable`.
+4. Keep surrounding app chrome and screen composition in SwiftUI unless the whole surface is proven problematic.
 
 ## Svelte ↔ Swift Cross References
 
@@ -75,4 +98,4 @@ Prefer:
 - `Icon(...)` assets over `Image(systemName:)`
 - `.buttonStyle(.plain)` plus OpenMates styling over default button rendering
 
-Performance matters. Avoid expensive work in SwiftUI `body`, including markdown parsing, JSON parsing, image decoding, and repeated formatter construction. Cache parsed render data with stable IDs.
+Performance matters. Avoid expensive work in SwiftUI `body`, including markdown parsing, JSON parsing, image decoding, sorting/filtering large arrays, embed payload normalization, and repeated formatter construction. Cache parsed render data with stable IDs, and keep state scoped narrowly so message-level updates do not invalidate entire screens.

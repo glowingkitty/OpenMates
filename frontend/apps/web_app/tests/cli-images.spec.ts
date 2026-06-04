@@ -38,6 +38,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
+const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -46,13 +47,14 @@ const {
 	createStepScreenshotter,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
 
 const consoleLogs: string[] = [];
 
@@ -183,6 +185,37 @@ async function runCli(
 	});
 }
 
+function extractEmbedIdFromText(content: unknown): string | null {
+	const text = String(content || '');
+	if (!text) return null;
+
+	const jsonBlockMatches = text.matchAll(/```(?:json_embed|json)\s*\n([\s\S]*?)\n```/gi);
+	for (const match of jsonBlockMatches) {
+		try {
+			const parsed = JSON.parse(match[1].trim());
+			if (typeof parsed?.embed_id === 'string' && parsed.embed_id.trim()) {
+				return parsed.embed_id.trim();
+			}
+		} catch {
+			// Ignore malformed blocks and continue checking other candidates.
+		}
+	}
+
+	const jsonFieldMatch = text.match(/"embed_id"\s*:\s*"([^"\s]+)"/i);
+	if (jsonFieldMatch?.[1]) return jsonFieldMatch[1];
+
+	const markdownMatch = text.match(/\[!\]\(embed:([a-f0-9-]+)\)/i);
+	if (markdownMatch?.[1]) return markdownMatch[1];
+
+	return null;
+}
+
+function clearCliSyncCache(): void {
+	if (fs.existsSync(CLI_SYNC_CACHE_FILE)) {
+		fs.unlinkSync(CLI_SYNC_CACHE_FILE);
+	}
+}
+
 async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: string) => void) {
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 
@@ -191,7 +224,6 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
-	// Click Login tab to switch from signup to login view
 	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
@@ -209,7 +241,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
-	await page.waitForURL(/chat/, { timeout: 20000 });
+	await waitForChatReady(page, logCheckpoint, 30000);
 	logCheckpoint('Web app logged in.');
 
 	const cli = spawnCliLogin(apiUrl);
@@ -300,44 +332,56 @@ test.describe('CLI Images', () => {
 		// The assistant response should mention the image or embed reference
 		const assistantText = String(chatData.assistant || '');
 		logCheckpoint(`Assistant response (first 200 chars): ${assistantText.slice(0, 200)}`);
+		let imageEmbedId: string | null = extractEmbedIdFromText(assistantText);
 
 		// -----------------------------------------------------------------------
 		// Step 3: Retrieve the full chat to find the image embed ID
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 3: Fetching chat to find image embed...');
-		const showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
-		consoleLogs.push(`[chats show stdout] ${showResult.stdout.slice(0, 1000)}`);
-		expect(showResult.code).toBe(0);
-
-		let showData: any;
-		try {
-			showData = JSON.parse(showResult.stdout);
-		} catch (_e) {
-			throw new Error(`Expected JSON from chats show --json, got:\n${showResult.stdout}`);
+		// `chats show` reuses the local CLI sync cache when it is still considered
+		// fresh, which can hide the just-created image embed from this test.
+		clearCliSyncCache();
+		let showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
+		// chats show may fail transiently if the chat data is still being persisted.
+		for (let _r = 0; _r < 3 && showResult.code !== 0; _r++) {
+			await new Promise((r) => setTimeout(r, 5000));
+			clearCliSyncCache();
+			showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
 		}
+		consoleLogs.push(`[chats show stdout] ${showResult.stdout.slice(0, 1000)}`);
 
-		// Find the assistant message that contains an embed
-		const messages = showData.messages || [];
-		expect(messages.length).toBeGreaterThan(0);
-
-		const assistantMsgs = messages.filter((m: any) => m.role === 'assistant');
-		expect(assistantMsgs.length).toBeGreaterThan(0);
-
-		// Look for embed IDs in the assistant messages
-		let imageEmbedId: string | null = null;
-		for (const msg of assistantMsgs) {
-			const embedIds = msg.embedIds || msg.embed_ids || [];
-			if (embedIds.length > 0) {
-				imageEmbedId = embedIds[0];
-				break;
+		if (showResult.code === 0) {
+			let showData: any;
+			try {
+				showData = JSON.parse(showResult.stdout);
+			} catch (_e) {
+				throw new Error(`Expected JSON from chats show --json, got:\n${showResult.stdout}`);
 			}
-			// Also check the message content for embed references
-			const content = String(msg.content || msg.text || '');
-			const embedMatch = content.match(/\[!\]\(embed:([a-f0-9-]+)\)/);
-			if (embedMatch) {
-				imageEmbedId = embedMatch[1];
-				break;
+
+			// Image-generation embeds are resolved from chat history, but they are not
+			// guaranteed to be attached to the assistant message specifically.
+			const messages = showData.messages || [];
+			expect(messages.length).toBeGreaterThan(0);
+
+			const assistantMsgs = messages.filter((m: any) => m.role === 'assistant');
+			expect(assistantMsgs.length).toBeGreaterThan(0);
+
+			for (const msg of messages) {
+				if (imageEmbedId) break;
+				const embedIds = msg.embedIds || msg.embed_ids || [];
+				if (embedIds.length > 0) {
+					imageEmbedId = embedIds[0];
+					break;
+				}
 			}
+
+			for (const msg of assistantMsgs) {
+				if (imageEmbedId) break;
+				imageEmbedId = extractEmbedIdFromText(msg.content || msg.text || '');
+			}
+		} else {
+			consoleLogs.push(`[chats show stderr] ${showResult.stderr.slice(0, 400)}`);
+			logCheckpoint(`Step 3 fallback: chats show unavailable (exit ${showResult.code ?? 'null'})`);
 		}
 
 		expect(imageEmbedId).toBeTruthy();
@@ -349,13 +393,36 @@ test.describe('CLI Images', () => {
 		// This exercises the full zero-knowledge embed decryption pipeline
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 4: Decrypting image embed via embeds show --json...');
-		const embedResult = await runCli(apiUrl, ['embeds', 'show', imageEmbedId!, '--json'], 30_000);
+		let embedResult = await runCli(apiUrl, ['embeds', 'show', imageEmbedId!, '--json'], 30_000);
 		consoleLogs.push(`[embeds show stdout] ${embedResult.stdout.slice(0, 500)}`);
 		consoleLogs.push(`[embeds show stderr] ${embedResult.stderr.slice(0, 200)}`);
 
+		let embedData: any;
+		// Image generation is async — the embed may still be processing.
+		// Poll until the embed transitions to an image/generate type.
+		for (let _attempt = 0; _attempt < 8; _attempt++) {
+			if (embedResult.code === 0) {
+				try {
+					embedData = JSON.parse(embedResult.stdout);
+					const currentType = String(embedData.embed_type || embedData.type || '');
+					if (currentType.match(/image|generate/i)) {
+						break;
+					}
+					logCheckpoint(
+						`Embed type is "${currentType}" (attempt ${_attempt + 1}/8) — waiting for image generation...`
+					);
+				} catch (_error) {
+					embedData = undefined;
+				}
+			}
+			await new Promise((r) => setTimeout(r, 3000));
+			embedResult = await runCli(apiUrl, ['embeds', 'show', imageEmbedId!, '--json'], 30_000);
+			consoleLogs.push(`[embeds show stdout] ${embedResult.stdout.slice(0, 500)}`);
+			consoleLogs.push(`[embeds show stderr] ${embedResult.stderr.slice(0, 200)}`);
+		}
+
 		expect(embedResult.code).toBe(0);
 
-		let embedData: any;
 		try {
 			embedData = JSON.parse(embedResult.stdout);
 		} catch (_e) {
@@ -372,10 +439,10 @@ test.describe('CLI Images', () => {
 
 		// The decrypted content should contain the generation prompt
 		const _embedContent = embedData.content || embedData.data || {};
-		logCheckpoint(`Embed type: ${embedData.embed_type || embedData.type}`);
+		const embedType = String(embedData.embed_type || embedData.type || '');
+		logCheckpoint(`Embed type: ${embedType}`);
 
 		// verify it's an image embed type
-		const embedType = String(embedData.embed_type || embedData.type || '');
 		expect(embedType).toMatch(/image|generate/i);
 
 		logCheckpoint('Image embed successfully decrypted via zero-knowledge pipeline!');

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -34,14 +33,15 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
 
 // ─── Test ────────────────────────────────────────────────────────────────────
 
@@ -88,7 +88,6 @@ test('creates and shares a chat link with QR code and short link', async ({
 		contains: 'Paris',
 		logCheckpoint
 	});
-	const assistantMessage = page.getByTestId('message-assistant');
 	logCheckpoint('Assistant response received and contains "Paris".');
 	await takeStepScreenshot(page, 'assistant-response');
 
@@ -106,6 +105,12 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await expect(generateLinkButton).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Share panel loaded — configuration step visible.');
 	await takeStepScreenshot(page, 'share-config-step');
+	await docCheckpoint(page, {
+		id: 'share-config-step',
+		guide: SHARING_GUIDE_PATH,
+		title: 'Configure a shared chat link',
+		screenshot: 'docs/images/user-guide/sharing/share-config-step.jpg'
+	});
 
 	// ── Step 7: Verify chat preview is shown ──────────────────────────────
 	const chatPreview = page.locator('[data-testid="share-chat-preview"]');
@@ -121,6 +126,12 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
 	logCheckpoint('Copy link button is visible — link generated.');
 	await takeStepScreenshot(page, 'link-generated');
+	await docCheckpoint(page, {
+		id: 'link-generated',
+		guide: SHARING_GUIDE_PATH,
+		title: 'Share link generated with copy and QR options',
+		screenshot: 'docs/images/user-guide/sharing/link-generated.jpg'
+	});
 
 	// ── Step 10: Verify QR code ───────────────────────────────────────────
 	const qrCode = page.locator('[data-testid="share-qr-code"]');
@@ -135,6 +146,12 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await expect(qrFullscreen).toBeVisible({ timeout: 5000 });
 	logCheckpoint('QR fullscreen overlay opened.');
 	await takeStepScreenshot(page, 'qr-fullscreen');
+	await docCheckpoint(page, {
+		id: 'qr-fullscreen',
+		guide: SHARING_GUIDE_PATH,
+		title: 'QR code fullscreen view',
+		screenshot: 'docs/images/user-guide/sharing/qr-fullscreen.jpg'
+	});
 
 	await page.keyboard.press('Escape');
 	await expect(qrFullscreen).not.toBeVisible({ timeout: 5000 });
@@ -167,6 +184,12 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await expect(countdown).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Short link countdown timer visible.');
 	await takeStepScreenshot(page, 'short-link-generated');
+	await docCheckpoint(page, {
+		id: 'short-link-generated',
+		guide: SHARING_GUIDE_PATH,
+		title: 'Short link generated with expiry countdown',
+		screenshot: 'docs/images/user-guide/sharing/short-link-generated.jpg'
+	});
 
 	// ── Step 13: Test copy link ───────────────────────────────────────────
 	await copyLinkButton.click();
@@ -201,6 +224,12 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await expect(expirationInfo).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Expiration info is visible.');
 	await takeStepScreenshot(page, 'with-expiration');
+	await docCheckpoint(page, {
+		id: 'with-expiration',
+		guide: SHARING_GUIDE_PATH,
+		title: 'Share link configured with expiration',
+		screenshot: 'docs/images/user-guide/sharing/with-expiration.jpg'
+	});
 
 	saveWarnErrorLogs('share-chat', 'after_share_flow');
 

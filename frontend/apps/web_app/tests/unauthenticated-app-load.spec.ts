@@ -238,6 +238,7 @@ test.describe('Unauthenticated app load', () => {
 		const followUpSuggestion = page.getByTestId('follow-up-suggestion-item').first();
 		await expect(followUpSuggestion).toBeVisible({ timeout: 10000 });
 		await followUpSuggestion.click();
+		await expect(page.getByTestId('follow-up-suggestion-item')).toHaveCount(0, { timeout: 1000 });
 
 		await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 10000 });
 		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });
@@ -692,6 +693,44 @@ test.describe('Unauthenticated app load', () => {
 
 		expect(touchMoveWasCanceled).toBe(false);
 		await expect(settingsMenu).toBeVisible();
+	});
+
+	test('guest app memories only show categories with examples', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/travel'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/travel', {
+			timeout: 10000
+		});
+
+		const memoryCards = page.getByTestId('settings-memory-cards-scroll');
+		await expect(memoryCards).toBeVisible({ timeout: 10000 });
+		await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Trips$/i })).toBeVisible();
+		await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Saved connections$/i })).toHaveCount(0);
+		await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Saved stays$/i })).toHaveCount(0);
+
+		await memoryCards.getByTestId('app-card-name').filter({ hasText: /^Trips$/i }).click();
+		await expect(settingsMenu).toHaveAttribute(
+			'data-active-view',
+			'app_store/travel/settings_memories/trips',
+			{ timeout: 10000 }
+		);
+		await expect(settingsMenu.getByText('Examples').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('for-everyone chat header play button opens intro video in embed fullscreen', async ({

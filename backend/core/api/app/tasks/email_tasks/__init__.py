@@ -23,6 +23,7 @@ from . import email_change_verification_task  # Import email change verification
 from . import reminder_notification_email_task  # Import reminder notification task
 from . import usecase_submitted_email_task  # Import use-case submission admin notification task
 from . import password_security_reminder_email_task  # Import periodic password-security reminder task
+from . import post_purchase_security_setup_email_task  # Import post-purchase security setup reminder task
 from . import daily_notification_dispatcher  # Import unified daily notification dispatcher
 from . import test_notification_email_task  # Import E2E test failure notification task
 from . import test_run_summary_email_task  # Import daily test run summary email task
@@ -59,6 +60,7 @@ __all__ = [
     'reminder_notification_email_task',
     'usecase_submitted_email_task',
     'password_security_reminder_email_task',
+    'post_purchase_security_setup_email_task',
     'daily_notification_dispatcher',
     'test_notification_email_task',
     'test_run_summary_email_task',

@@ -8,9 +8,9 @@
 	 *
 	 * Architecture: docs/architecture/frontend/docs-web-app.md
 	 */
-	import { text } from '@repo/ui';
-	import docsData from '$lib/generated/docs-data.json';
-	import type { DocFolder, DocStructure } from '$lib/types/docs';
+	import { text } from '@openmates/ui/src/i18n/translations';
+	import docsManifest from '$lib/generated/docs-manifest.json';
+	import type { DocManifestFolder, DocManifestStructure } from '$lib/types/docs';
 
 	interface Props {
 		/** Current page slug (e.g., "architecture/ai/ai-model-selection") */
@@ -31,7 +31,7 @@
 		];
 
 		let currentPath = '';
-		let current: DocStructure | DocFolder = docsData.structure as DocStructure;
+		let current: DocManifestStructure | DocManifestFolder = docsManifest.structure as DocManifestStructure;
 
 		for (let i = 0; i < parts.length; i++) {
 			const part = parts[i];
@@ -39,7 +39,7 @@
 			const isLast = i === parts.length - 1;
 
 			// Check if this part matches a folder
-			const folder: DocFolder | undefined = current.folders.find((f: DocFolder) => f.name === part);
+			const folder: DocManifestFolder | undefined = current.folders.find((f: DocManifestFolder) => f.name === part);
 			if (folder) {
 				items.push({
 					label: folder.title,

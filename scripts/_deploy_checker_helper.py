@@ -23,7 +23,7 @@ Called by check-deploy-status.sh:
 
 Environment variables (sourced from .env by the shell script):
     VERCEL_TOKEN   — required; Vercel personal/team access token
-    DRY_RUN        — "true" to skip actual claude invocation
+    DRY_RUN        — "true" to skip actual OpenCode invocation
 """
 
 import json
@@ -42,12 +42,12 @@ _BACKEND_SCRIPTS = _PROJECT_ROOT / "backend" / "scripts"
 if str(_BACKEND_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_BACKEND_SCRIPTS))
 
-# Add scripts/ itself to sys.path for _claude_utils
+# Add scripts/ itself to sys.path for _opencode_utils
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 import httpx  # noqa: E402
-from _claude_utils import run_claude_session  # noqa: E402
+from _opencode_utils import run_opencode_session  # noqa: E402
 from _nightly_report import write_nightly_report  # noqa: E402
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -348,12 +348,12 @@ def run() -> None:
     _save_state(state)
 
     if dry_run:
-        _log("DRY RUN: would dispatch claude with the following prompt (truncated to 500 chars):")
+        _log("DRY RUN: would dispatch OpenCode with the following prompt (truncated to 500 chars):")
         print(prompt[:500])
         return
 
-    # Step 6: Invoke claude in build mode
-    returncode, session_id = run_claude_session(
+    # Step 6: Invoke OpenCode with write permissions
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(_PROJECT_ROOT),
@@ -366,14 +366,14 @@ def run() -> None:
     )
 
     if returncode == 0:
-        _log("claude session completed successfully.")
+        _log("OpenCode chat completed successfully.")
     else:
         _log(f"WARNING: claude exited with code {returncode}.")
 
     if session_id:
         _log(f"Session share URL: {session_id}")
     else:
-        _log("No share URL found in claude output.")
+        _log("No share URL found in OpenCode output.")
 
     write_nightly_report(
         job="deploy-checker",

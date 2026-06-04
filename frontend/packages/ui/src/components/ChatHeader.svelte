@@ -42,7 +42,7 @@
     summary        - decrypted chat summary (2-3 sentences)
     isLoading      - true while title/category/icon are not yet received (State A)
     isCreditsError - true when message was rejected due to insufficient credits (State A2)
-    chatCreatedAt  - Unix timestamp in seconds of chat creation
+    chatCreatedAt  - Unix timestamp in seconds of chat creation/publication
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
@@ -63,6 +63,7 @@
     isLoading = false,
     isCreditsError = false,
     chatCreatedAt = null,
+    chatTimeLabel = 'started',
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
@@ -107,6 +108,7 @@
      *  Replaces the "Creating new chat..." shimmer with a static "Not enough credits" state. */
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
+    chatTimeLabel?: 'started' | 'published';
     isIncognito?: boolean;
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
@@ -556,10 +558,10 @@
   /** Whether to show the summary with its expand animation. */
   let showSummary = $derived(isLoaded && !!summary);
 
-  // ─── Creation time formatting ──────────────────────────────────────────────
+  // ─── Header time formatting ────────────────────────────────────────────────
 
   /**
-   * Format the chat creation time as a relative/absolute string.
+   * Format the chat creation/publication time as a relative/absolute string.
    *
    * Rules (from spec):
    *   - < 1 minute ago     → "Just now"
@@ -569,7 +571,7 @@
    *   - Older               → "Started YYYY/MM/DD, HH:MM"
    *
    * chatCreatedAt is a Unix timestamp in **seconds** (consistent with Chat.created_at).
-   */
+    */
   let formattedTime = $derived.by(() => {
     if (!chatCreatedAt) return '';
 
@@ -585,6 +587,11 @@
 
     // Format HH:MM with zero-padded hours and minutes
     const timeStr = `${String(createdDate.getHours()).padStart(2, '0')}:${String(createdDate.getMinutes()).padStart(2, '0')}`;
+
+    if (chatTimeLabel === 'published') {
+      const dateStr = `${createdDate.getFullYear()}/${String(createdDate.getMonth() + 1).padStart(2, '0')}/${String(createdDate.getDate()).padStart(2, '0')}`;
+      return $text('chat.header.published_date', { values: { date: dateStr, time: timeStr } });
+    }
 
     // Less than 1 minute ago
     if (diffMinutes < 1) {

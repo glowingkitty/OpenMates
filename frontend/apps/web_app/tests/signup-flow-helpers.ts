@@ -79,9 +79,10 @@ function _ensureStepLogInit(artifactsDirname: string = ARTIFACTS_DIRNAME): void 
  * Also writes entries to artifacts/step-log.json for MD report generation.
  */
 function createSignupLogger(
-	prefix: string = 'SIGNUP_FLOW'
+	prefix: string = 'SIGNUP_FLOW',
+	{ artifactsDirname = ARTIFACTS_DIRNAME }: { artifactsDirname?: string } = {}
 ): (message: string, metadata?: Record<string, unknown>) => void {
-	_ensureStepLogInit();
+	_ensureStepLogInit(artifactsDirname);
 	return (message: string, metadata: Record<string, unknown> = {}): void => {
 		const timestamp = new Date().toISOString();
 		const idx = _nextStepIndex();

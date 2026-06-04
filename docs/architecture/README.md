@@ -67,6 +67,7 @@ Technical implementation details for the apps system. For user-facing app guides
 - [Action Confirmation](apps/action-confirmation.md) - User confirmation for destructive actions
 - [REST API](apps/rest-api.md) - OpenAI-compatible API endpoints
 - [CLI Package](apps/cli-package.md) - OpenMates CLI package architecture
+- [CLI Feature Parity](apps/cli-feature-parity.md) - Web app versus CLI capability matrix and roadmap
 - [CLI Remote Access](apps/cli-remote-access.md) - Remote CLI access and tunneling
 
 ## Frontend
@@ -103,4 +104,4 @@ Technical implementation details for the apps system. For user-facing app guides
 
 ## Contributing
 
-- [Contributing Guide](../contributing/contributing.md) - How to contribute to OpenMates
+- [Contributing Guide](../../CONTRIBUTING.md) - How to contribute to OpenMates

@@ -67,6 +67,15 @@
     
     const dispatch = createEventDispatcher();
 
+    function normalizePostSignupLoginUser(user: Record<string, unknown> | null | undefined): void {
+        const lastOpened = user?.last_opened;
+        if (typeof lastOpened === 'string' && (lastOpened.startsWith('/signup/') || lastOpened.startsWith('#signup/'))) {
+            user.last_opened = '/chat/new';
+            user.signup_completed = true;
+            console.debug('[Login] Normalized stale signup resume path after login:', lastOpened);
+        }
+    }
+
     // Form data using $state (Svelte 5 runes mode)
     let email = $state('');
     let password = $state('');
@@ -1004,6 +1013,7 @@
             // blocked during forced-logout cleanup on iOS), login should still succeed.
             // The phased sync after WebSocket connects will recover any missing profile data.
             const userData = verifyData.auth_session?.user;
+            normalizePostSignupLoginUser(userData);
             try {
                 if (userData) {
                     // Log auto top-up fields from backend response - ERROR if missing
@@ -1594,6 +1604,7 @@
             // If IndexedDB or profile updates fail (e.g., database blocked during logout cleanup),
             // login should still succeed. Phased sync will recover missing profile data.
             const userData = verifyData.auth_session?.user;
+            normalizePostSignupLoginUser(userData);
             try {
                 if (userData) {
                     // Log auto top-up fields from backend response - ERROR if missing

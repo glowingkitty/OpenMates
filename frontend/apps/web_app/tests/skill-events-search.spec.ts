@@ -17,6 +17,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	getE2EDebugUrl,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
@@ -37,6 +38,35 @@ const {
 	saveCurrentFullscreenEmbed,
 	verifySavedMemoryEntry
 } = require('./helpers/saved-memory-test-helpers');
+const {
+	expectSettingsProviderIcons,
+	expectSkillCardProviderIcons
+} = require('./helpers/provider-icon-helpers');
+const { appsMetadata } = require('../../../packages/ui/src/data/appsMetadata');
+
+const EVENT_SEARCH_PROVIDERS = [
+	'Meetup',
+	'Luma',
+	'Eventbrite',
+	'Google Events',
+	'Resident Advisor',
+	'Siegessäule',
+	'Berlin Philharmonic',
+	'GPN24',
+	'39C3',
+	'38C3',
+	'37C3'
+];
+
+const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
+	'Meetup',
+	'Luma',
+	'Eventbrite',
+	'Google Events',
+	'Resident Advisor',
+	'Siegessäule',
+	'Berlin Philharmonic'
+];
 
 async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
 	const dismissButtons = page.getByTestId('notification-dismiss');
@@ -67,6 +97,32 @@ test.describe('App: Events / Skill: search', () => {
 
 	test.beforeAll(() => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+	});
+
+	test('Phase 0: app store metadata and UI expose event providers with loaded icons', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+
+		const events = appsMetadata.events;
+		expect(events, 'events app should appear in app store metadata').toBeTruthy();
+		const searchSkill = (events.skills || []).find((skill: { id: string }) => skill.id === 'search');
+		expect(searchSkill, 'events search skill should appear in app store metadata').toBeTruthy();
+		expect(searchSkill.providers).toEqual(EVENT_SEARCH_PROVIDERS);
+
+		await page.setViewportSize({ width: 1600, height: 900 });
+		await page.goto(getE2EDebugUrl('/#settings/app_store/events'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/events"]');
+		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
+
+		const searchSkillCard = settingsMenu.getByTestId('app-store-card').filter({ hasText: 'Search' }).first();
+		await expectSkillCardProviderIcons(searchSkillCard, EVENT_SEARCH_CARD_ICON_PROVIDERS);
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/events/skill/search'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		const skillSettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/events/skill/search"]');
+		await expect(skillSettingsMenu).toBeVisible({ timeout: 15_000 });
+		await expectSettingsProviderIcons(skillSettingsMenu, EVENT_SEARCH_CARD_ICON_PROVIDERS);
 	});
 
 	// ── Phase 1: Embed preview renders ─────────────────────────────────────

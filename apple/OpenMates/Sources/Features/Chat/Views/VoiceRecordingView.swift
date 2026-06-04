@@ -13,6 +13,13 @@ import SwiftUI
 import AVFoundation
 
 @MainActor
+enum MicPermissionState: Equatable {
+    case unknown
+    case granted
+    case denied
+}
+
+@MainActor
 final class VoiceRecorder: ObservableObject {
     @Published var isRecording = false
     @Published var duration: TimeInterval = 0
@@ -22,14 +29,27 @@ final class VoiceRecorder: ObservableObject {
     private var timer: Timer?
     private var recordingURL: URL?
 
+    func requestPermission() async -> Bool {
+        #if os(iOS)
+        return await withCheckedContinuation { continuation in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+        #else
+        return true
+        #endif
+    }
+
     func startRecording() {
+        error = nil
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playAndRecord, mode: .default)
             try session.setActive(true)
         } catch {
-            self.error = "Microphone permission required"
+            self.error = AppStrings.microphoneBlocked
             return
         }
         #endif
@@ -62,6 +82,7 @@ final class VoiceRecorder: ObservableObject {
     }
 
     func stopRecording() -> URL? {
+        guard isRecording else { return nil }
         audioRecorder?.stop()
         timer?.invalidate()
         timer = nil
@@ -80,55 +101,73 @@ final class VoiceRecorder: ObservableObject {
     }
 }
 
-struct VoiceRecordingButton: View {
-    @StateObject private var recorder = VoiceRecorder()
-    let onRecordingComplete: (URL) -> Void
+struct ComposerRecordingOverlay: View {
+    @ObservedObject var recorder: VoiceRecorder
+    let dragOffsetX: CGFloat
+    let onStop: (URL) -> Void
+    let onCancel: () -> Void
 
     var body: some View {
-        Group {
-            if recorder.isRecording {
-                HStack(spacing: .spacing3) {
-                    Circle()
-                        .fill(Color.error)
-                        .frame(width: 8, height: 8)
+        VStack(spacing: 0) {
+            Spacer()
 
-                    Text(formatDuration(recorder.duration))
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Color.fontPrimary)
+            Text(recorder.error ?? AppStrings.releaseToFinishRecording)
+                .font(.omP.weight(.bold))
+                .foregroundStyle(Color.white)
+                .multilineTextAlignment(.center)
 
-                    Button { cancel() } label: {
-                        Icon("close", size: 20)
-                            .foregroundStyle(Color.fontTertiary)
-                    }
+            Spacer()
 
-                    Button { stop() } label: {
-                        Icon("stop_processing", size: 24)
-                            .foregroundStyle(Color.error)
-                    }
+            HStack(spacing: .spacing4) {
+                Text(formatDuration(recorder.duration))
+                    .font(.omSmall.weight(.bold))
+                    .foregroundStyle(Color.white)
+                    .monospacedDigit()
+                    .frame(minWidth: 60)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing2)
+                    .background(Color.error)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+
+                HStack(spacing: .spacing2) {
+                    Text("‹")
+                        .font(.omH3)
+                        .foregroundStyle(Color.white.opacity(0.5))
+                    Text(AppStrings.slideLeftToCancelRecording)
+                        .font(.omXs)
+                        .foregroundStyle(Color.white.opacity(0.7))
                 }
-            } else {
-                Button { recorder.startRecording() } label: {
-                    Icon("recordaudio", size: 25)
-                        .foregroundStyle(LinearGradient.primary)
+                .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
+                .frame(maxWidth: .infinity)
+
+                Button {
+                    if let url = recorder.stopRecording() {
+                        onStop(url)
+                    }
+                } label: {
+                    Icon("recordaudio", size: 22)
+                        .foregroundStyle(Color.white)
+                        .frame(width: 44, height: 44)
+                        .background(Color.buttonPrimary)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 2)
+                        .offset(x: max(-120, dragOffsetX))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(AppStrings.releaseToFinishRecording)
             }
         }
-    }
-
-    private func stop() {
-        if let url = recorder.stopRecording() {
-            onRecordingComplete(url)
-        }
-    }
-
-    private func cancel() {
-        recorder.cancelRecording()
+        .padding(.top, .spacing8)
+        .padding(.horizontal, .spacing8)
+        .padding(.bottom, .spacing7)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LinearGradient.primary)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
+        return String(format: "%02d:%02d", mins, secs)
     }
 }

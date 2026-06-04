@@ -108,3 +108,16 @@ skills:
               - output_current_max
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search_components:
+      enabled: true
+      keywords:
+        - find electronic components
+        - electronics parts search
+        - compare components for projects
+      pain_points:
+        - parts research is fragmented
+      demo_angles:
+        - show component search in OpenMates

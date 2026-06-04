@@ -16,9 +16,10 @@
 	 */
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
-	import { text, getCategoryGradientColors, getLucideIcon, SearchBar } from '@repo/ui';
-	import docsData from '$lib/generated/docs-data.json';
-	import type { DocFolder, DocFile, DocsData } from '$lib/types/docs';
+	import { text } from '@openmates/ui/src/i18n/translations';
+	import { getCategoryGradientColors, getLucideIcon } from '@openmates/ui/src/utils/categoryUtils';
+	import docsManifest from '$lib/generated/docs-manifest.json';
+	import type { DocManifestFolder, DocsManifest, SearchIndexEntry } from '$lib/types/docs';
 	import { getDocCategoryInfo, DOCS_FOLDER_ICON } from '$lib/utils/docsCategoryMap';
 
 	interface Props {
@@ -27,11 +28,13 @@
 
 	let { onClose }: Props = $props();
 
-	const { structure, searchIndex } = docsData as unknown as DocsData;
+	const { structure } = docsManifest as unknown as DocsManifest;
 
 	// Search state
 	let searchQuery = $state('');
 	let isSearchBarVisible = $state(false);
+	let searchIndex = $state<SearchIndexEntry[] | null>(null);
+	let isSearchLoading = $state(false);
 
 	// Track expanded folders
 	let expandedFolders = $state<Set<string>>(new Set());
@@ -63,6 +66,7 @@
 	// Search results
 	let searchResults = $derived.by(() => {
 		if (!searchQuery.trim()) return [];
+		if (!searchIndex) return [];
 		const query = searchQuery.toLowerCase().trim();
 		const words = query.split(/\s+/);
 
@@ -119,7 +123,7 @@
 		return currentPath === docPath || currentPath === `${docPath}/`;
 	}
 
-	function folderContainsActive(folder: DocFolder): boolean {
+	function folderContainsActive(folder: DocManifestFolder): boolean {
 		for (const file of folder.files) {
 			if (isActive(file.slug)) return true;
 		}
@@ -139,12 +143,31 @@
 	}
 
 	function getSnippet(content: string, maxLen = 60): string {
-		const clean = content.replace(/[#*_`\[\]()]/g, '').trim();
+		const clean = content.replace(/[#*_`[\]()]/g, '').trim();
 		return clean.length > maxLen ? clean.substring(0, maxLen) + '...' : clean;
+	}
+
+	async function ensureSearchIndex() {
+		if (searchIndex || isSearchLoading) return;
+		isSearchLoading = true;
+		try {
+			const response = await fetch('/generated/docs/search.json');
+			if (!response.ok) throw new Error(`Search index request failed: ${response.status}`);
+			const data = await response.json() as { searchIndex: SearchIndexEntry[] };
+			searchIndex = data.searchIndex || [];
+		} catch (error) {
+			console.error('[DocsSidebar] Failed to load search index:', error);
+			searchIndex = [];
+		} finally {
+			isSearchLoading = false;
+		}
 	}
 
 	function handleSearchQuery(query: string) {
 		searchQuery = query;
+		if (query.trim()) {
+			ensureSearchIndex();
+		}
 	}
 
 	function handleSearchClose() {
@@ -177,11 +200,15 @@
 	<!-- Top buttons container — matches Chats.svelte .top-buttons-container -->
 	<div class="top-buttons-container">
 		{#if isSearchBarVisible}
-			<SearchBar
-				onSearch={handleSearchQuery}
-				onClose={handleSearchClose}
-				initialQuery={searchQuery}
-			/>
+			<div class="docs-search-bar">
+				<input
+					type="search"
+					value={searchQuery}
+					placeholder={$text('documentation.search.placeholder')}
+					oninput={(event) => handleSearchQuery(event.currentTarget.value)}
+				/>
+				<button type="button" aria-label="Close search" onclick={handleSearchClose}>×</button>
+			</div>
 		{:else}
 			<div class="top-buttons">
 				<button
@@ -203,7 +230,9 @@
 		{#if isSearchActive}
 			<!-- Search results -->
 			<div class="search-results">
-				{#if searchResults.length === 0}
+				{#if isSearchLoading}
+					<div class="no-results">{$text('documentation.search.loading')}</div>
+				{:else if searchResults.length === 0}
 					<div class="no-results">{$text('documentation.search.no_results')}</div>
 				{:else}
 					{#each searchResults as result (result.slug)}
@@ -290,7 +319,6 @@
 			{#each structure.folders as folder (folder.path)}
 				{@const isExpanded = expandedFolders.has(folder.path)}
 				{@const containsActive = folderContainsActive(folder)}
-				{@const folderIcon = DOCS_FOLDER_ICON[folder.path] || 'folder'}
 				<div class="folder-group">
 					<button
 						class="group-header"
@@ -434,6 +462,36 @@
 		height: 32px;
 		display: flex;
 		justify-content: flex-end;
+	}
+
+	.docs-search-bar {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.docs-search-bar input {
+		flex: 1;
+		min-width: 0;
+		height: 34px;
+		border: 1px solid var(--color-grey-30);
+		border-radius: 999px;
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
+		padding: 0 12px;
+		font: inherit;
+	}
+
+	.docs-search-bar button {
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 999px;
+		background: var(--color-grey-30);
+		color: var(--color-font-primary);
+		font-size: 20px;
+		line-height: 1;
+		cursor: pointer;
 	}
 
 	.top-button {

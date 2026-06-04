@@ -983,6 +983,7 @@ task_routes = {
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
+    "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
@@ -1034,6 +1035,7 @@ _EXPLICIT_TASK_ROUTES = {
     "health_check.check_all_providers": "health_check",
     "health_check.check_all_apps": "health_check",
     "health_check.check_external_services": "health_check",
+    "health_check.send_degraded_services_discord_report": "health_check",
     
     # Usage archive tasks
     "usage.archive_old_entries": "persistence",
@@ -1047,6 +1049,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.new_device_email_task.send_new_device_email": "email",
     "app.tasks.email_tasks.backup_code_email_task.send_backup_code_used_email": "email",
     "app.tasks.email_tasks.recovery_key_email_task.send_recovery_key_used_email": "email",
+    "app.tasks.email_tasks.post_purchase_security_setup_email_task.send_post_purchase_security_setup_reminder": "email",
     "app.tasks.email_tasks.recovery_email_task.send_account_recovery_email": "email",
     "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
     "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",
@@ -1230,6 +1233,11 @@ app.conf.beat_schedule = {
     'health-check-external-services': {
         'task': 'health_check.check_external_services',
         'schedule': timedelta(seconds=300),  # 5 minutes
+        'options': {'queue': 'health_check'},
+    },
+    'degraded-services-discord-report-weekdays': {
+        'task': 'health_check.send_degraded_services_discord_report',
+        'schedule': crontab(hour=8, minute=45, day_of_week='1-5'),  # Weekdays 08:45 UTC
         'options': {'queue': 'health_check'},
     },
     'archive-old-usage-entries': {

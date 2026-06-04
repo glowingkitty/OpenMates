@@ -84,7 +84,7 @@ is "catch urgent breakage within an hour", not full coverage.
 
 | Mode | What it runs | Discord webhook | Schedule |
 | --- | --- | --- | --- |
-| `--hourly-dev` | reachability + Stripe + Polar + chat (see `frontend/apps/web_app/tests/dev-smoke/README.md`) | `DISCORD_WEBHOOK_DEV_SMOKE` | local cron, 08–18 UTC |
+| `--hourly-dev` | reachability + Stripe + chat (see `frontend/apps/web_app/tests/dev-smoke/README.md`) | `DISCORD_WEBHOOK_DEV_SMOKE` | local cron, 08–18 UTC |
 | `--hourly-prod` | dispatches `prod-smoke.yml` (3 specs) | `DISCORD_WEBHOOK_PROD_SMOKE` | local cron, 08–18 UTC |
 | `--daily` | full pytest + vitest + all E2E | `DISCORD_WEBHOOK_DEV_NIGHTLY` | local cron, 03 UTC weekdays |
 

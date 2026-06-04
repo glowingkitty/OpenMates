@@ -37,11 +37,9 @@ def test_session_url_uses_configured_base_url(monkeypatch) -> None:
     monkeypatch.setenv("OPENCODE_WEB_BASE_URL", "https://example.invalid/")
 
     url = module._build_session_url("ses_test")
+    expected_token = module._project_path_token(module.PROJECT_ROOT)
 
-    assert url == (
-        "https://example.invalid/"
-        "L2hvbWUvc3VwZXJkZXYvcHJvamVjdHMvT3Blbk1hdGVz/session/ses_test"
-    )
+    assert url == f"https://example.invalid/{expected_token}/session/ses_test"
 
 
 def test_session_url_is_missing_when_base_url_is_unconfigured(monkeypatch) -> None:

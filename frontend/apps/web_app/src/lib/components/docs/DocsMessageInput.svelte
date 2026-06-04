@@ -9,14 +9,10 @@
 	 *
 	 * Architecture: docs/architecture/docs-web-app.md
 	 */
-	import { text } from '@repo/ui';
-	import { page } from '$app/state';
+	import { text } from '@openmates/ui/src/i18n/translations';
 
 	let message = $state('');
 	let inputElement = $state<HTMLTextAreaElement | null>(null);
-
-	/** Current docs page slug — included in the deep link for context */
-	let currentSlug = $derived(page.url.pathname.replace('/docs/', '').replace('/docs', ''));
 
 	function handleSend() {
 		const trimmed = message.trim();

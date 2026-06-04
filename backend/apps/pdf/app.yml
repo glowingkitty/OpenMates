@@ -148,3 +148,36 @@ skills:
         - file_path
         - pages
         - query
+
+marketing_discovery:
+  skills:
+    read:
+      enabled: true
+      keywords:
+        - ask questions about PDF
+        - PDF analysis AI chatbot
+        - summarize PDF document
+      pain_points:
+        - PDFs are hard to inspect quickly
+      demo_angles:
+        - show PDF Q&A
+    search:
+      enabled: true
+      keywords:
+        - search PDFs with AI
+        - find documents by content
+        - PDF document search
+      pain_points:
+        - file search misses document meaning
+      demo_angles:
+        - show PDF search
+    view:
+      enabled: true
+      keywords:
+        - view PDF in chat
+        - PDF preview AI workflow
+        - inspect PDF pages
+      pain_points:
+        - PDF context is separated from chat
+      demo_angles:
+        - show PDF embed

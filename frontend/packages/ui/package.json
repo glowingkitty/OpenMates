@@ -84,10 +84,9 @@
     "@opentelemetry/instrumentation-fetch": "^0.214.0",
     "@opentelemetry/resources": "^2.6.1",
     "@opentelemetry/sdk-trace-web": "^2.6.1",
-    "@polar-sh/checkout": "^0.2.0",
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
-    "@sveltejs/kit": "2.57.1",
+    "@sveltejs/kit": "2.60.1",
     "@tiptap/core": "^3.4.3",
     "@tiptap/extension-highlight": "^3.4.3",
     "@tiptap/extension-link": "^3.4.3",
@@ -136,12 +135,12 @@
     "@types/leaflet": "^1.9.8",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.5.0",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^9.35.0",
     "jsdom": "^25.0.1",
     "svelte": "^5.55.7",
     "svelte-check": "^4.4.3",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.0"
   }
 }

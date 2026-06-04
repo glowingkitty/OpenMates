@@ -87,6 +87,9 @@
 	<meta property="og:title" content="{data.title} — OpenMates" />
 	<meta property="og:description" content={data.summary || data.title} />
 	<meta property="og:site_name" content="OpenMates" />
+	{#if data.publishedAt}
+		<meta property="article:published_time" content={data.publishedAt} />
+	{/if}
 	{#if data.video.thumbnail_url}
 		<meta property="og:image" content={data.video.thumbnail_url} />
 	{/if}
@@ -116,6 +119,9 @@
 					</div>
 					{#if data.summary}
 						<p class="summary">{data.summary}</p>
+					{/if}
+					{#if data.publishedDate}
+						<p class="published-date">Published {data.publishedDate}</p>
 					{/if}
 				</div>
 
@@ -182,6 +188,9 @@
 				{#if data.summary}
 					<p class="summary">{data.summary}</p>
 				{/if}
+				{#if data.publishedDate}
+					<p class="published-date">Published {data.publishedDate}</p>
+				{/if}
 			</header>
 		{/if}
 
@@ -205,7 +214,8 @@
 		background: #fff;
 	}
 	h1 { font-size: 28px; font-weight: 700; margin: 0 0 12px; color: #000; }
-	.summary { font-size: 16px; color: #555; margin: 0 0 24px; line-height: 1.6; }
+	.summary { font-size: 16px; color: #555; margin: 0 0 12px; line-height: 1.6; }
+	.published-date { font-size: 14px; color: #777; margin: 0 0 24px; line-height: 1.5; }
 	.announcement-hero {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(420px, 640px);

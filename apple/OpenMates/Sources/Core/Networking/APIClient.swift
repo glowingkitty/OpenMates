@@ -54,6 +54,10 @@ actor APIClient {
         ServerConfiguration.current.webAppURL
     }
 
+    var uploadBaseURL: URL {
+        ServerConfiguration.current.uploadBaseURL
+    }
+
     // MARK: - Encodable body
 
     func request(

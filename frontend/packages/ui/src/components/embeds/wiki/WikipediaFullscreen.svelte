@@ -17,6 +17,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { locale } from 'svelte-i18n';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -36,6 +37,11 @@
     onClose: () => void;
   }
 
+  const SUPPORTED_WIKIPEDIA_LANGUAGES = new Set([
+    'en', 'de', 'zh', 'es', 'fr', 'pt', 'ru', 'ja', 'ko', 'it',
+    'tr', 'vi', 'id', 'pl', 'nl', 'ar', 'hi', 'th', 'cs', 'sv',
+  ]);
+
   let {
     wikiTitle,
     displayText,
@@ -50,7 +56,10 @@
   let articleTitle = $derived.by(() => fetchedTitle || displayText);
   let articleDescription = $derived.by(() => fetchedDescription || description || '');
   let articleImageUrl = $derived.by(() => fetchedImageUrl || thumbnailUrl || '');
-  let articleUrl = $derived(fetchedArticleUrl || `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`);
+  let wikipediaLanguage = $derived(normalizeWikipediaLanguage($locale));
+  let articleUrl = $derived(
+    fetchedArticleUrl || `https://${wikipediaLanguage}.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`,
+  );
   let articleExtract = $state('');
 
   // Fetched values (set by onMount, override prop defaults)
@@ -59,12 +68,17 @@
   let fetchedImageUrl = $state('');
   let fetchedArticleUrl = $state('');
 
+  function normalizeWikipediaLanguage(currentLocale: string | null | undefined): string {
+    const language = (currentLocale || 'en').trim().toLowerCase().replace('_', '-').split('-')[0];
+    return SUPPORTED_WIKIPEDIA_LANGUAGES.has(language) ? language : 'en';
+  }
+
   onMount(async () => {
     try {
       // Route through the OpenMates backend proxy — never hit Wikipedia directly
       // from the user's browser (protects user IP from the Wikimedia Foundation).
       const proxyUrl = getApiEndpoint(
-        `/v1/wikipedia/summary?title=${encodeURIComponent(wikiTitle)}&language=en`,
+        `/v1/wikipedia/summary?title=${encodeURIComponent(wikiTitle)}&language=${encodeURIComponent(wikipediaLanguage)}`,
       );
       const response = await fetch(proxyUrl, {
         credentials: 'include',

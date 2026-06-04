@@ -1293,6 +1293,46 @@
 
   /** Leaflet map instance (set by onMapReady) */
   let map: LeafletMap | null = null;
+
+  let routeFitCorrectionTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const ROUTE_MAP_PADDING_PX = 40;
+  const WIDE_ROUTE_MAP_MIN_WIDTH_PX = 601;
+  const ROUTE_DETAIL_CARD_LEFT_PX = 24;
+  const ROUTE_DETAIL_CARD_WIDTH_PX = 345;
+  const ROUTE_DETAIL_CARD_GAP_PX = 24;
+
+  function clearRouteFitCorrectionTimer() {
+    if (routeFitCorrectionTimer) {
+      clearTimeout(routeFitCorrectionTimer);
+      routeFitCorrectionTimer = null;
+    }
+  }
+
+  function fitRouteBounds(boundsLatLngs: import('leaflet').LatLng[]) {
+    if (!L || !map || boundsLatLngs.length < 2) return;
+
+    const container = map.getContainer();
+    const coveredLeftPx = container.clientWidth >= WIDE_ROUTE_MAP_MIN_WIDTH_PX
+      ? ROUTE_DETAIL_CARD_LEFT_PX + ROUTE_DETAIL_CARD_WIDTH_PX + ROUTE_DETAIL_CARD_GAP_PX
+      : 0;
+    const bounds = L.latLngBounds(boundsLatLngs);
+
+    map.invalidateSize(false);
+    map.fitBounds(bounds, {
+      animate: false,
+      paddingTopLeft: [coveredLeftPx + ROUTE_MAP_PADDING_PX, ROUTE_MAP_PADDING_PX],
+      paddingBottomRight: [ROUTE_MAP_PADDING_PX, ROUTE_MAP_PADDING_PX],
+    });
+  }
+
+  function scheduleOneTimeRouteFitCorrection(boundsLatLngs: import('leaflet').LatLng[]) {
+    clearRouteFitCorrectionTimer();
+    routeFitCorrectionTimer = setTimeout(() => {
+      routeFitCorrectionTimer = null;
+      fitRouteBounds(boundsLatLngs);
+    }, 250);
+  }
   
   /**
    * Collect all unique airport coordinates from the connection legs/segments.
@@ -1437,22 +1477,23 @@
       }).addTo(map);
       boundsLatLngs = trackLatLngs;
     } else {
+      boundsLatLngs = [];
       for (let i = 0; i < routeWaypoints.length - 1; i++) {
         const wp1 = routeWaypoints[i];
         const wp2 = routeWaypoints[i + 1];
         const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
         const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
+        boundsLatLngs.push(...arcLatLngs);
         L.polyline(arcLatLngs, {
           color: 'var(--color-primary, #6366f1)',
           weight: 2.5,
           opacity: 0.7,
         }).addTo(map);
       }
-      boundsLatLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
     }
 
-    const bounds = L.latLngBounds(boundsLatLngs);
-    map.fitBounds(bounds, { padding: [40, 40] });
+    fitRouteBounds(boundsLatLngs);
+    scheduleOneTimeRouteFitCorrection(boundsLatLngs);
   }
 
   // Redraw flight path when FR24 track data loads after map is already mounted
@@ -1464,6 +1505,7 @@
 
   // Cleanup on destroy
   onDestroy(() => {
+    clearRouteFitCorrectionTimer();
     map = null;
     L = null;
   });

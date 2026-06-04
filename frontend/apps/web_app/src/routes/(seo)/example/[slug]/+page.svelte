@@ -78,6 +78,28 @@
 					<div class="message assistant-message">
 						<strong>OpenMates:</strong>
 						<p>{message.content}</p>
+						{#if message.sources.length > 0}
+							<section class="seo-sources" aria-label="Sources used in this answer">
+								<h3>Sources used</h3>
+								<ul>
+									{#each message.sources as source}
+										<li>
+											{#if source.url}
+												<a href={source.url}>{source.title}</a>
+											{:else}
+												<span>{source.title}</span>
+											{/if}
+											{#if source.source}
+												<span> from {source.source}</span>
+											{/if}
+											{#if source.provider}
+												<span> via {source.provider}</span>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</section>
+						{/if}
 					</div>
 				{/if}
 			{/each}
@@ -177,6 +199,39 @@
 	.message p {
 		margin: 0;
 		white-space: pre-wrap;
+	}
+
+	.seo-sources {
+		margin-top: 14px;
+		padding-top: 12px;
+		border-top: 1px solid #e5e5e5;
+		font-size: 13px;
+		color: #555;
+	}
+
+	.seo-sources h3 {
+		font-size: 13px;
+		font-weight: 600;
+		margin: 0 0 8px;
+		color: #444;
+	}
+
+	.seo-sources ul {
+		margin: 0;
+		padding-left: 18px;
+	}
+
+	.seo-sources li {
+		margin: 0 0 6px;
+	}
+
+	.seo-sources a {
+		color: #4867cd;
+		text-decoration: none;
+	}
+
+	.seo-sources a:hover {
+		text-decoration: underline;
 	}
 
 	.follow-up h2 {

@@ -1,27 +1,23 @@
 /**
  * Unit tests for CLI local session storage.
  *
- * Tests session persistence, file permissions, incognito history,
- * backward compatibility with legacy sessions, and keychain migration.
+ * Tests session persistence, file permissions, backward compatibility with
+ * legacy sessions, and keychain migration.
  *
  * Run: node --test --experimental-strip-types tests/storage.test.ts
  */
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, statSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
+import { existsSync, statSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 import {
   type OpenMatesSession,
-  type IncognitoHistoryItem,
   saveSession,
   loadSession,
   clearSession,
-  loadIncognitoHistory,
-  saveIncognitoHistory,
-  clearIncognitoHistory,
 } from "../src/storage.ts";
 
 // Storage always writes to ~/.openmates — tests use the real directory.
@@ -43,13 +39,13 @@ const SAMPLE_SESSION: OpenMatesSession = {
 before(() => {
   // Clean any leftover session from previous test runs
   clearSession();
-  clearIncognitoHistory();
+  rmSync(join(STATE_DIR, "incognito.json"), { force: true });
 });
 
 after(() => {
   // Clean up test-created files
   clearSession();
-  clearIncognitoHistory();
+  rmSync(join(STATE_DIR, "incognito.json"), { force: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -73,6 +69,17 @@ describe("saveSession / loadSession", () => {
       SAMPLE_SESSION.authorizerDeviceName,
     );
     assert.deepEqual(loaded.cookies, SAMPLE_SESSION.cookies);
+  });
+
+  it("saves and loads the email encryption key when present", () => {
+    const session = {
+      ...SAMPLE_SESSION,
+      emailEncryptionKeyB64: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+    };
+    saveSession(session);
+    const loaded = loadSession();
+    assert.ok(loaded, "should return a session");
+    assert.strictEqual(loaded.emailEncryptionKeyB64, session.emailEncryptionKeyB64);
   });
 
   it("returns null when no session file exists", () => {
@@ -117,64 +124,6 @@ describe("clearSession", () => {
   it("does not throw when no session file exists", () => {
     clearSession(); // ensure it's already gone
     assert.doesNotThrow(() => clearSession());
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Incognito history
-// ---------------------------------------------------------------------------
-
-describe("loadIncognitoHistory / saveIncognitoHistory / clearIncognitoHistory", () => {
-  it("returns empty array when no history file exists", () => {
-    clearIncognitoHistory();
-    const history = loadIncognitoHistory();
-    assert.deepEqual(history, []);
-  });
-
-  it("saves and loads history items correctly", () => {
-    const items: IncognitoHistoryItem[] = [
-      { role: "user", content: "Hello", createdAt: 1710001000 },
-      { role: "assistant", content: "Hi there!", createdAt: 1710001001 },
-    ];
-    saveIncognitoHistory(items);
-    const loaded = loadIncognitoHistory();
-    assert.strictEqual(loaded.length, 2);
-    assert.strictEqual(loaded[0].content, "Hello");
-    assert.strictEqual(loaded[1].role, "assistant");
-  });
-
-  it("clearIncognitoHistory resets to empty array", () => {
-    const items: IncognitoHistoryItem[] = [
-      { role: "user", content: "test", createdAt: 1710001000 },
-    ];
-    saveIncognitoHistory(items);
-    clearIncognitoHistory();
-    const loaded = loadIncognitoHistory();
-    assert.deepEqual(loaded, []);
-  });
-
-  it("history file is created with 0o600 permissions", () => {
-    saveIncognitoHistory([{ role: "user", content: "x", createdAt: 1 }]);
-    const filePath = join(STATE_DIR, "incognito.json");
-    const stat = statSync(filePath);
-    const mode = stat.mode & 0o777;
-    assert.strictEqual(mode, 0o600);
-  });
-
-  it("appending items works correctly", () => {
-    clearIncognitoHistory();
-    const initial: IncognitoHistoryItem[] = [
-      { role: "user", content: "First", createdAt: 1710001000 },
-    ];
-    saveIncognitoHistory(initial);
-
-    const loaded = loadIncognitoHistory();
-    loaded.push({ role: "assistant", content: "Reply", createdAt: 1710001001 });
-    saveIncognitoHistory(loaded);
-
-    const final = loadIncognitoHistory();
-    assert.strictEqual(final.length, 2);
-    assert.strictEqual(final[1].content, "Reply");
   });
 });
 

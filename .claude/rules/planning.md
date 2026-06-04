@@ -24,7 +24,7 @@ Before planning, debugging, or writing code — ask questions first. Do not assu
 ## Pre-Planning Checks (Mandatory for Features & Integrations)
 
 Before planning any new feature or provider implementation:
-1. **Search Linear** — call `mcp__linear__list_issues` with relevant keywords across Todo/Backlog/In Progress states. Check for existing tasks, prior research, or related work that should be linked.
+1. **Search tracker entries** — use GitHub Issues by default. Use `python3 scripts/linear.py` only for programmatically stored/recorded issues, marketing work, sensitive/private work, or explicitly provided Linear issues. Check for existing tasks, prior research, or related work that should be linked.
 2. **Search docs** — check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research or decisions on the topic.
 3. Only proceed to clarifying questions and implementation after both checks are done.
 

@@ -12,7 +12,7 @@ You are enforcing the test-first workflow from `.claude/rules/testing.md`. No fi
 ### Step 1 — Understand the bug
 
 Parse the argument:
-- If it looks like a Linear issue (`OPE-\d+`), call `mcp__linear__get_issue` + `mcp__linear__extract_images` + `mcp__linear__list_comments` for full context. Then follow the Linear pickup protocol from `.claude/rules/linear-tasks.md` (move to In Progress, post pickup comment).
+- If it looks like a Linear issue (`OPE-\d+`), run `python3 scripts/linear.py get OPE-123 --comments` for full context. Then follow the Linear pickup protocol from `.claude/rules/task-management.md` (move to In Progress, post pickup comment).
 - Otherwise treat the argument as a free-text description and ask the user any clarifying questions needed to reach a concrete reproduction path (max 3 questions, one at a time, per `.claude/rules/planning.md`).
 
 State your understanding in 2-3 sentences and get confirmation before continuing.
@@ -49,7 +49,7 @@ The spec MUST fail. This is the proof the bug is real and the test catches it.
 - **If the spec fails for an unrelated reason** (flaky, infra) → debug the flake first, then rerun.
 - **If the spec fails for the expected reason** → continue to Step 4.
 
-Post a Linear milestone comment (if a Linear issue is linked): "Reproduced in `<spec-name>.spec.ts` — red as expected."
+Post a Linear milestone comment with `python3 scripts/linear.py comment ...` if a Linear issue is linked: "Reproduced in `<spec-name>.spec.ts` — red as expected."
 
 ### Step 4 — Fix the bug
 
@@ -69,7 +69,7 @@ The same spec MUST pass. This is the proof the fix works.
 ### Step 6 — Close the loop
 
 1. Summarize in 2-3 sentences what the bug was and how the fix closes it.
-2. If a Linear issue is linked, post the completion comment and update status per `.claude/rules/linear-tasks.md`.
+2. If a Linear issue is linked, post the completion comment and update status per `.claude/rules/task-management.md`.
 3. Deploy via `/deploy` or `sessions.py deploy`. The deploy gate will confirm the spec was run in this session.
 
 ## Rules

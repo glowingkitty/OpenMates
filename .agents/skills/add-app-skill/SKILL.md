@@ -118,11 +118,23 @@ Then rebuild:
 cd frontend/packages/ui && npm run build:translations
 ```
 
-### Step 5: Create Test Script (Optional)
+### Step 5: Add App-Store Examples
+
+Every new app skill must include app-store examples so the skill details page can show realistic preview cards.
+
+If the skill produces embeds:
+1. Run or script at least two real skill requests that cover the main provider/result shapes.
+2. Create `frontend/packages/ui/src/components/embeds/{appId}/{SkillName}EmbedPreview.examples.ts` next to the preview component.
+3. Export an array of flat preview props matching the preview component, with `query_translation_key` values under `settings.app_store_examples.{appId}.{skill_id_underscored}.<n>`.
+4. Add those query labels to `frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml`.
+
+If the skill does not produce embeds, add equivalent user-facing examples in `backend/apps/{appId}/app.yml` using the existing `example_entries` or `example_translation_keys` pattern for that app.
+
+### Step 6: Create Test Script (Optional)
 
 If `scripts/test_skills/` exists, create `test_{skill_id_underscored}.py` following the pattern of other test scripts in that directory.
 
-### Step 6: Check for Embed Need
+### Step 7: Check for Embed Need
 
 Ask the user: "Does this skill produce embeds that need a frontend component?"
 
@@ -136,3 +148,4 @@ If yes, suggest running `/add-embed-type {appId} {skillId} {SkillName}` next.
 - Type hints on all function parameters and return values
 - Pydantic models use `PascalCase` — end request models with `Request`, response with `Response`
 - Initial `stage` should be `development` until tested
+- App-store examples are required for every new skill; do not ship a skill with an empty examples section

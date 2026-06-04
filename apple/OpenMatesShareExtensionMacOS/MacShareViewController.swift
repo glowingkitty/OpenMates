@@ -43,6 +43,34 @@ final class MacShareViewController: NSViewController {
         }
     }
 
+    private nonisolated static func sharedURLText(from value: Any?) -> String? {
+        if let url = value as? URL {
+            return url.absoluteString
+        }
+        if let url = value as? NSURL {
+            return url.absoluteString
+        }
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+        }
+        if let text = value as? NSString {
+            let string = text as String
+            return string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
+        }
+        return nil
+    }
+
+    private nonisolated static func sharedPlainText(from value: Any?) -> String? {
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+        }
+        if let text = value as? NSString {
+            let string = text as String
+            return string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
+        }
+        return nil
+    }
+
     private var sharedParts: [SharedPart] = []
     private var recentChats: [BackgroundChatSender.DestinationChat] = []
     private var selectedChat: BackgroundChatSender.DestinationChat?
@@ -189,20 +217,18 @@ final class MacShareViewController: NSViewController {
                 if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
-                        if let url = value as? URL {
-                            collector.append(SharedPart(text: url.absoluteString, isURL: true))
-                        } else if let url = value as? NSURL {
-                            collector.append(SharedPart(text: url.absoluteString ?? "", isURL: true))
+                        defer { group.leave() }
+                        if let text = Self.sharedURLText(from: value) {
+                            collector.append(SharedPart(text: text, isURL: true))
                         }
-                        group.leave()
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
-                        if let text = value as? String {
+                        defer { group.leave() }
+                        if let text = Self.sharedPlainText(from: value) {
                             collector.append(SharedPart(text: text, isURL: false))
                         }
-                        group.leave()
                     }
                 }
             }

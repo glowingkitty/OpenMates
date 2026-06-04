@@ -2,7 +2,7 @@
 Revolut Business Service — SEPA Bank Transfer Provider
 
 Handles incoming SEPA bank transfers via the Revolut Business API.
-Unlike Stripe/Polar which process card payments, this provider monitors
+Unlike card-payment providers, this service monitors
 the company's Revolut Business account for incoming transfers and matches
 them to pending orders by structured reference.
 

@@ -6,6 +6,7 @@
 # using one or more providers simultaneously. Supported providers:
 #   - meetup:            Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
 #   - luma:              Luma.com internal REST API (78 featured cities, includes descriptions)
+#   - eventbrite:        Eventbrite web API search (includes descriptions via event pages)
 #   - google_events:     Google Events via SerpAPI (aggregates Eventbrite, Ticketmaster, etc.)
 #   - resident_advisor:  RA (ra.co) scraping — electronic music, clubs, DJ events
 #   - siegessaeule:      Siegessäule scraping — Berlin LGBTQ+ events (Berlin-only)
@@ -14,6 +15,7 @@
 #   "auto"              (default) — searches all applicable providers in parallel, merges results
 #   "meetup"            — Meetup only
 #   "luma"              — Luma only (requires city to be in Luma's 78 featured cities)
+#   "eventbrite"        — Eventbrite only (caps at 10 results with descriptions)
 #   "google_events"     — Google Events only (requires SerpAPI key)
 #   "resident_advisor"  — Resident Advisor only (electronic music cities)
 #   "siegessaeule"      — Siegessäule only (Berlin LGBTQ+ events)
@@ -45,9 +47,11 @@ from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
+from backend.apps.events.providers import eventbrite as eventbrite_provider
 from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
+from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.providers import resident_advisor as ra_provider
 from backend.apps.events.providers import siegessaeule as siegessaeule_provider
 from backend.apps.events.providers.registry import filter_providers
@@ -56,7 +60,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic"}
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic", "pretalx"}
 
 # Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
 _PROVIDER_ALIASES: Dict[str, str] = {
@@ -65,6 +69,9 @@ _PROVIDER_ALIASES: Dict[str, str] = {
     "google": "google_events",
     "googleevents": "google_events",
     "serpapi": "google_events",
+    "event brite": "eventbrite",
+    "eventbrite.com": "eventbrite",
+    "eb": "eventbrite",
     "resident advisor": "resident_advisor",
     "residentadvisor": "resident_advisor",
     "ra": "resident_advisor",
@@ -74,21 +81,31 @@ _PROVIDER_ALIASES: Dict[str, str] = {
     "berlin philharmonic": "berlin_philharmonic",
     "berliner philharmoniker": "berlin_philharmonic",
     "bphil": "berlin_philharmonic",
+    "pretalx": "pretalx",
+    "gpn": "pretalx",
+    "gpn24": "pretalx",
+    "39c3": "pretalx",
+    "38c3": "pretalx",
+    "37c3": "pretalx",
+    "chaos congress": "pretalx",
+    "chaos communication congress": "pretalx",
 }
 
 _PROVIDER_LABELS: Dict[str, str] = {
     "meetup": "Meetup",
     "luma": "Luma",
+    "eventbrite": "Eventbrite",
     "google_events": "Google Events",
     "resident_advisor": "Resident Advisor",
     "siegessaeule": "Siegessäule",
     "berlin_philharmonic": "Berlin Philharmonic",
+    "pretalx": "GPN24/39C3/38C3/37C3",
 }
 
 # Platform-brand and generic filler words that narrow provider results unnecessarily.
-# Both Meetup and Luma use literal keyword matching — passing "meetup" to Meetup or
-# "luma" to Luma filters out any event that doesn't contain that word in its title,
-# dramatically reducing results. "event/events" is equally useless on an events platform.
+# Providers use literal keyword matching — passing platform names like "meetup",
+# "luma", or "eventbrite" narrows results unnecessarily. "event/events" is
+# equally useless on an events platform.
 _QUERY_STOPWORDS: frozenset = frozenset({
     "meetup", "meetups",
     "luma",
@@ -142,7 +159,7 @@ class SearchRequestItem(BaseModel):
 
     query: str = Field(
         description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
-        "'startup', 'networking'). Do NOT include platform names like 'meetup' or 'luma'."
+        "'startup', 'networking'). Do NOT include platform names like 'meetup', 'luma', or 'eventbrite'."
     )
     location: Optional[str] = Field(
         default=None,
@@ -190,6 +207,20 @@ class SearchRequestItem(BaseModel):
             "Ignored by all other providers."
         ),
     )
+    conference: Optional[str] = Field(
+        default=None,
+        description=(
+            "Known conference schedule to search with the Conference Schedule provider. "
+            "Supported values include GPN24, 39C3, 38C3, and 37C3."
+        ),
+    )
+    past_events: bool = Field(
+        default=False,
+        description=(
+            "When false, conference schedule searches return only current and upcoming sessions. "
+            "Set true to include sessions that have already ended."
+        ),
+    )
 
 
 class SearchRequest(BaseModel):
@@ -204,9 +235,18 @@ class SearchRequest(BaseModel):
         ...,
         description=(
             "Array of event search request objects. Each object must contain 'query' "
-            "and 'location' (or 'lat'/'lon'). Optional: start_date, end_date, event_type, "
-            "radius_miles, count."
+            "and 'location' (or 'lat'/'lon') for city searches, or 'conference' for "
+            "Conference Schedule searches. Optional: start_date, end_date, event_type, "
+            "radius_miles, count, past_events."
         ),
+    )
+    provider: Optional[str] = Field(
+        default=None,
+        description="Top-level provider applied to every request unless overridden per request.",
+    )
+    providers: Optional[List[str]] = Field(
+        default=None,
+        description="Top-level provider list applied to every request unless overridden per request.",
     )
 
 
@@ -231,7 +271,7 @@ class SearchResponse(BaseModel):
         default_factory=list,
         description=(
             "List of provider names that actually contributed results "
-            "(e.g. ['meetup', 'luma', 'google_events']). Empty if no results."
+            "(e.g. ['meetup', 'luma', 'eventbrite', 'google_events']). Empty if no results."
         ),
     )
     suggestions_follow_up_requests: Optional[List[str]] = Field(
@@ -265,9 +305,9 @@ class SearchSkill(BaseSkill):
     Supports multiple parallel search requests via the 'requests' array pattern.
     Each request can specify its own provider, location, date range, and filters.
 
-    In "auto" mode (default), Meetup, Luma, and Google Events are queried
-    simultaneously. Results are merged, deduplicated by URL, sorted by start
-    date, and limited to the requested count.
+    In "auto" mode (default), all applicable providers are queried simultaneously.
+    Results are merged, deduplicated by URL, sorted by start date, and limited to
+    the requested count.
 
     Execution model: direct async in app-events FastAPI container.
     No Celery dispatch — search completes in 1-5s, well within sync timeout.
@@ -502,6 +542,37 @@ class SearchSkill(BaseSkill):
             logger.warning("Google Events search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
+    async def _search_eventbrite(
+        self,
+        query: str,
+        location_str: str,
+        count: int,
+        proxy_url: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search Eventbrite and return (events, total_available, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+
+        Eventbrite caps provider fetches to 10 results because each result is
+        enriched with a direct event-page fetch for full descriptions.
+        """
+        try:
+            events, total = await eventbrite_provider.search_events_async(
+                location=location_str,
+                query=query,
+                count=count,
+                proxy_url=proxy_url,
+            )
+            return events, total, None
+        except Exception as exc:
+            logger.warning(
+                "Eventbrite search failed for query=%r city=%r: %s",
+                query,
+                location_str,
+                exc,
+            )
+            return [], 0, str(exc)
+
     async def _search_resident_advisor(
         self,
         query: str,
@@ -593,6 +664,38 @@ class SearchSkill(BaseSkill):
             return events, total, None
         except Exception as exc:
             logger.warning("Berlin Philharmonic search failed for query=%r: %s", query, exc)
+            return [], 0, str(exc)
+
+    async def _search_pretalx(
+        self,
+        query: str,
+        location_str: str,
+        conference: Optional[str],
+        start_date: Optional[str],
+        end_date: Optional[str],
+        count: int,
+        past_events: bool,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search known pretalx/C3VOC conference schedules and return (events, total, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+        """
+        try:
+            events, total = await pretalx_provider.search_events_async(
+                query=query,
+                conference=conference,
+                location=location_str,
+                start_date=start_date,
+                end_date=end_date,
+                count=count,
+                past_events=past_events,
+            )
+            return events, total, None
+        except ValueError:
+            # No known conference was requested. In auto mode this is not an error.
+            return [], 0, None
+        except Exception as exc:
+            logger.warning("Conference schedule search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
     @staticmethod
@@ -689,11 +792,11 @@ class SearchSkill(BaseSkill):
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
             if provider_choice not in _VALID_PROVIDERS:
                 logger.warning(
-                    "Unknown provider %r for request %s — falling back to 'auto'",
+                    "Unknown provider %r for request %s — refusing provider fallback",
                     provider_choice,
                     request_id,
                 )
-                provider_choice = "auto"
+                return (request_id, [], f"Unknown events provider: {provider_choice}", 0)
             # Single specific provider → use directly (no registry filtering)
             requested_providers = None if provider_choice == "auto" else None
 
@@ -713,21 +816,33 @@ class SearchSkill(BaseSkill):
                 return (request_id, [], f"Invalid lat/lon values: {exc}", 0)
         else:
             if not location_str:
-                return (
-                    request_id,
-                    [],
-                    "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
-                    0,
-                )
-            try:
-                lat, lon, city, country = meetup_provider.resolve_location(location_str)
-            except ValueError as exc:
-                # Location cannot be resolved for Meetup geocoder.
-                # If provider is "luma" only, we don't need Meetup coordinates.
-                if provider_choice == "luma":
+                if provider_choice == "pretalx" or pretalx_provider.is_conference_query(query):
                     lat, lon = 0.0, 0.0
+                    city, country = "", ""
                 else:
-                    return (request_id, [], f"Location resolution failed: {exc}", 0)
+                    return (
+                        request_id,
+                        [],
+                        "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
+                        0,
+                    )
+            if lat is None or lon is None:
+                if not location_str:
+                    return (
+                        request_id,
+                        [],
+                        "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
+                        0,
+                    )
+                try:
+                    lat, lon, city, country = meetup_provider.resolve_location(location_str)
+                except ValueError as exc:
+                    # Location cannot be resolved for Meetup geocoder.
+                    # If provider is location-text based only, we don't need Meetup coordinates.
+                    if provider_choice in {"luma", "eventbrite", "pretalx"}:
+                        lat, lon = 0.0, 0.0
+                    else:
+                        return (request_id, [], f"Location resolution failed: {exc}", 0)
 
         # Use provided location string as city for Luma if city wasn't set by geocoder.
         luma_city = city or location_str
@@ -739,6 +854,11 @@ class SearchSkill(BaseSkill):
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
+        conference: Optional[str] = req.get("conference") or None
+        if not conference:
+            provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
+            conference = pretalx_provider.resolve_conference(str(provider_hint))
+        past_events: bool = bool(req.get("past_events", False))
 
         if event_type and event_type not in ("PHYSICAL", "ONLINE"):
             logger.warning(
@@ -807,6 +927,19 @@ class SearchSkill(BaseSkill):
             all_events = ge_events
             total_available = total
 
+        elif provider_choice == "eventbrite":
+            # Eventbrite only (web app API, full descriptions via event pages)
+            eb_events, total, eb_err = await self._search_eventbrite(
+                query=query,
+                location_str=luma_city,
+                count=count,
+                proxy_url=proxy_url,
+            )
+            if eb_err and not eb_events:
+                return (request_id, [], f"Eventbrite search failed: {eb_err}", 0)
+            all_events = eb_events
+            total_available = total
+
         elif provider_choice == "resident_advisor":
             # Resident Advisor only (electronic music / clubs)
             ra_events, total, ra_err = await self._search_resident_advisor(
@@ -848,6 +981,22 @@ class SearchSkill(BaseSkill):
             all_events = bp_events
             total_available = total
 
+        elif provider_choice == "pretalx":
+            # Conference Schedule only (known pretalx/C3VOC schedules)
+            pretalx_events, total, pretalx_err = await self._search_pretalx(
+                query=query,
+                location_str=luma_city,
+                conference=conference,
+                start_date=start_date,
+                end_date=end_date,
+                count=count,
+                past_events=past_events,
+            )
+            if pretalx_err and not pretalx_events:
+                return (request_id, [], f"Conference schedule search failed: {pretalx_err}", 0)
+            all_events = pretalx_events
+            total_available = total
+
         else:
             # "auto" or per-request providers list: query applicable providers
             # in parallel with extra headroom for deduplication.
@@ -876,6 +1025,10 @@ class SearchSkill(BaseSkill):
                     query=query, location_str=luma_city,
                     count=per_provider_count, proxy_url=proxy_url,
                 ),
+                "eventbrite": lambda: self._search_eventbrite(
+                    query=query, location_str=luma_city,
+                    count=per_provider_count, proxy_url=proxy_url,
+                ),
                 "google_events": lambda: self._search_google_events(
                     query=query, location_str=luma_city,
                     start_date=start_date, end_date=end_date, event_type=event_type,
@@ -893,7 +1046,18 @@ class SearchSkill(BaseSkill):
                     query=query, location_str=luma_city,
                     concert_tags=concert_tags, count=per_provider_count,
                 ),
+                "pretalx": lambda: self._search_pretalx(
+                    query=query, location_str=luma_city, conference=conference,
+                    start_date=start_date, end_date=end_date, count=per_provider_count,
+                    past_events=past_events,
+                ),
             }
+
+            if (
+                "pretalx" not in applicable_ids
+                and pretalx_provider.is_conference_query(query, luma_city)
+            ):
+                applicable_ids.append("pretalx")
 
             # Execute only applicable providers in parallel
             task_entries = [
@@ -996,6 +1160,15 @@ class SearchSkill(BaseSkill):
             r.model_dump() if hasattr(r, "model_dump") else r
             for r in request.requests
         ]
+        top_level_providers = request.providers
+        top_level_provider = request.provider
+        if top_level_providers or top_level_provider:
+            for req in requests_list:
+                if not req.get("providers") and not req.get("provider"):
+                    if top_level_providers:
+                        req["providers"] = top_level_providers
+                    elif top_level_provider:
+                        req["provider"] = top_level_provider
         validated_requests, error = self._validate_requests_array(
             requests=requests_list,
             required_field="query",
@@ -1011,8 +1184,8 @@ class SearchSkill(BaseSkill):
 
         # Load Webshare rotating residential proxy credentials from Vault.
         # Used for Meetup requests to avoid server-side IP rate limiting.
-        # Also passed to Luma as a fallback proxy — Luma uses it only if the
-        # direct request is rejected (HTTP 403/429/5xx). See luma.py for details.
+        # Also passed to direct-first providers as a fallback proxy; they use it
+        # only if direct requests are rejected (HTTP 403/429/5xx). See provider files.
         proxy_url: Optional[str] = None
         if secrets_manager:
             try:

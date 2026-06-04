@@ -26,7 +26,6 @@ disabled_apps:
   # Empty / no skills declared
   - "3d"
   - "politics"
-  - "weather"
   # Planning-stage skills only — no implementation, no container needed yet
   - "fitness"
   - "life_coaching"

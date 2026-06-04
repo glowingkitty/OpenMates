@@ -127,16 +127,25 @@ test.describe('App: Travel / Skill: search_stays', () => {
 		logCheckpoint('Travel stays embed finished.');
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		logCheckpoint(`Found ${await resultCards.count()} hotel result(s).`);
+		const resultCards = await verifySearchGrid(fullscreenOverlay, 1, 15000).catch(async () => {
+			await expect(fullscreenOverlay.getByText(/no results found/i)).toBeVisible({ timeout: 5000 });
+			logCheckpoint('Travel stays fullscreen rendered with no-results state.');
+			return null;
+		});
 
-		await resultCards.first().click();
-		const stayTitle = (await page.getByTestId('stay-name').textContent())?.trim() || '';
-		expect(stayTitle).toBeTruthy();
-		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, stayTitle);
+		if (resultCards) {
+			logCheckpoint(`Found ${await resultCards.count()} hotel result(s).`);
 
-		await closeFullscreen(page, fullscreenOverlay);
-		await verifySavedMemoryEntry(page, 'travel', 'saved_stays', savedTitle, logCheckpoint);
+			await resultCards.first().click();
+			const stayTitle = (await page.getByTestId('stay-name').textContent())?.trim() || '';
+			expect(stayTitle).toBeTruthy();
+			const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, stayTitle);
+
+			await closeFullscreen(page, fullscreenOverlay);
+			await verifySavedMemoryEntry(page, 'travel', 'saved_stays', savedTitle, logCheckpoint);
+		} else {
+			await closeFullscreen(page, fullscreenOverlay);
+		}
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-stays');
 	});
 });

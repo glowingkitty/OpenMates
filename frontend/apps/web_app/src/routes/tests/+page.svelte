@@ -8,8 +8,14 @@
 	import {
 		fetchTestRecordings,
 		formatDuration,
+		type TestRecordingSummary,
 		type TestRecordingsIndex
 	} from './testRecordings';
+
+type RecordingGroup = {
+	spec: string;
+	recordings: TestRecordingSummary[];
+};
 
 	let data: TestRecordingsIndex | null = $state(null);
 	let errorMessage = $state('');
@@ -24,6 +30,34 @@
 			isLoading = false;
 		}
 	});
+
+	function specName(test: TestRecordingSummary): string {
+		return test.spec || `${test.slug}.spec.ts`;
+	}
+
+	function baseSpecTitle(spec: string): string {
+		return spec.replace(/\.spec\.ts$/, '').replace(/\.test\.ts$/, '');
+	}
+
+	function childTestTitle(test: TestRecordingSummary): string | null {
+		const baseTitle = baseSpecTitle(specName(test));
+		if (!test.title || test.title === baseTitle || test.title === specName(test)) return null;
+		return test.title;
+	}
+
+	function groupedRecordings(tests: TestRecordingSummary[]): RecordingGroup[] {
+		const groups = new Map<string, TestRecordingSummary[]>();
+		for (const test of tests) {
+			const spec = specName(test);
+			groups.set(spec, [...(groups.get(spec) ?? []), test]);
+		}
+		return [...groups.entries()]
+			.map(([spec, recordings]) => ({
+				spec,
+				recordings: recordings.toSorted((a, b) => (childTestTitle(a) ?? a.title).localeCompare(childTestTitle(b) ?? b.title))
+			}))
+			.toSorted((a, b) => a.spec.localeCompare(b.spec));
+	}
 </script>
 
 <svelte:head>
@@ -56,25 +90,40 @@
 	{:else if !data?.tests?.length}
 		<div class="state-card">No test recordings have been published yet.</div>
 	{:else}
-		<section class="grid" aria-label="Test recordings">
-			{#each data.tests as test (test.slug)}
-				<a class="test-card" class:failed={test.status !== 'passed'} href={`/tests/${test.slug}`}>
-					<div class="thumb-wrap">
-						{#if test.assets?.thumbnail_url}
-							<img src={test.assets.thumbnail_url} alt={`Thumbnail for ${test.title}`} loading="lazy" />
-						{:else}
-							<div class="thumb-placeholder">No thumbnail</div>
-						{/if}
-						<span class="status">{test.status}</span>
+		<section class="spec-groups" aria-label="Test recordings by spec file">
+			{#each groupedRecordings(data.tests) as group (group.spec)}
+				<section class="spec-group" aria-labelledby={`spec-${group.spec}`}>
+					<header class="spec-heading">
+						<h2 id={`spec-${group.spec}`}>{group.spec}</h2>
+						<span>{group.recordings.length} recording{group.recordings.length === 1 ? '' : 's'}</span>
+					</header>
+					<div class="grid">
+						{#each group.recordings as test (test.slug)}
+							<a class="test-card" class:failed={test.status !== 'passed'} href={`/tests/${test.slug}`}>
+								<div class="thumb-wrap">
+									{#if test.assets?.thumbnail_url}
+										<img src={test.assets.thumbnail_url} alt={`Thumbnail for ${specName(test)}`} loading="lazy" />
+									{:else}
+										<div class="thumb-placeholder">No thumbnail</div>
+									{/if}
+									<span class="status">{test.status}</span>
+								</div>
+								<div class="card-body">
+									<p class="spec-label">{specName(test)}</p>
+									{#if childTestTitle(test)}
+										<h3>{childTestTitle(test)}</h3>
+									{:else}
+										<h3>{baseSpecTitle(specName(test))}</h3>
+									{/if}
+									<p>{formatDuration(test.duration_seconds)}</p>
+									{#if test.error}
+										<small>{test.error}</small>
+									{/if}
+								</div>
+							</a>
+						{/each}
 					</div>
-					<div class="card-body">
-						<h2>{test.title}</h2>
-						<p>{formatDuration(test.duration_seconds)}</p>
-						{#if test.error}
-							<small>{test.error}</small>
-						{/if}
-					</div>
-				</a>
+				</section>
 			{/each}
 		</section>
 	{/if}
@@ -150,12 +199,48 @@
 		word-break: break-word;
 	}
 
+	.spec-groups {
+		display: grid;
+		gap: 34px;
+		max-width: 1300px;
+		margin: 0 auto;
+	}
+
+	.spec-group {
+		display: grid;
+		gap: 14px;
+	}
+
+	.spec-heading {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 16px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid var(--color-grey-20);
+	}
+
+	.spec-heading h2 {
+		margin: 0;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		font-size: clamp(18px, 2.5vw, 25px);
+		line-height: 1.2;
+		word-break: break-word;
+	}
+
+	.spec-heading span,
+	.spec-label {
+		color: var(--color-font-secondary);
+	}
+
+	.spec-heading span {
+		white-space: nowrap;
+	}
+
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 		gap: 22px;
-		max-width: 1300px;
-		margin: 0 auto;
 	}
 
 	.test-card {
@@ -219,7 +304,15 @@
 		padding: 18px;
 	}
 
-	.card-body h2 {
+	.spec-label {
+		margin: 0;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		font-size: 12px;
+		line-height: 1.35;
+		word-break: break-word;
+	}
+
+	.card-body h3 {
 		margin: 0;
 		font-size: 19px;
 		line-height: 1.18;

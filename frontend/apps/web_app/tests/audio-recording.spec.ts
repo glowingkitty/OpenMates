@@ -146,7 +146,38 @@ test('single tap on mic button does not start recording', async ({ page }) => {
 	const pressHoldLabel = page.getByTestId('press-hold-label');
 	await expect(pressHoldLabel).toBeVisible({ timeout: 2000 });
 
+	// Clicking the mic must not blur/collapse the desktop follow-up composer.
+	const messageField = page.getByTestId('message-field');
+	await expect(messageField).toHaveClass(/focused/);
+	await expect(messageField).not.toHaveClass(/compact/);
+
 	console.log('[TEST] Single tap: no overlay, press-hold label visible');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 1b: Hold Space from chat surface starts recording without focusing input
+// ─────────────────────────────────────────────────────────────────────────────
+test('spacebar hold starts audio recording from chat surface', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await setupAndFocusMessageField(page);
+
+	// Simulate the user being in the chat surface rather than inside the editor.
+	await page.getByTestId('message-field').evaluate((element: HTMLElement) => element.blur());
+	await page.getByTestId('message-editor').evaluate(() => {
+		const activeElement = document.activeElement as HTMLElement | null;
+		activeElement?.blur();
+	});
+
+	await page.keyboard.down('Space');
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+
+	await page.keyboard.up('Space');
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+
+	console.log('[TEST] Spacebar hold: recording shortcut works from chat surface');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

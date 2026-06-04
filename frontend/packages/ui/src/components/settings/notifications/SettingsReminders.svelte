@@ -38,10 +38,6 @@
 	} from '../../../utils/categoryUtils';
 	import { settingsMenuVisible } from '../../Settings.svelte';
 	import { panelState } from '../../../stores/panelStateStore';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
-
 	// ─── Chat context ──────────────────────────────────────────────────────────
 
 	/** Chat ID from reminderContext store (set by bell button), fallback to activeChatStore */
@@ -98,6 +94,7 @@
 
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
+	let successMessage = $state('');
 
 	// ─── Derived ───────────────────────────────────────────────────────────────
 
@@ -193,6 +190,7 @@
 
 	async function handleSubmit() {
 		errorMessage = '';
+		successMessage = '';
 
 		let resolvedDate = date;
 		let resolvedTime = time;
@@ -280,12 +278,7 @@
 				return;
 			}
 
-			// Navigate to the reminder app store page so the user sees
-			// their new reminder in the ActiveRemindersList.
-			dispatch('openSettings', {
-				settingsPath: 'app_store/reminder',
-				direction: 'forward'
-			});
+			successMessage = $text('reminder.settings.success');
 		} catch (err) {
 			errorMessage = $text('reminder.panel.error_generic');
 			console.error('[SettingsReminders] fetch error:', err);
@@ -445,6 +438,10 @@
 			min={todayStr}
 			ariaLabel={$text('reminder.panel.end_date')}
 		/>
+	{/if}
+
+	{#if successMessage}
+		<SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
 	{/if}
 
 	{#if errorMessage}

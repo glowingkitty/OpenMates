@@ -607,6 +607,12 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       }
     case "sheets-sheet":
       {
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(createEmbedReference("sheet", embed_id), null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+
       let tableResult = "";
       if (attrs.title) {
         tableResult += `<!-- title: "${attrs.title}" -->\n\n`;
@@ -616,6 +622,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += "|----------|----------|\n";
       tableResult += "| Data     | Data     |";
       return tableResult;
+
+      }
+    case "mail-email":
+      {
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(createEmbedReference("mail-email", embed_id), null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+
+      return "";
 
       }
     case "image":

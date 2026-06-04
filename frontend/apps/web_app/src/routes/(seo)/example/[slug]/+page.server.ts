@@ -18,10 +18,111 @@ import { getSiteOrigin } from '$lib/backendUrl';
 
 const OG_IMAGE_URL = 'https://openmates.org/images/og-image.jpg';
 
-function getLastModifiedDate(chat: NonNullable<ReturnType<typeof getExampleChatBySlug>>): string {
+type ExampleChat = NonNullable<ReturnType<typeof getExampleChatBySlug>>;
+
+type SeoSource = {
+	label: string;
+	title: string;
+	source: string;
+	url: string;
+	provider: string;
+	kind: string;
+};
+
+type SeoMessage = {
+	role: string;
+	content: string;
+	sources: SeoSource[];
+};
+
+function getLastModifiedDate(chat: ExampleChat): string {
 	const latestMessageTimestamp = Math.max(...chat.messages.map((message) => message.created_at), 0);
 	if (latestMessageTimestamp <= 0) return new Date().toISOString().split('T')[0];
 	return new Date(latestMessageTimestamp * 1000).toISOString().split('T')[0];
+}
+
+function stripWrappingQuotes(value: string): string {
+	const trimmed = value.trim();
+	if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+		return trimmed.slice(1, -1);
+	}
+	return trimmed;
+}
+
+function parseToon(content: string): Record<string, string> {
+	const fields: Record<string, string> = {};
+	for (const line of content.split('\n')) {
+		const match = line.match(/^([a-zA-Z0-9_]+):\s*(.*)$/);
+		if (!match) continue;
+		fields[match[1]] = stripWrappingQuotes(match[2]);
+	}
+	return fields;
+}
+
+function getHostname(url: string): string {
+	try {
+		return new URL(url).hostname.replace(/^www\./, '');
+	} catch {
+		return '';
+	}
+}
+
+function stripMarkdownForSchema(content: string): string {
+	return content
+		.replace(/```[\s\S]*?```/g, ' ')
+		.replace(/\[!\]\(embed:[^)]+\)/g, ' ')
+		.replace(/\[([^\]]+)\]\((?:wiki:)?[^)]+\)/g, '$1')
+		.replace(/[*_`#>]/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+function buildEmbedRefMap(chat: ExampleChat): Map<string, SeoSource> {
+	const byRef = new Map<string, SeoSource>();
+
+	for (const embed of chat.embeds) {
+		const fields = parseToon(embed.content);
+		const embedRef = fields.embed_ref;
+		if (!embedRef) continue;
+
+		const title = fields.title || fields.query || fields.url || fields.source_page_url || embedRef;
+		const url = fields.source_page_url || fields.url || fields.image_url || '';
+		const source = fields.source || fields.provider || getHostname(url) || 'OpenMates app result';
+		const provider = fields.provider || fields.providers || fields.app_id || '';
+
+		byRef.set(embedRef, {
+			label: embedRef,
+			title,
+			source,
+			url,
+			provider,
+			kind: fields.type || embed.type
+		});
+	}
+
+	return byRef;
+}
+
+function summarizeEmbedRefs(content: string, embedRefMap: Map<string, SeoSource>): SeoSource[] {
+	const sources: SeoSource[] = [];
+	const seen = new Set<string>();
+	for (const match of content.matchAll(/\[!\]\(embed:([^)]+)\)/g)) {
+		const ref = match[1];
+		if (seen.has(ref)) continue;
+		seen.add(ref);
+		const source = embedRefMap.get(ref);
+		if (source) sources.push(source);
+	}
+	return sources;
+}
+
+function removeEmbedRefs(content: string): string {
+	return content
+		.split('\n')
+		.filter((line) => !line.trim().match(/^\[!\]\(embed:[^)]+\)$/))
+		.join('\n')
+		.replace(/\n{3,}/g, '\n\n')
+		.trim();
 }
 
 function toReadableMessageContent(role: string, content: string): string {
@@ -52,7 +153,108 @@ function toReadableMessageContent(role: string, content: string): string {
 		}
 	}
 
-	return displayContent;
+	return removeEmbedRefs(displayContent);
+}
+
+function buildVisibleMessages(chat: ExampleChat): SeoMessage[] {
+	const embedRefMap = buildEmbedRefMap(chat);
+	return chat.messages.map((msg) => {
+		const translatedContent = t(msg.content);
+		return {
+			role: msg.role,
+			content: toReadableMessageContent(msg.role, msg.content),
+			sources: summarizeEmbedRefs(translatedContent, embedRefMap)
+		};
+	});
+}
+
+function buildQuestionAnswerPairs(messages: SeoMessage[]) {
+	const pairs: { question: string; answer: string }[] = [];
+	for (let i = 0; i < messages.length; i++) {
+		const current = messages[i];
+		const next = messages[i + 1];
+		if (current?.role === 'user' && next?.role === 'assistant') {
+			pairs.push({
+				question: stripMarkdownForSchema(current.content),
+				answer: stripMarkdownForSchema(next.content)
+			});
+		}
+	}
+	return pairs.filter((pair) => pair.question && pair.answer);
+}
+
+function buildStructuredData({
+	title,
+	summary,
+	canonicalUrl,
+	siteOrigin,
+	lastModified,
+	keywords,
+	messages
+}: {
+	title: string;
+	summary: string;
+	canonicalUrl: string;
+	siteOrigin: string;
+	lastModified: string;
+	keywords: string[];
+	messages: SeoMessage[];
+}) {
+	const questionAnswerPairs = buildQuestionAnswerPairs(messages);
+	const mainEntity = questionAnswerPairs.map((pair) => ({
+		'@type': 'Question',
+		name: pair.question,
+		acceptedAnswer: {
+			'@type': 'Answer',
+			text: pair.answer
+		}
+	}));
+
+	return {
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': 'QAPage',
+				'@id': `${canonicalUrl}#qa`,
+				url: canonicalUrl,
+				name: `${title} — OpenMates`,
+				description: summary,
+				image: OG_IMAGE_URL,
+				dateModified: lastModified,
+				keywords: keywords.join(', '),
+				publisher: {
+					'@type': 'Organization',
+					name: 'OpenMates',
+					url: siteOrigin
+				},
+				mainEntity
+			},
+			{
+				'@type': 'BreadcrumbList',
+				'@id': `${canonicalUrl}#breadcrumb`,
+				itemListElement: [
+					{
+						'@type': 'ListItem',
+						position: 1,
+						name: 'OpenMates',
+						item: `${siteOrigin}/`
+					},
+					{
+						'@type': 'ListItem',
+						position: 2,
+						name: 'Example Chats',
+						item: `${siteOrigin}/example`
+					},
+					{
+						'@type': 'ListItem',
+						position: 3,
+						name: title,
+						item: canonicalUrl
+					}
+				]
+			}
+		]
+	};
 }
 
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
@@ -82,36 +284,15 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const summary = t(chat.summary);
 	const lastModified = getLastModifiedDate(chat);
 
-	// Build JSON-LD structured data for rich search results
-	const jsonLd = {
-		'@context': 'https://schema.org',
-		'@type': 'Article',
-		headline: title,
-		description: summary,
-		image: OG_IMAGE_URL,
-		dateModified: lastModified,
-		keywords: chat.keywords.join(', '),
-		author: {
-			'@type': 'Organization',
-			name: 'OpenMates',
-			url: siteOrigin
-		},
-		publisher: {
-			'@type': 'Organization',
-			name: 'OpenMates',
-			url: siteOrigin
-		},
-		mainEntityOfPage: {
-			'@type': 'WebPage',
-			'@id': canonicalUrl
-		}
-	};
-
-	const visibleMessages = chat.messages.map(msg => {
-		return {
-			role: msg.role,
-			content: toReadableMessageContent(msg.role, msg.content)
-		};
+	const visibleMessages = buildVisibleMessages(chat);
+	const jsonLd = buildStructuredData({
+		title,
+		summary,
+		canonicalUrl,
+		siteOrigin,
+		lastModified,
+		keywords: chat.keywords,
+		messages: visibleMessages
 	});
 
 	return {

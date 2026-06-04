@@ -185,11 +185,11 @@
   <div class="basic-infos-bar mobile">
     <!-- App icon container OR favicon (full width, 44px height, gradient background) -->
     {#if safeFaviconUrl}
-      <div class="app-icon-container {appId}" style={appGradientStyle}>
+      <div class="app-icon-container {appId}" data-app-icon={appId} style={appGradientStyle}>
         <img src={safeFaviconUrl} alt="" class="favicon-image-mobile" crossorigin="anonymous" />
       </div>
     {:else}
-      <div class="app-icon-container {appId}" style={appGradientStyle}>
+      <div class="app-icon-container {appId}" data-app-icon={appId} style={appGradientStyle}>
         <div class="icon_rounded {appId}"></div>
       </div>
     {/if}
@@ -232,7 +232,7 @@
   <!-- Desktop Layout: Horizontal bar (61px height, 30px rounded edges, grey-20 background) -->
   <div class="basic-infos-bar desktop" class:noSkillIcon={!showSkillIcon}>
     <!-- App icon in gradient circle (always show app icon, not favicon) -->
-    <div class="app-icon-circle {appId}" data-testid="app-icon-circle" style={appGradientStyle}>
+    <div class="app-icon-circle {appId}" data-testid="app-icon-circle" data-app-icon={appId} style={appGradientStyle}>
       <div class="icon_rounded {appId}"></div>
     </div>
     
@@ -362,6 +362,14 @@
 
   :global(.icon_rounded.nutrition::after) {
     background-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
+
+  :global(.icon_rounded.weather) {
+    background: var(--color-app-weather);
+  }
+
+  :global(.icon_rounded.weather::after) {
+    background-image: url('@openmates/ui/static/icons/weather.svg');
   }
   
   /* Skill icon: 29x29px with color-grey-70, dynamically set icon via data attribute */
@@ -506,6 +514,11 @@
     mask-image: url('@openmates/ui/static/icons/nutrition.svg');
   }
 
+  .basic-infos-bar .skill-icon[data-skill-icon="weather"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/weather.svg');
+    mask-image: url('@openmates/ui/static/icons/weather.svg');
+  }
+
   .basic-infos-bar .skill-icon[data-skill-icon="socialmedia"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/socialmedia.svg');
     mask-image: url('@openmates/ui/static/icons/socialmedia.svg');
@@ -585,6 +598,8 @@
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     /* Required for grid height-collapse trick */
     overflow: hidden;
     min-height: 0;

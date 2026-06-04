@@ -548,3 +548,36 @@ skills:
       required:
         - flight_number
         - departure_date
+
+marketing_discovery:
+  skills:
+    search_connections:
+      enabled: true
+      keywords:
+        - flight search too many tabs
+        - train connection search AI assistant
+        - travel planning chatbot
+      pain_points:
+        - travel search requires many sites
+      demo_angles:
+        - show flight/train search
+    search_stays:
+      enabled: true
+      keywords:
+        - hotel search planning frustration
+        - find stays with AI assistant
+        - accommodation search in chat
+      pain_points:
+        - stay search requires many filters
+      demo_angles:
+        - show stays search
+    get_flight:
+      enabled: true
+      keywords:
+        - flight details in chat
+        - check flight status AI
+        - flight information assistant
+      pain_points:
+        - flight details are scattered
+      demo_angles:
+        - show flight details

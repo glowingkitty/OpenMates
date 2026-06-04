@@ -189,21 +189,83 @@ async function getResumeCardTitle(page: any): Promise<string | null> {
 }
 
 /**
- * Get ALL card titles from the recent-chats-scroll-container (including resume card).
+ * Get ALL card titles and their chat IDs from the recent-chats-scroll-container.
+ * Walks up each title element's ancestors to find the nearest data-chat-id attribute
+ * for proper deduplication by chat identity rather than title text alone.
  */
-async function getAllRecentCardTitles(page: any): Promise<string[]> {
+async function getAllRecentCardTitles(page: any): Promise<Array<{ title: string; chatId: string | null }>> {
 	const container = page.getByTestId('recent-chats-scroll-container');
 	if (!(await container.isVisible({ timeout: 500 }).catch(() => false))) {
 		return [];
 	}
 	const titles = container.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]');
 	const count = await titles.count();
-	const result: string[] = [];
+	const result: Array<{ title: string; chatId: string | null }> = [];
 	for (let i = 0; i < count; i++) {
-		const text = (await titles.nth(i).textContent())?.trim() || '';
-		if (text) result.push(text);
+		const el = titles.nth(i);
+		const text = (await el.textContent())?.trim() || '';
+		if (!text) continue;
+		// Walk up to find nearest ancestor with data-chat-id
+		const chatId = await el.evaluate((node: Element) => {
+			let parent = node.parentElement;
+			while (parent) {
+				if (parent.hasAttribute('data-chat-id')) {
+					return parent.getAttribute('data-chat-id') || null;
+				}
+				parent = parent.parentElement;
+			}
+			return null;
+		});
+		result.push({ title: text, chatId });
 	}
 	return result;
+}
+
+/**
+ * Find duplicate cards in the recent-chats-scroll-container.
+ * Deduplicates by chat_id when available (cards backed by a real chat),
+ * falling back to title-only dedup for cards without a chat_id.
+ */
+function findDuplicateCards(cards: Array<{ title: string; chatId: string | null }>): string[] {
+	const seenByChatId = new Set<string>();
+	const seenByTitle = new Set<string>();
+	const dupes: string[] = [];
+
+	for (const { title, chatId } of cards) {
+		if (chatId) {
+			// Dedup by chat identity — the gold standard
+			if (seenByChatId.has(chatId)) {
+				dupes.push(title);
+			}
+			seenByChatId.add(chatId);
+		} else {
+			// Fallback: dedup by title for cards without a chat identity
+			if (seenByTitle.has(title)) {
+				dupes.push(title);
+			}
+			seenByTitle.add(title);
+		}
+	}
+	return dupes;
+}
+
+/**
+ * Poll until no duplicate cards in the recent-chats-scroll-container.
+ * Handles the transient race where a chat appears in both the priority
+ * continue section and the recent chats section before Svelte 5's
+ * reactive filter re-evaluates the DOM after loadPriorityContinueItems
+ * completes. If duplicates persist until timeout, the caller's assertion
+ * still catches real duplicates.
+ */
+async function waitForStableCards(page: any, timeout = 8000): Promise<Array<{ title: string; chatId: string | null }>> {
+	const deadline = Date.now() + timeout;
+	let cards: Array<{ title: string; chatId: string | null }> = [];
+	while (Date.now() < deadline) {
+		cards = await getAllRecentCardTitles(page);
+		if (findDuplicateCards(cards).length === 0) return cards;
+		await page.waitForTimeout(500);
+	}
+	return cards;
 }
 
 // ─── Test ────────────────────────────────────────────────────────────────────
@@ -277,15 +339,10 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	expect(resumeTitle1).toBe(chatA_title);
 	logStep('PASS: Resume card correctly shows chat A.');
 
-	// Check for duplicates
-	const allTitles1 = await getAllRecentCardTitles(page);
-	logStep(`All card titles: ${JSON.stringify(allTitles1)}`);
-	const titleSet1 = new Set<string>();
-	const dupes1: string[] = [];
-	for (const t of allTitles1) {
-		if (titleSet1.has(t)) dupes1.push(t);
-		titleSet1.add(t);
-	}
+	// Check for duplicates (poll until stable to handle priority-items vs recent-chats race)
+	const allCards1 = await waitForStableCards(page);
+	logStep(`All card titles: ${JSON.stringify(allCards1)}`);
+	const dupes1 = findDuplicateCards(allCards1);
 	expect(dupes1).toEqual([]);
 	logStep('PASS: No duplicate cards found.');
 
@@ -325,15 +382,10 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	expect(resumeTitle2).toBe(chatB_title);
 	logStep('PASS: Resume card correctly updated to chat B.');
 
-	// Check for duplicates again
-	const allTitles2 = await getAllRecentCardTitles(page);
-	logStep(`All card titles: ${JSON.stringify(allTitles2)}`);
-	const titleSet2 = new Set<string>();
-	const dupes2: string[] = [];
-	for (const t of allTitles2) {
-		if (titleSet2.has(t)) dupes2.push(t);
-		titleSet2.add(t);
-	}
+	// Check for duplicates again (poll until stable)
+	const allCards2 = await waitForStableCards(page);
+	logStep(`All card titles: ${JSON.stringify(allCards2)}`);
+	const dupes2 = findDuplicateCards(allCards2);
 	expect(dupes2).toEqual([]);
 	logStep('PASS: No duplicate cards after second switch.');
 

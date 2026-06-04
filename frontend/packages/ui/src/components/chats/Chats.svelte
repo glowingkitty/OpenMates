@@ -91,9 +91,20 @@ let _chatUpdatedFlushPending = false;
 	let selectMode = $state(false); // Whether we're in multi-select mode
 	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
 	let lastSelectedChatId: string | null = $state(null); // Track last selected chat for range selection
+	let expandedSubChatParentIds = $state<Set<string>>(new Set());
 
 	// Hidden Chats State
 	let showHiddenChatUnlock = $state(false); // Show unlock modal (for context menu hide action)
+
+	function toggleSubChatsForParent(chatId: string): void {
+		const next = new Set(expandedSubChatParentIds);
+		if (next.has(chatId)) {
+			next.delete(chatId);
+		} else {
+			next.add(chatId);
+		}
+		expandedSubChatParentIds = next;
+	}
 	let isFirstTimeUnlock = $state(false); // True if setting code for first time
 	let chatIdToHideAfterUnlock: string | null = $state(null); // Chat ID to hide after unlock
 	let hiddenChatState = $derived($hiddenChatStore); // Reactive hidden chat state
@@ -305,7 +316,7 @@ let _chatUpdatedFlushPending = false;
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Announcement chats — the 3 most recent Updates & Announcements
+		// 3. Announcement chats — the 10 most recent Updates & Announcements
 		// newsletter issues, shown under an "Announcements" section so users can
 		// always jump back to the latest product update. Hidden (via
 		// hidden_demo_chats) works the same as for intro/legal chats.
@@ -313,11 +324,11 @@ let _chatUpdatedFlushPending = false;
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.slice()
 			.sort((a, b) => {
-				const at = Date.parse(a.metadata.lastUpdated || '') || 0;
-				const bt = Date.parse(b.metadata.lastUpdated || '') || 0;
+				const at = Date.parse(a.metadata.publishedAt || a.metadata.lastUpdated || '') || 0;
+				const bt = Date.parse(b.metadata.publishedAt || b.metadata.lastUpdated || '') || 0;
 				return bt - at;
 			})
-			.slice(0, 3)
+			.slice(0, 10)
 			.map(demo => translateDemoChat(demo))
 			.map(demo => {
 				const chat = convertDemoChatToChat(demo);
@@ -388,9 +399,9 @@ let _chatUpdatedFlushPending = false;
 	let allChats = $derived((() => {
 		void visiblePublicChats;
 
-		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats)
+		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats, and sub-chats - they are rendered nested)
 		const processedRealChats = allChatsFromDB
-			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id));
+			.filter(chat => !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id) && !chat.parent_id && !chat.is_sub_chat);
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
 		// CRITICAL: We don't filter out public chats from visiblePublicChats even if they are in the DB,
@@ -3411,7 +3422,16 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         try {
             console.debug('[Chats] Starting bulk delete for', selectedChatIds.size, 'chats');
             
-            const chatIdsToDelete = Array.from(selectedChatIds);
+            const initialChatIdsToDelete = Array.from(selectedChatIds);
+            const allIdsSet = new Set<string>();
+            for (const id of initialChatIdsToDelete) {
+                allIdsSet.add(id);
+                const descendants = await chatDB.getChatDescendantIds(id);
+                for (const descId of descendants) {
+                    allIdsSet.add(descId);
+                }
+            }
+            const chatIdsToDelete = Array.from(allIdsSet);
             let deletedCount = 0;
             const errors: string[] = [];
 
@@ -3848,6 +3868,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
+						{@const subChats = allChatsFromDB.filter(c => c.parent_id === chat.chat_id)}
 						<div
 							role="button"
 							tabindex="0"
@@ -3942,6 +3963,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									activeChatId={selectedChatId}
 									selectMode={selectMode}
 									selectedChatIds={selectedChatIds}
+									hasSubChats={subChats.length > 0}
+									subChatsExpanded={expandedSubChatParentIds.has(chat.chat_id)}
+									onToggleSubChats={toggleSubChatsForParent}
 									onToggleSelection={(chatId: string) => {
 										if (selectedChatIds.has(chatId)) {
 											selectedChatIds.delete(chatId);
@@ -3953,6 +3977,75 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									}}
 								/>
 							</div>
+							<!-- Nested Sub-chats (Tier 1 & Tier 2) -->
+							{#if subChats.length > 0 && expandedSubChatParentIds.has(chat.chat_id)}
+								<div class="sub-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
+									{#each subChats as subChat (subChat.chat_id)}
+										<div
+											role="button"
+											tabindex="0"
+											class="chat-item sub-chat-item"
+											data-testid="sub-chat-item"
+											class:active={selectedChatId === subChat.chat_id}
+											onclick={(event) => {
+												handleChatItemClick(subChat, event);
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													const syntheticEvent = new MouseEvent('click', {
+														bubbles: true,
+														cancelable: true
+													});
+													handleChatItemClick(subChat, syntheticEvent);
+												}
+											}}
+										>
+											<ChatComponent
+												chat={subChat}
+												activeChatId={selectedChatId}
+												selectMode={selectMode}
+												selectedChatIds={selectedChatIds}
+											/>
+										</div>
+										<!-- Nested Grandchild Sub-chats (Tier 2) -->
+										{@const grandChats = allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)}
+										{#if grandChats.length > 0}
+											<div class="sub-chats-container grandchild-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
+												{#each grandChats as grandChat (grandChat.chat_id)}
+													<div
+														role="button"
+														tabindex="0"
+														class="chat-item sub-chat-item grandchild-chat-item"
+														data-testid="grandchild-chat-item"
+														class:active={selectedChatId === grandChat.chat_id}
+														onclick={(event) => {
+															handleChatItemClick(grandChat, event);
+														}}
+														onkeydown={(e) => {
+															if (e.key === 'Enter' || e.key === ' ') {
+																e.preventDefault();
+																const syntheticEvent = new MouseEvent('click', {
+																	bubbles: true,
+																	cancelable: true
+																});
+																handleChatItemClick(grandChat, syntheticEvent);
+															}
+														}}
+													>
+														<ChatComponent
+															chat={grandChat}
+															activeChatId={selectedChatId}
+															selectMode={selectMode}
+															selectedChatIds={selectedChatIds}
+														/>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									{/each}
+								</div>
+							{/if}
 						{/each}
 					</div>
 				{/if}

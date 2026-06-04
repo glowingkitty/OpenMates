@@ -51,6 +51,34 @@ final class ShareViewController: UIViewController {
         }
     }
 
+    private static func sharedURLText(from value: Any?) -> String? {
+        if let url = value as? URL {
+            return url.absoluteString
+        }
+        if let url = value as? NSURL {
+            return url.absoluteString
+        }
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+        }
+        if let text = value as? NSString {
+            let string = text as String
+            return string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
+        }
+        return nil
+    }
+
+    private static func sharedPlainText(from value: Any?) -> String? {
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
+        }
+        if let text = value as? NSString {
+            let string = text as String
+            return string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : string
+        }
+        return nil
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -168,18 +196,18 @@ final class ShareViewController: UIViewController {
                 if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
-                        if let url = value as? URL {
-                            collector.append(SharedPart(text: url.absoluteString, isURL: true))
+                        defer { group.leave() }
+                        if let text = Self.sharedURLText(from: value) {
+                            collector.append(SharedPart(text: text, isURL: true))
                         }
-                        group.leave()
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
-                        if let text = value as? String {
+                        defer { group.leave() }
+                        if let text = Self.sharedPlainText(from: value) {
                             collector.append(SharedPart(text: text, isURL: false))
                         }
-                        group.leave()
                     }
                 }
             }
@@ -187,7 +215,7 @@ final class ShareViewController: UIViewController {
 
         group.notify(queue: .main) { [weak self] in
             guard let self else { return }
-            sharedParts = collector.values()
+            sharedParts = collector.values().filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             updatePreview()
         }
     }

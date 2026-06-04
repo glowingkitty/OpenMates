@@ -13,7 +13,7 @@
     ".claude/rules/embed.md",
     ".claude/rules/apple-ui.md",
     ".claude/rules/planning.md",
-    ".claude/rules/linear-tasks.md"
+    ".claude/rules/task-management.md"
   ],
   "permission": {
     "skill": {

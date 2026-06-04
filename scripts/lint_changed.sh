@@ -9,6 +9,7 @@ check_svelte=false
 check_css=false
 check_html=false
 check_yml=false
+check_swift=false
 declare -a target_paths=()
 
 # Parse arguments (supports --path and positional file/dir targets)
@@ -42,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       check_yml=true
       shift
       ;;
+    --swift)
+      check_swift=true
+      shift
+      ;;
     --path)
       if [[ -z "${2-}" ]]; then
         echo "Missing value for --path" >&2
@@ -58,7 +63,7 @@ while [[ $# -gt 0 ]]; do
       done
       ;;
     --help|-h)
-      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml] [--path <file|dir>] [-- <file|dir> ...]"
+      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml] [--swift] [--path <file|dir>] [-- <file|dir> ...]"
       echo ""
       echo "Options:"
       echo "  full_repo             Check all files in the repository (default: only uncommitted changes)"
@@ -68,6 +73,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --css                 Only check CSS (.css) files"
       echo "  --html                Only check HTML (.html) files"
       echo "  --yml                 Only check YAML (.yml) files (syntax validation via PyYAML)"
+      echo "  --swift               Only check Swift (.swift) files (SwiftLint when available)"
       echo "  --path <file|dir>     Only check files under this path (repeatable)"
       echo "  -- <file|dir> ...     Treat remaining args as target paths"
       echo ""
@@ -92,13 +98,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 # If no file type filters are specified, check all types
-if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html} && ! ${check_yml}; then
+if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html} && ! ${check_yml} && ! ${check_swift}; then
   check_py=true
   check_ts=true
   check_svelte=true
   check_css=true
   check_html=true
   check_yml=true
+  check_swift=true
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -250,6 +257,7 @@ declare -a svelte_files=()
 declare -a css_files=()
 declare -a html_files=()
 declare -a yml_files=()
+declare -a swift_files=()
 
 # Separate files by type based on enabled checks
 for path in "${changed_files[@]}"; do
@@ -285,8 +293,38 @@ for path in "${changed_files[@]}"; do
         yml_files+=("${path}")
       fi
       ;;
+    *.swift)
+      if ${check_swift}; then
+        swift_files+=("${path}")
+      fi
+      ;;
   esac
 done
+
+run_swift_lint() {
+  if (( ${#swift_files[@]} == 0 )); then
+    return 0
+  fi
+
+  if [[ ! -x "${repo_root}/scripts/lint_swift.sh" ]]; then
+    echo "SwiftLint: scripts/lint_swift.sh missing or not executable; skipping." >&2
+    return 0
+  fi
+
+  local args=()
+  ${full_repo_mode} && args+=(full_repo)
+  local file
+  for file in "${swift_files[@]}"; do
+    args+=(--path "${file}")
+  done
+
+  if "${repo_root}/scripts/lint_swift.sh" "${args[@]}"; then
+    echo "SwiftLint: ok"
+  else
+    echo "SwiftLint: error" >&2
+    overall_status=1
+  fi
+}
 
 # Combine for ESLint (TS, Svelte, CSS only)
 # HTML files are intentionally excluded because our flat ESLint config does not
@@ -841,6 +879,7 @@ run_js_lint() {
 
 run_yaml_lint
 run_python_lint
+run_swift_lint
 
 # Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)
 run_tsc_check

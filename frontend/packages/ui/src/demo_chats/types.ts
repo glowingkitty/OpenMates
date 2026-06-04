@@ -26,6 +26,8 @@ export interface DemoChat {
     featured: boolean;
     order: number;
     lastUpdated: string;
+    /** Original publish datetime for newsletter/announcement chats (ISO 8601). */
+    publishedAt?: string;
     /** Key into OPENMATES_VIDEOS registry (e.g. "intro"). Used for locale-aware
      *  video resolution and by the autoplay-video deep link. */
     video_key?: string;

@@ -248,7 +248,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('2FA setup completed successfully.');
 
 	// Click "Done"
-	const doneButton = page.getByRole('button').filter({ hasText: /done/i });
+	const doneButton = successContainer.getByRole('button', { name: /done/i });
 	await doneButton.click();
 	logCheckpoint('Clicked Done on 2FA success.');
 
@@ -275,7 +275,10 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// The actual back button is `.nav-button` inside `.settings-header`, with a
 	// `.icon_back.visible` child indicating it's active (not on the main menu).
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('#settings-back-button');
+	const bannerBackButton = page.getByTestId('banner-back-button').first();
+	const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+		? bannerBackButton
+		: page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;
@@ -323,19 +326,21 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Enter password — the password+TFA form is a single combined step.
-	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
-	// visible alongside the password field. We do NOT need to click login first.
+	// Enter password first. The OTP field appears only after /login confirms that
+	// 2FA is required; /lookup stays generic for anti-enumeration.
 	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
+	const loginSubmitButton = page.locator('#login-submit-button');
+	await expect(loginSubmitButton).toBeVisible();
+	await loginSubmitButton.click();
+	logCheckpoint('Submitted password to reveal backup-code prompt.');
 
-	// The TFA input should already be visible (tfa_enabled=true from lookup)
 	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
-	logCheckpoint('TFA input visible alongside password (combined form).');
+	logCheckpoint('TFA input visible after password submission.');
 
 	// Switch to backup code mode using the toggle button
 	const backupModeButton = page.locator('#login-with-backup-code button');
@@ -358,7 +363,6 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Entered backup code.');
 
 	// Submit login with password + backup code using the form submit button
-	const loginSubmitButton = page.locator('#login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');

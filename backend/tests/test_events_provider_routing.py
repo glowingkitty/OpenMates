@@ -1,0 +1,172 @@
+# backend/tests/test_events_provider_routing.py
+#
+# Regression tests for events/search provider routing.
+# Verifies explicit provider constraints survive request normalization and do
+# not silently broaden to auto when a named provider fails.
+# Architecture context: backend/apps/events/skills/search_skill.py
+
+from typing import Any
+
+import pytest
+
+from backend.apps.events.skills.search_skill import SearchRequest, SearchSkill
+
+
+def _make_skill() -> SearchSkill:
+    return SearchSkill(
+        app=None,
+        app_id="events",
+        skill_id="search",
+        skill_name="Search",
+        skill_description="Search events",
+    )
+
+
+async def _no_secrets(*args: Any, **kwargs: Any) -> tuple[None, None]:
+    return None, None
+
+
+@pytest.mark.asyncio
+async def test_top_level_eventbrite_does_not_fallback_to_auto(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A user-requested Eventbrite search must not call Meetup/Luma after failure."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    called: list[str] = []
+
+    async def eventbrite_failure(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, str]:
+        called.append("eventbrite")
+        return [], 0, "Eventbrite unavailable"
+
+    async def forbidden_provider(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        called.append("fallback")
+        return [], 0, None
+
+    monkeypatch.setattr(skill, "_search_eventbrite", eventbrite_failure)
+    monkeypatch.setattr(skill, "_search_meetup", forbidden_provider)
+    monkeypatch.setattr(skill, "_search_luma", forbidden_provider)
+
+    response = await skill.execute(
+        SearchRequest(
+            provider="Eventbrite",
+            requests=[{"query": "AI", "lat": 52.52, "lon": 13.405, "location": "Berlin"}],
+        )
+    )
+
+    assert called == ["eventbrite"]
+    assert response.provider == "eventbrite"
+    assert response.results[0]["error"] == "Eventbrite search failed: Eventbrite unavailable"
+
+
+@pytest.mark.asyncio
+async def test_unknown_explicit_provider_is_visible_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Invalid explicit providers should fail visibly instead of becoming auto."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    called: list[str] = []
+
+    async def forbidden_provider(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        called.append("fallback")
+        return [], 0, None
+
+    monkeypatch.setattr(skill, "_search_meetup", forbidden_provider)
+    monkeypatch.setattr(skill, "_search_luma", forbidden_provider)
+    monkeypatch.setattr(skill, "_search_eventbrite", forbidden_provider)
+
+    response = await skill.execute(
+        SearchRequest(
+            provider="Luna",
+            requests=[{"query": "AI", "lat": 52.52, "lon": 13.405, "location": "Berlin"}],
+        )
+    )
+
+    assert called == []
+    assert response.results[0]["error"] == "Unknown events provider: luna"
+
+
+@pytest.mark.asyncio
+async def test_event_schedule_provider_allows_conference_without_location(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Conference searches should not require a city location when conference is set."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [
+            {
+                "id": "talk-1",
+                "provider": "gpn24",
+                "title": "Evaluating machine learning models",
+                "url": "https://cfp.gulas.ch/gpn24/talk/WMNWXJ/",
+                "date_start": "2026-06-04T18:45:00+02:00",
+            }
+        ], 1, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
+
+    response = await skill.execute(
+        SearchRequest(
+            provider="GPN24",
+            requests=[{"query": "machine learning", "conference": "GPN24"}],
+        )
+    )
+
+    assert response.error is None
+    assert response.results[0]["results"][0]["provider"] == "gpn24"
+    assert response.results[0]["results"][0]["title"] == "Evaluating machine learning models"
+
+
+@pytest.mark.asyncio
+async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Auto mode should include pretalx only when the query names a known conference."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def empty_provider(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [], 0, None
+
+    async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [
+            {
+                "id": "talk-39c3",
+                "provider": "39c3",
+                "title": "AI Agent, AI Spy",
+                "url": "https://cfp.cccv.de/39c3/talk/example/",
+                "date_start": "2025-12-27T12:00:00+01:00",
+            }
+        ], 1, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_meetup", empty_provider)
+    monkeypatch.setattr(skill, "_search_luma", empty_provider)
+    monkeypatch.setattr(skill, "_search_eventbrite", empty_provider)
+    monkeypatch.setattr(skill, "_search_google_events", empty_provider)
+    monkeypatch.setattr(skill, "_search_resident_advisor", empty_provider)
+    monkeypatch.setattr(skill, "_search_berlin_philharmonic", empty_provider)
+    monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
+
+    response = await skill.execute(
+        SearchRequest(
+            requests=[{"query": "AI at 39C3", "location": "Hamburg, Germany"}],
+        )
+    )
+
+    assert response.error is None
+    assert response.results[0]["results"][0]["provider"] == "39c3"

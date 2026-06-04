@@ -456,7 +456,8 @@ Supports both saved payment methods and new payment form
             disableWebSocketHandlers={true}
             initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
-            on:consentGiven={() => {
+            on:consentGiven={(event) => {
+                if (!event.detail?.consented) return;
                 // User accepted the refund consent for gift cards — update local profile
                 // so the consent screen is not shown again during this session.
                 // The backend also records this via webhook after payment completes.

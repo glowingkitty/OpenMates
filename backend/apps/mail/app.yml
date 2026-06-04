@@ -159,3 +159,16 @@ skills:
       required:
         - requests
       additionalProperties: false
+
+marketing_discovery:
+  skills:
+    search:
+      enabled: true
+      keywords:
+        - search email with AI
+        - find old email quickly
+        - email research assistant
+      pain_points:
+        - email search misses context
+      demo_angles:
+        - show email search workflow

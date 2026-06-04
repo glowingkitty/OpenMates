@@ -119,3 +119,16 @@ skills:
       - aes_key
       - aes_nonce
       - vault_wrapped_aes_key
+
+marketing_discovery:
+  skills:
+    generate:
+      enabled: true
+      keywords:
+        - generate music with AI
+        - AI music idea in chat
+        - make short music clip
+      pain_points:
+        - creative audio tools are separate from chat
+      demo_angles:
+        - show music generation workflow

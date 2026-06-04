@@ -121,3 +121,16 @@ skills:
               - filters
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search_recipes:
+      enabled: true
+      keywords:
+        - find recipes with AI
+        - meal ideas search
+        - nutrition recipe assistant
+      pain_points:
+        - recipe search is ad-heavy and fragmented
+      demo_angles:
+        - show recipe search results

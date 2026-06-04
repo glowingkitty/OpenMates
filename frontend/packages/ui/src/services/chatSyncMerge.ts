@@ -93,6 +93,10 @@ export async function mergeServerChatWithLocal(
       is_private: serverChat.is_private,
       share_pii: serverChat.share_pii,
       share_highlights: serverChat.share_highlights,
+      parent_id: serverChat.parent_id ?? null,
+      is_sub_chat: serverChat.is_sub_chat ?? false,
+      budget_limit: serverChat.budget_limit ?? null,
+      budget_spent: serverChat.budget_spent ?? 0,
       user_id: currentUserId,
     };
   }
@@ -168,6 +172,10 @@ export async function mergeServerChatWithLocal(
     is_private: serverChat.is_private ?? localChat.is_private,
     share_pii: serverChat.share_pii ?? localChat.share_pii,
     share_highlights: serverChat.share_highlights ?? localChat.share_highlights,
+    parent_id: serverChat.parent_id ?? localChat.parent_id ?? null,
+    is_sub_chat: serverChat.is_sub_chat ?? localChat.is_sub_chat ?? false,
+    budget_limit: serverChat.budget_limit ?? localChat.budget_limit ?? null,
+    budget_spent: serverChat.budget_spent ?? localChat.budget_spent ?? 0,
   };
 
   if (keyMismatch) {

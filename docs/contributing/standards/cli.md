@@ -141,7 +141,7 @@ The CLI outputs to a terminal. Follow these conventions:
 - Directory permissions: `0o700` (owner only)
 - File permissions: `0o600` (owner read/write only)
 - **Never relax these permissions.** Do not change them to `0o644` or `0o755` even "for debugging".
-- Incognito history (`incognito.json`) must also be `0o600`.
+- Incognito chats must not be persisted. Do not reintroduce `incognito.json` or any other transcript history for incognito mode.
 
 ---
 

@@ -4,8 +4,12 @@
 @apple/AGENTS.md
 
 Every Swift UI file must visually match its web counterpart exactly.
-The web app (Svelte + CSS custom properties) is the design source of truth.
+The rendered web app is the design source of truth. Svelte files, CSS files,
+and tokens explain how the UI is built, but the browser's computed DOM/CSS
+output is the final parity target.
 Design tokens are pre-generated — never hardcode colors, spacing, or radii.
+
+OpenMates is SwiftUI-first, not SwiftUI-only. Keep product UI composition and Svelte parity in SwiftUI by default, but use UIKit/AppKit selectively for proven performance hot paths or system-backed capabilities.
 
 ---
 
@@ -153,8 +157,38 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 ### Before touching any Swift UI file
 1. Read the mapped Svelte component listed above.
 2. Read the mapped CSS file — note exact class names, pixel values, transitions.
-3. Read the token mapping table in `docs/architecture/frontend/apple-ui-redesign-task.md`.
-4. Only then write or modify Swift code.
+3. Load the actual web app route where the component appears and inspect the rendered element tree and computed CSS values with browser tooling. Prefer the regular product route because it includes real parent layout, container widths, runtime classes, stores, and responsive state. Use `/dev/preview` pages only when the regular app route cannot expose the needed state or when an isolated component harness is more accurate for that state.
+4. If interaction state is required, drive the existing `*.spec.ts` test or create a temporary browser/scripted flow based on existing tests to reach the rendered state, then inspect computed values there.
+5. Read the token mapping table in `docs/architecture/frontend/apple-ui-redesign-task.md`.
+6. Only then write or modify Swift code.
+
+### Rendered Web Inspection Requirement
+- The browser-rendered component is the final source of truth for Apple parity. Do not rely only on Svelte or CSS source when computed rendering differs because of CSS variables, media queries, container queries, inherited styles, runtime classes, pseudo-elements, transitions, or parent layout.
+- Inspect the target element and relevant children, overlays, menus, pseudo-elements, and disabled/focused/pressed/loading states.
+- Capture computed values for dimensions, min/max sizes, padding, gaps, alignment, position, z-index, border, radius, colors, typography, shadows, opacity, transforms, transitions, overflow, and responsive/container-query state.
+- Capture the environment for those values: route, viewport size, container size, authentication/demo state, active feature flags, current chat state, and any interaction sequence used to reach the state.
+- Use generated Swift tokens wherever they map to the computed value. If a computed web value has no generated token and is part of the product contract, document the web class/property that justifies the literal.
+- If browser inspection is not possible, state that limitation before editing and treat source-file analysis as a fallback, not an equivalent replacement.
+
+### SwiftUI / UIKit performance strategy
+- Keep app chrome, screen composition, settings, static product UI, and Svelte-to-native component parity in SwiftUI by default.
+- Do not rewrite an entire screen or the app shell to UIKit without a concrete bottleneck.
+- Use UIKit/AppKit selectively for long virtualized feeds, chat transcript/message lists with proven scroll or streaming jank, rich embed grids/lists with heavy media, gesture-heavy real-time interactions, and PDF/map/video/web/canvas surfaces.
+- Before replacing SwiftUI with UIKit, first reduce expensive `body` work, broad state invalidation, and avoidable layout churn.
+- If the issue is scrolling, virtualization, cell reuse, or frame stability, prefer a contained `UICollectionView`/`UIScrollView` wrapper via `UIViewRepresentable` while keeping the surrounding screen in SwiftUI.
+- For macOS equivalents, use the matching AppKit wrapper pattern (`NSViewRepresentable`) rather than duplicating unrelated app architecture.
+
+### SwiftUI performance rules
+- Avoid markdown parsing, JSON decoding, image decoding/resizing, sorting/filtering large arrays, embed payload normalization, and formatter construction inside `body`, computed view properties, and frequently re-rendered builders.
+- Cache parsed render data with stable IDs.
+- Scope state narrowly so message-level updates do not invalidate the full transcript or app shell.
+- Prefer stable identity for rows, embeds, and media-heavy cells.
+- Profile with Instruments when a performance-sensitive surface changes or visible jank is reported.
+
+### Chat transcript performance
+- The chat transcript is a high-risk SwiftUI performance surface because it combines streaming updates, long scroll history, markdown, embeds, images, and dynamic layout.
+- If transcript scrolling or streaming becomes visibly janky, prefer a UIKit-backed transcript implementation using `UICollectionView` with reusable cells, embedded in SwiftUI.
+- Do not migrate the whole app shell to UIKit to fix transcript performance.
 
 ### Colors — never hardcode
 - Use `Color.*` extensions from `ColorTokens.generated.swift`.

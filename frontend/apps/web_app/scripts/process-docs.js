@@ -14,7 +14,7 @@
  * - Respects .docsignore patterns
  * - Generates search index for FlexSearch
  * 
- * Output: src/lib/generated/docs-data.json
+ * Output: lightweight manifest plus static per-page/search JSON assets.
  * 
  * Runs during:
  * - Build process (vite build)
@@ -33,7 +33,11 @@ const __dirname = path.dirname(__filename);
 // Paths relative to script location
 const DOCS_ROOT = path.resolve(__dirname, '../../../../docs');
 const OUTPUT_DIR = path.resolve(__dirname, '../src/lib/generated');
-const OUTPUT_FILE = path.join(OUTPUT_DIR, 'docs-data.json');
+const STATIC_DOCS_DIR = path.resolve(__dirname, '../static/generated/docs');
+const STATIC_DOCS_PAGES_DIR = path.join(STATIC_DOCS_DIR, 'pages');
+const MANIFEST_FILE = path.join(OUTPUT_DIR, 'docs-manifest.json');
+const STATIC_MANIFEST_FILE = path.join(STATIC_DOCS_DIR, 'manifest.json');
+const STATIC_SEARCH_FILE = path.join(STATIC_DOCS_DIR, 'search.json');
 
 // Initialize markdown-it with highlight.js for syntax highlighting
 const md = new MarkdownIt({
@@ -286,6 +290,15 @@ function fixMarkdownLinks(content, filePath) {
 }
 
 /**
+ * Remove YAML frontmatter before rendering/searching documentation content.
+ * @param {string} content - Original markdown content.
+ * @returns {string} Markdown without leading YAML frontmatter.
+ */
+function stripFrontmatter(content) {
+    return content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+}
+
+/**
  * Process markdown content: fix paths and convert to HTML
  * @param {string} content - Original markdown content
  * @param {string} filePath - Path to the current file (relative to docs root)
@@ -360,6 +373,77 @@ function generateTitle(name) {
 }
 
 /**
+ * Convert a doc slug into a stable static JSON filename.
+ * @param {string} slug - Documentation slug.
+ * @returns {string} Safe filename for static page payloads.
+ */
+function pagePayloadFileName(slug) {
+    return `${slug.replace(/[^a-zA-Z0-9._-]/g, '__')}.json`;
+}
+
+/**
+ * Strip large page body fields from a file entry for navigation manifests.
+ * @param {Object} file - Full documentation file entry.
+ * @returns {Object} Lightweight file entry.
+ */
+function toManifestFile(file) {
+    return {
+        name: file.name,
+        title: file.title,
+        path: file.path,
+        slug: file.slug,
+        wordCount: file.wordCount,
+        description: file.description,
+        pagePayload: `/generated/docs/pages/${pagePayloadFileName(file.slug)}`,
+    };
+}
+
+/**
+ * Strip large page body fields from the docs tree.
+ * @param {Object} structure - Full documentation structure.
+ * @returns {Object} Lightweight manifest structure.
+ */
+function buildManifestStructure(structure) {
+    return {
+        files: structure.files.map(toManifestFile),
+        folders: structure.folders.map((folder) => ({
+            name: folder.name,
+            title: folder.title,
+            path: folder.path,
+            files: folder.files.map(toManifestFile),
+            folders: buildManifestStructure(folder).folders,
+        })),
+    };
+}
+
+/**
+ * Collect full page payloads from the generated structure.
+ * @param {Object} structure - Full documentation structure.
+ * @param {Array} pages - Mutable collection of page payloads.
+ * @returns {Array} All page payloads.
+ */
+function collectPagePayloads(structure, pages = []) {
+    for (const file of structure.files) {
+        pages.push({
+            name: file.name,
+            title: file.title,
+            path: file.path,
+            slug: file.slug,
+            content: file.content,
+            originalMarkdown: file.originalMarkdown,
+            wordCount: file.wordCount,
+            description: file.description,
+        });
+    }
+
+    for (const folder of structure.folders) {
+        collectPagePayloads(folder, pages);
+    }
+
+    return pages;
+}
+
+/**
  * Recursively reads directory structure and builds navigation tree
  * @param {string} dir - Directory path to scan
  * @param {string} relativePath - Relative path from docs root
@@ -402,19 +486,17 @@ function buildDocsStructure(dir, relativePath = '', ignorePatterns = []) {
         } else if (item.isFile() && item.name.endsWith('.md')) {
             // Read markdown content
             const originalMarkdown = fs.readFileSync(itemPath, 'utf-8');
+            const displayMarkdown = stripFrontmatter(originalMarkdown);
             
             // Extract title from first # heading or use filename
-            const titleMatch = originalMarkdown.match(/^#\s+(.+)$/m);
+            const titleMatch = displayMarkdown.match(/^#\s+(.+)$/m);
             const title = titleMatch ? titleMatch[1] : generateTitle(item.name);
-            
-            // Fix links in markdown (for TipTap rendering)
-            const processedMarkdown = fixMarkdownLinks(originalMarkdown, itemRelativePath);
 
             // Process content: fix paths and convert to HTML (for SSR/SEO)
-            const htmlContent = processMarkdownContent(originalMarkdown, itemRelativePath);
+            const htmlContent = processMarkdownContent(displayMarkdown, itemRelativePath);
 
             // Extract plain text for search
-            const plainText = extractPlainText(originalMarkdown);
+            const plainText = extractPlainText(displayMarkdown);
 
             // Generate slug for URL
             const slug = itemRelativePath.replace(/\.md$/, '').replace(/\\/g, '/');
@@ -425,7 +507,6 @@ function buildDocsStructure(dir, relativePath = '', ignorePatterns = []) {
                 path: itemRelativePath.replace(/\\/g, '/'),
                 slug: slug,
                 content: htmlContent,
-                processedMarkdown: processedMarkdown,
                 originalMarkdown: originalMarkdown,
                 plainText: plainText,
                 wordCount: plainText.split(/\s+/).filter(w => w.trim()).length,
@@ -523,20 +604,39 @@ async function main() {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     }
 
-    // Write the JSON file
+    // Create static output directories for lightweight docs runtime assets
+    fs.rmSync(STATIC_DOCS_DIR, { recursive: true, force: true });
+    fs.mkdirSync(STATIC_DOCS_PAGES_DIR, { recursive: true });
+
+    const generated = new Date().toISOString();
     const output = {
-        generated: new Date().toISOString(),
+        generated,
         structure: docsStructure,
         searchIndex: searchIndex
     };
 
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2));
+    // Write lightweight manifest and per-page payloads used by the docs routes.
+    const manifest = {
+        generated,
+        structure: buildManifestStructure(docsStructure),
+    };
+    fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
+    fs.writeFileSync(STATIC_MANIFEST_FILE, JSON.stringify(manifest, null, 2));
+    fs.writeFileSync(STATIC_SEARCH_FILE, JSON.stringify({ generated, searchIndex }, null, 2));
+
+    for (const page of collectPagePayloads(docsStructure)) {
+        fs.writeFileSync(
+            path.join(STATIC_DOCS_PAGES_DIR, pagePayloadFileName(page.slug)),
+            JSON.stringify(page, null, 2)
+        );
+    }
     
     const fileCount = countFiles(docsStructure);
     const folderCount = countFolders(docsStructure);
     
     console.log(`✅ Documentation processed successfully!`);
-    console.log(`📝 Output: ${OUTPUT_FILE}`);
+    console.log(`🧭 Manifest: ${MANIFEST_FILE}`);
+    console.log(`📄 Static pages: ${STATIC_DOCS_PAGES_DIR}`);
     console.log(`📊 Total files: ${fileCount}`);
     console.log(`📁 Total folders: ${folderCount}`);
     console.log(`🔍 Search index: ${searchIndex.length} entries`);

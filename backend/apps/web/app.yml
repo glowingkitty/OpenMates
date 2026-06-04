@@ -406,3 +406,26 @@ focuses:
     description_translation_key: web.deep_web_research.description
     stage: planning
       You are an expert for deep web research.
+
+marketing_discovery:
+  skills:
+    search:
+      enabled: true
+      keywords:
+        - web search with AI answer quality
+        - AI search results better than chatbot
+        - current web research assistant
+      pain_points:
+        - plain chatbot answers lack sources
+      demo_angles:
+        - show web search-supported answer
+    read:
+      enabled: true
+      keywords:
+        - read webpage with AI
+        - summarize article from URL
+        - web page analysis assistant
+      pain_points:
+        - long web pages are hard to process
+      demo_angles:
+        - show web-read summary

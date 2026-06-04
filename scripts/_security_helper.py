@@ -5,7 +5,7 @@ scripts/_security_helper.py
 Python helper for security-audit.sh and red-teaming.sh.
 
 Manages security audit state, deduplication of findings, and the acknowledge
-workflow. Runs claude sessions for both the code-based security audit and
+workflow. Runs OpenCode chats for both the code-based security audit and
 the external red team probe.
 
 Commands:
@@ -20,7 +20,7 @@ State files (.claude/ — gitignored):
     .claude/security-acknowledged.json     — manually acknowledged risks
 
 Environment variables (set by shell wrappers):
-    DRY_RUN             — "true" to skip claude, print prompt only
+    DRY_RUN             — "true" to skip OpenCode, print prompt only
     PROJECT_ROOT        — absolute path to repo root
     TODAY_DATE          — current date as YYYY-MM-DD
     PROMPT_TEMPLATE_PATH — path to the relevant prompt template
@@ -42,9 +42,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Append scripts/ to path so we can import _claude_utils
+# Append scripts/ to path so we can import _opencode_utils
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 from _nightly_report import write_nightly_report
 
 
@@ -277,15 +277,56 @@ def run_audit() -> None:
 
     if "(no security-relevant files changed)" in changed_files and not force_full:
         print(f"[security] No security-relevant files changed since last audit ({last_date}). Skipping.")
+        session_id = None
+        returncode = 0
+        if not dry_run:
+            prompt = f"""# Security Audit No-Change Summary — {today_date}
+
+The scheduled security audit checked for security-relevant changes since the
+last audit and found none.
+
+## Context
+
+- Current HEAD: {current_sha}
+- Last audit date: {last_date}
+- Result: no security-relevant files changed
+- Full sweep required: no
+
+This is a read-only reporting chat. Summarize the no-change result briefly,
+mention that no code changes are needed, and do not edit files, commit, or
+deploy.
+"""
+            print(f"[security] Starting OpenCode security audit summary chat (HEAD {current_sha})...")
+            returncode, session_id = run_opencode_session(
+                prompt=prompt,
+                session_title=f"security-audit: no relevant changes {today_date}",
+                project_root=project_root,
+                log_prefix="[security]",
+                agent="plan",
+                timeout=600,
+                job_type="security",
+                context_summary="Security audit found no security-relevant changed files.",
+                linear_task=False,
+            )
         # Still update SHA so we don't re-check the same range
         state["last_audit_sha"] = current_sha
         state["last_audit_date"] = today_date
+        state["last_audit_session_id"] = session_id
+        _record_run(state, "audit", current_sha, session_id)
         _save_state(project_root, state)
         write_nightly_report(
             job="security-audit",
-            status="skipped",
+            status="error" if returncode != 0 else "skipped",
             summary=f"No security-relevant files changed since last audit ({last_date}).",
+            details={
+                "last_audit_date": today_date,
+                "head_sha": current_sha,
+                "session_id": session_id,
+                "full_sweep": False,
+            },
         )
+        if returncode != 0:
+            sys.exit(returncode)
         return
 
     if force_full:
@@ -318,7 +359,7 @@ def run_audit() -> None:
     )
 
     if dry_run:
-        print("[security] DRY RUN — would run claude with the following prompt:")
+        print("[security] DRY RUN — would run OpenCode with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
@@ -331,9 +372,9 @@ def run_audit() -> None:
         return
 
     session_title = f"security-audit: top 5 issues {today_date}"
-    print(f"[security] Starting claude security audit session (HEAD {current_sha})...")
+    print(f"[security] Starting OpenCode security audit chat (HEAD {current_sha})...")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
@@ -427,7 +468,7 @@ def run_redteam() -> None:
     )
 
     if dry_run:
-        print("[redteam] DRY RUN — would run claude with the following prompt:")
+        print("[redteam] DRY RUN — would run OpenCode with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
@@ -438,10 +479,10 @@ def run_redteam() -> None:
         return
 
     session_title = f"redteam: external probe {today_date}"
-    print(f"[redteam] Starting claude red team session (HEAD {current_sha})...")
+    print(f"[redteam] Starting OpenCode red team chat (HEAD {current_sha})...")
 
     # 20 minute hard cap (1200 seconds) — plan mode only
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,

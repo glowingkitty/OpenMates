@@ -558,7 +558,7 @@ Users should store them securely (offline, in a safe place).
                 </div>
 
                 {#if successMessage}
-                    <div class="success-message" in:fade>
+                    <div class="success-message" data-testid="success-message" in:fade>
                         {successMessage}
                     </div>
                 {/if}

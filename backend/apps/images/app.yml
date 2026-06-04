@@ -453,3 +453,56 @@ skills:
               - prompt
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search:
+      enabled: true
+      keywords:
+        - image search AI assistant
+        - find images for a project
+        - visual search in chat
+      pain_points:
+        - image search is separate from workflows
+      demo_angles:
+        - show image search embedded in chat
+    generate:
+      enabled: true
+      keywords:
+        - AI image generation workflow
+        - generate images in chat
+        - image prompt iteration
+      pain_points:
+        - creative workflows need inspectable outputs
+      demo_angles:
+        - show image generation result
+    view:
+      enabled: true
+      keywords:
+        - analyze uploaded image with AI
+        - view image details in chat
+        - AI image understanding
+      pain_points:
+        - image context gets lost in chats
+      demo_angles:
+        - show image view/analysis workflow
+    vectorize:
+      enabled: true
+      keywords:
+        - vectorize image to SVG
+        - turn logo into vector
+        - image vectorization AI
+      pain_points:
+        - manual vectorization is tedious
+      demo_angles:
+        - show raster-to-vector result
+    generate_draft:
+      enabled: true
+      keywords:
+        - draft image generation prompt
+        - iterate image concepts
+        - AI image draft workflow
+      pain_points:
+        - prompt iteration is messy
+      demo_angles:
+        - show image draft iteration

@@ -567,6 +567,11 @@ class ChatDatabase {
         // This enables chatKeyManager.getKey(chatId) to load keys from IDB when not in cache.
         chatKeyManager.setEncryptedChatKeyFetcher(async (chatId: string) => {
           const chat = await this.getChat(chatId);
+          if (chat?.parent_id) {
+            console.debug(`[ChatKeyManager] Resolving key for sub-chat ${chatId} using parent chat ${chat.parent_id}`);
+            const parentChat = await this.getChat(chat.parent_id);
+            return parentChat?.encrypted_chat_key || null;
+          }
           return chat?.encrypted_chat_key || null;
         });
 
@@ -1374,6 +1379,29 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<{ deletedEmbedIds: string[] }> {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
+  }
+
+  async getChatDescendantIds(chatId: string): Promise<string[]> {
+    try {
+      const allChats = await this.getAllChats();
+      const descendants: string[] = [];
+      
+      const findChildren = (parentId: string) => {
+        const children = allChats.filter(c => c.parent_id === parentId);
+        for (const child of children) {
+          if (!descendants.includes(child.chat_id)) {
+            descendants.push(child.chat_id);
+            findChildren(child.chat_id);
+          }
+        }
+      };
+      
+      findChildren(chatId);
+      return descendants;
+    } catch (error) {
+      console.error(`[ChatDatabase] Error finding descendant IDs for ${chatId}:`, error);
+      return [];
+    }
   }
 
   async updateChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {

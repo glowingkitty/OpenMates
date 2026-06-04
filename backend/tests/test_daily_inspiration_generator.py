@@ -14,8 +14,17 @@ import types
 import importlib
 
 fake_llm_utils = types.ModuleType("backend.apps.ai.utils.llm_utils")
-fake_llm_utils.LLMPreprocessingCallResult = SimpleNamespace
+
+
+class FakeLLMPreprocessingCallResult(SimpleNamespace):
+    def __init__(self, error_message=None, arguments=None, **kwargs):
+        super().__init__(error_message=error_message, arguments=arguments or {}, **kwargs)
+
+
+fake_llm_utils.LLMPreprocessingCallResult = FakeLLMPreprocessingCallResult
 fake_llm_utils.call_preprocessing_llm = None
+fake_llm_utils.resolve_fallback_servers_from_provider_config = lambda _model_id: []
+fake_llm_utils.truncate_message_history_to_token_budget = lambda message_history, **_kwargs: message_history
 sys.modules["backend.apps.ai.utils.llm_utils"] = fake_llm_utils
 
 

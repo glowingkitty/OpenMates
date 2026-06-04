@@ -7,6 +7,8 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { userProfile } from '../../stores/userProfile';
+    import { demoMode } from '../../stores/demoModeStore';
+    import { DEMO_MARKETING_CREDITS } from '../../demo_chats/usageDemoData';
     import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import SettingsUsage from './SettingsUsage.svelte';
@@ -17,20 +19,17 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     let errorMessage: string | null = $state(null);
 
     // Current user credits
-    let currentCredits = $state(0);
+    let currentCredits = $derived($demoMode ? DEMO_MARKETING_CREDITS : ($userProfile.credits || 0));
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
-    // Load user profile data
-    userProfile.subscribe(profile => {
-        currentCredits = profile.credits || 0;
-    });
-
     // Fetch subscription details (kept for future use — subscription display coming soon)
     async function fetchSubscriptionDetails() {
+        if ($demoMode) return;
+
         errorMessage = null;
 
         try {

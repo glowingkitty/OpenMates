@@ -472,6 +472,12 @@ final class OfflineStore: ObservableObject {
         return (try? context.fetch(descriptor))?.map { $0.toEmbedKey() } ?? []
     }
 
+    func persistedMessageCount() -> Int {
+        guard let context = modelContext else { return 0 }
+        let descriptor = FetchDescriptor<PersistedMessage>()
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
     // MARK: - Delete
 
     func deleteChat(_ chatId: String) {

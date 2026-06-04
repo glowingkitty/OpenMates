@@ -2573,7 +2573,9 @@ export async function handleUserNotificationImpl(
       // Lazy-import the settings deep-link store to avoid circular deps
       onAction = async () => {
         const { settingsDeepLink } = await import("../stores/settingsDeepLinkStore");
+        const { panelState } = await import("../stores/panelStateStore");
         settingsDeepLink.set(action_deep_link);
+        panelState.openSettings();
       };
     }
 

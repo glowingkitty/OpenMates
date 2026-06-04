@@ -14,6 +14,15 @@ import {
  */
 type TranslationFunction = (key: string) => string;
 
+const VERSION_ANNOUNCEMENT_TITLE_PATTERN = /^v(\d+\.\d+:\s*)/;
+
+function normalizeVersionAnnouncementTitle(chatId: string, title: string): string {
+	if (!chatId.startsWith('announcements-introducing-openmates-v')) {
+		return title;
+	}
+	return title.replace(VERSION_ANNOUNCEMENT_TITLE_PATTERN, 'OpenMates v$1');
+}
+
 /**
  * Translates a demo chat by resolving translation keys from i18n JSON files
  * 
@@ -73,10 +82,11 @@ export function translateDemoChat(demoChat: DemoChat): DemoChat {
 	}
 	
 	// Demo chats use translation keys - translate them
+	const translatedTitle = t(demoChat.title);
 	return {
 		...demoChat,
 		// All fields are translation keys - translate them
-		title: t(demoChat.title),
+		title: normalizeVersionAnnouncementTitle(demoChat.chat_id, translatedTitle),
 		description: t(demoChat.description),
 		messages: demoChat.messages.map(message => ({
 			...message,
@@ -92,4 +102,3 @@ export function translateDemoChat(demoChat: DemoChat): DemoChat {
 export function translateDemoChats(demoChats: DemoChat[]): DemoChat[] {
 	return demoChats.map(translateDemoChat);
 }
-

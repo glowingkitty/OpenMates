@@ -1156,6 +1156,54 @@ math.calculate.3:
   he: "sin(π/4) × cos(π/4)"
   verified_by_human: [en]
 
+weather.forecast.1:
+  context: Query label for the first weather forecast example in the app store. Shows a Berlin forecast using the Bright Sky / DWD provider path.
+  en: Berlin weather forecast for this week
+  de: Wettervorhersage für Berlin für diese Woche
+  zh: 柏林本周天气预报
+  es: Pronóstico del tiempo de Berlín para esta semana
+  fr: Prévisions météo de Berlin pour cette semaine
+  pt: Previsão do tempo para Berlim esta semana
+  ru: Прогноз погоды в Берлине на эту неделю
+  ja: 今週のベルリンの天気予報
+  ko: 이번 주 베를린 날씨 예보
+  tr: Bu hafta Berlin hava durumu tahmini
+  vi: Dự báo thời tiết Berlin trong tuần này
+  id: Prakiraan cuaca Berlin minggu ini
+  pl: Prognoza pogody dla Berlina na ten tydzień
+  nl: Weersverwachting voor Berlijn deze week
+  ar: توقعات الطقس في برلين لهذا الأسبوع
+  hi: इस सप्ताह बर्लिन का मौसम पूर्वानुमान
+  th: พยากรณ์อากาศเบอร์ลินสัปดาห์นี้
+  cs: Předpověď počasí pro Berlín na tento týden
+  sv: Väderprognos för Berlin den här veckan
+  he: תחזית מזג האוויר בברלין לשבוע הזה
+  verified_by_human: [en]
+
+weather.forecast.2:
+  context: Query label for the second weather forecast example in the app store. Shows a Tokyo forecast using the Open-Meteo provider path.
+  en: Tokyo weather forecast for the next few days
+  de: Wettervorhersage für Tokio für die nächsten Tage
+  zh: 东京未来几天天气预报
+  es: Pronóstico del tiempo de Tokio para los próximos días
+  fr: Prévisions météo de Tokyo pour les prochains jours
+  pt: Previsão do tempo para Tóquio nos próximos dias
+  ru: Прогноз погоды в Токио на ближайшие дни
+  ja: 今後数日間の東京の天気予報
+  ko: 앞으로 며칠간 도쿄 날씨 예보
+  tr: Önümüzdeki birkaç gün için Tokyo hava durumu tahmini
+  vi: Dự báo thời tiết Tokyo trong vài ngày tới
+  id: Prakiraan cuaca Tokyo untuk beberapa hari ke depan
+  pl: Prognoza pogody dla Tokio na najbliższe dni
+  nl: Weersverwachting voor Tokio voor de komende dagen
+  ar: توقعات الطقس في طوكيو للأيام القليلة القادمة
+  hi: अगले कुछ दिनों के लिए टोक्यो का मौसम पूर्वानुमान
+  th: พยากรณ์อากาศโตเกียวในอีกไม่กี่วันข้างหน้า
+  cs: Předpověď počasí pro Tokio na několik příštích dní
+  sv: Väderprognos för Tokyo de närmaste dagarna
+  he: תחזית מזג האוויר בטוקיו לימים הקרובים
+  verified_by_human: [en]
+
 travel.get_flight.1:
   context: Query label for the first flight tracking example in the app store. Shows a Lufthansa flight from Munich to London.
   en: Flight LH2472 Munich → London

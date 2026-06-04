@@ -23,7 +23,9 @@
 import JSZip from "jszip";
 import { parse } from "yaml";
 import { getApiEndpoint, apiEndpoints } from "../config/api";
+import { chatDB } from "./db";
 import { resolveEmbed, storeEmbed, type EmbedData } from "./embedResolver";
+import type { Chat, Message } from "../types/chat";
 
 // ============================================================================
 // CONSTANTS
@@ -85,6 +87,7 @@ export interface ImportedChatResult {
   messages_imported: number;
   messages_blocked: number;
   credits_charged: number;
+  messages?: ParsedImportMessage[];
 }
 
 export interface ImportChatApiResponse {
@@ -92,10 +95,27 @@ export interface ImportChatApiResponse {
   total_credits_charged: number;
 }
 
+export interface RecentImportedChatData {
+  chat: Chat;
+  messages: Message[];
+}
+
 export type ImportProgressCallback = (
   phase: "parsing" | "resolving-embeds" | "submitting" | "done",
   detail: string,
 ) => void;
+
+const recentImportedChats = new Map<string, RecentImportedChatData>();
+
+export function getRecentImportedChatData(
+  chatId: string,
+): RecentImportedChatData | undefined {
+  return recentImportedChats.get(chatId);
+}
+
+export function getAllRecentImportedChatData(): RecentImportedChatData[] {
+  return Array.from(recentImportedChats.values());
+}
 
 // ============================================================================
 // FILE TYPE DETECTION
@@ -405,11 +425,13 @@ export function estimateImportCost(
 // ============================================================================
 
 const PURE_DATA_EMBED_TYPES = new Set([
+  "code",
   "code-code",
   "docs-doc",
   "sheets-sheet",
   "web-website",
   "videos-video",
+  "images-image",
   "maps-location",
   "maps-directions",
   "focus-mode-activation",
@@ -424,9 +446,6 @@ const PURE_DATA_EMBED_TYPES = new Set([
 async function resolveEmbeds(rawEmbeds: RawYamlEmbed[]): Promise<void> {
   for (const raw of rawEmbeds) {
     if (!raw.embed_id) continue;
-
-    const existing = await resolveEmbed(raw.embed_id);
-    if (existing) continue; // Already in local store — nothing to do
 
     if (PURE_DATA_EMBED_TYPES.has(raw.type) && raw.content) {
       try {
@@ -443,7 +462,11 @@ async function resolveEmbeds(rawEmbeds: RawYamlEmbed[]): Promise<void> {
       } catch {
         // Non-fatal — embed just won't be resolvable locally
       }
+      continue;
     }
+
+    const existing = await resolveEmbed(raw.embed_id);
+    if (existing) continue; // Already in local store — nothing to do
   }
 }
 
@@ -525,6 +548,66 @@ export async function importChats(
   }
 
   const data = (await response.json()) as ImportChatApiResponse;
+  await cacheAcceptedImportsLocally(chats, data.imported).catch((error) => {
+    console.warn("[ChatImport] Local import cache failed:", error);
+  });
   onProgress?.("done", "Import complete.");
   return data;
+}
+
+async function cacheAcceptedImportsLocally(
+  chats: ParsedImportChat[],
+  imported: ImportedChatResult[],
+): Promise<void> {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
+  for (let index = 0; index < imported.length; index++) {
+    const result = imported[index];
+    const source = chats[index];
+    if (!source) continue;
+    const acceptedMessages = result.messages ?? source.messages;
+
+    const timestamps = acceptedMessages.map((message) =>
+      parseImportTimestamp(message.completed_at, nowSeconds),
+    );
+    const createdAt = timestamps[0] ?? nowSeconds;
+    const updatedAt = timestamps[timestamps.length - 1] ?? nowSeconds;
+
+    const chat: Chat = {
+      chat_id: result.chat_id,
+      title: result.title ?? source.title ?? undefined,
+      encrypted_title: null,
+      messages_v: acceptedMessages.length,
+      title_v: result.title || source.title ? 1 : 0,
+      last_edited_overall_timestamp: updatedAt,
+      unread_count: 0,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      chat_summary: source.summary,
+    };
+
+    const messages: Message[] = acceptedMessages.map((message, messageIndex) => ({
+      message_id: `${result.chat_id.slice(-10)}-${crypto.randomUUID()}`,
+      chat_id: result.chat_id,
+      role: message.role,
+      created_at: timestamps[messageIndex] ?? nowSeconds,
+      status: "synced",
+      content: message.content,
+      category: message.assistant_category,
+      has_thinking: message.has_thinking,
+      thinking_token_count: message.thinking_tokens,
+      thinking_content: message.thinking,
+    }));
+
+    recentImportedChats.set(result.chat_id, { chat, messages });
+
+    await chatDB.addChat(chat);
+    await chatDB.batchSaveMessages(messages);
+  }
+}
+
+function parseImportTimestamp(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : fallback;
 }

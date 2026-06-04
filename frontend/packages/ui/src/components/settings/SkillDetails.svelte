@@ -530,6 +530,8 @@
                                 <!-- Provider is in metadata — render as clickable row with provider logo -->
                                 <div
                                     class="provider-item provider-item--clickable"
+                                    data-testid="skill-provider-item"
+                                    data-provider-name={providerMeta.name}
                                     role="button"
                                     tabindex="0"
                                     onclick={() => handleProviderClick(providerName)}
@@ -540,6 +542,8 @@
                                             src={getProviderIconUrl(providerMeta.logo_svg)}
                                             alt={providerMeta.name}
                                             class="provider-logo"
+                                            data-testid="settings-provider-logo"
+                                            data-provider-name={providerMeta.name}
                                         />
                                     </div>
                                     <div class="provider-info">
@@ -549,12 +553,14 @@
                                 </div>
                             {:else}
                                 <!-- Provider not in metadata — render as plain non-clickable row with server icon -->
-                                <div class="provider-item">
+                                <div class="provider-item" data-testid="skill-provider-item" data-provider-name={providerName}>
                                     <div class="provider-icon">
                                         <img
                                             src="/icons/server.svg"
                                             alt={providerName}
                                             class="provider-logo provider-logo--server"
+                                            data-testid="settings-provider-logo"
+                                            data-provider-name={providerName}
                                         />
                                     </div>
                                     <div class="provider-info">
@@ -627,7 +633,7 @@
         height: 36px;
         border-radius: var(--radius-3);
         object-fit: contain;
-        background: var(--color-grey-10);
+        background: #ffffff;
         padding: var(--spacing-2);
     }
 
@@ -844,7 +850,7 @@
         height: 36px;
         border-radius: var(--radius-3);
         object-fit: contain;
-        background: var(--color-grey-10);
+        background: #ffffff;
         padding: var(--spacing-2);
     }
     
@@ -932,6 +938,6 @@
     }
     
     :global(.dark) .provider-logo {
-        background: var(--color-grey-20);
+        background: #ffffff;
     }
 </style>

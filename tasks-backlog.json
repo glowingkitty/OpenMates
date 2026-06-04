@@ -1,0 +1,559 @@
+{
+  "tasks": [
+    {
+      "title": "Fix current example chat clone embed regression",
+      "summary": "Fix cloned example chats so embeds survive the transition from in-memory example chat data into the real cloned chat.",
+      "reason_retained": "The latest failed-test report still lists example-chat-clone.spec.ts failing because the source example chat had embeds before cloning and the cloned chat had zero embeds.",
+      "acceptance_criteria": [
+        "Investigate the latest example-chat-clone.spec.ts report and screenshots.",
+        "Fix cloned example chats so embeds survive cloning.",
+        "Preserve shared/example chat embed rendering behavior.",
+        "Verify with the relevant Playwright spec via the repo test runner."
+      ],
+      "suggested_labels": ["bug", "web_app|previews"]
+    },
+    {
+      "title": "Generate custom OG images for shared chats",
+      "summary": "Replace the generic shared-chat Open Graph image with a privacy-safe per-chat OG image strategy.",
+      "reason_retained": "The shared-chat route still falls back to /images/og-image.jpg, so the core request has not been implemented.",
+      "acceptance_criteria": [
+        "Design a privacy-safe per-chat OG image strategy that does not expose decrypted chat content to the server unless explicitly intended.",
+        "Generate or cache an OG image for shared chats using safe metadata such as title, category, or icon, or document why a generic image is required.",
+        "Ensure the shared-chat route emits the generated image URL in og:image and twitter:image.",
+        "Add or update tests/docs for the shared-chat OG metadata flow."
+      ],
+      "suggested_labels": ["enhancement", "web_app|active_chat", "website"]
+    },
+    {
+      "title": "Fix current reminder E2E failures",
+      "summary": "Fix the current reminder settings/redesign regressions shown by the latest daily Playwright failures.",
+      "reason_retained": "The latest failed-test report still lists reminder-button-settings.spec.ts and reminder-redesign.spec.ts failures around missing reminder item/success UI.",
+      "acceptance_criteria": [
+        "Investigate the latest reminder failure reports and screenshots.",
+        "Fix the current reminder UI/message/test regressions.",
+        "Preserve existing reminder creation, settings, and redesign behavior.",
+        "Verify the relevant reminder specs via the repo test runner."
+      ],
+      "suggested_labels": ["bug", "web_app|settings"]
+    },
+    {
+      "title": "Evaluate Vercel to Hetzner VM migration for frontend hosting",
+      "summary": "Evaluate whether moving the SvelteKit frontend from Vercel to a Hetzner VM would improve cost control without unacceptable performance or maintenance tradeoffs.",
+      "reason_retained": "The repo still documents Vercel deployment as the active frontend path, so the hosting-cost evaluation has not been superseded by code or docs.",
+      "acceptance_criteria": [
+        "Compare Vercel Pro cost limits with a Hetzner VM plus Caddy or nginx deployment.",
+        "Evaluate adapter-vercel versus adapter-node implications for SSR and prerendering.",
+        "Assess CDN and edge-performance tradeoffs.",
+        "Estimate migration effort and operational risk."
+      ],
+      "suggested_labels": ["helper-tools"]
+    },
+    {
+      "title": "Research alternative providers for image search",
+      "summary": "Evaluate whether Flickr Commons and Wikidata/Wikimedia media APIs should complement the current Brave image search and SerpAPI Google Lens providers.",
+      "reason_retained": "The image search skill currently documents and implements Brave text image search plus SerpAPI Google Lens reverse search; Flickr/Wikidata image-provider support was not found, but the related research is older than eight weeks.",
+      "acceptance_criteria": [
+        "Compare Flickr Commons, Wikidata/Wikimedia media, and existing Brave/SerpAPI coverage for licensing, result quality, privacy, quota, and cost.",
+        "Document whether each provider should be added to images/search, daily inspirations, or neither.",
+        "If a provider is recommended, define the shared provider wrapper, privacy-policy impact, and test coverage needed before implementation.",
+        "Avoid adding a provider unless it improves result quality or licensing coverage beyond the current providers."
+      ],
+      "suggested_labels": ["enhancement"]
+    },
+    {
+      "title": "Improve document embed prompt preselection",
+      "summary": "Improve preprocessing so document-generation instructions are loaded reliably when the user asks to create or edit a document embed.",
+      "reason_retained": "Document embeds and document-generation instructions exist, but the issue is older than eight weeks and still points to a plausible preprocessor gap around when docs/document embed instructions are selected.",
+      "acceptance_criteria": [
+        "Identify the prompts and preprocessor signals that cause document embed instructions to be included.",
+        "Add or refine detection for user requests to create documents, reports, formatted files, or document embeds.",
+        "Keep prompt loading gated enough to avoid injecting document instructions into unrelated chats.",
+        "Add focused coverage for a document-creation request that previously missed the docs/document embed path."
+      ],
+      "suggested_labels": ["bug", "web_app|active_chat"]
+    },
+    {
+      "title": "Migrate focus mode system prompts to per-language Markdown files",
+      "summary": "Move long multilingual focus-mode system prompts out of YAML string blocks into per-language Markdown files while preserving translation output semantics.",
+      "reason_retained": "Focus mode prompts are still resolved through `focus_modes.*.systemprompt` translation keys and YAML/i18n sources; no per-language Markdown prompt pipeline was found.",
+      "acceptance_criteria": [
+        "Design a source layout for per-focus-mode, per-language Markdown prompt files.",
+        "Update the translation build pipeline so generated locale JSON keeps the same `focus_modes.*.systemprompt` values.",
+        "Provide a migration script for existing YAML systemprompt blocks.",
+        "Verify resolved prompt text remains equivalent after migration, excluding intentional whitespace normalization."
+      ],
+      "suggested_labels": ["enhancement", "apps"]
+    },
+    {
+      "title": "Fix current FixtureRecorder inline code embed replay regression",
+      "summary": "Fix the current code-generation mock replay path so inline code embeds produced by recorded LLM responses render with valid embed IDs during replay.",
+      "reason_retained": "The latest failed-test report still lists code-generation-multiturn.spec.ts failing, and the fixture/replay system is still a likely area because it rewrites recorded embed IDs during mock replay.",
+      "acceptance_criteria": [
+        "Investigate the latest code-generation-multiturn.spec.ts failure report and screenshots.",
+        "Confirm whether recorded inline code embed payloads are captured and recreated correctly during replay.",
+        "Fix replay so response markers point at fresh embeds that the frontend can resolve.",
+        "Verify code-generation-multiturn.spec.ts through the repo test runner."
+      ],
+      "suggested_labels": ["bug", "helper-tools", "web_app|previews"]
+    },
+    {
+      "title": "Reduce first-message cold-start latency after backend restart",
+      "summary": "Profile and reduce the extra latency seen by the first AI message after API or worker restart.",
+      "reason_retained": "Startup preloading exists for several caches, but the backend still contains multiple first-request fallback paths and this older performance task has not been conclusively resolved by code or docs.",
+      "acceptance_criteria": [
+        "Profile the first AI message after a backend restart and compare it with a follow-up message.",
+        "Identify the top first-request latency sources across API, worker, cache, provider clients, and config loading.",
+        "Move safe warmup work into FastAPI lifespan startup or Celery worker boot.",
+        "Document remaining lazy-init paths that are intentionally deferred."
+      ],
+      "suggested_labels": ["enhancement", "api"]
+    },
+    {
+      "title": "Design batch task expansion for one task per list entry",
+      "summary": "Design a UI and execution model for turning a list into multiple focused chats or tasks, one per entry, with explicit progress tracking.",
+      "reason_retained": "No dedicated batch task expansion UI or `/btw` command implementation was found, and the idea remains relevant to multi-step agentic workflows.",
+      "acceptance_criteria": [
+        "Define user flows for selecting a list and creating one task/chat per entry.",
+        "Decide whether the feature belongs in chat, tasks, sub-chats, or the future plan view.",
+        "Specify how progress, failures, and per-entry outputs are displayed.",
+        "Document safeguards that prevent the assistant from skipping entries."
+      ],
+      "suggested_labels": ["idea", "web_app|active_chat"]
+    },
+    {
+      "title": "Add weekly personalized inspiration newsletter",
+      "summary": "Create an opt-in weekly email digest that curates personalized daily-inspiration-style content for each user.",
+      "reason_retained": "Newsletter infrastructure and daily inspiration infrastructure exist, but no weekly personalized inspiration digest implementation was found.",
+      "acceptance_criteria": [
+        "Define the opt-in setting and unsubscribe behavior for a weekly inspiration digest.",
+        "Reuse daily inspiration data where appropriate without sending an uncurated dump of seven daily items.",
+        "Create localized responsive email content using the existing newsletter/email stack.",
+        "Schedule delivery through the existing backend task infrastructure and document privacy implications."
+      ],
+      "suggested_labels": ["feature_request", "apps"]
+    },
+    {
+      "title": "Add proactive next-task selection workflow",
+      "summary": "Design and implement a workflow that can select, plan, and work through eligible tasks one at a time with minimal user input while preserving user control.",
+      "reason_retained": "A `next-tasks` skill exists, but no full product workflow for proactive task selection and processing was found.",
+      "acceptance_criteria": [
+        "Define eligibility rules for tasks that can be planned or implemented with minimal user input.",
+        "Require clarification or confirmation before risky, ambiguous, sensitive, or high-impact work.",
+        "Integrate with the existing task-management/session workflow rather than creating a parallel tracker.",
+        "Document how the workflow reports progress and stops safely after each task."
+      ],
+      "suggested_labels": ["enhancement", "helper-tools"]
+    },
+    {
+      "title": "Add anti-scam filtering guidance for home search results",
+      "summary": "Improve home/apartment search responses so obvious scammy listings are filtered or flagged and users receive safety guidance when searching housing listings.",
+      "reason_retained": "The Home app search instruction covers provider usage and filters, but no explicit apartment-scam filtering or renter safety guidance was found.",
+      "acceptance_criteria": [
+        "Add guidance for identifying obvious apartment listing scams or spam in home search results.",
+        "Ensure the assistant flags suspicious results instead of presenting them as normal recommendations.",
+        "Include concise safety advice for housing searches without overwhelming legitimate results.",
+        "Add or update coverage for a home-search response that includes suspicious listing patterns."
+      ],
+      "suggested_labels": ["enhancement", "apps"]
+    },
+    {
+      "title": "Implement production auto-deploy with minimal downtime",
+      "summary": "Implement the planned host-level production deploy agent so main-branch deployments are automated, verified, and minimize downtime.",
+      "reason_retained": "An architecture document for auto-deploy exists, but the planned deploy-agent implementation files were not found under `deployment/`.",
+      "acceptance_criteria": [
+        "Implement a host-level deploy agent or equivalent production-safe deployment controller.",
+        "Verify GitHub webhook signatures and restrict deploys to the intended branch.",
+        "Build before swapping running containers and run post-deploy health checks.",
+        "Validate and reload Caddy configuration as part of the deploy flow.",
+        "Document setup, rollback, and operational failure modes."
+      ],
+      "suggested_labels": ["enhancement", "api", "helper-tools"]
+    },
+    {
+      "title": "Implement semantic chat search with encrypted embeddings",
+      "summary": "Add semantic chat search that stores encrypted chat embedding vectors and performs similarity search client-side.",
+      "reason_retained": "`docs/architecture/frontend/semantic-chat-search.md` is still marked planned and current chat search remains substring-oriented.",
+      "acceptance_criteria": [
+        "Add encrypted embedding storage for chat summaries/tags without server-side vector search over user data.",
+        "Generate or update embeddings during existing postprocessing or a documented background path.",
+        "Sync encrypted vectors through the chat metadata flow and decrypt them client-side.",
+        "Show semantic results alongside exact substring matches with clear ranking behavior.",
+        "Document model choice, privacy impact, and backfill strategy."
+      ],
+      "suggested_labels": ["feature_request", "web_app|chats_list"]
+    },
+    {
+      "title": "Add folders for app settings and memories",
+      "summary": "Add first-class grouping or folder support for app settings and memories so users can organize saved personal data beyond the current `settings_group` field.",
+      "reason_retained": "Settings and memories entries have a `settings_group` category, but no user-managed folder/group organization workflow was found.",
+      "acceptance_criteria": [
+        "Define the encrypted data model for user-managed settings/memory groups or folders.",
+        "Add UI for creating, renaming, moving, and deleting groups without exposing decrypted content to the server.",
+        "Preserve existing app category filtering and mention/deep-link behavior.",
+        "Include import/export behavior for grouped settings and memories."
+      ],
+      "suggested_labels": ["enhancement", "web_app|settings"]
+    },
+    {
+      "title": "Unify provider routing metadata across app skills",
+      "summary": "Create a shared provider-routing model for country, category, scope, and provider compatibility across skills instead of duplicating logic per app.",
+      "reason_retained": "Provider routing exists in individual apps such as events, shopping, travel, payments, and frontend metadata, but no unified cross-skill provider registry was found.",
+      "acceptance_criteria": [
+        "Inventory provider routing needs across apps with country, category, scope, and opt-in constraints.",
+        "Define shared provider metadata that can serve backend routing, frontend display, privacy policy, and health checks.",
+        "Migrate at least one app from bespoke routing to the shared model as a proof of concept.",
+        "Document how providers are added, disabled, and selected."
+      ],
+      "suggested_labels": ["enhancement", "apps"]
+    },
+    {
+      "title": "Fix Siegessaeule event provider timeout and opt-in routing",
+      "summary": "Make the Siegessaeule events provider safe to re-enable by fixing timeout hierarchy and only selecting it for Berlin LGBTQ+ event intent.",
+      "reason_retained": "The events provider registry still excludes Siegessaeule from auto-select with a comment pointing at the unresolved timeout and opt-in routing work.",
+      "acceptance_criteria": [
+        "Ensure Siegessaeule provider timeouts cannot exceed the enclosing skill executor timeout.",
+        "Keep Siegessaeule opt-in or intent-gated for Berlin LGBTQ+ event searches.",
+        "Re-enable it only when slow proxy responses do not fail unrelated event searches.",
+        "Add provider routing and timeout coverage for Berlin LGBTQ+ and generic Berlin event queries."
+      ],
+      "suggested_labels": ["bug", "apps"]
+    },
+    {
+      "title": "Optimize base AI instructions for conciseness and on-demand loading",
+      "summary": "Reduce always-loaded AI base instructions by moving optional guidance behind clearer runtime gates where safe.",
+      "reason_retained": "`main_processor.py` still appends many base instructions on most turns, with only some instruction families gated by app availability, selected tools, or embed history.",
+      "acceptance_criteria": [
+        "Measure current base-instruction token cost across representative chat flows.",
+        "Identify instructions that can be loaded only when a relevant skill, embed type, focus mode, or user intent is present.",
+        "Avoid removing safety, privacy, or required tool-contract instructions from flows that need them.",
+        "Document the gating rules and add regression coverage for at least one newly gated instruction."
+      ],
+      "suggested_labels": ["enhancement", "api"]
+    },
+    {
+      "title": "Implement parallel execution for independent app skill calls",
+      "summary": "Execute independent tool or app skill calls in parallel where safe instead of processing every tool call sequentially.",
+      "reason_retained": "The main processor still iterates through tool calls sequentially after validation, aside from per-skill support for multiple requests.",
+      "acceptance_criteria": [
+        "Define which tool calls are safe to execute in parallel and which must remain ordered or exclusive.",
+        "Preserve budget accounting, billing, cancellation, placeholder embed handling, and focus-mode exclusivity.",
+        "Execute independent app skills concurrently and merge tool results deterministically into message history.",
+        "Add tests covering parallel success, one-call failure, budget limits, and cancellation behavior."
+      ],
+      "suggested_labels": ["enhancement", "api"]
+    },
+    {
+      "title": "Add academic-integrity safeguards against paper-mill misuse",
+      "summary": "Research and implement guidance that reduces misuse of OpenMates for paper mills, fabricated academic work, and reliance on retracted or unreliable science papers.",
+      "reason_retained": "AI preprocessing currently has generic harmful and misuse-risk scoring, and learning mode mentions plagiarism reduction, but no dedicated academic-integrity or retracted-paper safeguard was found. The task is older than eight weeks and still relevant as product-safety work.",
+      "acceptance_criteria": [
+        "Research paper-mill and retracted-paper misuse patterns relevant to OpenMates research, writing, and science flows.",
+        "Define policy guidance for acceptable learning/research assistance versus academic fraud, fabricated citations, or ghostwritten submissions.",
+        "Update AI instructions, preprocessing, or app-specific guidance where needed without blocking legitimate study and research use.",
+        "Add coverage for at least one academic-integrity misuse request and one legitimate research-assistance request.",
+        "Document any user-facing refusal or redirection behavior for academic-integrity cases."
+      ],
+      "suggested_labels": ["enhancement", "api"]
+    },
+    {
+      "title": "Implement virtualized chat message rendering",
+      "summary": "Reduce long-chat memory and DOM pressure by virtualizing chat history and destroying offscreen read-only editors safely.",
+      "reason_retained": "`docs/architecture/frontend/virtual-scrolling-chat-history.md` still documents the planned work, while `ChatHistory.svelte` still renders all `displayMessages` in a plain keyed `{#each}` and no `messageHeightCache.ts` utility exists.",
+      "acceptance_criteria": [
+        "Make `ReadOnlyMessage.svelte` release TipTap editors when far outside the viewport and recreate from cached content when needed.",
+        "Add height-cache infrastructure for rich messages, embeds, code blocks, and images.",
+        "Replace full chat-history rendering with a stable windowed renderer that preserves scroll-to-bottom and streaming spacer behavior.",
+        "Verify long conversations, streaming messages, selection menus, embeds, and mobile sidebar-closed chat flows."
+      ],
+      "suggested_labels": ["enhancement", "web_app|active_chat"]
+    },
+    {
+      "title": "Normalize mobile date and time settings fields",
+      "summary": "Make date and time inputs in settings match canonical settings dropdown/input height and show useful placeholder or empty-state text on mobile.",
+      "reason_retained": "`SettingsInput.svelte` supports native `date` and `time` types but applies generic text-input styling; reminder settings still use native date/time fields directly, so the mobile visual mismatch remains plausible and older than eight weeks.",
+      "acceptance_criteria": [
+        "Audit date and time fields in reminder/settings UI on mobile viewports.",
+        "Align native date/time input height, padding, typography, and radius with canonical settings inputs/dropdowns.",
+        "Provide clear placeholder or empty-state text for date/time fields where native controls hide placeholders.",
+        "Add or update mobile coverage for the affected reminder/settings fields."
+      ],
+      "suggested_labels": ["bug", "web_app|settings"]
+    },
+    {
+      "title": "Improve agent clarification workflow for long-running tasks",
+      "summary": "Design how agentic workflows can leave progress comments and request clarifying input with a notification instead of silently stalling.",
+      "reason_retained": "Sub-chat clarification exists through `ask_user_input`, and notification infrastructure exists elsewhere, but no cohesive user-facing workflow was found for progress comments plus clarification notifications during long-running agent work.",
+      "acceptance_criteria": [
+        "Define when an agent should pause for clarification instead of continuing or guessing.",
+        "Design a progress-comment surface for task/chat workflows that does not spam users.",
+        "Add a notification path for important clarification requests while respecting notification settings.",
+        "Document cancellation, timeout, and resume behavior for paused agent tasks."
+      ],
+      "suggested_labels": ["enhancement", "web_app|active_chat"]
+    },
+    {
+      "title": "Add urgent assistant notification emails",
+      "summary": "Allow explicitly approved workflows to send urgent email notifications that are separate from routine chat notifications.",
+      "reason_retained": "The repo has internal/test/docs notification infrastructure and offline webhook email notifications, but no user-facing skill or permissioned workflow for urgent assistant-triggered notification emails was found.",
+      "acceptance_criteria": [
+        "Define which workflows may request urgent email notifications and what user consent is required.",
+        "Separate urgent notifications from regular chat/webhook email preferences.",
+        "Add rate limits, audit logging, and abuse protections for assistant-triggered emails.",
+        "Provide localized user-facing copy for opt-in, send confirmation, and failure states."
+      ],
+      "suggested_labels": ["feature_request", "api"]
+    },
+    {
+      "title": "Add a health follow-up focus mode",
+      "summary": "Create a health-focused mode for recurring follow-up chats around topics such as sleep issues, sleep hygiene, and ongoing wellness tracking.",
+      "reason_retained": "Health app and health focus modes exist for appointments, reports, and insights, but no dedicated recurring follow-up or sleep-hygiene mode was found.",
+      "acceptance_criteria": [
+        "Define the scope of a recurring health follow-up mode without replacing professional medical advice.",
+        "Add focus-mode metadata, prompts, summaries, and localized settings/app-store copy.",
+        "Support follow-up reminders or suggested next check-ins where appropriate.",
+        "Verify safety disclaimers and handoff language for medical concerns."
+      ],
+      "suggested_labels": ["feature_request", "apps"]
+    },
+    {
+      "title": "Import settings and memories from text files",
+      "summary": "Let users import structured or semi-structured text into settings and memories, including examples such as exported favorite places.",
+      "reason_retained": "Settings/memories and file upload flows exist, but no user-facing import workflow for settings and memories from a text file was found.",
+      "acceptance_criteria": [
+        "Define supported file formats and parsing rules for settings/memory import.",
+        "Preview extracted entries and require user confirmation before saving encrypted memories.",
+        "Support common exported text/list use cases such as favorite places from mapping tools.",
+        "Document privacy behavior and add coverage for import, duplicate handling, and cancel paths."
+      ],
+      "suggested_labels": ["feature_request", "web_app|settings"]
+    },
+    {
+      "title": "Improve daily meeting server stats data quality",
+      "summary": "Fix remaining daily meeting server-stat data gaps and expand health metrics once web, app, and signup-funnel data flows are reliable.",
+      "reason_retained": "Server stats, web analytics, app analytics, and signup funnel aggregation now exist, but recent logs still show web analytics Directus update failures and the original data-gap surfaces remain worth tracking as older backend work.",
+      "acceptance_criteria": [
+        "Verify web analytics counters flush correctly to `web_analytics_daily` without repeated Directus update failures.",
+        "Verify app analytics events aggregate into `app_analytics_daily` with useful per-app/skill dimensions.",
+        "Verify signup funnel rows populate and expose conversion rates.",
+        "Add daily meeting output for top app usage, funnel conversion, web analytics, trends, and month-to-date aggregates once data is reliable."
+      ],
+      "suggested_labels": ["bug", "api"]
+    },
+    {
+      "title": "Implement updated chat settings sections",
+      "summary": "Bring the chat settings menu closer to the planned files, usage, share, and tasks settings design while preserving existing settings navigation patterns.",
+      "reason_retained": "Share and usage settings components exist, but a complete updated chat settings menu covering files and tasks settings from the design references was not found.",
+      "acceptance_criteria": [
+        "Audit current chat settings against the planned files, usage, share, and tasks sections.",
+        "Use only canonical settings components and avoid custom inline settings CSS.",
+        "Implement missing sections incrementally, starting with the highest-value section.",
+        "Add mobile and desktop coverage for opening each settings section from an active chat."
+      ],
+      "suggested_labels": ["feature_request", "web_app|settings"]
+    },
+    {
+      "title": "Audit LLM provider usage extraction and token fallbacks",
+      "summary": "Ensure every LLM provider extracts real API usage where available and uses logged token estimation only as an emergency fallback.",
+      "reason_retained": "Provider clients still vary in usage handling; Groq and Cerebras paths lack the same explicit logged fallback pattern as OpenAI/Mistral when API usage is absent.",
+      "acceptance_criteria": [
+        "Inventory all provider clients under `backend/apps/ai/llm_providers/`.",
+        "Verify each provider extracts official API usage for streaming and non-streaming responses where supported.",
+        "Add logged token-estimation fallback only when official usage is genuinely missing.",
+        "Extend provider usage extraction tests so silent zero usage cannot regress."
+      ],
+      "suggested_labels": ["bug", "api"]
+    },
+    {
+      "title": "Build BYOC Claude subscription worker mode",
+      "summary": "Let users connect a local Claude Code CLI subscription as an optional LLM worker through the OpenMates CLI remote-access architecture.",
+      "reason_retained": "`docs/architecture/apps/cli-remote-access.md` documents Claude Worker Mode as planned, but no implementation wiring for `openmates remote-access start --claude-worker` was found.",
+      "acceptance_criteria": [
+        "Implement CLI worker registration and lifecycle for `--claude-worker`.",
+        "Add backend routing/model-selection support for user-owned local workers with fallback to server-side providers when unavailable.",
+        "Stream output, usage metadata, errors, and cancellation through the existing remote-access protocol.",
+        "Document security, privacy, billing display, and offline behavior."
+      ],
+      "suggested_labels": ["feature_request", "helper-tools"]
+    },
+    {
+      "title": "Design the Finance app foundation",
+      "summary": "Plan and implement a provider-agnostic Finance app foundation for Revolut Business and InvoiceNinja-backed finance workflows.",
+      "reason_retained": "Only the finance mate and payment-side Revolut/InvoiceNinja infrastructure were found; no `backend/apps/finance` app or user-facing finance skills were found.",
+      "acceptance_criteria": [
+        "Define the Finance app manifest, skill boundaries, and privacy model.",
+        "Split connected accounts, review, exchange-rate, invoice, and send-money work into implementable phases.",
+        "Reuse shared providers and avoid skill-specific provider coupling.",
+        "Document risk controls for financial data, confirmations, and provider credentials."
+      ],
+      "suggested_labels": ["feature_request", "apps"]
+    },
+    {
+      "title": "Implement connected accounts for Finance providers",
+      "summary": "Add encrypted per-user connected accounts so finance skills can use Revolut Business and InvoiceNinja credentials without exposing secrets to the LLM.",
+      "reason_retained": "`docs/architecture/core/security.md` marks connected accounts as planned, and no `connected_accounts` settings/memory implementation or Revolut Business shared provider was found.",
+      "acceptance_criteria": [
+        "Define encrypted `connected_accounts` schema and settings UI for provider connections.",
+        "Strip credentials before LLM context while exposing only safe account display metadata.",
+        "Resolve full credentials inside skill execution from encrypted storage or approved cache paths.",
+        "Add Revolut Business and InvoiceNinja provider connection health checks and disconnect behavior."
+      ],
+      "suggested_labels": ["feature_request", "api", "web_app|settings"]
+    },
+    {
+      "title": "Add Finance create-invoice skill",
+      "summary": "Create invoices through InvoiceNinja from a user-confirmed Finance skill flow, including client lookup, line items, and optional emailing.",
+      "reason_retained": "InvoiceNinja service modules can create invoices, but no user-facing Finance create-invoice skill, connected-account credential path, invoice embed, or email-invoice helper was found.",
+      "acceptance_criteria": [
+        "Resolve clients by name or email and create missing clients only after user confirmation.",
+        "Create invoices with line items and defaults from encrypted finance settings/memories.",
+        "Support optional invoice email sending when the provider API and user confirmation allow it.",
+        "Render invoice results in a dedicated embed or reusable finance preview."
+      ],
+      "suggested_labels": ["feature_request", "apps"]
+    },
+    {
+      "title": "Add Finance send-money skill",
+      "summary": "Design and implement a high-safety Revolut Business transfer flow with preview, explicit confirmation, idempotency, and audit logging.",
+      "reason_retained": "No Revolut Business shared provider or Finance send-money skill was found; existing Revolut code is payment-side SEPA transfer handling, not user-initiated transfers.",
+      "acceptance_criteria": [
+        "Implement counterparty search/creation and source-account resolution through connected accounts.",
+        "Require a two-phase preview and explicit confirmation before any transfer or draft is created.",
+        "Use idempotency, audit logging, amount/currency validation, and clear pending/completed/draft statuses.",
+        "Add sandbox tests and document fraud, mistake-prevention, and recovery behavior."
+      ],
+      "suggested_labels": ["feature_request", "apps", "api"]
+    },
+    {
+      "title": "Research LLM-generated finance report templates",
+      "summary": "Evaluate a secure template system where users can create reusable finance report logic from metadata and run it against real transaction data in a sandbox.",
+      "reason_retained": "The Finance app is not implemented yet, and no E2B-backed finance report template workflow was found; the idea remains relevant as a follow-up after the finance foundation.",
+      "acceptance_criteria": [
+        "Define whether report templates are a separate skill or part of Finance review.",
+        "Design encrypted template storage, editing, and deletion behavior.",
+        "Evaluate sandbox execution and data-minimization for generated Python code over financial data.",
+        "Prototype at least one report template flow after core Finance skills exist."
+      ],
+      "suggested_labels": ["idea", "apps"]
+    },
+    {
+      "title": "Research Treatwell as a beauty appointment provider",
+      "summary": "Evaluate adding a beauty/wellness appointment app or provider backed by Treatwell or similar salon-booking sources.",
+      "reason_retained": "Health appointment search exists for medical appointments, and shopping has a generic beauty category, but no beauty appointment app, Treatwell provider, or salon-booking workflow was found.",
+      "acceptance_criteria": [
+        "Research Treatwell provider feasibility, privacy impact, locale coverage, and anti-bot constraints.",
+        "Decide whether beauty appointments should be a new app or a non-medical provider category under an existing app.",
+        "Define the search request schema and embed type needed for salon/beauty bookings.",
+        "Document whether implementation should proceed or be rejected due to provider, privacy, or product-fit constraints."
+      ],
+      "suggested_labels": ["idea", "apps"]
+    },
+    {
+      "title": "Expand concert and classical music event search",
+      "summary": "Improve event search coverage for concerts, classical music, and related cultural events beyond the current Berlin Philharmonic-specific path.",
+      "reason_retained": "Events search supports general providers and a Berlin Philharmonic provider with concert tags, but broader concert/classical music provider coverage and routing were not found.",
+      "acceptance_criteria": [
+        "Audit current concert coverage across Eventbrite, Google Events, Resident Advisor, and Berlin Philharmonic.",
+        "Identify provider gaps for classical music, concert halls, and ticketed cultural events in target regions.",
+        "Add or document provider routing so concert queries select the right sources without narrowing generic event search.",
+        "Verify representative classical and non-classical concert searches."
+      ],
+      "suggested_labels": ["enhancement", "apps"]
+    },
+    {
+      "title": "Offer annotate/edit mode after image upload",
+      "summary": "Show a lightweight affordance to annotate or edit a user-uploaded image directly after it is added to the message input.",
+      "reason_retained": "Sketch/drawing and uploaded-image fullscreen components exist, but no quick link from a newly uploaded image to annotate or edit mode was found.",
+      "acceptance_criteria": [
+        "Define the UX for offering annotation only when an uploaded image can be edited safely.",
+        "Connect uploaded-image previews to an annotate/edit flow without losing the original image.",
+        "Persist annotated output as a separate embed or attachment with clear provenance.",
+        "Verify mobile touch drawing, undo/cancel, and send-message flows."
+      ],
+      "suggested_labels": ["feature_request", "web_app|active_chat"]
+    },
+    {
+      "title": "Add location-based reminders",
+      "summary": "Let users create reminders that trigger when they are in or near a specified city or place, with privacy-preserving location handling.",
+      "reason_retained": "Geolocation exists in the map input flow and time-based reminders exist, but no location-triggered reminder model or reminder UI was found.",
+      "acceptance_criteria": [
+        "Define whether location reminders are web-only, mobile-first, or native-app-only based on reliable background location capabilities.",
+        "Design consent, precision, retention, and privacy behavior for location matching.",
+        "Add reminder schema support for place/city/geofence triggers if feasible.",
+        "Provide clear fallback behavior when browser or OS background location is unavailable."
+      ],
+      "suggested_labels": ["feature_request", "apps"]
+    },
+    {
+      "title": "Add read-later and watch-later actions for embeds",
+      "summary": "Extend embed fullscreen actions so users can save websites, videos, and similar embeds to a read/watch-later list instead of only saving some embeds as memories.",
+      "reason_retained": "Many fullscreen embeds support `Add memory`, but no dedicated read-later/watch-later action or queue was found for web and video embeds.",
+      "acceptance_criteria": [
+        "Define how read-later/watch-later differs from saved embed memories.",
+        "Add actions to relevant fullscreen embed types such as websites and videos.",
+        "Create a settings or app surface where saved read/watch-later items can be reviewed and removed.",
+        "Preserve encrypted embed references and avoid exposing private content to the server."
+      ],
+      "suggested_labels": ["feature_request", "web_app|previews"]
+    },
+    {
+      "title": "Add a creative writing game mode",
+      "summary": "Create a playful creative-writing focus mode or skill that guides users through interactive story prompts and writing exercises.",
+      "reason_retained": "Creative and writing-related mates/settings exist, but no dedicated creative-writing game focus mode or app skill was found.",
+      "acceptance_criteria": [
+        "Define the core loop for the writing game, including prompts, turns, scoring or feedback, and stop conditions.",
+        "Decide whether it belongs as a focus mode, app skill, or both.",
+        "Add localized metadata, prompt guidance, and app-store/settings copy.",
+        "Verify it does not conflict with normal writing/editing flows."
+      ],
+      "suggested_labels": ["idea", "apps"]
+    },
+    {
+      "title": "Create correction documents with highlighted changes",
+      "summary": "When users ask for text correction, generate a document embed that highlights changed text and exposes the original text on hover or click.",
+      "reason_retained": "Document embeds and message highlight overlays exist, but no text-correction flow that creates a diff-style document embed with original-vs-corrected highlights was found.",
+      "acceptance_criteria": [
+        "Define the document model for corrected text, inserted/deleted spans, and original text annotations.",
+        "Trigger the document embed path for suitable text-correction requests without forcing it for short inline corrections.",
+        "Render highlighted changes accessibly in preview/fullscreen, including keyboard and touch interactions.",
+        "Add coverage for correction requests with replacements, deletions, and unchanged paragraphs."
+      ],
+      "suggested_labels": ["feature_request", "web_app|previews"]
+    },
+    {
+      "title": "Improve app skill filtering for richer user constraints",
+      "summary": "Make app skills better at handling complex filters and spatial constraints, such as searching for cafes between two Berlin districts.",
+      "reason_retained": "Several skills support structured filters and coordinates, but no shared approach was found for route-between, midpoint, or richer post-filtering constraints across provider-backed skills.",
+      "acceptance_criteria": [
+        "Identify high-value constraint types that current skills handle poorly, including between-two-places, route-adjacent, opening-hours, and multi-attribute filters.",
+        "Decide what belongs in LLM request normalization versus provider-side filtering versus local post-processing.",
+        "Implement one representative skill improvement as a proof of concept.",
+        "Document reusable patterns for adding richer parameters to future skills."
+      ],
+      "suggested_labels": ["enhancement", "apps"]
+    },
+    {
+      "title": "Move AI ask settings into chat settings where appropriate",
+      "summary": "Reduce user confusion by surfacing everyday AI ask settings in chat settings while keeping developer/API/CLI settings in the AI app where they belong.",
+      "reason_retained": "AI ask settings still exist as app/skill settings components, so the user-facing settings placement concern remains relevant despite newer settings architecture.",
+      "acceptance_criteria": [
+        "Audit which AI ask settings are chat-user preferences versus API/CLI/developer configuration.",
+        "Move or duplicate only the user-facing controls that users expect to find in chat settings.",
+        "Keep canonical settings components and avoid splitting one source of truth for persisted settings.",
+        "Verify settings deep links and mobile settings navigation still work."
+      ],
+      "suggested_labels": ["enhancement", "web_app|settings"]
+    },
+    {
+      "title": "Audit architecture docs for stale implementation claims",
+      "summary": "Systematically extract implementation claims from architecture docs, compare them with current code, and fix stale or misleading documentation.",
+      "reason_retained": "`sessions.py stale-docs` currently reports many stale architecture docs, and existing doc tools check freshness but do not fully extract and verify implementation claims from each document.",
+      "acceptance_criteria": [
+        "Prioritize stale docs with security, privacy, messaging, AI, and frontend architecture impact.",
+        "Extract concrete claims about implemented, planned, or unsupported behavior from each selected doc.",
+        "Verify claims against current code and tests, then update docs or create follow-up tasks for real gaps.",
+        "Add a repeatable workflow or script output so future stale-doc reviews are easier."
+      ],
+      "suggested_labels": ["docs"]
+    }
+  ]
+}

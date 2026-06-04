@@ -550,17 +550,21 @@ export function processSettingsDeepLink(
       path = path.replace(/\/focuses\//, "/focus/");
     }
 
+    if (path === "billing/referral_code") {
+      path = "billing/referral-code";
+    }
+
     handlers.setSettingsDeepLink(path);
 
     // Clear the hash after processing
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && window.location) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   } else if (settingsPath === "") {
     handlers.setSettingsDeepLink("main");
 
     // Clear the hash after processing
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && window.location) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   } else {
@@ -568,7 +572,7 @@ export function processSettingsDeepLink(
     handlers.setSettingsDeepLink("main");
 
     // Clear the hash after processing
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && window.location) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   }

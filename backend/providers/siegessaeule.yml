@@ -1,0 +1,16 @@
+# backend/providers/siegessaeule.yml
+#
+# Configuration for Siegessäule event provider.
+# Used by the Events app for Berlin LGBTQ+ event listings.
+
+provider_id: "siegessaeule"
+name: "Siegessäule"
+description: "Berlin queer city magazine and event calendar for LGBTQ+ culture, politics, nightlife, and community listings. Privacy URL verified 2026-06-03."
+logo_svg: "icons/siegessaeule.jpg"
+region: "EU"
+privacy_policy: "https://www.iubenda.com/privacy-policy/27039210"
+
+no_api_key: true
+
+pricing:
+  per_request_credits: 5

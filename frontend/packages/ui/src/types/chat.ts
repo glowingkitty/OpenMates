@@ -381,6 +381,13 @@ export interface Chat {
   // Messages load on-demand when the user opens the chat. Search matches against
   // title, summary, and tags only (no message content search until opened).
   is_metadata_only?: boolean;
+
+  // Sub-chat fields
+  parent_id?: string | null; // ID of the parent chat
+  is_sub_chat?: boolean; // True if this is a sub-chat
+  sub_chat_settings?: { wait_for_completion: boolean; report_trigger: "each" | "all" } | null; // Settings for sub-chat orchestration
+  budget_limit?: number | null; // Optional credit budget limit for this sub-chat subtree
+  budget_spent?: number; // Accumulated credits consumed across the sub-chat tree
 }
 
 export interface ResumeCardImageBubble {
@@ -854,6 +861,7 @@ export interface Phase1bChatContentPayload {
   chats: Array<{
     chat_id: string;
     messages: (Message | string)[] | null;
+    compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
   }>;
   embeds?: SyncEmbed[];
@@ -924,8 +932,13 @@ export interface ChatContentBatchResponsePayload {
     string,
     { messages_v: number; server_message_count: number }
   >; // Per-chat version info for updating local tracking
+  compression_checkpoints_by_chat_id?: Record<
+    string,
+    ChatCompressionCheckpoint[]
+  >;
   embeds?: SyncEmbed[]; // On-demand embeds for requested chats
   embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
+  code_run_outputs?: SyncCodeRunOutput[];
 }
 
 export interface OfflineSyncCompletePayload {

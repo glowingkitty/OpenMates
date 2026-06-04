@@ -49,7 +49,7 @@ CORE_SERVICES: Final[tuple[MonitoredService, ...]] = (
     MonitoredService("preview_server", "Preview Server", GROUP_CORE, is_shared_between_envs=True),
 )
 
-PAYMENT_SERVICE_IDS: Final[set[str]] = {"stripe", "polar", "invoiceninja"}
+PAYMENT_SERVICE_IDS: Final[set[str]] = {"stripe", "invoiceninja"}
 EMAIL_SERVICE_IDS: Final[set[str]] = {"brevo"}
 MODERATION_SERVICE_IDS: Final[set[str]] = {"sightengine"}
 SEARCH_DATA_SERVICE_IDS: Final[set[str]] = {"brave_search", "brave"}
@@ -154,7 +154,6 @@ SERVICE_GROUPS: Final[tuple[tuple[str, tuple[UserComponent, ...]], ...]] = (
     )),
     ("Payment", (
         UserComponent("Stripe", "Payment", ("stripe",)),
-        UserComponent("Polar", "Payment", ("polar",)),
     )),
     ("Email & Moderation", (
         UserComponent("Brevo", "Email & Moderation", ("brevo",)),

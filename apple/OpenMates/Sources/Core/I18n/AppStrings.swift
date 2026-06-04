@@ -277,7 +277,27 @@ enum AppStrings {
     static var takePhoto: String { L("enter_message.attachments.take_photo") }
     static var recordAudio: String { L("enter_message.attachments.record_audio") }
     static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
+    static var releaseToFinishRecording: String { L("enter_message.record_audio.release_to_finish") }
+    static var slideLeftToCancelRecording: String { L("enter_message.record_audio.slide_left_to_cancel") }
+    static var microphoneBlocked: String { L("enter_message.record_audio.microphone_blocked") }
+    static var allowMicrophoneAccess: String { L("enter_message.record_audio.allow_microphone_access") }
+    static var getLocation: String { L("enter_message.location.get_location") }
+    static var selectedLocation: String { L("enter_message.location.selected_location") }
+    static var locationSelect: String { L("enter_message.location.select") }
     static var enterMessagePlaceholder: String { L("enter_message.placeholder.touch") }
+    static var waitingForUpload: String { L("enter_message.waiting_for_upload") }
+    static var uploadProgressProcessing: String { L("enter_message.upload_progress.processing") }
+    static var uploadProgressTranscribing: String { L("enter_message.upload_progress.transcribing") }
+    static var uploadProgressError: String { L("enter_message.upload_progress.error") }
+    static func uploadProgressUploading(percent: String) -> String {
+        LocalizationManager.shared.text("enter_message.upload_progress.uploading", replacements: ["percent": percent])
+    }
+    static var piiBannerTitle: String { L("enter_message.pii.banner_title") }
+    static var piiUndoAll: String { L("enter_message.pii.undo_all") }
+    static var piiUndoAllShort: String { L("enter_message.pii.undo_all_short") }
+    static func piiBannerDescription(summary: String) -> String {
+        LocalizationManager.shared.text("enter_message.pii.banner_description", replacements: ["summary": summary])
+    }
 
     // MARK: - Embeds
     static var voiceRecording: String { L("embed.voice_recording") }
@@ -296,8 +316,21 @@ enum AppStrings {
     static var imageGenerateGeneratedBy: String { L("embeds.image_generate.generated_by") }
     static var imageGenerateGeneratingVia: String { L("embeds.image_generate.generating_via") }
     static var copy: String { L("common.copy") }
+    static var download: String { L("common.download") }
     static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
     static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
+    static var codeRun: String { L("app_skills.code.run") }
+    static var codeRunCode: String { L("app_skills.code.run_code") }
+    static var codeRunOutput: String { L("app_skills.code.run.output") }
+    static var codeRunAgain: String { L("app_skills.code.run.again") }
+    static var codeRunCopyOutput: String { L("app_skills.code.run.copy_output") }
+    static var codeRunOutputCopied: String { L("app_skills.code.run.output_copied") }
+    static var codeRunOutputCopyFailed: String { L("app_skills.code.run.output_copy_failed") }
+    static var codeRunStop: String { L("app_skills.code.run.stop") }
+    static var codeRunCancelling: String { L("app_skills.code.run.cancelling_button") }
+    static var codeRunShowOutput: String { L("app_skills.code.run.show_output") }
+    static var codeRunHideOutput: String { L("app_skills.code.run.hide_output") }
+    static var codeRunRequiredFile: String { L("app_skills.code.run.required_file") }
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
 
     static func openOnProvider(_ provider: String) -> String {

@@ -1,0 +1,10 @@
+# backend/providers/deutscher_wetterdienst.yml
+#
+# Provider metadata for Deutscher Wetterdienst weather forecast data.
+
+provider_id: "deutscher_wetterdienst"
+name: "Deutscher Wetterdienst (DWD)"
+description: "Germany's national meteorological service and source for official German weather observations and forecasts. Privacy URL verified 2026-06-02."
+logo_svg: "logos/deutscher_wetterdienst.svg"
+region: "EU"
+privacy_policy: "https://cdc.dwd.de/EN/dataprotection.xhtml"

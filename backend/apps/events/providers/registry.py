@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # with ReadTimeout when the proxy is slow. Re-enable after OPE-XXX fixes
 # the timeout hierarchy and makes Siegessäule opt-in for LGBTQ+ queries only (OPE-301).
 _VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "google_events", "resident_advisor", "berlin_philharmonic",
+    "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "berlin_philharmonic", "pretalx",
 })
 
 # Map display names (from app.yml "name" field) to internal provider IDs.
@@ -35,6 +35,7 @@ _VALID_PROVIDER_IDS = frozenset({
 _NAME_TO_ID: Dict[str, str] = {
     "meetup": "meetup",
     "luma": "luma",
+    "eventbrite": "eventbrite",
     "google events": "google_events",
     "resident advisor": "resident_advisor",
     "siegessäule": "siegessaeule",
@@ -42,6 +43,16 @@ _NAME_TO_ID: Dict[str, str] = {
     "berlin philharmonic": "berlin_philharmonic",
     "berliner philharmoniker": "berlin_philharmonic",
     "berlin_philharmonic": "berlin_philharmonic",
+    "pretalx": "pretalx",
+    "conference schedule": "pretalx",
+    "conference schedules": "pretalx",
+    "gpn": "pretalx",
+    "gpn24": "pretalx",
+    "39c3": "pretalx",
+    "38c3": "pretalx",
+    "37c3": "pretalx",
+    "chaos congress": "pretalx",
+    "chaos communication congress": "pretalx",
 }
 
 
@@ -92,6 +103,11 @@ def filter_providers(
         elif scope == "continent":
             # Future: continent-level matching
             applicable.append(pid)
+        elif scope == "conference":
+            # Conference schedules are opt-in. They are added explicitly by the
+            # search skill when a known conference alias is present.
+            if requested_providers:
+                applicable.append(pid)
         else:
             # Unknown scope — include as fallback
             applicable.append(pid)
@@ -106,9 +122,13 @@ def filter_providers(
         )
         return applicable
 
-    # LLM made a selection — validate against applicable set
-    validated = [p for p in requested_providers if p in applicable_set]
-    stripped = [p for p in requested_providers if p not in applicable_set]
+    # LLM made a selection — normalize display names/aliases, then validate.
+    normalized_requested = [
+        _NAME_TO_ID.get(str(provider).lower().strip(), str(provider).lower().strip())
+        for provider in requested_providers
+    ]
+    validated = [p for p in normalized_requested if p in applicable_set]
+    stripped = [p for p in normalized_requested if p not in applicable_set]
 
     if stripped:
         logger.warning(
@@ -117,11 +137,12 @@ def filter_providers(
         )
 
     if not validated:
-        # LLM chose only non-applicable providers — fall back to all applicable
+        # The caller made an explicit provider choice. Do not broaden it to auto;
+        # returning no providers lets the skill surface a visible provider error.
         logger.warning(
-            "All LLM-chosen providers stripped for city=%r, falling back to auto: %s",
-            city, applicable,
+            "All LLM-chosen providers stripped for city=%r: %s",
+            city, normalized_requested,
         )
-        return applicable
+        return []
 
     return validated

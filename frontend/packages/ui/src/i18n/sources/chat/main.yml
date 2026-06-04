@@ -987,6 +987,30 @@ header.started_date:
   sv: "Startad {date}, {time}"
   he: "התחיל ב-{date}, {time}"
   verified_by_human: []
+header.published_date:
+  context: Publication time shown in public announcement chat headers. {date} is YYYY/MM/DD, {time} is HH:MM
+  en: "Published {date}, {time}"
+  de: "Veröffentlicht {date}, {time}"
+  zh: "Published {date}, {time}"
+  es: "Published {date}, {time}"
+  fr: "Published {date}, {time}"
+  pt: "Published {date}, {time}"
+  ru: "Published {date}, {time}"
+  ja: "Published {date}, {time}"
+  ko: "Published {date}, {time}"
+  it: "Published {date}, {time}"
+  tr: "Published {date}, {time}"
+  vi: "Published {date}, {time}"
+  id: "Published {date}, {time}"
+  pl: "Published {date}, {time}"
+  nl: "Published {date}, {time}"
+  ar: "Published {date}, {time}"
+  hi: "Published {date}, {time}"
+  th: "Published {date}, {time}"
+  cs: "Published {date}, {time}"
+  sv: "Published {date}, {time}"
+  he: "Published {date}, {time}"
+  verified_by_human: []
 header.minutes_ago:
   context: Relative time shown in chat header banner when chat was created within last 10 minutes. {count} is the number of minutes
   en: "{count} min ago"
@@ -1555,4 +1579,54 @@ compression.messages_compressed:
   cs: "{count} zpráv shrnuto"
   sv: "{count} meddelanden sammanfattade"
   he: "{count} הודעות סוכמו"
+  verified_by_human: []
+
+sub_chats.confirmation_title:
+  context: Title for inline confirmation card before starting a large batch of sub-chats. {count} is the number of proposed sub-chats.
+  en: Start {count} background chats?
+  verified_by_human: []
+
+sub_chats.confirmation_description:
+  context: Description for inline sub-chat confirmation. {auto} is the number allowed without confirmation, {max} is the concurrent parallel sub-chat cap.
+  en: OpenMates starts up to {auto} automatically. Larger batches need your approval, and parallel batches can start up to {max} sub-chats at once. Sequential queues can be larger.
+  verified_by_human: []
+
+sub_chats.confirmation_more:
+  context: Collapsed list footer in sub-chat confirmation card. {count} is the number of hidden proposed sub-chats.
+  en: +{count} more
+  verified_by_human: []
+
+sub_chats.start_all:
+  context: Button to approve all proposed sub-chats. {count} is the number of sub-chats.
+  en: Start all {count}
+  verified_by_human: []
+
+sub_chats.start_first:
+  context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
+  en: Start first {count}
+  verified_by_human: []
+
+sub_chats.confirmation_failed:
+  context: Error notification when sending sub-chat confirmation failed.
+  en: Failed to update sub-chat approval.
+  verified_by_human: []
+
+sub_chats.limit_exceeded:
+  context: Fallback error notification when the parallel sub-chat concurrency limit is exceeded.
+  en: This chat can start up to 20 parallel sub-chats at once. Use a sequential queue for larger batches.
+  verified_by_human: []
+
+sub_chats.progress_label:
+  context: Label above sequential sub-chat progress bar. {completed} is completed count and {total} is total count.
+  en: 'Sequential sub-chats: {completed} / {total} complete'
+  verified_by_human: []
+
+sub_chats.progress_stopping:
+  context: Status label shown while a sequential sub-chat queue is being stopped.
+  en: Stopping sequential sub-chats...
+  verified_by_human: []
+
+sub_chats.stop_queue:
+  context: Button label for stopping a sequential sub-chat queue.
+  en: Stop queue
   verified_by_human: []

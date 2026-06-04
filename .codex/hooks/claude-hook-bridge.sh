@@ -87,11 +87,11 @@ run_hook() {
 payload_for_file() {
   local event="$1"
   local file="$2"
-  jq -n \
+  echo "$INPUT" | jq \
     --arg cwd "$PROJECT_ROOT" \
     --arg event "$event" \
     --arg file "$file" \
-    '{cwd: $cwd, hook_event_name: $event, tool_name: "Edit", tool_input: {file_path: $file}}'
+    '{cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
 }
 
 payload_for_bash() {
@@ -153,6 +153,7 @@ case "$EVENT" in
           "svelte5-legacy-syntax.sh" \
           "donation-language-guard.sh" \
           "settings-canonical-elements.sh" \
+          "native-ios-control-guard.sh" \
           "e2e-encryption-guard.sh"
         ;;
     esac
@@ -165,7 +166,8 @@ case "$EVENT" in
           "auto-track.sh" \
           "auto-rebuild-translations.sh" \
           "testid-drift-detector.sh" \
-          "encryption-architecture-reminder.sh"
+          "encryption-architecture-reminder.sh" \
+          "svelte-swift-counterpart-linker.sh"
         ;;
     esac
     ;;

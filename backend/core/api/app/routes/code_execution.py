@@ -7,20 +7,23 @@
 
 from __future__ import annotations
 
-import hashlib
+import ast
 import base64
+import hashlib
 import json
 import logging
 import os
 import re
+import sys
 import time
 import uuid
 from pathlib import PurePosixPath
 from typing import Any, Literal
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from toon_format import decode as toon_decode
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -51,8 +54,14 @@ PROVIDER_ACTIVE_RUN_TTL_SECONDS = 600
 MAX_ACTIVE_E2B_RUNS = int(os.getenv("CODE_RUN_MAX_ACTIVE_E2B_RUNS", "100"))
 E2B_CREATE_RATE_WINDOW_SECONDS = int(os.getenv("CODE_RUN_E2B_CREATE_RATE_WINDOW_SECONDS", "1"))
 CODE_RUN_START_RATE_LIMIT = "10/minute"
+CODE_RUN_PREPARE_RATE_LIMIT = "20/minute"
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
 CLIENT_CONTENT_REQUIRED_CODE = "client_content_required"
+PACKAGE_LOOKUP_TIMEOUT_SECONDS = 2.0
+PACKAGE_LOOKUP_POSITIVE_TTL_SECONDS = 7 * 24 * 60 * 60
+PACKAGE_LOOKUP_NEGATIVE_TTL_SECONDS = 24 * 60 * 60
+MAX_INFERRED_DEPENDENCIES = 8
+MAX_VERSION_OPTIONS = 12
 TERMINAL_RUN_STATUSES = {"finished", "failed", "timeout", "cancelled"}
 EXECUTABLE_EXTENSIONS = {
     ".py": "python",
@@ -107,6 +116,58 @@ SECRET_PATTERNS = [
     ),
     re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*=\s*[^\s]+"),
 ]
+PYTHON_IMPORT_PACKAGE_MAP = {
+    "bs4": "beautifulsoup4",
+    "cv2": "opencv-python",
+    "dotenv": "python-dotenv",
+    "PIL": "Pillow",
+    "sklearn": "scikit-learn",
+    "yaml": "PyYAML",
+}
+JAVASCRIPT_BUILTIN_MODULES = {
+    "assert",
+    "async_hooks",
+    "buffer",
+    "child_process",
+    "cluster",
+    "crypto",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "domain",
+    "events",
+    "fs",
+    "http",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "stream",
+    "string_decoder",
+    "test",
+    "timers",
+    "tls",
+    "tty",
+    "url",
+    "util",
+    "v8",
+    "vm",
+    "worker_threads",
+    "zlib",
+}
+JAVASCRIPT_IMPORT_PATTERNS = [
+    re.compile(r"import\s+(?:[^\"']+?\s+from\s+)?[\"']([^\"']+)[\"']"),
+    re.compile(r"import\s*\(\s*[\"']([^\"']+)[\"']\s*\)"),
+    re.compile(r"require\s*\(\s*[\"']([^\"']+)[\"']\s*\)"),
+]
 
 
 class CodeRunClientFile(BaseModel):
@@ -153,6 +214,32 @@ class CodeRunStartRequest(BaseModel):
     client_attachments: list[CodeRunClientAttachment] = Field(default_factory=list, max_length=MAX_FILES)
     selected_embed_ids: list[str] | None = Field(default=None, max_length=MAX_FILES)
     dependency_installs: list[CodeRunDependencyInstall] = Field(default_factory=list, max_length=20)
+
+
+class CodeRunPrepareRequest(BaseModel):
+    chat_id: str = Field(min_length=1)
+    target_embed_id: str = Field(min_length=1)
+    client_files: list[CodeRunClientFile] = Field(default_factory=list, max_length=MAX_FILES)
+    selected_embed_ids: list[str] | None = Field(default=None, max_length=MAX_FILES)
+
+
+class CodeRunDependencyVersionOption(BaseModel):
+    version: str
+    released_at: str | None = None
+
+
+class CodeRunDependencySuggestion(BaseModel):
+    ecosystem: Literal["python", "npm"]
+    import_name: str
+    package: str
+    latest_version: str
+    latest_released_at: str | None = None
+    versions: list[CodeRunDependencyVersionOption] = Field(default_factory=list)
+    source: str
+
+
+class CodeRunPrepareResponse(BaseModel):
+    dependency_suggestions: list[CodeRunDependencySuggestion] = Field(default_factory=list)
 
 
 class CodeRunStartResponse(BaseModel):
@@ -408,6 +495,218 @@ def _dependency_installs_from_install_snippets(files: list[dict[str, Any]]) -> l
         for ecosystem, packages in installs.items()
         if packages
     ]
+
+
+def _has_dependency_instructions(files: list[dict[str, Any]]) -> bool:
+    if _dependency_installs_from_install_snippets(files):
+        return True
+    return any(str(file.get("path") or "").rsplit("/", 1)[-1] in DEPENDENCY_FILENAMES for file in files)
+
+
+def _infer_python_import_packages(code: str) -> list[tuple[str, str]]:
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return []
+
+    imports: list[tuple[str, str]] = []
+    stdlib_modules = getattr(sys, "stdlib_module_names", set())
+    seen: set[str] = set()
+    for node in ast.walk(tree):
+        names: list[str] = []
+        if isinstance(node, ast.Import):
+            names = [alias.name.split(".", 1)[0] for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names = [node.module.split(".", 1)[0]]
+        for import_name in names:
+            if import_name in stdlib_modules or import_name == "__future__":
+                continue
+            package = PYTHON_IMPORT_PACKAGE_MAP.get(import_name, import_name)
+            if package not in seen and PYTHON_PACKAGE_PATTERN.match(package):
+                imports.append((import_name, package))
+                seen.add(package)
+    return imports[:MAX_INFERRED_DEPENDENCIES]
+
+
+def _normalize_javascript_package(specifier: str) -> str | None:
+    if specifier.startswith((".", "/", "node:")):
+        return None
+    parts = specifier.split("/")
+    package = "/".join(parts[:2]) if specifier.startswith("@") and len(parts) >= 2 else parts[0]
+    if parts[0] in JAVASCRIPT_BUILTIN_MODULES:
+        return None
+    if package in JAVASCRIPT_BUILTIN_MODULES or not NPM_PACKAGE_NAME_PATTERN.match(package):
+        return None
+    return package
+
+
+def _infer_javascript_import_packages(code: str) -> list[tuple[str, str]]:
+    seen: set[str] = set()
+    imports: list[tuple[str, str]] = []
+    matches: list[tuple[int, str]] = []
+    for pattern in JAVASCRIPT_IMPORT_PATTERNS:
+        matches.extend((match.start(), match.group(1)) for match in pattern.finditer(code))
+    for _position, specifier in sorted(matches, key=lambda item: item[0]):
+        package = _normalize_javascript_package(specifier)
+        if package and package not in seen:
+            imports.append((specifier, package))
+            seen.add(package)
+    return imports[:MAX_INFERRED_DEPENDENCIES]
+
+
+def _infer_import_packages(files: list[dict[str, Any]]) -> list[tuple[Literal["python", "npm"], str, str, str]]:
+    inferred: list[tuple[Literal["python", "npm"], str, str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for file in files:
+        content = file.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        language = str(file.get("language") or "").lower()
+        path = str(file.get("path") or "").lower()
+        source = str(file.get("path") or "code")
+        ecosystem: Literal["python", "npm"] | None = None
+        imports: list[tuple[str, str]] = []
+        if language in {"python", "py"} or path.endswith(".py"):
+            ecosystem = "python"
+            imports = _infer_python_import_packages(content)
+        elif language in {"javascript", "js", "typescript", "ts", "node"} or path.endswith((".js", ".mjs", ".cjs", ".ts")):
+            ecosystem = "npm"
+            imports = _infer_javascript_import_packages(content)
+        if not ecosystem:
+            continue
+        for import_name, package in imports:
+            key = (ecosystem, package)
+            if key not in seen:
+                inferred.append((ecosystem, import_name, package, source))
+                seen.add(key)
+        if len(inferred) >= MAX_INFERRED_DEPENDENCIES:
+            break
+    return inferred[:MAX_INFERRED_DEPENDENCIES]
+
+
+def _package_lookup_key(ecosystem: str, package: str) -> str:
+    return f"code_run_package_lookup:{ecosystem}:{package}"
+
+
+def _latest_release_time(releases: dict[str, Any], version: str | None) -> str | None:
+    if not version:
+        return None
+    files = releases.get(version)
+    if not isinstance(files, list):
+        return None
+    for file_info in files:
+        if isinstance(file_info, dict) and isinstance(file_info.get("upload_time_iso_8601"), str):
+            return file_info["upload_time_iso_8601"]
+    return None
+
+
+def _pypi_version_options(data: dict[str, Any], latest_version: str) -> list[CodeRunDependencyVersionOption]:
+    releases = data.get("releases") if isinstance(data.get("releases"), dict) else {}
+    options: list[CodeRunDependencyVersionOption] = []
+    for version, files in releases.items():
+        released_at = _latest_release_time(releases, version)
+        if released_at:
+            options.append(CodeRunDependencyVersionOption(version=version, released_at=released_at))
+    options.sort(key=lambda option: option.released_at or "", reverse=True)
+    deduped = [CodeRunDependencyVersionOption(version=latest_version, released_at=_latest_release_time(releases, latest_version))]
+    seen = {latest_version}
+    for option in options:
+        if option.version not in seen:
+            deduped.append(option)
+            seen.add(option.version)
+        if len(deduped) >= MAX_VERSION_OPTIONS:
+            break
+    return deduped
+
+
+def _npm_version_options(data: dict[str, Any], latest_version: str) -> list[CodeRunDependencyVersionOption]:
+    times = data.get("time") if isinstance(data.get("time"), dict) else {}
+    versions = data.get("versions") if isinstance(data.get("versions"), dict) else {}
+    options = [
+        CodeRunDependencyVersionOption(version=version, released_at=times.get(version) if isinstance(times.get(version), str) else None)
+        for version in versions.keys()
+    ]
+    options.sort(key=lambda option: option.released_at or "", reverse=True)
+    deduped = [CodeRunDependencyVersionOption(version=latest_version, released_at=times.get(latest_version) if isinstance(times.get(latest_version), str) else None)]
+    seen = {latest_version}
+    for option in options:
+        if option.version not in seen:
+            deduped.append(option)
+            seen.add(option.version)
+        if len(deduped) >= MAX_VERSION_OPTIONS:
+            break
+    return deduped
+
+
+async def _lookup_package(
+    ecosystem: Literal["python", "npm"],
+    import_name: str,
+    package: str,
+    source: str,
+    cache_service: CacheService,
+) -> CodeRunDependencySuggestion | None:
+    client = await cache_service.client
+    cache_key = _package_lookup_key(ecosystem, package)
+    cached = await client.get(cache_key)
+    if cached:
+        try:
+            payload = json.loads(cached.decode("utf-8") if isinstance(cached, bytes) else cached)
+            return CodeRunDependencySuggestion(**payload) if payload.get("exists") else None
+        except (json.JSONDecodeError, ValidationError, TypeError) as exc:
+            logger.warning("Ignoring invalid Code Run package lookup cache entry for %s:%s: %s", ecosystem, package, exc)
+
+    url = (
+        f"https://pypi.org/pypi/{quote(package, safe='')}/json"
+        if ecosystem == "python"
+        else f"https://registry.npmjs.org/{quote(package, safe='')}"
+    )
+    async with httpx.AsyncClient(timeout=PACKAGE_LOOKUP_TIMEOUT_SECONDS) as http_client:
+        try:
+            response = await http_client.get(url)
+        except httpx.HTTPError:
+            return None
+    if response.status_code == 404:
+        await client.set(cache_key, json.dumps({"exists": False}), ex=PACKAGE_LOOKUP_NEGATIVE_TTL_SECONDS)
+        return None
+    if response.status_code >= 400:
+        return None
+    data = response.json()
+    if ecosystem == "python":
+        info = data.get("info") if isinstance(data.get("info"), dict) else {}
+        latest_version = info.get("version")
+        releases = data.get("releases") if isinstance(data.get("releases"), dict) else {}
+        latest_released_at = _latest_release_time(releases, latest_version) if isinstance(latest_version, str) else None
+        versions = _pypi_version_options(data, latest_version) if isinstance(latest_version, str) else []
+    else:
+        dist_tags = data.get("dist-tags") if isinstance(data.get("dist-tags"), dict) else {}
+        latest_version = dist_tags.get("latest")
+        times = data.get("time") if isinstance(data.get("time"), dict) else {}
+        latest_released_at = times.get(latest_version) if isinstance(latest_version, str) and isinstance(times.get(latest_version), str) else None
+        versions = _npm_version_options(data, latest_version) if isinstance(latest_version, str) else []
+    if not isinstance(latest_version, str):
+        return None
+    suggestion = CodeRunDependencySuggestion(
+        ecosystem=ecosystem,
+        import_name=import_name,
+        package=package,
+        latest_version=latest_version,
+        latest_released_at=latest_released_at,
+        versions=versions,
+        source=source,
+    )
+    await client.set(cache_key, json.dumps({"exists": True, **suggestion.model_dump()}), ex=PACKAGE_LOOKUP_POSITIVE_TTL_SECONDS)
+    return suggestion
+
+
+async def _dependency_suggestions_from_imports(files: list[dict[str, Any]], cache_service: CacheService) -> list[CodeRunDependencySuggestion]:
+    if _has_dependency_instructions(files):
+        return []
+    suggestions: list[CodeRunDependencySuggestion] = []
+    for ecosystem, import_name, package, source in _infer_import_packages(files):
+        suggestion = await _lookup_package(ecosystem, import_name, package, source, cache_service)
+        if suggestion:
+            suggestions.append(suggestion)
+    return suggestions
 
 
 def _merge_dependency_installs(*groups: list[CodeRunDependencyInstall]) -> list[CodeRunDependencyInstall]:
@@ -766,6 +1065,31 @@ return 'ok'
     )
     value = result.decode("utf-8") if isinstance(result, bytes) else str(result)
     return None if value == "ok" else value
+
+
+@router.post("/prepare", response_model=CodeRunPrepareResponse)
+@limiter.limit(CODE_RUN_PREPARE_RATE_LIMIT)
+async def prepare_code_run(
+    request: Request,
+    body: CodeRunPrepareRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> CodeRunPrepareResponse:
+    files, _target_path = await _collect_code_files(
+        body.chat_id,
+        body.target_embed_id,
+        body.client_files,
+        [],
+        body.selected_embed_ids,
+        current_user,
+        cache_service,
+        directus_service,
+        encryption_service,
+    )
+    suggestions = await _dependency_suggestions_from_imports(files, cache_service)
+    return CodeRunPrepareResponse(dependency_suggestions=suggestions)
 
 
 @router.post("", response_model=CodeRunStartResponse)

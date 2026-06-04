@@ -192,3 +192,16 @@ skills:
               - query
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search_products:
+      enabled: true
+      keywords:
+        - product search AI assistant
+        - compare products online
+        - shopping research chatbot
+      pain_points:
+        - shopping search is ad-heavy
+      demo_angles:
+        - show product search result

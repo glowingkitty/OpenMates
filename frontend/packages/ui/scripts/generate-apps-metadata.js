@@ -54,7 +54,7 @@ function findAppYamlFiles() {
           if (statSync(appYmlPath).isFile()) {
             apps.push({ appId, filePath: appYmlPath });
           }
-        } catch (err) {
+        } catch (_err) {
           // app.yml doesn't exist for this app, skip it
           console.warn(
             `[generate-apps-metadata] No app.yml found for app: ${appId}`,
@@ -87,6 +87,21 @@ function normalizeTranslationKey(key, prefix) {
   }
 
   const trimmedKey = key.trim();
+
+  // Preserve keys that are already fully namespaced. Some app.yml files use
+  // `apps.<app>.<skill>` for app-local skill labels instead of the global
+  // `app_skills.<app>.<skill>` namespace.
+  const knownNamespaces = [
+    "apps.",
+    "app_skills.",
+    "app_settings_memories.",
+    "focus_modes.",
+    "mates.",
+    "mate_descriptions.",
+  ];
+  if (knownNamespaces.some((namespace) => trimmedKey.startsWith(namespace))) {
+    return trimmedKey;
+  }
 
   // If key already starts with the prefix, return as-is
   if (trimmedKey.startsWith(prefix)) {
@@ -138,11 +153,11 @@ function discoverSkillMdFocusModes(appId) {
         }
       } catch (err) {
         console.warn(
-          `[generate-apps-metadata] Failed to parse SKILL.md for ${appId}/${focusId}: ${err.message}`,
+            `[generate-apps-metadata] Failed to parse SKILL.md for ${appId}/${dirName}: ${err.message}`,
         );
       }
     }
-  } catch (err) {
+  } catch (_err) {
     // focus_modes directory doesn't exist or isn't readable — not an error
   }
 
@@ -224,7 +239,7 @@ function loadProviderYaml(providerId) {
     }
     const content = readFileSync(providerPath, "utf-8");
     return yaml.parse(content);
-  } catch (err) {
+  } catch (_err) {
     // Provider file doesn't exist or can't be read
     return null;
   }

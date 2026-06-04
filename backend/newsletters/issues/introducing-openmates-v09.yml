@@ -6,6 +6,9 @@ chat_id: announcements-introducing-openmates-v09
 subject:
   en: 'OpenMates v0.9: New apps & skills, AI models, file upload & more'
   de: 'OpenMates v0.9: Neue Apps & Skills, KI-Modelle, Datei-Upload & mehr'
+title:
+  en: 'OpenMates v0.9: New apps & skills, AI models, file upload & more'
+  de: 'OpenMates v0.9: Neue Apps & Skills, KI-Modelle, Datei-Upload & mehr'
 subtitle:
   en: null
   de: null
@@ -16,4 +19,7 @@ cta_text:
 body_i18n_key: demo_chats.announcements_introducing_openmates_v09.message
 video:
   intro_fullscreen: true
-sent_at: '2026-04-18T19:33:25+00:00'
+hero_image: null
+header_icon: null
+published_at: '2026-04-18T19:33:25+00:00'
+sent_at: null

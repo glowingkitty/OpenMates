@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Message Sync Test: Verifies that all messages are correctly synced between 
@@ -298,7 +297,10 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// STEP 5: Verify final message state
 	// =========================================================================
 	// Wait for all 4 messages to be saved: 2 user + 2 assistant
-	const finalStats = await waitForMessageCount(page, chatId, 4, 15000);
+	// Timeout matches the toContainText('40') timeout above (45000ms) because the
+	// AI may still be streaming when "40" first appears in the UI; IndexedDB save
+	// only fires after the AI fully completes via handleAIBackgroundResponseCompletedImpl.
+	const finalStats = await waitForMessageCount(page, chatId, 4, 45000);
 	logCheckpoint('Final message stats:', finalStats);
 	console.log('📊 Final stats:', JSON.stringify(finalStats));
 	console.log('📋 Final message details:', JSON.stringify(finalStats.messageDetails, null, 2));
@@ -339,10 +341,10 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	await page.waitForTimeout(5000); // Wait for phased sync
 
 	// Navigate back to the chat
-	await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/chat?chat-id=${chatId}`);
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	
 	// Wait for messages to be loaded after navigation (should have all 4)
-	const statsAfterRefresh = await waitForMessageCount(page, chatId, 4, 15000);
+	const statsAfterRefresh = await waitForMessageCount(page, chatId, 4, 45000);
 	await takeStepScreenshot(page, '12-after-refresh');
 	logCheckpoint('Message stats after page refresh:', statsAfterRefresh);
 	console.log('📊 After refresh:', JSON.stringify(statsAfterRefresh));

@@ -3093,6 +3093,8 @@ def _get_lint_flags(files: list[str]) -> list[str]:
         flags.append("--svelte")
     if ".yml" in exts or ".yaml" in exts:
         flags.append("--yml")
+    if ".swift" in exts:
+        flags.append("--swift")
     if ".css" in exts:
         flags.append("--css")
     if ".html" in exts:

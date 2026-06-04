@@ -232,29 +232,34 @@ export const notificationStore = {
   },
 
   // Basic convenience methods (legacy API)
-  info: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification("info", message, duration, dismissible),
-  success: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification(
-      "success",
+  info: (message: string, duration?: number, dismissible?: boolean, dedupeKey?: string) =>
+    notificationStore.addNotificationWithOptions("info", {
       message,
       duration,
       dismissible,
-    ),
-  warning: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification(
-      "warning",
+      dedupeKey,
+    }),
+  success: (message: string, duration?: number, dismissible?: boolean, dedupeKey?: string) =>
+    notificationStore.addNotificationWithOptions("success", {
       message,
-      duration ?? 7000,
+      duration,
       dismissible,
-    ),
-  error: (message: string, duration?: number, dismissible?: boolean) =>
-    notificationStore.addNotification(
-      "error",
+      dedupeKey,
+    }),
+  warning: (message: string, duration?: number, dismissible?: boolean, dedupeKey?: string) =>
+    notificationStore.addNotificationWithOptions("warning", {
       message,
-      duration ?? 10000,
-      dismissible ?? true,
-    ),
+      duration: duration ?? 7000,
+      dismissible,
+      dedupeKey,
+    }),
+  error: (message: string, duration?: number, dismissible?: boolean, dedupeKey?: string) =>
+    notificationStore.addNotificationWithOptions("error", {
+      message,
+      duration: duration ?? 10000,
+      dismissible: dismissible ?? true,
+      dedupeKey,
+    }),
 
   // Extended notification methods (new design)
 

@@ -5,6 +5,7 @@
 // 3. Queuing user actions when offline and replaying them on reconnect
 // 4. Network reachability monitoring via NWPathMonitor
 
+import CryptoKit
 import Foundation
 import Network
 import SwiftUI
@@ -25,6 +26,13 @@ final class OfflineSyncBridge: ObservableObject {
     private let pathMonitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "org.openmates.network-monitor")
     private var isNetworkMonitoringStarted = false
+    private var latestPath: NWPath?
+    private var offlinePrefetchTask: Task<Void, Never>?
+    private var offlinePrefetchCursor = 10
+
+    private let offlinePrefetchChunkSize = 3
+    private let offlinePrefetchMaxMessages = 10_000
+    private let offlinePrefetchInterChunkDelayNs: UInt64 = 2_000_000_000
 
     init(chatStore: ChatStore, wsManager: WebSocketManager? = nil) {
         self.chatStore = chatStore
@@ -44,6 +52,7 @@ final class OfflineSyncBridge: ObservableObject {
         pathMonitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                self.latestPath = path
                 let newStatus: NetworkStatus = path.status == .satisfied ? .online : .offline
                 let wasOffline = self.networkStatus == .offline
                 self.networkStatus = newStatus
@@ -51,10 +60,106 @@ final class OfflineSyncBridge: ObservableObject {
 
                 if wasOffline && newStatus == .online {
                     await self.replayPendingActions()
+                    self.startOfflinePrefetchIfEligible(reason: "networkRestored")
                 }
             }
         }
         pathMonitor.start(queue: monitorQueue)
+    }
+
+    // MARK: - Optional offline content prefetch
+
+    func startOfflinePrefetchIfEligible(reason: String) {
+        guard offlinePrefetchTask == nil else { return }
+        guard canRunOfflinePrefetch else {
+            NativeSyncPerfLog.info("phase=offlinePrefetch skipped reason=notEligible trigger=\(reason)")
+            return
+        }
+
+        offlinePrefetchTask = Task { @MainActor [weak self] in
+            await self?.runOfflinePrefetch(reason: reason)
+        }
+    }
+
+    func cancelOfflinePrefetch() {
+        offlinePrefetchTask?.cancel()
+        offlinePrefetchTask = nil
+    }
+
+    private var canRunOfflinePrefetch: Bool {
+        guard networkStatus == .online else { return false }
+        if let latestPath {
+            guard latestPath.status == .satisfied else { return false }
+            guard !latestPath.isExpensive && !latestPath.isConstrained else { return false }
+        }
+        let processInfo = ProcessInfo.processInfo
+        guard !processInfo.isLowPowerModeEnabled else { return false }
+        switch processInfo.thermalState {
+        case .nominal, .fair:
+            break
+        case .serious, .critical:
+            return false
+        @unknown default:
+            return false
+        }
+        return offlineStore.persistedMessageCount() < offlinePrefetchMaxMessages
+    }
+
+    private func runOfflinePrefetch(reason: String) async {
+        defer { offlinePrefetchTask = nil }
+
+        var cursor = offlinePrefetchCursor
+        NativeSyncPerfLog.info("phase=offlinePrefetch start cursor=\(cursor) reason=\(reason)")
+
+        while !Task.isCancelled && canRunOfflinePrefetch {
+            do {
+                let response: OfflinePrefetchResponse = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/sync/offline-prefetch",
+                    body: OfflinePrefetchRequest(
+                        cursor: cursor,
+                        limit: offlinePrefetchChunkSize,
+                        includeEmbeds: true
+                    )
+                )
+                persistOfflinePrefetch(response)
+
+                NativeSyncPerfLog.info(
+                    "phase=offlinePrefetch chunk cursor=\(cursor) next=\(response.nextCursor.map(String.init) ?? "done") chats=\(response.chats.count) messages=\(response.messagesByChatId.values.reduce(0) { $0 + $1.count }) embeds=\(response.embeds.count) done=\(response.done)"
+                )
+
+                guard let nextCursor = response.nextCursor, !response.done else {
+                    offlinePrefetchCursor = 10
+                    return
+                }
+                offlinePrefetchCursor = nextCursor
+                cursor = nextCursor
+                try? await Task.sleep(nanoseconds: offlinePrefetchInterChunkDelayNs)
+            } catch {
+                NativeSyncPerfLog.warning("phase=offlinePrefetch failed cursor=\(cursor) error=\(error.localizedDescription)")
+                return
+            }
+        }
+    }
+
+    private func persistOfflinePrefetch(_ response: OfflinePrefetchResponse) {
+        if !response.chats.isEmpty {
+            offlineStore.persistChats(response.chats)
+        }
+        if !response.embedKeys.isEmpty {
+            EmbedKeyManager.shared.store(response.embedKeys, source: "offlinePrefetch")
+            offlineStore.persistEmbedKeys(response.embedKeys)
+        }
+
+        let messagesByChat = response.decodedMessagesByChat()
+        if !messagesByChat.isEmpty {
+            offlineStore.persistMessagesBatch(messagesByChat)
+        }
+
+        let embedsByChat = response.groupedEmbedsByChat(messagesByChat: messagesByChat)
+        if !embedsByChat.isEmpty {
+            offlineStore.persistEmbedsBatch(embedsByChat)
+        }
     }
 
     // MARK: - Cold boot: load from disk before network is available
@@ -253,6 +358,81 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Clear on logout
 
     func clearOnLogout() {
+        cancelOfflinePrefetch()
+        offlinePrefetchCursor = 10
         offlineStore.clearAll()
+    }
+}
+
+private struct OfflinePrefetchRequest: Encodable {
+    let cursor: Int
+    let limit: Int
+    let includeEmbeds: Bool
+}
+
+private struct OfflinePrefetchResponse: Decodable {
+    let chats: [Chat]
+    let messagesByChatId: [String: [String]]
+    let embeds: [EmbedRecord]
+    let embedKeys: [EmbedKeyRecord]
+    let nextCursor: Int?
+    let done: Bool
+
+    func decodedMessagesByChat() -> [String: [Message]] {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return messagesByChatId.mapValues { rawMessages in
+            rawMessages.compactMap { raw in
+                guard let data = raw.data(using: .utf8) else { return nil }
+                return try? decoder.decode(Message.self, from: data)
+            }
+        }.filter { !$0.value.isEmpty }
+    }
+
+    func groupedEmbedsByChat(messagesByChat: [String: [Message]]) -> [String: [EmbedRecord]] {
+        var result: [String: [EmbedRecord]] = [:]
+        var chatIdsByHash: [String: String] = [:]
+        for chat in chats {
+            let digest = SHA256.hash(data: Data(chat.id.utf8))
+            chatIdsByHash[digest.map { String(format: "%02x", $0) }.joined()] = chat.id
+        }
+
+        let embedsById = EmbedRecord.dictionaryById(embeds, context: "offlinePrefetch")
+        for chat in chats {
+            let referencedIds = Set(messagesByChat[chat.id]?.flatMap { $0.embedRefs?.map(\.id) ?? [] } ?? [])
+            if referencedIds.isEmpty {
+                let digest = SHA256.hash(data: Data(chat.id.utf8))
+                let hashedChatId = digest.map { String(format: "%02x", $0) }.joined()
+                let hashedEmbeds = embeds.filter { $0.hashedChatId == hashedChatId }
+                if !hashedEmbeds.isEmpty {
+                    result[chat.id] = hashedEmbeds
+                }
+                continue
+            }
+
+            var includedIds = referencedIds
+            var changed = true
+            while changed {
+                changed = false
+                for embed in embeds {
+                    let referencesParent = embed.parentEmbedId.map { includedIds.contains($0) } ?? false
+                    let referencesChild = !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
+                    if (referencesParent || referencesChild), includedIds.insert(embed.id).inserted {
+                        changed = true
+                    }
+                }
+            }
+            let related = includedIds.compactMap { embedsById[$0] }
+            if !related.isEmpty {
+                result[chat.id] = related
+            }
+        }
+
+        for embed in embeds {
+            guard let hashedChatId = embed.hashedChatId, let chatId = chatIdsByHash[hashedChatId] else { continue }
+            result[chatId, default: []].append(embed)
+        }
+
+        return result.mapValues { EmbedRecord.deduplicatedById($0, context: "offlinePrefetch") }
     }
 }

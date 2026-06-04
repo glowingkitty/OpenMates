@@ -11,8 +11,37 @@ from typing import List, Dict, Any, Optional
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
+    get_latest_chat_compression_checkpoint,
+)
 
 logger = logging.getLogger(__name__)
+
+
+async def _fetch_code_run_outputs_for_chats(
+    directus_service: DirectusService,
+    chat_ids: List[str],
+    user_id: str,
+) -> List[Dict[str, Any]]:
+    """Fetch encrypted Code Run output sidecars for requested on-demand chats."""
+    if not chat_ids:
+        return []
+    try:
+        rows = await directus_service.get_items(
+            "code_run_outputs",
+            params={
+                "filter[chat_id][_in]": ",".join(chat_ids),
+                "filter[author_user_id][_eq]": user_id,
+                "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+                "sort": "-updated_at",
+                "limit": -1,
+            },
+            admin_required=True,
+        ) or []
+        return rows if isinstance(rows, list) else []
+    except Exception as exc:
+        logger.warning("Failed to fetch Code Run outputs for on-demand sync: %s", exc, exc_info=True)
+        return []
 
 
 async def handle_chat_content_batch(
@@ -45,7 +74,7 @@ async def handle_chat_content_batch(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("chat_content_batch", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -74,7 +103,10 @@ async def handle_chat_content_batch(
 
         messages_by_chat_id: Dict[str, List[str]] = {}
         versions_by_chat_id: Dict[str, Dict[str, Any]] = {}
+        compression_checkpoints_by_chat_id: Dict[str, List[Dict[str, Any]]] = {}
         errors_occurred = False
+        import hashlib
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
         for chat_id in chat_ids:
             try:
@@ -139,6 +171,14 @@ async def handle_chat_content_batch(
                     "server_message_count": server_message_count,
                 }
 
+                checkpoint = await get_latest_chat_compression_checkpoint(
+                    directus_service,
+                    chat_id,
+                    user_id_hash,
+                )
+                if checkpoint:
+                    compression_checkpoints_by_chat_id[chat_id] = [checkpoint]
+
             except Exception as e:
                 errors_occurred = True
                 logger.error(
@@ -150,7 +190,6 @@ async def handle_chat_content_batch(
 
         # Fetch embeds + embed_keys for all requested chats (on-demand path)
         # This enables opening chats from 101-1000 range that weren't synced in Phase 1b
-        import hashlib
         all_embeds: List[Dict[str, Any]] = []
         all_embed_keys: List[Dict[str, Any]] = []
         seen_embed_ids: set = set()
@@ -187,11 +226,19 @@ async def handle_chat_content_batch(
             except Exception as e:
                 logger.warning(f"Batch handler: Error fetching embed_keys: {e}")
 
+        code_run_outputs = await _fetch_code_run_outputs_for_chats(
+            directus_service,
+            chat_ids,
+            user_id,
+        )
+
         response_payload_data: Dict[str, Any] = {
             "messages_by_chat_id": messages_by_chat_id,
             "versions_by_chat_id": versions_by_chat_id,
+            "compression_checkpoints_by_chat_id": compression_checkpoints_by_chat_id,
             "embeds": all_embeds,
             "embed_keys": all_embed_keys,
+            "code_run_outputs": code_run_outputs,
         }
 
         if errors_occurred:

@@ -231,6 +231,9 @@ async def search_reddit_posts(
     *,
     sort: str = "new",
     limit: int = DEFAULT_POST_LIMIT,
+    include_comments: bool = False,
+    comments_limit: int = 0,
+    max_requests_per_call: int = DEFAULT_MAX_REQUESTS_PER_CALL,
     proxy_url: Optional[str] = None,
 ) -> RedditRssResult:
     """Search public Reddit posts through Reddit's RSS search endpoint."""
@@ -250,7 +253,45 @@ async def search_reddit_posts(
         )
         result.request_count += 1
         result.rate_limit = response.rate_limit
-        result.posts = _parse_post_feed(response.text, search_query)
+        result.posts = [
+            post
+            for post in _parse_post_feed(response.text, search_query)
+            if "/comments/" in urllib.parse.urlparse(post.url).path
+        ][:post_limit]
+        if include_comments and comments_limit > 0:
+            comment_limit = max(0, min(comments_limit, MAX_COMMENT_LIMIT))
+            request_budget = max(1, max_requests_per_call)
+            for index, post in enumerate(result.posts):
+                if result.request_count >= request_budget:
+                    skipped = len(result.posts) - index
+                    result.comments_skipped_count += skipped
+                    result.warnings.append(
+                        f"Skipped comments for {skipped} posts because the per-call Reddit request budget was reached."
+                    )
+                    break
+                try:
+                    comment_response = await _fetch_text_with_retry(
+                        _post_comments_feed_url(post.url, comment_limit),
+                        max_inline_wait_seconds=MAX_INLINE_RATE_LIMIT_WAIT_SECONDS,
+                        proxy_url=proxy_url,
+                    )
+                    result.request_count += 1
+                    result.rate_limit = comment_response.rate_limit
+                    post.comments = _parse_comment_feed(comment_response.text, post.url)[:comment_limit]
+                    post.fetched_comment_count = len(post.comments)
+                except _RedditRssRateLimitError as exc:
+                    skipped = len(result.posts) - index
+                    result.rate_limited = True
+                    result.next_retry_after_seconds = exc.retry_after_seconds
+                    result.rate_limit = exc.rate_limit
+                    result.comments_skipped_count += skipped
+                    result.warnings.append(
+                        f"Skipped comments for {skipped} posts because Reddit is rate limited."
+                    )
+                    break
+                except Exception as exc:
+                    logger.info("Reddit RSS search comment fetch failed for %s: %s", post.url, exc)
+                    result.errors.append(f"Could not fetch comments for {post.url}: {exc}")
     except _RedditRssRateLimitError as exc:
         logger.warning("Reddit RSS search rate limited for %s: %s", search_query, exc)
         result.rate_limited = True

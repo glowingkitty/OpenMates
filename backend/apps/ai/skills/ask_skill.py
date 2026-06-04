@@ -67,6 +67,7 @@ class AskSkillRequest(BaseModel):
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
+    is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
     continuation_message_id: Optional[str] = Field(default=None, description="When set, the continuation task reuses this as the AI message_id instead of generating a new one from the Celery task_id. This ensures the continuation response is appended to the same message bubble as the focus mode embed.")
     api_key_hash: Optional[str] = Field(default=None, alias="_api_key_hash", description="SHA-256 hash of the API key for usage tracking.")
     device_hash: Optional[str] = Field(default=None, alias="_device_hash", description="SHA-256 hash of the device for usage tracking.")
@@ -76,6 +77,12 @@ class AskSkillRequest(BaseModel):
     # so skills like images-view can resolve a file_path argument back to the actual embed UUID
     # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
     embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
+    
+    # Sub-chat orchestration fields
+    parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
+    is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
+    budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
+    budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     
     # Allow populating by name even with aliases
     model_config = {"populate_by_name": True}

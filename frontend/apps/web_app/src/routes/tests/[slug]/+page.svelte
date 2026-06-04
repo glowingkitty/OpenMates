@@ -18,10 +18,13 @@
 	let errorMessage = $state('');
 	let isLoading = $state(true);
 	let videoElement: HTMLVideoElement | null = $state(null);
+	let enlargedScreenshot: { url: string; title: string } | null = $state(null);
 
 	onMount(async () => {
 		try {
-			recording = await fetchTestRecording($page.params.slug);
+			const slug = $page.params.slug;
+			if (!slug) throw new Error('Missing test recording slug.');
+			recording = await fetchTestRecording(slug);
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to load test recording.';
 		} finally {
@@ -33,6 +36,10 @@
 		if (!videoElement || step.video_time_seconds == null) return;
 		videoElement.currentTime = Math.max(0, step.video_time_seconds);
 		void videoElement.play();
+	}
+
+	function closeScreenshot() {
+		enlargedScreenshot = null;
 	}
 </script>
 
@@ -87,57 +94,49 @@
 			</section>
 		{/if}
 
-		<section class="content-grid">
-			<div class="steps-card">
-				<h2>Steps</h2>
-				{#if recording.steps?.length}
-					<ol class="steps">
-						{#each recording.steps as step (step.index)}
-							<li class:failed={step.status === 'failed' || Boolean(step.error)}>
-								<button class="step-main" type="button" onclick={() => jumpToStep(step)} disabled={step.video_time_seconds == null}>
-									<span class="step-time">{formatVideoTime(step.video_time_seconds)}</span>
-									<span>
-										<strong>{step.title}</strong>
-										{#if step.timestamp}
-											<small>{step.timestamp}</small>
-										{:else if step.duration_seconds != null}
-											<small>{formatDuration(step.duration_seconds)}</small>
-										{/if}
-									</span>
-								</button>
-								{#if step.screenshot_url}
+		<section class="steps-card">
+			<h2>Steps</h2>
+			{#if recording.steps?.length}
+				<ol class="steps">
+					{#each recording.steps as step (step.index)}
+						<li class:failed={step.status === 'failed' || Boolean(step.error)}>
+							<button class="step-link" type="button" onclick={() => jumpToStep(step)} disabled={step.video_time_seconds == null}>
+								<span class="step-time">{formatVideoTime(step.video_time_seconds)}</span>
+								<span class="step-copy">
+									<strong>{step.title}</strong>
+									{#if step.duration_seconds != null}
+										<small>{formatDuration(step.duration_seconds)}</small>
+									{/if}
+								</span>
+							</button>
+							{#if step.screenshot_url}
+								<button
+									class="step-thumbnail"
+									type="button"
+									onclick={() => (enlargedScreenshot = { url: step.screenshot_url!, title: step.title })}
+									aria-label={`Open screenshot for ${step.title}`}
+								>
 									<img src={step.screenshot_url} alt={`Screenshot for ${step.title}`} loading="lazy" />
-								{/if}
-								{#if step.error}
-									<pre>{step.error}</pre>
-								{/if}
-							</li>
-						{/each}
-					</ol>
-				{:else}
-					<p class="muted">No structured steps were available for this spec.</p>
-				{/if}
-			</div>
-
-			<div class="screenshots-card">
-				<h2>Screenshots</h2>
-				{#if recording.assets?.screenshot_urls?.length}
-					<div class="screenshots">
-						{#each recording.assets.screenshot_urls as screenshotUrl, index}
-							{#if screenshotUrl}
-								<a href={screenshotUrl} target="_blank" rel="noreferrer">
-									<img src={screenshotUrl} alt={`Screenshot ${index + 1}`} loading="lazy" />
-								</a>
+								</button>
 							{/if}
-						{/each}
-					</div>
-				{:else}
-					<p class="muted">No screenshots were uploaded for this spec.</p>
-				{/if}
-			</div>
+							{#if step.error}
+								<pre>{step.error}</pre>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			{:else}
+				<p class="muted">No structured steps were available for this spec.</p>
+			{/if}
 		</section>
 	{/if}
 </main>
+
+{#if enlargedScreenshot}
+	<button class="screenshot-lightbox" type="button" onclick={closeScreenshot} aria-label="Close screenshot preview">
+		<img src={enlargedScreenshot.url} alt={enlargedScreenshot.title} />
+	</button>
+{/if}
 
 <style>
 	.detail-page {
@@ -194,7 +193,6 @@
 	.video-panel,
 	.error-block,
 	.steps-card,
-	.screenshots-card,
 	.state-card {
 		border: 1px solid var(--color-grey-20);
 		border-radius: 28px;
@@ -204,6 +202,8 @@
 
 	.video-panel {
 		overflow: hidden;
+		max-width: 1180px;
+		margin: 0 auto;
 		background: var(--color-grey-100);
 	}
 
@@ -214,6 +214,12 @@
 		display: block;
 	}
 
+	video {
+		max-height: min(56vh, 620px);
+		object-fit: contain;
+		background: var(--color-grey-100);
+	}
+
 	.no-video {
 		display: grid;
 		place-items: center;
@@ -222,7 +228,6 @@
 
 	.error-block,
 	.steps-card,
-	.screenshots-card,
 	.state-card {
 		padding: 22px;
 	}
@@ -246,10 +251,7 @@
 		white-space: pre-wrap;
 	}
 
-	.content-grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-		gap: 22px;
+	.steps-card {
 		margin-top: 22px;
 	}
 
@@ -262,22 +264,26 @@
 	}
 
 	.steps li {
-		overflow: hidden;
+		overflow: visible;
+		padding: 14px;
 		border: 1px solid var(--color-grey-15);
 		border-radius: 18px;
-		background: var(--color-grey-5, #f7f7f8);
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
 	}
 
 	.steps li.failed {
 		border-color: rgba(193, 51, 51, 0.35);
 	}
 
-	.step-main {
+	.step-link {
 		display: grid;
 		grid-template-columns: 64px 1fr;
 		gap: 12px;
-		width: 100%;
-		padding: 14px;
+		align-items: start;
+		width: fit-content;
+		max-width: 100%;
+		padding: 0;
 		border: 0;
 		background: transparent;
 		color: inherit;
@@ -286,7 +292,7 @@
 		cursor: pointer;
 	}
 
-	.step-main:disabled {
+	.step-link:disabled {
 		cursor: default;
 	}
 
@@ -301,34 +307,55 @@
 		font-weight: 800;
 	}
 
-	.step-main strong,
-	.step-main small {
+	.step-copy strong,
+	.step-copy small {
 		display: block;
 	}
 
-	.step-main small {
+	.step-copy small {
 		margin-top: 4px;
 		color: var(--color-font-secondary);
 		font-size: 12px;
 	}
 
-	.steps img {
+	.step-thumbnail {
 		display: block;
-		width: 100%;
-		border-top: 1px solid var(--color-grey-15);
+		width: min(260px, 100%);
+		margin: 12px 0 0 76px;
+		padding: 0;
+		border: 1px solid var(--color-grey-20);
+		border-radius: 12px;
+		background: var(--color-grey-100);
+		cursor: zoom-in;
+		overflow: hidden;
 	}
 
-	.screenshots {
+	.step-thumbnail img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+	}
+
+	.screenshot-lightbox {
+		position: fixed;
+		inset: 0;
+		z-index: 1000;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-		gap: 12px;
+		place-items: center;
+		padding: 32px;
+		border: 0;
+		background: rgba(0, 0, 0, 0.82);
+		cursor: zoom-out;
 	}
 
-	.screenshots img {
+	.screenshot-lightbox img {
 		display: block;
-		width: 100%;
-		border-radius: 14px;
-		border: 1px solid var(--color-grey-15);
+		max-width: min(1400px, 96vw);
+		max-height: 92vh;
+		object-fit: contain;
+		border-radius: 16px;
+		background: var(--color-grey-0);
 	}
 
 	.state-card {
@@ -341,10 +368,13 @@
 	}
 
 	@media (max-width: 920px) {
-		.header,
-		.content-grid {
+		.header {
 			display: flex;
 			flex-direction: column;
+		}
+
+		.step-thumbnail {
+			margin-left: 0;
 		}
 	}
 </style>

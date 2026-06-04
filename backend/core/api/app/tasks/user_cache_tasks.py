@@ -259,6 +259,10 @@ async def _warm_cache_phase_one(
             last_message_timestamp=chat_details.get("last_edited_overall_timestamp") or chat_details.get("last_message_timestamp"),
             is_shared=chat_details.get("is_shared"),
             is_private=chat_details.get("is_private"),
+            parent_id=chat_details.get("parent_id"),
+            is_sub_chat=chat_details.get("is_sub_chat"),
+            budget_limit=chat_details.get("budget_limit"),
+            budget_spent=chat_details.get("budget_spent"),
             pinned=chat_details.get("pinned"),
             user_id=user_id  # Cache the owner ID
         )
@@ -366,6 +370,10 @@ async def _warm_cache_phase_two_optimized(
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
                 pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
@@ -415,6 +423,10 @@ async def _warm_cache_phase_two_optimized(
                         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
                         is_private=chat_data.get("is_private"),
+                        parent_id=chat_data.get("parent_id"),
+                        is_sub_chat=chat_data.get("is_sub_chat"),
+                        budget_limit=chat_data.get("budget_limit"),
+                        budget_spent=chat_data.get("budget_spent"),
                         pinned=chat_data.get("pinned"),
                         user_id=user_id  # Cache the owner ID
                     )
@@ -486,6 +498,10 @@ async def _warm_cache_phase_two(
                 encrypted_category=chat_data.get("encrypted_category"),
                 encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
             )
 
             await cache_service.set_chat_list_item(user_id, chat_id, list_item)
@@ -543,6 +559,10 @@ async def _warm_cache_phase_three_optimized(
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
                 pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
@@ -592,6 +612,10 @@ async def _warm_cache_phase_three_optimized(
                         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
                         is_private=chat_data.get("is_private"),
+                        parent_id=chat_data.get("parent_id"),
+                        is_sub_chat=chat_data.get("is_sub_chat"),
+                        budget_limit=chat_data.get("budget_limit"),
+                        budget_spent=chat_data.get("budget_spent"),
                         pinned=chat_data.get("pinned"),
                         user_id=user_id  # Cache the owner ID
                     )
@@ -697,6 +721,10 @@ async def _warm_cache_phase_three(
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
+                parent_id=chat_data.get("parent_id"),
+                is_sub_chat=chat_data.get("is_sub_chat"),
+                budget_limit=chat_data.get("budget_limit"),
+                budget_spent=chat_data.get("budget_spent"),
                 pinned=chat_data.get("pinned"),
                 user_id=user_id  # Cache the owner ID
             )
@@ -1124,7 +1152,7 @@ async def _async_delete_user_account(
         #    (Refunds first so we don't strand PaymentIntents on a deleted customer.)
 
         # 9. Auto-refund processing (if enabled)
-        # Calls the actual payment provider API (Stripe/Polar) to return money,
+        # Calls the actual payment provider API to return money,
         # deducts credits, updates Directus, and optionally dispatches the credit
         # note email task (only when email_encryption_key is available).
         if refund_invoices:
@@ -1169,7 +1197,7 @@ async def _async_delete_user_account(
                     for invoice in invoices:
                         invoice_id = invoice.get("id", "unknown")
                         order_id = invoice.get("order_id", "")
-                        invoice_provider = invoice.get("provider")  # "stripe", legacy "polar", or None
+                        invoice_provider = invoice.get("provider")  # "stripe", another legacy provider, or None
                         encrypted_amount = invoice.get("encrypted_amount")
                         encrypted_credits = invoice.get("encrypted_credits_purchased")
                         vault_key_id = None
@@ -1199,11 +1227,10 @@ async def _async_delete_user_account(
                             continue
 
                         # Determine the provider-specific order ID to refund against.
-                        # Legacy "polar" invoices cannot be refunded (Polar is decommissioned).
-                        if invoice_provider == "polar":
+                        if invoice_provider not in (None, "stripe"):
                             logger.warning(
-                                f"[DELETE_ACCOUNT] Skipping legacy Polar invoice {invoice_id} — "
-                                f"Polar is decommissioned and cannot process refunds"
+                                f"[DELETE_ACCOUNT] Skipping legacy invoice {invoice_id} for "
+                                f"unsupported payment provider: {invoice_provider}"
                             )
                             refund_fail_count += 1
                             continue
@@ -1274,39 +1301,33 @@ async def _async_delete_user_account(
                                 f"[DELETE_ACCOUNT] Failed to deduct credits for invoice {invoice_id}: {credit_err}"
                             )
 
-                        # Record in Invoice Ninja — only for Stripe (not Polar MoR)
-                        if invoice_provider != "polar":
-                            try:
-                                from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
-                                ninja_service = InvoiceNinjaService()
-                                refund_amount_decimal = refund_amount_cents / 100.0
-                                ninja_service.process_refund_transaction(
-                                    user_hash=user_id_hash,
-                                    external_order_id=order_id,
-                                    invoice_id=invoice_id,
-                                    customer_firstname="User",
-                                    customer_lastname=user_id_hash[:8],
-                                    customer_account_id=user_id_hash[:12],
-                                    customer_country_code="XX",
-                                    refund_amount_value=refund_amount_decimal,
-                                    currency_code=invoice.get("currency", "eur"),
-                                    refund_date=now.strftime("%Y-%m-%d"),
-                                    payment_processor=invoice_provider or "stripe",
-                                    custom_credit_note_number=f"CN-DELETE-{invoice_id[:8]}",
-                                )
-                                logger.info(
-                                    f"[DELETE_ACCOUNT] Recorded refund in Invoice Ninja for invoice {invoice_id}"
-                                )
-                            except Exception as ninja_err:
-                                logger.error(
-                                    f"[DELETE_ACCOUNT] Invoice Ninja recording failed for "
-                                    f"invoice {invoice_id}: {ninja_err}",
-                                    exc_info=True
-                                )
-                        else:
+                        # Record in Invoice Ninja for completed Stripe refunds.
+                        try:
+                            from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+                            ninja_service = InvoiceNinjaService()
+                            refund_amount_decimal = refund_amount_cents / 100.0
+                            ninja_service.process_refund_transaction(
+                                user_hash=user_id_hash,
+                                external_order_id=order_id,
+                                invoice_id=invoice_id,
+                                customer_firstname="User",
+                                customer_lastname=user_id_hash[:8],
+                                customer_account_id=user_id_hash[:12],
+                                customer_country_code="XX",
+                                refund_amount_value=refund_amount_decimal,
+                                currency_code=invoice.get("currency", "eur"),
+                                refund_date=now.strftime("%Y-%m-%d"),
+                                payment_processor=invoice_provider or "stripe",
+                                custom_credit_note_number=f"CN-DELETE-{invoice_id[:8]}",
+                            )
                             logger.info(
-                                f"[DELETE_ACCOUNT] Skipping Invoice Ninja for Polar refund "
-                                f"(invoice {invoice_id}): Polar is MoR."
+                                f"[DELETE_ACCOUNT] Recorded refund in Invoice Ninja for invoice {invoice_id}"
+                            )
+                        except Exception as ninja_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Invoice Ninja recording failed for "
+                                f"invoice {invoice_id}: {ninja_err}",
+                                exc_info=True
                             )
 
                         # Dispatch credit note email task if encryption key is available
@@ -1397,7 +1418,7 @@ async def _async_delete_user_account(
                 is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
                 await stripe_payment_service.initialize(is_production=not is_dev)
 
-                # Only Stripe handles subscriptions today (Polar is one-off purchases).
+                # Only Stripe handles subscriptions today.
                 if stripe_payment_service.provider_name != "stripe":
                     logger.info(
                         f"[DELETE_ACCOUNT] Payment provider is {stripe_payment_service.provider_name}, "

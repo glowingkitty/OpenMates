@@ -17,6 +17,7 @@
     import ProviderIcon from './ProviderIcon.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
+    import { findProviderByName } from '../../data/providersMetadata';
     
     /**
      * Props for AppStoreCard component.
@@ -53,11 +54,8 @@
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
     
-    /**
-     * Opacity values for provider icons (decreasing from left to right).
-     * Index 0 = first icon (leftmost), index 4 = fifth icon (rightmost).
-     */
-    const PROVIDER_ICON_OPACITIES = [1, 0.85, 0.7, 0.55, 0.4];
+    /** Consistent opacity for provider icons on app cards and skill cards. */
+    const PROVIDER_ICON_OPACITY = 0.4;
     
     /** Maximum number of provider icons to display */
     const MAX_PROVIDER_ICONS = 5;
@@ -146,77 +144,20 @@
     }
     
     /**
-     * Get provider icon name from provider name.
-     * Maps provider names like "Brave" to icon names like "brave".
-     */
-    function getProviderIconName(providerName: string): string {
-        if (providerName === 'Bluesky') return 'bluesky';
-        if (providerName === 'Reddit') return 'reddit';
-        if (providerName === 'Deutsche Bahn') return 'deutsche_bahn';
-        if (providerName === 'FlixBus / FlixTrain') return 'flix';
-
-        // Convert to lowercase and handle special cases
-        const normalized = providerName.toLowerCase()
-            .replace(/\s+/g, '_')
-            .replace(/\./g, '');
-        return normalized;
-    }
-    
-    /**
-     * Check if a provider icon exists by checking if the CSS variable is defined.
-     * 
-     * @param providerName - The provider name to check
-     * @returns true if icon exists, false otherwise
-     */
-    function checkProviderIconExists(providerName: string): boolean {
-        if (typeof document === 'undefined') return false;
-        
-        const iconName = getProviderIconName(providerName);
-        const cssVarName = `--icon-url-${iconName}`;
-        
-        // Check if the CSS variable exists by trying to get it from computed styles
-        const rootStyles = getComputedStyle(document.documentElement);
-        const iconUrl = rootStyles.getPropertyValue(cssVarName).trim();
-        
-        // If the variable is empty or undefined, the icon is missing
-        if (!iconUrl || iconUrl === 'none' || iconUrl === '') {
-            return false;
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Get valid providers - those that have corresponding icon CSS variables.
-     * This is a derived value that automatically updates when allProviders changes.
-     * 
-     * Note: We check for CSS variables, but if they're not loaded yet, we still return
-     * the providers list and let the icons render (they'll show as empty if CSS var missing).
+     * Get valid providers — those that have provider metadata and therefore a logo.
+     * If no provider has metadata, keep the original list so the fallback icon still renders.
      */
     let validProviders = $derived.by(() => {
         if (allProviders.length === 0) {
             return [];
         }
-        
-        // If document is not available (SSR), return all providers
-        if (typeof document === 'undefined') {
+
+        const valid = allProviders.filter((provider) => Boolean(findProviderByName(provider)));
+
+        if (valid.length === 0) {
             return allProviders;
         }
-        
-        // Check which providers have CSS variables available
-        const valid: string[] = [];
-        for (const provider of allProviders) {
-            if (checkProviderIconExists(provider)) {
-                valid.push(provider);
-            }
-        }
-        
-        // If no valid providers found but we have providers, return them anyway
-        // (CSS variables might not be loaded yet, or icon might exist but check failed)
-        if (valid.length === 0 && allProviders.length > 0) {
-            return allProviders;
-        }
-        
+
         return valid;
     });
     
@@ -256,21 +197,6 @@
     });
     
     /**
-     * Get the opacity for a provider icon based on its position.
-     * Uses the PROVIDER_ICON_OPACITIES array for decreasing opacity.
-     * 
-     * @param index - The index of the provider icon (0-based)
-     * @returns The opacity value (0-1)
-     */
-    function getProviderIconOpacity(index: number): number {
-        if (index < 0 || index >= PROVIDER_ICON_OPACITIES.length) {
-            return PROVIDER_ICON_OPACITIES[PROVIDER_ICON_OPACITIES.length - 1];
-        }
-        return PROVIDER_ICON_OPACITIES[index];
-    }
-    
-    
-    /**
      * Get app gradient from theme.css based on app id.
      * Constructs CSS variable name directly from app ID: var(--color-app-{appId})
      * 
@@ -306,6 +232,7 @@
 <div
     class="app-store-card app-card"
     data-testid="app-store-card"
+    data-app-id={app.id}
     class:app-unavailable={isUnavailable}
     class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
     role="menuitem"
@@ -327,14 +254,14 @@
         <div class="app-icon-container" bind:this={appIconContainer}>
             <!-- Provider icons behind the app icon - first centered, others to the right (max 5) -->
             <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
-            <!-- Icons have decreasing opacity from left to right: 1, 0.85, 0.7, 0.55, 0.4 -->
+            <!-- Icons use a consistent opacity so no provider appears visually preferred. -->
             {#if orderedProviders.length > 0 && !isSkillCard}
                 <div class="provider-icons-background" aria-hidden="true">
                     {#each orderedProviders.slice(0, MAX_PROVIDER_ICONS) as provider, index}
                         <div 
                             class="provider-icon-container"
                             class:provider-icon-first={index === 0}
-                            style="opacity: {getProviderIconOpacity(index)}"
+                            style="opacity: {PROVIDER_ICON_OPACITY}"
                         >
                             <ProviderIcon 
                                 name={provider}
@@ -376,20 +303,20 @@
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
-    <!-- Skill cards show first 4 providers with decreasing opacity, plus a "+N" counter if more exist -->
+    <!-- Skill cards show first 4 providers with consistent opacity, plus a "+N" counter if more exist -->
     {#if isSkillCard && orderedProviders.length > 0}
         {@const maxSkillProviderIcons = 4}
         {@const displayedProviders = orderedProviders.slice(0, maxSkillProviderIcons)}
         {@const remainingCount = orderedProviders.length - maxSkillProviderIcons}
         <div class="skill-providers" aria-hidden="true">
             <span class="via-text">via</span>
-            {#each displayedProviders as provider, index}
-                <div class="skill-provider-icon" style="opacity: {getProviderIconOpacity(index)}">
+            {#each displayedProviders as provider}
+                <div class="skill-provider-icon" style="opacity: {PROVIDER_ICON_OPACITY}">
                     <ProviderIcon name={provider} size="30px" />
                 </div>
             {/each}
             {#if remainingCount > 0}
-                <span class="skill-providers-remaining">+{remainingCount}</span>
+                <span class="skill-providers-remaining" data-testid="skill-providers-remaining">+{remainingCount}</span>
             {/if}
         </div>
     {/if}
@@ -612,7 +539,7 @@
         display: flex;
         align-items: center;
         flex-shrink: 0;
-        /* Opacity is now set dynamically via inline style for decreasing opacity effect */
+        /* Opacity is set inline from the shared provider icon constant. */
     }
     
     /* Remaining provider count shown after the last visible icon (e.g., "+3") */

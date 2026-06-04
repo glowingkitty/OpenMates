@@ -2007,7 +2007,9 @@
 				// Show success notification popup (using Notification.svelte component)
 				notificationStore.success(
 					`Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
-					5000
+					5000,
+					true,
+					`payment-completed-${payload.order_id}`
 				);
 			} else {
 				console.debug('[+page.svelte] Suppressing payment_completed notification during signup');
@@ -2033,7 +2035,9 @@
 			// Show error notification popup (using Notification.svelte component)
 			notificationStore.error(
 				payload.message || 'Payment failed. Please try again or use a different payment method.',
-				10000 // Show for 10 seconds since this is important
+				10000,
+				true,
+				`payment-failed-${payload.order_id}`
 			);
 		};
 

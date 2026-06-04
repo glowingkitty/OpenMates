@@ -221,6 +221,20 @@
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
 
+    function shouldPreserveLiveEmbedOnlyDraft(chatId: string): boolean {
+        const draftState = get(draftEditorUIState);
+        return messageInputHasContent && draftState.currentChatId === chatId;
+    }
+
+    function hasMeaningfulTiptapContent(node: unknown): boolean {
+        if (!node || typeof node !== 'object') return false;
+        const record = node as Record<string, unknown>;
+        if (record.type === 'text' && typeof record.text === 'string' && record.text.trim()) return true;
+        if (record.type === 'embed') return true;
+        const children = record.content;
+        return Array.isArray(children) && children.some(hasMeaningfulTiptapContent);
+    }
+
     type EmbedDecodedContent = Record<string, unknown> & {
         app_id?: string;
         skill_id?: string;
@@ -1026,6 +1040,10 @@
         console.debug('[ActiveChat] Received recordingfullscreen event:', event.detail);
         recordingFullscreenData = {
             transcript: event.detail.transcript,
+            transcriptOriginal: event.detail.transcriptOriginal,
+            transcriptCorrected: event.detail.transcriptCorrected,
+            useCorrected: event.detail.useCorrected,
+            correctionModel: event.detail.correctionModel,
             blobUrl: event.detail.blobUrl,
             filename: event.detail.filename,
             duration: event.detail.duration,
@@ -1038,6 +1056,21 @@
             isEditable: event.detail.isEditable === true,
         };
         showRecordingFullscreen = true;
+    }
+
+    /**
+     * Handle attribute updates from RecordingEmbedFullscreen/Preview (pre-send context).
+     * Fires 'updaterecordingattrs' CustomEvent on document so MessageInput.svelte
+     * can update the embed node attrs in the TipTap editor.
+     */
+    function handleRecordingAttrsChange(embedId: string, attrs: Record<string, unknown>) {
+        document.dispatchEvent(
+            new CustomEvent('updaterecordingattrs', {
+                bubbles: true,
+                composed: true,
+                detail: { embedId, attrs },
+            }),
+        );
     }
 
     /**
@@ -1836,14 +1869,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // (most-recent-first), so we mirror that reversal here so the
         // fullscreen prev/next arrows match the on-screen layout.
         //
-        // Groupable types: web-website, videos-video, code-code, docs-doc,
-        // sheets-sheet, app-skill-use (see groupHandlers.ts).
+        // Groupable types mirror groupHandlers.ts.
         // For app-skill-use, ANY consecutive app-skill-use embeds form a
         // single group regardless of app_id/skill_id.  For other types,
         // only consecutive embeds of the exact same type form a group.
         const GROUPABLE_TYPES = new Set([
             'web-website', 'videos-video', 'code-code',
             'docs-doc', 'sheets-sheet', 'app-skill-use',
+            'images-image-result',
         ]);
         
         const visualOrderIds: string[] = [];
@@ -2093,6 +2126,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     const SUGGESTION_MENTION_INSERT_DELAY_MS = 0;
+    const FOLLOW_UP_SUGGESTION_KEY_SEPARATOR = '\u001f';
 
     // Handler for suggestion click - copies suggestion to message input.
     // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
@@ -2126,6 +2160,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
         console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+        dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
+
         if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
             window.dispatchEvent(new CustomEvent('openSignupInterface'));
             return;
@@ -2531,19 +2567,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Delete regular chat — mirrors Chat.svelte handleDeleteChat
                     try {
                         const chatIdToDelete = chat.chat_id;
-                        // Delete from IndexedDB first (optimistic)
-                        await chatDB.deleteChat(chatIdToDelete);
-                        // Dispatch chatDeleted for UI update
-                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
-                        // Send server-side delete via WebSocket
-                        chatSyncService.sendDeleteChat(chatIdToDelete);
+                        const descendants = await chatDB.getChatDescendantIds(chatIdToDelete);
+                        const allIdsToDelete = [chatIdToDelete, ...descendants];
+                        
+                        for (const idToDelete of allIdsToDelete) {
+                            // Delete from IndexedDB first (optimistic)
+                            await chatDB.deleteChat(idToDelete);
+                            // Dispatch chatDeleted for UI update
+                            chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: idToDelete } }));
+                            // Send server-side delete via WebSocket
+                            try {
+                                await chatSyncService.sendDeleteChat(idToDelete);
+                            } catch (sendError) {
+                                console.warn('[ActiveChat] Failed to send delete to server, queueing for reconnect:', idToDelete, sendError);
+                                const { addPendingChatDeletion } = await import('../services/pendingChatDeletions');
+                                addPendingChatDeletion(idToDelete);
+                            }
+                        }
+                        
                         notificationStore.success('Chat deleted');
-                        // Clear resume card if it was the deleted chat
-                        if (resumeChatData?.chat_id === chatIdToDelete) {
+                        // Clear resume card if any of the deleted chats matches
+                        if (resumeChatData && allIdsToDelete.includes(resumeChatData.chat_id)) {
                             resumeChatData = null;
                         }
                         // Remove from recentChats array
-                        recentChats = recentChats.filter(rc => rc.chat.chat_id !== chatIdToDelete);
+                        recentChats = recentChats.filter(rc => !allIdsToDelete.includes(rc.chat.chat_id));
                     } catch (err) {
                         console.error('[ActiveChat] Delete failed:', err);
                         notificationStore.error('Failed to delete chat');
@@ -2816,7 +2864,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // (Chats.svelte) remount performance, not the welcome screen. Using
             // the cache here causes stale sort order when returning from a chat.
             let chats: Chat[] = await chatDB.getAllChats();
-            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
+            const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id) && !c.parent_id && !c.is_sub_chat);
             const sorted = sortChats(filteredChats, []);
 
             // Exclude the primary resume chat (it's rendered separately)
@@ -2875,6 +2923,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (currentActiveChatId === chatId || isPublicChat(chatId)) continue;
                 const chat = await chatDB.getChat(chatId);
                 if (!chat) continue;
+                if (chat.parent_id || chat.is_sub_chat) continue;
                 const meta = await buildRecentChatMeta(chat);
                 chatItems.push({ ...meta, kind: 'chat', priority });
             }
@@ -3170,6 +3219,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Look up the specific chat by ID from last_opened
             const chat = await chatDB.getChat(lastOpenedId);
             if (!chat) return false;
+            if (chat.parent_id || chat.is_sub_chat) return false;
 
             // Decrypt title, category, icon, and summary using the chat key
             let decryptedTitle: string | null = null;
@@ -4346,6 +4396,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    let dismissedFollowUpSuggestionsKey = $state<string | null>(null);
+
+    let followUpSuggestionsKey = $derived.by(() => {
+        if (!currentChat?.chat_id || followUpSuggestions.length === 0) return null;
+        return `${currentChat.chat_id}:${followUpSuggestions.join(FOLLOW_UP_SUGGESTION_KEY_SEPARATOR)}`;
+    });
+
     let quickTipSlugs = $state<string[]>([]);
     
     // Track settings/memories suggestions for the current chat
@@ -4591,6 +4648,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return getVideoForLocale(videoKey, $locale ?? 'en');
     });
 
+    let activePublicChatCreatedAt = $derived.by(() => {
+        const publishedAt = activePublicChatMetadata?.publishedAt;
+        if (!publishedAt) return null;
+        const timestampMs = Date.parse(publishedAt);
+        return Number.isFinite(timestampMs) ? Math.floor(timestampMs / 1000) : null;
+    });
+
     // Generation counter to prevent stale loadChat() completions from overwriting currentMessages.
     // Each loadChat() call increments this; if the counter has moved on by the time async work
     // completes, the stale call bails out instead of writing wrong messages into the view.
@@ -4728,7 +4792,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // assistant message without the user having to click the input first.
     let followUpSuggestionsEnabled = $derived($userProfile.follow_up_suggestions_enabled !== false);
     let showFollowUpSuggestions = $derived(
-        followUpSuggestionsEnabled && !showWelcome && followUpSuggestions.length > 0 && !(currentChat && isLegalChat(currentChat.chat_id))
+        followUpSuggestionsEnabled &&
+        !showWelcome &&
+        followUpSuggestions.length > 0 &&
+        followUpSuggestionsKey !== dismissedFollowUpSuggestionsKey &&
+        !(currentChat && isLegalChat(currentChat.chat_id))
     );
 
     // Load and refresh the active focus ID whenever the current chat changes.
@@ -5799,6 +5867,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         // Hide follow-up suggestions until new ones are received
+        dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
         followUpSuggestions = [];
         quickTipSlugs = [];
         
@@ -5860,7 +5929,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentChat = { chat_id: message.chat_id } as Chat;
                 }
             }
-            currentMessages = [message]; // Initialize messages with the first message
+            // For cloned-from-example chats, include the original example messages
+            // so that embed references render in the cloned chat immediately
+            if (currentChat?.source_demo_id && isExampleChat(currentChat.source_demo_id)) {
+                const exampleMsgs = getDemoMessages(currentChat.source_demo_id, DEMO_CHATS, LEGAL_CHATS);
+                if (exampleMsgs.length > 0) {
+                    const updatedMsgs = exampleMsgs.map(msg => ({
+                        ...msg,
+                        chat_id: message.chat_id,
+                    }));
+                    currentMessages = [...updatedMsgs, message];
+                } else {
+                    currentMessages = [message]; // Initialize messages with the first message
+                }
+            } else {
+                currentMessages = [message]; // Initialize messages with the first message
+            }
             
             // Clear temporary chat ID since we now have a real chat
             temporaryChatId = null;
@@ -8456,7 +8540,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 }
                             } else {
                                 // No embeds found in store, just set context
-                                if (messageInputFieldRef) {
+                                if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                    console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; EmbedStore has not caught up yet`);
+                                } else if (messageInputFieldRef) {
                                     setTimeout(() => {
                                         if (!messageInputFieldRef) return;
                                         messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
@@ -8466,7 +8552,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         } else {
                             // No embeds in store, just set context
                             console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
-                            if (messageInputFieldRef) {
+                            if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; draft restore would otherwise clear the active composer`);
+                            } else if (messageInputFieldRef) {
                                 setTimeout(() => {
                                     if (!messageInputFieldRef) return;
                                     messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
@@ -8476,7 +8564,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } catch (error) {
                         console.error(`[ActiveChat] Error reconstructing draft from EmbedStore:`, error);
                         // Fallback: just set context
-                        if (messageInputFieldRef) {
+                        if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                            console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id} after reconstruction error`);
+                        } else if (messageInputFieldRef) {
                             setTimeout(() => {
                                 if (!messageInputFieldRef) return;
                                 messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
@@ -8493,7 +8583,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
-                            
+                            if (!hasMeaningfulTiptapContent(draftContentJSON) && shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                console.debug(`[ActiveChat] Preserving live draft for ${currentChat.chat_id}; decrypted draft parsed empty while upload is still finalizing`);
+                                return;
+                            }
+                             
                             setTimeout(() => {
                                 if (!messageInputFieldRef) return;
                                 // Pass the decrypted and parsed TipTap JSON content
@@ -10427,7 +10521,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
         {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
             <div class="status-wrapper" transition:fade={fadeParams}>
-                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} paymentEnabled={paymentEnabled} isSelfHosted={isSelfHosted} />
+                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} isSelfHosted={isSelfHosted} />
             </div>
         {/if}
         
@@ -10665,6 +10759,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 data-testid="continue-priority-card"
                                                 data-priority-reason={item.priority.reason}
                                                 data-item-kind={item.kind}
+                                                data-chat-id={priorityChat.chat_id}
                                                 style={getResumeCardGradientStyle(priorityGradientColors)}
                                                 onclick={() => handleOpenRecentChat(priorityChat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, priorityChat)}
@@ -10718,6 +10813,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 data-testid="continue-priority-card"
                                                 data-priority-reason={item.priority.reason}
                                                 data-item-kind={item.kind}
+                                                data-chat-id={item.kind === 'chat' ? item.chat.chat_id : ''}
                                                 style={getResumeCardGradientStyle(priorityGradientColors)}
                                                 onclick={() => item.kind === 'chat' ? handleOpenRecentChat(item.chat) : handleOpenPriorityEmbed(item)}
                                                 oncontextmenu={(e) => { if (item.kind === 'chat') handleResumeCardContextMenu(e, item.chat); }}
@@ -10752,6 +10848,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
                                                 style={getResumeLargeCardStyle(gradientColors)}
+                                                data-chat-id={resumeChatData.chat_id}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
                                                 ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
@@ -10812,6 +10909,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(compactGradientColors)}
+                                                data-chat-id={resumeChatData.chat_id}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
                                                 ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
@@ -11101,8 +11199,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatIcon={activeChatDecryptedIcon}
                          chatSummary={activeChatDecryptedSummary}
                          {chatHeaderRenderKey}
-                         chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
-                         {isNewChatGeneratingTitle}
+                           chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : activePublicChatCreatedAt}
+                          chatTimeLabel={currentChat && isPublicChat(currentChat.chat_id) ? 'published' : 'started'}
+                          {isNewChatGeneratingTitle}
                          {isNewChatCreditsError}
                          {isCreditsRestored}
                           isIncognito={!!currentChat?.is_incognito}
@@ -11457,6 +11556,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     data={{
                         decodedContent: {
                             transcript: recordingFullscreenData.transcript,
+                            transcript_original: recordingFullscreenData.transcriptOriginal,
+                            transcript_corrected: recordingFullscreenData.transcriptCorrected,
+                            use_corrected: recordingFullscreenData.useCorrected,
+                            correction_model: recordingFullscreenData.correctionModel,
                             blob_url: recordingFullscreenData.blobUrl,
                             filename: recordingFullscreenData.filename,
                             duration: recordingFullscreenData.duration,
@@ -11470,6 +11573,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     embedId={recordingFullscreenData.embedId}
                     isEditable={recordingFullscreenData.isEditable}
                     onTranscriptChange={handleRecordingTranscriptChange}
+                    onAttrsChange={(embedId, changedAttrs) => {
+                        handleRecordingAttrsChange(embedId, changedAttrs);
+                        if (changedAttrs.transcript !== undefined) recordingFullscreenData.transcript = changedAttrs.transcript;
+                        if (changedAttrs.transcriptOriginal !== undefined) recordingFullscreenData.transcriptOriginal = changedAttrs.transcriptOriginal;
+                        if (changedAttrs.transcriptCorrected !== undefined) recordingFullscreenData.transcriptCorrected = changedAttrs.transcriptCorrected;
+                        if (changedAttrs.useCorrected !== undefined) recordingFullscreenData.useCorrected = changedAttrs.useCorrected;
+                        if (changedAttrs.correctionModel !== undefined) recordingFullscreenData.correctionModel = changedAttrs.correctionModel;
+                    }}
                     onClose={handleCloseRecordingFullscreen}
                 />
             {/if}

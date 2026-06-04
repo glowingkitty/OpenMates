@@ -36,6 +36,16 @@ _FAKE_CELERY_APP = MagicMock(name="fake_celery_app")
 _FAKE_CELERY_APP.send_task = MagicMock()
 
 
+class _FakeTranslationService:
+    def warm_cache(self, *_languages: str) -> None:
+        return None
+
+
+def _fake_warm_translation_cache() -> None:
+    celery_config = sys.modules["backend.core.api.app.tasks.celery_config"]
+    celery_config.TranslationService().warm_cache("en")
+
+
 def _force_stub_leaf_module(dotted_name: str, **attrs) -> types.ModuleType:
     """Force-replace the leaf module in sys.modules with a stub.
 
@@ -75,6 +85,8 @@ _force_stub_leaf_module(
 _force_stub_leaf_module(
     "backend.core.api.app.tasks.celery_config",
     app=_FAKE_CELERY_APP,
+    TranslationService=_FakeTranslationService,
+    warm_translation_cache=_fake_warm_translation_cache,
 )
 
 try:

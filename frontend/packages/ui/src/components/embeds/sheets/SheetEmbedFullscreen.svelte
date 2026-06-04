@@ -32,6 +32,7 @@
     colIndexToLetter,
   } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -100,8 +101,10 @@
 
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
+  let includedOriginalTableContent = $state<string | null>(null);
   let tableContent = $derived(
-      typeof dc.table === 'string' ? dc.table
+      includedOriginalTableContent !== null ? includedOriginalTableContent
+      : typeof dc.table === 'string' ? dc.table
       : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
@@ -133,11 +136,39 @@
   // the parent (ActiveChat); togglePII() writes back to the same store so the
   // chat header and embed fullscreen stay in sync. See OPE-400.
   /** Whether there are any PII mappings to apply (controls button visibility) */
-  let hasPII = $derived(piiMappings.length > 0);
+  let embedPIIMappings = $state<PIIMapping[]>([]);
+  let originalPIIIncluded = $state(false);
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let hasPII = $derived(allPIIMappings.length > 0);
+  let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
+  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function togglePII() {
     if (!chatId) return;
     piiVisibilityStore.toggle(chatId);
+  }
+
+  async function includeOriginalPII() {
+    if (!embedId) return;
+    try {
+      const count = await includeOriginalPIIInDraftEmbed(embedId);
+      includedOriginalTableContent = restorePIIInText(tableContent, embedPIIMappings);
+      embedPIIMappings = [];
+      originalPIIIncluded = true;
+      notificationStore.success($text('embeds.pii_include_original_success', { values: { count: String(count) } }));
+    } catch (error) {
+      console.error('[SheetEmbedFullscreen] Failed to include original PII:', error);
+      notificationStore.error($text('embeds.pii_include_original_failed'));
+    }
   }
 
   /**
@@ -147,9 +178,9 @@
   let piiProcessedTableContent = $derived.by(() => {
     if (!hasPII || !tableContent) return tableContent;
     if (piiRevealed) {
-      return restorePIIInText(tableContent, piiMappings);
+      return restorePIIInText(tableContent, allPIIMappings);
     } else {
-      return replacePIIOriginalsWithPlaceholders(tableContent, piiMappings);
+      return replacePIIOriginalsWithPlaceholders(tableContent, allPIIMappings);
     }
   });
   
@@ -398,6 +429,8 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  showPIIIncludeOriginal={canIncludeOriginalPII}
+  onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!focusSheetRange}
 >
   {#snippet content()}

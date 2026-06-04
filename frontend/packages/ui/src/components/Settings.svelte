@@ -54,6 +54,7 @@ changes to the documentation (to keep the documentation up to date).
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
     import { loadReferralStatus, referralStatus } from '../services/referralService';
+    import { DEMO_MARKETING_CREDITS, DEMO_MARKETING_USERNAME } from '../demo_chats/usageDemoData';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -285,9 +286,9 @@ changes to the documentation (to keep the documentation up to date).
     // Share chat (shared/share) is available for non-authenticated users to share demo chats
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let settingsViews = $derived.by((): Record<string, any> => {
-        const isAuthenticated = $authStore.isAuthenticated;
         const restrictedMode = $isRestrictedSession;
         const demoModeOn = $demoMode;
+        const isAuthenticated = $authStore.isAuthenticated || demoModeOn;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return Object.entries(allSettingsViews).reduce((filtered: Record<string, any>, [key, component]) => {
             // Demo mode: hide admin "Server" section and the "Logs" entry so screenshots /
@@ -299,7 +300,7 @@ changes to the documentation (to keep the documentation up to date).
 
             // Filter out payment-related routes if self-hosted (use isSelfHosted from request-based validation)
             // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
-            if (isSelfHosted) {
+            if (isSelfHosted && !demoModeOn) {
                 // Remove billing and gift card routes
                 if (key === 'billing' || key.startsWith('billing/') || 
                     key === 'shared/tip') { // Tips also require payment
@@ -731,6 +732,8 @@ changes to the documentation (to keep the documentation up to date).
     let showSettingsIcon = $derived(true);
     
     let username = $derived($userProfile.username || '');
+    let displayUsername = $derived($demoMode ? DEMO_MARKETING_USERNAME : username);
+    let displayCredits = $derived($demoMode ? DEMO_MARKETING_CREDITS : ($userProfile.credits ?? 0));
     let isInSignupMode = $derived($isInSignupProcess);
     let visuallyAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
 
@@ -2108,7 +2111,9 @@ changes to the documentation (to keep the documentation up to date).
                 // Show success notification popup (using Notification.svelte component)
                 notificationStore.success(
                     `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
-                    5000
+                    5000,
+                    true,
+                    `payment-completed-${payload.order_id}`
                 );
             } else {
                 // Suppressing payment_completed notification during signup or buy credits flow
@@ -2127,7 +2132,9 @@ changes to the documentation (to keep the documentation up to date).
             // Show error notification popup (using Notification.svelte component)
             notificationStore.error(
                 payload.message || 'Payment failed. Please try again or use a different payment method.',
-                10000 // Show for 10 seconds since this is important
+                10000, // Show for 10 seconds since this is important
+                true,
+                `payment-failed-${payload.order_id}`
             );
         };
 
@@ -2321,7 +2328,7 @@ changes to the documentation (to keep the documentation up to date).
             // Account deletion is allowed for uncompleted accounts via email link
             // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'settings_memories', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'settings_memories', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai', 'billing/referral-code'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                       settingsPath.startsWith('app_store/') ||
                                       settingsPath.startsWith('interface/') ||
@@ -2759,11 +2766,11 @@ changes to the documentation (to keep the documentation up to date).
                 </div>
             {/if}
             <SettingsMainHeader
-                {username}
+                username={displayUsername}
                 profileImageUrl={resolvedProfileImageBlobUrl ?? ''}
-                isAuthenticated={$authStore.isAuthenticated}
-                credits={$userProfile.credits ?? 0}
-                {paymentEnabled}
+                isAuthenticated={visuallyAuthenticated}
+                credits={displayCredits}
+                paymentEnabled={$demoMode || paymentEnabled}
                 scrollTop={contentScrollTop}
                 onBillingClick={() => handleOpenSettings({ detail: { settingsPath: 'billing', direction: 'forward', icon: 'billing', title: $text('settings.billing') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
                 onAvatarClick={() => handleOpenSettings({ detail: { settingsPath: 'account/profile-picture', direction: 'forward', icon: 'profile-picture', title: $text('settings.account.profile_picture') } } as CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string; cameFrom?: string }>)}
@@ -2834,11 +2841,11 @@ changes to the documentation (to keep the documentation up to date).
         	{activeSettingsView}
             accountId={activeAccountId}
         	{direction}
-        	{username}
+	        	username={displayUsername}
             {isInSignupMode}
             {settingsViews}
             {isMenuVisible}
-            {paymentEnabled}
+            paymentEnabled={$demoMode || paymentEnabled}
             showProfileHeader={false}
             resolvedProfileImageUrl={resolvedProfileImageBlobUrl}
             bind:isIncognitoEnabled

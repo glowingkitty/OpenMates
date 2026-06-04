@@ -877,6 +877,85 @@ export async function getAllChats(
 }
 
 /**
+ * Get sub-chats for one parent without decrypting every chat in the database.
+ * This is intentionally separate from getAllChats() because message-level
+ * preview rendering can call it during sync bursts.
+ */
+export async function getSubChatsForParent(
+  dbInstance: ChatDatabaseInstance,
+  parentChatId: string,
+): Promise<Chat[]> {
+  if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+    console.debug(
+      "[ChatDatabase] Skipping getSubChatsForParent during logout - returning empty array",
+    );
+    return [];
+  }
+
+  await dbInstance.init();
+  return new Promise((resolve, reject) => {
+    const execute = async () => {
+      try {
+        const transaction = await dbInstance.getTransaction(
+          dbInstance.CHATS_STORE_NAME,
+          "readonly",
+        );
+        const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+        const request = store.openCursor();
+        const rawSubChats: Chat[] = [];
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            const chatData = { ...cursor.value } as Chat;
+            if (chatData.parent_id === parentChatId) {
+              delete chatData.messages;
+              rawSubChats.push(chatData);
+            }
+            cursor.continue();
+            return;
+          }
+
+          transaction.oncomplete = async () => {
+            const decryptedChats: Chat[] = [];
+            for (const rawChat of rawSubChats) {
+              try {
+                decryptedChats.push(
+                  await decryptChatFromStorage(dbInstance, rawChat),
+                );
+              } catch (error) {
+                console.error(
+                  `[ChatDatabase] Error decrypting sub-chat ${rawChat.chat_id}:`,
+                  error,
+                );
+                decryptedChats.push(rawChat);
+              }
+            }
+            resolve(decryptedChats);
+          };
+        };
+
+        request.onerror = () => {
+          console.error("[ChatDatabase] Error getting sub-chats:", request.error);
+          reject(request.error);
+        };
+
+        transaction.onerror = () => {
+          console.error(
+            "[ChatDatabase] getSubChatsForParent transaction failed:",
+            transaction.error,
+          );
+          reject(transaction.error);
+        };
+      } catch (e) {
+        reject(e);
+      }
+    };
+    execute();
+  });
+}
+
+/**
  * Get a single chat by ID
  */
 export async function getChat(

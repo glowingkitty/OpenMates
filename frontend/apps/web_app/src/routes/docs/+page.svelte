@@ -7,15 +7,20 @@
 	 *
 	 * Architecture: docs/architecture/docs-web-app.md
 	 */
-	import { text, getCategoryGradientColors, getLucideIcon } from '@repo/ui';
-	import docsData from '$lib/generated/docs-data.json';
-	import type { DocFolder } from '$lib/types/docs';
+	import { text } from '@openmates/ui/src/i18n/translations';
+	import { getCategoryGradientColors, getLucideIcon } from '@openmates/ui/src/utils/categoryUtils';
+	import type { DocManifestFolder, DocsManifest } from '$lib/types/docs';
 	import { DOCS_FOLDER_CATEGORY, DOCS_FOLDER_ICON, DOCS_FOLDER_ORDER } from '$lib/utils/docsCategoryMap';
 
-	const { structure } = docsData;
+	interface Props {
+		data: { manifest: DocsManifest };
+	}
+
+	let { data }: Props = $props();
+	let structure = $derived(data.manifest.structure);
 
 	/** Count all files recursively in a folder */
-	function countFiles(folder: DocFolder): number {
+	function countFiles(folder: DocManifestFolder): number {
 		let count = folder.files.length;
 		for (const sub of folder.folders) {
 			count += countFiles(sub);
@@ -55,15 +60,15 @@
 	<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 </svelte:head>
 
-<div class="welcome-container">
+<div class="welcome-container" data-testid="docs-landing">
 	<div class="welcome-hero">
 		<h1 class="welcome-title">{$text('documentation.welcome.title')}</h1>
 		<p class="welcome-subtitle">{$text('documentation.welcome.subtitle')}</p>
 	</div>
 
-	<div class="quick-links">
+	<div class="quick-links" data-testid="docs-section-grid">
 		<!-- API Reference card -->
-		<a href="/docs/api" class="section-card api-card">
+		<a href="/docs/api" class="section-card api-card" data-testid="docs-section-card">
 			<div class="card-icon">
 				<svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
 					<path
@@ -84,7 +89,7 @@
 			{@const gradColors = getCategoryGradientColors(category)}
 			{@const FolderCardIcon = getLucideIcon(folderIconName)}
 			{@const fileCount = countFiles(folder)}
-			<a href="/docs/{folder.path}" class="section-card">
+			<a href="/docs/{folder.path}" class="section-card" data-testid="docs-section-card">
 				<div
 					class="card-icon-circle"
 					style="background: linear-gradient(135deg, {gradColors?.start ??

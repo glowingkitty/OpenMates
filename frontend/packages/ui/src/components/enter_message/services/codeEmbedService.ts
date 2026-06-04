@@ -28,11 +28,12 @@
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
-import { encode as toonEncode } from "@toon-format/toon";
+import { decode as toonDecode, encode as toonEncode } from "@toon-format/toon";
 import {
   detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
+  restorePIIInText,
   type PIIMappingForStorage,
   type PIIDetectionOptions,
   type PersonalDataForDetection,
@@ -57,6 +58,11 @@ export interface CodeEmbedCreationResult {
   embedReference: string;
   /** Number of PII items that were redacted (0 if none) */
   piiRedactedCount: number;
+}
+
+export interface EmbedRedactionResult {
+  redactedContent: string;
+  piiMappings: PIIMappingForStorage[];
 }
 
 /**
@@ -166,6 +172,47 @@ async function storeEmbedPIIMappings(
   }
 }
 
+export function redactEmbedContent(content: string): EmbedRedactionResult {
+  let redactedContent = content;
+  let piiMappings: PIIMappingForStorage[] = [];
+
+  const detectionOptions = buildCodePIIDetectionOptions();
+  if (!detectionOptions || content.length < 6) {
+    return { redactedContent, piiMappings };
+  }
+
+  try {
+    const piiMatches = detectPII(content, detectionOptions);
+    if (piiMatches.length === 0) {
+      return { redactedContent, piiMappings };
+    }
+
+    redactedContent = replacePIIWithPlaceholders(content, piiMatches);
+    piiMappings = createPIIMappingsForStorage(piiMatches);
+  } catch (error) {
+    console.error("[codeEmbedService] PII detection failed for embed content:", error);
+  }
+
+  return { redactedContent, piiMappings };
+}
+
+function redactEmbedFields<T extends Record<string, string>>(
+  fields: T,
+): { redactedFields: T; piiMappings: PIIMappingForStorage[] } {
+  const entries = Object.entries(fields) as Array<[keyof T, string]>;
+  const separator = "\n\u0000OPENMATES_FIELD_SEPARATOR\u0000\n";
+  const combined = entries.map(([, value]) => value).join(separator);
+  const { redactedContent, piiMappings } = redactEmbedContent(combined);
+  const parts = redactedContent.split(separator);
+  const redactedFields = { ...fields };
+
+  entries.forEach(([key], index) => {
+    redactedFields[key] = (parts[index] ?? "") as T[keyof T];
+  });
+
+  return { redactedFields, piiMappings };
+}
+
 /**
  * Load PII mappings for an embed from separate storage.
  * Returns an empty array if no mappings exist (embed has no PII, or mappings lost).
@@ -193,6 +240,87 @@ export async function loadEmbedPIIMappings(
     );
   }
   return [];
+}
+
+function encodeEmbedContent(content: Record<string, unknown>): string {
+  try {
+    return toonEncode(content);
+  } catch {
+    return JSON.stringify(content);
+  }
+}
+
+function decodeEmbedContent(content: unknown): Record<string, unknown> | null {
+  if (!content || typeof content !== "string") return null;
+  try {
+    const decoded = toonDecode(content, { strict: false });
+    return decoded && typeof decoded === "object" ? decoded as Record<string, unknown> : null;
+  } catch {
+    try {
+      const parsed = JSON.parse(content);
+      return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function isDraftEmbedData(embedData: Record<string, unknown>): boolean {
+  return !embedData.encrypted_content && !embedData.hashed_message_id;
+}
+
+function restorePIIFields(
+  decoded: Record<string, unknown>,
+  mappings: PIIMappingForStorage[],
+): Record<string, unknown> {
+  const restored = { ...decoded };
+  for (const key of ["code", "html", "table", "receiver", "subject", "content", "footer"]) {
+    if (typeof restored[key] === "string") {
+      restored[key] = restorePIIInText(restored[key] as string, mappings);
+    }
+  }
+  return restored;
+}
+
+export async function includeOriginalPIIInDraftEmbed(embedId: string): Promise<number> {
+  const mappings = await loadEmbedPIIMappings(embedId);
+  if (mappings.length === 0) return 0;
+
+  const contentRef = `embed:${embedId}`;
+  const embedData = await embedStore.get(contentRef) as Record<string, unknown> | undefined;
+  if (!embedData || typeof embedData !== "object") {
+    throw new Error("Draft embed not found");
+  }
+  if (!isDraftEmbedData(embedData)) {
+    throw new Error("Original PII can only be included before the embed is sent");
+  }
+
+  const decoded = decodeEmbedContent(embedData.content);
+  if (!decoded) {
+    throw new Error("Draft embed content could not be decoded");
+  }
+
+  await embedStore.put(
+    contentRef,
+    {
+      ...embedData,
+      content: encodeEmbedContent(restorePIIFields(decoded, mappings)),
+      updatedAt: Date.now(),
+    },
+    (embedData.type as EmbedType) || "code-code",
+  );
+
+  await embedStore.put(
+    `embed_pii:${embedId}`,
+    {
+      embed_id: embedId,
+      pii_mappings: [],
+      created_at: Date.now(),
+    },
+    "code-code" as EmbedType,
+  );
+
+  return mappings.length;
 }
 
 /**
@@ -227,46 +355,10 @@ export async function createCodeEmbed(
     filename: filename || "none",
   });
 
-  // ── PII Detection & Redaction ────────────────────────────────────────────
-  // Detect sensitive data in the code content and replace with placeholders.
-  // This ensures the LLM/server only ever sees redacted code.
-  let codeContent = content;
-  let piiMappingsForStorage: PIIMappingForStorage[] = [];
-
-  const detectionOptions = buildCodePIIDetectionOptions();
-  if (detectionOptions && content.length >= 6) {
-    try {
-      const piiMatches = detectPII(content, detectionOptions);
-
-      if (piiMatches.length > 0) {
-        console.debug(
-          "[codeEmbedService] Detected PII in code embed, redacting:",
-          piiMatches.map((m) => ({
-            type: m.type,
-            placeholder: m.placeholder,
-            // Don't log the actual match value for security
-            matchLength: m.match.length,
-          })),
-        );
-
-        // Replace PII originals with placeholders in the code
-        codeContent = replacePIIWithPlaceholders(content, piiMatches);
-
-        // Create storage mappings ({placeholder, original, type}) for owner-side restoration
-        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
-
-        console.info(
-          `[codeEmbedService] Redacted ${piiMatches.length} PII item(s) in code embed ${embed_id}`,
-        );
-      }
-    } catch (error) {
-      console.error(
-        "[codeEmbedService] PII detection failed for code embed:",
-        error,
-      );
-      // Continue with unredacted content — log the failure but don't block the embed
-    }
-  }
+  const {
+    redactedContent: codeContent,
+    piiMappings: piiMappingsForStorage,
+  } = redactEmbedContent(content);
 
   // ── Build TOON Content ───────────────────────────────────────────────────
   // The TOON content contains the REDACTED code (with placeholders).
@@ -592,6 +684,18 @@ export interface DocEmbedCreationResult {
 }
 
 /**
+ * Result of creating a sheet embed from pasted tabular content.
+ */
+export interface SheetEmbedCreationResult {
+  /** Unique identifier for the embed */
+  embed_id: string;
+  /** Embed type */
+  type: "sheets-sheet";
+  /** Markdown embed reference block to insert into message content */
+  embedReference: string;
+}
+
+/**
  * Creates a proper embed entry for a document_html block pasted or typed in the editor.
  *
  * Used when upgrading preview:docs-doc: nodes to real EmbedStore entries so they can
@@ -617,12 +721,16 @@ export async function createDocEmbed(
     filename: filename || "none",
   });
 
+  const { redactedContent, piiMappings } = redactEmbedContent(content);
+  const redactedWordCount = redactedContent.split(/\s+/).filter((w) => w.trim()).length;
+
   const embedContent = {
     type: "docs-doc",
     title: title || null,
     filename: filename || null,
-    code: content,
-    word_count: wordCount,
+    html: redactedContent,
+    code: redactedContent,
+    word_count: redactedWordCount,
     status: "finished",
   };
 
@@ -633,7 +741,7 @@ export async function createDocEmbed(
     toonContent = JSON.stringify(embedContent);
   }
 
-  const textPreview = title || filename || `Document (${wordCount} words)`;
+  const textPreview = title || filename || `Document (${redactedWordCount} words)`;
   const now = Date.now();
   const embedData = {
     embed_id,
@@ -659,11 +767,148 @@ export async function createDocEmbed(
     console.error("[codeEmbedService] Failed to store doc embed:", error);
   }
 
+  if (piiMappings.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappings);
+  }
+
   const embedReference = createEmbedReferenceBlock("docs-doc", embed_id);
 
   return {
     embed_id,
     type: "docs-doc",
     embedReference,
+  };
+}
+
+/**
+ * Creates a proper embed entry for pasted spreadsheet/table content.
+ *
+ * @param tableMarkdown Markdown table content
+ * @param title Optional table title
+ * @returns SheetEmbedCreationResult with embed_id and markdown reference
+ */
+export async function createSheetEmbed(
+  tableMarkdown: string,
+  title?: string,
+): Promise<SheetEmbedCreationResult> {
+  const embed_id = generateUUID();
+  const { redactedContent, piiMappings } = redactEmbedContent(tableMarkdown);
+  const rows = redactedContent
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && line.endsWith("|"));
+  const headerLine = rows[0] || "";
+  const colCount = Math.max(0, (headerLine.match(/\|/g) || []).length - 1);
+  const rowCount = Math.max(0, rows.length - 2);
+
+  const embedContent = {
+    type: "sheet",
+    title: title || null,
+    table: redactedContent,
+    code: redactedContent,
+    row_count: rowCount,
+    col_count: colCount,
+    rows: rowCount,
+    cols: colCount,
+    status: "finished",
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch {
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const textPreview = title || `${rowCount} rows × ${colCount} columns`;
+  const now = Date.now();
+  const embedData = {
+    embed_id,
+    type: "sheets-sheet",
+    status: "finished",
+    content: toonContent,
+    text_preview: textPreview,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await embedStore.put(`embed:${embed_id}`, embedData, "sheets-sheet" as EmbedType);
+
+  if (piiMappings.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappings);
+  }
+
+  return {
+    embed_id,
+    type: "sheets-sheet",
+    embedReference: createEmbedReferenceBlock("sheet", embed_id),
+  };
+}
+
+export interface MailEmbedCreationResult {
+  embed_id: string;
+  type: "mail-email";
+  embedReference: string;
+}
+
+export async function createMailEmbed(
+  fields: {
+    receiver?: string;
+    subject?: string;
+    content?: string;
+    footer?: string;
+  },
+  filename?: string,
+): Promise<MailEmbedCreationResult> {
+  const embed_id = generateUUID();
+  const { redactedFields, piiMappings } = redactEmbedFields({
+    receiver: fields.receiver || "",
+    subject: fields.subject || "",
+    content: fields.content || "",
+    footer: fields.footer || "",
+  });
+
+  const embedContent = {
+    type: "mail-email",
+    app_id: "mail",
+    skill_id: "email",
+    receiver: redactedFields.receiver,
+    subject: redactedFields.subject,
+    content: redactedFields.content,
+    footer: redactedFields.footer,
+    filename: filename || null,
+    status: "finished",
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch {
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const now = Date.now();
+  await embedStore.put(
+    `embed:${embed_id}`,
+    {
+      embed_id,
+      type: "mail-email",
+      status: "finished",
+      content: toonContent,
+      text_preview: redactedFields.subject || filename || "Email",
+      createdAt: now,
+      updatedAt: now,
+    },
+    "mail-email" as EmbedType,
+  );
+
+  if (piiMappings.length > 0) {
+    await storeEmbedPIIMappings(embed_id, piiMappings);
+  }
+
+  return {
+    embed_id,
+    type: "mail-email",
+    embedReference: createEmbedReferenceBlock("mail-email", embed_id),
   };
 }

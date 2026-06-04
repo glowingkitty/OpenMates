@@ -55,7 +55,7 @@ export type TestRecordingsIndex = {
 const TEST_RECORDINGS_PATH = '/v1/test-recordings';
 
 export async function fetchTestRecordings(): Promise<TestRecordingsIndex> {
-	const response = await fetch(getApiEndpoint(TEST_RECORDINGS_PATH));
+	const response = await fetch(getApiEndpoint(TEST_RECORDINGS_PATH), { credentials: 'include' });
 	if (!response.ok) {
 		throw new Error(`Test recordings API error: ${response.status}`);
 	}
@@ -63,7 +63,9 @@ export async function fetchTestRecordings(): Promise<TestRecordingsIndex> {
 }
 
 export async function fetchTestRecording(slug: string): Promise<TestRecordingDetail> {
-	const response = await fetch(getApiEndpoint(`${TEST_RECORDINGS_PATH}/${encodeURIComponent(slug)}`));
+	const response = await fetch(getApiEndpoint(`${TEST_RECORDINGS_PATH}/${encodeURIComponent(slug)}`), {
+		credentials: 'include'
+	});
 	if (!response.ok) {
 		throw new Error(`Test recording API error: ${response.status}`);
 	}

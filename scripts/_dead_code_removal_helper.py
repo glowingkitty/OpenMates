@@ -5,7 +5,7 @@ scripts/_dead_code_removal_helper.py
 Python helper for nightly-dead-code-removal.sh.
 
 Handles: findings prioritisation, state tracking (skip already-removed items),
-building the claude prompt, and dispatching claude in build mode.
+building the OpenCode prompt, and dispatching OpenCode with write permissions.
 
 Called by the shell script via:
     python3 scripts/_dead_code_removal_helper.py run
@@ -14,7 +14,7 @@ Environment variables (set by the shell script):
     FINDINGS_JSON_B64       — base64-encoded JSON output from find_dead_code.py
     STATE_FILE_PATH         — path to .dead-code-removal-state.json
     PROJECT_ROOT            — absolute repo root path
-    DRY_RUN                 — "true" to skip actual claude invocation
+    DRY_RUN                 — "true" to skip actual OpenCode invocation
     PROMPT_TEMPLATE_PATH    — path to scripts/prompts/dead-code-removal.md
     MAX_FINDINGS_TOTAL      — hard cap on items sent to claude (default: 300)
     CURRENT_SHA             — current HEAD SHA (written to state after run)
@@ -40,7 +40,7 @@ import base64
 import json
 import os
 
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 from _nightly_report import write_nightly_report
 import sys
 from datetime import datetime, timezone
@@ -241,7 +241,7 @@ def run() -> None:
     )
 
     if dry_run:
-        print("[dead-code] DRY RUN — would run claude with the following prompt:")
+        print("[dead-code] DRY RUN — would run OpenCode with the following prompt:")
         print("-" * 70)
         print(prompt[:3000])
         if len(prompt) > 3000:
@@ -253,11 +253,11 @@ def run() -> None:
         _save_state(state_file, state)
         return
 
-    # Dispatch claude in build mode (agent=None)
+    # Dispatch OpenCode with write permissions (agent=None)
     session_title = f"chore: dead code removal {today_date}"
-    print(f"[dead-code] Starting claude session '{session_title}'...")
+    print(f"[dead-code] Starting OpenCode chat '{session_title}'...")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,

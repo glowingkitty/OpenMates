@@ -58,6 +58,8 @@ import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSear
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
+import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
+import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
@@ -276,6 +278,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       recipe: true,
       price_calendar_result: true,
       listing: true,
+      weather_day: true,
     };
     const childType = decodedContent?.type || embedData?.type;
     if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
@@ -500,6 +503,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For nutrition recipe child embeds (standalone recipe card in message stream)
       if (appId === "nutrition" && skillId === "recipe") {
         return this.renderNutritionRecipeComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "weather" && skillId === "forecast") {
+        return this.renderWeatherForecastComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "weather" && skillId === "weather_day") {
+        return this.renderWeatherDayComponent(
           attrs,
           embedData,
           decodedContent,
@@ -918,7 +939,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
-          status: status as "processing" | "finished" | "error",
+          status: status as "processing" | "finished" | "error" | "cancelled",
           results,
           taskId,
           skillTaskId, // For individual skill cancellation
@@ -1680,14 +1701,33 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || (attrs as any).provider || "Meetup";
+    const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
     const providers: string[] = Array.isArray(decodedContent?.providers)
       ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
       : Array.isArray((attrs as any).providers)
         ? (attrs as any).providers
         : [];
+    const decodedStatus =
+      decodedContent?.status === "processing" ||
+      decodedContent?.status === "finished" ||
+      decodedContent?.status === "error" ||
+      decodedContent?.status === "cancelled"
+        ? decodedContent.status
+        : null;
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids;
+    const hasEmbedIds = Array.isArray(rawEmbedIds)
+      ? rawEmbedIds.length > 0
+      : typeof rawEmbedIds === "string" && rawEmbedIds.length > 0;
+    const hasFinishedContent =
+      decodedStatus !== "error" &&
+      decodedStatus !== "cancelled" &&
+      (hasEmbedIds ||
+        (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
+        (typeof decodedContent?.result_count === "number" && decodedContent.result_count > 0));
     const status =
-      decodedContent?.status ||
+      (hasFinishedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       attrs.status ||
       "processing";
@@ -1723,7 +1763,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           query,
           provider,
           providers,
-          status: status as "processing" | "finished" | "error",
+          status: status as "processing" | "finished" | "error" | "cancelled",
           results,
           taskId,
           skillTaskId,
@@ -3930,6 +3970,144 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting NutritionRecipeEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render weather forecast parent embed using Svelte component.
+   */
+  private renderWeatherForecastComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || embedData?.provider || "Weather";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+    const locationName = decodedContent?.location?.name || decodedContent?.location_name || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(WeatherForecastEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          locationName,
+          provider,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted WeatherForecastEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting WeatherForecastEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render standalone weather_day child embed using Svelte component.
+   */
+  private renderWeatherDayComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(WeatherDayEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          date: decodedContent?.date || "",
+          locationName: decodedContent?.location_name || "",
+          provider: decodedContent?.provider || "Weather",
+          condition: decodedContent?.condition || "",
+          icon: decodedContent?.icon || "",
+          temperatureMinC: decodedContent?.temperature_min_c,
+          temperatureMaxC: decodedContent?.temperature_max_c,
+          precipitationTotalMm: decodedContent?.precipitation_total_mm,
+          precipitationProbabilityMaxPct: decodedContent?.precipitation_probability_max_pct,
+          rainHours: decodedContent?.rain_hours,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted WeatherDayEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting WeatherDayEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

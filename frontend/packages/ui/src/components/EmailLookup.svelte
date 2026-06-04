@@ -538,12 +538,13 @@
     .last-used-badge {
         display: inline-flex;
         align-items: center;
-        border-radius: var(--radius-full);
+        border-radius: 19px;
         padding: var(--spacing-2) var(--spacing-5);
-        background: var(--color-primary-20);
-        color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
         font-size: var(--font-size-xxs);
         font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     .clear-last-used-button {

@@ -15,6 +15,7 @@
   import { onMount, tick } from 'svelte';
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';
+  import Button from '../../Button.svelte';
   // Import shared highlighting utilities (includes all language support + Svelte)
   import { highlightToLines } from './codeHighlighting';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
@@ -23,6 +24,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
@@ -45,11 +47,14 @@
     cancelCodeRun,
     getCodeRunStatus,
     getCodeRunStreamUrl,
+    prepareCodeRun,
     startCodeRun,
     type CodeRunEvent,
     type CodeRunClientAttachment,
     type CodeRunClientFile,
     type CodeRunDependencyInstall,
+    type CodeRunDependencySuggestion,
+    type CodeRunDependencyVersionOption,
     type CodeRunStatus,
     type CodeRunStreamMessage,
   } from '../../../services/codeRunService';
@@ -116,8 +121,10 @@
 
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
+  let includedOriginalCodeContent = $state<string | null>(null);
   let codeContent = $derived(
-      typeof dc.code === 'string' ? dc.code
+      includedOriginalCodeContent !== null ? includedOriginalCodeContent
+      : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
     );
@@ -146,11 +153,39 @@
   // the parent (ActiveChat); togglePII() writes back to the same store so the
   // chat header and embed fullscreen stay in sync. See OPE-400.
   /** Whether there are any PII mappings to apply (controls button visibility) */
-  let hasPII = $derived(piiMappings.length > 0);
+  let embedPIIMappings = $state<PIIMapping[]>([]);
+  let originalPIIIncluded = $state(false);
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let hasPII = $derived(allPIIMappings.length > 0);
+  let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
+  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function togglePII() {
     if (!chatId) return;
     piiVisibilityStore.toggle(chatId);
+  }
+
+  async function includeOriginalPII() {
+    if (!embedId) return;
+    try {
+      const count = await includeOriginalPIIInDraftEmbed(embedId);
+      includedOriginalCodeContent = restorePIIInText(codeContent, embedPIIMappings);
+      embedPIIMappings = [];
+      originalPIIIncluded = true;
+      notificationStore.success($text('embeds.pii_include_original_success', { values: { count: String(count) } }));
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to include original PII:', error);
+      notificationStore.error($text('embeds.pii_include_original_failed'));
+    }
   }
 
   /**
@@ -160,9 +195,9 @@
   let piiProcessedCodeContent = $derived.by(() => {
     if (!hasPII || !codeContent) return codeContent;
     if (piiRevealed) {
-      return restorePIIInText(codeContent, piiMappings);
+      return restorePIIInText(codeContent, allPIIMappings);
     } else {
-      return replacePIIOriginalsWithPlaceholders(codeContent, piiMappings);
+      return replacePIIOriginalsWithPlaceholders(codeContent, allPIIMappings);
     }
   });
 
@@ -373,6 +408,10 @@
     clientFile?: CodeRunClientFile;
     attachmentSources?: CodeRunAttachmentSource[];
     dependencyInstall?: CodeRunDependencyInstall;
+    dependencyPackage?: string;
+    dependencyImportName?: string;
+    dependencyVersionOptions?: CodeRunDependencyVersionOption[];
+    selectedVersion?: string;
   }
 
   let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
@@ -729,6 +768,56 @@
     };
   }
 
+  function dependencyPackageSpec(ecosystem: CodeRunDependencyInstall['ecosystem'], packageName: string, version: string): string {
+    return ecosystem === 'python' ? `${packageName}==${version}` : `${packageName}@${version}`;
+  }
+
+  function formatDependencyReleaseDate(value?: string | null): string {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function dependencySuggestionCandidate(suggestion: CodeRunDependencySuggestion): CodeRunFileCandidate {
+    const version = suggestion.latest_version;
+    const packageSpec = dependencyPackageSpec(suggestion.ecosystem, suggestion.package, version);
+    const released = formatDependencyReleaseDate(suggestion.latest_released_at);
+    return {
+      id: `dependency:${suggestion.ecosystem}:${suggestion.package}`,
+      embedId: `dependency:${suggestion.package}`,
+      kind: 'dependency',
+      title: $text('app_skills.code.run.install_detected_package', { values: { package: suggestion.package } }),
+      subtitle: released
+        ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version, releaseDate: released } })
+        : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version } }),
+      selected: false,
+      required: false,
+      dependencyPackage: suggestion.package,
+      dependencyImportName: suggestion.import_name,
+      dependencyVersionOptions: suggestion.versions,
+      selectedVersion: version,
+      dependencyInstall: {
+        ecosystem: suggestion.ecosystem,
+        packages: [packageSpec],
+      },
+    };
+  }
+
+  function updateDependencyVersion(candidateId: string, version: string) {
+    runCandidates = runCandidates.map((candidate) => {
+      if (candidate.id !== candidateId || !candidate.dependencyInstall || !candidate.dependencyPackage) return candidate;
+      return {
+        ...candidate,
+        selectedVersion: version,
+        dependencyInstall: {
+          ecosystem: candidate.dependencyInstall.ecosystem,
+          packages: [dependencyPackageSpec(candidate.dependencyInstall.ecosystem, candidate.dependencyPackage, version)],
+        },
+      };
+    });
+  }
+
   function arrayBufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -833,6 +922,29 @@
           mimeType: attachmentMimeType(decoded),
         }] : [],
       });
+    }
+
+    const codeClientFiles = candidates
+      .filter((candidate): candidate is CodeRunFileCandidate & { clientFile: CodeRunClientFile } => candidate.kind === 'code' && !!candidate.clientFile)
+      .map((candidate) => candidate.clientFile);
+    const hasExplicitDependencyCandidates = candidates.some((candidate) => candidate.kind === 'dependency');
+    if (chatId && embedId && codeClientFiles.length > 0 && !hasExplicitDependencyCandidates) {
+      try {
+        const prepared = await prepareCodeRun(chatId, embedId, codeClientFiles, codeClientFiles.map((file) => file.embed_id));
+        const existingDependencyKeys = new Set(
+          candidates
+            .filter((candidate) => candidate.kind === 'dependency' && candidate.dependencyInstall)
+            .flatMap((candidate) => candidate.dependencyInstall?.packages || [])
+            .map((packageSpec) => packageSpec.toLowerCase())
+        );
+        for (const suggestion of prepared.dependency_suggestions) {
+          if (!existingDependencyKeys.has(suggestion.package.toLowerCase())) {
+            candidates.push(dependencySuggestionCandidate(suggestion));
+          }
+        }
+      } catch (error) {
+        console.warn('[CodeEmbedFullscreen] Failed to prepare dependency suggestions:', error);
+      }
     }
 
     return candidates;
@@ -1084,6 +1196,8 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  showPIIIncludeOriginal={canIncludeOriginalPII}
+  onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightRange}
 >
   {#snippet embedHeaderCta()}
@@ -1177,11 +1291,17 @@
                       <div class="code-run-title">{$text('app_skills.code.run.select_files')}</div>
                       <div class="code-run-subtitle">{$text('app_skills.code.run.select_files_description')}</div>
                     </div>
-                    {#if selectableRunCandidates.length > 0}
-                      <button class="code-run-again" onclick={toggleAllOptionalCandidates}>
-                        {allOptionalCandidatesSelected ? $text('app_skills.code.run.unselect_all') : $text('app_skills.code.run.select_all')}
-                      </button>
-                    {/if}
+                    <div class="code-run-selection-actions">
+                      {#if selectableRunCandidates.length > 0}
+                        <button class="code-run-again" onclick={toggleAllOptionalCandidates}>
+                          {allOptionalCandidatesSelected ? $text('app_skills.code.run.unselect_all') : $text('app_skills.code.run.select_all')}
+                        </button>
+                      {/if}
+                      <button class="code-run-again" onclick={() => { runSelectionOpen = false; }}>{$text('common.cancel')}</button>
+                      <Button onclick={() => handleRun(selectedRunCandidates)} disabled={runActive || selectedRunCandidates.length === 0}>
+                        {$text('app_skills.code.run.continue')}
+                      </Button>
+                    </div>
                   </div>
                   {#if runSelectionLoading}
                     <div class="code-run-selection-message">{$text('app_skills.code.run.loading_files')}</div>
@@ -1201,15 +1321,24 @@
                         <span class="code-run-file-meta">
                           <span class="code-run-file-title">{candidate.title}</span>
                           <span class="code-run-file-subtitle">{candidate.subtitle}</span>
+                          {#if candidate.kind === 'dependency' && candidate.dependencyVersionOptions?.length && candidate.selectedVersion}
+                            <span class="code-run-dependency-version-row">
+                              <span>{$text('app_skills.code.run.version')}</span>
+                              <select
+                                value={candidate.selectedVersion}
+                                onclick={(event) => event.stopPropagation()}
+                                onchange={(event) => updateDependencyVersion(candidate.id, (event.currentTarget as HTMLSelectElement).value)}
+                              >
+                                {#each candidate.dependencyVersionOptions as option}
+                                  {@const released = formatDependencyReleaseDate(option.released_at)}
+                                  <option value={option.version}>{option.version}{released ? ` · ${released}` : ''}</option>
+                                {/each}
+                              </select>
+                            </span>
+                          {/if}
                         </span>
                       </label>
                     {/each}
-                  </div>
-                  <div class="code-run-selection-footer">
-                    <button class="code-run-cancel" onclick={() => { runSelectionOpen = false; }}>{$text('common.cancel')}</button>
-                    <button class="code-run-continue" onclick={() => handleRun(selectedRunCandidates)} disabled={runActive || selectedRunCandidates.length === 0}>
-                      {$text('app_skills.code.run.continue')}
-                    </button>
                   </div>
                 </section>
               {:else if runPanelOpen}
@@ -1229,7 +1358,7 @@
                       <button class="code-run-again" onclick={handleAskRunOutputFollowup} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.ask_followup')}</button>
                       <button class="code-run-again" onclick={handleCopyRunOutput} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.copy_output')}</button>
                       <button class="code-run-stop" onclick={handleCancelRun} disabled={!runActive || runCancelRequested}>{runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}</button>
-                      <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
+                      <button class="code-run-again" onclick={() => handleRun()} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
                     </div>
                   </div>
                   {#if runFiles.length > 0}
@@ -1353,8 +1482,7 @@
     overflow: hidden;
   }
 
-  .code-run-selection-header,
-  .code-run-selection-footer {
+  .code-run-selection-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1363,10 +1491,12 @@
     border-bottom: 1px solid var(--color-grey-25);
   }
 
-  .code-run-selection-footer {
-    border-top: 1px solid var(--color-grey-25);
-    border-bottom: none;
+  .code-run-selection-actions {
+    display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: var(--spacing-3);
+    flex-wrap: wrap;
   }
 
   .code-run-file-list {
@@ -1418,37 +1548,30 @@
     font-size: var(--font-size-xxs);
   }
 
+  .code-run-dependency-version-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-dependency-version-row select {
+    max-width: 240px;
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-1);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    padding: var(--spacing-1) var(--spacing-2);
+    font: inherit;
+  }
+
   .code-run-selection-message {
     padding: var(--spacing-4) var(--spacing-6) 0;
   }
 
   .code-run-selection-error {
     color: var(--color-error, #dc2626);
-  }
-
-  .code-run-cancel,
-  .code-run-continue {
-    border: none;
-    border-radius: var(--radius-2);
-    padding: var(--spacing-3) var(--spacing-6);
-    cursor: pointer;
-    font-size: var(--font-size-small);
-    font-weight: 700;
-  }
-
-  .code-run-cancel {
-    background: var(--color-grey-20);
-    color: var(--color-font-primary);
-  }
-
-  .code-run-continue {
-    background: var(--color-orange-50, #f59e0b);
-    color: var(--color-grey-0);
-  }
-
-  .code-run-continue:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .code-run-header {

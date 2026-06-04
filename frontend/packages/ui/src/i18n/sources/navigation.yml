@@ -142,6 +142,30 @@ workflows:
   sv: Arbetsflöden
   he: תהליכי עבודה
   verified_by_human: []
+tasks:
+  context: Navigation item for task management
+  en: Tasks
+  de: Aufgaben
+  zh: 任务
+  es: Tareas
+  fr: Tâches
+  pt: Tarefas
+  ru: Задачи
+  ja: タスク
+  ko: 작업
+  it: Attività
+  tr: Görevler
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadania
+  nl: Taken
+  ar: المهام
+  hi: कार्य
+  th: งาน
+  cs: Úkoly
+  sv: Uppgifter
+  he: משימות
+  verified_by_human: []
 skip_to_content:
   context: Accessibility skip link - allows keyboard users to skip navigation and jump to main content
   en: Skip to content

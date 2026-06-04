@@ -179,3 +179,16 @@ skills:
               - query
       required:
         - requests
+
+marketing_discovery:
+  skills:
+    search:
+      enabled: true
+      keywords:
+        - find places with AI
+        - local search in chat
+        - map search assistant
+      pain_points:
+        - place search takes separate apps
+      demo_angles:
+        - show map/place result embed

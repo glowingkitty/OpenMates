@@ -69,6 +69,7 @@ import { renderNutritionSearch, renderNutritionRecipe } from '../components/embe
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
+import { renderWeatherDay, renderWeatherForecast } from '../components/embeds/weather/weatherEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:audio:transcribe': renderAudioTranscribe,
 	'app:social_media:get-posts': renderSocialMediaGetPosts,
 	'app:social_media:search': renderSocialMediaSearch,
+	'app:weather:forecast': renderWeatherForecast,
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
@@ -140,6 +142,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'shopping-product': renderShoppingProduct,
 	'electronics-component': renderElectronicsComponent,
 	'nutrition-recipe': renderNutritionRecipe,
+	'weather-day': renderWeatherDay,
 	'social-media-post': renderSocialMediaPost,
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';

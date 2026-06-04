@@ -32,6 +32,7 @@ struct EmbedFullscreenContainer: View {
     @State private var isPresented = false
     @State private var codePreviewActive = false
     @State private var shareTarget: EmbedRecord?
+    @StateObject private var codeRunViewModel = CodeRunViewModel()
     @Environment(\.openURL) private var openURL
 
     private var currentEmbed: EmbedRecord? {
@@ -98,6 +99,8 @@ struct EmbedFullscreenContainer: View {
                                 mode: .fullscreen,
                                 allEmbedRecords: allEmbedRecords,
                                 codePreviewActive: codePreviewActive,
+                                codeRunViewModel: codeRunViewModel,
+                                chatId: chatId,
                                 onOpenEmbed: { child in
                                     selectedChildEmbed = child
                                     showChildFullscreen = true
@@ -119,12 +122,15 @@ struct EmbedFullscreenContainer: View {
                         embed: embed,
                         showCopy: isCodeEmbed || isSheetEmbed,
                         showDownload: isCodeEmbed || isSheetEmbed,
+                        showRun: isCodeRunnable,
+                        runActive: codeRunViewModel.isActive,
                         showPreview: isCodePreviewable,
                         previewActive: codePreviewActive,
                         onClose: closeWithAnimation,
                         onShare: { shareEmbed(embed) },
                         onCopy: { copyEmbedContent(embed) },
                         onDownload: { downloadCodeFile(embed) },
+                        onRun: { runCode(embed) },
                         onTogglePreview: { codePreviewActive.toggle() },
                         onReportIssue: { reportIssue(embed) }
                     )
@@ -151,12 +157,25 @@ struct EmbedFullscreenContainer: View {
             currentIndex = embeds.firstIndex(where: { $0.id == initialEmbedId }) ?? 0
             isPresented = true
         }
+        .onDisappear {
+            codeRunViewModel.cleanup()
+        }
         .sheet(item: $shareTarget) { embed in
             ShareEmbedView(embedId: embed.id, chatId: chatId ?? "")
         }
     }
 
     private func headerCTA(for embed: EmbedRecord) -> EmbedHeaderCTA? {
+        if EmbedType(rawValue: embed.type) == .codeCode,
+           isCodeRunnable,
+           let payload = embed.codePayload,
+           let chatId,
+           !chatId.isEmpty {
+            return EmbedHeaderCTA(title: codeRunViewModel.ctaTitle, accessibilityIdentifier: "embed-run-button") {
+                runCode(embed, payload: payload)
+            }
+        }
+
         guard let type = EmbedType(rawValue: embed.type),
               let data = rawData(for: embed) else {
             return nil
@@ -421,6 +440,35 @@ struct EmbedFullscreenContainer: View {
     private func reportIssue(_ embed: EmbedRecord) {
         ToastManager.shared.show("Report issue", type: .info)
     }
+
+    private var isCodeRunnable: Bool {
+        guard let payload = currentEmbed?.codePayload else { return false }
+        return CodeRunSupport.isSupported(language: payload.language, filename: payload.filename)
+    }
+
+    private func runCode(_ embed: EmbedRecord) {
+        guard let payload = embed.codePayload else { return }
+        runCode(embed, payload: payload)
+    }
+
+    private func runCode(_ embed: EmbedRecord, payload: CodePayload) {
+        guard let chatId, !chatId.isEmpty else {
+            ToastManager.shared.show(AppStrings.loginSignup, type: .info)
+            return
+        }
+        codePreviewActive = false
+        codeRunViewModel.toggleRun(
+            chatId: chatId,
+            embedId: embed.id,
+            file: CodeRunClientFile(
+                embedId: embed.id,
+                code: payload.code,
+                language: payload.language,
+                filename: payload.filename,
+                isTarget: true
+            )
+        )
+    }
 }
 
 // MARK: - Embed top bar
@@ -429,24 +477,36 @@ private struct EmbedFullscreenTopBar: View {
     let embed: EmbedRecord
     let showCopy: Bool
     let showDownload: Bool
+    let showRun: Bool
+    let runActive: Bool
     let showPreview: Bool
     let previewActive: Bool
     let onClose: () -> Void
     let onShare: () -> Void
     let onCopy: () -> Void
     let onDownload: () -> Void
+    let onRun: () -> Void
     let onTogglePreview: () -> Void
     let onReportIssue: () -> Void
 
     var body: some View {
         HStack(alignment: .center) {
-            HStack(spacing: .spacing3) {
+            HStack(spacing: .spacing4) {
                 topButton(icon: "share", label: AppStrings.share, action: onShare)
                 if showCopy {
                     topButton(icon: "copy", label: AppStrings.copy, action: onCopy)
                 }
                 if showDownload {
-                    topButton(icon: "download", label: "Download", action: onDownload)
+                    topButton(icon: "download", label: AppStrings.download, action: onDownload)
+                }
+                if showRun {
+                    topButton(
+                        icon: "play",
+                        label: AppStrings.codeRun,
+                        isActive: runActive,
+                        action: onRun
+                    )
+                    .accessibilityIdentifier("embed-run-button")
                 }
                 if showPreview {
                     topButton(
@@ -464,8 +524,8 @@ private struct EmbedFullscreenTopBar: View {
             topButton(icon: "minimize", label: "Minimize", action: onClose)
                 .accessibilityIdentifier("embed-minimize")
         }
-        .padding(.horizontal, .spacing10)
-        .padding(.top, .spacing6)
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing6)
         .frame(maxWidth: .infinity, alignment: .top)
         .allowsHitTesting(true)
     }
@@ -476,7 +536,7 @@ private struct EmbedFullscreenTopBar: View {
                 .foregroundStyle(LinearGradient.primary)
                 .frame(width: 34, height: 34)
                 .padding(3)
-                .background(isActive ? Color.primary.opacity(0.25) : Color.grey10)
+                .background(isActive ? Color.buttonPrimary.opacity(0.25) : Color.grey10)
                 .clipShape(RoundedRectangle(cornerRadius: 40))
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
         }
@@ -489,7 +549,14 @@ private struct EmbedFullscreenTopBar: View {
 
 struct EmbedHeaderCTA {
     let title: String
+    var accessibilityIdentifier: String?
     let action: () -> Void
+
+    init(title: String, accessibilityIdentifier: String? = nil, action: @escaping () -> Void) {
+        self.title = title
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.action = action
+    }
 }
 
 struct EmbedFullscreenHeader: View {
@@ -619,6 +686,7 @@ struct EmbedFullscreenHeader: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(cta.title)
+        .accessibilityIdentifier(cta.accessibilityIdentifier ?? "embed-header-cta")
     }
 
     private func livingOrb(color: Color, size: CGFloat) -> some View {
@@ -738,6 +806,30 @@ private struct CodePayload {
         case "python", "py": return "Python"
         default: return language.uppercased()
         }
+    }
+}
+
+private enum CodeRunSupport {
+    private static let runnableLanguages: Set<String> = [
+        "python", "py",
+        "javascript", "js", "node",
+        "typescript", "ts",
+        "bash", "sh", "shell",
+        "c",
+        "cpp", "c++", "cplusplus",
+        "rust", "rs",
+        "go", "golang",
+    ]
+
+    private static let runnableExtensions: Set<String> = [
+        ".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".c", ".cc", ".cpp", ".cxx", ".rs", ".go",
+    ]
+
+    static func isSupported(language: String, filename: String?) -> Bool {
+        let normalizedLanguage = language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if runnableLanguages.contains(normalizedLanguage) { return true }
+        guard let filename, let dotIndex = filename.lastIndex(of: ".") else { return false }
+        return runnableExtensions.contains(String(filename[dotIndex...]).lowercased())
     }
 }
 

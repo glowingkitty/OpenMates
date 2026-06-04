@@ -119,6 +119,20 @@ export async function decryptWithAesGcmCombined(
   }
 }
 
+export async function deriveEmailEncryptionKeyB64(
+  email: string,
+  emailSaltB64: string,
+): Promise<string> {
+  const encoder = new TextEncoder();
+  const emailBytes = encoder.encode(email);
+  const saltBytes = base64ToBytes(emailSaltB64);
+  const combined = new Uint8Array(emailBytes.length + saltBytes.length);
+  combined.set(emailBytes);
+  combined.set(saltBytes, emailBytes.length);
+  const hashBuffer = await cryptoApi.subtle.digest("SHA-256", toArrayBuffer(combined));
+  return bytesToBase64(new Uint8Array(hashBuffer));
+}
+
 /**
  * Decrypt AES-GCM-combined data and return the raw decrypted bytes.
  *

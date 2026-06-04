@@ -16,7 +16,7 @@
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import { SettingsSectionHeading } from './elements';
-    import type { AppMetadata, SkillMetadata } from '../../types/apps';
+    import type { AppMetadata, MemoryFieldMetadata, SkillMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     
@@ -44,6 +44,16 @@
     let skills = $derived(app?.skills || []);
     let focusModes = $derived(app?.focus_modes || []);
     let memoryFields = $derived(app?.settings_and_memories || []);
+
+    function hasGuestExamples(category: MemoryFieldMetadata): boolean {
+        return (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0;
+    }
+
+    // Guests can only explore read-only example data. Hide categories that would
+    // open to an empty page because they only support authenticated saved entries.
+    let visibleMemoryFields = $derived.by(() => (
+        isAuthenticated ? memoryFields : memoryFields.filter(hasGuestExamples)
+    ));
     
     /**
      * Convert a skill to an app-like metadata object for AppStoreCard.
@@ -124,7 +134,7 @@
             settingsPath: `app_store/${appId}/settings_memories/${categoryId}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
-            title: $text(memoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId)
+            title: $text(visibleMemoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId)
         });
     }
     
@@ -170,13 +180,13 @@
         {/if}
 
         <!-- Memories section - always show cards for each category -->
-        {#if memoryFields.length > 0}
+        {#if visibleMemoryFields.length > 0}
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
                 <p class="section-description">{$text('settings.app_store.settings_memories.section_description')}</p>
                 <div class="items-scroll-container" data-testid="settings-memory-cards-scroll">
                     <div class="items-scroll">
-                        {#each memoryFields as category (category.id)}
+                        {#each visibleMemoryFields as category (category.id)}
                             {@const categoryApp: AppMetadata = {
                                 id: appId,
                                 name_translation_key: category.name_translation_key,

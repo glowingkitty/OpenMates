@@ -18,6 +18,46 @@ The user provides a share URL like:
 https://app.dev.openmates.org/share/chat/{uuid}#key={encrypted-blob}
 ```
 
+For new social videos that need a chat-based product demo, prefer creating **three candidate chats** with slight prompt variations first, then choose the strongest one for the video's intended highlight. Keep the winner, convert it to a permanent example chat, and delete/unshare the two weaker candidates when they are no longer needed.
+
+## Fast Path
+
+Use the scaffold script whenever possible. It extracts the shared chat, creates the TypeScript example-chat data file, creates the i18n source YAML, registers the chat in the store, strips private embed fields such as `vault_key_id` and `user_id`, and preserves existing order when `--force` is used.
+
+```bash
+node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
+  --slug "<seo-friendly-slug>" \
+  --title "<Public Example Chat Title>" \
+  --summary "<One-sentence public summary>" \
+  --icon "<icon-name>" \
+  --category "<mate-category>" \
+  --keywords "keyword 1,keyword 2,keyword 3" \
+  --force
+```
+
+After scaffolding:
+
+```bash
+set -a && source .env && set +a
+for lang in de zh es fr pt ru ja ko it tr vi id pl nl ar hi th cs sv he; do
+  python3 scripts/auto_translate.py --lang "$lang" --file "example_chats/<snake_name>.yml" || exit 1
+done
+cd frontend/packages/ui && npm run build:translations && npm run validate:locales
+```
+
+If the translation tool skips a long assistant message, retry the missing locales only. If it still skips, manually add just the missing locale blocks while preserving JSON code blocks, embed links, wiki links, and source quote link targets unchanged.
+
+## Candidate Flow
+
+Use this when creating a permanent example chat for a new social video. The goal is to get a real chat that cleanly demonstrates the product moment the video will highlight, such as source-backed research, app auto-selection, fullscreen embeds, maps, web/news results, file analysis, or another chat-based feature.
+
+1. Write three natural user prompts with slight variations that all satisfy the social video's product and story requirement. Do not mention internal app-skill names unless the user explicitly wants to demonstrate manual app selection.
+2. Create and share three real chats through the OpenMates CLI or app. Prefer CLI for repeatability when it supports the needed flow.
+3. Inspect each candidate for the required product behavior and for video usefulness. For example, check whether the answer has a clear focal moment, enough but not too much text, relevant embeds, and a UI state that can be recorded cleanly.
+4. Choose the strongest candidate based on content quality, brevity, visual usefulness for recording, and exact match to the social video's intended hook and payoff.
+5. Convert only the winner with `scripts/create-example-chat-from-share.mjs`.
+6. Delete, unshare, or otherwise clean up the two unused candidate chats if they were created only for this workflow.
+
 ## Steps
 
 ### 1. Extract chat content
@@ -54,6 +94,8 @@ The chat_id prefix is always `example-`: e.g. `example-gigantic-airplanes`.
 The i18n key prefix is `example_chats.{snake_case_name}`.
 
 ### 3. Generate TypeScript data file
+
+Prefer the fast-path scaffold script above. Only create the files manually if the script cannot handle the source chat.
 
 Create: `frontend/packages/ui/src/demo_chats/data/example_chats/{slug}.ts`
 
@@ -116,6 +158,8 @@ export const {varName}: ExampleChat = {
 
 ### 4. Generate i18n YAML source file
 
+Prefer `scripts/create-example-chat-from-share.mjs` plus `scripts/auto_translate.py`. Only create translations manually when the automation fails for a specific locale/key.
+
 Create: `frontend/packages/ui/src/i18n/sources/example_chats/{snake_name}.yml`
 
 For each key, provide translations in ALL 21 languages:
@@ -167,37 +211,38 @@ print(f'Keys: {list(ec.keys())}')
 
 ### 7. Deploy
 
-Stage all changed files and deploy via `sessions.py deploy`:
+Track only intended files and deploy via `sessions.py deploy`:
 
 ```bash
-git add \
-  frontend/packages/ui/src/demo_chats/data/example_chats/{slug}.ts \
+python3 scripts/sessions.py start --mode feature --tags frontend,i18n,feature
+
+python3 scripts/sessions.py track --session {SESSION_ID} --file \
+  scripts/create-example-chat-from-share.mjs \
+  .agents/skills/add-example-chat/SKILL.md \
   frontend/packages/ui/src/demo_chats/exampleChatStore.ts \
-  frontend/packages/ui/src/i18n/sources/example_chats/{snake_name}.yml \
-  frontend/packages/ui/src/i18n/locales/
-```
+  frontend/packages/ui/src/demo_chats/data/example_chats/{slug}.ts \
+  frontend/packages/ui/src/i18n/sources/example_chats/{snake_name}.yml
 
-Then inject tracked files and deploy:
-```bash
-python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-from sessions import _load_sessions, _save_sessions
-import subprocess
-data = _load_sessions()
-s = data['sessions']['{SESSION_ID}']
-result = subprocess.run(['git', 'diff', '--cached', '--name-only'], capture_output=True, text=True)
-s['modified_files'] = [f for f in result.stdout.strip().split('\n') if f]
-_save_sessions(data)
-"
+python3 scripts/sessions.py prepare-deploy --session {SESSION_ID}
 
 python3 scripts/sessions.py deploy \
   --session {SESSION_ID} \
   --title "feat: add example chat - {title}" \
   --message "New example chat from shared link. {n} messages, {m} embeds. All content behind i18n keys with 21 language translations." \
-  --end --no-verify --skip-tests "New example chat content"
+  --skip-tests "OpenMates E2E specs must run against deployed dev per repo policy; targeted syntax, translation build, and locale validation passed pre-deploy." \
+  --end
 ```
 
-**IMPORTANT:** Always use `sessions.py deploy` — never raw `git commit`.
+**IMPORTANT:** Always use `sessions.py deploy` — never raw `git commit`, never `git add .`, and do not use `--no-verify` unless a pre-existing hook bug is confirmed and documented.
+
+After deploy, run related Playwright specs against deployed dev:
+
+```bash
+python3 scripts/run_tests.py --suite playwright --spec example-chats-load.spec.ts --environment development --force
+python3 scripts/run_tests.py --suite playwright --spec example-chat-clone.spec.ts --environment development --force
+```
+
+If the example is for a marketing video, hand off the final slug and deployed example URL to the marketing repo's Remotion workflow. The video should use the permanent example chat rather than a temporary shared chat whenever possible.
 
 ## File locations
 

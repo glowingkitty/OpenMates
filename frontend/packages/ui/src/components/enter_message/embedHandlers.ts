@@ -7,8 +7,12 @@ import { uploadFileToServer } from "./services/uploadService";
 import { embedStore } from "../../services/embedStore";
 import {
   createCodeEmbed,
+  createDocEmbed,
+  createMailEmbed,
   detectLanguageFromContent,
+  createSheetEmbed,
 } from "./services/codeEmbedService";
+import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "./utils/fileContentParsers";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
 import { notificationStore } from "../../stores/notificationStore";
@@ -960,6 +964,161 @@ export async function insertCodeFile(
   }, 50);
 }
 
+export async function insertDelimitedTableFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let fileContent: string;
+  try {
+    fileContent = await file.text();
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to read table file content:", error);
+    return;
+  }
+
+  const delimiter = file.name.toLowerCase().endsWith(".tsv") ? "\t" : ",";
+  const tableMarkdown = delimitedTextToMarkdownTable(fileContent, delimiter);
+  if (!tableMarkdown) {
+    console.warn("[EmbedHandlers] Empty table file skipped:", file.name);
+    return;
+  }
+
+  const result = await createSheetEmbed(tableMarkdown, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: file.name,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
+export async function insertEmailFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let fileContent: string;
+  try {
+    fileContent = await file.text();
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to read email file content:", error);
+    return;
+  }
+
+  const parsedEmail = parseEmlText(fileContent);
+  const result = await createMailEmbed(parsedEmail, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "mail-email",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        subject: parsedEmail.subject,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
+export async function insertOfficeDocumentFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let html: string;
+  try {
+    html = await docxArrayBufferToHtml(await file.arrayBuffer());
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to parse DOCX file content:", error);
+    return;
+  }
+
+  if (!html) {
+    console.warn("[EmbedHandlers] Empty DOCX file skipped:", file.name);
+    return;
+  }
+
+  const result = await createDocEmbed(html, file.name, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "docs-doc",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: file.name,
+        filename: file.name,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
+export async function insertOfficeSpreadsheetFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let tableMarkdown: string;
+  try {
+    tableMarkdown = await xlsxArrayBufferToMarkdownTable(await file.arrayBuffer());
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to parse XLSX file content:", error);
+    return;
+  }
+
+  if (!tableMarkdown) {
+    console.warn("[EmbedHandlers] Empty XLSX file skipped:", file.name);
+    return;
+  }
+
+  const result = await createSheetEmbed(tableMarkdown, file.name);
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: file.name,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
+}
+
 /**
  * Inserts an EPUB file embed into the editor.
  */
@@ -1298,14 +1457,22 @@ export async function retryTranscription(
   // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
   let transcriptText: string | undefined;
   let modelFromResponse: string | undefined;
+  let transcriptOriginal: string | undefined;
+  let transcriptCorrected: string | undefined;
+  let useCorrected: boolean | undefined;
+  let correctionModel: string | undefined;
   try {
     const responseData = await transcribeResponse.json();
     const group = responseData?.data?.results?.find(
       (r: { id: string }) => r.id === embedId,
     );
-    transcriptText = group?.results?.[0]?.transcript ?? undefined;
-    // Read model from API response — backend includes it in result_entry
-    modelFromResponse = group?.results?.[0]?.model ?? undefined;
+    const resultObj = group?.results?.[0];
+    transcriptText = resultObj?.transcript ?? undefined;
+    modelFromResponse = resultObj?.model ?? undefined;
+    transcriptOriginal = resultObj?.transcript_original ?? undefined;
+    transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
+    useCorrected = resultObj?.use_corrected ?? undefined;
+    correctionModel = resultObj?.correction_model ?? undefined;
   } catch (parseError) {
     console.error(
       "[EmbedHandlers] retryTranscription: failed to parse response:",
@@ -1316,6 +1483,10 @@ export async function retryTranscription(
   updateEmbedNode({
     status: "finished",
     transcript: transcriptText ?? null,
+    transcriptOriginal: transcriptOriginal ?? null,
+    transcriptCorrected: transcriptCorrected ?? null,
+    useCorrected: useCorrected ?? null,
+    correctionModel: correctionModel ?? null,
     model: modelFromResponse ?? null,
     uploadError: null,
   });
@@ -1522,6 +1693,10 @@ async function _performRecordingUpload(
     // -----------------------------------------------------------------------
     let transcriptText: string | undefined;
     let modelFromResponse: string | undefined;
+    let transcriptOriginal: string | undefined;
+    let transcriptCorrected: string | undefined;
+    let useCorrected: boolean | undefined;
+    let correctionModel: string | undefined;
     try {
       const responseData = await transcribeResponse.json();
       // Response shape: SkillResponse wrapper from apps_api.py:
@@ -1529,10 +1704,15 @@ async function _performRecordingUpload(
       const group = responseData?.data?.results?.find(
         (r: { id: string }) => r.id === localEmbedId,
       );
-      transcriptText = group?.results?.[0]?.transcript ?? undefined;
+      const resultObj = group?.results?.[0];
+      transcriptText = resultObj?.transcript ?? undefined;
       // Read model from API response — backend includes the model ID in result_entry
       // so the frontend never needs to hardcode it after the response arrives.
-      modelFromResponse = group?.results?.[0]?.model ?? undefined;
+      modelFromResponse = resultObj?.model ?? undefined;
+      transcriptOriginal = resultObj?.transcript_original ?? undefined;
+      transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
+      useCorrected = resultObj?.use_corrected ?? undefined;
+      correctionModel = resultObj?.correction_model ?? undefined;
     } catch (parseError) {
       console.error(
         "[EmbedHandlers] Failed to parse transcription response:",
@@ -1547,6 +1727,10 @@ async function _performRecordingUpload(
     updateEmbedNode({
       status: "finished",
       transcript: transcriptText ?? null,
+      transcriptOriginal: transcriptOriginal ?? null,
+      transcriptCorrected: transcriptCorrected ?? null,
+      useCorrected: useCorrected ?? null,
+      correctionModel: correctionModel ?? null,
       model: modelFromResponse ?? null,
       uploadError: null,
     });
@@ -1568,6 +1752,10 @@ async function _performRecordingUpload(
         duration: null, // Duration is tracked on the TipTap node, not available here
         mime_type: mimeType || null,
         transcript: transcriptText ?? null,
+        transcript_original: transcriptOriginal ?? null,
+        transcript_corrected: transcriptCorrected ?? null,
+        use_corrected: useCorrected ?? null,
+        correction_model: correctionModel ?? null,
         model: modelFromResponse ?? null,
         s3_base_url: uploadResult.s3_base_url || null,
         files: uploadResult.files || null,

@@ -136,7 +136,6 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// Wait for password form to appear
 	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
 	// .chat-container.authenticated is the ONLY reliable DOM indicator of a truly
 	// logged-in state. The .profile-container exists on the demo page too.
@@ -195,13 +194,14 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 
 	// If 2FA required in SecurityAuth, enter OTP
 	const authTfaInput = authModal.getByTestId('tfa-input');
-	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
-	if (authTfaVisible) {
-		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await authTfaInput.fill(authOtp);
-		// Auto-submits on 6 digits
-		logCheckpoint('Entered OTP in SecurityAuth.');
-	}
+	await expect(authTfaInput).toBeVisible({ timeout: 20000 });
+	const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+	await authTfaInput.click();
+	await authTfaInput.fill('');
+	await authTfaInput.pressSequentially(authOtp, { delay: 30 });
+	// Auto-submits on 6 digits
+	await expect(authModal).toBeHidden({ timeout: 30000 });
+	logCheckpoint('Entered OTP in SecurityAuth.');
 
 	// ========================================================================
 	// PHASE 4: Wait for key generation and copy the key
@@ -214,7 +214,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Recovery key generated, save step visible.');
 
 	// Click "Copy" button to copy the recovery key to clipboard (scoped to save container)
-	const copyButton = saveContainer.getByTestId('save-button').filter({ hasText: /copy/i });
+	const copyButton = saveContainer.getByTestId('copy-button');
 	await expect(copyButton).toBeVisible();
 	await copyButton.click();
 	logCheckpoint('Clicked Copy button for recovery key.');
@@ -272,7 +272,10 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// Navigate back to main settings where the logout item lives.
 	// Click the settings header back button repeatedly until logout is visible.
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('#settings-back-button');
+	const bannerBackButton = page.getByTestId('banner-back-button').first();
+	const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+		? bannerBackButton
+		: page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;

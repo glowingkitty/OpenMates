@@ -37,14 +37,13 @@ const {
 	buildSignupEmail,
 	createEmailClient,
 	checkEmailQuota,
-	generateTotp,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
- * Full signup flow test (password + 2FA + purchase) against a deployed web app.
+ * Signup + Settings billing purchase flow against a deployed web app.
  *
  * ARCHITECTURE NOTES:
  * - The test is intentionally self-contained: we avoid adding npm/pnpm deps by
@@ -64,7 +63,7 @@ const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 // Generic US Visa — works in Stripe Managed Payments (non-EU Embedded Checkout).
 const STRIPE_TEST_CARD_NUMBER = '4242424242424242';
 
-test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedded Checkout)', async ({
+test('completes signup and Managed Payments purchase from Settings billing', async ({
 	page,
 	context
 }: {
@@ -99,9 +98,8 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	});
 
 	test.slow();
-	// Allow extra time for Mailosaur email delivery + purchase confirmation + account deletion.
-	// This is the longest signup spec: full 2FA setup, payment, email verification of purchase,
-	// refund link validation, and account deletion with 2FA auth. 600s needed for retries.
+	// Allow extra time for Mailosaur email delivery, purchase confirmation, and account deletion.
+	// This is a long spec: signup, Settings billing payment, refund link validation, and deletion.
 	test.setTimeout(600000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_FLOW_MANAGED');
@@ -241,120 +239,24 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	await expect(passwordManagerLink).toHaveAttribute('href', /^https?:/i);
 
 	await page.locator('#signup-password-continue').click();
-	await takeStepScreenshot(page, 'one-time-codes');
-	logSignupCheckpoint('Reached one-time codes step.');
+	await page.waitForURL(/chat/);
+	await takeStepScreenshot(page, 'chat');
+	logSignupCheckpoint('Arrived in chat after signup.');
 
-	// One-time codes step: show QR, copy secret, validate selectable secret input.
-	const qrButton = page.locator('#signup-2fa-scan-qr');
-	await qrButton.click();
-	await expect(page.getByTestId('qr-code')).toBeVisible();
-	await takeStepScreenshot(page, 'one-time-codes-qr');
-	await qrButton.click();
-	await expect(page.getByTestId('qr-code')).toBeHidden();
-
-	const copySecretButton = page.locator('#signup-2fa-copy-secret');
-	await copySecretButton.click();
-
-	const secretInput = page.locator('input[aria-label="2FA Secret Key"]');
-	await expect(secretInput).toBeVisible();
-	await takeStepScreenshot(page, 'one-time-codes-secret');
-	await secretInput.click();
-	const secretInputSelected = await secretInput.evaluate((element: HTMLInputElement) => {
-		const input = element as HTMLInputElement;
-		return input.selectionStart === 0 && input.selectionEnd === input.value.length;
-	});
-	expect(secretInputSelected).toBe(true);
-
-	const tfaSecret = await secretInput.inputValue();
-	expect(tfaSecret, 'Expected a 2FA secret to be available after copy.').toBeTruthy();
-	logSignupCheckpoint('Retrieved 2FA secret.');
-
-	// Enter the generated TOTP to complete 2FA setup.
-	const otpCode = generateTotp(tfaSecret);
-	const otpInput = page.locator('#otp-code-input');
-	await otpInput.fill(otpCode);
-	logSignupCheckpoint('Entered OTP code.');
-
-	// 2FA app reminder: pick an app name from suggestions and continue.
-	const appNameInput = page.locator('input[placeholder*="app name"]');
-	await appNameInput.click();
-	await appNameInput.fill('Google');
-	await takeStepScreenshot(page, 'tfa-app-reminder');
-	const appResult = page.getByRole('button', { name: /google authenticator/i });
-	await appResult.click();
-
-	const tfaContinueButton = page.locator('#signup-2fa-reminder-continue');
-	await tfaContinueButton.click();
-	await takeStepScreenshot(page, 'backup-codes');
-	logSignupCheckpoint('Reached backup codes step.');
-
-	// Backup codes step: download and confirm stored.
-	const backupDownloadButton = page.locator('#signup-backup-codes-download');
-	const [backupDownload] = await Promise.all([
-		page.waitForEvent('download'),
-		backupDownloadButton.click()
-	]);
-	expect(await backupDownload.suggestedFilename()).toMatch(/backup/i);
-	logSignupCheckpoint('Downloaded backup codes.');
-
-	const backupConfirmToggle = page.locator('#confirm-storage-toggle-step5');
-	await setToggleChecked(backupConfirmToggle, true);
-	await takeStepScreenshot(page, 'backup-codes-confirmed');
-	logSignupCheckpoint('Confirmed backup code storage.');
-
-	// Recovery key step: download, copy, print, and confirm stored.
-	const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
-	const [recoveryDownload] = await Promise.all([
-		page.waitForEvent('download'),
-		recoveryDownloadButton.click()
-	]);
-	await takeStepScreenshot(page, 'recovery-key');
-	expect(await recoveryDownload.suggestedFilename()).toMatch(/recovery/i);
-	logSignupCheckpoint('Downloaded recovery key.');
-
-	const recoveryCopyButton = page.locator('#signup-recovery-key-copy');
-	await recoveryCopyButton.click();
-
-	const [printPage] = await Promise.all([
-		context.waitForEvent('page'),
-		page.locator('#signup-recovery-key-print').click()
-	]);
-	await printPage.close();
-	await takeStepScreenshot(page, 'recovery-key-actions');
-	logSignupCheckpoint('Completed recovery key actions.');
-
-	const recoveryConfirmToggle = page.locator('#confirm-storage-toggle-step5');
-	await setToggleChecked(recoveryConfirmToggle, true);
-	await takeStepScreenshot(page, 'credits-step');
-	logSignupCheckpoint('Reached credits step.');
-
-	// Credits step: exercise gift card path (cancel) and navigation buttons.
-	const giftCardButton = page.locator('#signup-credits-gift-card');
-	await giftCardButton.scrollIntoViewIfNeeded();
-	await giftCardButton.click();
-	await takeStepScreenshot(page, 'credits-giftcard');
-	await page.locator('#signup-gift-card-cancel').click();
-	await takeStepScreenshot(page, 'credits-ready');
-	logSignupCheckpoint('Completed credits step actions.');
-
-	const moreButton = page.locator('#signup-credits-more');
-	const lessButton = page.locator('#signup-credits-less');
-	if (await moreButton.isVisible()) {
-		await moreButton.click();
-	}
-	if (await lessButton.isVisible()) {
-		await lessButton.click();
-	}
-
-	// Purchase credits to proceed to payment step.
-	await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
+	// Billing moved out of signup. Purchase credits from Settings > Billing > Buy Credits.
+	const settingsMenuButtonForPurchase = page.locator('#settings-menu-toggle');
+	await expect(settingsMenuButtonForPurchase).toBeVisible({ timeout: 10000 });
+	await settingsMenuButtonForPurchase.click();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	await page.getByRole('menuitem', { name: /billing/i }).click();
+	await page.getByRole('menuitem', { name: /buy credits/i }).click();
+	await page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
 
-	// Payment step: consent to limited refund to reveal payment form.
-	// The consent overlay must be dismissed BEFORE switching providers, because
-	// it covers the payment area with pointer-events:all.
+	// First purchase from Settings must collect the limited refund consent.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	await expect(page.getByText(/Limited refund/i)).toBeVisible({ timeout: 10000 });
 	await setToggleChecked(consentToggle, true);
 	logSignupCheckpoint('Payment consent accepted.');
 
@@ -450,12 +352,6 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	await takeStepScreenshot(page, 'payment-success');
 	logSignupCheckpoint('Purchase completed successfully.');
 
-	// Auto top-up step: finish setup and confirm redirect into the app.
-	await page.getByTestId('signup-finish-setup').first().click();
-	await page.waitForURL(/chat/);
-	await takeStepScreenshot(page, 'chat');
-	logSignupCheckpoint('Arrived in chat after signup.');
-
 	// Verify no missing translations on the main chat page after signup
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('No missing translations detected.');
@@ -492,9 +388,15 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 		refundLink: refundLink.slice(0, 120)
 	});
 
+	await page.getByRole('button', { name: /done/i }).click();
+	await page.getByTestId('icon-button-close').click();
+	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 10000 });
+
 	// Open settings to verify credit balance and delete the test account.
 	const settingsMenuButton = page.getByTestId('profile-container');
-	await settingsMenuButton.click();
+	if (!(await page.locator('[data-testid="settings-menu"].visible').isVisible({ timeout: 2000 }).catch(() => false))) {
+		await settingsMenuButton.click();
+	}
 	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 	await takeStepScreenshot(page, 'settings-menu-open');
 	logSignupCheckpoint('Opened settings menu for credit verification.');
@@ -530,20 +432,30 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
 
-	// Start deletion and complete 2FA authentication.
+	// Password-only users get email OTP verification for account deletion.
 	await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
 	const authModal = page.getByTestId('auth-modal');
 	await expect(authModal).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account-auth');
 
-	const deleteOtpInput = authModal.getByTestId('tfa-input');
+	const emailOtpSection = authModal.getByTestId('auth-email-otp');
+	await expect(emailOtpSection).toBeVisible({ timeout: 10000 });
+	const sendCodeButton = emailOtpSection.getByTestId('auth-btn');
+	const deleteEmailRequestedAt = new Date().toISOString();
+	await sendCodeButton.click();
+	logSignupCheckpoint('Clicked send verification code for account deletion.');
+
+	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
 	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
-	await deleteOtpInput.fill(generateTotp(tfaSecret));
-	const deleteAuthButton = authModal.getByTestId('auth-btn');
-	if (await deleteAuthButton.isEnabled({ timeout: 3000 }).catch(() => false)) {
-		await deleteAuthButton.click();
-	}
-	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
+
+	const deleteVerificationMessage = await waitForMailosaurMessage({
+		sentTo: signupEmail,
+		receivedAfter: deleteEmailRequestedAt
+	});
+	const deleteVerificationCode = extractSixDigitCode(deleteVerificationMessage);
+	expect(deleteVerificationCode, 'Expected a 6-digit action verification code for deletion.').toBeTruthy();
+	await deleteOtpInput.fill(deleteVerificationCode);
+	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
 	// Confirm logout redirect to demo chat after deletion. The deletion flow can
 	// clear authenticated UI before the transient in-settings success message is visible.

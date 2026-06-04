@@ -360,6 +360,7 @@ export async function handleSend(
   setHasContent: (value: boolean) => void,
   currentChatId?: string,
   activePIIExclusions: Set<string> = new Set(),
+  broadcastToSiblings: boolean = false,
 ) {
   if (!editor || !hasActualContent(editor)) {
     vibrateMessageField();
@@ -776,6 +777,10 @@ export async function handleSend(
         duration: attrs.duration || null,
         mime_type: attrs.mimeType || null,
         transcript: attrs.transcript || null,
+        transcript_original: attrs.transcriptOriginal || null,
+        transcript_corrected: attrs.transcriptCorrected || null,
+        use_corrected: attrs.useCorrected !== undefined ? attrs.useCorrected : null,
+        correction_model: attrs.correctionModel || null,
         model: (attrs.model as string) || null,
         s3_base_url: attrs.s3BaseUrl || null,
         files: attrs.s3Files || null,
@@ -1142,6 +1147,7 @@ export async function handleSend(
       chatIdToUse,
       piiMappingsForStorage,
     );
+    ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
     // (prevents a brief empty chat row while active chat selection/metadata settles)
@@ -1204,15 +1210,35 @@ export async function handleSend(
             // Ensure we have a chat key for encryption (this device is creating the chat)
             chatKeyManager.createKeyForNewChat(chatIdToUse);
 
-            // NOTE: Demo messages are NOT saved to IndexedDB. They were previously
-            // copied as AI "context", but the backend receives full conversation context
-            // via the API call — storing them in IDB caused demo messages to bleed into
-            // the real chat view when IDB was reloaded after streaming completed.
-            // The demo greeting ("Digital team mates for everyone...") is not meaningful
-            // context for the AI response to the user's actual question.
+            const { isExampleChat: isExampleChatCheck } =
+              await import("../../../demo_chats");
+            if (isExampleChatCheck(sourceDemoId)) {
+              // Example chat messages contain embed references needed to render
+              // embed previews in the cloned chat. Save them to IndexedDB so that
+              // the cloned chat displays messages with embeds and the data survives
+              // page reloads and cross-device sync.
+              for (const demoMsg of demoMessages) {
+                await chatDB.saveMessage({
+                  ...demoMsg,
+                  chat_id: chatIdToUse,
+                  message_id: `${chatIdToUse}-${demoMsg.message_id}`,
+                });
+              }
+              console.info(
+                `[handleSend] Saved ${demoMessages.length} example messages to IndexedDB for cloned chat ${chatIdToUse}`,
+              );
+              newChatData.messages_v = demoMessages.length + 1;
+            } else {
+              // NOTE: Demo messages are NOT saved to IndexedDB. They were previously
+              // copied as AI "context", but the backend receives full conversation context
+              // via the API call — storing them in IDB caused demo messages to bleed into
+              // the real chat view when IDB was reloaded after streaming completed.
+              // The demo greeting ("Digital team mates for everyone...") is not meaningful
+              // context for the AI response to the user's actual question.
 
-            // Update messages_v count (only the new user message being sent)
-            newChatData.messages_v = 1;
+              // Update messages_v count (only the new user message being sent)
+              newChatData.messages_v = 1;
+            }
           }
 
           // Clone example chat embeds into the embedStore (IndexedDB)
@@ -1340,6 +1366,32 @@ export async function handleSend(
       } else {
         // Update regular chat in IndexedDB
         await chatDB.saveMessage(messagePayload);
+
+        // Sub-chat sibling broadcast logic
+        if (broadcastToSiblings) {
+          try {
+            const { getAllChats } = await import("../../../services/db/chatCrudOperations");
+            const allChats = await getAllChats(chatDB);
+            const currentChatRecord = await chatDB.getChat(chatIdToUse);
+            if (currentChatRecord && currentChatRecord.parent_id) {
+              const siblings = allChats.filter(c => c.parent_id === currentChatRecord.parent_id && c.chat_id !== chatIdToUse);
+              const { generateUUID } = await import("../../../message_parsing/utils");
+              for (const sib of siblings) {
+                const sibMsgId = `${sib.chat_id.slice(-10)}-${generateUUID()}`;
+                const sibMsgPayload = {
+                  ...messagePayload,
+                  message_id: sibMsgId,
+                  chat_id: sib.chat_id,
+                };
+                await chatDB.saveMessage(sibMsgPayload);
+                console.debug(`[handleSend:Broadcast] Saved message copy to sibling sub-chat: ${sib.chat_id}`);
+                await chatSyncService.sendNewMessage(sibMsgPayload);
+              }
+            }
+          } catch (err) {
+            console.error('[handleSend:Broadcast] Error broadcasting to siblings:', err);
+          }
+        }
         existingChat = await chatDB.getChat(chatIdToUse);
         if (existingChat) {
           existingChat.messages_v = (existingChat.messages_v || 0) + 1;

@@ -47,6 +47,12 @@ private enum ChatScrollSentinelEdge: Hashable {
     case bottom
 }
 
+private enum ComposerOverlay: Equatable {
+    case location
+    case sketch
+    case recording
+}
+
 private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     static let defaultValue: [ChatScrollSentinelEdge: CGFloat] = [:]
 
@@ -108,6 +114,17 @@ struct ChatView: View {
     @State private var showReminder = false
     @State private var showPIIPlaceholders = false
     @State private var showAttachmentMenu = false
+    @State private var showCameraCapture = false
+    @State private var composerOverlay: ComposerOverlay?
+    @State private var micPermissionState: MicPermissionState = .unknown
+    @State private var recordHintVisible = false
+    @State private var recordDragOffsetX: CGFloat = 0
+    @State private var recordAttemptActive = false
+    @State private var recordStartTask: Task<Void, Never>?
+    @State private var recordHintTask: Task<Void, Never>?
+    @State private var detectedPIIMatches: [PIIMatch] = []
+    @State private var piiExclusions: Set<String> = []
+    @State private var mentionQuery: String?
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
     @State private var chatContainerWidth: CGFloat = 0
@@ -118,6 +135,8 @@ struct ChatView: View {
     @State private var lastReportedVisibleMessageId: String?
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
     @StateObject private var focusModeManager = FocusModeManager()
+    @StateObject private var composerRecorder = VoiceRecorder()
+    @StateObject private var pendingUploads = PendingUploadStore.shared
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -204,6 +223,18 @@ struct ChatView: View {
                 NotificationCenter.default.post(name: .toggleIncognito, object: nil)
             }
         )
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                onCapture: { data, filename in
+                    showCameraCapture = false
+                    Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                },
+                onCancel: { showCameraCapture = false }
+            )
+            .ignoresSafeArea()
+        }
+        #endif
         .task(id: chatId) {
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
@@ -238,6 +269,13 @@ struct ChatView: View {
             Task {
                 await viewModel.applySyncedEmbeds(initialEmbeds)
             }
+        }
+        .onChange(of: messageText) { _, newValue in
+            updatePIIMatches(for: newValue)
+            updateMentionQuery(for: newValue)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
+            handleComposerDeferredSend(notification)
         }
     }
 
@@ -831,16 +869,43 @@ struct ChatView: View {
     }
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
-        OMMessageInputField(
-            text: $messageText,
-            isFocused: $isInputFocused,
-            compact: compact,
-            placeholder: placeholder,
-            expandedMinHeight: expandedMinHeight,
-            accessibilityHint: AppStrings.typeMessage,
-            onSubmit: sendMessage
-        ) {
-            HStack(spacing: .spacing6) {
+        let overlayActive = composerOverlay != nil
+        return VStack(spacing: .spacing2) {
+            let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
+            PIIWarningBanner(matches: activePIIMatches) {
+                piiExclusions.formUnion(detectedPIIMatches.map(\.id))
+            }
+
+            if let chatId = viewModel.chat?.id {
+                UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
+            }
+
+            PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
+                viewModel.removePendingComposerEmbed(id: embed.id)
+            }
+
+            if let mentionQuery {
+                MentionDropdownView(
+                    query: mentionQuery,
+                    onSelect: insertMention,
+                    onDismiss: { self.mentionQuery = nil }
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacing5)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            OMMessageInputField(
+                text: $messageText,
+                isFocused: $isInputFocused,
+                compact: compact && !overlayActive,
+                placeholder: placeholder,
+                expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
+                accessibilityHint: AppStrings.typeMessage,
+                overlayContent: composerOverlayView(),
+                onSubmit: sendMessage
+            ) {
+                HStack(spacing: .spacing6) {
                 AttachmentPicker(
                     isPresented: $showAttachmentMenu,
                     onImageSelected: { data, filename in
@@ -853,29 +918,33 @@ struct ChatView: View {
                 .accessibilityLabel(AppStrings.attachFiles)
 
                 inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
-                    ToastManager.shared.show(AppStrings.shareLocation, type: .info)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        composerOverlay = .location
+                        isInputFocused = true
+                    }
                 }
 
                 inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
+                    #if os(iOS)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        composerOverlay = .sketch
+                        isInputFocused = true
+                    }
+                    #else
                     ToastManager.shared.show(AppStrings.sketchAction, type: .info)
+                    #endif
                 }
 
                 Spacer()
 
                 #if os(iOS)
                 inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
-                    ToastManager.shared.show(AppStrings.takePhoto, type: .info)
+                    showCameraCapture = true
                 }
                 #endif
 
-                if messageText.isEmpty && !viewModel.isStreaming {
-                    VoiceRecordingButton { url in
-                        Task {
-                            if let data = try? Data(contentsOf: url) {
-                                await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent)
-                            }
-                        }
-                    }
+                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
+                    recordActionControls
                 } else {
                     Button(action: sendMessage) {
                         Text(AppStrings.sendAction)
@@ -889,17 +958,81 @@ struct ChatView: View {
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
                     .buttonStyle(.plain)
-                    .disabled(messageText.isEmpty || viewModel.isStreaming)
-                    .opacity(messageText.isEmpty ? 0.6 : 1.0)
+                    .disabled((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) || viewModel.isStreaming)
+                    .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
                     .accessibilityLabel(AppStrings.sendMessage)
                     .accessibilityHint(AppStrings.typeMessage)
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
                 }
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing6)
             }
-            .padding(.horizontal, .spacing5)
-            .padding(.bottom, .spacing6)
+
+            if let recordPermissionHintText {
+                Text(recordPermissionHintText)
+                    .font(.omXs)
+                    .foregroundStyle(micPermissionState == .denied ? Color.error : Color.fontTertiary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, .spacing5)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func composerOverlayView() -> AnyView? {
+        guard let composerOverlay else { return nil }
+        switch composerOverlay {
+        case .location:
+            return AnyView(
+                ComposerLocationOverlay(
+                    onShare: { latitude, longitude, name in
+                        let label = name.isEmpty ? AppStrings.selectedLocation : name
+                        messageText += messageText.isEmpty ? "📍 \(label) (\(latitude), \(longitude))" : "\n📍 \(label) (\(latitude), \(longitude))"
+                        self.composerOverlay = nil
+                    },
+                    onCancel: { self.composerOverlay = nil }
+                )
+            )
+        case .sketch:
+            #if os(iOS)
+            return AnyView(
+                SketchComposerOverlay(
+                    onSave: { data, filename in
+                        self.composerOverlay = nil
+                        Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                    },
+                    onCancel: { self.composerOverlay = nil }
+                )
+            )
+            #else
+            return nil
+            #endif
+        case .recording:
+            return AnyView(
+                ComposerRecordingOverlay(
+                    recorder: composerRecorder,
+                    dragOffsetX: recordDragOffsetX,
+                    onStop: { url in
+                        self.composerOverlay = nil
+                        self.recordAttemptActive = false
+                        self.recordDragOffsetX = 0
+                        Task {
+                            if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
+                                appendRecordingTranscript(transcript)
+                            }
+                        }
+                    },
+                    onCancel: {
+                        composerRecorder.cancelRecording()
+                        self.composerOverlay = nil
+                        self.recordAttemptActive = false
+                        self.recordDragOffsetX = 0
+                    }
+                )
+            )
         }
     }
 
@@ -973,20 +1106,223 @@ struct ChatView: View {
         .accessibilityLabel(label)
     }
 
+    private var recordActionControls: some View {
+        HStack(spacing: .spacing4) {
+            if recordHintVisible && micPermissionState == .granted {
+                Text(AppStrings.pressAndHoldToRecord)
+                    .font(.omXs)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
+                    .transition(.opacity)
+            }
+
+            recordGestureButton
+        }
+    }
+
+    private var recordGestureButton: some View {
+        Icon("recordaudio", size: 25)
+            .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+            .frame(width: 25, height: 25)
+            .contentShape(Circle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        handleRecordGestureChanged(value)
+                    }
+                    .onEnded { _ in
+                        finishRecordAttempt()
+                    }
+            )
+            .accessibilityLabel(AppStrings.recordAudio)
+    }
+
+    private var recordPermissionHintText: String? {
+        if micPermissionState == .denied {
+            return AppStrings.microphoneBlocked
+        }
+        if recordHintVisible && micPermissionState != .granted {
+            return AppStrings.allowMicrophoneAccess
+        }
+        return nil
+    }
+
     private func dismissInputIfNeeded() {
         guard isInputFocused else { return }
         isInputFocused = false
         showAttachmentMenu = false
     }
 
+    private func handleRecordGestureChanged(_ value: DragGesture.Value) {
+        if !recordAttemptActive {
+            beginRecordAttempt(startLocation: value.startLocation)
+        }
+
+        guard composerOverlay == .recording else { return }
+        recordDragOffsetX = min(0, value.translation.width)
+        let distance = hypot(value.translation.width, value.translation.height)
+        if distance > 100 && value.translation.width < -60 {
+            cancelRecordAttempt()
+        }
+    }
+
+    private func beginRecordAttempt(startLocation _: CGPoint) {
+        recordAttemptActive = true
+        recordDragOffsetX = 0
+        recordStartTask?.cancel()
+
+        if micPermissionState == .denied {
+            showRecordHint()
+            return
+        }
+
+        if micPermissionState == .unknown {
+            Task { @MainActor in
+                let granted = await composerRecorder.requestPermission()
+                micPermissionState = granted ? .granted : .denied
+                recordAttemptActive = false
+                showRecordHint(duration: granted ? 2500 : 0)
+            }
+            return
+        }
+
+        recordStartTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, recordAttemptActive, micPermissionState == .granted else { return }
+            composerRecorder.startRecording()
+            guard composerRecorder.error == nil else {
+                micPermissionState = .denied
+                recordAttemptActive = false
+                showRecordHint(duration: 0)
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.15)) {
+                composerOverlay = .recording
+                isInputFocused = true
+            }
+        }
+    }
+
+    private func finishRecordAttempt() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+
+        if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
+            composerOverlay = nil
+            recordAttemptActive = false
+            recordDragOffsetX = 0
+            Task {
+                if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
+                    appendRecordingTranscript(transcript)
+                }
+            }
+            return
+        }
+
+        if recordAttemptActive && micPermissionState == .granted {
+            showRecordHint()
+        }
+        recordAttemptActive = false
+        recordDragOffsetX = 0
+    }
+
+    private func cancelRecordAttempt() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+        composerRecorder.cancelRecording()
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordDragOffsetX = 0
+    }
+
+    private func showRecordHint(duration: Int = 2500) {
+        recordHintVisible = true
+        recordHintTask?.cancel()
+        guard duration > 0 else { return }
+        recordHintTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(duration))
+            guard !Task.isCancelled else { return }
+            recordHintVisible = false
+        }
+    }
+
+    private func appendRecordingTranscript(_ transcript: String) {
+        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        messageText += messageText.isEmpty ? trimmed : "\n\(trimmed)"
+    }
+
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
+        let sanitizedText = PIIDetector.redactedText(text, matches: detectedPIIMatches, excludedIds: piiExclusions)
+        if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
+            let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
+            pendingUploads.addPendingSend(
+                chatId: chatId,
+                content: sanitizedText,
+                blockingUploadIds: blockingIds,
+                dispatchThroughActiveComposer: true
+            )
+            messageText = ""
+            return
+        }
         messageText = ""
+        detectedPIIMatches = []
+        piiExclusions = []
+        mentionQuery = nil
 
         Task {
-            await viewModel.sendMessage(text)
+            await viewModel.sendMessage(sanitizedText)
         }
+    }
+
+    private func handleComposerDeferredSend(_ notification: Notification) {
+        guard let routeThroughComposer = notification.userInfo?["dispatchThroughActiveComposer"] as? Bool,
+              routeThroughComposer,
+              let deferredChatId = notification.userInfo?["chatId"] as? String,
+              deferredChatId == viewModel.chat?.id,
+              let content = notification.userInfo?["content"] as? String else { return }
+        Task {
+            await viewModel.sendMessage(content)
+        }
+    }
+
+    private func updatePIIMatches(for text: String) {
+        detectedPIIMatches = PIIDetector.detect(in: text)
+        let currentIds = Set(detectedPIIMatches.map(\.id))
+        piiExclusions = piiExclusions.intersection(currentIds)
+    }
+
+    private func updateMentionQuery(for text: String) {
+        mentionQuery = extractMentionQuery(from: text)
+    }
+
+    private func extractMentionQuery(from text: String) -> String? {
+        guard let atIndex = text.lastIndex(of: "@") else { return nil }
+        if atIndex != text.startIndex {
+            let previousIndex = text.index(before: atIndex)
+            let previousCharacter = text[previousIndex]
+            guard previousCharacter == " " || previousCharacter == "\n" || previousCharacter == "\t" else {
+                return nil
+            }
+        }
+        let queryStart = text.index(after: atIndex)
+        let query = String(text[queryStart...])
+        guard !query.contains(" "), !query.contains("\n"), !query.contains("\t") else { return nil }
+        return query
+    }
+
+    private func insertMention(_ item: MentionItem) {
+        guard let atIndex = messageText.lastIndex(of: "@") else {
+            messageText += messageText.isEmpty ? "\(item.mentionSyntax) " : " \(item.mentionSyntax) "
+            mentionQuery = nil
+            return
+        }
+        messageText.replaceSubrange(atIndex..<messageText.endIndex, with: "\(item.mentionSyntax) ")
+        mentionQuery = nil
+        isInputFocused = true
     }
 
     private func publicChatIconName(for chatId: String) -> String? {

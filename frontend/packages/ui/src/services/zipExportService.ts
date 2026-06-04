@@ -29,6 +29,17 @@ import {
   embedPngMetadata,
 } from "../components/embeds/images/imageDownloadUtils";
 
+type DecodedEmbedContent = Record<string, unknown>;
+type ImageFileEntry = { s3_key?: string; format?: string };
+
+function isRecord(value: unknown): value is DecodedEmbedContent {
+  return !!value && typeof value === "object";
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 /**
  * Converts a single message to markdown format
  * @param message - The message to convert
@@ -173,15 +184,16 @@ async function loadCodeEmbedsRecursively(
 
       // If this is a code embed, process it
       if (
-        embed.type === "code" &&
+        (embed.type === "code" || embed.type === "code-code") &&
         decodedContent &&
         typeof decodedContent === "object"
       ) {
+        const decodedRecord = decodedContent as DecodedEmbedContent;
         const rawCodeContent =
-          decodedContent.code || decodedContent.content || "";
+          stringValue(decodedRecord.code) || stringValue(decodedRecord.content) || "";
         const hintLanguage =
-          decodedContent.language || decodedContent.lang || "text";
-        const hintFilename = decodedContent.filename || undefined;
+          stringValue(decodedRecord.language) || stringValue(decodedRecord.lang) || "text";
+        const hintFilename = stringValue(decodedRecord.filename);
 
         // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
         // This also strips the header line from the code content
@@ -197,7 +209,7 @@ async function loadCodeEmbedsRecursively(
         // Get file_path from embed-level field (stored in EmbedStore) OR TOON content OR parsed filename
         // Priority: embed.file_path > decodedContent.file_path > parsed.filename (if it contains path separator)
         // The filename can be a full path when specified as `language:path/to/file.ext` in markdown
-        let filePath = embed.file_path || decodedContent.file_path || undefined;
+        let filePath = stringValue(embed.file_path) || stringValue(decodedRecord.file_path);
 
         // If no explicit file_path but filename contains path separators, use filename as path
         const filenameForPath = filename || parsed.filename;
@@ -574,6 +586,7 @@ async function loadImageEmbedsRecursively(
     generated_at?: string;
     /** Whether this is a user upload (true) or AI-generated (false/undefined) */
     is_upload?: boolean;
+    data_url?: string;
     s3_base_url?: string;
     s3_key: string;
     aes_key: string;
@@ -588,6 +601,7 @@ async function loadImageEmbedsRecursively(
     model?: string;
     generated_at?: string;
     is_upload?: boolean;
+    data_url?: string;
     s3_base_url?: string;
     s3_key: string;
     aes_key: string;
@@ -658,32 +672,50 @@ async function loadImageEmbedsRecursively(
       // If this is an image embed (AI-generated OR user-uploaded), process it.
       // AI-generated images: app_id="images", skill_id="generate"/"generate_draft"
       // User-uploaded images: app_id="images", skill_id="upload" (type "images-image")
+      // Imported images (from ZIP/YAML fixtures) have data_url but no aes_key/aes_nonce.
       if (
-        decodedContent &&
-        typeof decodedContent === "object" &&
+        isRecord(decodedContent) &&
         decodedContent.app_id === "images" &&
         (decodedContent.skill_id === "generate" ||
           decodedContent.skill_id === "generate_draft" ||
-          decodedContent.skill_id === "upload") &&
-        decodedContent.aes_key &&
-        decodedContent.aes_nonce &&
-        decodedContent.files
+          decodedContent.skill_id === "upload")
       ) {
-        // Prefer the original PNG for download, fall back to full, then preview
+        const files = isRecord(decodedContent.files)
+          ? decodedContent.files
+          : undefined;
         const fileEntry =
-          decodedContent.files.original ||
-          decodedContent.files.full ||
-          decodedContent.files.preview;
+          (files?.original as ImageFileEntry | undefined) ||
+          (files?.full as ImageFileEntry | undefined) ||
+          (files?.preview as ImageFileEntry | undefined);
 
         console.warn("[ZipExportService] Found image embed, fileEntry:", {
           embed_id: embed.embed_id,
-          hasOriginal: !!decodedContent.files.original,
-          hasFull: !!decodedContent.files.full,
-          hasPreview: !!decodedContent.files.preview,
+          hasOriginal: !!files?.original,
+          hasFull: !!files?.full,
+          hasPreview: !!files?.preview,
           selectedKey: fileEntry?.s3_key,
+          hasDataUrl: !!decodedContent.data_url,
+          hasFilename: !!decodedContent.filename,
+          hasAesKey: !!decodedContent.aes_key,
         });
 
-        if (fileEntry?.s3_key) {
+        // Imported images embed the raw data URL directly (no S3, no encryption)
+        if (decodedContent.data_url && decodedContent.filename) {
+          imageEmbeds.push({
+            embed_id: embed.embed_id,
+            filename: stringValue(decodedContent.filename),
+            is_upload: true,
+            data_url: stringValue(decodedContent.data_url),
+            s3_key: "",
+            aes_key: "",
+            aes_nonce: "",
+            format: fileEntry?.format || "png",
+          });
+        } else if (
+          decodedContent.aes_key &&
+          decodedContent.aes_nonce &&
+          fileEntry?.s3_key
+        ) {
           const isUpload = decodedContent.skill_id === "upload";
           imageEmbeds.push({
             embed_id: embed.embed_id,
@@ -692,14 +724,14 @@ async function loadImageEmbedsRecursively(
               : undefined,
             prompt: isUpload
               ? undefined
-              : (decodedContent.prompt as string | undefined),
-            model: decodedContent.model,
-            generated_at: decodedContent.generated_at,
+              : stringValue(decodedContent.prompt),
+            model: stringValue(decodedContent.model),
+            generated_at: stringValue(decodedContent.generated_at),
             is_upload: isUpload,
-            s3_base_url: decodedContent.s3_base_url,
+            s3_base_url: stringValue(decodedContent.s3_base_url),
             s3_key: fileEntry.s3_key,
-            aes_key: decodedContent.aes_key,
-            aes_nonce: decodedContent.aes_nonce,
+            aes_key: stringValue(decodedContent.aes_key) || "",
+            aes_nonce: stringValue(decodedContent.aes_nonce) || "",
             format: fileEntry.format || "png",
           });
         }
@@ -756,6 +788,26 @@ async function loadImageEmbedsRecursively(
   }
 
   return imageEmbeds;
+}
+
+/**
+ * Convert a local data URL from an imported chat fixture into a Blob for export.
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+  if (!match) {
+    throw new Error("Invalid image data URL in imported embed");
+  }
+
+  const mimeType = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || "";
+  const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
 }
 
 /**
@@ -828,13 +880,16 @@ export async function getImageEmbedsForChat(messages: Message[]): Promise<
 
     for (const imageInfo of imageEmbedInfos) {
       try {
-        // Fetch and decrypt the image from S3
-        const blob = await fetchAndDecryptImage(
-          imageInfo.s3_base_url,
-          imageInfo.s3_key,
-          imageInfo.aes_key,
-          imageInfo.aes_nonce,
-        );
+        // Imported image embeds can already contain decrypted local data URLs.
+        // Regular uploaded/generated images still go through S3 + AES decryption.
+        const blob = imageInfo.data_url
+          ? dataUrlToBlob(imageInfo.data_url)
+          : await fetchAndDecryptImage(
+              imageInfo.s3_base_url,
+              imageInfo.s3_key,
+              imageInfo.aes_key,
+              imageInfo.aes_nonce,
+            );
 
         // For PNG images, embed metadata (prompt, model, etc.)
         let downloadBlob: Blob = blob;

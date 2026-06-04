@@ -81,7 +81,11 @@ export interface DailyInspiration {
    * Falls back to a generic humanised suggestion if empty (legacy inspirations or LLM failure).
    */
   follow_up_suggestions?: string[];
+  /** UI surface this inspiration belongs to. Missing values are legacy chat inspirations. */
+  surface?: DailyInspirationSurface;
 }
+
+export type DailyInspirationSurface = "chats" | "projects" | "workflows";
 
 export interface DailyInspirationState {
   /** Up to 3 inspirations for the current day */
@@ -139,6 +143,10 @@ function preferredIndex(inspirations: DailyInspiration[]): number {
   return firstUnopenedIdx >= 0 ? firstUnopenedIdx : 0;
 }
 
+function inspirationSurface(inspiration: DailyInspiration): DailyInspirationSurface {
+  return inspiration.surface ?? "chats";
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 const store = writable<DailyInspirationState>(initialState);
@@ -174,6 +182,37 @@ export const dailyInspirationStore = {
         inspirations: sliced,
         currentIndex: preferredIndex(sliced),
         isPersonalized: personalized,
+      };
+    });
+  },
+
+  /**
+   * Replace inspirations for one workspace surface without wiping other surfaces.
+   * Legacy inspirations without a surface are treated as chat inspirations.
+   */
+  setSurfaceInspirations: (
+    surface: DailyInspirationSurface,
+    inspirations: DailyInspiration[],
+    options: { personalized?: boolean } = {},
+  ): void => {
+    const { personalized = false } = options;
+    const tagged = inspirations
+      .slice(0, MAX_DAILY_INSPIRATIONS)
+      .map((inspiration) => ({ ...inspiration, surface }));
+
+    store.update((state) => {
+      if (state.isPersonalized && !personalized && surface === "chats") {
+        return state;
+      }
+      const otherSurfaces = state.inspirations.filter(
+        (inspiration) => inspirationSurface(inspiration) !== surface,
+      );
+      const merged = [...otherSurfaces, ...tagged];
+      return {
+        ...state,
+        inspirations: merged,
+        currentIndex: preferredIndex(tagged),
+        isPersonalized: surface === "chats" ? personalized : state.isPersonalized,
       };
     });
   },

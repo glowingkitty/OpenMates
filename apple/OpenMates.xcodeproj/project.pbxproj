@@ -145,6 +145,7 @@
 		550C7E8BFB66382465C8B232 /* SettingsShareDebugLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9E81BC0C64D0292A9B5A8E /* SettingsShareDebugLogsView.swift */; };
 		5522979979983F50F9E6EDB7 /* TravelFlightDetailsEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAAB613483881B693D9C100E /* TravelFlightDetailsEmbedRenderer.swift */; };
 		555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */; };
+		C0DE00000000000000000002 /* CodeRunService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000000001 /* CodeRunService.swift */; };
 		55A5191AF7E81A1B3329FE23 /* NotificationBanners.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8CE5605C33C752A2F0375B4 /* NotificationBanners.swift */; };
 		563F43A66FA1E96562430CEE /* AuthFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 278DA325890FA2DFF476E51A /* AuthFlowView.swift */; };
 		570B5F0E1531EC9238A2AC20 /* SettingsAccountChatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EA07F6DD4573380C2EC670 /* SettingsAccountChatsView.swift */; };
@@ -211,6 +212,7 @@
 		7F1A6A39B55A491B36E3C371 /* PlaceRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C39A911BB9208FA2A0BF4682 /* PlaceRenderers.swift */; };
 		7F9408217792EA2ED6552306 /* ReportIssueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5C1DCEC899C0A6F6DC2139 /* ReportIssueView.swift */; };
 		81C03DD57797F7494E8BC99E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */; };
+		C0DE00000000000000000003 /* CodeRunService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000000001 /* CodeRunService.swift */; };
 		82A5167D0F56CDFC3D2574BD /* ThinkingSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 211554322975417C0803A23E /* ThinkingSectionView.swift */; };
 		83585089C2171EE4B8BAE3FF /* PlaceRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C39A911BB9208FA2A0BF4682 /* PlaceRenderers.swift */; };
 		83BFD11C6CB39E72E2E619AC /* TravelConnectionEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83EC60DF46CF35D25DD35B52 /* TravelConnectionEmbedRenderer.swift */; };
@@ -603,6 +605,7 @@
 		96B5D464AD5823963A861166 /* RichMarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichMarkdownRenderer.swift; sourceTree = "<group>"; };
 		96F2BC88196C3F2837DC1AB7 /* DevPreviewLaunchConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevPreviewLaunchConfiguration.swift; sourceTree = "<group>"; };
 		98992EDB5FA05BD8C6770810 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManager.swift; sourceTree = "<group>"; };
+		C0DE00000000000000000001 /* CodeRunService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeRunService.swift; sourceTree = "<group>"; };
 		9ECAAD62BF757669C20AD38B /* EmailLookupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailLookupView.swift; sourceTree = "<group>"; };
 		A0484C1E71DDCAAD4DEBB61F /* MessageEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditView.swift; sourceTree = "<group>"; };
 		A12642E3DAC31B20117E70C1 /* SettingsServerConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsServerConnectionView.swift; sourceTree = "<group>"; };
@@ -852,6 +855,7 @@
 			isa = PBXGroup;
 			children = (
 				EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */,
+				C0DE00000000000000000001 /* CodeRunService.swift */,
 				710225174647E1642E8B5863 /* DeepLinkHandler.swift */,
 				4E49B4155E4B92AA045BCC1F /* PushNotificationManager.swift */,
 				3098424CAA7116A6667AD61D /* S3MediaClient.swift */,
@@ -1561,6 +1565,7 @@
 			files = (
 				F21BC1FE5F7050B7957FA9C4 /* AITypingIndicator.swift in Sources */,
 				81C03DD57797F7494E8BC99E /* APIClient.swift in Sources */,
+				C0DE00000000000000000003 /* CodeRunService.swift in Sources */,
 				217FAE36C93971A51738758B /* AccessibilityModifiers.swift in Sources */,
 				FFB2CB3AF8472CAC9BC8FF03 /* AccountRecoveryView.swift in Sources */,
 				2A8DC57BE463B192545BA0FE /* AnyCodable.swift in Sources */,
@@ -1761,6 +1766,7 @@
 			files = (
 				87BC11EACC54693695953576 /* AITypingIndicator.swift in Sources */,
 				555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */,
+				C0DE00000000000000000002 /* CodeRunService.swift in Sources */,
 				EA657AC6049612D2F983EC5D /* AccessibilityModifiers.swift in Sources */,
 				7E3B1D396CC0C79D4D5F79C1 /* AccountRecoveryView.swift in Sources */,
 				BD0E54CD04F65577115EB74E /* AnyCodable.swift in Sources */,

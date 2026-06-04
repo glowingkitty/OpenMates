@@ -191,7 +191,7 @@ more_results:
   he: "ועוד {count}"
   verified_by_human: []
 search_no_results:
-  context: Shown in search embed preview when the search completed but returned zero results and no query string is available.
+  context: Shown in search embed preview when the search completed but returned zero results.
   en: No results found
   de: Keine Ergebnisse gefunden
   zh: 未找到结果
@@ -3243,6 +3243,75 @@ pii_show:
   cs: Zobrazit citlivá data
   sv: Visa känsliga uppgifter
   he: הצגת נתונים רגישים
+pii_include_original:
+  context: Tooltip/aria-label for the fullscreen embed button that restores original sensitive data into an unsent draft embed so it will be sent without placeholders
+  en: Include original sensitive data in this draft embed
+  de: Include original sensitive data in this draft embed
+  zh: Include original sensitive data in this draft embed
+  es: Include original sensitive data in this draft embed
+  fr: Include original sensitive data in this draft embed
+  pt: Include original sensitive data in this draft embed
+  ru: Include original sensitive data in this draft embed
+  ja: Include original sensitive data in this draft embed
+  ko: Include original sensitive data in this draft embed
+  it: Include original sensitive data in this draft embed
+  tr: Include original sensitive data in this draft embed
+  vi: Include original sensitive data in this draft embed
+  id: Include original sensitive data in this draft embed
+  pl: Include original sensitive data in this draft embed
+  nl: Include original sensitive data in this draft embed
+  ar: Include original sensitive data in this draft embed
+  hi: Include original sensitive data in this draft embed
+  th: Include original sensitive data in this draft embed
+  cs: Include original sensitive data in this draft embed
+  sv: Include original sensitive data in this draft embed
+  he: Include original sensitive data in this draft embed
+pii_include_original_success:
+  context: Toast shown after original sensitive data has been restored into an unsent draft embed; {count} is the number of restored items
+  en: Original sensitive data will be included for this draft embed ({count} item(s)).
+  de: Original sensitive data will be included for this draft embed ({count} item(s)).
+  zh: Original sensitive data will be included for this draft embed ({count} item(s)).
+  es: Original sensitive data will be included for this draft embed ({count} item(s)).
+  fr: Original sensitive data will be included for this draft embed ({count} item(s)).
+  pt: Original sensitive data will be included for this draft embed ({count} item(s)).
+  ru: Original sensitive data will be included for this draft embed ({count} item(s)).
+  ja: Original sensitive data will be included for this draft embed ({count} item(s)).
+  ko: Original sensitive data will be included for this draft embed ({count} item(s)).
+  it: Original sensitive data will be included for this draft embed ({count} item(s)).
+  tr: Original sensitive data will be included for this draft embed ({count} item(s)).
+  vi: Original sensitive data will be included for this draft embed ({count} item(s)).
+  id: Original sensitive data will be included for this draft embed ({count} item(s)).
+  pl: Original sensitive data will be included for this draft embed ({count} item(s)).
+  nl: Original sensitive data will be included for this draft embed ({count} item(s)).
+  ar: Original sensitive data will be included for this draft embed ({count} item(s)).
+  hi: Original sensitive data will be included for this draft embed ({count} item(s)).
+  th: Original sensitive data will be included for this draft embed ({count} item(s)).
+  cs: Original sensitive data will be included for this draft embed ({count} item(s)).
+  sv: Original sensitive data will be included for this draft embed ({count} item(s)).
+  he: Original sensitive data will be included for this draft embed ({count} item(s)).
+pii_include_original_failed:
+  context: Toast shown when restoring original sensitive data into an unsent draft embed fails
+  en: Could not include original sensitive data for this embed.
+  de: Could not include original sensitive data for this embed.
+  zh: Could not include original sensitive data for this embed.
+  es: Could not include original sensitive data for this embed.
+  fr: Could not include original sensitive data for this embed.
+  pt: Could not include original sensitive data for this embed.
+  ru: Could not include original sensitive data for this embed.
+  ja: Could not include original sensitive data for this embed.
+  ko: Could not include original sensitive data for this embed.
+  it: Could not include original sensitive data for this embed.
+  tr: Could not include original sensitive data for this embed.
+  vi: Could not include original sensitive data for this embed.
+  id: Could not include original sensitive data for this embed.
+  pl: Could not include original sensitive data for this embed.
+  nl: Could not include original sensitive data for this embed.
+  ar: Could not include original sensitive data for this embed.
+  hi: Could not include original sensitive data for this embed.
+  th: Could not include original sensitive data for this embed.
+  cs: Could not include original sensitive data for this embed.
+  sv: Could not include original sensitive data for this embed.
+  he: Could not include original sensitive data for this embed.
 maps_location:
   context: Maps Location skill label shown in BasicInfosBar
   en: Location

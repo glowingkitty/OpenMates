@@ -16,6 +16,7 @@ import { get } from "svelte/store";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
+import { getApiEndpoint } from "../config/api";
 import type {
 	UpdateTitlePayload,
 	DeleteChatPayload,
@@ -113,8 +114,35 @@ export async function sendDeleteChatImpl(
 	// Include embed_ids in the payload for server-side cleanup
 	// Server will check if each embed is used by any other chat (not in last 100)
 	// before permanently deleting from Directus
-	const payload: DeleteChatPayload & { embed_ids_to_delete?: string[] } = {
+	let removeProjectEmbeds = false;
+	try {
+		const response = await fetch(getApiEndpoint("/v1/projects/deletion-precheck/chat"), {
+			method: "POST",
+			credentials: "include",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ chat_id })
+		});
+		if (response.ok) {
+			const precheck = (await response.json()) as {
+				requires_decision?: boolean;
+				protected_embed_ids?: string[];
+			};
+			if (precheck.requires_decision && precheck.protected_embed_ids?.length) {
+				removeProjectEmbeds = window.confirm(
+					`${precheck.protected_embed_ids.length} embed(s) from this chat are saved in Projects. ` +
+					"Press OK to delete them from Projects too, or Cancel to keep the project embeds and delete only the chat."
+				);
+			}
+		} else {
+			console.warn("[ChatSyncService:Senders] Project deletion precheck failed:", response.status);
+		}
+	} catch (error) {
+		console.warn("[ChatSyncService:Senders] Project deletion precheck unavailable:", error);
+	}
+
+	const payload: DeleteChatPayload & { embed_ids_to_delete?: string[]; removeProjectEmbeds?: boolean } = {
 		chatId: chat_id,
+		removeProjectEmbeds,
 		embed_ids_to_delete:
 			embed_ids_to_delete.length > 0 ? embed_ids_to_delete : undefined
 	};

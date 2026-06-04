@@ -13,7 +13,7 @@
     import { isMenuOpen } from '../../stores/menuState';
     import { signupStore, clearSignupData, clearIncompleteSignupData } from '../../stores/signupStore';
     // Import crypto service cleanup functions for secure logout
-    import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
+    import { clearKeyFromStorage, clearAllEmailData, getEmailEncryptionKeyForApi } from '../../services/cryptoService';
 
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, STEP_ALPHA_DISCLAIMER } from '../../stores/signupState';
@@ -140,8 +140,7 @@
     function getCurrentStepSequence(): string[] {
         return getSignupStepSequence({
             loginMethod: $signupStore.loginMethod,
-            isSelfHosted,
-            paymentEnabled
+            isSelfHosted
         });
     }
 
@@ -1068,6 +1067,64 @@
         } catch (error) {
             console.warn("Failed to establish WebSocket connection after signup:", error);
             // Continue with signup completion even if WebSocket fails
+        }
+
+        // Check for pending gift card code in sessionStorage to auto-redeem
+        if (typeof window !== 'undefined') {
+            const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+            if (pendingCode) {
+                const normalizedCode = pendingCode.trim().toUpperCase();
+                console.info(`[Signup] Found pending gift card code ${normalizedCode}, attempting auto-redemption...`);
+                
+                // Do the redemption in a separate async IIFE (fire-and-forget) so it never blocks the main signup flow
+                (async () => {
+                    try {
+                        const emailEncryptionKey = getEmailEncryptionKeyForApi();
+                        const requestBody: { code: string; email_encryption_key?: string } = {
+                            code: normalizedCode
+                        };
+                        if (emailEncryptionKey) {
+                            requestBody.email_encryption_key = emailEncryptionKey;
+                        }
+
+                        const response = await fetch(getApiUrl() + apiEndpoints.payments.redeemGiftCard, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'Origin': window.location.origin
+                            },
+                            body: JSON.stringify(requestBody),
+                            credentials: 'include'
+                        });
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            if (result.success) {
+                                console.info("[Signup] Gift card redeemed automatically upon signup:", result);
+                                sessionStorage.removeItem('pending_gift_card_code');
+                                
+                                // Update profile store with new credit amount
+                                if (typeof result.current_credits === 'number') {
+                                    updateProfile({ credits: result.current_credits });
+                                }
+                                
+                                // Show success notification to the user
+                                const { get } = await import('svelte/store');
+                                const translate = get(_);
+                                const successMsg = translate ? translate('settings.billing.gift_card.success') : 'Gift card redeemed successfully!';
+                                notificationStore.success(result.message || successMsg);
+                            } else {
+                                console.warn("[Signup] Automatic gift card redemption API returned failure:", result.message);
+                            }
+                        } else {
+                            console.warn("[Signup] Automatic gift card redemption failed with status:", response.status);
+                        }
+                    } catch (redeemError) {
+                        console.error("[Signup] Error during automatic gift card redemption:", redeemError);
+                    }
+                })();
+            }
         }
 
         // Signal completion of signup process AFTER ensuring auth state is updated

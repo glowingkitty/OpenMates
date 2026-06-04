@@ -63,6 +63,7 @@
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
   import { chatDB } from '../services/db';
   import { webSocketService } from '../services/websocketService';
+  import { activeChatStore } from '../stores/activeChatStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -744,6 +745,7 @@
     chatSummary = null,
     chatHeaderRenderKey = 0,
     chatCreatedAt = null,
+    chatTimeLabel = 'started',
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
     isCreditsRestored = false,
@@ -779,8 +781,10 @@
     chatSummary?: string | null;
     /** Incremented by ActiveChat when fullscreen layout changes require a clean header repaint. */
     chatHeaderRenderKey?: number;
-    /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
+    /** Unix timestamp in seconds of when the chat was created or published. */
     chatCreatedAt?: number | null;
+    /** Label variant for the timestamp line in the header banner. */
+    chatTimeLabel?: 'started' | 'published';
     /** True while the server is still generating the title/category/icon for a new chat.
      *  Shows the "Creating new chat ..." shimmer placeholder instead of the full card. */
     isNewChatGeneratingTitle?: boolean;
@@ -842,6 +846,40 @@
   });
   let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
+  // --- Parent chat / Sub-chat "Return" header tracking ---
+  let parentChatId = $state<string | null>(null);
+  let parentChatTitle = $state<string | null>(null);
+
+  async function checkParentChat(activeId: string | null | undefined) {
+    if (!activeId) {
+      parentChatId = null;
+      parentChatTitle = null;
+      return;
+    }
+    try {
+      const { getChat } = await import('../services/db/chatCrudOperations');
+      const { chatDB } = await import('../services/db');
+      await chatDB.init();
+      const chat = await getChat(chatDB, activeId);
+      if (chat && chat.parent_id) {
+        parentChatId = chat.parent_id;
+        const parentChat = await getChat(chatDB, chat.parent_id);
+        parentChatTitle = parentChat?.title || "Parent Chat";
+      } else {
+        parentChatId = null;
+        parentChatTitle = null;
+      }
+    } catch (e) {
+      console.error('Error checking parent chat:', e);
+      parentChatId = null;
+      parentChatTitle = null;
+    }
+  }
+
+  $effect(() => {
+    const activeId = currentChatId;
+    void checkParentChat(activeId);
+  });
 
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
@@ -1955,6 +1993,26 @@
     bind:this={container}
     onscroll={handleScroll}
 >
+    {#if parentChatId}
+        <button
+            type="button"
+            class="return-to-parent-button"
+            data-testid="return-to-parent-button"
+            title={`Return to ${parentChatTitle}`}
+            style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
+            onclick={() => {
+                activeChatStore.setActiveChat(parentChatId);
+            }}
+        >
+            <span style="display: flex; align-items: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+            </span>
+            <span>Return</span>
+        </button>
+    {/if}
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
@@ -1968,6 +2026,7 @@
                 icon={chatIcon}
                 summary={chatSummary}
                 {chatCreatedAt}
+                {chatTimeLabel}
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
@@ -2120,7 +2179,7 @@
             {/if}
 
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
-                <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
+                <div class="follow-up-suggestions-wrapper" transition:fade={{ duration: 120 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
                         messageInputContent=""

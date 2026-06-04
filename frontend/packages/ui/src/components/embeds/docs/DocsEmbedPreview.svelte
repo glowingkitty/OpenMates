@@ -25,7 +25,8 @@
   } from './docsEmbedContent';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { embedPIIStore } from '../../../stores/embedPIIStore';
+  import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { hydrateWikiLinks } from '../../../utils/embedLinkUtils';
   
   /**
@@ -113,6 +114,18 @@
   $effect(() => {
     const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
     return unsub;
+  });
+
+  $effect(() => {
+    if (!id) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(id).then((mappings) => {
+      if (!cancelled && mappings.length > 0) addEmbedPIIMappings(id, mappings);
+    });
+    return () => {
+      cancelled = true;
+      removeEmbedPIIMappings(id);
+    };
   });
 
   /**

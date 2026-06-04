@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -26,8 +25,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	getE2EDebugUrl,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -126,12 +124,17 @@ test('reminder redesign — UI matches Figma: header, type dropdown, explainer, 
 	expect(await taskTextarea.count()).toBe(0);
 	log('No task textarea in "this_chat" mode — correct.');
 
-	// ── Verify date and time inputs exist ──
+	// ── Verify the redesigned When? preset is visible, then choose Custom for date/time ──
+	const whenDropdown = page.locator('select[aria-label="When?"]').first();
+	await expect(whenDropdown).toBeVisible({ timeout: 5000 });
+	await whenDropdown.selectOption('custom');
+	await page.waitForTimeout(300);
+
 	const dateInput = page.locator('#settings-reminder-date');
 	const timeInput = page.locator('#settings-reminder-time');
 	await expect(dateInput).toBeVisible({ timeout: 5000 });
 	await expect(timeInput).toBeVisible({ timeout: 5000 });
-	log('Date and time inputs visible.');
+	log('Custom date and time inputs visible.');
 
 	// ── Verify no old "note" field ──
 	const noteField = page.locator('input[aria-label="Note"]');
@@ -228,7 +231,13 @@ test('reminder redesign — Type A: notification in existing chat, no new chat c
 	await reminderBtn.click();
 	await page.waitForTimeout(1500);
 
-	// Fill form — "Chat reminder" is default when opened from a chat
+	// Fill form — "Chat reminder" is default when opened from a chat; date/time
+	// fields are shown after choosing the Custom When? preset.
+	const whenDropdown = page.locator('select[aria-label="When?"]').first();
+	await expect(whenDropdown).toBeVisible({ timeout: 10000 });
+	await whenDropdown.selectOption('custom');
+	await page.waitForTimeout(300);
+
 	const dateInput = page.locator('#settings-reminder-date');
 	const timeInput = page.locator('#settings-reminder-time');
 	await expect(dateInput).toBeVisible({ timeout: 10000 });

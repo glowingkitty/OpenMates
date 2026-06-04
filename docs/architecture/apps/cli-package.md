@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-04
 key_files:
   - frontend/packages/openmates-cli/src/cli.ts
   - frontend/packages/openmates-cli/src/client.ts
@@ -27,6 +27,8 @@ The REST API cannot decrypt/encrypt chats (zero-knowledge architecture). The CLI
 
 Pair-auth login via magic link + PIN (no password/email prompt). Session stored in `~/.openmates` with strict `0o600` permissions.
 
+CLI login derives and stores the email encryption key after pair-auth by decrypting the account email with the master key and applying the same `SHA256(email + user_email_salt)` derivation as the web app. The key uses the same tiered local protection path as the master key and is used for backend flows such as invoice refund requests.
+
 ### Implemented Commands
 
 **Auth:** `login`, `logout`, `whoami`
@@ -35,7 +37,7 @@ Pair-auth login via magic link + PIN (no password/email prompt). Session stored 
 
 **Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON)
 
-**Memories:** `get/post/patch/delete` settings paths, `gift-card redeem/list`, `memories list/types/create/update/delete`
+**Settings:** predefined account, profile picture, interface, privacy, billing, invoices, notifications, reminders, mates, newsletter, developer, issue-report, gift-card, and memory commands. Raw settings path passthrough is not exposed.
 
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`
 
@@ -45,7 +47,7 @@ All commands support `--json` for machine-readable output and `--api-url` to ove
 
 ### Security Boundaries
 
-Blocked operations (defined in `client.ts` as `BLOCKED_SETTINGS_MUTATE_PATHS`): API key creation, password setup, 2FA configuration. These must be done via the web app.
+Blocked operations (defined in `client.ts` as `BLOCKED_SETTINGS_MUTATE_PATHS`): API key creation, password setup, 2FA setup/disable flows, sensitive web-only action verification, and account deletion finalization. These must be done via the web app.
 
 ### Development
 
@@ -91,4 +93,5 @@ Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_A
 ## Related Docs
 
 - [REST API](./rest-api.md) -- direct skill execution without chat encryption
+- [CLI Feature Parity](./cli-feature-parity.md) -- web app versus CLI capability matrix and roadmap
 - [CLI Standards](../../contributing/standards/cli.md) -- coding standards, sync rules, crypto constraints

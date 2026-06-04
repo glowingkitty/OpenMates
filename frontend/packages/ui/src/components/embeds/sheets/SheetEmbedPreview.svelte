@@ -22,7 +22,8 @@
   import { parseSheetEmbedContent, formatTableDimensions } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks } from '../../../utils/embedLinkUtils';
-  import { embedPIIStore } from '../../../stores/embedPIIStore';
+  import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   
   /**
    * Props for sheet embed preview
@@ -109,6 +110,18 @@
   $effect(() => {
     const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
     return unsub;
+  });
+
+  $effect(() => {
+    if (!id) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(id).then((mappings) => {
+      if (!cancelled && mappings.length > 0) addEmbedPIIMappings(id, mappings);
+    });
+    return () => {
+      cancelled = true;
+      removeEmbedPIIMappings(id);
+    };
   });
 
   /**

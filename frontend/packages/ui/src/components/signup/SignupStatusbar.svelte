@@ -8,12 +8,10 @@
     let { 
         currentStepName = STEP_BASICS, 
         stepSequenceOverride,
-        paymentEnabled = true,
         isSelfHosted = false
     }: { 
         currentStepName?: string, 
         stepSequenceOverride?: string[],
-        paymentEnabled?: boolean,
         isSelfHosted?: boolean
     } = $props();
 
@@ -24,8 +22,7 @@
         stepSequenceOverride ||
         getSignupStepSequence({
             loginMethod: $signupStore.loginMethod,
-            isSelfHosted,
-            paymentEnabled
+            isSelfHosted
         })
     );
 

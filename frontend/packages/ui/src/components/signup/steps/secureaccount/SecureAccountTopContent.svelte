@@ -531,12 +531,13 @@
             }
 
             // All validations passed - safe to advance to next step
-            console.log('[SecureAccountTopContent] All validations passed, advancing to recovery_key step');
+            console.log('[SecureAccountTopContent] All validations passed, completing signup');
             setLastAuthMethod('passkey');
             
-            // Continue to next step (skip to recovery key for passkeys)
+            // Finish signup immediately. Recovery key setup now happens from Settings
+            // after the user has purchased credits and receives the security reminder.
             // The Signup component will update last_opened when this step change is processed
-            dispatch('step', { step: 'recovery_key' });
+            dispatch('step', { step: 'completion' });
             
         } catch (error) {
             console.error('Error registering passkey:', error);

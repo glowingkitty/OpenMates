@@ -12,6 +12,7 @@
     import { WikiInlineNode } from '../components/enter_message/extensions/WikiInlineNode';
     import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
+    import { InteractiveQuestionNode } from '../components/enter_message/extensions/InteractiveQuestionNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
@@ -669,6 +670,7 @@
             WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
             EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
+            InteractiveQuestionNode, // For interactive questions embedded in LLM output
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         

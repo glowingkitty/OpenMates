@@ -239,7 +239,10 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	// Navigate back to main settings where the logout item lives.
 	// Click the settings header back button repeatedly until logout is visible.
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('#settings-back-button');
+	const bannerBackButton = page.getByTestId('banner-back-button').first();
+	const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+		? bannerBackButton
+		: page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;

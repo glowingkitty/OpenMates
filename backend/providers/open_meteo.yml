@@ -1,0 +1,10 @@
+# backend/providers/open_meteo.yml
+#
+# Provider metadata for Open-Meteo global weather forecasts.
+
+provider_id: "open_meteo"
+name: "Open-Meteo"
+description: "Open-source weather API combining global and national weather models for worldwide forecasts. Privacy URL verified 2026-06-02."
+logo_svg: "logos/open_meteo.svg"
+region: "EU"
+privacy_policy: "https://open-meteo.com/en/terms"

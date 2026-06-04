@@ -5,7 +5,7 @@
   Uses UnifiedEmbedPreview as base and provides skill-specific details content.
 
   Details content structure:
-  - Processing: query text + "via Meetup"
+  - Processing: query text + selected provider label when available
   - Finished: query text + "via {provider}" + event count ("+ N events")
 
   NOTE: Real-time updates are handled by UnifiedEmbedPreview via embedUpdated events.
@@ -90,6 +90,7 @@
     switch (slug?.toLowerCase()) {
       case 'meetup':              return 'Meetup';
       case 'luma':                return 'Luma';
+      case 'eventbrite':          return 'Eventbrite';
       case 'google_events':       return 'Google';
       case 'resident_advisor':    return 'Resident Advisor';
       case 'siegessaeule':        return 'Siegessäule';

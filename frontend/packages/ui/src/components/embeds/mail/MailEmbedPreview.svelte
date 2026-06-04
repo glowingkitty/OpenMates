@@ -8,7 +8,8 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { embedPIIStore } from '../../../stores/embedPIIStore';
+  import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { hydrateWikiLinks, replaceWikiLinksInText } from '../../../utils/embedLinkUtils';
 
   interface Props {
@@ -57,6 +58,18 @@
       embedPIIState = state;
     });
     return unsub;
+  });
+
+  $effect(() => {
+    if (!id) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(id).then((mappings) => {
+      if (!cancelled && mappings.length > 0) addEmbedPIIMappings(id, mappings);
+    });
+    return () => {
+      cancelled = true;
+      removeEmbedPIIMappings(id);
+    };
   });
 
   function applyPIIMode(value: string): string {

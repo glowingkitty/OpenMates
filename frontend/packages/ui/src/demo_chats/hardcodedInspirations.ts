@@ -11,7 +11,7 @@
 // Once real inspirations arrive (from IndexedDB, server, or WebSocket), they
 // replace these hardcoded ones with a fade transition.
 
-import type { DailyInspiration } from "../stores/dailyInspirationStore";
+import type { DailyInspiration, DailyInspirationSurface } from "../stores/dailyInspirationStore";
 
 // ─── Shared video metadata (language-independent) ────────────────────────────
 
@@ -494,4 +494,99 @@ export function getHardcodedInspirations(locale: string): DailyInspiration[] {
       follow_up_suggestions: [...urbanT.follow_up_suggestions],
     },
   ];
+}
+
+function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {
+  const now = Math.floor(Date.now() / 1000);
+  if (surface === "projects") {
+    return [
+      {
+        inspiration_id: "hardcoded-project-brief",
+        phrase: "Start every project with a short brief: goal, audience, deadline, and the first concrete next step.",
+        title: "Write a Project Brief",
+        category: "productivity",
+        content_type: "feature",
+        video: null,
+        generated_at: now,
+        surface,
+        assistant_response: "A clear project brief turns a vague idea into a workspace you can actually organize. Create one folder for source material, one for drafts, and one for final outputs, then add the chat or embed that defines the next step.",
+        follow_up_suggestions: ["Draft a one-page brief", "Plan my first milestone", "Organize project folders"],
+        feature: {
+          feature_id: "project-brief",
+          icon: "folder-kanban",
+          title: "Project planning tip",
+          description: "Define the outcome before collecting files and chats.",
+          settings_path: null,
+        },
+      },
+      {
+        inspiration_id: "hardcoded-project-milestones",
+        phrase: "Use milestones as folders: research, prototype, review, launch. It keeps work visible without extra UI.",
+        title: "Milestone Folders",
+        category: "software_development",
+        content_type: "feature",
+        video: null,
+        generated_at: now,
+        surface,
+        assistant_response: "Milestone folders make a project feel like a file browser while still reflecting the real work sequence. Put chats, uploads, and embeds into the milestone they support so the latest state is easy to resume.",
+        follow_up_suggestions: ["Create milestone folders", "Define prototype scope", "Review launch checklist"],
+        feature: {
+          feature_id: "project-milestones",
+          icon: "list-checks",
+          title: "Milestone structure",
+          description: "Turn project phases into folders.",
+          settings_path: null,
+        },
+      },
+      {
+        inspiration_id: "hardcoded-project-assets",
+        phrase: "Save the source next to the output: prompts, PDFs, images, and final embeds belong in the same project context.",
+        title: "Keep Sources Together",
+        category: "general_knowledge",
+        content_type: "feature",
+        video: null,
+        generated_at: now,
+        surface,
+        assistant_response: "Projects are most useful when they preserve both the inputs and the generated outputs. Upload key files, add relevant chats, and keep generated embeds in the same place so future you can verify where each result came from.",
+        follow_up_suggestions: ["List missing source files", "Create an outputs folder", "Summarize project context"],
+        feature: {
+          feature_id: "project-assets",
+          icon: "archive",
+          title: "Project organization",
+          description: "Keep evidence and outputs side by side.",
+          settings_path: null,
+        },
+      },
+    ];
+  }
+
+  return [
+    {
+      inspiration_id: "hardcoded-workflow-trigger",
+      phrase: "A useful workflow starts with one trigger, one decision, and one visible result.",
+      title: "Design a Workflow Trigger",
+      category: "productivity",
+      content_type: "feature",
+      video: null,
+      generated_at: now,
+      surface,
+      assistant_response: "Before automating anything, write the trigger in plain language: when this happens, decide this, then produce that result. This keeps workflows understandable and testable.",
+      follow_up_suggestions: ["Define a workflow trigger", "Map decision points", "Design the result"],
+      feature: {
+        feature_id: "workflow-trigger",
+        icon: "workflow",
+        title: "Workflow planning tip",
+        description: "Start automation with a clear trigger.",
+        settings_path: null,
+      },
+    },
+  ];
+}
+
+export function getHardcodedInspirationsForSurface(
+  locale: string,
+  surface: DailyInspirationSurface = "chats",
+): DailyInspiration[] {
+  if (surface === "chats") return getHardcodedInspirations(locale);
+  return getWorkspaceInspirations(surface);
 }

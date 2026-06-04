@@ -37,6 +37,7 @@ Supports both saved payment methods and new payment form
     import PaymentAuth from './PaymentAuth.svelte';
     import { webSocketService } from '../../../services/websocketService';
     import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
+    import { userProfile, updateProfile } from '../../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
     
@@ -110,6 +111,13 @@ Supports both saved payment methods and new payment form
     // Bank transfer state
     let showBankTransfer = $state(false);
     let bankTransferAvailable = $state(false);
+
+    // First purchase must collect the limited refund / withdrawal waiver consent.
+    // Once accepted, the backend persists it after payment and the local profile skips repeat prompts.
+    let hasAcceptedRefundPolicy = $state(false);
+    userProfile.subscribe(profile => {
+        hasAcceptedRefundPolicy = !!profile.has_accepted_refund_policy;
+    });
 
     // Check if bank transfer is available (from /config response)
     async function checkBankTransferAvailability() {
@@ -497,11 +505,16 @@ Supports both saved payment methods and new payment form
             purchasePrice={selectedPrice()}
             currency={selectedCurrency}
             credits_amount={selectedCreditsAmount}
-            requireConsent={false}
+            requireConsent={!hasAcceptedRefundPolicy}
             compact={false}
             disableWebSocketHandlers={true}
             initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
+            on:consentGiven={(event) => {
+                if (!event.detail?.consented) return;
+                hasAcceptedRefundPolicy = true;
+                updateProfile({ has_accepted_refund_policy: true });
+            }}
         />
         {#if bankTransferAvailable}
             <div class="provider-switch-container">

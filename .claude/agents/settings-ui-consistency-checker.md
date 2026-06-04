@@ -76,7 +76,7 @@ For every `<button>`, `<input>`, `<select>`, `on:click`, `on:change` — is ther
 Grep for `export let on[A-Z]\w* .* | null` or `?:` in prop declarations. Callback props must not be optional.
 
 ### Step 7: Privacy sync check (if applicable)
-If the diff mentions a new provider name (Stripe, Polar, OpenAI, etc.), verify all 5 privacy files are also modified in the same change.
+If the diff mentions a new provider name (Stripe, OpenAI, etc.), verify all 5 privacy files are also modified in the same change.
 
 ## Rules
 

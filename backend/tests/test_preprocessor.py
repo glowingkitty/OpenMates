@@ -17,6 +17,10 @@ try:
         ONBOARDING_TRIGGER_PHRASES,
         translate_chat_summary,
     )
+    from backend.apps.ai.processing.audio_recording_guard import (
+        has_transcribed_web_audio_recording,
+        remove_audio_transcribe_for_transcribed_recordings,
+    )
     from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
@@ -177,6 +181,76 @@ class TestContainsRepoSearchIntent:
 
 
 # ===========================================================================
+# Audio recording transcription guard
+# ===========================================================================
+
+class TestAudioRecordingTranscriptionGuard:
+    def test_detects_transcribed_web_recording_toon(self):
+        history = [_user_msg("""type: audio-recording
+status: finished
+transcript: What's the weather in Berlin?
+embed_ref: voice-note.webm""")]
+
+        assert has_transcribed_web_audio_recording(history) is True
+
+    def test_ignores_recording_without_transcript(self):
+        history = [_user_msg("""type: audio-recording
+status: finished
+transcript: null
+embed_ref: voice-note.webm""")]
+
+        assert has_transcribed_web_audio_recording(history) is False
+
+    def test_removes_audio_transcribe_after_memories_continuation_history(self):
+        history = [
+            _user_msg("""type: audio-recording
+status: finished
+transcript: What's the weather in Berlin?
+embed_ref: voice-note.webm"""),
+            _assistant_msg("I need permission to read weather preferences."),
+        ]
+
+        skills, removed = remove_audio_transcribe_for_transcribed_recordings(
+            ["audio-transcribe", "web-search", "images-search"],
+            history,
+        )
+
+        assert removed is True
+        assert skills == ["web-search", "images-search"]
+
+    def test_keeps_audio_transcribe_for_manual_audio_without_recording_embed(self):
+        history = [_user_msg("Please transcribe the MP3 file I uploaded.")]
+
+        skills, removed = remove_audio_transcribe_for_transcribed_recordings(
+            ["audio-transcribe", "web-search"],
+            history,
+        )
+
+        assert removed is False
+        assert skills == ["audio-transcribe", "web-search"]
+
+    def test_keeps_audio_transcribe_when_manual_audio_file_is_also_attached(self):
+        history = [
+            _user_msg("""type: audio-recording
+status: finished
+transcript: What's the weather in Berlin?
+embed_ref: voice-note.webm"""),
+            _user_msg("""type: file-attachment
+filename: interview.mp3
+mime_type: audio/mpeg
+embed_ref: interview.mp3"""),
+        ]
+
+        skills, removed = remove_audio_transcribe_for_transcribed_recordings(
+            ["audio-transcribe", "web-search"],
+            history,
+        )
+
+        assert removed is False
+        assert skills == ["audio-transcribe", "web-search"]
+
+
+# ===========================================================================
 # Topic-area mate routing
 # ===========================================================================
 
@@ -273,3 +347,13 @@ async def test_translate_chat_summary_uses_isolated_translation(monkeypatch):
         "role": "user",
         "content": "Translate this chat summary to English:\n\nNutzer erstellt deutsche Bewerbungsunterlagen.",
     }
+
+
+def test_preprocessing_result_has_enable_subchats():
+    from backend.apps.ai.processing.preprocessor import PreprocessingResult
+    res = PreprocessingResult(
+        can_proceed=True,
+        enable_subchats=True,
+        harmful_or_illegal_score=0.0
+    )
+    assert res.enable_subchats is True

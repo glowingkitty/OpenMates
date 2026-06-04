@@ -14,7 +14,7 @@ Environment variables (set by the shell script):
     TRACKING_FILE_PATH      — absolute path to scripts/dependabot-processed.json
     PROJECT_ROOT            — absolute path to the repo root
     REDISPATCH_AFTER_DAYS   — number of days before re-dispatching an unresolved alert
-    DRY_RUN                 — "true" to skip actual claude invocation
+    DRY_RUN                 — "true" to skip actual OpenCode invocation
     PROMPT_TEMPLATE_PATH    — absolute path to scripts/prompts/dependabot-analysis.md
     TODAY_DATE              — current date as YYYY-MM-DD
 
@@ -41,7 +41,7 @@ import json
 import os
 import subprocess
 
-from _claude_utils import run_claude_session, start_sessions_py, end_sessions_py
+from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
 from _nightly_report import write_nightly_report
 import sys
 from datetime import datetime, timedelta, timezone
@@ -397,7 +397,7 @@ def process_alerts() -> None:
             log_prefix="[dependabot]",
         )
 
-    # Inject session ID into prompt so Claude uses sessions.py deploy
+    # Inject session ID into prompt so OpenCode uses sessions.py deploy
     deploy_instructions = ""
     if sessions_py_id:
         deploy_instructions = (
@@ -417,15 +417,15 @@ def process_alerts() -> None:
     ) + deploy_instructions
 
     if dry_run:
-        print("[dependabot] DRY RUN — would run claude with the following prompt:")
+        print("[dependabot] DRY RUN — would run OpenCode with the following prompt:")
         print("-" * 60)
         print(prompt[:2000])
         print("-" * 60)
         return
 
-    print(f"[dependabot] Starting claude session for {len(to_dispatch)} alert(s)...")
+    print(f"[dependabot] Starting OpenCode chat for {len(to_dispatch)} alert(s)...")
 
-    run_claude_session(
+    run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
@@ -438,7 +438,7 @@ def process_alerts() -> None:
         linear_task=False,
     )
 
-    # End session if Claude didn't deploy (cleanup)
+    # End session if OpenCode didn't deploy (cleanup)
     if sessions_py_id:
         end_sessions_py(sessions_py_id, project_root, "[dependabot]")
 

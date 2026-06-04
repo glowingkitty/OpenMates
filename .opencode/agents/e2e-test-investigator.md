@@ -16,7 +16,7 @@ You are an E2E test failure investigator for the OpenMates project. Given a fail
 ## Input
 
 The parent agent passes you:
-- The failing spec file name (e.g. `signup-flow-polar.spec.ts`)
+- The failing spec file name (e.g. `signup-flow-stripe-managed.spec.ts`)
 - The failure step, error message, and any screenshots observed
 - Whether to investigate only (report back) or also apply a fix
 
@@ -63,7 +63,7 @@ docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
 docker exec api python /app/backend/scripts/debug.py trace errors --last 2h --route <relevant-route>
 ```
 
-Adapt queries based on the failure type — e.g., for email verification failures, search for "verification code"; for payment failures, search for "checkout" or "polar" or "stripe".
+Adapt queries based on the failure type — e.g., for email verification failures, search for "verification code"; for payment failures, search for "checkout" or "stripe".
 
 ### Step 4: Read the frontend component code
 

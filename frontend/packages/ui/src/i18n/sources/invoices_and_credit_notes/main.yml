@@ -71,7 +71,7 @@ invoice_number:
   verified_by_human: []
   he: מספר חשבונית
 confirmation_number:
-  context: Confirmation number label — used on Polar (non-EU) payment confirmation PDFs instead of "Invoice number"
+  context: Confirmation number label used on payment confirmation PDFs instead of "Invoice number"
   en: Confirmation number
   de: Bestätigungsnummer
   zh: 确认编号
@@ -729,7 +729,7 @@ credit_note:
   verified_by_human: []
   he: הודעת זיכוי
 refund_confirmation_title:
-  context: PDF document title for Polar refund confirmations (Polar is Merchant of Record so we cannot issue a credit note, only a refund confirmation)
+  context: PDF document title for refund confirmations
   en: Refund Confirmation
   de: Rückerstattungsbestätigung
   zh: 退款确认

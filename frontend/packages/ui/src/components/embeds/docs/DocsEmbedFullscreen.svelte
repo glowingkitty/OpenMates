@@ -42,6 +42,7 @@
     generateFilenameFromTitle
   } from './docsEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -110,8 +111,10 @@
 
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
+  let includedOriginalHtmlContent = $state<string | null>(null);
   let htmlContent = $derived(
-      typeof dc.html === 'string' ? dc.html
+      includedOriginalHtmlContent !== null ? includedOriginalHtmlContent
+      : typeof dc.html === 'string' ? dc.html
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
     );
@@ -151,11 +154,39 @@
   // Single source of truth: piiRevealed flows down from piiVisibilityStore
   // via the parent (ActiveChat); togglePII() writes back to the same store.
   /** Whether there are any PII mappings to apply (controls button visibility) */
-  let hasPII = $derived(piiMappings.length > 0);
+  let embedPIIMappings = $state<PIIMapping[]>([]);
+  let originalPIIIncluded = $state(false);
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let hasPII = $derived(allPIIMappings.length > 0);
+  let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
+  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function togglePII() {
     if (!chatId) return;
     piiVisibilityStore.toggle(chatId);
+  }
+
+  async function includeOriginalPII() {
+    if (!embedId) return;
+    try {
+      const count = await includeOriginalPIIInDraftEmbed(embedId);
+      includedOriginalHtmlContent = restorePIIInText(htmlContent, embedPIIMappings);
+      embedPIIMappings = [];
+      originalPIIIncluded = true;
+      notificationStore.success($text('embeds.pii_include_original_success', { values: { count: String(count) } }));
+    } catch (error) {
+      console.error('[DocsEmbedFullscreen] Failed to include original PII:', error);
+      notificationStore.error($text('embeds.pii_include_original_failed'));
+    }
   }
 
   /**
@@ -164,9 +195,9 @@
   let piiProcessedHtml = $derived.by(() => {
     if (!hasPII || !htmlContent) return htmlContent;
     if (piiRevealed) {
-      return restorePIIInText(htmlContent, piiMappings);
+      return restorePIIInText(htmlContent, allPIIMappings);
     } else {
-      return replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
+      return replacePIIOriginalsWithPlaceholders(htmlContent, allPIIMappings);
     }
   });
 
@@ -696,6 +727,8 @@ ${downloadHtmlContent}
   showPIIToggle={hasPII}
   piiRevealed={piiRevealed}
   onTogglePII={togglePII}
+  showPIIIncludeOriginal={canIncludeOriginalPII}
+  onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightQuoteText}
 >
   {#snippet content()}

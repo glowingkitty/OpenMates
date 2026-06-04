@@ -1,160 +1,151 @@
-// Inline attachment previews — shows previews of attached files in the message composer
-// before sending. Mirrors the web app's enter_message/in_message_previews/.
-// Supports images, PDFs, and generic file attachments with remove action.
+// Inline attachment previews — shows uploaded composer embeds before sending.
+// Mirrors web enter_message embed previews inside MessageInput.svelte.
+// Uses OpenMates tokens/primitives only: no native context menu or SF Symbols.
+// Supports image thumbnails, PDF/audio/file app icons, and remove actions.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+// CSS:     frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
+//          .embed-unified-container, .embed-app-icon, .embed-content
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
-struct InlineAttachmentPreview: View {
-    let attachment: PendingAttachment
+struct PendingComposerEmbedPreview: View {
+    let embed: ComposerPendingEmbed
     let onRemove: () -> Void
 
     var body: some View {
         HStack(spacing: 0) {
-            previewContent
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            iconContent
+                .frame(width: 60, height: 60)
+                .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: .spacing1) {
-                Text(attachment.filename)
-                    .font(.omXs).fontWeight(.medium)
+                Text(embed.filename)
+                    .font(.omXs)
+                    .fontWeight(.medium)
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
 
-                Text(attachment.formattedSize)
+                Text(formattedSize)
                     .font(.omTiny)
                     .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
             }
-            .padding(.leading, .spacing3)
+            .frame(height: 60)
+            .padding(.horizontal, .spacing6)
 
-            Spacer()
+            Spacer(minLength: .spacing2)
 
             Button(action: onRemove) {
-                Icon("close", size: 18)
+                Icon("close", size: 16)
                     .foregroundStyle(Color.fontTertiary)
+                    .frame(width: 32, height: 32)
+                    .background(Color.grey20)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(attachment.filename)")
+            .accessibilityLabel(AppStrings.delete)
+            .padding(.trailing, .spacing4)
         }
-        .padding(.spacing3)
+        .frame(width: 300, height: 60)
         .background(Color.grey10)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .contextMenu {
-            Button { onRemove() } label: {
-                Label("Remove", systemImage: "trash")
-            }
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .shadow(color: .black.opacity(0.10), radius: 8, x: 0, y: 4)
+        .accessibilityIdentifier("embed-full-width-wrapper")
     }
 
     @ViewBuilder
-    private var previewContent: some View {
-        switch attachment.type {
+    private var iconContent: some View {
+        switch previewKind {
         case .image:
-            if let data = attachment.data {
+            if let data = embed.localData {
                 #if os(iOS)
-                if let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
+                if let image = UIImage(data: data) {
+                    Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    AppIconView(appId: appId, size: 60)
                 }
                 #elseif os(macOS)
-                if let nsImage = NSImage(data: data) {
-                    Image(nsImage: nsImage)
+                if let image = NSImage(data: data) {
+                    Image(nsImage: image)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    AppIconView(appId: appId, size: 60)
                 }
                 #endif
             } else {
-                placeholderIcon("image")
+                AppIconView(appId: appId, size: 60)
             }
+        case .pdf, .audio, .file:
+            AppIconView(appId: appId, size: 60)
+        }
+    }
 
+    private var formattedSize: String {
+        guard embed.size > 0 else { return AppStrings.uploadProgressProcessing }
+        return ByteCountFormatter.string(fromByteCount: Int64(embed.size), countStyle: .file)
+    }
+
+    private var appId: String {
+        switch previewKind {
+        case .image:
+            return "images"
         case .pdf:
-            ZStack {
-                Color.red.opacity(0.1)
-                Icon("pdf", size: 24)
-                    .foregroundStyle(.red)
-            }
-
+            return "pdf"
+        case .audio:
+            return "audio"
         case .file:
-            ZStack {
-                Color.grey20
-                Icon(iconForExtension(attachment.fileExtension), size: 24)
-                    .foregroundStyle(Color.fontSecondary)
+            switch fileExtension {
+            case "xls", "xlsx", "csv": return "sheets"
+            case "mp4", "mov", "avi": return "videos"
+            default: return "docs"
             }
         }
     }
 
-    private func placeholderIcon(_ name: String) -> some View {
-        ZStack {
-            Color.grey20
-            Icon(name, size: 24)
-                .foregroundStyle(Color.fontSecondary)
-        }
+    private var fileExtension: String {
+        (embed.filename as NSString).pathExtension.lowercased()
     }
 
-    private func iconForExtension(_ ext: String?) -> String {
-        switch ext?.lowercased() {
-        case "pdf": return "pdf"
-        case "doc", "docx": return "docs"
-        case "xls", "xlsx", "csv": return "sheets"
-        case "zip", "tar", "gz": return "files"
-        case "mp3", "wav", "m4a": return "audio"
-        case "mp4", "mov", "avi": return "videos"
-        case "txt", "md": return "text"
-        default: return "files"
-        }
+    private var previewKind: PreviewKind {
+        if embed.type == "images-image" { return .image }
+        if embed.type == "audio-recording" { return .audio }
+        if embed.type == "pdf" { return .pdf }
+        return .file
+    }
+
+    private enum PreviewKind {
+        case image
+        case pdf
+        case audio
+        case file
     }
 }
 
-// MARK: - Pending attachment model
-
-struct PendingAttachment: Identifiable {
-    let id = UUID()
-    let filename: String
-    let data: Data?
-    let type: AttachmentType
-    let size: Int
-
-    enum AttachmentType {
-        case image, pdf, file
-    }
-
-    var fileExtension: String? {
-        (filename as NSString).pathExtension.lowercased()
-    }
-
-    var formattedSize: String {
-        ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
-    }
-
-    static func from(data: Data, filename: String) -> PendingAttachment {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        let type: AttachmentType
-        if ["jpg", "jpeg", "png", "gif", "heic", "webp"].contains(ext) {
-            type = .image
-        } else if ext == "pdf" {
-            type = .pdf
-        } else {
-            type = .file
-        }
-        return PendingAttachment(filename: filename, data: data, type: type, size: data.count)
-    }
-}
-
-// MARK: - Attachment list (shown above message input)
-
-struct PendingAttachmentsList: View {
-    let attachments: [PendingAttachment]
-    let onRemove: (PendingAttachment) -> Void
+struct PendingComposerEmbedsList: View {
+    let embeds: [ComposerPendingEmbed]
+    let onRemove: (ComposerPendingEmbed) -> Void
 
     var body: some View {
-        if !attachments.isEmpty {
+        if !embeds.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: .spacing2) {
-                    ForEach(attachments) { attachment in
-                        InlineAttachmentPreview(attachment: attachment) {
-                            onRemove(attachment)
+                HStack(spacing: .spacing3) {
+                    ForEach(embeds) { embed in
+                        PendingComposerEmbedPreview(embed: embed) {
+                            onRemove(embed)
                         }
-                        .frame(width: 220)
                     }
                 }
                 .padding(.horizontal, .spacing4)
