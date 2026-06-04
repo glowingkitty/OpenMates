@@ -6345,6 +6345,7 @@ async def import_chat(
             chat_payload: Dict[str, Any] = {
                 "id": new_chat_id,
                 "user_id": user_id,
+                "hashed_user_id": user_id_hash,
                 "title": (chat.title or "").strip() or None,
                 "draft": chat.draft,
                 "summary": chat.summary,
