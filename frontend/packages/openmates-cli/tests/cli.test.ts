@@ -9,6 +9,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -18,6 +20,14 @@ import {
   serializeToYaml,
   getExtForLang,
 } from "../dist/index.js";
+
+function runCli(args: string[]): string {
+  return execFileSync("node", ["dist/cli.js", ...args], {
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    encoding: "utf-8",
+    env: { ...process.env, TERM: "dumb" },
+  });
+}
 
 // ---------------------------------------------------------------------------
 // deriveAppUrl
@@ -747,5 +757,60 @@ describe("getExtForLang", () => {
 
   it("returns 'txt' for empty string", () => {
     assert.strictEqual(getExtForLang(""), "txt");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLI command help and local-only behavior
+// ---------------------------------------------------------------------------
+
+describe("settings command surface", () => {
+  it("lists predefined settings commands instead of raw passthrough", () => {
+    const output = runCli(["settings", "--help"]);
+    assert.ok(output.includes("Predefined commands only"));
+    assert.ok(output.includes("openmates settings account timezone set"));
+    assert.ok(output.includes("openmates settings billing gift-card redeem"));
+    assert.ok(!output.includes("settings get <path>"));
+    assert.ok(!output.includes("settings post <path>"));
+  });
+
+  it("shows nested help examples for settings groups", () => {
+    const output = runCli(["settings", "billing", "--help"]);
+    assert.ok(output.includes("openmates settings billing overview"));
+    assert.ok(output.includes("e.g. openmates settings billing usage"));
+    assert.ok(output.includes("gift-card redeem"));
+  });
+
+  it("rejects raw settings passthrough before auth or network", () => {
+    assert.throws(
+      () => runCli(["settings", "get", "billing"]),
+      /Raw settings passthrough is no longer supported/,
+    );
+  });
+
+  it("prints web-only help for account deletion", () => {
+    const output = runCli(["settings", "account", "delete"]);
+    assert.ok(output.includes("Account deletion is web-only"));
+    assert.ok(output.includes("#settings/account/delete"));
+  });
+
+  it("prints web-only help for security sessions", () => {
+    const output = runCli(["settings", "security", "sessions"]);
+    assert.ok(output.includes("Session management is web-only"));
+    assert.ok(output.includes("#settings/account/security/sessions"));
+  });
+});
+
+describe("incognito command surface", () => {
+  it("does not expose stored incognito history", () => {
+    const output = runCli(["chats", "incognito-history"]);
+    assert.ok(output.includes("Incognito chats are not stored"));
+  });
+
+  it("returns empty unstored incognito history in JSON mode", () => {
+    const output = runCli(["chats", "incognito-history", "--json"]);
+    const parsed = JSON.parse(output);
+    assert.deepEqual(parsed.history, []);
+    assert.strictEqual(parsed.stored, false);
   });
 });

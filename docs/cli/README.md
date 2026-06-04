@@ -34,7 +34,7 @@ Login uses pair-auth only -- the CLI never asks for your email or password. A QR
 | `login`, `logout`, `whoami` | Authentication and session | [authentication.md](./authentication.md) |
 | `chats` | List, search, show, send, share, download, delete, incognito | [chats.md](./chats.md) |
 | `apps` | List apps, run skills, view skill info | [apps-and-skills.md](./apps-and-skills.md) |
-| `settings` | Read/write settings, memories CRUD, gift cards | [settings.md](./settings.md) |
+| `settings` | Predefined settings commands, memories CRUD, gift cards | [settings.md](./settings.md) |
 | `embeds`, `mentions` | View embeds, create share links, search mentions | [embeds-and-sharing.md](./embeds-and-sharing.md) |
 | `inspirations`, `newchatsuggestions` | Daily inspirations and personalized suggestions | [chats.md](./chats.md) |
 | `docs` | Browse, search, and download documentation | — |
@@ -57,7 +57,6 @@ Session data is stored in `~/.openmates/`:
 |------|---------|
 | `session.json` | Authentication session token |
 | `sync_cache.json` | Cached decrypted data for offline access |
-| `incognito.json` | Local-only incognito chat history |
 | `server.json` | Self-hosted server configuration |
 
 All files are created with strict permissions (`0o600` owner read/write only, directory `0o700`). See [authentication.md](./authentication.md) for security details.

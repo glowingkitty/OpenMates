@@ -35,7 +35,7 @@ Pair-auth login via magic link + PIN (no password/email prompt). Session stored 
 
 **Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON)
 
-**Memories:** `get/post/patch/delete` settings paths, `gift-card redeem/list`, `memories list/types/create/update/delete`
+**Settings:** predefined account, interface, privacy, billing, reminder, developer, issue-report, gift-card, and memory commands. Raw settings path passthrough is not exposed.
 
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`
 
@@ -91,4 +91,5 @@ Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_A
 ## Related Docs
 
 - [REST API](./rest-api.md) -- direct skill execution without chat encryption
+- [CLI Feature Parity](./cli-feature-parity.md) -- web app versus CLI capability matrix and roadmap
 - [CLI Standards](../../contributing/standards/cli.md) -- coding standards, sync rules, crypto constraints

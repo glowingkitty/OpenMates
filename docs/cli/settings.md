@@ -5,63 +5,106 @@ last_verified: 2026-03-24
 
 # Settings Commands
 
-Read and write account settings via REST. The CLI supports `get`, `post`, `patch`, and `delete` operations on settings paths, plus gift card management and memories CRUD.
+Manage account settings with predefined, validated commands. The CLI no longer exposes raw settings `get`, `post`, `patch`, or `delete` passthrough commands; every supported settings operation has an explicit command, help text, examples, and local validation.
 
-## Reading Settings
-
-```
-openmates settings get billing
-openmates settings get storage
-openmates settings get usage
-openmates settings get usage/summaries
-openmates settings get usage/daily-overview
-openmates settings get usage/export
-openmates settings get reminders
-openmates settings get chats
-openmates settings get api-keys
-openmates settings get export-account-manifest
-openmates settings get export-account-data
-openmates settings get delete-account-preview
-openmates settings get billing --json
-```
-
-## Writing Settings
+## Help
 
 ```
-openmates settings post user/username --data '{"encrypted_username":"..."}'
-openmates settings post user/timezone --data '{"timezone":"Europe/Berlin"}'
-openmates settings post user/language --data '{"language":"en"}'
-openmates settings post user/darkmode --data '{"dark_mode":true}'
-openmates settings post auto-delete-chats --data '{"period":"90d"}'
-openmates settings post auto-topup/low-balance --data '{"enabled":true,"amount":1000,"currency":"eur"}'
-openmates settings post ai-model-defaults --data '{"simple":"...","complex":"..."}'
-openmates settings post import-chat --data '<json>'
-openmates settings post issues --data '<json>'
+openmates settings --help
+openmates settings account --help
+openmates settings billing --help
+openmates settings privacy --help
 ```
 
-## Patching Settings
+## Account
 
 ```
-openmates settings patch <path> --data '<json>'
+openmates settings account info
+openmates settings account timezone set Europe/Berlin
+openmates settings account export manifest
+openmates settings account export data
+openmates settings account import-chat ./chat.yml
+openmates settings account chats stats
+openmates settings account delete preview
 ```
 
-Sends a PATCH request to update specific fields without replacing the entire resource.
-
-## Deleting Settings
+Account deletion itself is web-only:
 
 ```
-openmates settings delete api-keys/<key-id>
+openmates settings account delete
 ```
 
-## Gift Cards
+## Storage
 
 ```
-openmates settings gift-card redeem <CODE>
-openmates settings gift-card list
-openmates settings gift-card list --json
+openmates settings account storage overview
+openmates settings account storage files --category images
+openmates settings account storage delete <file-id> --yes
+openmates settings account storage delete --category images --yes
+openmates settings account storage delete --all --yes
+```
+
+## Interface
+
+```
+openmates settings interface language set en
+openmates settings interface dark-mode set on
+openmates settings interface font set lexend
+```
+
+## AI
+
+```
+openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-opus-4-7
+```
+
+## Privacy
+
+```
+openmates settings privacy auto-delete chats set 90d
+openmates settings privacy debug-logs share --duration 1h --confirm
+```
+
+## Billing
+
+```
+openmates settings billing overview
+openmates settings billing usage
+openmates settings billing usage summaries
+openmates settings billing usage daily
+openmates settings billing usage export --json
+openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com
+openmates settings billing gift-card redeem <CODE>
+openmates settings billing gift-card list
 ```
 
 Redemption shows the credits added and your updated balance.
+
+Buy credits, gift card purchases, support payments, and recurring payment setup remain web-only because payment checkout must use browser/payment-provider UI.
+
+## Reminders
+
+```
+openmates settings reminders list
+openmates settings reminders update <id> --enabled false
+openmates settings reminders delete <id> --yes
+```
+
+## Developers
+
+```
+openmates settings developers api-keys list
+openmates settings developers api-keys revoke <key-id> --yes
+```
+
+API key creation, developer devices, and webhooks are web-only or deferred until their security model is audited.
+
+## Report Issue
+
+```
+openmates settings report-issue create --title "Bug" --body "What happened"
+openmates settings report-issue status <issue-id>
+```
 
 ## Blocked Settings Paths (Security)
 
@@ -70,8 +113,10 @@ The following operations are blocked in the CLI for security reasons and must be
 - Password setup and updates (`/v1/settings/update-password`, `/v1/auth/setup_password`)
 - Two-factor authentication setup (`/v1/auth/2fa/setup/*`)
 - API key creation (`/v1/settings/api-keys` POST is blocked; listing and deletion are allowed)
+- Account deletion finalization (`/v1/settings/delete-account`)
+- Sensitive action verification endpoints used for web-only actions (`/v1/settings/request-action-verification`, `/v1/settings/verify-action-code`)
 
-These paths are enforced by `BLOCKED_SETTINGS_MUTATE_PATHS` in the client. Additionally, passkey management and device session management are not exposed as CLI-accessible settings paths at all -- the `--help` output shows web app URLs for these operations.
+These paths are enforced by `BLOCKED_SETTINGS_MUTATE_PATHS` in the client. Additionally, passkey management, recovery keys, and device session management are exposed only as informational commands that point to the web app.
 
 ## Memories
 
@@ -79,7 +124,7 @@ Memories are managed as a sub-command of settings. See [apps-and-skills.md](./ap
 
 ## Key Files
 
-- See [cli.ts](../../frontend/packages/openmates-cli/src/cli.ts) for `handleSettings()` and gift card handlers
+- See [cli.ts](../../frontend/packages/openmates-cli/src/cli.ts) for `handleSettings()` and predefined settings command handlers
 - See [client.ts](../../frontend/packages/openmates-cli/src/client.ts) for `settingsGet()`, `settingsPost()`, `settingsPatch()`, `settingsDelete()`, and `BLOCKED_SETTINGS_MUTATE_PATHS`
 
 ## Related Docs

@@ -27,15 +27,11 @@ import {
 import { OpenMatesHttpClient } from "./http.js";
 import {
   type OpenMatesSession,
-  type IncognitoHistoryItem,
   type SyncCache,
   type CachedChat,
   loadSession,
   saveSession,
   clearSession,
-  loadIncognitoHistory,
-  saveIncognitoHistory,
-  clearIncognitoHistory,
   loadSyncCache,
   saveSyncCache,
   clearSyncCache,
@@ -606,6 +602,10 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
   "/v1/auth/2fa/setup/initiate",
   "/v1/auth/2fa/setup/provider",
   "/v1/auth/2fa/setup/verify-signup",
+  "/v1/settings/delete-account",
+  "/v1/settings/request-action-verification",
+  "/v1/settings/verify-action-code",
+  "/v1/settings/user/disable-2fa",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -760,7 +760,6 @@ export class OpenMatesClient {
         .catch(() => undefined);
     }
     clearSession();
-    clearIncognitoHistory();
   }
 
   // -------------------------------------------------------------------------
@@ -1545,12 +1544,6 @@ export class OpenMatesClient {
     const streamOpts = { onStream: params.onStream };
 
     if (params.incognito) {
-      const history = loadIncognitoHistory();
-      history.push({
-        role: "user",
-        content: params.message,
-        createdAt: Date.now(),
-      });
       try {
         const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
         assistant = resp.content;
@@ -1560,12 +1553,6 @@ export class OpenMatesClient {
       } finally {
         ws.close();
       }
-      history.push({
-        role: "assistant",
-        content: assistant,
-        createdAt: Date.now(),
-      });
-      saveIncognitoHistory(history);
     } else {
       try {
         const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
@@ -1587,14 +1574,6 @@ export class OpenMatesClient {
       mateName,
       followUpSuggestions,
     };
-  }
-
-  getIncognitoHistory(): IncognitoHistoryItem[] {
-    return loadIncognitoHistory();
-  }
-
-  clearIncognitoHistory(): void {
-    clearIncognitoHistory();
   }
 
   /**
@@ -2040,7 +2019,7 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async settingsDelete(path: string): Promise<unknown> {
+  async settingsDelete(path: string, body?: Record<string, unknown>): Promise<unknown> {
     this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
@@ -2048,6 +2027,7 @@ export class OpenMatesClient {
     }
     const response = await this.http.delete(
       normalizedPath,
+      body,
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {

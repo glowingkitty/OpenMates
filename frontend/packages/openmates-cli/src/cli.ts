@@ -376,18 +376,12 @@ async function handleChats(
   }
 
   if (subcommand === "incognito-history") {
-    const history = client.getIncognitoHistory();
-    if (flags.json === true) {
-      printJson(history);
-    } else {
-      printIncognitoHistory(history);
-    }
+    printIncognitoNoHistoryNotice(flags.json === true);
     return;
   }
 
   if (subcommand === "incognito-clear") {
-    client.clearIncognitoHistory();
-    console.log("Incognito history cleared.");
+    printIncognitoNoHistoryNotice(flags.json === true);
     return;
   }
 
@@ -1466,82 +1460,549 @@ async function handleEmbeds(
 // Settings
 // ---------------------------------------------------------------------------
 
+type SettingsInfoCommand = {
+  path: string[];
+  description: string;
+  examples: string[];
+  webPath?: string;
+  reason?: string;
+};
+
+const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
+  { path: ["account", "info"], description: "Show account info", examples: ["openmates settings account info --json"] },
+  { path: ["account", "timezone", "set"], description: "Set account timezone", examples: ["openmates settings account timezone set Europe/Berlin"] },
+  { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
+  { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },
+  { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
+  { path: ["account", "chats", "stats"], description: "Show chat statistics", examples: ["openmates settings account chats stats"] },
+  { path: ["account", "delete", "preview"], description: "Preview account deletion impact", examples: ["openmates settings account delete preview"] },
+  { path: ["account", "storage", "overview"], description: "Show storage overview", examples: ["openmates settings account storage overview"] },
+  { path: ["account", "storage", "files"], description: "List stored files", examples: ["openmates settings account storage files --category images"] },
+  { path: ["account", "storage", "delete"], description: "Delete one stored file by file ID", examples: ["openmates settings account storage delete <file-id> --yes"] },
+  { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
+  { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
+  { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-opus-4-7"] },
+  { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
+  { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
+  { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
+  { path: ["billing", "usage"], description: "Show usage history", examples: ["openmates settings billing usage --json"] },
+  { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
+  { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
+  { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
+  { path: ["billing", "gift-card", "redeem"], description: "Redeem a gift card", examples: ["openmates settings billing gift-card redeem ABCD-1234"] },
+  { path: ["billing", "gift-card", "list"], description: "List redeemed gift cards", examples: ["openmates settings billing gift-card list"] },
+  { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
+  { path: ["reminders", "list"], description: "List active reminders", examples: ["openmates settings reminders list"] },
+  { path: ["reminders", "update"], description: "Update a reminder", examples: ["openmates settings reminders update <id> --enabled false"] },
+  { path: ["reminders", "delete"], description: "Delete a reminder", examples: ["openmates settings reminders delete <id> --yes"] },
+  { path: ["developers", "api-keys", "list"], description: "List API keys", examples: ["openmates settings developers api-keys list"] },
+  { path: ["developers", "api-keys", "revoke"], description: "Revoke an API key", examples: ["openmates settings developers api-keys revoke <key-id> --yes"] },
+  { path: ["report-issue", "create"], description: "Report an issue", examples: ["openmates settings report-issue create --title \"Bug\" --body \"What happened\""] },
+  { path: ["report-issue", "status"], description: "Show issue status", examples: ["openmates settings report-issue status <issue-id>"] },
+  { path: ["memories"], description: "Manage encrypted memories", examples: ["openmates settings memories list", "openmates settings memories create --app-id code --item-type projects --data '{\"name\":\"OpenMates\"}'"] },
+];
+
+const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
+  { path: ["account", "username"], description: "Username management is not CLI-ready yet", webPath: "account/username", reason: "The current web flow writes encrypted profile fields; CLI support needs a dedicated encryption UX first.", examples: ["openmates settings account username --help"] },
+  { path: ["account", "email"], description: "Email changes are web-only", webPath: "account/email", reason: "Email changes require a guided identity verification flow.", examples: ["openmates settings account email"] },
+  { path: ["account", "profile-picture"], description: "Profile picture changes are not CLI-ready yet", webPath: "account/profile-picture", reason: "The upload/update flow needs image validation and parity with the browser uploader.", examples: ["openmates settings account profile-picture"] },
+  { path: ["account", "delete"], description: "Account deletion is web-only", webPath: "account/delete", reason: "Account deletion requires browser-based reauthentication and explicit confirmation.", examples: ["openmates settings account delete"] },
+  { path: ["security"], description: "Security settings are web-only", webPath: "account/security", reason: "Security settings require browser APIs or high-risk reauthentication.", examples: ["openmates settings security"] },
+  { path: ["security", "passkeys"], description: "Passkeys are web-only", webPath: "account/security/passkeys", reason: "Passkeys require WebAuthn browser APIs.", examples: ["openmates settings security passkeys"] },
+  { path: ["security", "password"], description: "Password changes are web-only", webPath: "account/security/password", reason: "The CLI never asks for account credentials.", examples: ["openmates settings security password"] },
+  { path: ["security", "2fa"], description: "2FA setup and changes are web-only", webPath: "account/security/2fa", reason: "2FA setup requires a guided browser verification flow.", examples: ["openmates settings security 2fa"] },
+  { path: ["security", "recovery-key"], description: "Recovery key settings are web-only", webPath: "account/security/recovery-key", reason: "Recovery keys are a high-risk account recovery surface.", examples: ["openmates settings security recovery-key"] },
+  { path: ["security", "sessions"], description: "Session management is web-only", webPath: "account/security/sessions", reason: "The CLI is a paired restricted session; approval and revocation stay in the browser.", examples: ["openmates settings security sessions"] },
+  { path: ["billing", "buy-credits"], description: "Credit purchase is web-only", webPath: "billing/buy-credits", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings billing buy-credits"] },
+  { path: ["billing", "gift-card", "buy"], description: "Gift card purchase is web-only", webPath: "billing/gift-cards/buy", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings billing gift-card buy"] },
+  { path: ["billing", "auto-topup", "monthly"], description: "Monthly auto top-up is web-only for now", webPath: "billing/auto-topup/monthly", reason: "Recurring payment setup needs a payment-flow audit before CLI support.", examples: ["openmates settings billing auto-topup monthly"] },
+  { path: ["billing", "invoices"], description: "Invoice management is web-only for now", webPath: "billing/invoices", reason: "Invoice download support needs auth-gated file streaming parity first.", examples: ["openmates settings billing invoices"] },
+  { path: ["privacy", "personal-data"], description: "Personal data management is not CLI-ready yet", webPath: "privacy/hide-personal-data", reason: "The CLI needs a dedicated encrypted personal-data UX before exposing writes.", examples: ["openmates settings privacy personal-data"] },
+  { path: ["notifications"], description: "Notification preferences are not CLI-ready yet", webPath: "notifications", reason: "Backend preference endpoints need an audit before terminal writes are exposed.", examples: ["openmates settings notifications"] },
+  { path: ["shared", "tip"], description: "Tips are web-only", webPath: "shared/tip", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings shared tip"] },
+  { path: ["mates"], description: "Mate browsing is available through mentions for now", webPath: "mates", reason: "Use @mate mentions in chat; rich mate settings remain browser-first.", examples: ["openmates mentions list --type mate"] },
+  { path: ["developers", "api-keys", "create"], description: "API key creation is web-only", webPath: "developers/api-keys", reason: "API key secrets are shown once and need the browser approval flow.", examples: ["openmates settings developers api-keys create"] },
+  { path: ["developers", "devices"], description: "Developer devices are web-only", webPath: "developers/devices", reason: "Device approvals and revocations are sensitive.", examples: ["openmates settings developers devices"] },
+  { path: ["developers", "webhooks"], description: "Developer webhooks are not CLI-ready yet", webPath: "developers/webhooks", reason: "Webhook CRUD needs a backend/API audit before CLI support.", examples: ["openmates settings developers webhooks"] },
+  { path: ["support"], description: "Support payments are web-only", webPath: "support", reason: "Payment flows must use the browser/payment provider UI.", examples: ["openmates settings support"] },
+  { path: ["newsletter"], description: "Newsletter settings are not CLI-ready yet", webPath: "newsletter", reason: "Newsletter API flow needs an audit before CLI support.", examples: ["openmates settings newsletter"] },
+  { path: ["incognito", "info"], description: "Explain incognito mode", reason: "Incognito chats are sent without saving chat history. The CLI stores no incognito transcript.", examples: ["openmates chats incognito \"Private question\""] },
+  { path: ["server"], description: "Server admin settings are web/admin-only", webPath: "server", reason: "Use `openmates server --help` for self-hosted terminal server management.", examples: ["openmates server status"] },
+];
+
+function matches(actual: string[], expected: string[]): boolean {
+  return expected.every((part, index) => actual[index] === part);
+}
+
+function findSettingsInfoCommand(tokens: string[]): SettingsInfoCommand | null {
+  const all = [...SETTINGS_INFO_COMMANDS, ...SETTINGS_EXECUTABLE_COMMANDS];
+  return all
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((command) => matches(tokens, command.path)) ?? null;
+}
+
+async function printSettingsResult(
+  resultPromise: Promise<unknown>,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const result = await resultPromise;
+  flags.json === true ? printJson(result) : printGenericObject(result);
+}
+
+async function printSettingsMutationResult(
+  resultPromise: Promise<unknown>,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const result = await resultPromise;
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  process.stdout.write("\x1b[32m✓\x1b[0m Settings updated\n");
+  if (result && typeof result === "object") printGenericObject(result);
+}
+
+function addQueryParam(
+  params: URLSearchParams,
+  key: string,
+  value: string | boolean | undefined,
+): void {
+  if (typeof value === "string" && value.length > 0) params.set(key, value);
+}
+
+function parseOnOff(value: string | undefined, label: string): boolean {
+  if (value === "on" || value === "true" || value === "1") return true;
+  if (value === "off" || value === "false" || value === "0") return false;
+  throw new Error(`Invalid ${label} value '${value ?? ""}'. Use on/off or true/false.`);
+}
+
+function parseRequiredNumber(value: string | boolean | undefined, flag: string): number {
+  if (typeof value !== "string") throw new Error(`Missing ${flag}.`);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flag}: ${value}`);
+  return parsed;
+}
+
+function parseDataOrFlags(
+  flags: Record<string, string | boolean>,
+  booleanFlags: string[],
+): Record<string, unknown> {
+  if (typeof flags.data === "string") return JSON.parse(flags.data) as Record<string, unknown>;
+  const body: Record<string, unknown> = {};
+  for (const key of booleanFlags) {
+    if (flags[key] !== undefined) body[key] = parseOnOff(String(flags[key]), key);
+  }
+  if (Object.keys(body).length === 0) throw new Error("Provide --data '<json>' or a supported flag.");
+  return body;
+}
+
+function parseChatImportPayload(raw: string): { chats: Array<Record<string, unknown>> } {
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error("Import file is empty.");
+
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (Array.isArray(parsed)) return { chats: parsed as Array<Record<string, unknown>> };
+    if (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).chats)) {
+      return parsed as { chats: Array<Record<string, unknown>> };
+    }
+    if (parsed && typeof parsed === "object") {
+      const object = parsed as Record<string, unknown>;
+      if (object.chat || object.messages) return { chats: [normalizeImportedChat(object)] };
+    }
+    throw new Error("JSON import must contain a chats array, a chat object, or messages.");
+  }
+
+  return { chats: [parseCliExportYaml(trimmed)] };
+}
+
+function normalizeImportedChat(source: Record<string, unknown>): Record<string, unknown> {
+  const chat = source.chat && typeof source.chat === "object"
+    ? source.chat as Record<string, unknown>
+    : source;
+  const messages = Array.isArray(source.messages) ? source.messages : [];
+  return {
+    title: chat.title ?? null,
+    draft: chat.draft ?? null,
+    summary: chat.summary ?? null,
+    messages: messages.map((message) => normalizeImportedMessage(message as Record<string, unknown>)),
+  };
+}
+
+function normalizeImportedMessage(message: Record<string, unknown>): Record<string, unknown> {
+  return {
+    role: message.role,
+    content: message.content,
+    completed_at: message.completed_at ?? message.timestamp ?? null,
+    assistant_category: message.assistant_category ?? null,
+    thinking: message.thinking ?? null,
+    has_thinking: message.has_thinking ?? null,
+    thinking_tokens: message.thinking_tokens ?? null,
+  };
+}
+
+function parseCliExportYaml(raw: string): Record<string, unknown> {
+  const chat: Record<string, unknown> = {};
+  const messages: Array<Record<string, unknown>> = [];
+  const lines = raw.split("\n");
+  let section: "chat" | "messages" | null = null;
+  let currentMessage: Record<string, unknown> | null = null;
+  const multilineState: {
+    current: { target: Record<string, unknown>; key: string; indent: number } | null;
+  } = { current: null };
+
+  const setValue = (target: Record<string, unknown>, key: string, value: string, indent: number) => {
+    if (value === "|") {
+      target[key] = "";
+      multilineState.current = { target, key, indent: indent + 2 };
+      return;
+    }
+    target[key] = parseYamlScalar(value);
+  };
+
+  for (const line of lines) {
+    const indent = line.match(/^ */)?.[0].length ?? 0;
+    const trimmed = line.trimEnd();
+    if (!trimmed.trim()) continue;
+
+    if (multilineState.current) {
+      if (indent >= multilineState.current.indent) {
+        const previous = String(multilineState.current.target[multilineState.current.key] ?? "");
+        const nextLine = line.slice(multilineState.current.indent);
+        multilineState.current.target[multilineState.current.key] = previous ? `${previous}\n${nextLine}` : nextLine;
+        continue;
+      }
+      multilineState.current = null;
+    }
+
+    if (trimmed === "chat:") {
+      section = "chat";
+      currentMessage = null;
+      continue;
+    }
+    if (trimmed === "messages:") {
+      section = "messages";
+      currentMessage = null;
+      continue;
+    }
+    if (section === "messages" && trimmed.trim() === "-") {
+      currentMessage = {};
+      messages.push(currentMessage);
+      continue;
+    }
+
+    const match = /^\s*([\w-]+):\s*(.*)$/.exec(line);
+    if (!match) continue;
+    const [, key, value] = match;
+    if (section === "chat") setValue(chat, key, value, indent);
+    if (section === "messages" && currentMessage) setValue(currentMessage, key, value, indent);
+  }
+
+  if (messages.length === 0) throw new Error("Import YAML did not contain any messages.");
+  return normalizeImportedChat({ chat, messages });
+}
+
+function parseYamlScalar(value: string): unknown {
+  const trimmed = value.trim();
+  if (trimmed === "null") return null;
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (trimmed !== "" && Number.isFinite(Number(trimmed))) return Number(trimmed);
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+  return trimmed;
+}
+
+async function confirmOrExit(question: string): Promise<void> {
+  const rl = await import("node:readline");
+  const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise<string>((resolve) => iface.question(question, resolve));
+  iface.close();
+  if (answer.trim().toLowerCase() !== "y") {
+    console.log("Aborted.");
+    process.exit(0);
+  }
+}
+
+function printSettingsInfoCommand(
+  client: OpenMatesClient,
+  command: SettingsInfoCommand,
+  json: boolean,
+): void {
+  const appUrl = deriveAppUrl(client.apiUrl);
+  const webUrl = command.webPath ? `${appUrl}/#settings/${command.webPath}` : null;
+  if (json) {
+    printJson({
+      command: `openmates settings ${command.path.join(" ")}`,
+      supported_in_cli: false,
+      description: command.description,
+      reason: command.reason ?? null,
+      web_url: webUrl,
+      examples: command.examples,
+    });
+    return;
+  }
+  header(command.description);
+  if (command.reason) console.log(command.reason);
+  if (webUrl) console.log(`\nOpen in web app:\n  ${webUrl}`);
+  if (command.examples.length > 0) {
+    console.log("\nExamples:");
+    for (const example of command.examples) console.log(`  ${example}`);
+  }
+}
+
 async function handleSettings(
   client: OpenMatesClient,
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
 ): Promise<void> {
-  if (!subcommand || subcommand === "help" || flags.help === true) {
+  if (!subcommand || subcommand === "help") {
+    printSettingsHelp(client, subcommand ? [] : undefined);
+    return;
+  }
+
+  const tokens = [subcommand, ...rest].filter((token) => token !== "help");
+  if (rest.includes("help") || Boolean(flags.help)) {
+    printSettingsHelp(client, tokens);
+    return;
+  }
+
+  if (["get", "post", "patch", "delete"].includes(subcommand)) {
+    console.error(
+      "Raw settings passthrough is no longer supported. Use a predefined settings command.\n",
+    );
     printSettingsHelp(client);
+    process.exit(1);
+  }
+
+  if (matches(tokens, ["account", "info"])) {
+    const user = await client.whoAmI();
+    flags.json === true ? printJson(user) : printWhoAmI(user as Record<string, unknown>);
     return;
   }
 
-  if (subcommand === "get") {
-    const path = rest[0];
-    if (!path) {
-      console.error("Missing path.\n");
-      printSettingsHelp();
-      process.exit(1);
+  if (matches(tokens, ["account", "timezone", "set"])) {
+    const timezone = rest[2];
+    if (!timezone) throw new Error("Missing timezone. Example: openmates settings account timezone set Europe/Berlin");
+    await printSettingsMutationResult(
+      client.settingsPost("user/timezone", { timezone }),
+      flags,
+    );
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "manifest"])) {
+    await printSettingsResult(client.settingsGet("export-account-manifest"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "data"])) {
+    await printSettingsResult(client.settingsGet("export-account-data"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "import-chat"])) {
+    const file = rest[1];
+    if (!file) throw new Error("Missing import file. Example: openmates settings account import-chat ./chat.yml");
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(file, "utf-8");
+    await printSettingsMutationResult(
+      client.settingsPost("import-chat", parseChatImportPayload(content)),
+      flags,
+    );
+    return;
+  }
+
+  if (matches(tokens, ["account", "chats", "stats"])) {
+    await printSettingsResult(client.settingsGet("chats"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "delete", "preview"])) {
+    await printSettingsResult(client.settingsGet("delete-account-preview"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "storage", "overview"])) {
+    await printSettingsResult(client.settingsGet("storage"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "storage", "files"])) {
+    const params = new URLSearchParams();
+    addQueryParam(params, "category", flags.category ?? flags.type);
+    const query = params.toString();
+    await printSettingsResult(client.settingsGet(`storage/files${query ? `?${query}` : ""}`), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "storage", "delete"])) {
+    const fileId = rest[3];
+    const category = typeof flags.category === "string" ? flags.category : undefined;
+    const scope = flags.all === true ? "all" : category ? "category" : "single";
+    if (scope === "single" && !fileId) throw new Error("Missing file ID.");
+    if (flags.yes !== true) await confirmOrExit(`Delete stored file data (${scope})? This cannot be undone. [y/N] `);
+    await printSettingsMutationResult(
+      client.settingsDelete("storage/files", { scope, file_id: fileId, category }),
+      flags,
+    );
+    return;
+  }
+
+  if (matches(tokens, ["interface", "language", "set"])) {
+    const language = rest[2];
+    if (!language) throw new Error("Missing language code. Example: openmates settings interface language set en");
+    await printSettingsMutationResult(client.settingsPost("user/language", { language }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["interface", "dark-mode", "set"])) {
+    const value = parseOnOff(rest[2], "dark mode");
+    await printSettingsMutationResult(client.settingsPost("user/darkmode", { dark_mode: value }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["interface", "font", "set"])) {
+    const font = rest[2];
+    if (!font) throw new Error("Missing font. Example: openmates settings interface font set lexend");
+    await printSettingsMutationResult(client.settingsPost("user/ui-font", { ui_font: font }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["ai", "models", "set-defaults"])) {
+    const simple = typeof flags.simple === "string" ? flags.simple : undefined;
+    const complex = typeof flags.complex === "string" ? flags.complex : undefined;
+    if (!simple && !complex) throw new Error("Provide --simple <model-id> and/or --complex <model-id>.");
+    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", { simple, complex }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["privacy", "auto-delete", "chats", "set"])) {
+    const period = rest[3];
+    if (!period) throw new Error("Missing period. Example: openmates settings privacy auto-delete chats set 90d");
+    await printSettingsMutationResult(client.settingsPost("auto-delete-chats", { period }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["privacy", "debug-logs", "share"])) {
+    if (flags.yes !== true && flags.confirm !== true) {
+      await confirmOrExit("Share debug logs with OpenMates support? [y/N] ");
     }
-    const result = await client.settingsGet(path);
+    const duration = typeof flags.duration === "string" ? flags.duration : "1h";
+    await printSettingsMutationResult(client.settingsPost("debug-session", { duration }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "overview"])) {
+    await printSettingsResult(client.settingsGet("billing"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "summaries"])) {
+    await printSettingsResult(client.settingsGet("usage/summaries"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "daily"])) {
+    await printSettingsResult(client.settingsGet("usage/daily-overview"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "export"])) {
+    await printSettingsResult(client.settingsGet("usage/export"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage"])) {
+    await printSettingsResult(client.settingsGet("usage"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "gift-card", "redeem"]) || (subcommand === "gift-card" && rest[0] === "redeem")) {
+    const code = matches(tokens, ["billing", "gift-card", "redeem"]) ? rest[2] : rest[1];
+    if (!code) throw new Error("Missing gift card code.");
+    const result = await client.redeemGiftCard(code);
     if (flags.json === true) {
       printJson(result);
+    } else if (result.success) {
+      process.stdout.write(`\x1b[32m✓\x1b[0m Gift card redeemed! +${result.credits_added} credits\n`);
+      process.stdout.write(`  Balance: ${result.current_credits} credits\n`);
     } else {
-      printGenericObject(result);
+      process.stdout.write(`\x1b[31m✗\x1b[0m ${result.message}\n`);
     }
     return;
   }
 
-  if (subcommand === "post") {
-    const path = rest[0];
-    if (!path) {
-      console.error("Missing path.\n");
-      printSettingsHelp();
-      process.exit(1);
-    }
-    const dataRaw = typeof flags.data === "string" ? flags.data : "{}";
-    const data = JSON.parse(dataRaw) as Record<string, unknown>;
-    const result = await client.settingsPost(path, data);
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printGenericObject(result);
-    }
+  if (matches(tokens, ["billing", "gift-card", "list"]) || (subcommand === "gift-card" && rest[0] === "list")) {
+    await printSettingsResult(client.listRedeemedGiftCards(), flags);
     return;
   }
 
-  if (subcommand === "delete") {
-    const path = rest[0];
-    if (!path) {
-      console.error("Missing path.\n");
-      printSettingsHelp();
-      process.exit(1);
-    }
-    const result = await client.settingsDelete(path);
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printGenericObject(result);
-    }
+  if (matches(tokens, ["billing", "auto-topup", "low-balance", "set"])) {
+    const enabled = parseOnOff(String(flags.enabled ?? ""), "low-balance auto top-up");
+    const amount = parseRequiredNumber(flags.amount, "--amount");
+    const currency = typeof flags.currency === "string" ? flags.currency : "eur";
+    const email = typeof flags.email === "string" ? flags.email : undefined;
+    if (enabled && !email) throw new Error("Provide --email when enabling low-balance auto top-up.");
+    await printSettingsMutationResult(
+      client.settingsPost("auto-topup/low-balance", { enabled, threshold: 100, amount, currency, email }),
+      flags,
+    );
     return;
   }
 
-  if (subcommand === "patch") {
-    const path = rest[0];
-    if (!path) {
-      console.error("Missing path.\n");
-      printSettingsHelp();
-      process.exit(1);
-    }
-    const dataRaw = typeof flags.data === "string" ? flags.data : "{}";
-    const data = JSON.parse(dataRaw) as Record<string, unknown>;
-    const result = await client.settingsPatch(path, data);
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      printGenericObject(result);
-    }
+  if (matches(tokens, ["reminders", "list"])) {
+    await printSettingsResult(client.settingsGet("reminders"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["reminders", "update"])) {
+    const id = rest[1];
+    if (!id) throw new Error("Missing reminder ID.");
+    const body = parseDataOrFlags(flags, ["enabled"]);
+    await printSettingsMutationResult(client.settingsPatch(`reminders/${id}`, body), flags);
+    return;
+  }
+
+  if (matches(tokens, ["reminders", "delete"])) {
+    const id = rest[1];
+    if (!id) throw new Error("Missing reminder ID.");
+    if (flags.yes !== true) await confirmOrExit(`Delete reminder ${id}? [y/N] `);
+    await printSettingsMutationResult(client.settingsDelete(`reminders/${id}`), flags);
+    return;
+  }
+
+  if (matches(tokens, ["developers", "api-keys", "list"])) {
+    await printSettingsResult(client.settingsGet("api-keys"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["developers", "api-keys", "revoke"])) {
+    const id = rest[2];
+    if (!id) throw new Error("Missing API key ID.");
+    if (flags.yes !== true) await confirmOrExit(`Revoke API key ${id}? [y/N] `);
+    await printSettingsMutationResult(client.settingsDelete(`api-keys/${id}`), flags);
+    return;
+  }
+
+  if (matches(tokens, ["report-issue", "create"])) {
+    const title = typeof flags.title === "string" ? flags.title : undefined;
+    const body = typeof flags.body === "string" ? flags.body : undefined;
+    if (!title || !body) throw new Error("Provide --title and --body.");
+    await printSettingsMutationResult(client.settingsPost("issues", { title, description: body }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["report-issue", "status"])) {
+    const id = rest[1];
+    if (!id) throw new Error("Missing issue ID.");
+    await printSettingsResult(client.settingsGet(`issues/${id}/status`), flags);
     return;
   }
 
@@ -1550,50 +2011,14 @@ async function handleSettings(
     return;
   }
 
-  // Gift card subcommands
-  if (subcommand === "gift-card") {
-    const action = rest[0];
-    if (action === "redeem") {
-      const code = rest[1];
-      if (!code) {
-        console.error("Missing gift card code.\n");
-        console.log("Usage: openmates settings gift-card redeem <CODE>");
-        process.exit(1);
-      }
-      const result = await client.redeemGiftCard(code);
-      if (flags.json === true) {
-        printJson(result);
-      } else {
-        if (result.success) {
-          process.stdout.write(
-            `\x1b[32m✓\x1b[0m Gift card redeemed! +${result.credits_added} credits\n`,
-          );
-          process.stdout.write(
-            `  Balance: ${result.current_credits} credits\n`,
-          );
-        } else {
-          process.stdout.write(`\x1b[31m✗\x1b[0m ${result.message}\n`);
-        }
-      }
-      return;
-    }
-    if (action === "list") {
-      const result = await client.listRedeemedGiftCards();
-      if (flags.json === true) {
-        printJson(result);
-      } else {
-        printGenericObject(result);
-      }
-      return;
-    }
-    console.log(`Gift card commands:
-  openmates settings gift-card redeem <CODE>    Redeem a gift card
-  openmates settings gift-card list             List redeemed gift cards`);
+  const webOnly = findSettingsInfoCommand(tokens);
+  if (webOnly) {
+    printSettingsInfoCommand(client, webOnly, flags.json === true);
     return;
   }
 
-  console.error(`Unknown settings subcommand '${subcommand}'.\n`);
-  printSettingsHelp();
+  console.error(`Unknown settings command '${tokens.join(" ")}'.\n`);
+  printSettingsHelp(client, [subcommand]);
   process.exit(1);
 }
 
@@ -2338,23 +2763,14 @@ function stripEmbedJsonBlocks(content: string): string {
     .replace(/\n{3,}/g, "\n\n");
 }
 
-function printIncognitoHistory(
-  history: Array<{ role: string; content: string; createdAt: number }>,
-): void {
-  if (history.length === 0) {
-    console.log("No incognito history.");
+function printIncognitoNoHistoryNotice(json: boolean): void {
+  const message =
+    "Incognito chats are not stored. There is no incognito history to show or clear.";
+  if (json) {
+    printJson({ history: [], stored: false, message });
     return;
   }
-  header(`Incognito history  (${history.length} messages)`);
-  console.log();
-  for (const msg of history) {
-    const ts = formatTimestamp(Math.floor(msg.createdAt / 1000));
-    const roleLabel =
-      msg.role === "user" ? "\x1b[1mYou\x1b[0m" : "\x1b[36mAssistant\x1b[0m";
-    process.stdout.write(`${roleLabel}  \x1b[2m${ts}\x1b[0m\n`);
-    console.log(msg.content);
-    console.log();
-  }
+  console.log(message);
 }
 
 const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
@@ -3914,7 +4330,7 @@ Commands:
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
-  openmates settings [--help]                Memories
+  openmates settings [--help]                Predefined settings commands
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates server [--help]                   Server management (install, start, stop, ...)
@@ -3940,8 +4356,8 @@ function printChatsHelp(): void {
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
   openmates chats incognito <message> [--json]
-  openmates chats incognito-history [--json]
-  openmates chats incognito-clear
+  openmates chats incognito-history [--json]      Deprecated: incognito stores no history
+  openmates chats incognito-clear                 Deprecated: incognito stores no history
 
 Options for 'list':
   --limit <n>   Number of chats per page (default: 10)
@@ -4069,74 +4485,40 @@ Examples:
   openmates inspirations --json`);
 }
 
-function printSettingsHelp(client?: OpenMatesClient): void {
+function printSettingsHelp(client?: OpenMatesClient, filter?: string[]): void {
+  const commands = [...SETTINGS_EXECUTABLE_COMMANDS, ...SETTINGS_INFO_COMMANDS]
+    .filter((command) => {
+      if (!filter || filter.length === 0) return true;
+      return filter.every((part, index) => command.path[index] === part);
+    })
+    .sort((a, b) => a.path.join(" ").localeCompare(b.path.join(" ")));
+
   const appUrl = client ? deriveAppUrl(client.apiUrl) : "https://openmates.org";
-  const s = (path: string) => `${appUrl}/#settings/${path}`;
+  const title = filter && filter.length > 0
+    ? `Settings: ${filter.join(" ")}`
+    : "Settings";
 
-  // Section heading helper
-  const h = (title: string) => `\n  \x1b[1m${title}\x1b[0m`;
+  header(title);
+  console.log("Predefined commands only. Raw settings get/post/patch/delete is not supported.\n");
 
-  console.log(`\x1b[1mSettings\x1b[0m
-${h("Account")}
-    openmates settings post user/username --data '{"encrypted_username":"..."}'
-    openmates settings post user/timezone --data '{"timezone":"Europe/Berlin"}'
-    openmates settings get export-account-manifest      GDPR data export manifest
-    openmates settings get export-account-data          GDPR data export
-    openmates settings post import-chat --data '<json>' Import a chat
-    openmates settings get storage [--json]             Storage overview
-    openmates settings get chats [--json]               Chat statistics
-    openmates settings get delete-account-preview       Preview account deletion
-    \x1b[2mSecurity (passkeys, password, 2FA, sessions): ${s("account/security")}\x1b[0m
-    \x1b[2mDelete account: ${s("account/delete")}\x1b[0m
-${h("Billing")}
-    openmates settings get billing [--json]             Balance & billing overview
-    openmates settings post auto-topup/low-balance --data '{"enabled":true,"amount":1000,"currency":"eur"}'
-    openmates settings get usage [--json]               Full usage history
-    openmates settings get usage/summaries [--json]     Usage summaries by type
-    openmates settings get usage/daily-overview [--json]
-    openmates settings get usage/export [--json]        Export usage as CSV
-    openmates settings gift-card redeem <CODE>          Redeem a gift card
-    openmates settings gift-card list                   List redeemed gift cards
-    \x1b[2mBuy credits: ${s("billing/buy-credits")}\x1b[0m
-    \x1b[2mMonthly auto top-up: ${s("billing/auto-topup/monthly")}\x1b[0m
-    \x1b[2mInvoices: ${s("billing/invoices")}\x1b[0m
-    \x1b[2mGift cards (buy/manage): ${s("billing/gift-cards")}\x1b[0m
-${h("Privacy")}
-    openmates settings post auto-delete-chats --data '{"period":"90d"}'
-    \x1b[2mHide personal data / anonymization: ${s("privacy/hide-personal-data")}\x1b[0m
-${h("Notifications")}
-    openmates settings get reminders [--json]           Active reminders
-    \x1b[2mChat notifications: ${s("notifications/chat")}\x1b[0m
-    \x1b[2mBackup reminders: ${s("notifications/backup")}\x1b[0m
-${h("Interface")}
-    openmates settings post user/language --data '{"language":"en"}'
-    openmates settings post user/darkmode --data '{"dark_mode":true}'
-    openmates settings post ai-model-defaults --data '{"simple":"...","complex":"..."}'
-${h("Apps")}
-    openmates apps list                                 Same as Apps
-    openmates apps <app-id>                             App details
-    \x1b[2mWeb: ${s("app_store")}\x1b[0m
-${h("Mates")}
-    \x1b[2m${s("mates")}\x1b[0m
-${h("Memories & app settings")}
-    openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]
-    openmates settings memories types [--app-id <id>] [--json]
-    openmates settings memories create --app-id <id> --item-type <type> --data '<json>'
-    openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>'
-    openmates settings memories delete --id <entry-id>
-${h("Developers")}
-    openmates settings get api-keys [--json]            List API keys
-    openmates settings delete api-keys/<key-id>         Revoke API key
-    \x1b[2mCreate API key (shows secret once): ${s("developers/api-keys")}\x1b[0m
-    \x1b[2mManage devices: ${s("developers/devices")}\x1b[0m
-${h("Support")}
-    openmates settings post issues --data '<json>'      Report an issue
+  if (commands.length === 0) {
+    console.log("No matching settings commands.");
+    return;
+  }
 
-\x1b[2mWeb app only (security — manage in browser):\x1b[0m
-  \x1b[2mPasskeys:   ${s("account/security/passkeys")}\x1b[0m
-  \x1b[2mPassword:   ${s("account/security/password")}\x1b[0m
-  \x1b[2m2FA:        ${s("account/security/2fa")}\x1b[0m
-  \x1b[2mSessions:   ${s("account/security/sessions")}\x1b[0m`);
+  for (const command of commands) {
+    const isInfoOnly = SETTINGS_INFO_COMMANDS.includes(command);
+    const label = `openmates settings ${command.path.join(" ")}`;
+    process.stdout.write(`  ${label.padEnd(58)} ${command.description}`);
+    if (isInfoOnly) process.stdout.write(" \x1b[2m(info/web-only)\x1b[0m");
+    process.stdout.write("\n");
+    if (filter && filter.length > 0) {
+      for (const example of command.examples) process.stdout.write(`      e.g. ${example}\n`);
+      if (command.webPath) process.stdout.write(`      web: ${appUrl}/#settings/${command.webPath}\n`);
+    }
+  }
+
+  console.log("\nUse --help after a group for examples, e.g. openmates settings billing --help");
 }
 
 function printNewChatSuggestionsHelp(): void {

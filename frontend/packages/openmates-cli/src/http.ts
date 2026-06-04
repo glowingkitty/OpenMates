@@ -51,9 +51,10 @@ export class OpenMatesHttpClient {
 
   async delete<T>(
     path: string,
+    body?: unknown,
     headers: Record<string, string> = {},
   ): Promise<HttpResponse<T>> {
-    return this.request<T>("DELETE", path, undefined, headers);
+    return this.request<T>("DELETE", path, body, headers);
   }
 
   async patch<T>(

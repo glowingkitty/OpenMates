@@ -1,7 +1,7 @@
 /*
  * OpenMates CLI local session storage.
  *
- * Purpose: persist pair-login session data and local-only incognito chats.
+ * Purpose: persist pair-login session data and encrypted sync cache data.
  * Architecture: filesystem state in ~/.openmates with strict permissions.
  * Architecture doc: docs/architecture/openmates-cli.md
  * Security: master key stored via OS keychain or machine-encrypted file when
@@ -66,12 +66,6 @@ interface SessionOnDisk {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
-}
-
-export interface IncognitoHistoryItem {
-  role: "user" | "assistant";
-  content: string;
-  createdAt: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,21 +233,6 @@ function buildSession(onDisk: SessionOnDisk, masterKey: string): OpenMatesSessio
     authorizerDeviceName: onDisk.authorizerDeviceName,
     autoLogoutMinutes: onDisk.autoLogoutMinutes,
   };
-}
-
-export function loadIncognitoHistory(): IncognitoHistoryItem[] {
-  const filePath = join(ensureStateDir(), "incognito.json");
-  return readJsonFile<IncognitoHistoryItem[]>(filePath) ?? [];
-}
-
-export function saveIncognitoHistory(items: IncognitoHistoryItem[]): void {
-  const filePath = join(ensureStateDir(), "incognito.json");
-  writeJsonFile(filePath, items);
-}
-
-export function clearIncognitoHistory(): void {
-  const filePath = join(ensureStateDir(), "incognito.json");
-  writeJsonFile(filePath, []);
 }
 
 // ---------------------------------------------------------------------------
