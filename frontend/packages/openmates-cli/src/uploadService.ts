@@ -11,11 +11,12 @@
  */
 
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, extname } from "node:path";
 import type { OpenMatesSession } from "./storage.js";
 
 const UPLOAD_MAX_ATTEMPTS = 3;
 const UPLOAD_RETRY_DELAY_MS = 2_000;
+const PROFILE_IMAGE_MAX_SIZE_BYTES = 300 * 1024;
 
 // ── Types (mirrors web app uploadService.ts) ───────────────────────────
 
@@ -174,5 +175,54 @@ export async function uploadFile(
   }
 
   const data = (await response.json()) as UploadFileResponse;
+  return data;
+}
+
+export interface ProfileImageUploadResponse {
+  status: "ok" | "rejected" | "account_deleted" | string;
+  url?: string;
+  detail?: string;
+  reject_count?: number;
+}
+
+function getProfileImageMime(filename: string): string {
+  const ext = extname(filename).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  throw new Error("Profile images must be JPEG or PNG files.");
+}
+
+export async function uploadProfileImage(
+  filePath: string,
+  session: OpenMatesSession,
+): Promise<ProfileImageUploadResponse> {
+  const filename = basename(filePath);
+  const fileBytes = readFileSync(filePath);
+  const contentType = getProfileImageMime(filename);
+  if (fileBytes.byteLength > PROFILE_IMAGE_MAX_SIZE_BYTES) {
+    throw new Error("Profile image must be 300 KB or smaller. Resize/compress the image and try again.");
+  }
+  const uploadUrl = `${getUploadUrl(session.apiUrl)}/v1/upload/profile-image`;
+  const origin = getUploadOrigin(session.apiUrl);
+
+  const cookies: string[] = [];
+  if (session.cookies?.auth_refresh_token) {
+    cookies.push(`auth_refresh_token=${session.cookies.auth_refresh_token}`);
+  }
+
+  const formData = new FormData();
+  formData.append("file", new Blob([fileBytes], { type: contentType }), filename);
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    body: formData,
+    headers: {
+      Origin: origin,
+      ...(cookies.length > 0 ? { Cookie: cookies.join("; ") } : {}),
+    },
+  });
+  const data = (await response.json().catch(() => ({}))) as ProfileImageUploadResponse;
+  if (!response.ok && !data.status) {
+    throw new Error(data.detail ?? `Profile image upload failed (HTTP ${response.status}).`);
+  }
   return data;
 }

@@ -24,9 +24,13 @@ openmates settings account timezone set Europe/Berlin
 openmates settings account export manifest
 openmates settings account export data
 openmates settings account import-chat ./chat.yml
+openmates settings account username set alice_123
+openmates settings account profile-picture set ./avatar.jpg
 openmates settings account chats stats
 openmates settings account delete preview
 ```
+
+Profile pictures must be JPEG or PNG files no larger than 300 KB. Resize/compress images before upload; the web app still provides the richer crop/preview flow.
 
 Account deletion itself is web-only:
 
@@ -73,6 +77,10 @@ openmates settings billing usage
 openmates settings billing usage summaries
 openmates settings billing usage daily
 openmates settings billing usage export --json
+openmates settings billing invoices list
+openmates settings billing invoices download <invoice-id> --output ./invoices
+openmates settings billing invoices credit-note <invoice-id> --output ./invoices
+openmates settings billing invoices refund <invoice-id> --email-encryption-key <base64> --yes
 openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com
 openmates settings billing gift-card redeem <CODE>
 openmates settings billing gift-card list
@@ -80,7 +88,19 @@ openmates settings billing gift-card list
 
 Redemption shows the credits added and your updated balance.
 
+Invoice downloads write PDFs to the current directory by default, or to `--output <dir-or-file.pdf>`. Refund requests require `--email-encryption-key` because the backend requires the encrypted email key that browser sessions keep locally.
+
 Buy credits, gift card purchases, support payments, and recurring payment setup remain web-only because payment checkout must use browser/payment-provider UI.
+
+## Notifications
+
+```
+openmates settings notifications status
+openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true
+openmates settings notifications backup set --enabled true --interval 30 --email you@example.com
+```
+
+Notification writes use the same WebSocket `email_notification_settings` contract as the web app. Enabling email notifications requires an email address so the backend can encrypt it with the user's vault key before storage.
 
 ## Reminders
 
@@ -106,6 +126,28 @@ openmates settings report-issue create --title "Bug" --body "What happened"
 openmates settings report-issue status <issue-id>
 ```
 
+## Mates
+
+```
+openmates settings mates list
+openmates settings mates info software_development
+openmates settings mates consent --yes
+```
+
+Mate listing and detail output are local metadata helpers. Use the printed `@mate:<id>` mention in chat commands to route messages to a mate.
+
+## Newsletter
+
+```
+openmates settings newsletter categories
+openmates settings newsletter categories set --updates true --tips true --daily false
+openmates settings newsletter subscribe you@example.com --language en
+openmates settings newsletter confirm <token>
+openmates settings newsletter unsubscribe <token>
+```
+
+Category keys map to the web newsletter preferences: updates and announcements, tips and tricks, and daily inspirations.
+
 ## Blocked Settings Paths (Security)
 
 The following operations are blocked in the CLI for security reasons and must be performed in the web app:
@@ -126,6 +168,7 @@ Memories are managed as a sub-command of settings. See [apps-and-skills.md](./ap
 
 - See [cli.ts](../../frontend/packages/openmates-cli/src/cli.ts) for `handleSettings()` and predefined settings command handlers
 - See [client.ts](../../frontend/packages/openmates-cli/src/client.ts) for `settingsGet()`, `settingsPost()`, `settingsPatch()`, `settingsDelete()`, and `BLOCKED_SETTINGS_MUTATE_PATHS`
+- See [ws.ts](../../frontend/packages/openmates-cli/src/ws.ts) for notification settings WebSocket transport
 
 ## Related Docs
 

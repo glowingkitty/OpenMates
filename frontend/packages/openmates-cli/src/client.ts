@@ -554,6 +554,25 @@ export interface OpenMatesClientOptions {
   session?: OpenMatesSession;
 }
 
+export interface InvoiceListItem {
+  id: string;
+  order_id?: string | null;
+  date: string;
+  amount: string;
+  credits_purchased: number;
+  filename: string;
+  is_gift_card?: boolean;
+  refunded_at?: string | null;
+  refund_status?: string | null;
+  currency?: string | null;
+  provider?: string | null;
+}
+
+export interface DownloadedDocument {
+  filename: string;
+  data: Uint8Array;
+}
+
 interface TaskStatusResponse {
   task_id: string;
   status: "pending" | "processing" | "completed" | "failed" | string;
@@ -2097,6 +2116,147 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async listInvoices(): Promise<{ invoices: InvoiceListItem[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ invoices?: InvoiceListItem[] }>(
+      "/v1/payments/invoices",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch invoices (HTTP ${response.status})`);
+    }
+    return { invoices: response.data.invoices ?? [] };
+  }
+
+  async downloadInvoice(invoiceId: string): Promise<DownloadedDocument> {
+    return this.downloadPaymentPdf(
+      `/v1/payments/invoices/${encodeURIComponent(invoiceId)}/download`,
+      `Invoice_${invoiceId}.pdf`,
+    );
+  }
+
+  async downloadCreditNote(invoiceId: string): Promise<DownloadedDocument> {
+    return this.downloadPaymentPdf(
+      `/v1/payments/invoices/${encodeURIComponent(invoiceId)}/credit-note/download`,
+      `CreditNote_${invoiceId}.pdf`,
+    );
+  }
+
+  async requestRefund(
+    invoiceId: string,
+    emailEncryptionKey: string,
+  ): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/payments/refund",
+      { invoice_id: invoiceId, email_encryption_key: emailEncryptionKey },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Refund request failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async updateUsername(username: string): Promise<unknown> {
+    return this.settingsPost("user/username", { username });
+  }
+
+  async updateProfileImage(filePath: string): Promise<unknown> {
+    const { uploadProfileImage } = await import("./uploadService.js");
+    const result = await uploadProfileImage(filePath, this.requireSession());
+    if (result.status === "rejected") {
+      throw new Error(result.detail ?? "Profile image rejected by content safety checks.");
+    }
+    if (result.status === "account_deleted") {
+      throw new Error("Account deleted due to repeated profile image policy violations.");
+    }
+    if (result.status !== "ok") {
+      throw new Error(result.detail ?? `Profile image upload failed with status '${result.status}'.`);
+    }
+    return result;
+  }
+
+  async getNewsletterCategories(): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(
+      "/v1/newsletter/categories",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch newsletter categories (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async updateNewsletterCategories(categories: Record<string, boolean>): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.patch(
+      "/v1/newsletter/categories",
+      { categories },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to update newsletter categories (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async subscribeNewsletter(
+    email: string,
+    language = "en",
+    darkmode = false,
+  ): Promise<unknown> {
+    const response = await this.http.post(
+      "/v1/newsletter/subscribe",
+      { email, language, darkmode },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Newsletter subscribe failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async confirmNewsletter(token: string): Promise<unknown> {
+    const response = await this.http.get(
+      `/v1/newsletter/confirm/${encodeURIComponent(token)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Newsletter confirmation failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async unsubscribeNewsletter(token: string): Promise<unknown> {
+    const response = await this.http.get(
+      `/v1/newsletter/unsubscribe/${encodeURIComponent(token)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Newsletter unsubscribe failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async updateEmailNotificationSettings(payload: {
+    enabled: boolean;
+    email?: string | null;
+    preferences: Record<string, boolean>;
+    backup_reminder_interval_days?: number;
+  }): Promise<unknown> {
+    const { ws } = await this.openWsClient();
+    try {
+      const ackPromise = ws.waitForMessage("email_notification_settings_ack");
+      ws.send("email_notification_settings", payload);
+      const ack = await ackPromise;
+      return ack.payload;
+    } finally {
+      ws.close();
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Daily Inspirations
   // -------------------------------------------------------------------------
@@ -2722,6 +2882,21 @@ export class OpenMatesClient {
     return `/v1/settings/${path}`;
   }
 
+  private async downloadPaymentPdf(
+    path: string,
+    fallbackFilename: string,
+  ): Promise<DownloadedDocument> {
+    this.requireSession();
+    const response = await this.http.getBinary(path, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`Download failed (HTTP ${response.status})`);
+    }
+    return {
+      filename: filenameFromContentDisposition(response.headers.get("content-disposition")) ?? fallbackFilename,
+      data: response.data,
+    };
+  }
+
   private requireSession(): OpenMatesSession {
     if (!this.session) {
       throw new Error("Not logged in. Run `openmates login`.");
@@ -3305,6 +3480,16 @@ export function parseNewChatSuggestionText(text: string): {
   const appId = raw.slice(0, dashIdx);
   const skillId = raw.slice(dashIdx + 1);
   return { body, appId, skillId };
+}
+
+function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  if (encoded) return decodeURIComponent(encoded);
+  const quoted = /filename="([^"]+)"/i.exec(header)?.[1];
+  if (quoted) return quoted;
+  const plain = /filename=([^;]+)/i.exec(header)?.[1];
+  return plain?.trim() ?? null;
 }
 
 function sleep(ms: number): Promise<void> {

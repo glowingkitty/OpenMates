@@ -779,6 +779,14 @@ describe("settings command surface", () => {
     assert.ok(output.includes("openmates settings billing overview"));
     assert.ok(output.includes("e.g. openmates settings billing usage"));
     assert.ok(output.includes("gift-card redeem"));
+    assert.ok(output.includes("invoices download"));
+  });
+
+  it("shows executable help for profile, notifications, mates, and newsletter", () => {
+    assert.ok(runCli(["settings", "account", "profile-picture", "--help"]).includes("profile-picture set"));
+    assert.ok(runCli(["settings", "notifications", "--help"]).includes("notifications email set"));
+    assert.ok(runCli(["settings", "mates", "--help"]).includes("mates list"));
+    assert.ok(runCli(["settings", "newsletter", "--help"]).includes("newsletter subscribe"));
   });
 
   it("rejects raw settings passthrough before auth or network", () => {
@@ -798,6 +806,13 @@ describe("settings command surface", () => {
     const output = runCli(["settings", "security", "sessions"]);
     assert.ok(output.includes("Session management is web-only"));
     assert.ok(output.includes("#settings/account/security/sessions"));
+  });
+
+  it("lists mates without auth or network", () => {
+    const output = runCli(["settings", "mates", "list", "--json"]);
+    const parsed = JSON.parse(output) as Array<{ id: string; mention: string }>;
+    assert.ok(parsed.some((mate) => mate.id === "software_development"));
+    assert.ok(parsed.some((mate) => mate.mention === "@mate:general_knowledge"));
   });
 });
 

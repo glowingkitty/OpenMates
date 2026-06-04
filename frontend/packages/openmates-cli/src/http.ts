@@ -19,6 +19,13 @@ export interface HttpResponse<T = unknown> {
   data: T;
 }
 
+export interface HttpBinaryResponse {
+  ok: boolean;
+  status: number;
+  data: Uint8Array;
+  headers: Headers;
+}
+
 export class OpenMatesHttpClient {
   private readonly apiUrl: string;
   private readonly cookies: Map<string, string>;
@@ -63,6 +70,28 @@ export class OpenMatesHttpClient {
     headers: Record<string, string> = {},
   ): Promise<HttpResponse<T>> {
     return this.request<T>("PATCH", path, body, headers);
+  }
+
+  async getBinary(
+    path: string,
+    headers: Record<string, string> = {},
+  ): Promise<HttpBinaryResponse> {
+    const url = `${this.apiUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    const requestHeaders: Record<string, string> = {
+      Accept: "application/pdf,application/octet-stream",
+      ...headers,
+    };
+    const cookieHeader = this.formatCookieHeader();
+    if (cookieHeader) requestHeaders.Cookie = cookieHeader;
+
+    const response = await fetch(url, { method: "GET", headers: requestHeaders });
+    this.captureCookies(response);
+    return {
+      ok: response.ok,
+      status: response.status,
+      data: new Uint8Array(await response.arrayBuffer()),
+      headers: response.headers,
+    };
   }
 
   private async request<T>(

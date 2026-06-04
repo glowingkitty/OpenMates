@@ -1474,6 +1474,8 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
   { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
+  { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
+  { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
   { path: ["account", "chats", "stats"], description: "Show chat statistics", examples: ["openmates settings account chats stats"] },
   { path: ["account", "delete", "preview"], description: "Preview account deletion impact", examples: ["openmates settings account delete preview"] },
   { path: ["account", "storage", "overview"], description: "Show storage overview", examples: ["openmates settings account storage overview"] },
@@ -1490,9 +1492,16 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
+  { path: ["billing", "invoices", "list"], description: "List invoices", examples: ["openmates settings billing invoices list --json"] },
+  { path: ["billing", "invoices", "download"], description: "Download an invoice PDF", examples: ["openmates settings billing invoices download <invoice-id> --output ./invoices"] },
+  { path: ["billing", "invoices", "credit-note"], description: "Download a credit note PDF", examples: ["openmates settings billing invoices credit-note <invoice-id> --output ./invoices"] },
+  { path: ["billing", "invoices", "refund"], description: "Request a refund for an invoice", examples: ["openmates settings billing invoices refund <invoice-id> --email-encryption-key <base64>"] },
   { path: ["billing", "gift-card", "redeem"], description: "Redeem a gift card", examples: ["openmates settings billing gift-card redeem ABCD-1234"] },
   { path: ["billing", "gift-card", "list"], description: "List redeemed gift cards", examples: ["openmates settings billing gift-card list"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
+  { path: ["notifications", "status"], description: "Show notification settings", examples: ["openmates settings notifications status --json"] },
+  { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true --webhook-chats true"] },
+  { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30 --email you@example.com"] },
   { path: ["reminders", "list"], description: "List active reminders", examples: ["openmates settings reminders list"] },
   { path: ["reminders", "update"], description: "Update a reminder", examples: ["openmates settings reminders update <id> --enabled false"] },
   { path: ["reminders", "delete"], description: "Delete a reminder", examples: ["openmates settings reminders delete <id> --yes"] },
@@ -1500,13 +1509,19 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["developers", "api-keys", "revoke"], description: "Revoke an API key", examples: ["openmates settings developers api-keys revoke <key-id> --yes"] },
   { path: ["report-issue", "create"], description: "Report an issue", examples: ["openmates settings report-issue create --title \"Bug\" --body \"What happened\""] },
   { path: ["report-issue", "status"], description: "Show issue status", examples: ["openmates settings report-issue status <issue-id>"] },
+  { path: ["mates", "list"], description: "List available mates", examples: ["openmates settings mates list"] },
+  { path: ["mates", "info"], description: "Show mate details", examples: ["openmates settings mates info software_development"] },
+  { path: ["mates", "consent"], description: "Record mate settings consent", examples: ["openmates settings mates consent --yes"] },
+  { path: ["newsletter", "categories"], description: "Show newsletter category preferences", examples: ["openmates settings newsletter categories"] },
+  { path: ["newsletter", "categories", "set"], description: "Set newsletter category preferences", examples: ["openmates settings newsletter categories set --updates true --tips true --daily false"] },
+  { path: ["newsletter", "subscribe"], description: "Subscribe an email to the newsletter", examples: ["openmates settings newsletter subscribe you@example.com --language en"] },
+  { path: ["newsletter", "confirm"], description: "Confirm newsletter subscription token", examples: ["openmates settings newsletter confirm <token>"] },
+  { path: ["newsletter", "unsubscribe"], description: "Unsubscribe with newsletter token", examples: ["openmates settings newsletter unsubscribe <token>"] },
   { path: ["memories"], description: "Manage encrypted memories", examples: ["openmates settings memories list", "openmates settings memories create --app-id code --item-type projects --data '{\"name\":\"OpenMates\"}'"] },
 ];
 
 const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
-  { path: ["account", "username"], description: "Username management is not CLI-ready yet", webPath: "account/username", reason: "The current web flow writes encrypted profile fields; CLI support needs a dedicated encryption UX first.", examples: ["openmates settings account username --help"] },
   { path: ["account", "email"], description: "Email changes are web-only", webPath: "account/email", reason: "Email changes require a guided identity verification flow.", examples: ["openmates settings account email"] },
-  { path: ["account", "profile-picture"], description: "Profile picture changes are not CLI-ready yet", webPath: "account/profile-picture", reason: "The upload/update flow needs image validation and parity with the browser uploader.", examples: ["openmates settings account profile-picture"] },
   { path: ["account", "delete"], description: "Account deletion is web-only", webPath: "account/delete", reason: "Account deletion requires browser-based reauthentication and explicit confirmation.", examples: ["openmates settings account delete"] },
   { path: ["security"], description: "Security settings are web-only", webPath: "account/security", reason: "Security settings require browser APIs or high-risk reauthentication.", examples: ["openmates settings security"] },
   { path: ["security", "passkeys"], description: "Passkeys are web-only", webPath: "account/security/passkeys", reason: "Passkeys require WebAuthn browser APIs.", examples: ["openmates settings security passkeys"] },
@@ -1517,16 +1532,12 @@ const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "buy-credits"], description: "Credit purchase is web-only", webPath: "billing/buy-credits", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings billing buy-credits"] },
   { path: ["billing", "gift-card", "buy"], description: "Gift card purchase is web-only", webPath: "billing/gift-cards/buy", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings billing gift-card buy"] },
   { path: ["billing", "auto-topup", "monthly"], description: "Monthly auto top-up is web-only for now", webPath: "billing/auto-topup/monthly", reason: "Recurring payment setup needs a payment-flow audit before CLI support.", examples: ["openmates settings billing auto-topup monthly"] },
-  { path: ["billing", "invoices"], description: "Invoice management is web-only for now", webPath: "billing/invoices", reason: "Invoice download support needs auth-gated file streaming parity first.", examples: ["openmates settings billing invoices"] },
   { path: ["privacy", "personal-data"], description: "Personal data management is not CLI-ready yet", webPath: "privacy/hide-personal-data", reason: "The CLI needs a dedicated encrypted personal-data UX before exposing writes.", examples: ["openmates settings privacy personal-data"] },
-  { path: ["notifications"], description: "Notification preferences are not CLI-ready yet", webPath: "notifications", reason: "Backend preference endpoints need an audit before terminal writes are exposed.", examples: ["openmates settings notifications"] },
   { path: ["shared", "tip"], description: "Tips are web-only", webPath: "shared/tip", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings shared tip"] },
-  { path: ["mates"], description: "Mate browsing is available through mentions for now", webPath: "mates", reason: "Use @mate mentions in chat; rich mate settings remain browser-first.", examples: ["openmates mentions list --type mate"] },
   { path: ["developers", "api-keys", "create"], description: "API key creation is web-only", webPath: "developers/api-keys", reason: "API key secrets are shown once and need the browser approval flow.", examples: ["openmates settings developers api-keys create"] },
   { path: ["developers", "devices"], description: "Developer devices are web-only", webPath: "developers/devices", reason: "Device approvals and revocations are sensitive.", examples: ["openmates settings developers devices"] },
   { path: ["developers", "webhooks"], description: "Developer webhooks are not CLI-ready yet", webPath: "developers/webhooks", reason: "Webhook CRUD needs a backend/API audit before CLI support.", examples: ["openmates settings developers webhooks"] },
   { path: ["support"], description: "Support payments are web-only", webPath: "support", reason: "Payment flows must use the browser/payment provider UI.", examples: ["openmates settings support"] },
-  { path: ["newsletter"], description: "Newsletter settings are not CLI-ready yet", webPath: "newsletter", reason: "Newsletter API flow needs an audit before CLI support.", examples: ["openmates settings newsletter"] },
   { path: ["incognito", "info"], description: "Explain incognito mode", reason: "Incognito chats are sent without saving chat history. The CLI stores no incognito transcript.", examples: ["openmates chats incognito \"Private question\""] },
   { path: ["server"], description: "Server admin settings are web/admin-only", webPath: "server", reason: "Use `openmates server --help` for self-hosted terminal server management.", examples: ["openmates server status"] },
 ];
@@ -1582,6 +1593,16 @@ function parseRequiredNumber(value: string | boolean | undefined, flag: string):
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flag}: ${value}`);
   return parsed;
+}
+
+function parseOptionalBoolean(
+  value: string | boolean | undefined,
+  fallback: boolean,
+  label: string,
+): boolean {
+  if (value === undefined) return fallback;
+  if (typeof value === "boolean") return value;
+  return parseOnOff(value, label);
 }
 
 function parseDataOrFlags(
@@ -1718,6 +1739,43 @@ function parseYamlScalar(value: string): unknown {
   return trimmed;
 }
 
+async function saveDownloadedDocument(
+  document: { filename: string; data: Uint8Array },
+  output: string | boolean | undefined,
+): Promise<string> {
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const { join, basename, dirname } = await import("node:path");
+  const target = typeof output === "string" ? output : ".";
+  const filename = basename(document.filename || "document.pdf");
+  const filePath = target.endsWith(".pdf") ? target : join(target, filename);
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, document.data);
+  return filePath;
+}
+
+function printMates(json: boolean): void {
+  const mates = Object.entries(MATE_NAMES).map(([id, name]) => ({ id, name, mention: `@mate:${id}` }));
+  if (json) {
+    printJson(mates);
+    return;
+  }
+  header("Mates");
+  for (const mate of mates) console.log(`${mate.id.padEnd(28)} ${mate.name.padEnd(10)} ${mate.mention}`);
+}
+
+function printMateInfo(mateId: string, json: boolean): void {
+  const name = MATE_NAMES[mateId];
+  if (!name) throw new Error(`Unknown mate '${mateId}'. Run 'openmates settings mates list'.`);
+  const data = { id: mateId, name, mention: `@mate:${mateId}` };
+  if (json) {
+    printJson(data);
+    return;
+  }
+  header(`${name} (${mateId})`);
+  console.log(`Mention: ${data.mention}`);
+  console.log(`Use: openmates chats send "${data.mention} <message>"`);
+}
+
 async function confirmOrExit(question: string): Promise<void> {
   const rl = await import("node:readline");
   const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
@@ -1816,6 +1874,20 @@ async function handleSettings(
       client.settingsPost("import-chat", parseChatImportPayload(content)),
       flags,
     );
+    return;
+  }
+
+  if (matches(tokens, ["account", "username", "set"])) {
+    const username = rest[2];
+    if (!username) throw new Error("Missing username. Example: openmates settings account username set alice_123");
+    await printSettingsMutationResult(client.updateUsername(username), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "profile-picture", "set"])) {
+    const file = rest[2];
+    if (!file) throw new Error("Missing image file. Example: openmates settings account profile-picture set ./avatar.jpg");
+    await printSettingsMutationResult(client.updateProfileImage(file), flags);
     return;
   }
 
@@ -1924,6 +1996,41 @@ async function handleSettings(
     return;
   }
 
+  if (matches(tokens, ["billing", "invoices", "list"])) {
+    await printSettingsResult(client.listInvoices(), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "invoices", "download"])) {
+    const invoiceId = rest[2];
+    if (!invoiceId) throw new Error("Missing invoice ID.");
+    const document = await client.downloadInvoice(invoiceId);
+    const filePath = await saveDownloadedDocument(document, flags.output);
+    if (flags.json === true) printJson({ path: filePath, filename: document.filename });
+    else console.log(`\x1b[32m✓\x1b[0m Invoice saved to ${filePath}`);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "invoices", "credit-note"])) {
+    const invoiceId = rest[2];
+    if (!invoiceId) throw new Error("Missing invoice ID.");
+    const document = await client.downloadCreditNote(invoiceId);
+    const filePath = await saveDownloadedDocument(document, flags.output);
+    if (flags.json === true) printJson({ path: filePath, filename: document.filename });
+    else console.log(`\x1b[32m✓\x1b[0m Credit note saved to ${filePath}`);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "invoices", "refund"])) {
+    const invoiceId = rest[2];
+    const emailEncryptionKey = typeof flags["email-encryption-key"] === "string" ? flags["email-encryption-key"] : undefined;
+    if (!invoiceId) throw new Error("Missing invoice ID.");
+    if (!emailEncryptionKey) throw new Error("Missing --email-encryption-key. The backend requires the encrypted email key for refund requests.");
+    if (flags.yes !== true) await confirmOrExit(`Request refund for invoice ${invoiceId}? [y/N] `);
+    await printSettingsMutationResult(client.requestRefund(invoiceId, emailEncryptionKey), flags);
+    return;
+  }
+
   if (matches(tokens, ["billing", "gift-card", "redeem"]) || (subcommand === "gift-card" && rest[0] === "redeem")) {
     const code = matches(tokens, ["billing", "gift-card", "redeem"]) ? rest[2] : rest[1];
     if (!code) throw new Error("Missing gift card code.");
@@ -1952,6 +2059,51 @@ async function handleSettings(
     if (enabled && !email) throw new Error("Provide --email when enabling low-balance auto top-up.");
     await printSettingsMutationResult(
       client.settingsPost("auto-topup/low-balance", { enabled, threshold: 100, amount, currency, email }),
+      flags,
+    );
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "status"])) {
+    const user = await client.whoAmI() as Record<string, unknown>;
+    const status = {
+      enabled: user.email_notifications_enabled ?? false,
+      preferences: user.email_notification_preferences ?? {},
+      backup_reminder_interval_days: user.backup_reminder_interval_days ?? null,
+      encrypted_notification_email_configured: Boolean(user.encrypted_notification_email),
+    };
+    flags.json === true ? printJson(status) : printGenericObject(status);
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "email", "set"])) {
+    const enabled = parseOnOff(String(flags.enabled ?? ""), "email notifications");
+    const email = typeof flags.email === "string" ? flags.email : null;
+    if (enabled && !email) throw new Error("Provide --email when enabling email notifications.");
+    const preferences = {
+      aiResponses: parseOptionalBoolean(flags["ai-responses"], true, "AI response notifications"),
+      backupReminder: parseOptionalBoolean(flags["backup-reminder"], false, "backup reminder notifications"),
+      webhookChats: parseOptionalBoolean(flags["webhook-chats"], false, "webhook chat notifications"),
+    };
+    await printSettingsMutationResult(
+      client.updateEmailNotificationSettings({ enabled, email, preferences }),
+      flags,
+    );
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "backup", "set"])) {
+    const enabled = parseOnOff(String(flags.enabled ?? ""), "backup reminders");
+    const email = typeof flags.email === "string" ? flags.email : null;
+    const interval = parseRequiredNumber(flags.interval, "--interval");
+    if (enabled && !email) throw new Error("Provide --email when enabling backup reminders.");
+    await printSettingsMutationResult(
+      client.updateEmailNotificationSettings({
+        enabled,
+        email,
+        preferences: { aiResponses: false, backupReminder: enabled },
+        backup_reminder_interval_days: interval,
+      }),
       flags,
     );
     return;
@@ -2003,6 +2155,62 @@ async function handleSettings(
     const id = rest[1];
     if (!id) throw new Error("Missing issue ID.");
     await printSettingsResult(client.settingsGet(`issues/${id}/status`), flags);
+    return;
+  }
+
+  if (matches(tokens, ["mates", "list"])) {
+    printMates(flags.json === true);
+    return;
+  }
+
+  if (matches(tokens, ["mates", "info"])) {
+    const mateId = rest[1];
+    if (!mateId) throw new Error("Missing mate ID. Example: openmates settings mates info software_development");
+    printMateInfo(mateId, flags.json === true);
+    return;
+  }
+
+  if (matches(tokens, ["mates", "consent"])) {
+    if (flags.yes !== true) await confirmOrExit("Record consent for mate settings? [y/N] ");
+    await printSettingsMutationResult(client.settingsPost("user/consent/mates", { consent: true }), flags);
+    return;
+  }
+
+  if (matches(tokens, ["newsletter", "categories"]) && tokens.length === 2) {
+    await printSettingsResult(client.getNewsletterCategories(), flags);
+    return;
+  }
+
+  if (matches(tokens, ["newsletter", "categories", "set"])) {
+    const categories = {
+      updates_and_announcements: parseOptionalBoolean(flags.updates, true, "updates newsletter"),
+      tips_and_tricks: parseOptionalBoolean(flags.tips, true, "tips newsletter"),
+      daily_inspirations: parseOptionalBoolean(flags.daily, true, "daily inspirations newsletter"),
+    };
+    await printSettingsMutationResult(client.updateNewsletterCategories(categories), flags);
+    return;
+  }
+
+  if (matches(tokens, ["newsletter", "subscribe"])) {
+    const email = rest[1];
+    if (!email) throw new Error("Missing email. Example: openmates settings newsletter subscribe you@example.com");
+    const language = typeof flags.language === "string" ? flags.language : "en";
+    const darkmode = parseOptionalBoolean(flags.darkmode, false, "newsletter dark mode");
+    await printSettingsMutationResult(client.subscribeNewsletter(email, language, darkmode), flags);
+    return;
+  }
+
+  if (matches(tokens, ["newsletter", "confirm"])) {
+    const token = rest[1];
+    if (!token) throw new Error("Missing confirmation token.");
+    await printSettingsMutationResult(client.confirmNewsletter(token), flags);
+    return;
+  }
+
+  if (matches(tokens, ["newsletter", "unsubscribe"])) {
+    const token = rest[1];
+    if (!token) throw new Error("Missing unsubscribe token.");
+    await printSettingsMutationResult(client.unsubscribeNewsletter(token), flags);
     return;
   }
 

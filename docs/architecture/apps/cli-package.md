@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-04
 key_files:
   - frontend/packages/openmates-cli/src/cli.ts
   - frontend/packages/openmates-cli/src/client.ts
@@ -35,7 +35,7 @@ Pair-auth login via magic link + PIN (no password/email prompt). Session stored 
 
 **Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON)
 
-**Settings:** predefined account, interface, privacy, billing, reminder, developer, issue-report, gift-card, and memory commands. Raw settings path passthrough is not exposed.
+**Settings:** predefined account, profile picture, interface, privacy, billing, invoices, notifications, reminders, mates, newsletter, developer, issue-report, gift-card, and memory commands. Raw settings path passthrough is not exposed.
 
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`
 
@@ -45,7 +45,7 @@ All commands support `--json` for machine-readable output and `--api-url` to ove
 
 ### Security Boundaries
 
-Blocked operations (defined in `client.ts` as `BLOCKED_SETTINGS_MUTATE_PATHS`): API key creation, password setup, 2FA configuration. These must be done via the web app.
+Blocked operations (defined in `client.ts` as `BLOCKED_SETTINGS_MUTATE_PATHS`): API key creation, password setup, 2FA setup/disable flows, sensitive web-only action verification, and account deletion finalization. These must be done via the web app.
 
 ### Development
 

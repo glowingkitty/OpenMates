@@ -47,14 +47,14 @@ The main exceptions are browser-bound or high-risk account operations: passkeys,
 | Daily inspirations | Full | `inspirations` supports public and personalized responses. |
 | New chat suggestions | Full | `newchatsuggestions`. |
 | Memories and app settings entries | Full | `settings memories list/types/create/update/delete`. |
-| User language, dark mode, font | Partial | Language and dark mode have documented raw `settings post`; font endpoint exists but should get a first-class helper. |
-| Username and timezone | Partial | Documented raw `settings post`; username payload requires encrypted value and is not ergonomic. |
+| User language, dark mode, font | Full | `settings interface language/dark-mode/font ...` predefined commands. |
+| Username and timezone | Full | `settings account username set ...` and `settings account timezone set ...`. |
 | Email change | Missing | Web has a multi-step verification flow. CLI has no safe guided flow. |
-| Profile picture | Missing | Web has upload/UI flow; CLI lacks upload/update commands. |
-| Account export/import | Partial | CLI can fetch export manifest/data and import chat via raw settings endpoints; no guided full-account export/import command. |
-| Account storage overview | Partial | `settings get storage`; file list/view/delete endpoints exist but lack first-class CLI helpers. |
-| Account chat stats and bulk deletion | Partial | `settings get chats`; old-chat preview/delete endpoints exist but lack safe CLI UX. |
-| Account deletion preview | Partial | `settings get delete-account-preview`; final deletion should be web-only. |
+| Profile picture | Full | `settings account profile-picture set <jpg|png>` uploads validated JPEG/PNG files up to 300 KB; browser remains better for crop/preview. |
+| Account export/import | Partial | CLI can fetch export manifest/data and import individual chat exports; no guided full-account export/import command. |
+| Account storage overview | Full | `settings account storage overview/files/delete ...` wraps supported storage endpoints with confirmation for deletion. |
+| Account chat stats and bulk deletion | Partial | `settings account chats stats`; old-chat bulk deletion still needs a safe CLI UX. |
+| Account deletion preview | Full | `settings account delete preview`; final deletion remains web-only. |
 | Account deletion | Web-only | Should be blocked in CLI client even though backend requires auth verification. |
 | Passkeys | Web-only | Requires WebAuthn/browser APIs. |
 | Password setup/change | Web-only | Blocked by `BLOCKED_SETTINGS_MUTATE_PATHS`. |
@@ -62,24 +62,24 @@ The main exceptions are browser-bound or high-risk account operations: passkeys,
 | Recovery key | Web-only | High-risk account recovery surface. |
 | Active sessions and pair-session approval | Web-only | CLI is itself a paired/restricted session; approval and session controls stay in browser. |
 | Billing overview | Full | `settings billing overview`. |
-| Usage history/export | Full | `settings get usage`, `usage/summaries`, `usage/daily-overview`, `usage/export`. |
+| Usage history/export | Full | `settings billing usage`, `usage summaries`, `usage daily`, and `usage export`. |
 | Buy credits/payment checkout | Web-only | Payment-provider checkout must remain browser-bound. |
-| Invoices | Partial | Included in billing overview; direct invoice download helpers are missing. |
-| Auto top-up | Partial | Low-balance endpoint is documented; monthly auto-topup is web-only in help today and needs a policy decision. |
+| Invoices | Full | `settings billing invoices list/download/credit-note/refund`; refund requires explicit `--email-encryption-key`. |
+| Auto top-up | Partial | Low-balance command is implemented; monthly auto-topup remains web-only until policy is decided. |
 | Gift card redeem/list | Full | `settings gift-card redeem/list`. |
 | Gift card buy/manage | Web-only | Payment/purchase flow. |
 | Hidden personal data/anonymization | Partial | Memories and raw settings can cover pieces, but no first-class guided CLI flow exists. |
-| Auto-delete chats/files | Partial | Chat auto-delete has documented raw endpoint; file auto-delete route should be checked before exposing. |
-| Share debug logs | Missing | Web route exists; CLI should get an explicit consent-based helper. |
-| Reminders | Partial | CLI can list reminders; patch/delete endpoints exist but no ergonomic subcommands. |
-| Chat/backup notification preferences | Missing | Web routes exist; CLI lacks helpers. |
-| API key list/revoke | Full for safe actions | `settings get api-keys`, `settings delete api-keys/<id>`. |
+| Auto-delete chats/files | Partial | Chat auto-delete command is implemented; file auto-delete route should be checked before exposing. |
+| Share debug logs | Full | `settings privacy debug-logs share` prompts for consent unless `--confirm`/`--yes`. |
+| Reminders | Full | `settings reminders list/update/delete`; deletion requires confirmation unless `--yes`. |
+| Chat/backup notification preferences | Full | `settings notifications status`, `email set`, and `backup set` use the web app's WebSocket settings contract. |
+| API key list/revoke | Full for safe actions | `settings developers api-keys list/revoke`. |
 | API key create | Web-only | Secret shown once and developer-device approval should stay browser-first unless a separate secure CLI design is approved. |
 | Developer devices | Web-only | Device approvals/revocations are sensitive. |
 | Webhooks | Missing | Web route exists; backend/API surface needs audit before CLI exposure. |
-| Support issue report | Partial | Raw `settings post issues`; should become `support issue` or `settings issue report`. |
+| Support issue report | Full | `settings report-issue create/status`. |
 | Support payments/tips | Web-only | Payment flow. |
-| Newsletter | Missing | Web route exists; CLI lacks helper. |
+| Newsletter | Full | `settings newsletter categories/set/subscribe/confirm/unsubscribe`. |
 | Server admin settings | Web-only | Web server stats/tests/logs are admin-only; CLI has separate self-hosting `server` commands. |
 | Self-hosted server management | Full | CLI-only feature: `server install/start/stop/restart/status/logs/update/reset/make-admin/uninstall`. |
 | Docs browsing | Full | `docs list/search/get` covers docs access outside the web UI. |
@@ -135,6 +135,8 @@ openmates settings privacy auto-delete-chats set 90d
 openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com
 ```
 
+Implemented examples include interface preferences, timezone, username, profile picture upload, storage files, reminders, invoices, notification preferences, mates metadata/consent, and newsletter preferences. Keep expanding only through predefined commands; do not reintroduce raw settings passthrough.
+
 ### P1: Add Storage File Management
 
 Acceptance criteria:
@@ -144,14 +146,6 @@ Acceptance criteria:
 - `openmates settings storage delete <file-id>` wraps `DELETE /v1/settings/storage/files` with `scope=single` and a confirmation prompt.
 - `openmates settings storage delete --category <name>` and `--all` wrap the backend's supported bulk deletion scopes.
 - Download/view behavior is either implemented safely or explicitly documented as browser-only if auth-gated file URLs cannot be streamed from Node.
-
-### P1: Add Reminder and Notification Commands
-
-Acceptance criteria:
-
-- `openmates settings reminders list/update/delete` covers existing reminder endpoints.
-- Chat notification preferences and backup reminders get explicit get/set commands if backend endpoints exist.
-- Destructive reminder deletion requires confirmation unless `--yes` is passed.
 
 ### P2: Add Privacy and Debug-Log Helpers
 
@@ -177,12 +171,11 @@ Acceptance criteria:
 - If safe, add `openmates settings developers webhooks list/create/delete/test` with URL validation and confirmation for deletion.
 - If not safe yet, document webhooks as web-only until backend support is complete.
 
-### P3: Profile Picture and Email Change Design
+### P3: Email Change Design
 
 Acceptance criteria:
 
-- Decide whether these belong in CLI at all.
-- If profile picture is allowed, implement image validation/upload/update with the same limits as web.
+- Decide whether email change belongs in CLI at all.
 - If email change is allowed, design a CLI reauth/OTP flow that does not ask for primary credentials and does not weaken pair-auth guarantees.
 
 ## Related Docs
