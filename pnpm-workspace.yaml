@@ -4,7 +4,4 @@ packages:
 
 # Delay newly published package versions so fast-moving supply-chain attacks
 # can be detected and removed before CI resolves them.
-minimumReleaseAge: 1440
-minimumReleaseAgeExclude:
-  - svelte
-  - devalue
+minimumReleaseAge: 2880

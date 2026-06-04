@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 from _nightly_report import write_nightly_report
 
 
@@ -293,7 +293,7 @@ def _run_folder_session(
 
     print(f"[deep-audit] Starting: {folder} ({len(files)} files)")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=title,
         project_root=worktree_path,

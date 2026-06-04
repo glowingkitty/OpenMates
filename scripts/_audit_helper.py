@@ -32,7 +32,7 @@ Not intended to be called directly by users; use weekly-codebase-audit.sh instea
 import json
 import os
 import subprocess
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 from _nightly_report import write_nightly_report
 import sys
 from datetime import datetime, timezone
@@ -144,7 +144,7 @@ def run_audit() -> None:
     )
 
     if dry_run:
-        print("[audit] DRY RUN — would run claude with the following prompt:")
+        print("[audit] DRY RUN — would run OpenCode with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
@@ -156,9 +156,9 @@ def run_audit() -> None:
         return
 
     session_title = f"audit: codebase health {today_date}"
-    print(f"[audit] Starting claude audit session (HEAD {current_sha})...")
+    print(f"[audit] Starting OpenCode audit chat (HEAD {current_sha})...")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,

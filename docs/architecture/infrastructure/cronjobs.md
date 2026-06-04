@@ -1,7 +1,9 @@
 ---
 status: active
-last_verified: 2026-03-27
+last_verified: 2026-06-04
 key_files:
+  - .github/dependabot.yml
+  - pnpm-workspace.yaml
   - scripts/check-deploy-status.sh
   - scripts/run_tests.py
   - scripts/auto_fix_failed_tests.py
@@ -13,12 +15,12 @@ key_files:
   - scripts/update_obsidian_daily_note.py
   - scripts/_opencode_daily_meeting.py
   - scripts/_daily_meeting_helper.py
-  - scripts/_claude_utils.py
+  - scripts/_opencode_utils.py
 ---
 
 # Scheduled Cronjobs
 
-> Server-side cron jobs on the dev server (user: `superdev`) that automate deployment monitoring, code quality, testing, security audits, and issue triage. All AI sessions are dispatched via Claude Code CLI (`claude -p`), configured in `scripts/_claude_utils.py`.
+> Server-side cron jobs on the dev server (user: `superdev`) that automate deployment monitoring, code quality, testing, security audits, and issue triage. All AI maintenance chats are dispatched via OpenCode CLI (`opencode run`), configured in `scripts/_opencode_utils.py`.
 
 ## Why This Exists
 
@@ -42,9 +44,11 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `03:00 Mon-Fri`               | `run_tests.py --daily`                 | Full test suite (Playwright + pytest)     |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
 | `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
+| `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
+| `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
 | `@reboot`                     | `agent-trigger-watcher.sh`             | Poll for admin-submitted issue triggers   |
 
 > **Consolidated (2026-03-27):** `nightly-issues-check.sh` and `nightly-workflow-review.sh` have been folded into the daily meeting. Their helpers (`_issues_checker.py`, `_workflow_review_helper.py`) are kept as importable libraries.
@@ -53,9 +57,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Daily standup meeting** (`10:00 UTC` weekdays): `daily-meeting.sh` creates a persisted OpenCode chat titled `daily-meeting YYYY-MM-DD`, asks the `daily-meeting` skill to gather data inline, and emails a deep link to the configured recipient. The OpenCode web URL is built as `${OPENCODE_WEB_BASE_URL}/${base64url(project_path)}/session/${session_id}`. No Claude launcher and no Zellij session are involved. The meeting remains interactive: it presents one agenda section at a time and saves `scripts/.daily-meeting-state.json` plus `scripts/.tmp/daily-meeting-summary-<date>.md` only after the user confirms priorities. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `DAILY_MEETING_NOTIFY_EMAIL` (or `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` fallback), `OPENCODE_WEB_BASE_URL`, `INTERNAL_API_SHARED_TOKEN`, `INTERNAL_API_URL`.
 
-**Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches a claude build-mode session with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
+**Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches an OpenCode repair chat with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
-**Dead code removal** (02:00): Runs `find_dead_code.py` (up to 50 items across Python/TypeScript/Svelte/CSS). Dispatches claude session to remove and commit. Skips if HEAD unchanged. State: `scripts/.dead-code-removal-state.json`.
+**Dead code removal** (02:00): Runs `find_dead_code.py` (up to 50 items across Python/TypeScript/Svelte/CSS). Dispatches an OpenCode chat to remove and commit. Skips if HEAD unchanged. State: `scripts/.dead-code-removal-state.json`.
 
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
@@ -64,6 +68,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
 
 **Prod smoke** (GitHub Actions, hourly 10–20 Europe/Berlin): Runs three Playwright specs against the live production server: (1) reachability pre-flight, (2) fresh signup + reusable domain-bound gift card redemption + first chat (no Stripe), (3) login + chat on a persistent prod test account. On any failure, the shared composite action `.github/actions/notify-test-failure` posts to a Discord webhook **and** sends an email via Brevo — both sends independent so a single channel outage never masks the failure. No dependency on dev server uptime. Secrets: `PROD_BASE_URL`, `PROD_SMOKE_GIFT_CARD_CODE`, `PROD_SMOKE_EMAIL_DOMAIN`, `PROD_SMOKE_MAILOSAUR_API_KEY`, `PROD_SMOKE_MAILOSAUR_SERVER_ID`, `OPENMATES_PROD_TEST_ACCOUNT_{EMAIL,PASSWORD,OTP_KEY}`, `DISCORD_WEBHOOK_PROD_SMOKE`, `PROD_SMOKE_EMAIL_TO`, `BREVO_API_KEY`. The gift card's `allowed_email_domain` must exactly match the Mailosaur server subdomain — suffix matches would let any Mailosaur customer redeem the card.
+
+**Dependabot version updates** (GitHub native, daily 04:30 UTC): Opens npm/pnpm version-update PRs against `dev`. Routine patch/minor updates use a 48-hour cooldown (`cooldown.default-days: 2`) to avoid newly published malicious npm versions during supply-chain incidents; major updates use a 14-day cooldown for extra stability. This is separate from security-alert processing below, which remains immediate for critical/high/medium advisories. pnpm also enforces `minimumReleaseAge: 2880` minutes in `pnpm-workspace.yaml` so manual and CI dependency resolution follow the same 48-hour delay.
 
 **Issues check**: _Consolidated into daily meeting (2026-03-27)._ Helper `_issues_checker.py` still available as importable library.
 
@@ -81,22 +87,23 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 
-**Agent trigger watcher** (`@reboot`): Polls `scripts/.agent-triggers/` every 5s for JSON trigger files from admin sidecar. Dispatches claude investigation; completed triggers moved to `done/`.
+**OpenCode session cleanup** (01:30 daily): Deletes OpenCode chats older than 14 days when their title does not contain `TODO`, using `opencode session delete` so session storage is removed with the SQLite row. Logs to `logs/opencode-cleanup.log` and writes `logs/nightly-reports/session-cleanup.json` for daily meeting consumption. Manual: `./scripts/cleanup-opencode-sessions.sh`.
+
+**Agent trigger watcher** (`@reboot`): Polls `scripts/.agent-triggers/` every 5s for JSON trigger files from admin sidecar. Dispatches OpenCode investigation chats; completed triggers moved to `done/`.
 
 ### Agent CLI Dispatch
 
-Most background maintenance helpers use `scripts/_claude_utils.py:run_claude_session()` which invokes:
+Most background maintenance helpers use `scripts/_opencode_utils.py:run_opencode_session()` which invokes:
 
 ```bash
-claude -p "<message>" \
-  --model claude-sonnet-4-6 \
-  --name "<session-title>" \
-  --output-format json \
-  --permission-mode plan          # for read-only jobs (audit, security, redteam, issues)
-  --dangerously-skip-permissions  # for write jobs (dead code, dependabot, deploy fix, test analysis)
+opencode run \
+  --title "<session-title>" \
+  --format json \
+  [--dangerously-skip-permissions] \
+  "Read scripts/.tmp/<prompt>.md in full and follow all instructions precisely."
 ```
 
-Session IDs are extracted from JSON output and logged for traceability.
+Session IDs are extracted from OpenCode JSONL output and logged for traceability. Read-only jobs include explicit no-edit/no-commit instructions in the prompt message; write jobs use `--dangerously-skip-permissions`.
 
 The daily standup is the exception: `scripts/_opencode_daily_meeting.py` invokes `opencode run --format json --title "daily-meeting <date>"` so the chat appears directly in OpenCode web. Cron should configure the public web base URL and recipient via environment, not source code.
 

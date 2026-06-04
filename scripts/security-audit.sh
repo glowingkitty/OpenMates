@@ -2,7 +2,7 @@
 # =============================================================================
 # OpenMates Twice-Weekly Security Audit
 #
-# Runs a focused security code review using claude in plan mode. Identifies
+# Runs a focused security code review using OpenCode in read-only mode. Identifies
 # the top 5 security issues, provides realistic risk assessments, and suggests
 # fixes (without implementing them).
 #
@@ -17,13 +17,13 @@
 #
 # Can also be invoked manually:
 #   ./scripts/security-audit.sh
-#   ./scripts/security-audit.sh --dry-run   # print prompt without running claude
+#   ./scripts/security-audit.sh --dry-run   # print prompt without running OpenCode
 #
 # State files (.claude/ — gitignored):
 #   .claude/security-audit-state.json      — findings, file hashes, run history
 #   .claude/security-acknowledged.json     — manually acknowledged risks
 #
-# No env vars required beyond what claude itself needs.
+# No env vars required beyond what OpenCode itself needs.
 # =============================================================================
 set -euo pipefail
 

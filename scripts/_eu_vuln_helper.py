@@ -25,7 +25,7 @@ Environment variables (set by the shell script):
     DEPENDABOT_TRACKING_PATH    — path to dependabot-processed.json (for dedup)
     PROJECT_ROOT                — absolute path to the repo root
     REDISPATCH_AFTER_DAYS       — days before re-dispatching unresolved vuln
-    DRY_RUN                     — "true" to skip claude invocation
+    DRY_RUN                     — "true" to skip OpenCode invocation
     SUMMARY_ONLY                — "true" to output JSON summary and exit
     PROMPT_TEMPLATE_PATH        — path to prompts/eu-vuln-analysis.md
     TODAY_DATE                  — current date as YYYY-MM-DD
@@ -66,7 +66,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _claude_utils import run_claude_session, start_sessions_py, end_sessions_py
+from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
 
 
 # ---------------------------------------------------------------------------
@@ -590,7 +590,7 @@ def _process_osv_results(
 # ---------------------------------------------------------------------------
 
 def _build_alert_summary(findings_to_dispatch: List[Dict]) -> str:
-    """Build alert summary for the claude prompt, grouped by severity."""
+    """Build alert summary for the OpenCode prompt, grouped by severity."""
     by_severity: Dict[str, List[Dict]] = {"critical": [], "high": [], "medium": []}
 
     for finding in findings_to_dispatch:
@@ -718,6 +718,34 @@ def check_vulns() -> None:
         tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
         tracking["last_run"] = _now_iso()
         _save_json_file(tracking_file, tracking)
+        if not summary_only and not dry_run:
+            prompt = f"""# EU/OSV/NVD Vulnerability Check Summary — {today_date}
+
+The scheduled vulnerability checker scanned project dependencies and found no
+new actionable vulnerabilities beyond existing Dependabot coverage.
+
+## Results
+
+- Total unique dependencies scanned: {len(all_deps)}
+- npm dependencies: {sum(1 for dep in all_deps if dep.get('ecosystem') == 'npm')}
+- PyPI dependencies: {sum(1 for dep in all_deps if dep.get('ecosystem') == 'PyPI')}
+- Known Dependabot GHSA IDs skipped: {len(dependabot_ghsa_ids)}
+- New actionable findings: 0
+
+This is a read-only reporting chat. Summarize the run briefly, mention that no
+code changes are needed, and do not edit files, commit, or deploy.
+"""
+            run_opencode_session(
+                prompt=prompt,
+                session_title=f"security: eu-vulns clean {today_date}",
+                project_root=project_root,
+                log_prefix="[eu-vulns]",
+                agent="plan",
+                timeout=600,
+                job_type="eu-vulns",
+                context_summary="EU vulnerability checker found no new actionable vulnerabilities.",
+                linear_task=False,
+            )
         return
 
     # Sort by severity
@@ -821,7 +849,7 @@ def check_vulns() -> None:
     # Sort for prompt
     to_dispatch.sort(key=lambda f: SEVERITY_ORDER.get(f["severity"], 99))
 
-    # Step 6: Build prompt and dispatch claude
+    # Step 6: Build prompt and dispatch OpenCode
     if not prompt_template_path or not os.path.isfile(prompt_template_path):
         print(f"[eu-vulns] ERROR: Prompt template not found at {prompt_template_path}", file=sys.stderr)
         sys.exit(1)
@@ -849,7 +877,7 @@ def check_vulns() -> None:
             log_prefix="[eu-vulns]",
         )
 
-    # Inject session ID into prompt so Claude uses sessions.py deploy
+    # Inject session ID into prompt so OpenCode uses sessions.py deploy
     deploy_instructions = ""
     if sessions_py_id:
         deploy_instructions = (
@@ -871,7 +899,7 @@ def check_vulns() -> None:
     ) + deploy_instructions
 
     if dry_run:
-        print("[eu-vulns] DRY RUN — would run claude with the following prompt:")
+        print("[eu-vulns] DRY RUN — would run OpenCode with the following prompt:")
         print("-" * 60)
         print(prompt[:3000])
         if len(prompt) > 3000:
@@ -882,9 +910,9 @@ def check_vulns() -> None:
         print(_build_json_summary(to_dispatch))
         return
 
-    print(f"[eu-vulns] Starting claude session for {len(to_dispatch)} finding(s)...")
+    print(f"[eu-vulns] Starting OpenCode chat for {len(to_dispatch)} finding(s)...")
 
-    run_claude_session(
+    run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,
@@ -897,7 +925,7 @@ def check_vulns() -> None:
         linear_task=False,
     )
 
-    # End session if Claude didn't deploy (cleanup)
+    # End session if OpenCode didn't deploy (cleanup)
     if sessions_py_id:
         end_sessions_py(sessions_py_id, project_root, "[eu-vulns]")
 

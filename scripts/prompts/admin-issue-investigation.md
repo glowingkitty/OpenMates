@@ -88,4 +88,4 @@ where confident, implement) a concrete fix.
    exactly what a developer needs to do to complete it.
 
 Work efficiently. The admin who filed this report is available to answer clarifying questions
-via the claude session chat.
+via the OpenCode session chat.

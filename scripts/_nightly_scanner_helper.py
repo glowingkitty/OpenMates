@@ -39,7 +39,7 @@ from pathlib import Path
 
 # Append scripts/ to path so we can import sibling modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 from _nightly_report import write_nightly_report
 
 
@@ -276,7 +276,7 @@ def run_scanner(scan_type: str) -> None:
     session_title = f"{scan_type}: {sector['name'].lower()} {today_date}"
     print(f"{log_prefix} Starting Claude {scan_type} session (Haiku, plan mode)...")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=project_root,

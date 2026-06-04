@@ -22,7 +22,7 @@ This helper only:
   1. Loads state
   2. Gathers context (git log, acknowledgments, prior Top 10, baseline audit path)
   3. Substitutes placeholders into the appropriate prompt template
-  4. Invokes run_claude_session()
+  4. Invokes run_opencode_session()
   5. Writes a fallback nightly report if the Claude session failed before
      writing its own
 
@@ -52,7 +52,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _claude_utils import run_claude_session  # noqa: E402
+from _opencode_utils import run_opencode_session  # noqa: E402
 from _nightly_report import write_nightly_report  # noqa: E402
 
 
@@ -321,7 +321,7 @@ def _run_scan(scan_type: str) -> None:
         f"(HEAD {current_sha}, timeout {timeout}s)..."
     )
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=env["PROJECT_ROOT"],

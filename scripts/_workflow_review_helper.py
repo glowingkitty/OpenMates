@@ -9,7 +9,7 @@ Architecture context: See CLAUDE.md (Session Lifecycle section)
 
 Commands:
     dry-run     Build and print the prompt without calling claude
-    run-review  Build prompt and run claude analysis
+    run-review  Build prompt and run OpenCode analysis
 
 State file: scripts/.workflow-review-state.json
 Data source: Claude Code JSONL session files in ~/.claude/projects/<project-slug>/
@@ -36,7 +36,7 @@ Public API (importable by other helpers, e.g. _daily_meeting_helper.py):
 import json
 import os
 
-from _claude_utils import run_claude_session
+from _opencode_utils import run_opencode_session
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -450,15 +450,15 @@ def cmd_dry_run(yesterday: str) -> None:
 
 
 def cmd_run_review(yesterday: str) -> None:
-    """Build prompt and run claude analysis."""
+    """Build prompt and run OpenCode analysis."""
     state = load_state()
     prompt = build_prompt(yesterday, state, verbose=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     session_title = f"workflow-review {yesterday}"
 
-    print(f"[workflow-review] Starting claude session '{session_title}'...")
+    print(f"[workflow-review] Starting OpenCode chat '{session_title}'...")
 
-    returncode, session_id = run_claude_session(
+    returncode, session_id = run_opencode_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(PROJECT_ROOT),
@@ -471,7 +471,7 @@ def cmd_run_review(yesterday: str) -> None:
 
     if session_id:
         # Emit parseable line for any caller capturing session ID
-        print(f"CLAUDE_SESSION_ID:{session_id}")
+        print(f"OPENCODE_SESSION_ID:{session_id}")
 
     # Save state
     state["last_review_date"] = today
