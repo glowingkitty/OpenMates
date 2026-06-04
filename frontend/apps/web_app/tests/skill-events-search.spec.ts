@@ -58,6 +58,16 @@ const EVENT_SEARCH_PROVIDERS = [
 	'37C3'
 ];
 
+const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
+	'Meetup',
+	'Luma',
+	'Eventbrite',
+	'Google Events',
+	'Resident Advisor',
+	'Siegessäule',
+	'Berlin Philharmonic'
+];
+
 async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
 	const dismissButtons = page.getByTestId('notification-dismiss');
 	const dismissCount = await dismissButtons.count();
@@ -106,7 +116,7 @@ test.describe('App: Events / Skill: search', () => {
 		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
 
 		const searchSkillCard = settingsMenu.getByTestId('app-store-card').filter({ hasText: 'Search' }).first();
-		await expectSkillCardProviderIcons(searchSkillCard, EVENT_SEARCH_PROVIDERS);
+		await expectSkillCardProviderIcons(searchSkillCard, EVENT_SEARCH_CARD_ICON_PROVIDERS);
 
 		await page.goto(getE2EDebugUrl('/#settings/app_store/events/skill/search'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
