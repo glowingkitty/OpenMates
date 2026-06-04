@@ -28,10 +28,42 @@ Do not use the Linear MCP. Linear operations must go through `python3 scripts/li
 ## When A GitHub Issue Is Provided
 
 1. Read the issue with GitHub tools before code work.
-2. Read comments and labels for prior context.
-3. If the task needs progress tracking, post a concise pickup comment with the session ID.
-4. Post milestone comments only for significant discoveries, blockers, or completion.
-5. After deploy, post a concise summary comment with the commit hash and move/label the issue according to the repo's issue workflow when applicable.
+2. If GitHub MCP auth fails, use `gh issue list` or `gh issue view --json ...` with the `glowingkitty/OpenMates` repo.
+3. Read comments and labels for prior context.
+4. If `gh issue view --comments` fails on deprecated Projects Classic fields, retry with explicit JSON fields such as `number,title,state,labels,body,comments,updatedAt,url`.
+5. If the task needs progress tracking, post a concise pickup comment with the session ID.
+6. Post milestone comments only for significant discoveries, blockers, or completion.
+7. After deploy, post a concise summary comment with the commit hash and move/label the issue according to the repo's issue workflow when applicable.
+
+## Creating Or Updating GitHub Issues
+
+Use GitHub Issues for public tracker work unless the task clearly belongs in Linear under the rules above.
+
+Preferred creation paths:
+
+- Use GitHub MCP issue tools when they are authenticated and available.
+- If MCP auth fails, use the GitHub API via `gh api`, for example:
+  ```bash
+  gh api repos/glowingkitty/OpenMates/issues --method POST \
+    --field title="Short actionable title" \
+    --field labels[]=enhancement \
+    --field body="Issue body" \
+    --jq .html_url
+  ```
+- For long issue bodies, prefer a safe temporary file under `scripts/.tmp/` or `/tmp/opencode/` and pass it through `gh api --input` or command substitution. Do not store private data in the temp file.
+
+Avoid these patterns:
+
+- Avoid `gh issue create --body-file - <<'EOF' ... EOF`; local safety hooks may misclassify this heredoc form as an unsafe deploy/git mutation.
+- Avoid broad raw `gh` mutations when a narrower GitHub MCP or `gh api` endpoint is available.
+
+Reading and commenting:
+
+- Use `gh issue list --repo glowingkitty/OpenMates --search "keywords" --state all` when MCP issue search is unavailable.
+- Use `gh issue view <number> --repo glowingkitty/OpenMates --json number,title,state,labels,body,comments,updatedAt,url` when regular issue view fails.
+- Use `gh api repos/glowingkitty/OpenMates/issues/<number>/comments --method POST --field body="..."` for comments if GitHub MCP commenting is unavailable.
+
+Keep GitHub issue bodies and comments free of private user data, secrets, payment details, raw logs with identifiers, and credentials.
 
 ## When A Linear Issue Is Provided
 
