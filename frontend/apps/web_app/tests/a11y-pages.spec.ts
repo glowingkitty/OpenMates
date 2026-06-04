@@ -3,8 +3,7 @@
  * Accessibility page scan tests — WCAG 2.1 AA compliance via axe-core.
  *
  * Scans major pages for automated accessibility violations. Known issues
- * (e.g. color-contrast for secondary text) are tracked in KNOWN_VIOLATIONS
- * and excluded from failure assertions.
+ * are tracked in KNOWN_VIOLATIONS and excluded from failure assertions.
  *
  * Architecture context: docs/architecture/accessibility.md
  * Test reference: run via scripts/run-tests.sh --suite playwright
@@ -25,8 +24,7 @@ const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test
 
 /** Default options applied to all page scans — excludes third-party iframes. */
 const DEFAULT_SCAN_OPTIONS = {
-	exclude: ['iframe[src*="stripe"]', 'iframe[src*="recaptcha"]'],
-	allowedViolations: ['color-contrast']
+	exclude: ['iframe[src*="stripe"]', 'iframe[src*="recaptcha"]']
 };
 
 // ─── Unauthenticated page scans ─────────────────────────────────────────────

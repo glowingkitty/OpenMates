@@ -1,7 +1,10 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-04
 key_files:
+  - scripts/accessibility_audit.py
+  - scripts/run_accessibility_weekly.py
+  - frontend/packages/ui/src/tokens/sources/colors.yml
   - frontend/packages/ui/src/styles/theme.css
   - frontend/packages/ui/src/actions/focusTrap.ts
   - frontend/apps/web_app/tests/a11y-helpers.ts
@@ -19,6 +22,14 @@ key_files:
 Ensures the web app is usable by everyone, including keyboard-only users and screen reader users. The system provides global focus indicators, focus trapping for modals, and automated axe-core testing.
 
 ## How It Works
+
+### Deterministic Weekly Audit
+
+`scripts/accessibility_audit.py` runs Linux-safe static checks for known web and Apple accessibility risk patterns. It writes JSON and Markdown reports to `test-results/accessibility/` and supports severity-based failure gates for CI or cron.
+
+`scripts/run_accessibility_weekly.py` wraps the audit for weekly operations. It writes both `latest.*` and dated `weekly-YYYY-MM-DD.*` artifacts, then sends an admin email through Brevo when `BREVO_API_KEY` is available or through the existing internal test-summary email bridge when `INTERNAL_API_SHARED_TOKEN` is available. Use `--dry-run` to verify report and email rendering without sending.
+
+The audit is deterministic and repeatable, but it is not a substitute for browser axe scans, keyboard E2E tests, simulator verification, VoiceOver checks, or manual assistive-technology testing.
 
 ### Focus-Visible System
 
@@ -75,15 +86,10 @@ Every modal must have: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, 
 
 ### Color Contrast
 
-Light theme targets WCAG AA. Two known failures tracked for fix:
-- `--color-font-secondary` (#a9a9a9): ~2.6:1 ratio (below 4.5:1 AA)
-- `--color-font-field-placeholder` (#9e9e9e): ~2.8:1 ratio (below 4.5:1 AA)
-
-Dark theme passes all ratios.
+Light and dark theme font tokens target WCAG AA contrast for normal text. The deterministic accessibility audit (`scripts/accessibility_audit.py`) checks generated font color tokens against white light-theme backgrounds and reports values below 4.5:1.
 
 ### Known Test Exclusions
 
-- `color-contrast` -- the two variables above
 - `meta-viewport` -- `maximum-scale=1` for mobile PWA input focus prevention
 - Third-party iframes (Stripe, reCAPTCHA) excluded from scans
 

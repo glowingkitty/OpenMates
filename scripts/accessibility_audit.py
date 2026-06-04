@@ -87,7 +87,10 @@ class Finding:
 
 
 def repo_path(path: Path) -> str:
-    return path.relative_to(REPO_ROOT).as_posix()
+    try:
+        return path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def read_text(path: Path) -> str:
@@ -187,6 +190,8 @@ def check_web_contrast_tokens() -> list[Finding]:
 
     token_re = re.compile(r"--(?P<name>color-font-[\w-]+):\s*(?P<value>#[0-9a-fA-F]{6});")
     for index, line in enumerate(read_text(THEME_TOKENS).splitlines(), start=1):
+        if line.strip() == '/* Dark theme overrides */':
+            break
         match = token_re.search(line)
         if not match:
             continue

@@ -33,14 +33,8 @@ interface KnownViolation {
 
 // ─── Known pre-existing violations ──────────────────────────────────────────
 // These are tracked for future fix but should not block CI.
-// See docs/architecture/accessibility.md § Color Contrast.
 
 const KNOWN_VIOLATIONS: KnownViolation[] = [
-	{
-		ruleId: 'color-contrast',
-		reason:
-			'--color-font-secondary (#a9a9a9) and --color-font-field-placeholder (#9e9e9e) are below WCAG AA ratio on light background. Tracked for fix in accessibility.md.'
-	},
 	{
 		ruleId: 'meta-viewport',
 		reason:
