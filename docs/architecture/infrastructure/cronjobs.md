@@ -18,6 +18,8 @@ key_files:
   - scripts/weekly-contract-audits.sh
   - scripts/run_contract_audits.py
   - scripts/contract_audits.py
+  - scripts/_contract_audit_review_helper.py
+  - scripts/prompts/contract-audit-review.md
   - scripts/daily-meeting.sh
   - scripts/update_obsidian_daily_note.py
   - scripts/_opencode_daily_meeting.py
@@ -52,7 +54,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
 | `04:30 Mon+Thu`               | `nightly-apple-parity-review.sh`       | Apple/web parity review (plan only)       |
 | `04:50 Sun`                   | `nightly-seo-audit.sh`                 | Deep SEO optimization review (plan only)  |
-| `05:15 Mon`                   | `weekly-contract-audits.sh`            | Deterministic architecture/code contract audits + email |
+| `05:15 Mon`                   | `weekly-contract-audits.sh`            | Deterministic contract audits + OpenCode recommendations |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
 | `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
 | `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
@@ -102,7 +104,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **SEO audit** (Sun 04:50): Starts a read-only OpenCode chat that combines safe production GET/HEAD checks against `openmates.org` with current SvelteKit source inspection. This is deeper than the daily meeting SEO smoke check and reports prioritized improvements for sitemap coverage, SSR/prerender, metadata, OG/Twitter tags, JSON-LD, hreflang, and internal linking. Output: `logs/nightly-reports/seo-audit.json`. Manual: `./scripts/nightly-seo-audit.sh [--dry-run]`.
 
-**Deterministic contract audits** (Mon 05:15): Runs static repo-specific checks without AI or network calls: backend app/skill architecture boundaries, encryption key access patterns, settings UI contract rules, app skill/provider metadata, and export/import invariants. Writes `test-results/contract-audits/latest.json`, a dated weekly JSON artifact, and `logs/nightly-reports/contract-audits.json` for daily-meeting and on-demand agent processing. Sends a compact email summary via Brevo (`BREVO_API_KEY`) or the internal test-summary email endpoint (`INTERNAL_API_SHARED_TOKEN`). Manual: `./scripts/weekly-contract-audits.sh [--dry-run]` or `python3 scripts/run_contract_audits.py --dry-run`.
+**Deterministic contract audits + recommendations** (Mon 05:15): Runs static repo-specific checks without AI or network calls: backend app/skill architecture boundaries, encryption key access patterns, settings UI contract rules, app skill/provider metadata, and export/import invariants. Writes `test-results/contract-audits/latest.json`, a dated weekly JSON artifact, and `logs/nightly-reports/contract-audits.json` for daily-meeting and on-demand agent processing. Sends a compact email summary via Brevo (`BREVO_API_KEY`) or the internal test-summary email endpoint (`INTERNAL_API_SHARED_TOKEN`). After the JSON is written, starts a read-only OpenCode chat via `_contract_audit_review_helper.py` to analyze the report and recommend the top next steps; that chat is referenced from `logs/nightly-reports/contract-audit-review.json`. Manual: `./scripts/weekly-contract-audits.sh [--dry-run]`, `./scripts/weekly-contract-audits.sh --skip-review`, or `python3 scripts/run_contract_audits.py --dry-run`.
 
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 
