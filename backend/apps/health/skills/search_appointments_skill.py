@@ -1765,16 +1765,24 @@ class SearchAppointmentsSkill(BaseSkill):
         if error_response:
             return error_response
 
-        # Validate and normalise the requests array
-        validated, err = self._validate_requests_array(
+        validated, invalid_grouped_results, validation_errors, err = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="speciality",
-            field_display_name="speciality",
+            required_fields=["speciality"],
+            field_display_names={"speciality": "speciality"},
             empty_error_message="No appointment search requests provided. 'requests' array must contain at least one request with a 'speciality' field.",
             logger=logger,
         )
         if err:
             return SearchAppointmentsResponse(error=err)
+        if not validated:
+            return self._build_response_with_errors(
+                response_class=SearchAppointmentsResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="Doctolib, Jameda",
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+            )
 
         # Load proxy credentials from Vault if secrets_manager is available.
         # We use Webshare rotating residential proxies (same as url_validator.py)
@@ -1828,7 +1836,12 @@ class SearchAppointmentsSkill(BaseSkill):
 
         # Group results by request ID
         grouped, errors = self._group_results_by_request_id(
-            all_results, validated, logger
+            all_results, requests, logger
+        )
+        grouped = self._merge_grouped_results_preserving_request_order(
+            grouped,
+            invalid_grouped_results,
+            requests,
         )
 
         # Derive provider label from the requests

@@ -163,6 +163,46 @@ async def test_event_schedule_provider_allows_conference_without_query(monkeypat
     assert response.results[0]["results"][0]["title"] == "GPN24 schedule overview"
 
 
+async def test_gpn24_conference_search_supports_ai_query(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Users should be able to search for a topic at the GPN24 conference."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        assert kwargs["query"] == "AI"
+        assert kwargs["conference"] == "GPN24"
+        return [
+            {
+                "id": "talk-ai-gpn24",
+                "provider": "gpn24",
+                "title": "AI at GPN24",
+                "url": "https://cfp.gulas.ch/gpn24/talk/AI123/",
+                "date_start": "2026-06-04T18:45:00+02:00",
+            }
+        ], 1, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
+
+    response = await skill.execute(
+        SearchRequest(
+            provider="GPN24",
+            requests=[{"query": "AI", "conference": "GPN24"}],
+        )
+    )
+
+    assert response.error is None
+    assert response.results[0]["results"][0]["provider"] == "gpn24"
+    assert response.results[0]["results"][0]["title"] == "AI at GPN24"
+
+
 async def test_malformed_event_batch_item_does_not_block_valid_requests(monkeypatch: pytest.MonkeyPatch) -> None:
     """One missing-query LLM batch item should not turn the whole embed group into an error."""
 

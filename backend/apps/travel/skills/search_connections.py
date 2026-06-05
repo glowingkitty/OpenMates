@@ -414,18 +414,25 @@ class SearchConnectionsSkill(BaseSkill):
         if error_response:
             return error_response
 
-        # 2. Validate requests array (require 'legs' field per request)
-        validated_requests, validation_error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="legs",
-            field_display_name="legs",
+            required_fields=["legs"],
+            field_display_names={"legs": "legs"},
             empty_error_message="No connection search requests provided",
             logger=logger,
         )
         if validation_error:
             return SearchConnectionsResponse(results=[], error=validation_error)
         if not validated_requests:
-            return SearchConnectionsResponse(results=[], error="No valid requests to process")
+            return self._build_response_with_errors(
+                response_class=SearchConnectionsResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="",
+                providers=[],
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+            )
 
         # 3. Create providers (SerpApiProvider loads its API key from Vault)
         all_providers = _create_providers(secrets_manager=secrets_manager)
@@ -444,11 +451,16 @@ class SearchConnectionsSkill(BaseSkill):
         # 5. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger,
         )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
+        )
 
-        request_by_id = {req.get("id"): req for req in validated_requests}
+        request_by_id = {req.get("id"): req for req in requests}
         searched_provider_ids: set[str] = set()
         for group in grouped_results:
             req = request_by_id.get(group.get("id"))

@@ -119,18 +119,24 @@ class PriceCalendarSkill(BaseSkill):
         3. Groups results by request ID
         4. Returns PriceCalendarResponse
         """
-        # 1. Validate requests array (require 'origin' field per request)
-        validated_requests, validation_error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="origin",
-            field_display_name="origin",
+            required_fields=["origin"],
+            field_display_names={"origin": "origin"},
             empty_error_message="No price calendar requests provided",
             logger=logger,
         )
         if validation_error:
             return PriceCalendarResponse(results=[], error=validation_error)
         if not validated_requests:
-            return PriceCalendarResponse(results=[], error="No valid requests to process")
+            return self._build_response_with_errors(
+                response_class=PriceCalendarResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="Travelpayouts",
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+            )
 
         # 2. Create provider
         provider = TravelpayoutsProvider()
@@ -146,8 +152,13 @@ class PriceCalendarSkill(BaseSkill):
         # 4. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger,
+        )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
         )
 
         # 5. Build and return response

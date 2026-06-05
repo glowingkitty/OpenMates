@@ -515,16 +515,24 @@ class SearchSkill(BaseSkill):
         if error_response:
             return error_response
         
-        # Validate requests array using BaseSkill helper
-        validated_requests, error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="query",
-            field_display_name="query",
+            required_fields=["query"],
+            field_display_names={"query": "query"},
             empty_error_message="No search requests provided. 'requests' array must contain at least one request with a 'query' field.",
             logger=logger
         )
         if error:
             return SearchResponse(results=[], error=error)
+        if not validated_requests:
+            return self._build_response_with_errors(
+                response_class=SearchResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="Google Maps",
+                suggestions=self.suggestions_follow_up_requests,
+                logger=logger
+            )
         
         # Initialize cache service for rate limiting (shared across all requests)
         from backend.core.api.app.services.cache import CacheService
@@ -542,8 +550,13 @@ class SearchSkill(BaseSkill):
         # Group results by request ID using BaseSkill helper
         grouped_results, errors = self._group_results_by_request_id(
             results=results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger
+        )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
         )
         
         # Build response with errors using BaseSkill helper
