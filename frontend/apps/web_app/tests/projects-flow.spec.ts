@@ -29,7 +29,7 @@ test.describe('Projects v1 flow', () => {
     await page.getByTestId('project-name-input').fill(projectName);
     await page.getByTestId('project-create-button').click();
 
-    await expect(page.getByTestId('project-card').filter({ hasText: projectName })).toBeVisible();
+    await expect(page.getByTestId('project-card').filter({ hasText: projectName }).first()).toBeVisible();
     await expect(page.getByTestId('recent-project-card').filter({ hasText: projectName })).toBeVisible();
     await expect(page.getByTestId('project-empty-items')).toBeVisible();
 
