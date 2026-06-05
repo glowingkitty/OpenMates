@@ -54,3 +54,58 @@ def test_guard_strict_mode_blocks_warnings(monkeypatch) -> None:
     monkeypatch.setattr(code_quality_guard, "_added_lines", lambda: [("frontend/example.ts", "// TODO: follow up")])
 
     assert code_quality_guard.main() == 1
+
+
+def test_guard_blocks_public_compose_port_publish(monkeypatch) -> None:
+    """Compose host ports should not be exposed on every interface by default."""
+
+    monkeypatch.setattr(code_quality_guard, "_staged_files", lambda: [])
+    monkeypatch.setattr(
+        code_quality_guard,
+        "_added_lines",
+        lambda: [("backend/core/docker-compose.yml", '      - "8000:8000"')],
+    )
+
+    assert code_quality_guard.main() == 1
+
+
+def test_guard_blocks_variable_compose_port_publish(monkeypatch) -> None:
+    """Variable host ports are still public unless they include a host bind."""
+
+    monkeypatch.setattr(code_quality_guard, "_staged_files", lambda: [])
+    monkeypatch.setattr(
+        code_quality_guard,
+        "_added_lines",
+        lambda: [("docker-compose.yml", '      - "${API_PUBLIC_PORT:-18001}:8000"')],
+    )
+
+    assert code_quality_guard.main() == 1
+
+
+def test_guard_allows_localhost_compose_port_publish(monkeypatch) -> None:
+    """Localhost-only host ports are safe for Caddy and SSH forwarding."""
+
+    monkeypatch.setattr(code_quality_guard, "_staged_files", lambda: [])
+    monkeypatch.setattr(
+        code_quality_guard,
+        "_added_lines",
+        lambda: [("backend/core/docker-compose.yml", '      - "127.0.0.1:8000:8000"')],
+    )
+
+    assert code_quality_guard.main() == 0
+
+
+def test_guard_allows_public_edge_compose_ports(monkeypatch) -> None:
+    """Only HTTP/S edge ports are allowlisted for all-interface publishes."""
+
+    monkeypatch.setattr(code_quality_guard, "_staged_files", lambda: [])
+    monkeypatch.setattr(
+        code_quality_guard,
+        "_added_lines",
+        lambda: [
+            ("docker-compose.yml", '      - "80:80"'),
+            ("docker-compose.yml", '      - "443:443"'),
+        ],
+    )
+
+    assert code_quality_guard.main() == 0

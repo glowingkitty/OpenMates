@@ -88,7 +88,8 @@ services:
 
     # Port mapping
     ports:
-      - "${PREVIEW_PORT:-8080}:8080"
+      # Expose on localhost only — Caddy on this VM proxies to this port.
+      - "127.0.0.1:${PREVIEW_PORT:-8080}:8080"
 
     # Persistent cache storage only — NO Docker socket
     volumes:

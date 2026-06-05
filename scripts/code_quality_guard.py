@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_EXTENSIONS = {".py", ".ts", ".tsx", ".svelte", ".js", ".mjs", ".css", ".swift"}
 NEW_FILE_LINE_LIMIT = 800
 TOUCHED_FILE_WARNING_LIMIT = 2500
+PUBLIC_COMPOSE_PORTS = {"80", "443"}
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -68,6 +69,31 @@ def _staged_file_line_count(path: str) -> int:
     return len(result.stdout.splitlines())
 
 
+def _is_compose_file(path: str) -> bool:
+    name = Path(path).name
+    return name.startswith("docker-compose") and Path(path).suffix in {".yml", ".yaml"}
+
+
+def _unsafe_compose_port_publish(line: str) -> str | None:
+    stripped = line.strip()
+    if not stripped.startswith("-"):
+        if re.match(r"published\s*:", stripped):
+            return "long-form published ports must include host_ip: 127.0.0.1 unless explicitly reviewed"
+        return None
+
+    value = stripped[1:].strip().strip('"\'')
+    value = value.split(" #", 1)[0].strip()
+    if ":" not in value:
+        return None
+    if value.startswith(("127.0.0.1:", "localhost:", "[::1]:")):
+        return None
+    if value.startswith(("0.0.0.0:", "[::]:")):
+        return "binds to all interfaces"
+    if value.split(":", 1)[0] not in PUBLIC_COMPOSE_PORTS:
+        return "host port is not allowlisted for public exposure"
+    return None
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -87,6 +113,13 @@ def main() -> int:
             warnings.append(f"{path}: touched source file is {line_count} lines; prefer extraction over adding more responsibilities")
 
     for path, line in _added_lines():
+        if _is_compose_file(path):
+            reason = _unsafe_compose_port_publish(line)
+            if reason:
+                blocks.append(
+                    f"{path}: unsafe Docker Compose port publish ({reason}); bind to 127.0.0.1 or add an explicit reviewed exception: {line.strip()[:160]}"
+                )
+            continue
         if Path(path).suffix not in SOURCE_EXTENSIONS:
             continue
         for label, pattern in BLOCK_PATTERNS.items():

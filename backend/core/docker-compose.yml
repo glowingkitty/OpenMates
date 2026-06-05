@@ -29,7 +29,8 @@ services:
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
-      - "8000:8000"
+      # Expose on localhost only — Caddy on this VM proxies to this port.
+      - "127.0.0.1:8000:8000"
     volumes:
       # Changed: Mount the entire host 'backend' directory to '/app/backend' for development
       - ../../backend:/app/backend
