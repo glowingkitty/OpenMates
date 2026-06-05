@@ -1,5 +1,8 @@
 ---
 status: active
+doc_type: explanation
+audience:
+  - contributors
 last_verified: 2026-03-24
 key_files:
   - frontend/packages/ui/src/services/cryptoService.ts
@@ -10,11 +13,31 @@ key_files:
   - backend/core/api/app/utils/encryption.py
   - backend/core/directus/schemas/chats.yml
   - backend/core/directus/schemas/messages.yml
+claims:
+  - id: chat-persistence-rejects-vault-ciphertext
+    type: backend
+    file: backend/tests/test_persistence_tasks.py
+    assertion: chat-persistence-rejects-vault-ciphertext
+  - id: chat-persistence-accepts-client-encrypted-base64
+    type: backend
+    file: backend/tests/test_persistence_tasks.py
+    assertion: chat-persistence-accepts-client-encrypted-base64
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
 ---
 
 # Chat Encryption Implementation
 
 > Field-level encryption details for chat data. All message encryption/decryption happens client-side; the server stores only encrypted blobs.
+
+## Summary
+
+- Chat storage surfaces accept client-encrypted payloads, not Vault/server ciphertext.
+- The backend can process plaintext for immediate AI inference, but persistent chat history must be written back as client-encrypted data.
+- Existing persistence tests enforce the storage boundary that protects Directus and sync cache from server-side ciphertext formats.
 
 ## Why This Exists
 

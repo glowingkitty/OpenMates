@@ -1,5 +1,8 @@
 ---
 status: active
+doc_type: explanation
+audience:
+  - contributors
 last_verified: 2026-06-01
 key_files:
   - frontend/packages/ui/src/services/chatSyncService*.ts
@@ -11,11 +14,35 @@ key_files:
   - backend/core/api/app/routes/debug_sync.py
   - backend/core/api/app/tasks/user_cache_tasks.py
   - backend/core/api/app/services/cache_chat_mixin.py
+claims:
+  - id: phase1-partial-cache-metadata-fills-from-directus
+    type: backend
+    file: backend/tests/test_phased_sync_handler.py
+    assertion: phase1-partial-cache-metadata-fills-from-directus
+  - id: phase-all-does-not-run-background-content-sync
+    type: backend
+    file: backend/tests/test_phased_sync_handler.py
+    assertion: phase-all-does-not-run-background-content-sync
+  - id: phase1-full-content-limited-to-recent-parent-chats
+    type: backend
+    file: backend/tests/test_phased_sync_handler.py
+    assertion: phase1-full-content-limited-to-recent-parent-chats
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - frontend/packages/ui/src/services/chatSyncService*.ts
 ---
 
 # Sync Architecture
 
 > Bounded startup sync with predictive cache warming — recent chats appear quickly after login without bulk-syncing the full last-100 chat content set.
+
+## Summary
+
+- Startup sync sends a small shell first, then recent parent-chat content, then metadata-only updates.
+- Partially warmed cache entries must be completed from Directus before Phase 1a reaches the client.
+- Full startup content is capped to recent parent chats; sub-chat content stays on demand.
 
 ## Why This Exists
 

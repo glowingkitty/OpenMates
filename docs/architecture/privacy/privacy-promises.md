@@ -1,3 +1,38 @@
+---
+status: active
+doc_type: explanation
+audience:
+  - contributors
+last_verified: 2026-04-14
+claims:
+  - id: privacy-promises-registry-matches-schema
+    type: backend
+    file: backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-registry-matches-schema
+  - id: privacy-promises-linked-tests-contain-markers
+    type: backend
+    file: backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-linked-tests-contain-markers
+  - id: privacy-promises-forbidden-terms-are-absent
+    type: backend
+    file: backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-forbidden-terms-are-absent
+  - id: privacy-promises-logging-redacts-sensitive-data
+    type: backend
+    file: backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-logging-redacts-sensitive-data
+  - id: privacy-promises-cryptographic-erasure-deletes-keys-first
+    type: backend
+    file: backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-cryptographic-erasure-deletes-keys-first
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - shared/docs/privacy_promises.yml
+    - shared/docs/privacy_promises.schema.json
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+---
+
 <!--
   Privacy Promises — architecture + workflow
 
@@ -14,6 +49,12 @@
 -->
 
 # Privacy Promises
+
+## Summary
+
+- Privacy promises are declared once in `shared/docs/privacy_promises.yml`.
+- Backend and frontend tests must contain matching promise markers before a promise can stay active.
+- The public privacy policy renders technical privacy measures from the same registry, reducing drift between product claims, code, and tests.
 
 Every user-facing privacy claim OpenMates makes is declared in one registry file, linked to the code that enforces it, and verified by tests. If any of the three pieces drifts — the claim, the code, or the test — the meta-test fails and a Claude Code hook warns the next editor. The public privacy policy's "Technical Privacy Measures" section is generated from the same registry, so we can't publish a promise without wiring its enforcement.
 
