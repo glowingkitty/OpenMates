@@ -33,6 +33,7 @@ Analyze the user's input and determine:
    - `cronjob`, `user-feedback`, `SEO`
 6. **Project**: Suggest Web App or CLI based on content
 7. **Milestone**: Suggest v0.10.1 alpha (stability/UI fixes) or v0.11.0 alpha (features) based on scope
+8. **Spec size**: Decide `none`, `inline`, or `full` using `docs/contributing/guides/spec-driven-development.md`
 
 ### Step 2: Present the Suggested Task
 
@@ -54,6 +55,13 @@ The create reminder UI is broken — [expanded description based on user input].
 ### Acceptance Criteria
 - [ ] Reminder creation works reliably
 - [ ] UI matches Figma design
+
+### Example Scenarios
+- S-1: Given ..., when ..., then ...
+
+### Spec Readiness
+- Spec size: inline | full | none
+- Full spec path: docs/specs/<slug>/spec.md (if needed)
 ```
 
 ### Step 3: Ask for Confirmation
@@ -65,6 +73,10 @@ Use `AskUserQuestion`:
 ### Step 4: Create the Task
 
 For GitHub-default tasks, call `github_issue_write` with a concise title, structured body, labels, and assignees only when the user requested them.
+
+If the task needs a full spec, include a `Spec Readiness` section in the issue
+body and tell the user to run `specify` before implementation. Do not implement
+full-spec work directly from a bare issue.
 
 For Linear-only tasks, use `python3 scripts/linear.py create --team OPE --title "..." --description "..."` and add state/priority/labels when needed. Do not use Linear MCP tools.
 
@@ -106,6 +118,11 @@ For Linear-only tasks, show the `OPE-XXX` identifier returned by `scripts/linear
 ## Related
 - Files: ...
 - Commits: ...
+
+## Spec Readiness
+- Spec size: none | inline | full
+- Examples: S-1, S-2
+- Verification: existing or proposed test files
 ```
 
 **Feature:**
@@ -118,6 +135,13 @@ For Linear-only tasks, show the `OPE-XXX` identifier returned by `scripts/linear
 
 ## Acceptance Criteria
 - [ ] ...
+
+## Example Scenarios
+- S-1: Given ..., when ..., then ...
+
+## Spec Readiness
+- Spec size: none | inline | full
+- Full spec required before implementation: yes/no
 ```
 
 **Idea:**

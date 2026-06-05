@@ -26,6 +26,24 @@ Read these files to understand the app's patterns:
 3. An existing skill in `backend/apps/{appId}/skills/` — use as template
 4. `backend/shared/python_schemas/app_metadata_schemas.py` — AppYAML schema (for valid field names)
 
+### Step 1b: Create Skill Behavior Spec
+
+Before scaffolding a new app skill, run `specify` or create an inline spec using
+`docs/contributing/guides/spec-driven-development.md`.
+
+New app skills usually require a full spec because they define user-facing AI
+behavior, tool contracts, provider behavior, and often embed behavior. The spec
+must include:
+
+- Sample user prompts
+- Expected tool input parameters
+- Expected skill output shape
+- No-results behavior
+- Provider-error behavior
+- Permission, privacy, and API-key behavior
+- Embed preview/fullscreen behavior if the skill produces embeds
+- App-store examples that double as executable examples
+
 ### Step 2: Create the Skill File
 
 Create `backend/apps/{appId}/skills/{skill_file}.py` where `skill_file` is `skillId` with hyphens replaced by underscores.

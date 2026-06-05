@@ -14,7 +14,8 @@
     ".claude/rules/apple-ui.md",
     ".claude/rules/code-quality.md",
     ".claude/rules/planning.md",
-    ".claude/rules/task-management.md"
+    ".claude/rules/task-management.md",
+    "docs/contributing/guides/spec-driven-development.md"
   ],
   "permission": {
     "skill": {

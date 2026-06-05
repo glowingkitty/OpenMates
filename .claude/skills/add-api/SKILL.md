@@ -37,6 +37,23 @@ Before writing any code:
 
 4. **Present findings to the user and wait for confirmation** before proceeding to code.
 
+### Step 1b: Create Provider Contract Spec
+
+Before writing provider code, run `specify` or create an inline spec according
+to `docs/contributing/guides/spec-driven-development.md`.
+
+New provider integrations normally require a full spec because they affect
+privacy, contracts, rate limits, cost, error handling, and downstream skills.
+The spec must include:
+
+- Endpoint table with method, URL, auth, request fields, response fields
+- Required normalized output shape
+- Rate-limit and retry behavior
+- Provider outage and no-results behavior
+- Pricing/cost assumptions
+- Privacy policy URL verification date when applicable
+- Contract examples with sample request, sample response, and expected parsed output
+
 ### Step 2: Read Reference Implementation
 
 Read an existing provider as template:

@@ -1,6 +1,6 @@
 ---
 name: reproduce-first
-description: Reproduce a bug via an E2E spec (red) before any fix code, then verify green. Use at the start of any bug-fix session where a user-visible behavior is wrong.
+description: Reproduce a bug via an automated test spec (red) before any fix code, then verify green. Use at the start of any bug-fix session where a user-visible behavior is wrong.
 user-invocable: true
 argument-hint: "<issue-id | short description of the bug>"
 ---
@@ -17,7 +17,7 @@ Parse the argument:
 
 State your understanding in 2-3 sentences and get confirmation before continuing.
 
-### Step 2 — Find or propose a spec
+### Step 2 — Find or propose an automated test spec
 
 Run:
 ```bash
@@ -31,11 +31,13 @@ ls frontend/apps/web_app/tests/ | grep -i <keyword>
 
 Three outcomes:
 
-**(a) Existing spec covers this area** → use it. Open the spec, identify whether its current assertions would catch this bug. If yes, jump to Step 3. If no, extend it with a focused assertion that would fail today, then jump to Step 3.
+**(a) Existing automated test spec covers this area** → use it. Open the test spec, identify whether its current assertions would catch this bug. If yes, jump to Step 3. If no, extend it with a focused assertion that would fail today, then jump to Step 3.
 
-**(b) No spec exists** → propose a minimal E2E test (user flow, assertions, target file). **Wait for user confirmation before writing test code.** After confirmation, write the spec.
+**(b) No automated test spec exists** → propose a minimal E2E, pytest, or unit test (user flow, assertions, target file). **Wait for user confirmation before writing test code.** After confirmation, write the test spec.
 
-**(c) Spec exists but feels wrong** → ask the user whether to extend an adjacent spec or create a new one. Do not guess.
+**(c) Test spec exists but feels wrong** → ask the user whether to extend an adjacent test spec or create a new one. Do not guess.
+
+If the bug needs a durable product behavior spec because expected behavior is disputed or risky, run `specify` and link the failing test to a scenario ID before fix code.
 
 ### Step 3 — Run the spec and confirm RED
 
