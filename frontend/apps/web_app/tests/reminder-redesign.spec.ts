@@ -43,7 +43,8 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 
 function getMinutesFromNow(minutes: number): { date: string; time: string } {
 	const now = new Date();
-	now.setMinutes(now.getMinutes() + minutes);
+	// Add 1 extra minute to compensate for handleSubmit appending :00 seconds
+	now.setMinutes(now.getMinutes() + minutes + 1);
 	const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 	const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 	return { date, time };
@@ -264,11 +265,11 @@ test('reminder redesign — Type A: notification in existing chat, no new chat c
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(1000);
 
-	// Wait for the reminder to fire (up to 4 minutes)
-	log('Waiting for reminder system message (up to 4 min)...');
+	// Wait for the reminder to fire (up to 5 minutes)
+	log('Waiting for reminder system message (up to 5 min)...');
 	const systemMsg = page.getByTestId('message-system');
 	const pollStart = Date.now();
-	while (Date.now() - pollStart < 240000) {
+	while (Date.now() - pollStart < 300000) {
 		if ((await systemMsg.count()) >= 1) break;
 		const elapsed = Math.round((Date.now() - pollStart) / 1000);
 		if (elapsed % 15 === 0) log(`Polling... ${elapsed}s elapsed`);
