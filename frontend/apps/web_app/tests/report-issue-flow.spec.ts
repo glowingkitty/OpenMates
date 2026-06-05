@@ -294,10 +294,11 @@ test.describe('Report Issue Flow', () => {
 		);
 		await takeStepScreenshot(page, '05-submitted');
 
-		// ── Step 6b: Poll /status until the YAML report S3 key is present ──
-		// The YAML report is generated and uploaded asynchronously by the
-		// issue_report_email_task Celery task. Poll until has_yaml_report=true
-		// or give up after the timeout (and fail the test).
+		// ── Step 6b: Poll /status until the async persistence state is ready ──
+		// Non-admin reports send email by default, and the email task generates the
+		// YAML report. Admin reports skip email by default, so they persist the
+		// screenshot synchronously but intentionally do not create YAML unless the
+		// admin enables email notifications.
 		const issueId: string = responseBody?.issue_id;
 		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${issueId}/status`;
 		logCheckpoint(`Polling status endpoint: ${statusUrl}`);
@@ -311,7 +312,7 @@ test.describe('Report Issue Flow', () => {
 				const ct = statusResp.headers()['content-type'] || '';
 				if (ct.includes('application/json')) {
 					lastStatus = await statusResp.json();
-					if (lastStatus?.has_screenshot && lastStatus?.has_yaml_report) {
+					if (lastStatus?.has_screenshot && (adminControlsVisible || lastStatus?.has_yaml_report)) {
 						break;
 					}
 				} else {
@@ -324,8 +325,13 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint(`Final /status payload: ${JSON.stringify(lastStatus)}`);
 		expect(lastStatus, 'issue status endpoint returned nothing').not.toBeNull();
 		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
-		expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
-		logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
+		if (adminControlsVisible) {
+			expect(lastStatus?.has_yaml_report, 'admin report should skip YAML when email notification is off by default').toBe(false);
+			logCheckpoint('Screenshot persisted; YAML correctly skipped for admin default email-off report.');
+		} else {
+			expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
+			logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
+		}
 
 		// ── Step 7: Verify confirmation page ───────────────────────────
 		const confirmation = page.getByTestId('report-issue-confirmation');
