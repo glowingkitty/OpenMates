@@ -128,13 +128,18 @@
         formatOpenMatesEventSummary,
         getOgExampleResumeChat,
         getContinueGradientColors,
-        getReplayDelay,
         getResumeCardGradientStyle,
         getResumeLargeCardStyle,
         hasOpenMatesEventEnded,
         isOgExampleSharedChatCuttlefish,
-        splitReplayContent,
     } from './activeChatUtils';
+    import {
+        cloneMessagesForReplay,
+        getReplayDelay,
+        resolveReplayPair,
+        splitReplayContent,
+        type ChatReplayOptions,
+    } from './activeChatReplayUtils';
     import { getApiEndpoint } from '../config/api';
     import {
         getReminderByTargetChatId,
@@ -3805,17 +3810,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    type ChatReplayOptions = {
-        /** Assistant message to replay. Defaults to the latest assistant message in the open chat. */
-        messageId?: string;
-        /** Playback speed multiplier. Values above 1 make the replay faster. */
-        speed?: number;
-        /** Optional delay before the assistant bubble appears, before speed scaling. */
-        initialDelayMs?: number;
-        /** Optional delay between paragraph chunks, before speed scaling. */
-        paragraphDelayMs?: number;
-    };
-
     type ChatReplayCommand = {
         start: (options?: ChatReplayOptions) => Promise<void>;
         stop: () => void;
@@ -3825,48 +3819,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let replayGeneration = 0;
     let replayOriginalMessages: ChatMessageModel[] | null = null;
 
-    function cloneMessagesForReplay(messages: ChatMessageModel[]): ChatMessageModel[] {
-        return messages.map((message) => ({ ...message }));
-    }
-
     function waitForReplay(ms: number, generation: number): Promise<boolean> {
         return new Promise((resolve) => {
             setTimeout(() => resolve(replayGeneration === generation), ms);
         });
-    }
-
-    function resolveReplayPair(options: ChatReplayOptions) {
-        const assistantIndex = options.messageId
-            ? currentMessages.findIndex((message) => message.message_id === options.messageId && message.role === 'assistant')
-            : (() => {
-                for (let index = currentMessages.length - 1; index >= 0; index -= 1) {
-                    if (currentMessages[index].role === 'assistant') return index;
-                }
-                return -1;
-            })();
-
-        if (assistantIndex === -1) {
-            throw new Error('No assistant message found to replay in the open chat.');
-        }
-
-        const assistantMessage = currentMessages[assistantIndex];
-        const linkedUserIndex = assistantMessage.user_message_id
-            ? currentMessages.findIndex((message) => message.message_id === assistantMessage.user_message_id)
-            : -1;
-        const userIndex = linkedUserIndex !== -1
-            ? linkedUserIndex
-            : (() => {
-                for (let index = assistantIndex - 1; index >= 0; index -= 1) {
-                    if (currentMessages[index].role === 'user') return index;
-                }
-                return -1;
-            })();
-
-        if (userIndex === -1) {
-            throw new Error('No user message found before the assistant message to replay.');
-        }
-
-        return { assistantIndex, userIndex, assistantMessage, userMessage: currentMessages[userIndex] };
     }
 
     function updateReplayMessages(messages: ChatMessageModel[]) {
@@ -3903,7 +3859,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const speed = options.speed ?? 4;
         const initialDelay = getReplayDelay(options.initialDelayMs ?? 900, speed);
         const paragraphDelay = getReplayDelay(options.paragraphDelayMs ?? 650, speed);
-        const { assistantIndex, userIndex, assistantMessage, userMessage } = resolveReplayPair(options);
+        const { assistantIndex, userIndex, assistantMessage, userMessage } = resolveReplayPair(currentMessages, options);
         const beforePair = cloneMessagesForReplay(currentMessages.slice(0, userIndex));
         const replayUserMessage: ChatMessageModel = { ...userMessage, status: 'sending' };
         const replayAssistantMessage: ChatMessageModel = {

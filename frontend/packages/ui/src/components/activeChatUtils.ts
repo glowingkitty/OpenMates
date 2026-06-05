@@ -105,25 +105,3 @@ export function getContinueGradientColors(
 ): GradientColors | null {
     return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
 }
-
-export function getReplayDelay(baseMs: number, speed: number): number {
-    return Math.max(40, Math.round(baseMs / Math.max(0.1, speed)));
-}
-
-export function splitReplayContent(content: string): string[] {
-    const paragraphs = content
-        .split(/\n{2,}/)
-        .map((part) => part.trim())
-        .filter(Boolean);
-
-    if (paragraphs.length > 1) {
-        return paragraphs.map((_, index) => paragraphs.slice(0, index + 1).join('\n\n'));
-    }
-
-    const sentences = content.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
-    if (sentences.length > 1) {
-        return sentences.map((_, index) => sentences.slice(0, index + 1).join(' '));
-    }
-
-    return [content];
-}
