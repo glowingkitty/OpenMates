@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Report Issue E2E test.
@@ -59,8 +58,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -173,6 +171,26 @@ test.describe('Report Issue Flow', () => {
 		await expect(submitButton).toBeVisible({ timeout: 5000 });
 		logCheckpoint('Submit button visible.');
 
+		// The regular E2E account is not an admin. Admin-only automation controls
+		// must not be visible, and direct calls to the admin investigation endpoint
+		// must not be accepted from this browser context.
+		await expect(page.getByTestId('admin-implement-fix-directly')).toHaveCount(0);
+		await expect(page.getByTestId('admin-add-to-linear')).toHaveCount(0);
+		await expect(page.getByTestId('admin-send-email-notification')).toHaveCount(0);
+		logCheckpoint('Admin-only report issue actions are hidden for the test account.');
+
+		const adminInvestigationResponse = await page.request.post(`${API_BASE_URL}/admin/claude-investigate`, {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				issue_id: 'e2e-non-admin-probe',
+				issue_title: 'E2E non-admin probe',
+				agent_action: 'fix',
+			},
+		});
+		expect(adminInvestigationResponse.status()).toBeGreaterThanOrEqual(400);
+		expect(adminInvestigationResponse.status()).not.toBe(202);
+		logCheckpoint(`Admin investigation endpoint rejected test account with HTTP ${adminInvestigationResponse.status()}.`);
+
 		// ── Step 4: Attempt empty submit — verify validation ───────────
 		// The submit button should be disabled when the form is invalid
 		await expect(submitButton).toBeDisabled();
@@ -243,6 +261,10 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.success).toBe(true);
 		expect(responseBody?.issue_id).toBeTruthy();
 		expect(responseBody?.screenshot_uploaded).toBe(true);
+		const submittedPayload = apiResponse.request().postDataJSON?.();
+		expect(submittedPayload?.agent_action).toBe('none');
+		expect(submittedPayload?.add_to_linear).toBe(true);
+		expect(submittedPayload?.send_email_notification).toBe(true);
 		logCheckpoint(
 			`Issue created with ID: ${responseBody?.issue_id} ` +
 			`(screenshot_uploaded=${responseBody?.screenshot_uploaded})`

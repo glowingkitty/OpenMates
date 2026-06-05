@@ -881,11 +881,11 @@ async def get_version() -> JSONResponse:
 
 
 # =============================================================================
-# Admin-triggered claude issue investigation
+# Admin-triggered OpenCode issue investigation
 # =============================================================================
 
 class _InvestigateRequest(BaseModel):
-    """Payload sent by the API container to trigger a Claude Code investigation."""
+    """Payload sent by the API container to trigger an OpenCode investigation."""
     issue_id: str
     issue_title: str
     issue_description: str = ""
@@ -895,7 +895,7 @@ class _InvestigateRequest(BaseModel):
     screenshot_presigned_url: str = ""
     environment: str = "development"
     domain: str = ""
-    agent_action: str = "fix"  # 'research' = read-only analysis, 'fix' = full investigation + fix
+    agent_action: str = "research"  # 'research' = investigate/recommend only, 'fix' = implement/deploy/verify
 
 
 def _build_investigate_prompt(data: _InvestigateRequest) -> str:
@@ -922,7 +922,7 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
             "Console logs:\n{{CONSOLE_LOGS}}\n\n"
             "Action history:\n{{ACTION_HISTORY}}\n\n"
             "Screenshot: {{SCREENSHOT_URL}}\n\n"
-            "Diagnose the root cause and propose a concrete fix."
+            "Diagnose the root cause and propose a concrete fix plus verification plan."
         )
 
     date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
@@ -944,18 +944,18 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
     # Prepend mode-specific instructions based on agent_action
     if data.agent_action == "research":
         mode_prefix = (
-            "IMPORTANT: This is a RESEARCH-ONLY session. "
-            "You MUST NOT edit, write, or create any files. "
-            "Only read, search, and analyze code + search the web. "
-            "Post your findings as a structured summary — do NOT implement any changes.\n\n"
+            "IMPORTANT: This is an INVESTIGATE-ONLY OpenCode session. "
+            "Do not edit files, commit, deploy, or run destructive actions. "
+            "Research the issue deeply, identify the most likely root cause, and return "
+            "a recommended fix plus the exact test or verification plan for user approval.\n\n"
         )
         prompt = mode_prefix + prompt
     else:
         mode_prefix = (
-            "IMPORTANT: This is an EXECUTE session. "
+            "IMPORTANT: This is a DIRECT IMPLEMENTATION OpenCode session. "
             "You have full access to read, edit, and create files. "
-            "Investigate the issue and implement the fix directly. "
-            "Use sessions.py deploy to commit and push when done.\n\n"
+            "Investigate the issue, implement the fix directly, run the relevant tests, "
+            "and use sessions.py deploy to commit and push when done.\n\n"
         )
         prompt = mode_prefix + prompt
 
@@ -965,9 +965,9 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
 def _write_agent_trigger(data: _InvestigateRequest) -> str:
     """
     Write a JSON trigger file to the shared bind-mount so the host-side
-    agent-trigger-watcher.sh can pick it up and run claude on the host.
+    agent-trigger-watcher.sh can pick it up and run OpenCode on the host.
 
-    The sidecar runs inside Docker and cannot execute host binaries (claude).
+    The sidecar runs inside Docker and cannot execute host binaries (OpenCode).
     Instead it writes a trigger file to ``<GIT_WORK_DIR>/scripts/.agent-triggers/``
     which is on the bind-mounted project root, visible to the host.
 
@@ -1005,12 +1005,12 @@ def _write_agent_trigger(data: _InvestigateRequest) -> str:
 
 @app.post(
     "/admin/claude-investigate",
-    summary="Trigger a Claude Code plan-mode investigation for a reported issue",
+    summary="Trigger an OpenCode investigation for a reported issue",
     description=(
-        "Called by the API container when an admin submits an issue report with "
-        "'Submit to agent' enabled. Writes a JSON trigger file to the shared "
+        "Called by the API container when an admin submits an issue report. "
+        "Writes a JSON trigger file to the shared "
         "bind-mount at scripts/.agent-triggers/ for the host-side watcher to "
-        "pick up and run claude. "
+        "pick up and run OpenCode. "
         "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
     ),
     include_in_schema=False,
@@ -1020,10 +1020,10 @@ async def post_claude_investigate(
     x_admin_log_key: Optional[str] = Header(None),
 ) -> JSONResponse:
     """
-    Write a trigger file for host-side claude investigation.
+    Write a trigger file for host-side OpenCode investigation.
 
     Returns 202 immediately. The host-side agent-trigger-watcher.sh service
-    polls for new trigger files and runs claude on the host where the
+    polls for new trigger files and runs OpenCode on the host where the
     binary is installed.
     """
     _require_admin_key(x_admin_log_key)
@@ -1063,7 +1063,7 @@ async def post_claude_investigate(
             "trigger_file": trigger_path,
             "message": (
                 "Trigger file written. The host-side agent-trigger-watcher "
-                "will pick it up and start a Claude Code investigation."
+                "will pick it up and start an OpenCode investigation."
             ),
         },
     )

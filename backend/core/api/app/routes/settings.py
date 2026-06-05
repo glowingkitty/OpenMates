@@ -2503,8 +2503,8 @@ class IssueReportRequest(BaseModel):
         "none",
         description=(
             "Admin-only field controlling agent behavior on issue submission. "
-            "Values: 'none' (default, no agent), 'research' (codebase + web research only, "
-            "posts findings as comments), 'fix' (research + direct fix attempt). "
+            "Values: 'none' (non-admin default), 'research' (investigate and recommend only), "
+            "'fix' (investigate + direct implementation, deploy, and verification). "
             "Only honoured when the reporter is an authenticated admin user — "
             "non-admin requests are silently ignored."
         ),
@@ -2553,17 +2553,17 @@ async def _trigger_agent_issue_investigation(
     agent_action: str = "fix",
 ) -> None:
     """
-    Fire-and-forget: ask the admin sidecar to start a Claude Code session
+    Fire-and-forget: ask the admin sidecar to start an OpenCode session
     investigating this issue.
 
     Args:
-        agent_action: 'research' for read-only analysis, 'fix' for full investigation + fix.
+        agent_action: 'research' for investigate-only instructions, 'fix' for direct implementation.
 
     Called only when:
     - The reporter is a verified admin user (``is_from_admin`` is True)
-    - ``issue_data.agent_action`` is 'research' or 'fix'
+    - Admin reports always trigger this with 'research' or 'fix'
 
-    The sidecar runs on the host where claude is installed; the API runs inside
+    The sidecar runs on the host where OpenCode is installed; the API runs inside
     Docker, so we delegate via an authenticated HTTP call to
     ``CORE_SIDECAR_URL/admin/claude-investigate``.
 
@@ -2578,7 +2578,7 @@ async def _trigger_agent_issue_investigation(
     if not core_sidecar_url:
         logger.warning(
             "[report_issue/agent] CORE_SIDECAR_URL not set — "
-            "cannot trigger claude investigation"
+            "cannot trigger OpenCode investigation"
         )
         return
 
@@ -2609,7 +2609,7 @@ async def _trigger_agent_issue_investigation(
 
     endpoint = f"{core_sidecar_url}/admin/claude-investigate"
     logger.info(
-        f"[report_issue/agent] Triggering claude investigation via sidecar: {endpoint} "
+        f"[report_issue/agent] Triggering OpenCode investigation via sidecar: {endpoint} "
         f"(issue_id={issue_id})"
     )
 
@@ -3168,9 +3168,10 @@ async def report_issue(
                 f"(admin toggle off)"
             )
 
-        # Admin-only: trigger agent investigation if requested.
-        # Only honoured when the reporter is a verified admin user.
-        if is_from_admin and issue_data.agent_action in ("research", "fix"):
+        # Admin-only: every verified admin report triggers OpenCode.
+        # Direct implementation is opt-in; otherwise the task investigates and recommends only.
+        if is_from_admin:
+            admin_agent_action = "fix" if issue_data.agent_action == "fix" else "research"
             try:
                 await _trigger_agent_issue_investigation(
                     request=request,
@@ -3181,7 +3182,7 @@ async def report_issue(
                     console_logs=console_logs_str,
                     action_history=action_history_str,
                     screenshot_presigned_url=screenshot_presigned_url,
-                    agent_action=issue_data.agent_action,
+                    agent_action=admin_agent_action,
                 )
             except Exception as _agent_err:
                 # Never block the issue report response if agent trigger fails

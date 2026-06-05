@@ -9095,8 +9095,8 @@ report_issue.agent_action_research:
   he: מחקר בלבד
   verified_by_human: []
 report_issue.agent_action_fix:
-  context: Radio option label - full fix attempt including research
-  en: Research + fix attempt
+  context: Admin-only toggle label - allow OpenCode to implement, test, and deploy directly
+  en: Implement directly
   de: Recherche + Reparaturversuch
   zh: 研究 + 修复尝试
   es: Investigación + intento de corrección
@@ -9143,8 +9143,8 @@ report_issue.agent_action_hint_none:
   he: לא תתבצע חקירה על ידי סוכן עבור דיווח זה.
   verified_by_human: []
 report_issue.agent_action_hint_research:
-  context: Hint text when 'research only' agent action is selected
-  en: A Claude Code agent will research the codebase and post findings — no code changes.
+  context: Hint text shown to admins when direct implementation is off
+  en: OpenCode will investigate the report, then recommend a fix and test plan for your approval. No code changes.
   de: Ein Claude Code-Agent wird die Codebasis untersuchen und Ergebnisse veröffentlichen — keine Codeänderungen.
   zh: Claude Code 代理将研究代码库并发布发现 — 不更改代码。
   es: Un agente Claude Code investigará el código y publicará hallazgos — sin cambios de código.
@@ -9167,8 +9167,8 @@ report_issue.agent_action_hint_research:
   he: סוכן Claude Code יחקור את בסיס הקוד ויפרסם ממצאים — ללא שינויי קוד.
   verified_by_human: []
 report_issue.agent_action_hint_fix:
-  context: Hint text when 'research + fix' agent action is selected
-  en: A Claude Code agent will investigate, then attempt to implement and deploy a fix.
+  context: Hint text shown to admins when direct implementation is enabled
+  en: OpenCode will investigate, implement the fix, deploy it, and run the relevant verification.
   de: Ein Claude Code-Agent wird untersuchen und dann versuchen, eine Lösung zu implementieren und bereitzustellen.
   zh: Claude Code 代理将进行调查，然后尝试实施和部署修复。
   es: Un agente Claude Code investigará y luego intentará implementar y desplegar una corrección.
