@@ -7,8 +7,13 @@
 
 import type { Chat } from '../types/chat';
 import type { OpenMatesEvent } from '../data/openmatesEvents';
+import { getCategoryGradientColors } from '../utils/categoryUtils';
 
 const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
+const DEFAULT_RESUME_CARD_GRADIENT_START = '#4867cd';
+const DEFAULT_RESUME_CARD_GRADIENT_END = '#a0beff';
+
+export type GradientColors = { start: string; end: string };
 
 export const AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS = new Set([
     'export-data',
@@ -62,4 +67,63 @@ export function formatOpenMatesEventContinueTitle(event: OpenMatesEvent): string
         ? ''
         : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     return date ? `${date}: ${event.title}` : event.title;
+}
+
+export function getResumeCardGradientStyle(orbColors?: GradientColors | null): string {
+    const start = orbColors?.start ?? DEFAULT_RESUME_CARD_GRADIENT_START;
+    const end = orbColors?.end ?? DEFAULT_RESUME_CARD_GRADIENT_END;
+
+    return [
+        `background: linear-gradient(135deg, ${start}, ${end})`,
+        `--orb-color-a: ${start}`,
+        `--orb-color-b: ${end}`,
+    ].join('; ');
+}
+
+export function getResumeLargeCardStyle(
+    orbColors?: GradientColors | null,
+    tiltTransform?: string,
+): string {
+    const parts = [getResumeCardGradientStyle(orbColors)];
+    if (tiltTransform) {
+        parts.push(`transform: ${tiltTransform}`);
+    }
+    return parts.join('; ');
+}
+
+export function getAppGradientColors(appId: string | null | undefined): GradientColors | null {
+    if (!appId || !/^[a-z0-9_-]+$/.test(appId)) return null;
+    return {
+        start: `var(--color-app-${appId}-start, ${DEFAULT_RESUME_CARD_GRADIENT_START})`,
+        end: `var(--color-app-${appId}-end, ${DEFAULT_RESUME_CARD_GRADIENT_END})`,
+    };
+}
+
+export function getContinueGradientColors(
+    category: string | null | undefined,
+    appId?: string | null,
+): GradientColors | null {
+    return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
+}
+
+export function getReplayDelay(baseMs: number, speed: number): number {
+    return Math.max(40, Math.round(baseMs / Math.max(0.1, speed)));
+}
+
+export function splitReplayContent(content: string): string[] {
+    const paragraphs = content
+        .split(/\n{2,}/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    if (paragraphs.length > 1) {
+        return paragraphs.map((_, index) => paragraphs.slice(0, index + 1).join('\n\n'));
+    }
+
+    const sentences = content.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
+    if (sentences.length > 1) {
+        return sentences.map((_, index) => sentences.slice(0, index + 1).join(' '));
+    }
+
+    return [content];
 }

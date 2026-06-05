@@ -127,8 +127,13 @@
         formatOpenMatesEventContinueTitle,
         formatOpenMatesEventSummary,
         getOgExampleResumeChat,
+        getContinueGradientColors,
+        getReplayDelay,
+        getResumeCardGradientStyle,
+        getResumeLargeCardStyle,
         hasOpenMatesEventEnded,
         isOgExampleSharedChatCuttlefish,
+        splitReplayContent,
     } from './activeChatUtils';
     import { getApiEndpoint } from '../config/api';
     import {
@@ -3824,32 +3829,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return messages.map((message) => ({ ...message }));
     }
 
-    function getReplayDelay(baseMs: number, speed: number): number {
-        return Math.max(40, Math.round(baseMs / Math.max(0.1, speed)));
-    }
-
     function waitForReplay(ms: number, generation: number): Promise<boolean> {
         return new Promise((resolve) => {
             setTimeout(() => resolve(replayGeneration === generation), ms);
         });
-    }
-
-    function splitReplayContent(content: string): string[] {
-        const paragraphs = content
-            .split(/\n{2,}/)
-            .map((part) => part.trim())
-            .filter(Boolean);
-
-        if (paragraphs.length > 1) {
-            return paragraphs.map((_, index) => paragraphs.slice(0, index + 1).join('\n\n'));
-        }
-
-        const sentences = content.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
-        if (sentences.length > 1) {
-            return sentences.map((_, index) => sentences.slice(0, index + 1).join(' '));
-        }
-
-        return [content];
     }
 
     function resolveReplayPair(options: ChatReplayOptions) {
@@ -4104,50 +4087,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
     });
-
-    /**
-     * Build the inline style string for the large resume card.
-     * Accepts a background CSS declaration and an optional gradient color pair.
-     * Emits --orb-color-a / --orb-color-b CSS custom properties consumed by
-     * the living gradient orb animation (same system as ChatHeader + DailyInspirationBanner).
-     */
-    function getResumeCardGradientStyle(
-        orbColors?: { start: string; end: string } | null,
-    ): string {
-        const start = orbColors?.start ?? '#4867cd';
-        const end = orbColors?.end ?? '#a0beff';
-
-        return [
-            `background: linear-gradient(135deg, ${start}, ${end})`,
-            `--orb-color-a: ${start}`,
-            `--orb-color-b: ${end}`,
-        ].join('; ');
-    }
-
-    function getResumeLargeCardStyle(
-        orbColors?: { start: string; end: string } | null,
-    ): string {
-        const parts = [getResumeCardGradientStyle(orbColors)];
-        if (resumeLargeCardTiltTransform) {
-            parts.push(`transform: ${resumeLargeCardTiltTransform}`);
-        }
-        return parts.join('; ');
-    }
-
-    function getAppGradientColors(appId: string | null | undefined): { start: string; end: string } | null {
-        if (!appId || !/^[a-z0-9_-]+$/.test(appId)) return null;
-        return {
-            start: `var(--color-app-${appId}-start, #4867cd)`,
-            end: `var(--color-app-${appId}-end, #a0beff)`,
-        };
-    }
-
-    function getContinueGradientColors(
-        category: string | null | undefined,
-        appId?: string | null,
-    ): { start: string; end: string } | null {
-        return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
-    }
 
     function handleResumeLargeCardMouseEnter(e: MouseEvent) {
         isResumeLargeCardHovering = true;
@@ -10799,7 +10738,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 bind:this={resumeLargeCardElement}
                                                 class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
-                                                style={getResumeLargeCardStyle(gradientColors)}
+                                                style={getResumeLargeCardStyle(gradientColors, resumeLargeCardTiltTransform)}
                                                 data-chat-id={resumeChatData.chat_id}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
