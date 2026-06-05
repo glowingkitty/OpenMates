@@ -102,6 +102,38 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Do not add GSD/Get-Shit-Done workflows, commands, hooks, or agents to this repo.
 - If GSD files appear from global OpenCode config, treat them as unrelated user-level tooling and keep them disabled for OpenMates work.
 
+### Skill Auto-Selection
+
+Use OpenCode skills proactively when the task matches their purpose. Do not wait
+for the user to name the skill if the intent is clear.
+
+Spec-driven development:
+- Use `specify` before implementing complex, risky, multi-session, or multi-system work.
+- Full specs are required for auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI pipeline changes, provider integrations, migrations, new API routes, app skills, embed types, background jobs, cron jobs, and Directus schema changes.
+- Use `plan-from-spec` after a full spec is approved.
+- Use `tasks-from-spec` after a full plan is approved.
+- Use `verify-spec` before deploy for full-spec work.
+- Use an inline spec instead of a full spec for small behavior changes; skip specs for trivial or mechanical work. See `docs/contributing/guides/spec-driven-development.md` for the boundary.
+
+Common routing:
+- New external API/provider: use `add-api`.
+- New backend app skill: use `add-app-skill`.
+- New embed type: use `add-embed-type`.
+- New hardcoded example chat from a share URL: use `add-example-chat`.
+- User-visible bug with reproducible behavior: use `reproduce-first` before fix code.
+- Latest failing tests or daily-run failures: use `fix-tests` or `fix-next-test`.
+- User-reported issue ID or debugging timeline: use `debug-issue`; for encryption/key/sync symptoms, use the encryption/debug specialist subagents from the available agent list.
+- Vercel deployment failure: use `fix-vercel`.
+- Production SSH request: use `prod-ssh`.
+- Newsletter creation/publishing: use `create-newsletter` or `publish-newsletter`.
+- iOS/macOS parity work: use `ios`.
+- Task creation or prioritization: use `new-task` or `next-tasks`.
+
+If multiple skills apply, choose the earliest workflow gate first. For example,
+for a new provider-backed app skill, run `specify` or `add-api` research before
+scaffolding with `add-app-skill`; for a bug, reproduce with a failing test
+before implementation.
+
 ---
 
 ## Lazy-Load Rules
