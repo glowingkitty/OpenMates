@@ -38,7 +38,7 @@ const {
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
-const { docCheckpoint } = require('./helpers/doc-checkpoint');
+const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
@@ -95,14 +95,18 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// ── Step 5: Click share button in chat header ─────────────────────────
 	const shareButton = page.locator('[data-testid="chat-share-button"]');
-	await expect(shareButton).toBeVisible({ timeout: 10000 });
-	await shareButton.click();
+	await docAssert('share-panel-opens-from-chat-header', async () => {
+		await expect(shareButton).toBeVisible({ timeout: 10000 });
+		await shareButton.click();
+	});
 	logCheckpoint('Clicked chat share button.');
 
 	// ── Step 6: Wait for share settings panel ─────────────────────────────
 	// Wait for the share generate-link button (indicates share panel loaded)
 	const generateLinkButton = page.locator('[data-testid="share-generate-link"]');
-	await expect(generateLinkButton).toBeVisible({ timeout: 15000 });
+	await docAssert('share-panel-shows-link-configuration', async () => {
+		await expect(generateLinkButton).toBeVisible({ timeout: 15000 });
+	});
 	logCheckpoint('Share panel loaded — configuration step visible.');
 	await takeStepScreenshot(page, 'share-config-step');
 	await docCheckpoint(page, {
@@ -123,7 +127,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// ── Step 9: Verify link generated step ────────────────────────────────
 	const copyLinkButton = page.locator('[data-testid="share-copy-link"]');
-	await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
+	await docAssert('share-link-has-copy-option', async () => {
+		await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
+	});
 	logCheckpoint('Copy link button is visible — link generated.');
 	await takeStepScreenshot(page, 'link-generated');
 	await docCheckpoint(page, {
@@ -135,15 +141,19 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// ── Step 10: Verify QR code ───────────────────────────────────────────
 	const qrCode = page.locator('[data-testid="share-qr-code"]');
-	await expect(qrCode).toBeVisible({ timeout: 10000 });
-	const qrSvg = qrCode.locator('svg');
-	await expect(qrSvg).toBeVisible({ timeout: 5000 });
+	await docAssert('share-link-has-qr-code', async () => {
+		await expect(qrCode).toBeVisible({ timeout: 10000 });
+		const qrSvg = qrCode.locator('svg');
+		await expect(qrSvg).toBeVisible({ timeout: 5000 });
+	});
 	logCheckpoint('QR code is visible with SVG.');
 
 	// ── Step 11: Test QR fullscreen ───────────────────────────────────────
 	await qrCode.click();
 	const qrFullscreen = page.locator('[data-testid="share-qr-fullscreen"]');
-	await expect(qrFullscreen).toBeVisible({ timeout: 5000 });
+	await docAssert('share-qr-code-opens-fullscreen', async () => {
+		await expect(qrFullscreen).toBeVisible({ timeout: 5000 });
+	});
 	logCheckpoint('QR fullscreen overlay opened.');
 	await takeStepScreenshot(page, 'qr-fullscreen');
 	await docCheckpoint(page, {
@@ -159,7 +169,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// ── Step 12: Test short link generation ───────────────────────────────
 	const shortLinkSection = page.locator('[data-testid="share-short-link-section"]');
-	await expect(shortLinkSection).toBeVisible({ timeout: 5000 });
+	await docAssert('share-link-offers-short-link-generation', async () => {
+		await expect(shortLinkSection).toBeVisible({ timeout: 5000 });
+	});
 	logCheckpoint('Short link section is visible.');
 
 	// Select 1 min TTL (first TTL option)
@@ -221,7 +233,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// Verify expiration info
 	const expirationInfo = page.locator('[data-testid="share-expiration-info"]');
-	await expect(expirationInfo).toBeVisible({ timeout: 5000 });
+	await docAssert('share-link-can-have-expiration', async () => {
+		await expect(expirationInfo).toBeVisible({ timeout: 5000 });
+	});
 	logCheckpoint('Expiration info is visible.');
 	await takeStepScreenshot(page, 'with-expiration');
 	await docCheckpoint(page, {

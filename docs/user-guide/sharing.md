@@ -1,5 +1,9 @@
 ---
 status: active
+doc_type: how-to
+audience:
+  - everyday-users
+  - technical-users
 last_verified: 2026-03-24
 tested_by:
   - spec: frontend/apps/web_app/tests/share-chat-flow.spec.ts
@@ -10,11 +14,53 @@ tested_by:
       - qr-fullscreen
       - short-link-generated
       - with-expiration
+claims:
+  - id: share-panel-opens-from-chat-header
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-panel-opens-from-chat-header
+  - id: share-panel-shows-link-configuration
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-panel-shows-link-configuration
+  - id: share-link-has-copy-option
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-link-has-copy-option
+  - id: share-link-has-qr-code
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-link-has-qr-code
+  - id: share-qr-code-opens-fullscreen
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-qr-code-opens-fullscreen
+  - id: share-link-offers-short-link-generation
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-link-offers-short-link-generation
+  - id: share-link-can-have-expiration
+    type: e2e
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-link-can-have-expiration
 ---
 
 # Sharing
 
+<!-- remotion-video:
+slug: sharing
+status: planned
+purpose: Show opening the share panel from a chat, generating a link, copying it, opening the QR fullscreen view, creating a short link, and setting an expiration.
+duration_target: 45-60s
+-->
+
 > Share conversations and results with others using secure, encrypted links. You control who sees what, for how long, and whether a password is required.
+
+## Summary
+
+- Use sharing when you want someone else to view a chat or app result without changing your original chat.
+- Open the share panel from the chat header, choose your options, then copy the link or scan the QR code.
+- You can add expiration, password protection, short links, and community sharing depending on how broadly you want to share.
 
 ## What It Does
 

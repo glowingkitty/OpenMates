@@ -1,5 +1,9 @@
 ---
 status: active
+doc_type: how-to
+audience:
+  - everyday-users
+  - technical-users
 last_verified: 2026-06-03
 tested_by:
   - spec: frontend/apps/web_app/tests/export-account-flow.spec.ts
@@ -7,11 +11,37 @@ tested_by:
     checkpoints:
       - export-options
       - export-downloaded
+claims:
+  - id: export-page-shows-data-categories
+    type: e2e
+    file: frontend/apps/web_app/tests/export-account-flow.spec.ts
+    assertion: export-page-shows-data-categories
+  - id: export-download-completes
+    type: e2e
+    file: frontend/apps/web_app/tests/export-account-flow.spec.ts
+    assertion: export-download-completes
+  - id: export-zip-contains-account-and-chat-data
+    type: e2e
+    file: frontend/apps/web_app/tests/export-account-flow.spec.ts
+    assertion: export-zip-contains-account-and-chat-data
 ---
 
 # Export Your Data
 
+<!-- remotion-video:
+slug: export-account
+status: planned
+purpose: Show opening Settings > Account > Export My Data, reviewing selected export categories, starting the export, and confirming the ZIP download.
+duration_target: 45-60s
+-->
+
 > Download all your personal data in a single ZIP file. This fulfils your right to data portability under privacy regulations.
+
+## Summary
+
+- Use export when you want a portable copy of your OpenMates data.
+- Open **Settings > Account > Export My Data**, keep the categories you want, then start the export.
+- Your browser downloads a ZIP file with profile data, chats, usage records, payment records, settings, and supported embedded files.
 
 ## What It Does
 
