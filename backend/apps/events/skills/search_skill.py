@@ -434,6 +434,52 @@ class SearchSkill(BaseSkill):
                 exc_info=True,
             )
 
+    def _validate_event_requests(
+        self,
+        requests: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+        """Validate event requests without letting one bad LLM item poison the batch."""
+        if not requests:
+            return [], [], (
+                "No search requests provided. 'requests' array must contain at "
+                "least one request with 'query' and 'location' (or 'lat'/'lon')."
+            )
+
+        valid_requests: List[Dict[str, Any]] = []
+        invalid_results: List[Dict[str, Any]] = []
+        request_ids: set[Any] = set()
+        total_requests = len(requests)
+
+        for i, req in enumerate(requests):
+            request_id, error = self._validate_and_normalize_request_id(
+                req=req,
+                request_index=i,
+                total_requests=total_requests,
+                request_ids=request_ids,
+                logger=logger,
+            )
+            if error:
+                logger.error("Request %d validation failed: %s", i + 1, error)
+                return [], [], error
+
+            if not req.get("query"):
+                error_message = f"Request {i + 1} (id: {request_id}) is missing required 'query' field"
+                logger.warning("[events:search] %s; preserving as per-request error", error_message)
+                invalid_results.append({
+                    "id": request_id,
+                    "results": [],
+                    "error": error_message,
+                    "total_available": 0,
+                })
+                continue
+
+            valid_requests.append(req)
+
+        if not valid_requests:
+            return [], invalid_results, invalid_results[0]["error"] if invalid_results else None
+
+        return valid_requests, invalid_results, None
+
     async def _search_meetup(
         self,
         query: str,
@@ -1180,18 +1226,9 @@ class SearchSkill(BaseSkill):
             if conference:
                 req["conference"] = conference
                 req["query"] = conference
-        validated_requests, error = self._validate_requests_array(
-            requests=requests_list,
-            required_field="query",
-            field_display_name="query",
-            empty_error_message=(
-                "No search requests provided. 'requests' array must contain at "
-                "least one request with 'query' and 'location' (or 'lat'/'lon')."
-            ),
-            logger=logger,
-        )
+        validated_requests, invalid_results, error = self._validate_event_requests(requests_list)
         if error:
-            return SearchResponse(results=[], error=error)
+            return SearchResponse(results=invalid_results, error=error)
 
         # Load Webshare rotating residential proxy credentials from Vault.
         # Used for Meetup requests to avoid server-side IP rate limiting.
@@ -1229,9 +1266,9 @@ class SearchSkill(BaseSkill):
         )
 
         # Group by request ID — handle 4-tuples (request_id, items, error, total_available).
-        grouped_results: List[Dict[str, Any]] = []
+        grouped_results: List[Dict[str, Any]] = [*invalid_results]
         errors: List[str] = []
-        request_order = {req.get("id"): i for i, req in enumerate(validated_requests or [])}
+        request_order = {req.get("id"): i for i, req in enumerate(requests_list or [])}
 
         for result in results:
             if isinstance(result, Exception):

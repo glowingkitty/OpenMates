@@ -163,6 +163,41 @@ async def test_event_schedule_provider_allows_conference_without_query(monkeypat
     assert response.results[0]["results"][0]["title"] == "GPN24 schedule overview"
 
 
+async def test_malformed_event_batch_item_does_not_block_valid_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One missing-query LLM batch item should not turn the whole embed group into an error."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_process_requests_in_parallel(
+        requests: list[dict[str, Any]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> list[tuple[Any, list[dict[str, Any]], None, int]]:
+        return [
+            (req["id"], [{"id": f"event-{req['id']}", "title": req["query"]}], None, 1)
+            for req in requests
+        ]
+
+    monkeypatch.setattr(skill, "_process_requests_in_parallel", fake_process_requests_in_parallel)
+
+    response = await skill.execute(
+        SearchRequest(
+            requests=[
+                {"id": "good-1", "query": "AI meetup", "location": "Berlin"},
+                {"id": "bad-1", "location": "Berlin"},
+                {"id": "good-2", "query": "developer events", "location": "Berlin"},
+            ],
+        )
+    )
+
+    assert response.error is None
+    assert [result["id"] for result in response.results] == ["good-1", "bad-1", "good-2"]
+    assert response.results[0]["results"][0]["title"] == "AI meetup"
+    assert response.results[1]["error"] == "Request 2 (id: bad-1) is missing required 'query' field"
+    assert response.results[2]["results"][0]["title"] == "developer events"
+
+
 async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypatch: pytest.MonkeyPatch) -> None:
     """Auto mode should include pretalx only when the query names a known conference."""
 
