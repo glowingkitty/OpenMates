@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-04
+last_verified: 2026-06-05
 key_files:
   - .github/dependabot.yml
   - pnpm-workspace.yaml
@@ -9,6 +9,9 @@ key_files:
   - scripts/auto_fix_failed_tests.py
   - scripts/nightly-dead-code-removal.sh
   - scripts/weekly-codebase-audit.sh
+  - scripts/weekly-technical-debt.sh
+  - scripts/technical_debt_scan.py
+  - scripts/_technical_debt_helper.py
   - scripts/security-audit.sh
   - scripts/nightly-ui-design-review.sh
   - scripts/nightly-apple-parity-review.sh
@@ -54,6 +57,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
 | `04:30 Mon+Thu`               | `nightly-apple-parity-review.sh`       | Apple/web parity review (plan only)       |
 | `04:50 Sun`                   | `nightly-seo-audit.sh`                 | Deep SEO optimization review (plan only)  |
+| `03:20 Sun`                   | `weekly-technical-debt.sh`             | Deterministic debt scan + OpenCode top 5 recommendations |
 | `05:15 Mon`                   | `weekly-contract-audits.sh`            | Deterministic contract audits + OpenCode recommendations |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
 | `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
@@ -103,6 +107,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Apple parity review** (Mon+Thu 04:30): Generates `test-results/apple-parity-inventory.json`, then starts a Linux-safe read-only OpenCode chat that inspects current Swift and web source, `apple/SVELTE_SWIFT_COUNTERPARTS.md`, and recent web UI commits to recommend the highest-priority Apple parity follow-ups. Output: `logs/nightly-reports/apple-parity-review.json`. Manual: `./scripts/nightly-apple-parity-review.sh [--dry-run]`.
 
 **SEO audit** (Sun 04:50): Starts a read-only OpenCode chat that combines safe production GET/HEAD checks against `openmates.org` with current SvelteKit source inspection. This is deeper than the daily meeting SEO smoke check and reports prioritized improvements for sitemap coverage, SSR/prerender, metadata, OG/Twitter tags, JSON-LD, hreflang, and internal linking. Output: `logs/nightly-reports/seo-audit.json`. Manual: `./scripts/nightly-seo-audit.sh [--dry-run]`.
+
+**Technical debt scan + recommendations** (Sun 03:20): Runs `technical_debt_scan.py` without AI to rank source hotspots by size, complexity-style signals, suppressions, broad exception/catch use, debug logging, store-internal imports, backend cross-skill imports, duplication fingerprints, test-name proximity, and six-month churn. The scanner compares against `scripts/.technical-debt-state.json` so the follow-up can consider previous-run deltas. After reports are written, `_technical_debt_helper.py` starts a read-only OpenCode chat to recommend the top five next improvement steps. Outputs: `logs/nightly-reports/technical-debt.json`, `logs/nightly-reports/technical-debt.md`, and `logs/nightly-reports/technical-debt-analysis.json` summary metadata. Manual: `./scripts/weekly-technical-debt.sh [--dry-run|--scan-only]`.
 
 **Deterministic contract audits + recommendations** (Mon 05:15): Runs static repo-specific checks without AI or network calls: backend app/skill architecture boundaries, encryption key access patterns, settings UI contract rules, app skill/provider metadata, and export/import invariants. Writes `test-results/contract-audits/latest.json`, a dated weekly JSON artifact, and `logs/nightly-reports/contract-audits.json` for daily-meeting and on-demand agent processing. Sends a compact email summary via Brevo (`BREVO_API_KEY`) or the internal test-summary email endpoint (`INTERNAL_API_SHARED_TOKEN`). After the JSON is written, starts a read-only OpenCode chat via `_contract_audit_review_helper.py` to analyze the report and recommend the top next steps; that chat is referenced from `logs/nightly-reports/contract-audit-review.json`. Manual: `./scripts/weekly-contract-audits.sh [--dry-run]`, `./scripts/weekly-contract-audits.sh --skip-review`, or `python3 scripts/run_contract_audits.py --dry-run`.
 

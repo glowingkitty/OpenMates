@@ -181,6 +181,7 @@ logs/
 scripts/.agent-triggers/
 scripts/.agent-triggers-processed/
 scripts/.tmp/
+scripts/.*-state.json
 processed_websites/
 temp_data
 

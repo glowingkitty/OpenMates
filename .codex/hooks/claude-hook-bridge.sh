@@ -150,6 +150,7 @@ case "$EVENT" in
           "external-resources-guard.sh" \
           "cookie-consent-gate.sh" \
           "css-selector-in-specs.sh" \
+          "code-debt-pre-edit-guard.sh" \
           "svelte5-legacy-syntax.sh" \
           "donation-language-guard.sh" \
           "settings-canonical-elements.sh" \

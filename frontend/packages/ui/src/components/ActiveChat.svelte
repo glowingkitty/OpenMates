@@ -122,6 +122,14 @@
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
+    import {
+        AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
+        formatOpenMatesEventContinueTitle,
+        formatOpenMatesEventSummary,
+        getOgExampleResumeChat,
+        hasOpenMatesEventEnded,
+        isOgExampleSharedChatCuttlefish,
+    } from './activeChatUtils';
     import { getApiEndpoint } from '../config/api';
     import {
         getReminderByTargetChatId,
@@ -154,38 +162,6 @@
     type EventListenerCallback = (event: Event) => void;
     type UserProfileRecord = { user_id?: string | null };
     type HiddenChatFlag = { is_hidden?: boolean | null };
-
-    const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
-    const AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS = new Set([
-        'export-data',
-        'incognito-mode',
-    ]);
-
-    function isOgExampleSharedChatCuttlefish(): boolean {
-        if (typeof window === 'undefined') {
-            return false;
-        }
-        const searchParams = new URLSearchParams(window.location.search);
-        return searchParams.get('og') === '1' && searchParams.get('og_example') === OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH;
-    }
-
-    function getOgExampleResumeChat(): Chat {
-        const nowTs = Math.floor(Date.now() / 1000);
-        return {
-            chat_id: 'c3343b34-c645-4576-be38-87bef9d0b899',
-            encrypted_title: null,
-            messages_v: 0,
-            title_v: 0,
-            last_edited_overall_timestamp: nowTs,
-            unread_count: 0,
-            created_at: nowTs,
-            updated_at: nowTs,
-            title: 'Cuttlefish Camouflage Mechanism',
-            chat_summary: 'Exploring cuttlefish camouflage mechanisms and examples.',
-            category: 'general_knowledge',
-            icon: 'sparkles'
-        };
-    }
 
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
@@ -3156,30 +3132,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.error('[ActiveChat] Failed to open priority embed:', error);
             notificationStore.error('Failed to open saved item.');
         }
-    }
-
-    function hasOpenMatesEventEnded(event: OpenMatesEvent): boolean {
-        const endDate = new Date(event.date_end || event.date_start);
-        return Number.isNaN(endDate.getTime()) || endDate.getTime() < Date.now();
-    }
-
-    function formatOpenMatesEventSummary(event: OpenMatesEvent): string | null {
-        const start = new Date(event.date_start);
-        const date = Number.isNaN(start.getTime())
-            ? ''
-            : start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-        const time = Number.isNaN(start.getTime())
-            ? ''
-            : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-        return [date, time, event.venue?.city].filter(Boolean).join(' · ') || event.summary || null;
-    }
-
-    function formatOpenMatesEventContinueTitle(event: OpenMatesEvent): string {
-        const start = new Date(event.date_start);
-        const date = Number.isNaN(start.getTime())
-            ? ''
-            : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        return date ? `${date}: ${event.title}` : event.title;
     }
 
     function openOpenMatesEventEmbed(event: OpenMatesEvent): void {
