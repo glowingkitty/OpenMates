@@ -13,6 +13,8 @@ import pytest
 
 from backend.apps.events.providers import pretalx
 
+pytestmark = pytest.mark.anyio
+
 
 BERLIN = ZoneInfo("Europe/Berlin")
 
@@ -60,7 +62,6 @@ def _cache_schedule(conference: str) -> None:
     )
 
 
-@pytest.mark.asyncio
 async def test_search_gpn_current_and_upcoming_excludes_past_by_default() -> None:
     _cache_schedule("gpn24")
 
@@ -76,7 +77,6 @@ async def test_search_gpn_current_and_upcoming_excludes_past_by_default() -> Non
     assert events[0]["provider"] == "gpn24"
 
 
-@pytest.mark.asyncio
 async def test_search_gpn_past_events_includes_completed_sessions() -> None:
     _cache_schedule("gpn24")
 
@@ -91,7 +91,6 @@ async def test_search_gpn_past_events_includes_completed_sessions() -> None:
     assert events[0]["title"] == "Past privacy session"
 
 
-@pytest.mark.asyncio
 async def test_search_chaos_congress_alias_resolves_to_39c3() -> None:
     _cache_schedule("39c3")
 
