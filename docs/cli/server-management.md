@@ -26,6 +26,10 @@ claims:
     type: e2e
     file: .github/workflows/selfhost-smoke.yml
     assertion: openmates server install --source-path starts self-host smoke stack
+  - id: cli-server-make-admin-promotes-signed-up-user
+    type: e2e
+    file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    assertion: openmates server make-admin promotes a self-hosted signup user to admin
 coverage:
   policy: assertion-backed
   reviewed_context:
@@ -147,9 +151,10 @@ Pulls the latest version from Git and rebuilds Docker containers. The `--force` 
 
 ```
 openmates server make-admin user@example.com
+openmates server make-admin user@example.com --path /opt/openmates
 ```
 
-Grants admin privileges to an existing user account.
+Grants admin privileges to an existing user account. Signup invites and domain allowlists create normal users only; run this command after the user has signed up. Active browser sessions see the `Server` and `Logs` settings entries after the next auth check or refresh.
 
 ## Resetting Server Data
 

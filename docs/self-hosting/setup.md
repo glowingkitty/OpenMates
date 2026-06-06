@@ -17,6 +17,10 @@ claims:
     type: e2e
     file: .github/workflows/selfhost-smoke.yml
     assertion: self-host install smoke passes without provider API keys
+  - id: self-hosting-signup-admin-smoke
+    type: e2e
+    file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    assertion: invite signup creates a normal user and make-admin promotes that user
 coverage:
   policy: assertion-backed
   reviewed_context:
@@ -32,6 +36,7 @@ coverage:
 - Use `openmates server` for the default install, start, stop, status, logs, update, reset, and uninstall flow.
 - `openmates server start` brings up the backend and the web app. Open the app at `http://localhost:5173`.
 - During install, choose invite codes, an email-domain allowlist, or both for signup.
+- The first invite creates a normal user. Promote your account separately with `openmates server make-admin <email>`.
 - A fresh self-hosted install can start without provider API keys. AI chat and model processing stay unavailable until you add at least one real LLM provider key.
 - The no-key startup path is verified by the GitHub Actions self-host install smoke workflow.
 
@@ -120,17 +125,19 @@ For a fresh no-key install, `/v1/settings/server-status` should include:
 }
 ```
 
-### 5. Open the app
+### 5. Create your first user and promote admin
 
 Open `http://localhost:5173` in your browser.
 
 If your signup mode uses invite codes, sign up with the first signup invite code printed by `openmates server install`. It is also available in `~/openmates/.env` as `SELF_HOST_FIRST_INVITE_CODE`.
 
-After signup, grant admin privileges to your user from the server terminal:
+The first signup creates a normal user. After signup, grant admin privileges to your user from the server terminal:
 
 ```bash
-openmates server make-admin your@email.com
+openmates server make-admin your@email.com --path ~/openmates
 ```
+
+Keep the browser session open or refresh the app. The `Server` and `Logs` settings entries should appear after the next auth check.
 
 ## Adding AI Provider Keys
 
