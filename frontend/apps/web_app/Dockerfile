@@ -34,6 +34,7 @@ COPY pnpm-lock.yaml* ./
 # The metadata generation scripts read backend app.yml and provider YAML files.
 COPY backend/apps ./backend/apps
 COPY backend/providers ./backend/providers
+COPY docs ./docs
 COPY shared/config ./shared/config
 COPY shared/docs ./shared/docs
 
