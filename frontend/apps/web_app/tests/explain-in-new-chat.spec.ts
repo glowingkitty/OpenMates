@@ -97,6 +97,11 @@ test('explains selected assistant text in a background new chat', async ({ page 
 		timeout: 90_000,
 		logCheckpoint: log
 	});
+	// The mock answer text arrives before backend post-processing publishes title,
+	// quick-tip, and follow-up updates. Let those UI updates settle before opening
+	// the transient selection context menu, otherwise the menu can close on scroll
+	// between the visibility assertion and the click.
+	await page.waitForTimeout(3000);
 
 	const sourceUrl = page.url();
 	const sourceChatTextBefore = await page.locator(SELECTORS.chatMessage).allTextContents();
@@ -126,7 +131,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	const explainButton = page.locator(SELECTORS.contextMenuExplain);
 	await expect(explainButton).toBeVisible({ timeout: 5000 });
 	await screenshot(page, 'explain-action-visible');
-	await explainButton.click();
+	await explainButton.click({ timeout: 5000 });
 
 	await expect(page).toHaveURL(sourceUrl, { timeout: 5000 });
 	await expect(page.locator(SELECTORS.notification).filter({ hasText: /background/i })).toBeVisible({ timeout: 20_000 });
