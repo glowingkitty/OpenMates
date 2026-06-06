@@ -16,7 +16,8 @@ Run your own OpenMates instance with full control over your data and infrastruct
 The setup guide covers:
 
 - Prerequisites and system requirements
-- Installing with `openmates server install`
+- Installing the CLI with `npm install -g openmates`
+- Running `openmates server install`
 - Starting the backend and web app with `openmates server start`
 - Signup modes for invite codes, email-domain allowlists, or both
 - Optional AI provider keys and no-key startup behavior

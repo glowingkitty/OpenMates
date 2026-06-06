@@ -30,6 +30,7 @@ const COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
+const DEV_BRANCH = "dev";
 const LLM_PROVIDER_ENV_KEYS = new Set([
   "SECRET__MISTRAL_AI__API_KEY",
   "SECRET__CEREBRAS__API_KEY",
@@ -88,6 +89,19 @@ function requireGit(): void {
   } catch {
     throw new Error("git is not installed. Install it first: https://git-scm.com/downloads");
   }
+}
+
+function getPackageVersion(): string {
+  try {
+    const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")) as { version?: string };
+    return packageJson.version ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function defaultCloneBranchForVersion(version: string): string | null {
+  return /-(alpha|beta|rc)(\.|\d|$)/.test(version) ? DEV_BRANCH : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -315,10 +329,19 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   // Clone the repository. CI can pass --source-path to test the checked-out branch
   // instead of whatever is currently published on the default remote branch.
   const cloneSource = sourcePath ?? REPO_URL;
+  const cloneBranch = sourcePath ? null : defaultCloneBranchForVersion(getPackageVersion());
+  const cloneArgs = ["clone"];
+  if (cloneBranch) {
+    cloneArgs.push("--branch", cloneBranch);
+  }
+  cloneArgs.push(cloneSource, installPath);
   console.error(`Cloning OpenMates from ${cloneSource} to ${installPath}...`);
+  if (cloneBranch) {
+    console.error(`Using ${cloneBranch} branch for this prerelease CLI.`);
+  }
   const cloneCode = await runInteractive(
     "git",
-    ["clone", cloneSource, installPath],
+    cloneArgs,
     process.cwd(),
   );
   if (cloneCode !== 0) {
@@ -359,11 +382,10 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   } else {
     console.log(`\nOpenMates installed at ${installPath}`);
     console.log("\nNext steps:");
-    console.log("  1. Edit .env to add your LLM provider API key(s)");
-    console.log("  2. Run: openmates server start");
-    console.log("  3. Open http://localhost:5173");
-    console.log("  4. Find your invite code: openmates server logs --container cms-setup --tail 50");
-    console.log("  5. Make yourself admin after signup: openmates server make-admin your@email.com");
+    console.log("  1. Run: openmates server start");
+    console.log("  2. Open http://localhost:5173");
+    console.log("  3. After signup, make yourself admin: openmates server make-admin your@email.com");
+    console.log("\nOptional: edit .env first to add LLM provider API keys. Without keys, the web app and backend still start, but AI model processing is unavailable.");
   }
 }
 

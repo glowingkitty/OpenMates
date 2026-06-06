@@ -19,6 +19,7 @@ import {
   parseNewChatSuggestionText,
   serializeToYaml,
   getExtForLang,
+  defaultCloneBranchForVersion,
 } from "../dist/index.js";
 
 function runCli(args: string[]): string {
@@ -97,6 +98,19 @@ describe("deriveAppUrl", () => {
     } finally {
       reset();
     }
+  });
+});
+
+describe("defaultCloneBranchForVersion", () => {
+  it("uses dev for prerelease CLI versions", () => {
+    assert.strictEqual(defaultCloneBranchForVersion("0.11.0-alpha.12"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-beta.1"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("1.0.0-rc.1"), "dev");
+  });
+
+  it("uses the repository default branch for stable CLI versions", () => {
+    assert.strictEqual(defaultCloneBranchForVersion("0.11.1"), null);
+    assert.strictEqual(defaultCloneBranchForVersion("1.0.0"), null);
   });
 });
 

@@ -42,7 +42,7 @@ The self-hosted edition currently uses API-based AI providers. Offline model sup
 - Linux server or workstation. Ubuntu/Debian is recommended.
 - Docker with Docker Compose support.
 - Git.
-- Node.js/npm only if you install the CLI from this repository instead of a published package.
+- Node.js/npm.
 - 4 GB RAM minimum. 8 GB or more is recommended.
 - 20 GB or more free disk space.
 - Internet access for Docker images, package installs, and any external AI providers you enable.
@@ -51,33 +51,19 @@ Provider API keys are optional for installation and startup. Add them when you w
 
 ## Quick Start
 
-### 1. Install the CLI
-
-If you are using a published CLI package:
+### 1. Install the CLI from npm
 
 ```bash
 npm install -g openmates
 ```
 
-If you are installing from a checkout:
-
-```bash
-git clone https://github.com/glowingkitty/OpenMates
-cd OpenMates
-pnpm install --frozen-lockfile
-pnpm --filter openmates build
-cd frontend/packages/openmates-cli
-npm pack --pack-destination /tmp
-npm install -g /tmp/openmates-*.tgz
-```
-
-### 2. Install OpenMates
+### 2. Run the installer
 
 ```bash
 openmates server install --path ~/openmates
 ```
 
-This prepares the install directory, creates `.env`, generates local secrets, and copies the Docker Compose setup.
+The installer prepares the install directory, creates `.env`, generates local secrets, asks how signup should work, and prints the next command to start the server.
 
 When the terminal is interactive, install asks how signup should work:
 
@@ -89,13 +75,13 @@ When the terminal is interactive, install asks how signup should work:
 
 Non-interactive installs default to invite codes only. If the selected mode uses invite codes, setup generates and prints the first signup invite code. This invite code creates a normal user, not an admin.
 
-For CI or local testing from an existing checkout, use:
+For contributors testing an existing checkout, use:
 
 ```bash
 openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```
 
-### 3. Start the server
+### 3. Start the Server
 
 ```bash
 openmates server start --path ~/openmates
@@ -138,11 +124,7 @@ For a fresh no-key install, `/v1/settings/server-status` should include:
 
 Open `http://localhost:5173` in your browser.
 
-If your signup mode uses invite codes, sign up with the first signup invite code printed by `openmates server install`. It is also available in `~/openmates/.env` as `SELF_HOST_FIRST_INVITE_CODE` and in first-start logs:
-
-```bash
-openmates server logs --path ~/openmates --container cms-setup --tail 200
-```
+If your signup mode uses invite codes, sign up with the first signup invite code printed by `openmates server install`. It is also available in `~/openmates/.env` as `SELF_HOST_FIRST_INVITE_CODE`.
 
 After signup, grant admin privileges to your user from the server terminal:
 

@@ -77,23 +77,15 @@ jobs:
 
       - name: Install published CLI from npm
         run: |
-          npm install -g openmates
+          ALPHA_VERSION="$(npm view openmates@alpha version)"
+          npm install -g openmates@alpha
+          INSTALLED_VERSION="$(npm list -g openmates --depth=0 --json | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => { const data = JSON.parse(input); console.log(data.dependencies.openmates.version); });")"
+          test "$INSTALLED_VERSION" = "$ALPHA_VERSION"
           openmates --help
           openmates server --help
 
-      - name: Build current CLI package
-        run: pnpm --filter openmates build
-
-      - name: Pack and install current CLI globally
-        working-directory: frontend/packages/openmates-cli
-        run: |
-          npm pack --pack-destination "$RUNNER_TEMP"
-          npm install -g "$RUNNER_TEMP"/openmates-*.tgz
-          openmates --help
-          openmates server --help
-
-      - name: Install self-hosted edition from checkout
-        run: openmates server install --source-path "$GITHUB_WORKSPACE" --path "$INSTALL_PATH"
+      - name: Install self-hosted edition with alpha CLI
+        run: openmates server install --path "$INSTALL_PATH"
 
       - name: Start self-hosted edition
         run: |
@@ -120,11 +112,21 @@ jobs:
           curl -fsS http://localhost:8000/v1/settings/server-status | tee /tmp/server-status.json
           node -e "const s=require('/tmp/server-status.json'); if (!s.is_self_hosted || s.payment_enabled || s.ai_models_configured) { console.error(s); process.exit(1); }"
 
+      - name: Check backend and web Docker containers
+        run: |
+          for container in api webapp; do
+            status="$(docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
+            echo "$container $status"
+            test "$status" = "true healthy"
+          done
+
       - name: Verify Chrome browser
         run: google-chrome --version
 
       - name: Run self-hosted smoke spec
         working-directory: frontend/apps/web_app
+        env:
+          SELFHOST_INSTALL_PATH: ${{ env.INSTALL_PATH }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/test-results"
           npx playwright test tests/selfhost-smoke.spec.ts --reporter=json > "$GITHUB_WORKSPACE/test-results/selfhost-smoke-playwright.json"

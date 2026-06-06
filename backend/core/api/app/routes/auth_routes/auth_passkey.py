@@ -82,6 +82,7 @@ from backend.core.api.app.routes.auth_routes.auth_common import verify_authentic
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
+from backend.core.api.app.utils.server_mode import get_server_edition
 # Import Celery app instance for cache warming tasks
 from backend.core.api.app.tasks.celery_config import app
 
@@ -950,6 +951,13 @@ async def passkey_registration_complete(
             
             verification_cache_key = f"email_verified:{complete_request.hashed_email}"
             verification_data = await cache_service.get(verification_cache_key)
+
+            if not verification_data and (get_server_edition() != "self_hosted" or require_domain_restriction):
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="Email verification required. Please verify your email first.",
+                    user=None,
+                )
 
             if require_domain_restriction and allowed_domains:
                 verified_email = verification_data.get("email") if verification_data else None

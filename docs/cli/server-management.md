@@ -48,9 +48,18 @@ Commands for installing, running, and administering a self-hosted OpenMates inst
 
 - **Docker** -- must be installed with the daemon running
 - **Git** -- required for `install` and `update`
+- **Node.js/npm** -- used to install the OpenMates CLI package
 - Optional LLM provider API key when you want AI chat/model processing
 
 ## Installing
+
+For normal self-hosted setup, install the CLI from npm first:
+
+```
+npm install -g openmates
+```
+
+Then run the installer:
 
 ```
 openmates server install

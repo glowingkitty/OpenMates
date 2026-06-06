@@ -17,6 +17,7 @@ from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_se
 from backend.core.api.app.schemas.auth import LoginRequest
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.utils.server_mode import get_server_edition
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,14 +68,14 @@ async def setup_password(
         verification_cache_key = f"email_verified:{setup_request.hashed_email}"
         verification_data = await cache_service.get(verification_cache_key)
         
-        if not verification_data:
+        if not verification_data and (get_server_edition() != "self_hosted" or require_domain_restriction):
             logger.warning("Password setup attempted without email verification")
             return SetupPasswordResponse(
                 success=False,
                 message="Email verification required. Please verify your email first."
             )
 
-        if require_domain_restriction and allowed_domains:
+        if require_domain_restriction and allowed_domains and verification_data:
             verified_email = verification_data.get("email")
             is_allowed_domain, email_domain = is_email_domain_allowed(verified_email, allowed_domains)
             if not is_allowed_domain:
@@ -86,6 +87,8 @@ async def setup_password(
                     success=False,
                     message="signup.domain_not_allowed"
                 )
+        elif get_server_edition() == "self_hosted":
+            verification_data = verification_data or {}
 
         # Validate username format
         username_valid, username_error = validate_username(setup_request.username)

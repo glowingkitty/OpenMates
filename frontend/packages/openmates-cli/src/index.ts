@@ -16,6 +16,7 @@ export {
   parseNewChatSuggestionText,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
+export { defaultCloneBranchForVersion } from "./server.js";
 export type {
   DecryptedMemoryEntry,
   DecryptedMessage,
