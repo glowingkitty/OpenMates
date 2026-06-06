@@ -38,17 +38,9 @@ class AdminMethods:
                 # Ensure the is_admin flag is also set on the user record
                 try:
                     await self.directus_service.update_user(user_id, {"is_admin": True})
-                    # Invalidate user profile cache to ensure fresh data on next request
-                    cache_key = f"user_profile:{user_id}"
                     try:
-                        await self.directus_service.cache.delete(cache_key)
-                        logger.info(f"Invalidated user profile cache for user {user_id}")
-                    except Exception as cache_err:
-                        logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
-
-                    try:
-                        await self.directus_service.cache.update_user(user_id, {"is_admin": True})
-                        logger.info(f"Updated cached auth session admin flag for user {user_id}")
+                        cache_updated = await self.directus_service.cache.update_user(user_id, {"is_admin": True})
+                        logger.info(f"Updated cached auth session admin flag for user {user_id}: {cache_updated}")
                     except Exception as cache_err:
                         logger.warning(f"Failed to update cached auth session admin flag: {cache_err}")
                     
@@ -87,18 +79,9 @@ class AdminMethods:
                     await self.directus_service.update_user(user_id, {"is_admin": True})
                     logger.info(f"Updated user record is_admin flag for user {user_id}")
                     
-                    # Invalidate user profile cache to ensure fresh data on next request
-                    # This allows the client to see the Server settings section without logout/login
-                    cache_key = f"user_profile:{user_id}"
                     try:
-                        await self.directus_service.cache.delete(cache_key)
-                        logger.info(f"Invalidated user profile cache for user {user_id} - client will see Server settings on next auth check")
-                    except Exception as cache_err:
-                        logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
-
-                    try:
-                        await self.directus_service.cache.update_user(user_id, {"is_admin": True})
-                        logger.info(f"Updated cached auth session admin flag for user {user_id}")
+                        cache_updated = await self.directus_service.cache.update_user(user_id, {"is_admin": True})
+                        logger.info(f"Updated cached auth session admin flag for user {user_id}: {cache_updated}")
                     except Exception as cache_err:
                         logger.warning(f"Failed to update cached auth session admin flag: {cache_err}")
                     
@@ -201,17 +184,9 @@ class AdminMethods:
                     await self.directus_service.update_user(user_id, {"is_admin": False})
                     logger.info(f"Updated user record is_admin flag (False) for user {user_id}")
                     
-                    # Invalidate user profile cache to ensure fresh data on next request
-                    cache_key = f"user_profile:{user_id}"
                     try:
-                        await self.directus_service.cache.delete(cache_key)
-                        logger.info(f"Invalidated user profile cache for user {user_id}")
-                    except Exception as cache_err:
-                        logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
-
-                    try:
-                        await self.directus_service.cache.update_user(user_id, {"is_admin": False})
-                        logger.info(f"Updated cached auth session admin flag for user {user_id}")
+                        cache_updated = await self.directus_service.cache.update_user(user_id, {"is_admin": False})
+                        logger.info(f"Updated cached auth session admin flag for user {user_id}: {cache_updated}")
                     except Exception as cache_err:
                         logger.warning(f"Failed to update cached auth session admin flag: {cache_err}")
                     

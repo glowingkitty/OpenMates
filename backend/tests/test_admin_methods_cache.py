@@ -86,7 +86,7 @@ def test_make_user_admin_updates_auth_session_cache_for_new_admin():
     assert success is True
     assert directus_service.user_updates == [("user-1", {"is_admin": True})]
     assert directus_service.cache.updated_users == [("user-1", {"is_admin": True})]
-    assert directus_service.cache.deleted_keys == ["user_profile:user-1"]
+    assert directus_service.cache.deleted_keys == []
 
 
 def test_make_user_admin_updates_auth_session_cache_for_existing_admin():
@@ -108,4 +108,4 @@ def test_revoke_admin_privileges_updates_auth_session_cache():
     assert success is True
     assert directus_service.user_updates == [("user-1", {"is_admin": False})]
     assert directus_service.cache.updated_users == [("user-1", {"is_admin": False})]
-    assert directus_service.cache.deleted_keys == ["user_profile:user-1"]
+    assert directus_service.cache.deleted_keys == []
