@@ -26,6 +26,12 @@ export interface HttpBinaryResponse {
   headers: Headers;
 }
 
+export interface SseMessage {
+  id?: string;
+  event?: string;
+  data: string;
+}
+
 export class OpenMatesHttpClient {
   private readonly apiUrl: string;
   private readonly cookies: Map<string, string>;
@@ -92,6 +98,49 @@ export class OpenMatesHttpClient {
       data: new Uint8Array(await response.arrayBuffer()),
       headers: response.headers,
     };
+  }
+
+  async *streamSse(
+    path: string,
+    headers: Record<string, string> = {},
+  ): AsyncGenerator<SseMessage> {
+    const url = `${this.apiUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    const requestHeaders: Record<string, string> = {
+      Accept: "text/event-stream",
+      ...headers,
+    };
+    const cookieHeader = this.formatCookieHeader();
+    if (cookieHeader) requestHeaders.Cookie = cookieHeader;
+
+    const response = await fetch(url, { method: "GET", headers: requestHeaders });
+    this.captureCookies(response);
+    if (!response.ok) {
+      throw new Error(`SSE request failed with HTTP ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error("SSE response body is not readable");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let separatorIndex = buffer.indexOf("\n\n");
+        while (separatorIndex >= 0) {
+          const rawEvent = buffer.slice(0, separatorIndex);
+          buffer = buffer.slice(separatorIndex + 2);
+          const message = parseSseMessage(rawEvent);
+          if (message) yield message;
+          separatorIndex = buffer.indexOf("\n\n");
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   private async request<T>(
@@ -175,4 +224,18 @@ export class OpenMatesHttpClient {
     const single = response.headers.get("set-cookie");
     return single ? [single] : [];
   }
+}
+
+function parseSseMessage(rawEvent: string): SseMessage | null {
+  const message: SseMessage = { data: "" };
+  for (const line of rawEvent.split("\n")) {
+    if (!line || line.startsWith(":")) continue;
+    const separator = line.indexOf(":");
+    const field = separator >= 0 ? line.slice(0, separator) : line;
+    const value = separator >= 0 ? line.slice(separator + 1).replace(/^ /, "") : "";
+    if (field === "id") message.id = value;
+    if (field === "event") message.event = value;
+    if (field === "data") message.data += `${message.data ? "\n" : ""}${value}`;
+  }
+  return message.data ? message : null;
 }

@@ -1500,6 +1500,8 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "gift-card", "list"], description: "List redeemed gift cards", examples: ["openmates settings billing gift-card list"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
   { path: ["notifications", "status"], description: "Show notification settings", examples: ["openmates settings notifications status --json"] },
+  { path: ["notifications", "list"], description: "List recent notification events", examples: ["openmates settings notifications list --limit 20 --json"] },
+  { path: ["notifications", "stream"], description: "Stream notification events with SSE", examples: ["openmates settings notifications stream", "openmates settings notifications stream --count 1 --json"] },
   { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true --webhook-chats true"] },
   { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30 --email you@example.com"] },
   { path: ["reminders", "list"], description: "List active reminders", examples: ["openmates settings reminders list"] },
@@ -1593,6 +1595,11 @@ function parseRequiredNumber(value: string | boolean | undefined, flag: string):
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flag}: ${value}`);
   return parsed;
+}
+
+function parseOptionalNumber(value: string | boolean | undefined, fallback: number, flag: string): number {
+  if (value === undefined) return fallback;
+  return parseRequiredNumber(value, flag);
 }
 
 function parseOptionalBoolean(
@@ -2071,6 +2078,27 @@ async function handleSettings(
       encrypted_notification_email_configured: Boolean(user.encrypted_notification_email),
     };
     flags.json === true ? printJson(status) : printGenericObject(status);
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "list"])) {
+    const limit = parseOptionalNumber(flags.limit, 50, "--limit");
+    await printSettingsResult(client.listNotifications(limit), flags);
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "stream"])) {
+    const count = flags.count === undefined ? null : parseRequiredNumber(flags.count, "--count");
+    let received = 0;
+    for await (const event of client.streamNotifications()) {
+      if (flags.json === true) {
+        printJson(event);
+      } else {
+        printGenericObject(event);
+      }
+      received += 1;
+      if (count !== null && received >= count) break;
+    }
     return;
   }
 

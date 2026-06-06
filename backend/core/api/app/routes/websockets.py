@@ -9,6 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, 
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
 from .connection_manager import ConnectionManager
@@ -164,6 +165,18 @@ async def _check_user_offline_and_send_email(
             logger.info(f"{log_prefix} Queued AI response for pending delivery")
     except Exception as e:
         logger.error(f"{log_prefix} Failed to queue AI response for pending delivery: {e}")
+
+    # Create a safe notification event for API/SSE consumers. This event keeps
+    # routing metadata only; assistant content remains out of notification APIs.
+    try:
+        if hasattr(app.state, 'cache_service'):
+            await NotificationEventService(app.state.cache_service).create_chat_assistant_message_event(
+                user_id=user_id,
+                chat_id=chat_id,
+                has_encrypted_preview=False,
+            )
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to create notification event: {e}", exc_info=True)
 
     # 2. Decide push vs. immediate email
     push_sent = False

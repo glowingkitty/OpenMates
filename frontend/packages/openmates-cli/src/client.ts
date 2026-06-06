@@ -2258,6 +2258,33 @@ export class OpenMatesClient {
     }
   }
 
+  async listNotifications(limit = 50): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(
+      `/v1/notifications?limit=${encodeURIComponent(String(limit))}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch notifications (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async *streamNotifications(): AsyncGenerator<unknown> {
+    this.requireSession();
+    for await (const message of this.http.streamSse(
+      "/v1/notifications/stream",
+      this.getCliRequestHeaders(),
+    )) {
+      if (message.event && message.event !== "notification") continue;
+      try {
+        yield JSON.parse(message.data);
+      } catch {
+        yield { event: message.event ?? "message", data: message.data };
+      }
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Daily Inspirations
   // -------------------------------------------------------------------------

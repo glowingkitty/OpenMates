@@ -137,6 +137,12 @@
 		4C5F6051BF57D41A7D5B3F3B /* OpenMatesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C7FED7A8B351DDE95F41A1 /* OpenMatesWidget.swift */; };
 		4CF8C72E14448F32BF1767C0 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2010DA119E370FEB468BB19E /* KeychainHelper.swift */; };
 		4D8DE7E007FE9CF52FCB606D /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E49B4155E4B92AA045BCC1F /* PushNotificationManager.swift */; };
+		A10000000000000000000002 /* NotificationPreviewCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* NotificationPreviewCrypto.swift */; };
+		A10000000000000000000003 /* NotificationPreviewCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* NotificationPreviewCrypto.swift */; };
+		A10000000000000000000004 /* NotificationPreviewCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* NotificationPreviewCrypto.swift */; };
+		A10000000000000000000006 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* NotificationService.swift */; };
+		A1000000000000000000000A /* OpenMatesNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* OpenMatesNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1000000000000000000000B /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2010DA119E370FEB468BB19E /* KeychainHelper.swift */; };
 		5007AA305A02EC6DC6705DAE /* MathCalculateIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E303763A004973B5957ACBAB /* MathCalculateIntent.swift */; };
 		50EB063CE9ACDDD20291DE00 /* MainAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7204418C1D01FD46A5A7FC /* MainAppView.swift */; };
 		50FDE2058C6BA73E34937428 /* ReminderIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AFAB5B15DBE142EAF38139 /* ReminderIntents.swift */; };
@@ -453,6 +459,13 @@
 			remoteGlobalIDString = 91BD50E63137BA05B4480A79;
 			remoteInfo = OpenMatesShareExtension;
 		};
+		A1000000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000010;
+			remoteInfo = OpenMatesNotificationService;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -474,6 +487,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				07F4811179E2F4989B7954D1 /* OpenMatesShareExtension.appex in Embed Foundation Extensions */,
+				A1000000000000000000000A /* OpenMatesNotificationService.appex in Embed Foundation Extensions */,
 				EBFBD6EB0E55C3922E7A97AB /* OpenMatesWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -547,6 +561,11 @@
 		4C7C463F57142CA4C0101AEC /* SettingsMemoriesFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMemoriesFull.swift; sourceTree = "<group>"; };
 		4C81AB019DC95300C00108EE /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		4E49B4155E4B92AA045BCC1F /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
+		A10000000000000000000001 /* NotificationPreviewCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreviewCrypto.swift; sourceTree = "<group>"; };
+		A10000000000000000000005 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000008 /* OpenMatesNotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesNotificationService.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000009 /* OpenMatesNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OpenMatesNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		50826BC7A9753643CB205C57 /* FontRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRegistration.swift; sourceTree = "<group>"; };
 		57079AD3AF054B1475AB1E48 /* NutritionSearchIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionSearchIntent.swift; sourceTree = "<group>"; };
 		584D643DF25DEDC4BAAF90F1 /* SettingsAppsFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAppsFull.swift; sourceTree = "<group>"; };
@@ -857,6 +876,7 @@
 				EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */,
 				C0DE00000000000000000001 /* CodeRunService.swift */,
 				710225174647E1642E8B5863 /* DeepLinkHandler.swift */,
+				A10000000000000000000001 /* NotificationPreviewCrypto.swift */,
 				4E49B4155E4B92AA045BCC1F /* PushNotificationManager.swift */,
 				3098424CAA7116A6667AD61D /* S3MediaClient.swift */,
 				41D2695F0FC7E6379A31DF9F /* ServerConfiguration.swift */,
@@ -1057,6 +1077,7 @@
 				65C3B253848F893F8C17738F /* OpenMates */,
 				5CADB8842432593D9E90CD62 /* OpenMates */,
 				EB8536A31BBD5884C13C3AC6 /* OpenMatesShared */,
+				A1000000000000000000000C /* OpenMatesNotificationService */,
 				66DF952AB80F5C2919E2EC87 /* OpenMatesShareExtension */,
 				F4D0EF18A8924898FC330CFE /* OpenMatesShareExtensionMacOS */,
 				003B6D6948DBF9A4A5236CCA /* OpenMatesWidget */,
@@ -1094,11 +1115,22 @@
 			children = (
 				BE1031D79B03616FF9E0E7F7 /* OpenMates.app */,
 				6B67074848688485A446BC5C /* OpenMates.app */,
+				A10000000000000000000009 /* OpenMatesNotificationService.appex */,
 				F376B3E95264F50E89441B25 /* OpenMatesShareExtension_macOS.appex */,
 				8F6573E0E9224234EF13DC13 /* OpenMatesShareExtension.appex */,
 				30288A60654394643A370BFB /* OpenMatesWidget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A1000000000000000000000C /* OpenMatesNotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000007 /* Info.plist */,
+				A10000000000000000000008 /* OpenMatesNotificationService.entitlements */,
+				A10000000000000000000005 /* NotificationService.swift */,
+			);
+			path = OpenMatesNotificationService;
 			sourceTree = "<group>";
 		};
 		AE4B6E4BA8ECA48C237F2B9A /* PublicChats */ = {
@@ -1370,6 +1402,7 @@
 			);
 			dependencies = (
 				684FD898FB3FD34DE8B10BEE /* PBXTargetDependency */,
+				A1000000000000000000000E /* PBXTargetDependency */,
 				EF95FD5109BFF966A4BF802C /* PBXTargetDependency */,
 			);
 			name = OpenMates_iOS;
@@ -1395,6 +1428,23 @@
 			);
 			productName = OpenMatesWidget;
 			productReference = 30288A60654394643A370BFB /* OpenMatesWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		A10000000000000000000010 /* OpenMatesNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000013 /* Build configuration list for PBXNativeTarget "OpenMatesNotificationService" */;
+			buildPhases = (
+				A1000000000000000000000F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenMatesNotificationService;
+			packageProductDependencies = (
+			);
+			productName = OpenMatesNotificationService;
+			productReference = A10000000000000000000009 /* OpenMatesNotificationService.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		91BD50E63137BA05B4480A79 /* OpenMatesShareExtension */ = {
@@ -1498,6 +1548,7 @@
 			targets = (
 				91BD50E63137BA05B4480A79 /* OpenMatesShareExtension */,
 				942E1AC90EAA3F64F4DA8AE1 /* OpenMatesShareExtension_macOS */,
+				A10000000000000000000010 /* OpenMatesNotificationService */,
 				1C80E5B4A2A0F23B0FA7B6F8 /* OpenMatesWidget */,
 				02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */,
 				B0B9102F4329EFF5F54A8395 /* OpenMates_macOS */,
@@ -1678,6 +1729,7 @@
 				8A9CD76DA9BF3ACEA778391B /* PasswordLoginView.swift in Sources */,
 				F6DE62F6F1D2182D45EA54C5 /* PendingUploadStore.swift in Sources */,
 				677A0D87271C38E2325EFD3C /* PhonePairLoginView.swift in Sources */,
+				A10000000000000000000003 /* NotificationPreviewCrypto.swift in Sources */,
 				83585089C2171EE4B8BAE3FF /* PlaceRenderers.swift in Sources */,
 				8B12CFC6DF07725998702B1E /* ProcessingDetailsView.swift in Sources */,
 				132FEF0688553EA3CD679776 /* PublicChatListView.swift in Sources */,
@@ -1866,6 +1918,7 @@
 				8F941603B3A31048A0DA3684 /* NewsSearchIntent.swift in Sources */,
 				0F99B1EAD3C2F9DB935B0BB4 /* NewsletterSettingsView.swift in Sources */,
 				12D3A031C619B52AD9889822 /* NotificationBanners.swift in Sources */,
+				A10000000000000000000002 /* NotificationPreviewCrypto.swift in Sources */,
 				0BA7A4B79D29807CCFE43528 /* NutritionSearchIntent.swift in Sources */,
 				E84BB9B91F18230E57348D8B /* OMButtonStyles.swift in Sources */,
 				896CD28E397C1F666609BB1E /* OMDesignPrimitives.swift in Sources */,
@@ -1975,6 +2028,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1000000000000000000000F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000B /* KeychainHelper.swift in Sources */,
+				A10000000000000000000006 /* NotificationService.swift in Sources */,
+				A10000000000000000000004 /* NotificationPreviewCrypto.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1982,6 +2045,11 @@
 			isa = PBXTargetDependency;
 			target = 91BD50E63137BA05B4480A79 /* OpenMatesShareExtension */;
 			targetProxy = 8E8C8A6A8C2CA5904508CCE7 /* PBXContainerItemProxy */;
+		};
+		A1000000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000010 /* OpenMatesNotificationService */;
+			targetProxy = A1000000000000000000000D /* PBXContainerItemProxy */;
 		};
 		D1A8D1B9E2FA4FA38AB6CF2E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2036,6 +2104,44 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		A10000000000000000000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OpenMatesNotificationService/OpenMatesNotificationService.entitlements;
+				INFOPLIST_FILE = OpenMatesNotificationService/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.openmates.app.notification-service";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A10000000000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OpenMatesNotificationService/OpenMatesNotificationService.entitlements;
+				INFOPLIST_FILE = OpenMatesNotificationService/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.openmates.app.notification-service";
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
 		};
 		3679DE7A40C797EEDF8DFBAD /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -2334,6 +2440,15 @@
 			buildConfigurations = (
 				F7EFD7D3AC58373B5F9B0AE9 /* Debug */,
 				5ECA512F3ECAC0EBE890AD24 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A10000000000000000000013 /* Build configuration list for PBXNativeTarget "OpenMatesNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000011 /* Debug */,
+				A10000000000000000000012 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

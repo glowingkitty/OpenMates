@@ -142,7 +142,6 @@ struct MainAppView: View {
     private static let backgroundSyncInterChunkPauseNs: UInt64 = 40_000_000
     private static let backgroundSyncForegroundPauseNs: UInt64 = 180_000_000
     private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
-    private static let notificationPreviewMaxCharacters = 200
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -2037,22 +2036,9 @@ struct MainAppView: View {
         guard scenePhase != .active else { return }
         guard selectedChatId != chat.id else { return }
 
-        let body = notificationPreview(from: message.content)
-        guard !body.isEmpty else { return }
         await pushManager.showChatMessageNotification(
-            chatId: chat.id,
-            title: chat.displayTitle,
-            body: body
+            chatId: chat.id
         )
-    }
-
-    private func notificationPreview(from content: String?) -> String {
-        let normalized = (content ?? "")
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalized.count > Self.notificationPreviewMaxCharacters else { return normalized }
-        let end = normalized.index(normalized.startIndex, offsetBy: Self.notificationPreviewMaxCharacters)
-        return String(normalized[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func announceActiveChat(_ chatId: String?) async {

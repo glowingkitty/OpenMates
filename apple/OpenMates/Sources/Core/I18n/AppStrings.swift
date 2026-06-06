@@ -383,6 +383,7 @@ enum AppStrings {
     static var reconnecting: String { L("notifications.reconnecting") }
     static var incognitoModeOn: String { L("notifications.incognito_on") }
     static var incognitoModeOff: String { L("notifications.incognito_off") }
+    static var newMessageReceived: String { L("notifications.chat_message.new_message_received") }
     static var clickToRespond: String { L("notifications.click_to_respond") }
     static var incognitoDescription: String { L("settings.incognito.description") }
 

@@ -56,6 +56,8 @@ class NativeDeviceRegisterRequest(BaseModel):
     token: str
     platform: str = "apns"
     environment: Optional[str] = None
+    notification_public_key: Optional[str] = None
+    encryption_version: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -173,6 +175,8 @@ async def register_native_device(
         "token": token,
         "platform": platform,
         "environment": body.environment,
+        "notification_public_key": body.notification_public_key,
+        "encryption_version": body.encryption_version,
     })
 
     try:
