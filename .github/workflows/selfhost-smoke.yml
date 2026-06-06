@@ -11,6 +11,8 @@ on:
       - 'setup.sh'
       - '.env.example'
       - 'backend/core/docker-compose*.yml'
+      - 'backend/core/api/main.py'
+      - 'backend/core/api/wait-for-vault.sh'
       - 'backend/core/api/app/routes/settings.py'
       - 'frontend/apps/web_app/Dockerfile'
       - 'frontend/apps/web_app/tests/selfhost-smoke.spec.ts'
@@ -25,6 +27,8 @@ on:
       - 'setup.sh'
       - '.env.example'
       - 'backend/core/docker-compose*.yml'
+      - 'backend/core/api/main.py'
+      - 'backend/core/api/wait-for-vault.sh'
       - 'backend/core/api/app/routes/settings.py'
       - 'frontend/apps/web_app/Dockerfile'
       - 'frontend/apps/web_app/tests/selfhost-smoke.spec.ts'
@@ -102,6 +106,7 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend/apps/web_app
+        timeout-minutes: 10
         run: npx playwright install --with-deps chromium
 
       - name: Run self-hosted smoke spec
