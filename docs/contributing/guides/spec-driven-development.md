@@ -16,8 +16,8 @@ Full specs use a single YAML source of truth:
 docs/specs/<slug>/spec.yml
 ```
 
-Do not maintain separate `spec.md`, `plan.md`, or `tasks.md` files for new full
-specs. If a readable document is needed, generate it from `spec.yml` instead of
+Do not maintain separate Markdown spec, plan, or task files for new full specs.
+If a readable document is needed, generate it from `spec.yml` instead of
 duplicating content by hand.
 
 ## When Specs Are Required

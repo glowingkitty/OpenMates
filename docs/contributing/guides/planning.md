@@ -311,7 +311,7 @@ Complements the planning template above with the end-to-end lifecycle.
 
 1. **Understand** — State your interpretation and wait for confirmation (Step 0 above)
 2. **Clarify** — Resolve ambiguities, search codebase for similar implementations (DRY), check `docs/architecture/`
-3. **Specify** — For full-spec work, run `specify` and review `docs/specs/<slug>/spec.md` before implementation.
+3. **Specify** — For full-spec work, run `specify` and review `docs/specs/<slug>/spec.yml` before implementation.
 4. **Plan** — Follow the template above or run `plan-from-spec`. Check `sessions.py status` for file conflicts.
 5. **Test strategy** — Decide before implementation: TDD when behavior is clearly defined, test-after when API is still being designed.
 6. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.

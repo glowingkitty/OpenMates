@@ -55,7 +55,8 @@ def _as_mapping(value: Any, field: str) -> dict[str, Any]:
 
 
 def _require_string(data: dict[str, Any], field: str) -> str:
-    value = data.get(field)
+    key = field.rsplit(".", 1)[-1]
+    value = data.get(key)
     if not isinstance(value, str) or not value.strip():
         raise SpecError(f"{field} must be a non-empty string")
     return value.strip()

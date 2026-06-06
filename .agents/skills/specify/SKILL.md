@@ -115,8 +115,8 @@ Do not implement code during this skill.
 ## Rules
 
 - Specs are product contracts, not implementation essays.
-- Full specs are executable YAML only. Do not create separate `spec.md`,
-  `plan.md`, or `tasks.md` for new specs.
+- Full specs are executable YAML only. Do not create separate Markdown spec,
+  plan, or task files for new specs.
 - Keep specs concise; examples are more valuable than long prose.
 - Commit durable full specs to git.
 - Do not commit secrets, private user data, raw logs, private emails, or

@@ -14,9 +14,9 @@ docs/specs/<slug>/
 └── spec.yml
 ```
 
-Older spec folders may still contain `spec.md`, `plan.md`, and `tasks.md` from
-the previous workflow. Do not create those files for new specs; migrate legacy
-specs only when they are actively resumed.
+Older spec folders from the previous workflow should be migrated into
+`spec.yml` when they are actively resumed. Do not create separate Markdown spec,
+plan, or task files for new specs.
 
 Do not store secrets, private user data, raw logs, private emails, or production
 identifiers here. Use placeholders such as `<USER_EMAIL>`, `<CHAT_ID>`, and

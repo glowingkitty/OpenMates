@@ -1,0 +1,322 @@
+id: self-host-signup-mode
+title: Self-Host Signup Mode
+status: verified
+
+goal: >
+  Make self-host signup safe and easy for individuals and teams. During install,
+  the operator chooses whether signups use invite codes, an email-domain
+  allowlist, or both. Self-host setup creates the first normal invite code when
+  the selected mode requires invites, and admin access is granted only with
+  openmates server make-admin <email> after signup.
+
+scope:
+  in:
+    - Add self-host signup mode configuration during openmates server install.
+    - Support invite_only, domain_allowlist, and invite_and_domain modes.
+    - Generate and show one first signup invite code when the selected mode includes invites.
+    - Ensure first signup invite codes do not grant admin privileges.
+    - Keep openmates server make-admin <email> as the admin promotion flow.
+    - Update backend signup requirement logic and frontend-facing session state.
+    - Extend self-host smoke coverage for public npm install and self-host signup behavior.
+  out:
+    - Public open signup for self-hosted instances.
+    - User-count caps for self-hosted instances.
+    - New web admin invite-management UI.
+    - Publishing the next npm package version.
+
+context_discovery:
+  docs:
+    - docs/self-hosting/setup.md
+    - docs/cli/server-management.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/server.ts
+    - setup.sh
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/api/app/utils/invite_code.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+  tests:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - .github/workflows/selfhost-smoke.yml
+
+clarification:
+  rounds: []
+  vision_summary: >
+    The first slice keeps self-host signup closed by default while allowing
+    invite-only, domain allowlist, and combined modes. The first invite is a
+    normal user invite, and admin promotion remains a local operator action.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Individual installs with invite codes only
+    given:
+      - A person runs openmates server install.
+    when:
+      - They accept the default signup mode.
+    then:
+      - The install config is invite_only.
+      - One normal first signup invite code is generated.
+      - The CLI output shows the invite code and the make-admin next step.
+      - Signup requires the invite code.
+  - id: S-2
+    title: Team installs with email-domain allowlist
+    given:
+      - An operator runs openmates server install.
+    when:
+      - They choose email-domain allowlist and enter example.org.
+    then:
+      - The install config is domain_allowlist.
+      - Signup requires an email address from example.org.
+      - Signup does not require an invite code.
+  - id: S-3
+    title: Team installs with invite plus domain restriction
+    given:
+      - An operator runs openmates server install.
+    when:
+      - They choose invite code plus email-domain allowlist and enter example.org.
+    then:
+      - Signup requires both a valid invite code and an email address from example.org.
+  - id: S-4
+    title: First signup does not become admin automatically
+    given:
+      - A self-host instance has a first signup invite code.
+    when:
+      - A user signs up with that invite code.
+    then:
+      - The user is created as a normal non-admin user.
+      - The invite code is consumed according to its remaining uses.
+      - Running openmates server make-admin <email> grants admin privileges.
+  - id: S-5
+    title: Real-user CLI install path is checked
+    given:
+      - A clean GitHub Actions runner exists.
+    when:
+      - The self-host smoke workflow installs openmates from public npm.
+    then:
+      - The published CLI command is available and can print help.
+      - The workflow still tests the current branch CLI for new install behavior until the package is published.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Non-interactive openmates server install defaults to invite_only.
+  - id: AC-2
+    scenario: S-1
+    text: Interactive install uses individual/team wording only.
+  - id: AC-3
+    scenario: S-1
+    text: Modes that include invites generate and persist one first signup invite code.
+  - id: AC-4
+    scenario: S-4
+    text: The first signup invite code is stored with is_admin=false.
+  - id: AC-5
+    scenario: S-2
+    text: Self-host signup requirement logic uses explicit signup mode, not implicit domain-restriction bypasses.
+  - id: AC-6
+    scenario: S-1
+    text: /v1/auth/session returns require_invite_code consistent with the selected self-host mode.
+  - id: AC-7
+    scenario: S-4
+    text: Password and passkey signup do not grant admin from invite-code metadata.
+  - id: AC-8
+    scenario: S-4
+    text: openmates server make-admin <email> remains the only admin-promotion path in this slice.
+  - id: AC-9
+    scenario: S-5
+    text: Self-host smoke verifies public npm CLI availability and current-branch self-host install/start/signup behavior.
+  - id: AC-10
+    scenario: S-1
+    text: Docs explain invite-code/domain signup modes and the post-signup make-admin step.
+
+contracts:
+  api:
+    - /v1/auth/session includes require_invite_code based on SELF_HOST_SIGNUP_MODE for self-hosted instances.
+    - Signup endpoints reject missing invite codes when mode is invite_only or invite_and_domain.
+    - Signup endpoints reject disallowed email domains when mode is domain_allowlist or invite_and_domain.
+  data:
+    - SELF_HOST_SIGNUP_MODE=invite_only|domain_allowlist|invite_and_domain.
+    - SELF_HOST_SIGNUP_ALLOWED_DOMAINS=<comma-separated domains>.
+    - SELF_HOST_FIRST_INVITE_CODE=<generated code> when invite mode is enabled.
+    - Existing invite_codes.is_admin remains in schema for compatibility but is ignored for new user admin grants.
+  ui_states:
+    - Signup shows invite-code entry when /session reports require_invite_code=true.
+    - Domain allowlist errors continue to surface through existing signup error handling.
+  privacy_security:
+    - No public open signup is introduced for self-hosted instances.
+    - Admin promotion requires local CLI/server access and a signed-up email address.
+    - Invite codes remain one-use by default.
+
+tests:
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - default install mode is invite_only
+      - generated invite code is shown for invite modes
+      - interactive wording avoids admin-by-first-user language
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: false
+      expected: pass
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_self_host_signup_requirements.py
+    command: python3 -m pytest backend/tests/test_self_host_signup_requirements.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - explicit self-host modes control invite and domain requirements
+      - first invite is stored as non-admin
+      - password and passkey signup ignore invite admin metadata
+      - make-admin remains the admin promotion path
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: false
+      expected: pass
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    command: python3 scripts/run_tests.py --spec selfhost-smoke.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-9
+    assertions:
+      - public npm CLI can print server help
+      - current-branch install behavior supports configured signup modes
+      - self-host start and signup smoke remains covered
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+  - id: T-DOCS-001
+    type: manual
+    covers:
+      - AC-10
+    assertions:
+      - self-host setup docs explain invite and domain modes
+      - CLI docs explain make-admin after signup
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: false
+      expected: pass
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/server.ts
+    - setup.sh
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/api/app/utils/invite_code.py
+  architecture: >
+    Self-host signup mode is environment-driven and read by the backend. The CLI
+    installer writes the selected mode into .env; cms-setup creates the first
+    normal invite code when invite mode is enabled; API routes use one shared
+    helper to decide invite and domain requirements.
+  data_flow:
+    - Operator runs openmates server install.
+    - Setup writes SELF_HOST_SIGNUP_MODE and related env values.
+    - cms-setup creates a first non-admin invite code when needed.
+    - /v1/auth/session reports invite requirements to the frontend.
+    - Signup endpoints validate invite and domain requirements.
+    - Operator runs openmates server make-admin <email> after signup.
+  affected_files:
+    - path: setup.sh
+      reason: Prompt for signup mode and write self-host env defaults.
+    - path: backend/core/directus/setup/setup_schemas.py
+      reason: Insert first normal invite code from env.
+    - path: backend/core/api/app/utils/invite_code.py
+      reason: Implement explicit self-host signup modes.
+    - path: backend/core/api/app/routes/auth_routes/auth_session.py
+      reason: Return shared require_invite_code state.
+    - path: backend/core/api/app/routes/auth_routes/auth_password.py
+      reason: Stop granting admin from invite code.
+    - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
+      reason: Stop granting admin from invite code.
+    - path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+      reason: Extend self-host assertions where feasible.
+    - path: .github/workflows/selfhost-smoke.yml
+      reason: Check public npm CLI and current-branch install behavior.
+    - path: docs/self-hosting/setup.md
+      reason: Document signup modes and admin promotion.
+    - path: docs/cli/server-management.md
+      reason: Document make-admin flow.
+  verification_strategy:
+    - bash -n setup.sh
+    - python3 -m py_compile backend/core/directus/setup/setup_schemas.py backend/core/api/app/utils/invite_code.py backend/core/api/app/routes/auth_routes/auth_session.py backend/core/api/app/routes/auth_routes/auth_password.py backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - python3 -m pytest backend/tests/test_self_host_signup_requirements.py
+    - python3 scripts/run_tests.py --spec selfhost-smoke.spec.ts
+  risks:
+    - Public npm cannot test unreleased CLI changes, so workflow separates published CLI availability from current-branch behavior.
+    - Full signup E2E may require email-code access in the self-host stack.
+    - Existing invite codes with is_admin=true may remain in old installs; new account creation should ignore this flag.
+
+tasks:
+  - id: TASK-1
+    title: Add explicit self-host signup mode config and first normal invite generation
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - setup.sh
+      - backend/core/directus/setup/setup_schemas.py
+    verification: [T-CLI-001, T-PYTEST-001]
+    independently_deployable: true
+  - id: TASK-2
+    title: Make backend signup requirements use explicit self-host modes
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - backend/core/api/app/utils/invite_code.py
+      - backend/core/api/app/routes/auth_routes/auth_session.py
+    verification: [T-PYTEST-001]
+    independently_deployable: true
+  - id: TASK-3
+    title: Remove invite-code admin promotion from account creation
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-7, AC-8]
+    expected_files:
+      - backend/core/api/app/routes/auth_routes/auth_password.py
+      - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    verification: [T-PYTEST-001]
+    independently_deployable: true
+  - id: TASK-4
+    title: Extend self-host smoke for public npm availability and current-branch signup-mode behavior
+    covers:
+      scenarios: [S-4, S-5]
+      acceptance_criteria: [AC-9]
+    expected_files:
+      - .github/workflows/selfhost-smoke.yml
+      - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    verification: [T-E2E-001]
+    independently_deployable: true
+  - id: TASK-5
+    title: Update docs and verify spec
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-10]
+    expected_files:
+      - docs/self-hosting/setup.md
+      - docs/cli/server-management.md
+      - docs/specs/self-host-signup-mode/spec.yml
+    verification: [T-DOCS-001]
+    independently_deployable: true
