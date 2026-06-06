@@ -3,9 +3,9 @@
  * Explain in new chat E2E coverage.
  *
  * Verifies the selected-assistant-text workflow: selecting text exposes the
- * Explain in new chat toolbar action, starts a forked background chat, shows an
- * open action notification, and auto-sends the explanation prompt in the new
- * chat without appending it to the source transcript.
+ * Explain in new chat option in the existing highlight context menu, starts a
+ * forked background chat, shows an open action notification, and auto-sends the
+ * explanation prompt in the new chat without appending it to the source transcript.
  */
 export {};
 
@@ -33,6 +33,7 @@ const SELECTORS = {
 	mateMessageContent: '[data-testid="mate-message-content"]',
 	selectionToolbar: '[data-testid="message-selection-toolbar"]',
 	selectionToolbarExplain: '[data-testid="message-selection-explain-new-chat"]',
+	contextMenuExplain: '[data-testid="chat-context-explain-new-chat"]',
 	notification: '[data-testid="notification"]',
 	notificationAction: '[data-testid="notification-action"]',
 	messageWrapper: '[data-testid="message-wrapper"]'
@@ -104,14 +105,25 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	log('Verifying user-message selections do not expose Explain in new chat.');
 	const userSelection = await selectInsideMessage(page, SELECTORS.userMessageContent, 'vector database');
 	expect(userSelection.selected).toBe(true);
-	await page.waitForTimeout(300);
-	await expect(page.locator(SELECTORS.selectionToolbarExplain)).toHaveCount(0);
+	expect(userSelection.rect).not.toBeNull();
+	await page.mouse.click(
+		userSelection.rect!.x + userSelection.rect!.width / 2,
+		userSelection.rect!.y + userSelection.rect!.height / 2,
+		{ button: 'right' }
+	);
+	await expect(page.locator(SELECTORS.contextMenuExplain)).toHaveCount(0);
+	await page.mouse.click(10, 10);
 
-	log('Selecting assistant phrase and clicking Explain in new chat.');
+	log('Selecting assistant phrase and clicking Explain in new chat from the highlight menu.');
 	const assistantSelection = await selectInsideMessage(page, SELECTORS.mateMessageContent, 'vector database');
 	expect(assistantSelection.selected).toBe(true);
-	await expect(page.locator(SELECTORS.selectionToolbar)).toBeVisible({ timeout: 5000 });
-	const explainButton = page.locator(SELECTORS.selectionToolbarExplain);
+	expect(assistantSelection.rect).not.toBeNull();
+	await page.mouse.click(
+		assistantSelection.rect!.x + assistantSelection.rect!.width / 2,
+		assistantSelection.rect!.y + assistantSelection.rect!.height / 2,
+		{ button: 'right' }
+	);
+	const explainButton = page.locator(SELECTORS.contextMenuExplain);
 	await expect(explainButton).toBeVisible({ timeout: 5000 });
 	await screenshot(page, 'explain-action-visible');
 	await explainButton.click();

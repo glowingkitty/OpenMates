@@ -743,7 +743,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     commitToolbarAction(true);
   }
 
-  async function handleToolbarExplainInNewChat() {
+  async function handleExplainInNewChatFromSelection() {
     if (_toolbarCommitTimer !== null) {
       clearTimeout(_toolbarCommitTimer);
       _toolbarCommitTimer = null;
@@ -2916,7 +2916,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           onHighlight={handleToolbarHighlight}
           onHighlightAndComment={handleToolbarHighlightAndComment}
           showExplainInNewChat={role === 'assistant' && !isForkDisabled && !isSharedReadOnly}
-          onExplainInNewChat={handleToolbarExplainInNewChat}
+          onExplainInNewChat={handleExplainInNewChatFromSelection}
         />
 
         <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,
@@ -3239,6 +3239,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
            onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
+           onExplainInNewChat={messageId && !isSharedReadOnly && !isForkDisabled ? handleExplainInNewChatFromSelection : undefined}
            hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
            {messageId}
            {userMessageId}

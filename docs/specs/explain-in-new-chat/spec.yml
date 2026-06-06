@@ -9,7 +9,7 @@ goal: >
 
 scope:
   in:
-    - A selection-toolbar action labeled "Explain in new chat" for authenticated users selecting text in assistant messages.
+    - An existing highlight-menu action labeled "Explain in new chat" for authenticated users selecting text in assistant messages.
     - Creating a new background chat from the current chat context up to the selected assistant message.
     - Automatically sending an explanation prompt in the new chat using the selected text.
     - Showing an immediate notification that the background explanation chat started, with an action to open it.
@@ -29,6 +29,7 @@ context_discovery:
     - docs/architecture/phased_sync_handler.md
   code_patterns:
     - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
     - frontend/packages/ui/src/components/ChatMessage.svelte
     - frontend/packages/ui/src/services/forkChatService.ts
     - frontend/packages/ui/src/components/settings/fork/SettingsFork.svelte
@@ -60,7 +61,7 @@ scenarios:
       - Alice is authenticated and viewing an assistant response in a normal chat.
       - Alice selects the phrase "vector database" inside that assistant response.
     when:
-      - Alice clicks "Explain in new chat" in the floating selection toolbar.
+      - Alice clicks "Explain in new chat" in the existing highlight context menu.
     then:
       - The current chat stays open and receives no new user message.
       - A new chat is created in the background from the current chat through the selected assistant response.
@@ -86,7 +87,7 @@ scenarios:
     when:
       - Bob selects message text.
     then:
-      - The floating selection toolbar does not offer "Explain in new chat".
+      - The highlight menu does not offer "Explain in new chat".
       - Existing Highlight and Highlight & comment behavior remains unchanged where those actions are allowed.
 
 acceptance_criteria:
@@ -118,7 +119,7 @@ contracts:
     - The explanation chat copies encrypted context using the existing fork pipeline up to the selected assistant message.
     - The explanation prompt is stored as a normal encrypted user message in the new chat.
   ui_states:
-    - Selection toolbar with Highlight, Highlight & comment, and Explain in new chat for allowed assistant selections.
+    - Existing highlight menu with Highlight, Highlight & comment, and Explain in new chat for allowed assistant selections.
     - Immediate success notification with open-chat action after background chat start.
     - Existing fork/progress and normal chat notification behavior remain intact.
   privacy_security:
@@ -139,7 +140,7 @@ tests:
       - "AC-4"
       - "AC-5"
     assertions:
-      - selecting assistant response text shows the Explain in new chat action
+      - selecting assistant response text shows the Explain in new chat action in the existing highlight context menu
       - clicking it leaves the source chat open and does not append the prompt to the source chat
       - a notification/action opens the new background chat
       - the new chat contains the auto-sent Tell me more about prompt
@@ -162,8 +163,8 @@ tests:
 
   - id: "T-LINT-EXPLAIN-001"
     type: lint
-    file: frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
-    command: bash scripts/lint_changed.sh --path docs/specs/explain-in-new-chat/spec.yml --path frontend/apps/web_app/tests/explain-in-new-chat.spec.ts --path frontend/packages/ui/src/components/MessageSelectionToolbar.svelte --path frontend/packages/ui/src/components/ChatMessage.svelte --path frontend/packages/ui/src/services/forkChatService.ts --path frontend/packages/ui/src/i18n/sources/chats.yml
+    file: frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    command: bash scripts/lint_changed.sh --path docs/specs/explain-in-new-chat/spec.yml --path frontend/apps/web_app/tests/explain-in-new-chat.spec.ts --path frontend/packages/ui/src/components/MessageSelectionToolbar.svelte --path frontend/packages/ui/src/components/chats/MessageContextMenu.svelte --path frontend/packages/ui/src/components/ChatMessage.svelte --path frontend/packages/ui/src/services/forkChatService.ts --path frontend/packages/ui/src/i18n/sources/chats.yml
     covers:
       - "AC-1"
       - "AC-3"
@@ -184,23 +185,24 @@ tests:
       evidence:
         status: passed
         run_id: "focused-lint-local"
-        timestamp: "2026-06-06T16:33:01Z"
-        note: "Focused lint command passed for the spec, E2E, toolbar, ChatMessage, fork service, and i18n source files. Full changed-file lint also surfaced an unrelated pre-existing Python lint error in backend/admin_sidecar/main.py."
+        timestamp: "2026-06-06T17:10:03Z"
+        note: "Focused lint command passed for the spec, E2E, MessageContextMenu, toolbar, ChatMessage, fork service, and i18n source files. Full changed-file lint also surfaced an unrelated pre-existing Python lint error in backend/admin_sidecar/main.py."
 
 implementation_plan:
   existing_patterns:
+    - MessageContextMenu already contains the desktop selected-text Highlight and Highlight & comment actions.
     - MessageSelectionToolbar already captures selected text actions in a touch-safe way.
     - ChatMessage already owns selection capture, current message identity, and fork context.
     - forkChatService already creates zero-knowledge background fork chats and notification actions.
     - MessageInput exposes sendCurrentMessage and setSuggestionText for normal auto-send flows.
   architecture: >
-    Extend the existing selection toolbar with an optional explain action. Add a
+    Extend the existing highlight context menu with an optional explain action. Add a
     focused service or fork-service option that forks the source chat through the
     selected assistant message, saves the explanation prompt in the new chat, and
     dispatches the normal send flow in the background without changing the active
     source chat.
   data_flow:
-    - User selects text in an assistant response.
+    - User selects text in an assistant response and opens the existing highlight context menu.
     - ChatMessage captures both the selected text and the assistant message ID.
     - Explain action calls the fork/background-start flow with source chat ID, fork point message ID, selected text, and generated prompt.
     - The new chat is created locally and synced through existing encrypted storage.
@@ -208,7 +210,9 @@ implementation_plan:
     - Notification action sets activeChatStore to the new chat ID.
   affected_files:
     - path: frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
-      reason: Add optional Explain in new chat button.
+      reason: Keep touch selection behavior aligned with selected-text actions.
+    - path: frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+      reason: Add optional Explain in new chat action beside Highlight and Highlight & comment.
     - path: frontend/packages/ui/src/components/ChatMessage.svelte
       reason: Wire selected assistant text to background explanation flow and hide action for disallowed states.
     - path: frontend/packages/ui/src/services/forkChatService.ts
@@ -220,7 +224,7 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/explain-in-new-chat/spec.yml
     - python3 scripts/run_tests.py --spec explain-in-new-chat.spec.ts
-    - bash scripts/lint_changed.sh --path docs/specs/explain-in-new-chat/spec.yml --path frontend/apps/web_app/tests/explain-in-new-chat.spec.ts --path frontend/packages/ui/src/components/MessageSelectionToolbar.svelte --path frontend/packages/ui/src/components/ChatMessage.svelte --path frontend/packages/ui/src/services/forkChatService.ts --path frontend/packages/ui/src/i18n/sources/chats.yml
+    - bash scripts/lint_changed.sh --path docs/specs/explain-in-new-chat/spec.yml --path frontend/apps/web_app/tests/explain-in-new-chat.spec.ts --path frontend/packages/ui/src/components/MessageSelectionToolbar.svelte --path frontend/packages/ui/src/components/chats/MessageContextMenu.svelte --path frontend/packages/ui/src/components/ChatMessage.svelte --path frontend/packages/ui/src/services/forkChatService.ts --path frontend/packages/ui/src/i18n/sources/chats.yml
 
 tasks:
   - id: "TASK-1"
@@ -258,6 +262,7 @@ tasks:
         - "AC-5"
     expected_files:
       - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+      - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
       - frontend/packages/ui/src/components/ChatMessage.svelte
       - frontend/packages/ui/src/services/forkChatService.ts
       - frontend/packages/ui/src/i18n/sources/chats.yml
