@@ -35,14 +35,17 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { forkProgressStore } from "../stores/forkProgressStore";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { chatSyncService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
+import { text } from "@repo/ui";
 import {
   encryptWithChatKey,
   decryptWithChatKey,
 } from "./cryptoService";
 import { get } from "svelte/store";
 import type { Message, Chat } from "../types/chat";
+import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 
 // How many messages to encrypt per "tick" before yielding to the event loop.
 // Keeps the UI responsive during large chats.
@@ -50,6 +53,19 @@ const BATCH_SIZE = 10;
 
 // Delay between batches (ms) to allow the UI to breathe.
 const BATCH_DELAY_MS = 0; // Use microtask-level yield (requestAnimationFrame below)
+const EXPLAIN_SELECTION_MAX_CHARS = 500;
+const EXPLAIN_CHAT_TITLE_MAX_CHARS = 80;
+
+interface StartForkOptions {
+  suppressCompleteNotification?: boolean;
+  afterForkComplete?: (newChatId: string) => Promise<void> | void;
+}
+
+interface ExplainInNewChatOptions {
+  sourceChatId: string;
+  upToMessageId: string;
+  selectedText: string;
+}
 
 // ---------------------------------------------------------------------------
 // Main entry point
@@ -67,6 +83,7 @@ export async function startFork(
   sourceChatId: string,
   upToMessageId: string,
   forkTitle: string,
+  options: StartForkOptions = {},
 ): Promise<string> {
   // Guard: only one fork at a time
   const current = forkProgressStore.getSnapshot();
@@ -112,13 +129,58 @@ export async function startFork(
   );
 
   // Run the actual work asynchronously so the caller returns immediately
-  runForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy).catch(
+  runForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy, options).catch(
     (err) => {
       console.error("[ForkChatService] Fork failed:", err);
       forkProgressStore.fail(err?.message ?? "Unknown error");
       notificationStore.error("fork.error_notification");
     },
   );
+
+  return newChatId;
+}
+
+export async function startExplainInNewChat({
+  sourceChatId,
+  upToMessageId,
+  selectedText,
+}: ExplainInNewChatOptions): Promise<string> {
+  const normalizedSelection = normalizeExplainSelection(selectedText);
+  if (!normalizedSelection) {
+    throw new Error("Selected text is required to start an explanation chat");
+  }
+
+  const current = forkProgressStore.getSnapshot();
+  if (current.status === "running") {
+    throw new Error("A fork is already running");
+  }
+
+  const $text = get(text);
+  const prompt = $text("chats.explain_in_new_chat.prompt", {
+    values: { term: normalizedSelection },
+  });
+  const forkTitle = buildExplainChatTitle(normalizedSelection);
+
+  const newChatId = await startFork(sourceChatId, upToMessageId, forkTitle, {
+    suppressCompleteNotification: true,
+    afterForkComplete: async (completedChatId) => {
+      await sendBackgroundExplanationPrompt(completedChatId, prompt);
+    },
+  });
+
+  notificationStore.addNotificationWithOptions("info", {
+    title: $text("chats.explain_in_new_chat.started_title"),
+    message: $text("chats.explain_in_new_chat.started_message", {
+      values: { term: normalizedSelection },
+    }),
+    duration: 12_000,
+    dismissible: true,
+    actionLabel: $text("chats.explain_in_new_chat.open_action"),
+    dedupeKey: `explain-in-new-chat:${newChatId}`,
+    onAction: () => {
+      void openChatWhenAvailable(newChatId);
+    },
+  });
 
   return newChatId;
 }
@@ -132,10 +194,11 @@ async function runForkAsync(
   newChatId: string,
   forkTitle: string,
   messagesToCopy: Message[],
+  options: StartForkOptions,
 ): Promise<void> {
   console.info(
     `[ForkChatService] Starting fork: ${sourceChatId} → ${newChatId} ` +
-      `(${messagesToCopy.length} messages, title: "${forkTitle}")`,
+      `(${messagesToCopy.length} messages)`,
   );
 
   // Step 1+2: Atomically create and persist the chat key through ChatKeyManager.
@@ -279,9 +342,17 @@ async function runForkAsync(
     messagesToCopy.length,
   );
 
+  if (options.afterForkComplete) {
+    await options.afterForkComplete(newChatId);
+  }
+
   // Done!
   forkProgressStore.complete();
   console.info(`[ForkChatService] Fork complete: new chat ${newChatId}`);
+
+  if (options.suppressCompleteNotification) {
+    return;
+  }
 
   // Show a "fork complete" notification that opens the forked chat on click
   notificationStore.addNotificationWithOptions("success", {
@@ -294,6 +365,57 @@ async function runForkAsync(
     },
     actionLabel: "chats.fork.complete_notification",
   });
+}
+
+function normalizeExplainSelection(selectedText: string): string {
+  return selectedText.replace(/\s+/g, " ").trim().slice(0, EXPLAIN_SELECTION_MAX_CHARS);
+}
+
+function buildExplainChatTitle(selectedText: string): string {
+  const title = `Explain: ${selectedText}`;
+  return title.length > EXPLAIN_CHAT_TITLE_MAX_CHARS
+    ? `${title.slice(0, EXPLAIN_CHAT_TITLE_MAX_CHARS - 3)}...`
+    : title;
+}
+
+async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): Promise<void> {
+  const nowTimestamp = Math.floor(Date.now() / 1000);
+  const message: Message = {
+    message_id: `${chatId.slice(-10)}-${crypto.randomUUID()}`,
+    chat_id: chatId,
+    role: "user",
+    content: prompt,
+    status: get(websocketStatus).status === "connected" ? "sending" : "waiting_for_internet",
+    created_at: nowTimestamp,
+    sender_name: "user",
+    encrypted_content: null,
+  };
+
+  await chatDB.saveMessage(message);
+
+  const chat = await chatDB.getChat(chatId);
+  if (chat) {
+    await chatDB.addChat({
+      ...chat,
+      messages_v: (chat.messages_v ?? 0) + 1,
+      updated_at: nowTimestamp,
+      last_edited_overall_timestamp: nowTimestamp,
+    });
+  }
+
+  window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId } }));
+  await chatSyncService.sendNewMessage(message);
+}
+
+async function openChatWhenAvailable(chatId: string): Promise<void> {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (await chatDB.getChat(chatId)) {
+      activeChatStore.setActiveChat(chatId);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  notificationStore.error(get(text)("chats.explain_in_new_chat.failed"));
 }
 
 // ---------------------------------------------------------------------------

@@ -47,6 +47,156 @@ context_menu.copy:
   he: העתקה
   verified_by_human: []
 
+context_menu.explain_in_new_chat:
+  context: Floating text-selection toolbar action that starts a background chat to explain the selected assistant response text.
+  en: Explain in new chat
+  de: In neuem Chat erklären
+  zh: 在新聊天中解释
+  es: Explicar en un chat nuevo
+  fr: Expliquer dans une nouvelle discussion
+  pt: Explicar em novo chat
+  ru: Объяснить в новом чате
+  ja: 新しいチャットで説明
+  ko: 새 채팅에서 설명
+  it: Spiega in una nuova chat
+  tr: Yeni sohbette açıkla
+  vi: Giải thích trong chat mới
+  id: Jelaskan di chat baru
+  pl: Wyjaśnij w nowym czacie
+  nl: Uitleggen in nieuwe chat
+  ar: اشرح في محادثة جديدة
+  hi: नए चैट में समझाएँ
+  th: อธิบายในแชตใหม่
+  cs: Vysvětlit v novém chatu
+  sv: Förklara i ny chatt
+  he: להסביר בצ'אט חדש
+  verified_by_human: []
+
+explain_in_new_chat.prompt:
+  context: Auto-sent user prompt in the background explanation chat. {term} is the selected assistant response text.
+  en: 'Tell me more about: {term}'
+  de: 'Erzähl mir mehr über: {term}'
+  zh: '请详细说明：{term}'
+  es: 'Cuéntame más sobre: {term}'
+  fr: 'Dis-m’en plus sur : {term}'
+  pt: 'Conte-me mais sobre: {term}'
+  ru: 'Расскажи подробнее: {term}'
+  ja: '詳しく教えてください: {term}'
+  ko: '더 자세히 알려줘: {term}'
+  it: 'Dimmi di più su: {term}'
+  tr: 'Bana şunun hakkında daha fazla bilgi ver: {term}'
+  vi: 'Nói thêm cho tôi về: {term}'
+  id: 'Ceritakan lebih banyak tentang: {term}'
+  pl: 'Powiedz mi więcej o: {term}'
+  nl: 'Vertel me meer over: {term}'
+  ar: 'أخبرني المزيد عن: {term}'
+  hi: 'मुझे इसके बारे में और बताएं: {term}'
+  th: 'บอกฉันเพิ่มเติมเกี่ยวกับ: {term}'
+  cs: 'Řekni mi víc o: {term}'
+  sv: 'Berätta mer om: {term}'
+  he: 'ספר לי עוד על: {term}'
+  verified_by_human: []
+
+explain_in_new_chat.started_title:
+  context: Notification title after starting a background explanation chat.
+  en: Background chat started
+  de: Hintergrund-Chat gestartet
+  zh: 后台聊天已开始
+  es: Chat en segundo plano iniciado
+  fr: Discussion en arrière-plan démarrée
+  pt: Chat em segundo plano iniciado
+  ru: Фоновый чат запущен
+  ja: バックグラウンドチャットを開始しました
+  ko: 백그라운드 채팅이 시작됨
+  it: Chat in background avviata
+  tr: Arka plan sohbeti başlatıldı
+  vi: Đã bắt đầu chat nền
+  id: Chat latar belakang dimulai
+  pl: Rozpoczęto czat w tle
+  nl: Achtergrondchat gestart
+  ar: بدأت محادثة في الخلفية
+  hi: बैकग्राउंड चैट शुरू हो गई
+  th: เริ่มแชตเบื้องหลังแล้ว
+  cs: Chat na pozadí spuštěn
+  sv: Bakgrundschatt startad
+  he: צ'אט ברקע התחיל
+  verified_by_human: []
+
+explain_in_new_chat.started_message:
+  context: Notification body after starting a background explanation chat. {term} is the selected assistant response text.
+  en: 'Explaining “{term}” in a new chat.'
+  de: '„{term}“ wird in einem neuen Chat erklärt.'
+  zh: '正在新聊天中解释“{term}”。'
+  es: 'Explicando “{term}” en un chat nuevo.'
+  fr: 'Explication de « {term} » dans une nouvelle discussion.'
+  pt: 'Explicando “{term}” em um novo chat.'
+  ru: 'Объясняю «{term}» в новом чате.'
+  ja: '新しいチャットで「{term}」を説明しています。'
+  ko: '새 채팅에서 “{term}”을 설명하는 중입니다.'
+  it: 'Sto spiegando “{term}” in una nuova chat.'
+  tr: '“{term}” yeni bir sohbette açıklanıyor.'
+  vi: 'Đang giải thích “{term}” trong chat mới.'
+  id: 'Menjelaskan “{term}” di chat baru.'
+  pl: 'Wyjaśniam „{term}” w nowym czacie.'
+  nl: '“{term}” wordt uitgelegd in een nieuwe chat.'
+  ar: 'يتم شرح "{term}" في محادثة جديدة.'
+  hi: '“{term}” को नए चैट में समझाया जा रहा है।'
+  th: 'กำลังอธิบาย “{term}” ในแชตใหม่'
+  cs: 'Vysvětluji „{term}“ v novém chatu.'
+  sv: 'Förklarar ”{term}” i en ny chatt.'
+  he: "מסביר את \"{term}\" בצ'אט חדש."
+  verified_by_human: []
+
+explain_in_new_chat.open_action:
+  context: Notification action button to open the background explanation chat.
+  en: Open chat
+  de: Chat öffnen
+  zh: 打开聊天
+  es: Abrir chat
+  fr: Ouvrir la discussion
+  pt: Abrir chat
+  ru: Открыть чат
+  ja: チャットを開く
+  ko: 채팅 열기
+  it: Apri chat
+  tr: Sohbeti aç
+  vi: Mở chat
+  id: Buka chat
+  pl: Otwórz czat
+  nl: Chat openen
+  ar: فتح المحادثة
+  hi: चैट खोलें
+  th: เปิดแชต
+  cs: Otevřít chat
+  sv: Öppna chatt
+  he: פתח צ'אט
+  verified_by_human: []
+
+explain_in_new_chat.failed:
+  context: Error notification when the selected-text explanation chat cannot be started.
+  en: Could not start the explanation chat. Please try again.
+  de: Der Erklär-Chat konnte nicht gestartet werden. Bitte versuche es erneut.
+  zh: 无法启动解释聊天。请重试。
+  es: No se pudo iniciar el chat de explicación. Inténtalo de nuevo.
+  fr: Impossible de démarrer la discussion d’explication. Réessayez.
+  pt: Não foi possível iniciar o chat de explicação. Tente novamente.
+  ru: Не удалось запустить чат с объяснением. Попробуйте еще раз.
+  ja: 説明チャットを開始できませんでした。もう一度お試しください。
+  ko: 설명 채팅을 시작할 수 없습니다. 다시 시도해 주세요.
+  it: Impossibile avviare la chat di spiegazione. Riprova.
+  tr: Açıklama sohbeti başlatılamadı. Lütfen tekrar deneyin.
+  vi: Không thể bắt đầu chat giải thích. Vui lòng thử lại.
+  id: Tidak dapat memulai chat penjelasan. Coba lagi.
+  pl: Nie udało się rozpocząć czatu z wyjaśnieniem. Spróbuj ponownie.
+  nl: Kan de uitlegchat niet starten. Probeer het opnieuw.
+  ar: تعذر بدء محادثة الشرح. يرجى المحاولة مرة أخرى.
+  hi: व्याख्या चैट शुरू नहीं हो सकी। कृपया फिर से कोशिश करें।
+  th: ไม่สามารถเริ่มแชตคำอธิบายได้ โปรดลองอีกครั้ง
+  cs: Nepodařilo se spustit vysvětlující chat. Zkuste to znovu.
+  sv: Det gick inte att starta förklaringschatten. Försök igen.
+  he: לא ניתן היה להתחיל את צ'אט ההסבר. נסה שוב.
+  verified_by_human: []
+
 chat.sub_chats.confirmation_title:
   context: Title for inline confirmation card before starting a large batch of sub-chats. {count} is the number of proposed sub-chats.
   en: Start {count} background chats?

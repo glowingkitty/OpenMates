@@ -646,7 +646,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       if (selectionToolbarVisible) {
         if (_toolbarHideTimer === null) {
           _toolbarHideTimer = setTimeout(() => {
-            selectionToolbarVisible = false;
+            // Re-check the actual selection state — the selection may still be
+            // valid even after a spurious collapsed event (common on iOS/touch
+            // where selection-handle init fires a stray selectionchange).
+            const recheck = window.getSelection();
+            if (!recheck || recheck.rangeCount === 0 || recheck.isCollapsed) {
+              selectionToolbarVisible = false;
+            }
             _toolbarHideTimer = null;
           }, TOOLBAR_COMMIT_DEBOUNCE_MS);
         }
@@ -735,6 +741,37 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
   function handleToolbarHighlightAndComment() {
     commitToolbarAction(true);
+  }
+
+  async function handleToolbarExplainInNewChat() {
+    if (_toolbarCommitTimer !== null) {
+      clearTimeout(_toolbarCommitTimer);
+      _toolbarCommitTimer = null;
+    }
+
+    const liveAnchor = captureAnchorNow();
+    const anchor = liveAnchor ?? committedToolbarAnchor ?? cachedSelectionAnchor;
+    selectionToolbarVisible = false;
+    committedToolbarAnchor = null;
+    cachedSelectionAnchor = null;
+    window.getSelection()?.removeAllRanges();
+
+    if (!anchor?.exact || role !== 'assistant' || !messageId || !currentChatId || isForkDisabled || isSharedReadOnly) {
+      return;
+    }
+
+    try {
+      const { startExplainInNewChat } = await import('../services/forkChatService');
+      await startExplainInNewChat({
+        sourceChatId: currentChatId,
+        upToMessageId: messageId,
+        selectedText: anchor.exact,
+      });
+    } catch (error) {
+      console.error('[ChatMessage] Failed to start explain-in-new-chat flow:', error);
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.error($text('chats.explain_in_new_chat.failed'));
+    }
   }
   // ─── End highlights ────────────────────────────────────────────────────────
   
@@ -2878,6 +2915,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           anchorRect={selectionToolbarRect}
           onHighlight={handleToolbarHighlight}
           onHighlightAndComment={handleToolbarHighlightAndComment}
+          showExplainInNewChat={role === 'assistant' && !isForkDisabled && !isSharedReadOnly}
+          onExplainInNewChat={handleToolbarExplainInNewChat}
         />
 
         <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,

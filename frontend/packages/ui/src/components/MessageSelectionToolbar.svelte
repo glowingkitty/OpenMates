@@ -28,12 +28,21 @@
     anchorRect: DOMRect | null;
     onHighlight: () => void;
     onHighlightAndComment: () => void;
+    showExplainInNewChat?: boolean;
+    onExplainInNewChat?: () => void;
   }
 
-  let { show, anchorRect, onHighlight, onHighlightAndComment }: Props = $props();
+  let {
+    show,
+    anchorRect,
+    onHighlight,
+    onHighlightAndComment,
+    showExplainInNewChat = false,
+    onExplainInNewChat,
+  }: Props = $props();
 
   // Estimated dimensions — real rect read after mount for final placement.
-  const TOOLBAR_W = 200;
+  const TOOLBAR_W = 340;
   const TOOLBAR_H = 40;
   const GAP = 8; // distance between selection top and toolbar bottom
   const EDGE_PAD = 8;
@@ -75,7 +84,7 @@
     if (show && anchorRect) recompute();
   });
 
-  function handle(e: MouseEvent | TouchEvent, action: 'highlight' | 'comment') {
+  function handle(e: MouseEvent | TouchEvent, action: 'highlight' | 'comment' | 'explain') {
     // Prevent the mousedown/touchstart that would collapse the selection
     // before the handler runs. pointer-events must stay enabled so the tap
     // registers at all.
@@ -90,7 +99,8 @@
       lastLeadingActionAt = now;
     }
     if (action === 'highlight') onHighlight();
-    else onHighlightAndComment();
+    else if (action === 'comment') onHighlightAndComment();
+    else onExplainInNewChat?.();
   }
 
   /**
@@ -145,6 +155,20 @@
       <span class="clickable-icon icon_quote"></span>
       <span class="sel-btn-label">{$text('chats.context_menu.highlight_and_comment')}</span>
     </button>
+    {#if showExplainInNewChat && onExplainInNewChat}
+      <div class="sel-divider" aria-hidden="true"></div>
+      <button
+        type="button"
+        class="sel-btn"
+        data-testid="message-selection-explain-new-chat"
+        onmousedown={(e) => handle(e, 'explain')}
+        ontouchstart={(e) => handle(e, 'explain')}
+        onclick={(e) => handle(e, 'explain')}
+      >
+        <span class="clickable-icon icon_planning"></span>
+        <span class="sel-btn-label">{$text('chats.context_menu.explain_in_new_chat')}</span>
+      </button>
+    {/if}
   </div>
 {/if}
 
