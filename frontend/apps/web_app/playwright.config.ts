@@ -21,10 +21,16 @@ if (!baseURL) {
 	);
 }
 
+const browserChannel = process.env.PLAYWRIGHT_BROWSER_CHANNEL;
+if (browserChannel && browserChannel !== 'chrome') {
+	throw new Error('PLAYWRIGHT_BROWSER_CHANNEL only supports "chrome" in this config.');
+}
+
 const config: PlaywrightTestConfig = {
 	use: {
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
+		...(browserChannel ? { channel: browserChannel } : {}),
 		// Capture artifacts for all tests — used by MD report generator
 		// (test-results/reports/) to show inline screenshots per step.
 		// Uploaded to GHA artifacts and synced to test-results/screenshots/.

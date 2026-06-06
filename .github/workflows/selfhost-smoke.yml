@@ -53,6 +53,7 @@ jobs:
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
       SELFHOST_API_URL: http://localhost:8000
       COMPOSE_PARALLEL_LIMIT: 2
+      PLAYWRIGHT_BROWSER_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v4
 
@@ -104,10 +105,8 @@ jobs:
           curl -fsS http://localhost:8000/v1/settings/server-status | tee /tmp/server-status.json
           node -e "const s=require('/tmp/server-status.json'); if (!s.is_self_hosted || s.payment_enabled || s.ai_models_configured) { console.error(s); process.exit(1); }"
 
-      - name: Install Playwright browser
-        working-directory: frontend/apps/web_app
-        timeout-minutes: 10
-        run: npx playwright install --with-deps chromium
+      - name: Verify Chrome browser
+        run: google-chrome --version
 
       - name: Run self-hosted smoke spec
         working-directory: frontend/apps/web_app
