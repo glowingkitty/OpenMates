@@ -32,6 +32,10 @@ async def test_top_level_eventbrite_does_not_fallback_to_auto(monkeypatch: pytes
     """A user-requested Eventbrite search must not call Meetup/Luma after failure."""
 
     skill = _make_skill()
+    skill._providers_meta = [
+        {"id": "meetup", "scope": "global"},
+        {"id": "luma", "scope": "global"},
+    ]
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
 
     called: list[str] = []
@@ -236,6 +240,52 @@ async def test_malformed_event_batch_item_does_not_block_valid_requests(monkeypa
     assert response.results[0]["results"][0]["title"] == "AI meetup"
     assert response.results[1]["error"] == "Request 2 (id: bad-1) is missing required 'query' field"
     assert response.results[2]["results"][0]["title"] == "developer events"
+
+
+async def test_multi_provider_response_lists_queried_providers_without_results(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Embed previews should show all providers searched, not only result contributors."""
+
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+        return payload
+
+    async def empty_meetup(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [], 0, None
+
+    async def luma_result(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        return [
+            {
+                "id": "luma-1",
+                "provider": "luma",
+                "title": "AI Night",
+                "url": "https://lu.ma/ai-night",
+            }
+        ], 1, None
+
+    monkeypatch.setattr(
+        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
+        fake_sanitize,
+    )
+    monkeypatch.setattr(skill, "_search_meetup", empty_meetup)
+    monkeypatch.setattr(skill, "_search_luma", luma_result)
+
+    response = await skill.execute(
+        SearchRequest(
+            requests=[{
+                "query": "AI events",
+                "location": "Berlin, Germany",
+                "providers": ["meetup", "luma"],
+                "lat": 52.52,
+                "lon": 13.405,
+            }],
+        )
+    )
+
+    assert response.error is None
+    assert response.providers == ["meetup", "luma"]
+    assert response.results[0]["results"][0]["provider"] == "luma"
 
 
 async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypatch: pytest.MonkeyPatch) -> None:
