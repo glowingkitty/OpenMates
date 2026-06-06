@@ -1,6 +1,6 @@
 id: explain-in-new-chat
 title: Explain Selected Text In New Chat
-status: implementing
+status: verified
 
 goal: >
   Let users select text inside an assistant response and start a background chat
@@ -157,9 +157,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27069743270"
+        timestamp: "2026-06-06T18:01:30Z"
+        note: "Passed after deployment. Test-only selector/race fixes were committed after app code; run used OPENMATES_SKIP_VERCEL_WAIT=true because the deployed app commit was already Ready and the final changes only affected the Playwright spec."
 
   - id: "T-LINT-EXPLAIN-001"
     type: lint
