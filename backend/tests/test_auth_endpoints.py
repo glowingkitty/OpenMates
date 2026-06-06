@@ -13,7 +13,7 @@
 #   - Cache miss is treated as terminal error instead of falling back to DB
 #   - Required fields are missing from request payloads
 #
-# Architecture context: docs/architecture/signup-and-auth.md
+# Architecture context: docs/architecture/core/signup-and-auth.md
 # Related E2E tests: frontend/apps/web_app/tests/signup-flow.spec.ts
 #
 # Execution:
@@ -260,7 +260,8 @@ class TestAuthClientVerification:
 
         assert await verify_auth_client(request) is True
 
-    def test_ios_login_routes_use_auth_client_verifier(self):
+    def test_ios_login_routes_use_auth_client_verifier(self, doc_assert):
+        doc_assert("auth-login-routes-use-client-verifier")
         import ast
 
         repo_root = Path(__file__).parent.parent.parent
@@ -307,14 +308,16 @@ class TestLoginRequestValidation:
     are used (e.g., userEmailSalt vs hashed_email). Commit: 498d5c0
     """
 
-    def test_login_request_requires_hashed_email(self):
+    def test_login_request_requires_hashed_email(self, doc_assert):
         """LoginRequest should require hashed_email field."""
+        doc_assert("auth-login-request-requires-lookup-fields")
         from core.api.app.schemas.auth import LoginRequest
         with pytest.raises(Exception):
             LoginRequest(lookup_hash="test-hash")  # Missing hashed_email
 
-    def test_login_request_requires_lookup_hash(self):
+    def test_login_request_requires_lookup_hash(self, doc_assert):
         """LoginRequest should require lookup_hash field."""
+        doc_assert("auth-login-request-requires-lookup-fields")
         from core.api.app.schemas.auth import LoginRequest
         with pytest.raises(Exception):
             LoginRequest(hashed_email="test-email")  # Missing lookup_hash
@@ -330,12 +333,13 @@ class TestLoginRequestValidation:
         assert req.lookup_hash == "base64-lookup-hash"
         assert req.stay_logged_in is False  # Default
 
-    def test_login_request_stay_logged_in_default_false(self):
+    def test_login_request_stay_logged_in_default_false(self, doc_assert):
         """stay_logged_in should default to False, not be omitted.
 
         Catches the bug where stay_logged_in was never sent to backend
         in pair login flow. Commit: 0973bc4
         """
+        doc_assert("auth-login-request-defaults-stay-logged-in-off")
         from core.api.app.schemas.auth import LoginRequest
         req = LoginRequest(
             hashed_email="test",
@@ -343,8 +347,9 @@ class TestLoginRequestValidation:
         )
         assert req.stay_logged_in is False
 
-    def test_login_request_accepts_all_login_methods(self):
+    def test_login_request_accepts_all_login_methods(self, doc_assert):
         """LoginRequest should accept all valid login_method values."""
+        doc_assert("auth-login-accepts-supported-methods")
         from core.api.app.schemas.auth import LoginRequest
         for method in ['password', 'passkey', 'security_key', 'recovery_key', 'pair']:
             req = LoginRequest(
@@ -451,9 +456,10 @@ class TestCacheMissFallback:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_verify_authenticated_user_falls_back_on_cache_miss(
-        self, mock_cache_service, mock_directus_service
+        self, mock_cache_service, mock_directus_service, doc_assert
     ):
         """When cache returns None, auth should try Directus refresh_token."""
+        doc_assert("auth-session-falls-back-on-cache-miss")
         from core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 
         # Cache miss

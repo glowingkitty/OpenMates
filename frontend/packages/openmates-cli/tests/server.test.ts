@@ -76,6 +76,17 @@ function composeArgs(installPath: string, withOverrides: boolean): string[] {
   return args;
 }
 
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // serverConfig.ts tests
 // ---------------------------------------------------------------------------
@@ -104,16 +115,18 @@ describe("ServerConfig", () => {
   });
 
   it("saves and loads a config", () => {
-    const config: ServerConfig = {
-      installPath: "/tmp/test-openmates",
-      installedAt: Date.now(),
-      composeProfile: "core",
-    };
-    saveServerConfig(config);
-    const loaded = loadServerConfig();
-    assert.ok(loaded);
-    assert.equal(loaded.installPath, config.installPath);
-    assert.equal(loaded.composeProfile, "core");
+    docAssert("cli-server-config-saves-loads-and-removes", () => {
+      const config: ServerConfig = {
+        installPath: "/tmp/test-openmates",
+        installedAt: Date.now(),
+        composeProfile: "core",
+      };
+      saveServerConfig(config);
+      const loaded = loadServerConfig();
+      assert.ok(loaded);
+      assert.equal(loaded.installPath, config.installPath);
+      assert.equal(loaded.composeProfile, "core");
+    });
   });
 
   it("returns null when no config exists", () => {
@@ -123,8 +136,10 @@ describe("ServerConfig", () => {
   });
 
   it("removeServerConfig is safe when file does not exist", () => {
-    removeServerConfig();
-    assert.doesNotThrow(() => removeServerConfig());
+    docAssert("cli-server-config-saves-loads-and-removes", () => {
+      removeServerConfig();
+      assert.doesNotThrow(() => removeServerConfig());
+    });
   });
 });
 
@@ -145,15 +160,19 @@ describe("resolveServerPath", () => {
   });
 
   it("resolves from --path flag", () => {
-    const result = resolveServerPath({ path: tempDir });
-    assert.equal(result, tempDir);
+    docAssert("cli-server-path-resolution-validates-installation", () => {
+      const result = resolveServerPath({ path: tempDir });
+      assert.equal(result, tempDir);
+    });
   });
 
   it("rejects --path that is not an OpenMates dir", () => {
-    assert.throws(
-      () => resolveServerPath({ path: tmpdir() }),
-      /does not appear to be an OpenMates installation/,
-    );
+    docAssert("cli-server-path-resolution-validates-installation", () => {
+      assert.throws(
+        () => resolveServerPath({ path: tmpdir() }),
+        /does not appear to be an OpenMates installation/,
+      );
+    });
   });
 
   it("resolves from saved config", () => {
@@ -203,17 +222,21 @@ describe("composeArgs", () => {
   });
 
   it("returns base compose args without overrides", () => {
-    const args = composeArgs(tempDir, false);
-    assert.deepEqual(args, [
-      "compose", "--env-file", ".env",
-      "-f", join("backend", "core", "docker-compose.yml"),
-    ]);
+    docAssert("cli-server-compose-uses-base-and-optional-overrides", () => {
+      const args = composeArgs(tempDir, false);
+      assert.deepEqual(args, [
+        "compose", "--env-file", ".env",
+        "-f", join("backend", "core", "docker-compose.yml"),
+      ]);
+    });
   });
 
   it("includes override file when requested and exists", () => {
-    const args = composeArgs(tempDir, true);
-    assert.equal(args.length, 7);
-    assert.ok(args.includes(join("backend", "core", "docker-compose.override.yml")));
+    docAssert("cli-server-compose-uses-base-and-optional-overrides", () => {
+      const args = composeArgs(tempDir, true);
+      assert.equal(args.length, 7);
+      assert.ok(args.includes(join("backend", "core", "docker-compose.override.yml")));
+    });
   });
 
   it("skips override file when it does not exist", () => {
@@ -246,8 +269,10 @@ describe("hasLlmCredentials", () => {
   });
 
   it("returns false when API key is IMPORTED_TO_VAULT", () => {
-    writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=IMPORTED_TO_VAULT\n");
-    assert.equal(hasLlmCredentials(tempEnv), false);
+    docAssert("cli-server-requires-real-llm-api-key", () => {
+      writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=IMPORTED_TO_VAULT\n");
+      assert.equal(hasLlmCredentials(tempEnv), false);
+    });
   });
 
   it("returns false when API key is empty", () => {
@@ -261,8 +286,10 @@ describe("hasLlmCredentials", () => {
   });
 
   it("returns true when a valid API key is set", () => {
-    writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=sk-proj-abc123\n");
-    assert.equal(hasLlmCredentials(tempEnv), true);
+    docAssert("cli-server-requires-real-llm-api-key", () => {
+      writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=sk-proj-abc123\n");
+      assert.equal(hasLlmCredentials(tempEnv), true);
+    });
   });
 
   it("returns true when any provider has a key among many entries", () => {

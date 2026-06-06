@@ -1,6 +1,40 @@
 ---
 status: active
+doc_type: explanation
+audience:
+  - contributors
 last_verified: 2026-03-24
+claims:
+  - id: auth-login-request-requires-lookup-fields
+    type: backend
+    file: backend/tests/test_auth_endpoints.py
+    assertion: auth-login-request-requires-lookup-fields
+  - id: auth-login-request-defaults-stay-logged-in-off
+    type: backend
+    file: backend/tests/test_auth_endpoints.py
+    assertion: auth-login-request-defaults-stay-logged-in-off
+  - id: auth-login-accepts-supported-methods
+    type: backend
+    file: backend/tests/test_auth_endpoints.py
+    assertion: auth-login-accepts-supported-methods
+  - id: auth-login-routes-use-client-verifier
+    type: backend
+    file: backend/tests/test_auth_endpoints.py
+    assertion: auth-login-routes-use-client-verifier
+  - id: auth-session-falls-back-on-cache-miss
+    type: backend
+    file: backend/tests/test_auth_endpoints.py
+    assertion: auth-session-falls-back-on-cache-miss
+  - id: auth-rest-endpoints-return-errors-not-500
+    type: integration
+    file: backend/tests/test_rest_api_auth.py
+    assertion: auth-rest-endpoints-return-errors-not-500
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/schemas/auth.py
 key_files:
   - backend/core/api/app/routes/auth_routes/auth_login.py
   - backend/core/api/app/routes/auth_routes/auth_passkey.py
@@ -12,6 +46,12 @@ key_files:
 ---
 
 # Signup & Login
+
+## Summary
+
+- Login requests are keyed by `hashed_email` and `lookup_hash`, not plaintext email or password.
+- Supported login methods all converge on the same session response shape and client-origin verification boundary.
+- Authenticated session checks must fall back from cache to Directus before failing, so cache misses do not log users out by themselves.
 
 > Zero-knowledge password verification: the server verifies you know your password without ever learning it, via a pre-computed lookup hash. Emails are looked up by a SHA-256 hash, and master encryption keys are derived on the device and wrapped before transmission. Authentication is proven by successful client-side decryption.
 >

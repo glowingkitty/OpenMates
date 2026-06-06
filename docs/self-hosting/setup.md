@@ -1,9 +1,32 @@
 ---
 status: active
+doc_type: how-to
+audience:
+  - technical-users
 last_verified: 2026-03-24
+claims:
+  - id: self-hosting-cli-detects-openmates-installation-path
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-path-resolution-validates-installation
+  - id: self-hosting-cli-requires-real-llm-api-key
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-requires-real-llm-api-key
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
 ---
 
 # OpenMates Self-Hosting Edition
+
+## Summary
+
+- Self-hosting is moving toward the `openmates server` CLI as the default setup and operations path.
+- A valid installation must contain the OpenMates Docker Compose files, and the CLI can remember that installation path for later commands.
+- At least one real LLM provider API key is required before starting the server; placeholder Vault-import values do not count as runnable credentials.
 
 This guide provides comprehensive instructions for setting up and running OpenMates on your own infrastructure.
 

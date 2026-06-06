@@ -1,9 +1,41 @@
 ---
 status: active
+doc_type: reference
+audience:
+  - technical-users
+  - contributors
 last_verified: 2026-03-24
+claims:
+  - id: cli-server-config-saves-loads-and-removes
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-config-saves-loads-and-removes
+  - id: cli-server-path-resolution-validates-installation
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-path-resolution-validates-installation
+  - id: cli-server-compose-uses-base-and-optional-overrides
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-compose-uses-base-and-optional-overrides
+  - id: cli-server-requires-real-llm-api-key
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-requires-real-llm-api-key
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
 ---
 
 # Server Management
+
+## Summary
+
+- `openmates server` commands manage a local Docker Compose installation without requiring a cloud login.
+- The CLI stores the installation path, validates that a path looks like an OpenMates checkout, and builds the Docker Compose command for core or override services.
+- Starting the server requires at least one real `SECRET__<PROVIDER>__API_KEY`; empty, commented, or `IMPORTED_TO_VAULT` values do not count.
 
 Commands for installing, running, and administering a self-hosted OpenMates instance. Server commands do not require login -- they operate directly on the local Docker Compose environment.
 
