@@ -33,6 +33,10 @@ on:
       - 'frontend/packages/ui/src/stores/appSkillsStore.ts'
       - 'frontend/packages/ui/src/services/sendersChatMessages.ts'
 
+concurrency:
+  group: selfhost-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -44,6 +48,7 @@ jobs:
       INSTALL_PATH: /tmp/openmates-selfhost
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
       SELFHOST_API_URL: http://localhost:8000
+      COMPOSE_PARALLEL_LIMIT: 2
     steps:
       - uses: actions/checkout@v4
 
@@ -71,7 +76,12 @@ jobs:
         run: openmates server install --source-path "$GITHUB_WORKSPACE" --path "$INSTALL_PATH"
 
       - name: Start self-hosted edition
-        run: openmates server start --path "$INSTALL_PATH"
+        run: |
+          openmates server start --path "$INSTALL_PATH" || {
+            echo "Initial self-hosted startup failed; retrying once after Docker pull backoff."
+            sleep 30
+            openmates server start --path "$INSTALL_PATH"
+          }
 
       - name: Wait for backend and web app
         run: |
