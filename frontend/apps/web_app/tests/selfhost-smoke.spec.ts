@@ -64,7 +64,7 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
  );
 
  const signupEmail = `selfhost-${Date.now()}@example.test`;
- const signupUsername = signupEmail.split('@')[0].replace(/[^a-zA-Z0-9._]/g, '_');
+ const signupUsername = `selfhost_${Date.now().toString(36).slice(-8)}`;
  const signupPassword = 'SelfHostSmoke!234Secure';
 
  const pageResponse = await page.goto(getE2EDebugUrl('/'));
