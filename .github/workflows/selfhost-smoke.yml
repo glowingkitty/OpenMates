@@ -54,6 +54,7 @@ jobs:
       SELFHOST_API_URL: http://localhost:8000
       COMPOSE_PARALLEL_LIMIT: 2
       PLAYWRIGHT_BROWSER_CHANNEL: chrome
+      PLAYWRIGHT_VIDEO_MODE: off
     steps:
       - uses: actions/checkout@v4
 

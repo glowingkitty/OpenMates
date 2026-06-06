@@ -26,6 +26,11 @@ if (browserChannel && browserChannel !== 'chrome') {
 	throw new Error('PLAYWRIGHT_BROWSER_CHANNEL only supports "chrome" in this config.');
 }
 
+const videoMode = process.env.PLAYWRIGHT_VIDEO_MODE;
+if (videoMode && videoMode !== 'on' && videoMode !== 'off') {
+	throw new Error('PLAYWRIGHT_VIDEO_MODE only supports "on" or "off" in this config.');
+}
+
 const config: PlaywrightTestConfig = {
 	use: {
 		// Allow tests to call page.goto('/') and similar relative paths.
@@ -37,7 +42,7 @@ const config: PlaywrightTestConfig = {
 		screenshot: 'on',
 		// Keep a browser recording for every spec run in GitHub artifacts.
 		// Videos stay in Actions storage; local/Obsidian processing stores links only.
-		video: 'on',
+		video: videoMode || 'on',
 		trace: 'off',
 		launchOptions: {
 			args: [
