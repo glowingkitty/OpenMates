@@ -432,16 +432,16 @@ async def lifespan(app: FastAPI):
     for _cms_attempt in range(10):
         try:
             async with httpx.AsyncClient() as _cms_client:
-                _cms_resp = await _cms_client.get(f"{cms_url}/server/health", timeout=3.0)
+                _cms_resp = await _cms_client.get(f"{cms_url}/server/ping", timeout=3.0)
                 if _cms_resp.status_code == 200:
-                    logger.info("CMS health check passed — Directus is ready.")
+                    logger.info("CMS ping check passed — Directus is reachable.")
                     break
-                logger.warning(f"CMS health check returned {_cms_resp.status_code}, retrying...")
+                logger.warning(f"CMS ping check returned {_cms_resp.status_code}, retrying...")
         except Exception as _cms_err:
             logger.warning(f"CMS not reachable ({type(_cms_err).__name__}), retrying in {min(2 ** (_cms_attempt + 1), 16)}s...")
         await asyncio.sleep(min(2 ** (_cms_attempt + 1), 16))
     else:
-        logger.error("CMS did not become healthy after 10 attempts. Startup data may be incomplete.")
+        logger.error("CMS did not become reachable after 10 attempts. Startup data may be incomplete.")
 
     # Initialize server stats service
     from backend.core.api.app.services.server_stats_service import ServerStatsService
