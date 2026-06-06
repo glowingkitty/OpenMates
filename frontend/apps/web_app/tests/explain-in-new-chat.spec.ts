@@ -36,7 +36,7 @@ const SELECTORS = {
 	contextMenuExplain: '[data-testid="chat-context-explain-new-chat"]',
 	notification: '[data-testid="notification"]',
 	notificationAction: '[data-testid="notification-action"]',
-	messageWrapper: '[data-testid="message-wrapper"]'
+	chatMessage: '[data-testid="message-user"], [data-testid="message-assistant"]'
 };
 
 async function selectInsideMessage(
@@ -99,7 +99,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	});
 
 	const sourceUrl = page.url();
-	const sourceChatTextBefore = await page.getByTestId('message-wrapper').allTextContents();
+	const sourceChatTextBefore = await page.locator(SELECTORS.chatMessage).allTextContents();
 	expect(sourceChatTextBefore.join('\n')).toContain('vector database');
 
 	log('Verifying user-message selections do not expose Explain in new chat.');
@@ -130,7 +130,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 
 	await expect(page).toHaveURL(sourceUrl, { timeout: 5000 });
 	await expect(page.locator(SELECTORS.notification).filter({ hasText: /background/i })).toBeVisible({ timeout: 20_000 });
-	const sourceChatTextAfter = await page.getByTestId('message-wrapper').allTextContents();
+	const sourceChatTextAfter = await page.locator(SELECTORS.chatMessage).allTextContents();
 	expect(sourceChatTextAfter.join('\n')).not.toContain('Tell me more about: vector database');
 
 	log('Opening background explanation chat from notification action.');
@@ -140,7 +140,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	await expect(page).not.toHaveURL(sourceUrl, { timeout: 15_000 });
 
 	const promptText = 'Tell me more about: vector database';
-	await expect(page.locator(SELECTORS.messageWrapper).filter({ hasText: promptText })).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('message-user').filter({ hasText: promptText })).toBeVisible({ timeout: 30_000 });
 	await waitForAssistantMessage(page, { timeout: 120_000, logCheckpoint: log });
 	await screenshot(page, 'background-explanation-chat-opened');
 
