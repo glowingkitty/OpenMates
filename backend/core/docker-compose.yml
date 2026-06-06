@@ -109,7 +109,7 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
       interval: 10s
       timeout: 5s
       start_period: 30s
