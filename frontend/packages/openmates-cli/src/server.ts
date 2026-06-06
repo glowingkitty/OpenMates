@@ -9,7 +9,7 @@
  */
 
 import { execSync, spawn as nodeSpawn } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -67,6 +67,25 @@ export function composeArgs(installPath: string, withOverrides: boolean): string
     args.push("-f", COMPOSE_OVERRIDE);
   }
   return args;
+}
+
+/** Ensure compose interpolation has an absolute project mount path. */
+function ensureGitWorkDirEnv(installPath: string): void {
+  const envPath = join(installPath, ".env");
+  if (!existsSync(envPath)) return;
+
+  const content = readFileSync(envPath, "utf-8");
+  const lineRegex = /^GIT_WORK_DIR=.*$/m;
+  const value = `GIT_WORK_DIR=${installPath}`;
+
+  if (lineRegex.test(content)) {
+    const next = content.replace(lineRegex, value);
+    if (next !== content) writeFileSync(envPath, next);
+    return;
+  }
+
+  const separator = content.endsWith("\n") ? "" : "\n";
+  writeFileSync(envPath, `${content}${separator}${value}\n`);
 }
 
 /** Check that docker is installed and the daemon is running. */
@@ -183,6 +202,7 @@ function printJson(data: unknown): void {
 async function serverStatus(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   const config = loadServerConfig();
   const withOverrides = config?.composeProfile === "full";
   const args = [...composeArgs(installPath, withOverrides), "ps"];
@@ -198,6 +218,7 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
 async function serverStart(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   warnIfMissingLlmCredentials(installPath);
 
   const withOverrides = flags["with-overrides"] === true;
@@ -229,6 +250,7 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
 async function serverStop(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   const config = loadServerConfig();
   const withOverrides = config?.composeProfile === "full";
   const args = [...composeArgs(installPath, withOverrides), "down"];
@@ -247,6 +269,7 @@ async function serverStop(flags: Record<string, string | boolean>): Promise<void
 async function serverRestart(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   const config = loadServerConfig();
   const withOverrides = config?.composeProfile === "full";
 
@@ -289,6 +312,7 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
 async function serverLogs(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   const config = loadServerConfig();
   const withOverrides = config?.composeProfile === "full";
   const args = [...composeArgs(installPath, withOverrides), "logs"];
@@ -393,6 +417,7 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
   requireGit();
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
 
   console.error("Updating OpenMates...");
 
@@ -442,6 +467,7 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
 async function serverReset(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   const config = loadServerConfig();
   const withOverrides = config?.composeProfile === "full";
 
@@ -547,6 +573,7 @@ async function serverMakeAdmin(
 async function serverUninstall(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
+  ensureGitWorkDirEnv(installPath);
   const config = loadServerConfig();
   const withOverrides = config?.composeProfile === "full";
   const keepData = flags["keep-data"] === true;

@@ -85,7 +85,7 @@ jobs:
           openmates server --help
 
       - name: Install self-hosted edition with alpha CLI
-        run: openmates server install --path "$INSTALL_PATH"
+        run: openmates server install --path "$INSTALL_PATH" --source-path "$GITHUB_WORKSPACE"
 
       - name: Start self-hosted edition
         run: |
