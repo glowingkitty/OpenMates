@@ -1,0 +1,61 @@
+{
+  "fixture_id": "explain_in_new_chat_seed",
+  "recorded_at": "2026-06-06T17:35:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Reply in one short sentence that includes the exact phrase: vector database.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Vector Database Explanation",
+    "icon_names": [
+      "database"
+    ],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User requested a short sentence containing the phrase vector database.",
+    "chat_tags": [
+      "vector-database",
+      "test"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {
+        "step": "title_generated",
+        "data": {
+          "title": "Vector Database Explanation"
+        }
+      },
+      {
+        "step": "mate_selected",
+        "data": {
+          "mate_id": "default"
+        }
+      },
+      {
+        "step": "model_selected",
+        "data": {
+          "model_name": "Claude Sonnet",
+          "provider_name": "Anthropic"
+        }
+      }
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "A vector database stores and searches embeddings so similar items can be found quickly.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 40,
+    "completion_tokens": 16,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}
