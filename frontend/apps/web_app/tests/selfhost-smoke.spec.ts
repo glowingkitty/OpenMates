@@ -19,6 +19,8 @@ const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
 const SELFHOST_API_URL = process.env.SELFHOST_API_URL || 'http://localhost:8000';
 const SELFHOST_INSTALL_PATH = process.env.SELFHOST_INSTALL_PATH || '/tmp/openmates-selfhost';
 
+test.describe.configure({ retries: 0 });
+
 function readInstallEnv(name: string): string {
  const envPath = path.join(SELFHOST_INSTALL_PATH, '.env');
  const content = fs.readFileSync(envPath, 'utf-8');
@@ -28,8 +30,13 @@ function readInstallEnv(name: string): string {
 
 async function getBrowserSession(page: any): Promise<any> {
  return page.evaluate(async (apiUrl: string) => {
+  const sessionId = sessionStorage.getItem('session_id');
   const response = await fetch(`${apiUrl}/v1/auth/session`, {
    method: 'POST',
+   headers: {
+    'Content-Type': 'application/json'
+   },
+   body: JSON.stringify({ session_id: sessionId }),
    credentials: 'include'
   });
   return {
