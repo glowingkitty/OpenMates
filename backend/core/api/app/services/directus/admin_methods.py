@@ -45,6 +45,12 @@ class AdminMethods:
                         logger.info(f"Invalidated user profile cache for user {user_id}")
                     except Exception as cache_err:
                         logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
+
+                    try:
+                        await self.directus_service.cache.update_user(user_id, {"is_admin": True})
+                        logger.info(f"Updated cached auth session admin flag for user {user_id}")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to update cached auth session admin flag: {cache_err}")
                     
                     # Send WebSocket notification to user's connected devices
                     try:
@@ -89,6 +95,12 @@ class AdminMethods:
                         logger.info(f"Invalidated user profile cache for user {user_id} - client will see Server settings on next auth check")
                     except Exception as cache_err:
                         logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
+
+                    try:
+                        await self.directus_service.cache.update_user(user_id, {"is_admin": True})
+                        logger.info(f"Updated cached auth session admin flag for user {user_id}")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to update cached auth session admin flag: {cache_err}")
                     
                     # Send WebSocket notification to user's connected devices for immediate update
                     try:
@@ -196,6 +208,12 @@ class AdminMethods:
                         logger.info(f"Invalidated user profile cache for user {user_id}")
                     except Exception as cache_err:
                         logger.warning(f"Failed to invalidate user profile cache: {cache_err}")
+
+                    try:
+                        await self.directus_service.cache.update_user(user_id, {"is_admin": False})
+                        logger.info(f"Updated cached auth session admin flag for user {user_id}")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to update cached auth session admin flag: {cache_err}")
                     
                     # Send WebSocket notification to user's connected devices for immediate update
                     try:
