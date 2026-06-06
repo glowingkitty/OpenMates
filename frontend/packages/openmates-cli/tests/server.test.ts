@@ -19,6 +19,17 @@ import { tmpdir } from "node:os";
 // node --test for consistency with the CI runner.
 import type { ServerConfig } from "../src/serverConfig.ts";
 
+const LLM_PROVIDER_ENV_KEYS = new Set([
+  "SECRET__MISTRAL_AI__API_KEY",
+  "SECRET__CEREBRAS__API_KEY",
+  "SECRET__GROQ__API_KEY",
+  "SECRET__OPENAI__API_KEY",
+  "SECRET__ANTHROPIC__API_KEY",
+  "SECRET__GOOGLE_AI_STUDIO__API_KEY",
+  "SECRET__OPENROUTER__API_KEY",
+  "SECRET__TOGETHER__API_KEY",
+]);
+
 // Import the functions we need to test. Since serverConfig.ts doesn't import
 // other .js modules, it works fine with --experimental-strip-types.
 import {
@@ -53,7 +64,7 @@ function hasLlmCredentials(envPath: string): boolean {
     const key = trimmed.slice(0, eqIdx);
     const value = trimmed.slice(eqIdx + 1).trim();
     if (
-      /^SECRET__\w+__API_KEY$/.test(key) &&
+      LLM_PROVIDER_ENV_KEYS.has(key) &&
       value &&
       value !== "IMPORTED_TO_VAULT"
     ) {
@@ -282,6 +293,11 @@ describe("hasLlmCredentials", () => {
 
   it("returns false when API key line is commented out", () => {
     writeFileSync(tempEnv, "# SECRET__OPENAI__API_KEY=sk-real-key\n");
+    assert.equal(hasLlmCredentials(tempEnv), false);
+  });
+
+  it("returns false when only non-model provider keys are set", () => {
+    writeFileSync(tempEnv, "SECRET__BRAVE__API_KEY=real-search-key\n");
     assert.equal(hasLlmCredentials(tempEnv), false);
   });
 

@@ -1,0 +1,121 @@
+# Verifies that the self-hosted edition can be installed and opened from a
+# clean GitHub Actions runner without provider API keys.
+name: "Self-Hosted: Install Smoke"
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches: [dev]
+    paths:
+      - '.github/workflows/selfhost-smoke.yml'
+      - 'setup.sh'
+      - '.env.example'
+      - 'backend/core/docker-compose*.yml'
+      - 'backend/core/api/app/routes/settings.py'
+      - 'frontend/apps/web_app/Dockerfile'
+      - 'frontend/apps/web_app/tests/selfhost-smoke.spec.ts'
+      - 'frontend/packages/openmates-cli/**'
+      - 'frontend/packages/ui/src/stores/serverStatusStore.ts'
+      - 'frontend/packages/ui/src/stores/appSkillsStore.ts'
+      - 'frontend/packages/ui/src/services/sendersChatMessages.ts'
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/selfhost-smoke.yml'
+      - 'setup.sh'
+      - '.env.example'
+      - 'backend/core/docker-compose*.yml'
+      - 'backend/core/api/app/routes/settings.py'
+      - 'frontend/apps/web_app/Dockerfile'
+      - 'frontend/apps/web_app/tests/selfhost-smoke.spec.ts'
+      - 'frontend/packages/openmates-cli/**'
+      - 'frontend/packages/ui/src/stores/serverStatusStore.ts'
+      - 'frontend/packages/ui/src/stores/appSkillsStore.ts'
+      - 'frontend/packages/ui/src/services/sendersChatMessages.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  install-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      INSTALL_PATH: /tmp/openmates-selfhost
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+      SELFHOST_API_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI package
+        run: pnpm --filter openmates build
+
+      - name: Pack and install CLI globally
+        working-directory: frontend/packages/openmates-cli
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          npm install -g "$RUNNER_TEMP"/openmates-*.tgz
+          openmates --help
+          openmates server --help
+
+      - name: Install self-hosted edition from checkout
+        run: openmates server install --source-path "$GITHUB_WORKSPACE" --path "$INSTALL_PATH"
+
+      - name: Start self-hosted edition
+        run: openmates server start --path "$INSTALL_PATH"
+
+      - name: Wait for backend and web app
+        run: |
+          for i in {1..120}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173 >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          openmates server status --path "$INSTALL_PATH" || true
+          openmates server logs --path "$INSTALL_PATH" --tail 200 || true
+          exit 1
+
+      - name: Check server status JSON
+        run: |
+          curl -fsS http://localhost:8000/v1/settings/server-status | tee /tmp/server-status.json
+          node -e "const s=require('/tmp/server-status.json'); if (!s.is_self_hosted || s.payment_enabled || s.ai_models_configured) { console.error(s); process.exit(1); }"
+
+      - name: Install Playwright browser
+        working-directory: frontend/apps/web_app
+        run: npx playwright install --with-deps chromium
+
+      - name: Run self-hosted smoke spec
+        working-directory: frontend/apps/web_app
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          npx playwright test tests/selfhost-smoke.spec.ts --reporter=json > "$GITHUB_WORKSPACE/test-results/selfhost-smoke-playwright.json"
+
+      - name: Show self-hosted status and logs
+        if: always()
+        run: |
+          openmates server status --path "$INSTALL_PATH" || true
+          openmates server logs --path "$INSTALL_PATH" --tail 200 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selfhost-smoke-results
+          path: |
+            test-results/selfhost-smoke-playwright.json
+            frontend/apps/web_app/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Uninstall self-hosted edition
+        if: always()
+        run: openmates server uninstall --path "$INSTALL_PATH" --yes || true

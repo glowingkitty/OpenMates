@@ -40,6 +40,57 @@ optional_api_key_scheme = HTTPBearer(
 router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
 
+LLM_PROVIDER_ENV_KEYS = (
+    "SECRET__MISTRAL_AI__API_KEY",
+    "SECRET__CEREBRAS__API_KEY",
+    "SECRET__GROQ__API_KEY",
+    "SECRET__OPENAI__API_KEY",
+    "SECRET__ANTHROPIC__API_KEY",
+    "SECRET__GOOGLE_AI_STUDIO__API_KEY",
+    "SECRET__OPENROUTER__API_KEY",
+    "SECRET__TOGETHER__API_KEY",
+)
+
+LLM_PROVIDER_VAULT_PATHS = (
+    "kv/data/providers/mistral_ai",
+    "kv/data/providers/cerebras",
+    "kv/data/providers/groq",
+    "kv/data/providers/openai",
+    "kv/data/providers/anthropic",
+    "kv/data/providers/google_ai_studio",
+    "kv/data/providers/openrouter",
+    "kv/data/providers/together",
+)
+
+
+def _has_configured_secret_value(value: Optional[str]) -> bool:
+    return bool(value and value.strip() and value.strip() != "IMPORTED_TO_VAULT")
+
+
+async def _are_ai_models_configured(request: Request) -> bool:
+    """Return True when at least one server LLM provider key is configured."""
+    for env_key in LLM_PROVIDER_ENV_KEYS:
+        if _has_configured_secret_value(os.getenv(env_key)):
+            return True
+
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    if not secrets_manager:
+        return False
+
+    for vault_path in LLM_PROVIDER_VAULT_PATHS:
+        try:
+            value = await secrets_manager.get_secret(
+                secret_path=vault_path,
+                secret_key="api_key",
+            )
+        except Exception as exc:
+            logger.debug("Failed to check LLM provider key at %s: %s", vault_path, exc)
+            continue
+        if _has_configured_secret_value(value):
+            return True
+
+    return False
+
 # --- Define a simple success response model ---
 class SimpleSuccessResponse(BaseModel):
     success: bool
@@ -2358,6 +2409,10 @@ class ServerStatusResponse(BaseModel):
     is_development: bool
     server_edition: str  # "production" | "development" | "self_hosted" (deprecated, use is_self_hosted)
     domain: Optional[str]  # Domain extracted from request (None for localhost)
+    ai_models_configured: bool = Field(
+        default=True,
+        description="Whether at least one server-side LLM provider key is configured.",
+    )
 
 
 @router.get(
@@ -2410,6 +2465,8 @@ async def get_server_status(
             # Only check environment-based payment logic if NOT self-hosted
             payment_enabled = is_payment_enabled()
         
+        ai_models_configured = await _are_ai_models_configured(request)
+
         # Get server edition (for backward compatibility)
         server_edition = get_server_edition()
         
@@ -2421,6 +2478,7 @@ async def get_server_status(
             f"Server status requested: payment_enabled={payment_enabled}, "
             f"is_self_hosted={is_self_hosted} (from request), "
             f"is_development={is_development} (from request edition), "
+            f"ai_models_configured={ai_models_configured}, "
             f"request_edition={request_edition}, "
             f"server_edition={server_edition}, "
             f"request_domain={request_domain or 'localhost'}, "
@@ -2432,7 +2490,8 @@ async def get_server_status(
             is_self_hosted=is_self_hosted,
             is_development=is_development,
             server_edition=request_edition,  # Use request-based edition (more accurate)
-            domain=request_domain
+            domain=request_domain,
+            ai_models_configured=ai_models_configured,
         )
         
     except Exception as e:
@@ -2443,7 +2502,8 @@ async def get_server_status(
             is_self_hosted=True,
             is_development=False,
             server_edition="self_hosted",
-            domain=None
+            domain=None,
+            ai_models_configured=False,
         )
 
 

@@ -31,7 +31,7 @@ COPY package.json ./
 COPY pnpm-lock.yaml* ./
 
 # Copy backend directories needed for metadata generation
-# The generate-apps-metadata.js script reads from backend/apps and backend/providers
+# The metadata generation scripts read backend app.yml and provider YAML files.
 COPY backend/apps ./backend/apps
 COPY backend/providers ./backend/providers
 
@@ -84,4 +84,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # -l: Listen on all interfaces (0.0.0.0)
 # -p: Port 5173 (Vite's default port)
 CMD ["serve", "-s", ".", "-l", "5173"]
-

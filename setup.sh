@@ -240,6 +240,9 @@ setup_env_file() {
     # Set defaults for optional values if not set
     update_if_empty "CELERY_AUTOSCALE_MAX" "10"
     update_if_empty "CELERY_AUTOSCALE_MIN" "3"
+    update_if_empty "GIT_WORK_DIR" "$(pwd)"
+    update_if_empty "PRODUCTION_URL" "http://localhost:5173"
+    update_if_empty "VITE_API_URL" "http://localhost:8000"
     
     print_success "Auto-generated secrets have been set in .env file."
     echo ""
@@ -249,8 +252,8 @@ setup_env_file() {
     print_error "⚠️  REQUIRED: API Keys Configuration"
     echo "=========================================="
     echo ""
-    print_warning "IMPORTANT: You MUST add the required AI provider API keys before starting the server!"
-    print_warning "The server will NOT start successfully without the required API keys configured."
+    print_warning "IMPORTANT: Add AI provider API keys before using chat/model processing."
+    print_warning "The server can start without them, but AI responses and model-backed skills will be unavailable."
     echo ""
     print_info "To add API keys, edit the .env file and uncomment/add your keys following the format:"
     echo "  SECRET__{PROVIDER}__API_KEY=your_key_here"
@@ -258,7 +261,7 @@ setup_env_file() {
     print_info "Check your .env file for the complete list of available API key variables."
     print_info "Required API keys are marked in the .env file - you must add at least the required keys."
     echo ""
-    print_warning "⚠️  DO NOT start the server until you have added the required AI provider API keys!"
+    print_warning "⚠️  You can start the server now; add keys and restart when you want AI responses."
     echo ""
     
     echo ""
@@ -283,6 +286,24 @@ setup_network() {
 
 # Check if at least one LLM provider API key is configured in .env.
 # Returns 0 if a key is found, 1 otherwise.
+is_llm_provider_key() {
+    case "$1" in
+        SECRET__MISTRAL_AI__API_KEY|\
+        SECRET__CEREBRAS__API_KEY|\
+        SECRET__GROQ__API_KEY|\
+        SECRET__OPENAI__API_KEY|\
+        SECRET__ANTHROPIC__API_KEY|\
+        SECRET__GOOGLE_AI_STUDIO__API_KEY|\
+        SECRET__OPENROUTER__API_KEY|\
+        SECRET__TOGETHER__API_KEY)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 check_llm_credentials() {
     local has_key=false
     while IFS='=' read -r key value; do
@@ -292,8 +313,8 @@ check_llm_credentials() {
         # Trim whitespace from key
         key=$(echo "$key" | xargs)
         value=$(echo "$value" | xargs)
-        # Check for any SECRET__*__API_KEY with a real value
-        if [[ "$key" == SECRET__*__API_KEY ]] && [ -n "$value" ] && [ "$value" != "IMPORTED_TO_VAULT" ]; then
+        # Check for a model-provider API key with a real value.
+        if is_llm_provider_key "$key" && [ -n "$value" ] && [ "$value" != "IMPORTED_TO_VAULT" ]; then
             has_key=true
             break
         fi
@@ -305,11 +326,11 @@ check_llm_credentials() {
         print_error "No LLM provider API key found"
         echo "=========================================="
         echo ""
-        print_warning "At least one AI provider API key is required to start the server."
+        print_warning "At least one AI provider API key is required for AI chat/model processing."
         print_info "Edit your .env file and add at least one of these:"
         echo "  SECRET__OPENAI__API_KEY=sk-..."
         echo "  SECRET__ANTHROPIC__API_KEY=sk-ant-..."
-        echo "  SECRET__GOOGLE__API_KEY=..."
+        echo "  SECRET__GOOGLE_AI_STUDIO__API_KEY=..."
         echo ""
         return 1
     fi
@@ -357,13 +378,13 @@ main() {
         echo ""
     else
         echo "=========================================="
-        print_warning "Setup complete, but server cannot start yet."
+        print_warning "Setup complete, but AI model processing is not configured yet."
         echo "=========================================="
         echo ""
         print_info "Your .env file has been created and configured."
         echo ""
-        print_warning "BEFORE starting the server, you MUST add at least one AI provider API key."
-        print_info "Edit the .env file and add your key(s), then start with:"
+        print_warning "Add at least one AI provider API key before using chat/model processing."
+        print_info "You can start the web app and backend now with:"
         echo ""
         echo -e "  ${GREEN}openmates server start${NC}"
         echo ""

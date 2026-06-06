@@ -22,6 +22,8 @@ interface ServerStatus {
     server_edition: string | null;
     /** The domain of the server */
     domain: string | null;
+    /** Whether at least one server-side AI model provider key is configured */
+    ai_models_configured: boolean;
 }
 
 interface ServerStatusState {
@@ -137,7 +139,8 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
             is_self_hosted: data.is_self_hosted ?? false,
             payment_enabled: data.payment_enabled ?? true,
             server_edition: data.server_edition ?? null,
-            domain: data.domain ?? null
+            domain: data.domain ?? null,
+            ai_models_configured: data.ai_models_configured ?? true
         };
         
         console.debug('[ServerStatusStore] Server status fetched:', status);
@@ -177,4 +180,3 @@ function resetServerStatus(): void {
 
 // Export the store for direct access if needed
 export { serverStatusStore };
-

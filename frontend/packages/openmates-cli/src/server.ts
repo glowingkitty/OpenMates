@@ -30,6 +30,16 @@ const COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
+const LLM_PROVIDER_ENV_KEYS = new Set([
+  "SECRET__MISTRAL_AI__API_KEY",
+  "SECRET__CEREBRAS__API_KEY",
+  "SECRET__GROQ__API_KEY",
+  "SECRET__OPENAI__API_KEY",
+  "SECRET__ANTHROPIC__API_KEY",
+  "SECRET__GOOGLE_AI_STUDIO__API_KEY",
+  "SECRET__OPENROUTER__API_KEY",
+  "SECRET__TOGETHER__API_KEY",
+]);
 
 // ---------------------------------------------------------------------------
 // Shell helpers
@@ -99,7 +109,7 @@ export function hasLlmCredentials(envPath: string): boolean {
     const key = trimmed.slice(0, eqIdx);
     const value = trimmed.slice(eqIdx + 1).trim();
     if (
-      /^SECRET__\w+__API_KEY$/.test(key) &&
+      LLM_PROVIDER_ENV_KEYS.has(key) &&
       value &&
       value !== "IMPORTED_TO_VAULT"
     ) {
@@ -109,22 +119,23 @@ export function hasLlmCredentials(envPath: string): boolean {
   return false;
 }
 
-function requireLlmCredentials(installPath: string): void {
+function warnIfMissingLlmCredentials(installPath: string): void {
   const envPath = join(installPath, ".env");
   if (!existsSync(envPath)) {
-    throw new Error(
+    console.error(
       "No .env file found. Run 'openmates server install' first, or create .env from .env.example.",
     );
+    return;
   }
   if (!hasLlmCredentials(envPath)) {
-    throw new Error(
+    console.error(
       "No LLM provider API key found in .env.\n" +
-      "At least one AI provider API key is required to start the server.\n\n" +
+      "OpenMates will start, but AI chat/model processing will stay unavailable until you add one.\n\n" +
       "Add at least one of these to your .env file:\n" +
       "  SECRET__OPENAI__API_KEY=sk-...\n" +
       "  SECRET__ANTHROPIC__API_KEY=sk-ant-...\n" +
-      "  SECRET__GOOGLE__API_KEY=...\n\n" +
-      "Then run 'openmates server start' again.",
+      "  SECRET__GOOGLE_AI_STUDIO__API_KEY=...\n\n" +
+      "After updating .env, run 'openmates server restart'.",
     );
   }
 }
@@ -173,7 +184,7 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
 async function serverStart(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
-  requireLlmCredentials(installPath);
+  warnIfMissingLlmCredentials(installPath);
 
   const withOverrides = flags["with-overrides"] === true;
   const args = [...composeArgs(installPath, withOverrides), "up", "-d"];
@@ -191,7 +202,9 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   if (flags.json === true) {
     printJson({ command: "start", status: "success", path: installPath });
   } else {
-    console.log("\nServer started. API available at http://localhost:8000");
+    console.log("\nServer started.");
+    console.log("Web app: http://localhost:5173");
+    console.log("API:     http://localhost:8000");
     if (withOverrides) {
       console.log("Directus CMS: http://localhost:8055");
       console.log("Grafana:      http://localhost:3000");
@@ -290,6 +303,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   requireGit();
 
   const installPath = typeof flags.path === "string" ? resolve(flags.path) : DEFAULT_INSTALL_PATH;
+  const sourcePath = typeof flags["source-path"] === "string" ? resolve(flags["source-path"]) : null;
 
   // Check if already installed
   if (existsSync(join(installPath, "setup.sh"))) {
@@ -298,11 +312,13 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     process.exit(1);
   }
 
-  // Clone the repository
-  console.error(`Cloning OpenMates to ${installPath}...`);
+  // Clone the repository. CI can pass --source-path to test the checked-out branch
+  // instead of whatever is currently published on the default remote branch.
+  const cloneSource = sourcePath ?? REPO_URL;
+  console.error(`Cloning OpenMates from ${cloneSource} to ${installPath}...`);
   const cloneCode = await runInteractive(
     "git",
-    ["clone", REPO_URL, installPath],
+    ["clone", cloneSource, installPath],
     process.cwd(),
   );
   if (cloneCode !== 0) {
@@ -345,9 +361,9 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     console.log("\nNext steps:");
     console.log("  1. Edit .env to add your LLM provider API key(s)");
     console.log("  2. Run: openmates server start");
-    console.log("  3. Find your invite code: openmates server logs --container cms-setup --tail 50");
-    console.log("  4. Open http://localhost:5173 and sign up");
-    console.log("  5. Make yourself admin: openmates server make-admin your@email.com");
+    console.log("  3. Open http://localhost:5173");
+    console.log("  4. Find your invite code: openmates server logs --container cms-setup --tail 50");
+    console.log("  5. Make yourself admin after signup: openmates server make-admin your@email.com");
   }
 }
 
@@ -602,6 +618,7 @@ Command Options:
   install:
     --path <dir>        Install directory (default: ~/openmates)
     --env-path <file>   Copy a pre-existing .env file during install
+    --source-path <dir> Clone from a local checkout instead of GitHub (CI/testing)
 
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)
