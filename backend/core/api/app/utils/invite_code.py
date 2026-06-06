@@ -1,8 +1,10 @@
 import logging
 import os
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.cache import CacheService
-from typing import Tuple, Dict, Any, Optional, List
+from typing import TYPE_CHECKING, Tuple, Dict, Any, Optional, List
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
+    from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +21,13 @@ def _parse_signup_allowed_domains(primary_domain: Optional[str], test_domains_en
     """
     allowed_domains: List[str] = []
     
-    # Primary domain restriction (usually openmates.org in dev).
+    # Primary domain restriction (usually one domain, but self-host setup may
+    # write a comma-separated allowlist).
     if primary_domain:
-        allowed_domains.append(primary_domain)
+        for domain in primary_domain.split(","):
+            normalized = domain.strip()
+            if normalized:
+                allowed_domains.append(normalized)
     
     # Additional test domains are provided as a comma-separated list.
     if test_domains_env:
@@ -39,7 +45,20 @@ def _parse_signup_allowed_domains(primary_domain: Optional[str], test_domains_en
     
     return normalized_domains
 
-async def validate_invite_code(invite_code: str, directus_service: DirectusService, cache_service: CacheService) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+def _get_self_host_signup_mode() -> str:
+    mode = os.getenv("SELF_HOST_SIGNUP_MODE", "invite_only").strip().lower()
+    if mode not in {"invite_only", "domain_allowlist", "invite_and_domain"}:
+        logger.warning("Invalid SELF_HOST_SIGNUP_MODE=%s; falling back to invite_only", mode)
+        return "invite_only"
+    return mode
+
+def is_email_domain_allowed(email: Optional[str], allowed_domains: List[str]) -> Tuple[bool, Optional[str]]:
+    """Validate an email against the exact-domain allowlist used for signup."""
+    email_parts = email.split('@') if isinstance(email, str) else []
+    email_domain = email_parts[1].lower() if len(email_parts) == 2 else None
+    return bool(email_domain and email_domain in allowed_domains), email_domain
+
+async def validate_invite_code(invite_code: str, directus_service: "DirectusService", cache_service: "CacheService") -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """
     Validate the invite code.
     
@@ -66,8 +85,8 @@ async def validate_invite_code(invite_code: str, directus_service: DirectusServi
 
 
 async def get_signup_requirements(
-    directus_service: DirectusService,
-    cache_service: CacheService
+    directus_service: "DirectusService",
+    cache_service: "CacheService"
 ) -> Tuple[bool, bool, Optional[List[str]]]:
     """
     Determine signup requirements based on server edition and configuration.
@@ -77,8 +96,9 @@ async def get_signup_requirements(
     still permitting automated test signups from approved domains.
     
     For self-hosted edition:
-    - If SIGNUP_DOMAIN_RESTRICTION or SIGNUP_TEST_EMAIL_DOMAINS is set: enforce domain restriction, invite code not required
-    - If neither is set: require invite code (always)
+    - SELF_HOST_SIGNUP_MODE=invite_only: require invite code
+    - SELF_HOST_SIGNUP_MODE=domain_allowlist: require allowed email domain
+    - SELF_HOST_SIGNUP_MODE=invite_and_domain: require both
     
     For non-self-hosted (production/development):
     - If SIGNUP_DOMAIN_RESTRICTION or SIGNUP_TEST_EMAIL_DOMAINS is set: enforce domain restriction (in addition to SIGNUP_LIMIT logic)
@@ -97,26 +117,39 @@ async def get_signup_requirements(
     from backend.core.api.app.utils.server_mode import get_server_edition
     
     server_edition = get_server_edition()
-    domain_restriction = os.getenv("SIGNUP_DOMAIN_RESTRICTION")
+    self_host_domains = os.getenv("SELF_HOST_SIGNUP_ALLOWED_DOMAINS")
+    domain_restriction = self_host_domains if server_edition == "self_hosted" else os.getenv("SIGNUP_DOMAIN_RESTRICTION")
     test_domains_env = os.getenv("SIGNUP_TEST_EMAIL_DOMAINS")
     allowed_domains = _parse_signup_allowed_domains(domain_restriction, test_domains_env)
     
     # Domain restrictions are ALWAYS enforced when configured (for all server editions).
     require_domain_restriction = bool(allowed_domains)
     
-    # For self-hosted edition, enforce special rules
+    # For self-hosted edition, enforce explicit operator-selected signup modes.
     if server_edition == "self_hosted":
-        if allowed_domains:
-            # Domain restriction is set: enforce it, invite code not required
-            logger.info(
-                f"Self-hosted edition: Domain restriction enabled "
-                f"({', '.join(allowed_domains)}), invite code not required"
+        mode = _get_self_host_signup_mode()
+        require_invite_code = mode in {"invite_only", "invite_and_domain"}
+        require_domain_restriction = mode in {"domain_allowlist", "invite_and_domain"}
+
+        if require_domain_restriction and not allowed_domains:
+            logger.warning(
+                "Self-hosted signup mode %s requires allowed domains, but none are configured; "
+                "falling back to invite_only",
+                mode,
             )
-            return False, True, allowed_domains
-        else:
-            # Domain restriction not set: require invite code only
-            logger.info("Self-hosted edition: No domain restriction set, invite code required")
             return True, False, None
+
+        logger.info(
+            "Self-hosted signup mode %s: invite_required=%s, domain_required=%s",
+            mode,
+            require_invite_code,
+            require_domain_restriction,
+        )
+        return (
+            require_invite_code,
+            require_domain_restriction,
+            allowed_domains if require_domain_restriction else None,
+        )
     
     # For non-self-hosted (production/development), use SIGNUP_LIMIT logic
     signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))

@@ -67,7 +67,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip
-from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
+from backend.core.api.app.utils.invite_code import is_email_domain_allowed, validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service,
@@ -942,18 +942,28 @@ async def passkey_registration_complete(
             code_data = None
             
             # Get signup requirements based on server edition and configuration
-            # For self-hosted: domain restriction OR invite code required
+            # For self-hosted: explicit install-selected signup mode determines requirements
             # For non-self-hosted: use SIGNUP_LIMIT logic
             require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
                 directus_service, cache_service
             )
             
-            # Check domain restriction if required (for self-hosted with SIGNUP_DOMAIN_RESTRICTION set)
+            verification_cache_key = f"email_verified:{complete_request.hashed_email}"
+            verification_data = await cache_service.get(verification_cache_key)
+
             if require_domain_restriction and allowed_domains:
-                # Extract email from encrypted_email if available, or check during email verification step
-                # For passkey registration, domain check should have happened during email verification
-                # We validate here as a safety check
-                logger.info(f"Domain restriction enabled ({', '.join(allowed_domains)}) for self-hosted edition")
+                verified_email = verification_data.get("email") if verification_data else None
+                is_allowed_domain, email_domain = is_email_domain_allowed(verified_email, allowed_domains)
+                if not is_allowed_domain:
+                    logger.warning(
+                        "Passkey signup rejected: verified email domain not allowed: "
+                        f"{email_domain or 'invalid email format'} (allowed: {', '.join(allowed_domains)})"
+                    )
+                    return PasskeyRegistrationCompleteResponse(
+                        success=False,
+                        message="signup.domain_not_allowed",
+                        user=None,
+                    )
             
             if require_invite_code:
                 if not invite_code:
@@ -970,10 +980,10 @@ async def passkey_registration_complete(
                         user=None
                     )
             
-            # Extract additional information from invite code
-            is_admin = code_data.get('is_admin', False) if code_data else False
-            role = code_data.get('role') if code_data else None
-            
+            # Invite codes grant signup access and optional credits only. Admin
+            # privileges are granted separately with `openmates server make-admin`.
+            is_admin = False
+
             # Create the user account with encrypted email
             success, user_data, create_message = await directus_service.create_user(
                 username=complete_request.username,
@@ -985,7 +995,7 @@ async def passkey_registration_complete(
                 language=complete_request.language,
                 darkmode=complete_request.darkmode,
                 is_admin=is_admin,
-                role=role,
+                role=None,
             )
             
             if not success:
@@ -997,10 +1007,6 @@ async def passkey_registration_complete(
                 )
             
             user_id = user_data.get("id")
-            # Fetch verification data from cache to get the plaintext email
-            verification_cache_key = f"email_verified:{complete_request.hashed_email}"
-            verification_data = await cache_service.get(verification_cache_key)
-
             try:
                 if verification_data and verification_data.get("email"):
                     await store_account_lifecycle_contact_email(

@@ -187,6 +187,69 @@ get_env_var() {
     fi
 }
 
+generate_invite_code() {
+    local digits
+    digits=$(LC_ALL=C tr -dc '0-9' < /dev/urandom | head -c 12)
+    printf '%s-%s-%s' "${digits:0:4}" "${digits:4:4}" "${digits:8:4}"
+}
+
+signup_mode_uses_invites() {
+    case "$1" in
+        invite_only|invite_and_domain) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+prompt_signup_mode() {
+    local mode="invite_only"
+    local domains=""
+
+    if [ -t 0 ]; then
+        echo ""
+        print_info "Choose how signup should work on this self-hosted server:"
+        echo "  1. Invite codes only (recommended for individuals and private servers)"
+        echo "  2. Email domain allowlist (for teams with a shared email domain)"
+        echo "  3. Invite code + email domain (most restrictive)"
+        echo ""
+        read -p "Signup mode [1]: " signup_choice
+        case "$signup_choice" in
+            2) mode="domain_allowlist" ;;
+            3) mode="invite_and_domain" ;;
+            *) mode="invite_only" ;;
+        esac
+
+        if [ "$mode" = "domain_allowlist" ] || [ "$mode" = "invite_and_domain" ]; then
+            while [ -z "$domains" ]; do
+                read -p "Allowed email domain(s), comma-separated: " domains
+                domains=$(echo "$domains" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+                if [ -z "$domains" ]; then
+                    print_warning "Enter at least one email domain, or choose invite codes only."
+                fi
+            done
+        fi
+    else
+        print_info "Non-interactive setup detected; defaulting self-host signup to invite codes only."
+    fi
+
+    update_env_var "SELF_HOST_SIGNUP_MODE" "$mode"
+    update_env_var "SELF_HOST_SIGNUP_ALLOWED_DOMAINS" "$domains"
+
+    if signup_mode_uses_invites "$mode"; then
+        local first_invite_code
+        first_invite_code=$(get_env_var "SELF_HOST_FIRST_INVITE_CODE")
+        if [ -z "$first_invite_code" ]; then
+            first_invite_code=$(generate_invite_code)
+            update_env_var "SELF_HOST_FIRST_INVITE_CODE" "$first_invite_code"
+            print_success "Generated first signup invite code: $first_invite_code"
+        else
+            print_info "Keeping existing first signup invite code: $first_invite_code"
+        fi
+    else
+        update_env_var "SELF_HOST_FIRST_INVITE_CODE" ""
+        print_info "Signup invite code not generated because domain allowlist mode does not require invites."
+    fi
+}
+
 # Function to setup environment file
 setup_env_file() {
     print_info "Setting up environment configuration..."
@@ -243,6 +306,7 @@ setup_env_file() {
     update_if_empty "GIT_WORK_DIR" "$(pwd)"
     update_if_empty "PRODUCTION_URL" "http://localhost:5173"
     update_if_empty "VITE_API_URL" "http://localhost:8000"
+    prompt_signup_mode
     
     print_success "Auto-generated secrets have been set in .env file."
     echo ""
@@ -354,6 +418,11 @@ main() {
     # Step 3: Setup Docker network
     setup_network
 
+    local signup_mode
+    local first_invite_code
+    signup_mode=$(get_env_var "SELF_HOST_SIGNUP_MODE")
+    first_invite_code=$(get_env_var "SELF_HOST_FIRST_INVITE_CODE")
+
     # Step 4: Check LLM credentials and show appropriate next steps
     if check_llm_credentials; then
         echo "=========================================="
@@ -361,6 +430,10 @@ main() {
         echo "=========================================="
         echo ""
         print_info "Your .env file has been created and LLM credentials detected."
+        print_info "Signup mode: ${signup_mode:-invite_only}"
+        if [ -n "$first_invite_code" ]; then
+            print_info "First signup invite code: $first_invite_code"
+        fi
         echo ""
         print_info "Start OpenMates with:"
         echo ""
@@ -372,9 +445,9 @@ main() {
         echo ""
         echo -e "  ${GREEN}openmates server start --with-overrides${NC}"
         echo ""
-        print_info "After starting, check the logs for your invite code:"
+        print_info "After signup, grant admin privileges with:"
         echo ""
-        echo -e "  ${GREEN}openmates server logs --container cms-setup --tail 50${NC}"
+        echo -e "  ${GREEN}openmates server make-admin your@email.com${NC}"
         echo ""
     else
         echo "=========================================="
@@ -382,6 +455,10 @@ main() {
         echo "=========================================="
         echo ""
         print_info "Your .env file has been created and configured."
+        print_info "Signup mode: ${signup_mode:-invite_only}"
+        if [ -n "$first_invite_code" ]; then
+            print_info "First signup invite code: $first_invite_code"
+        fi
         echo ""
         print_warning "Add at least one AI provider API key before using chat/model processing."
         print_info "You can start the web app and backend now with:"
@@ -390,9 +467,9 @@ main() {
         echo ""
         echo -e "  or: ${GREEN}docker compose --env-file .env -f backend/core/docker-compose.yml up -d${NC}"
         echo ""
-        print_info "After starting, check the logs for your invite code:"
+        print_info "After signup, grant admin privileges with:"
         echo ""
-        echo -e "  ${GREEN}openmates server logs --container cms-setup --tail 50${NC}"
+        echo -e "  ${GREEN}openmates server make-admin your@email.com${NC}"
         echo ""
     fi
 }

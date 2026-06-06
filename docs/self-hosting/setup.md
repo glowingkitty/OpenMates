@@ -31,6 +31,7 @@ coverage:
 
 - Use `openmates server` for the default install, start, stop, status, logs, update, reset, and uninstall flow.
 - `openmates server start` brings up the backend and the web app. Open the app at `http://localhost:5173`.
+- During install, choose invite codes, an email-domain allowlist, or both for signup.
 - A fresh self-hosted install can start without provider API keys. AI chat and model processing stay unavailable until you add at least one real LLM provider key.
 - The no-key startup path is verified by the GitHub Actions self-host install smoke workflow.
 
@@ -77,6 +78,16 @@ openmates server install --path ~/openmates
 ```
 
 This prepares the install directory, creates `.env`, generates local secrets, and copies the Docker Compose setup.
+
+When the terminal is interactive, install asks how signup should work:
+
+| Mode | Best for | Signup requirement |
+| --- | --- | --- |
+| Invite codes only | Individuals and private servers | Valid invite code |
+| Email domain allowlist | Teams with a shared email domain | Allowed email domain |
+| Invite code + email domain | More restrictive team/private servers | Both invite code and allowed email domain |
+
+Non-interactive installs default to invite codes only. If the selected mode uses invite codes, setup generates and prints the first signup invite code. This invite code creates a normal user, not an admin.
 
 For CI or local testing from an existing checkout, use:
 
@@ -127,10 +138,16 @@ For a fresh no-key install, `/v1/settings/server-status` should include:
 
 Open `http://localhost:5173` in your browser.
 
-Use the initial invite code from the setup logs when signup requires one:
+If your signup mode uses invite codes, sign up with the first signup invite code printed by `openmates server install`. It is also available in `~/openmates/.env` as `SELF_HOST_FIRST_INVITE_CODE` and in first-start logs:
 
 ```bash
 openmates server logs --path ~/openmates --container cms-setup --tail 200
+```
+
+After signup, grant admin privileges to your user from the server terminal:
+
+```bash
+openmates server make-admin your@email.com
 ```
 
 ## Adding AI Provider Keys
@@ -212,6 +229,18 @@ Set production origins and domains in `~/openmates/.env` before restarting. Use 
 - Check server status: `curl http://localhost:8000/v1/settings/server-status`.
 - If `ai_models_configured` is `false`, add an LLM provider API key and restart.
 - Placeholder values such as `IMPORTED_TO_VAULT` do not count as runnable LLM keys.
+
+### Signup mode needs to change
+
+Edit `~/openmates/.env`, then restart:
+
+```env
+SELF_HOST_SIGNUP_MODE=invite_only
+SELF_HOST_SIGNUP_ALLOWED_DOMAINS=
+SELF_HOST_FIRST_INVITE_CODE=1234-5678-9012
+```
+
+Supported signup modes are `invite_only`, `domain_allowlist`, and `invite_and_domain`.
 
 ### Backend is unreachable from the browser
 

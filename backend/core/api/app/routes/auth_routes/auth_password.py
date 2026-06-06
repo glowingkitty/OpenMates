@@ -8,7 +8,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip
-from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
+from backend.core.api.app.utils.invite_code import is_email_domain_allowed, validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, store_account_lifecycle_contact_email
@@ -43,9 +43,9 @@ async def setup_password(
         code_data = None
         
         # Get signup requirements based on server edition and configuration
-        # For self-hosted: domain restriction OR invite code required
+        # For self-hosted: explicit install-selected signup mode determines requirements
         # For non-self-hosted: use SIGNUP_LIMIT logic
-        require_invite_code, require_domain_restriction, _allowed_domains = await get_signup_requirements(
+        require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
             directus_service, cache_service
         )
         
@@ -73,6 +73,19 @@ async def setup_password(
                 success=False,
                 message="Email verification required. Please verify your email first."
             )
+
+        if require_domain_restriction and allowed_domains:
+            verified_email = verification_data.get("email")
+            is_allowed_domain, email_domain = is_email_domain_allowed(verified_email, allowed_domains)
+            if not is_allowed_domain:
+                logger.warning(
+                    "Password signup rejected: verified email domain not allowed: "
+                    f"{email_domain or 'invalid email format'} (allowed: {', '.join(allowed_domains)})"
+                )
+                return SetupPasswordResponse(
+                    success=False,
+                    message="signup.domain_not_allowed"
+                )
 
         # Validate username format
         username_valid, username_error = validate_username(setup_request.username)
@@ -103,9 +116,9 @@ async def setup_password(
                 message="This email is already registered. Please log in instead."
             )
 
-        # Extract additional information from invite code
-        is_admin = code_data.get('is_admin', False) if code_data else False
-        role = code_data.get('role') if code_data else None
+        # Invite codes grant signup access and optional credits only. Admin
+        # privileges are granted separately with `openmates server make-admin`.
+        is_admin = False
 
         # Create the user account with encrypted email
         success, user_data, create_message = await directus_service.create_user(
@@ -117,7 +130,7 @@ async def setup_password(
             language=setup_request.language,
             darkmode=setup_request.darkmode,
             is_admin=is_admin,
-            role=role,
+            role=None,
         )
 
         if not success:

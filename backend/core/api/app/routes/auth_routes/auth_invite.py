@@ -31,8 +31,9 @@ async def check_invite_token_valid(
         metrics_service.track_invite_code_check(is_valid)
         
         if is_valid:
-            # Extract additional properties from code_data
-            is_admin = code_data.get('is_admin', False) if code_data else False
+            # Kept for response compatibility. Invite codes no longer grant
+            # admin privileges; use `openmates server make-admin <email>`.
+            is_admin = False
             gifted_credits = code_data.get('gifted_credits') if code_data else None
             
             return InviteCodeResponse(

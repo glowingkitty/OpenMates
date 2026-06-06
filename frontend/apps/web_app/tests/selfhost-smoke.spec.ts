@@ -29,6 +29,12 @@ test('self-hosted web app loads and reaches backend status', async ({ page, requ
 	expect(status.payment_enabled).toBe(false);
 	expect(status.ai_models_configured).toBe(false);
 
+	const sessionResponse = await request.post(`${SELFHOST_API_URL}/v1/auth/session`);
+	expect(sessionResponse.ok(), 'unauthenticated session endpoint should respond').toBe(true);
+	const session = await sessionResponse.json();
+	expect(session.success).toBe(false);
+	expect(session.require_invite_code).toBe(true);
+
 	const browserStatus = await page.evaluate(async (apiUrl: string) => {
 		const response = await fetch(`${apiUrl}/v1/settings/server-status`);
 		return {

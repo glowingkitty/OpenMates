@@ -39,6 +39,7 @@ coverage:
 
 - `openmates server` commands manage a local Docker Compose installation without requiring a cloud login.
 - The CLI stores the installation path, validates that a path looks like an OpenMates checkout, and builds the Docker Compose command for core or override services.
+- Install asks how signup should work on self-hosted servers: invite codes, email-domain allowlist, or both.
 - Starting the server warns when no real LLM API key is configured, but still starts the backend and web app. AI model processing stays unavailable until a real key is added.
 
 Commands for installing, running, and administering a self-hosted OpenMates instance. Server commands do not require login -- they operate directly on the local Docker Compose environment.
@@ -59,6 +60,8 @@ openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-
 ```
 
 Clones the OpenMates repository, runs setup, and prepares the Docker environment. Default install directory is `~/openmates`.
+
+Interactive installs ask for the self-host signup mode. Non-interactive installs default to `invite_only`. If the selected mode uses invite codes, the install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`.
 
 | Option | Default | Description |
 |--------|---------|-------------|

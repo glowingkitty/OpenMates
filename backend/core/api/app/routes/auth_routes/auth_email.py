@@ -13,7 +13,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
+from backend.core.api.app.utils.invite_code import is_email_domain_allowed, validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.newsletter_utils import hash_email, check_ignored_email
 # Import EncryptionService and its getter
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -47,7 +47,7 @@ async def request_confirm_email_code(
         
         # Get signup requirements based on server edition and configuration
         # SIGNUP_DOMAIN_RESTRICTION is ALWAYS enforced when set (for all server editions)
-        # For self-hosted: domain restriction OR invite code required
+        # For self-hosted: explicit install-selected signup mode determines requirements
         # For non-self-hosted: use SIGNUP_LIMIT logic
         require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
             directus_service, cache_service
@@ -55,10 +55,9 @@ async def request_confirm_email_code(
         
         # Check domain restriction if configured (ALWAYS enforced when set, regardless of server edition)
         if require_domain_restriction and allowed_domains:
-            email_parts = email_request.email.split('@')
-            email_domain = email_parts[1].lower() if len(email_parts) == 2 else None
             # Domain checks intentionally compare exact domains to avoid unintended wildcard access.
-            if not email_domain or email_domain not in allowed_domains:
+            is_allowed_domain, email_domain = is_email_domain_allowed(email_request.email, allowed_domains)
+            if not is_allowed_domain:
                 logger.warning(
                     "Email domain not allowed: "
                     f"{email_domain or 'invalid email format'} (allowed: {', '.join(allowed_domains)})"
@@ -206,7 +205,7 @@ async def check_confirm_email_code(
         code_data = None
         
         # Get signup requirements based on server edition and configuration
-        # For self-hosted: domain restriction OR invite code required
+        # For self-hosted: explicit install-selected signup mode determines requirements
         # For non-self-hosted: use SIGNUP_LIMIT logic
         require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
             directus_service, cache_service
