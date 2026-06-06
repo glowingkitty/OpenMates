@@ -23,7 +23,7 @@ You are deploying code changes. Follow this exact sequence:
     Review the file list. Exclude any files that shouldn't be committed with `--exclude`.
 
 3. **Run spec conformance when applicable:**
-   - If this work has a full spec under `docs/specs/<slug>/spec.md`, run `verify-spec docs/specs/<slug>/spec.md` before deploy.
+   - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before deploy.
    - If this work used an inline spec, include the scenarios, acceptance criteria, and test evidence in the deploy message.
    - If no spec exists for source changes, confirm the change is trivial/mechanical or include an explicit skip reason.
 

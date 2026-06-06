@@ -1,20 +1,21 @@
 ---
 name: plan-from-spec
-description: Convert an approved spec into a technical OpenCode implementation plan with traceability to scenarios and acceptance criteria
+description: Add or update the implementation_plan section inside an approved executable spec.yml with traceability to scenarios, acceptance criteria, and tests
 user-invocable: true
-argument-hint: "docs/specs/<slug>/spec.md"
+argument-hint: "docs/specs/<slug>/spec.yml"
 ---
 
 ## Instructions
 
-You are turning an approved product spec into a technical implementation plan.
-This is still pre-code work. Do not edit product source files during this skill.
+You are turning an approved executable product spec into a technical
+implementation plan inside the same `spec.yml`. This is still pre-code work. Do
+not edit product source files during this skill.
 
 ### Step 1: Read The Spec And Guide
 
 Read:
 
-1. The provided `docs/specs/<slug>/spec.md`
+1. The provided `docs/specs/<slug>/spec.yml`
 2. `docs/contributing/guides/spec-driven-development.md`
 3. Relevant architecture docs and existing source patterns referenced by the spec
 
@@ -28,16 +29,22 @@ Before writing the plan, confirm the spec has:
 - At least one scenario ID (`S-*`)
 - At least one acceptance criterion ID (`AC-*`)
 - Scope and non-goals
-- Test matrix or planned verification entries
+- Tests with assertions and red/green phase metadata
+
+Run:
+
+```bash
+python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml
+```
 
 If these are missing, stop and run or recommend `specify` first.
 
 ### Step 3: Create The Plan
 
-Create or update:
+Create or update the `implementation_plan` key inside:
 
 ```text
-docs/specs/<slug>/plan.md
+docs/specs/<slug>/spec.yml
 ```
 
 The plan must include:
@@ -64,11 +71,12 @@ slice.
 Report:
 
 ```markdown
-Plan: docs/specs/<slug>/plan.md
+Plan: docs/specs/<slug>/spec.yml#implementation_plan
 First slice: <short description>
 Main files likely touched: <paths>
 Verification: <tests or planned tests>
-Next: run `tasks-from-spec docs/specs/<slug>/plan.md`
+Validation: <spec_validate result>
+Next: run `tasks-from-spec docs/specs/<slug>/spec.yml`
 ```
 
 ## Rules

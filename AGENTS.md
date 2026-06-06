@@ -108,11 +108,13 @@ Use OpenCode skills proactively when the task matches their purpose. Do not wait
 for the user to name the skill if the intent is clear.
 
 Spec-driven development:
-- Use `specify` before implementing complex, risky, multi-session, or multi-system work.
+- Auto-select `specify` before implementing complex, risky, multi-session, or multi-system work. Do not wait for the user to name the skill when the intent is clearly implementation.
 - Full specs are required for auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI pipeline changes, provider integrations, migrations, new API routes, app skills, embed types, background jobs, cron jobs, and Directus schema changes.
-- Use `plan-from-spec` after a full spec is approved.
-- Use `tasks-from-spec` after a full plan is approved.
-- Use `verify-spec` before deploy for full-spec work.
+- Full specs use one executable YAML source of truth at `docs/specs/<slug>/spec.yml`; do not create separate `spec.md`, `plan.md`, or `tasks.md` files for new specs.
+- Before writing `spec.yml`, discover existing GitHub Issues, relevant Linear tasks only when appropriate, docs, source patterns, and tests; then ask up to five rounds of clarifying questions, one question per message. Wait for the user's response before asking the next question, then wait for the user's vision confirmation before writing the final full spec.
+- Use `plan-from-spec` and `tasks-from-spec` after a full spec is approved; they update `implementation_plan` and `tasks` inside `spec.yml`.
+- Write or update the tests listed in `spec.yml` before feature code. Record red-phase evidence before implementation. For Playwright, red and green runs target live `app.dev.openmates.org`; green evidence is only valid after deploy and Vercel is Ready.
+- Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml` after spec edits and `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before marking the spec complete or deploying full-spec work.
 - Use an inline spec instead of a full spec for small behavior changes; skip specs for trivial or mechanical work. See `docs/contributing/guides/spec-driven-development.md` for the boundary.
 
 Common routing:

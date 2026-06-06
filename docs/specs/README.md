@@ -6,14 +6,17 @@ examples, acceptance criteria, contracts, test coverage, and implementation
 tasks.
 
 Use a full spec folder when work is complex, risky, user-facing, or likely to
-span more than one session:
+span more than one session. New full specs use a single executable YAML source
+of truth:
 
 ```text
 docs/specs/<slug>/
-├── spec.md
-├── plan.md
-└── tasks.md
+└── spec.yml
 ```
+
+Older spec folders may still contain `spec.md`, `plan.md`, and `tasks.md` from
+the previous workflow. Do not create those files for new specs; migrate legacy
+specs only when they are actively resumed.
 
 Do not store secrets, private user data, raw logs, private emails, or production
 identifiers here. Use placeholders such as `<USER_EMAIL>`, `<CHAT_ID>`, and

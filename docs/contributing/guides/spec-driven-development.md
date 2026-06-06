@@ -1,22 +1,29 @@
 ---
 status: active
-last_verified: 2026-06-05
+last_verified: 2026-06-06
 ---
 
 # Spec-Driven Development
 
-OpenMates uses lightweight spec-driven development for non-trivial work. The
-goal is not to create paperwork. The goal is to make intent, examples, tests,
-and implementation traceable before OpenCode changes production code.
+OpenMates uses executable spec-driven development for non-trivial work. The goal
+is to protect product intent before OpenCode changes production code: clarify the
+user's vision, write a machine-checkable product contract, create tests first,
+then implement small verified slices.
 
-Specs are product contracts. Commit durable specs to git when they describe
-features, risky behavior, permissions, privacy, APIs, data models, or work that
-future agents need to understand.
+Full specs use a single YAML source of truth:
+
+```text
+docs/specs/<slug>/spec.yml
+```
+
+Do not maintain separate `spec.md`, `plan.md`, or `tasks.md` files for new full
+specs. If a readable document is needed, generate it from `spec.yml` instead of
+duplicating content by hand.
 
 ## When Specs Are Required
 
-Create a full spec for work where misunderstanding is more expensive than
-writing the spec:
+Automatically use the spec workflow before implementation when work is complex,
+risky, user-facing, or likely to be misunderstood:
 
 - New user-facing features with multiple states or paths.
 - Multi-file changes across frontend, backend, data, docs, or tests.
@@ -32,8 +39,8 @@ Use an inline spec for smaller behavior changes:
 
 - Small UI behavior changes with one happy path and one obvious assertion.
 - Simple backend fixes with clear input and output.
-- Refactors where behavior must stay unchanged and the spec is mostly
-  invariants plus regression tests.
+- Refactors where behavior must stay unchanged and the spec is mostly invariants
+  plus regression tests.
 - Existing issues that already include clear examples and acceptance criteria.
 
 Skip specs for trivial or mechanical work:
@@ -44,234 +51,250 @@ Skip specs for trivial or mechanical work:
 - Mechanical renames with no behavior change.
 - Generated files rebuilt from an existing source change.
 - Test-only maintenance where expected behavior is already encoded in the test.
-- Small CSS polish that does not change flow, accessibility, responsive
-  behavior, or user-visible state.
+- Small CSS polish that does not change flow, accessibility, responsive behavior,
+  or user-visible state.
 
-Rule of thumb: if writing the spec would take longer than the change itself and
-does not uncover a decision, the spec is overkill.
-
-## Spec Size Levels
-
-| Level | When | Artifact |
-| --- | --- | --- |
-| No spec | Trivial or mechanical work | Session notes only |
-| Inline spec | Small behavior-affecting work | Issue or session brief |
-| Full spec | Complex, risky, or multi-session work | `docs/specs/<slug>/` |
-
-## Full Spec Folder
-
-Use this structure for full specs:
-
-```text
-docs/specs/<slug>/
-├── spec.md
-├── plan.md
-└── tasks.md
-```
-
-`spec.md` captures the product contract: goal, scope, scenarios, acceptance
-criteria, contracts, risks, and test matrix.
-
-`plan.md` captures the technical approach: existing patterns, affected files,
-data flow, contracts, migrations, observability, and verification strategy.
-
-`tasks.md` breaks the plan into small, reviewable implementation slices. Each
-task must reference scenario IDs and acceptance criteria.
-
-## Spec Template
-
-```markdown
-# <Feature Or Bug Title>
-
-## Goal
-<What user-visible outcome changes and why.>
-
-## Scope
-In:
-- <what this work includes>
-
-Out:
-- <related work intentionally not included>
-
-## Scenarios
-### S-1: <happy path>
-Given <initial state>
-When <user or system action>
-Then <observable result>
-
-### S-2: <error or boundary path>
-Given <initial state>
-When <user or system action>
-Then <observable result>
-
-## Acceptance Criteria
-- [ ] AC-1: <specific, falsifiable outcome>
-- [ ] AC-2: <specific, falsifiable outcome>
-
-## Contracts
-API:
-- <routes, request/response shape, permissions, errors>
-
-Data:
-- <new or changed records, ownership, migration/backfill needs>
-
-UI states:
-- <loading, empty, success, error, disabled, responsive states>
-
-Privacy/security:
-- <data visibility, encryption, audit, retention, provider implications>
-
-## Test Matrix
-| Scenario | Test Type | File | Status |
-| --- | --- | --- | --- |
-| S-1 | Playwright | `TBD` | planned |
-| S-2 | Pytest/unit | `TBD` | planned |
-
-## Implementation Notes
-Existing patterns to reuse:
-- <files, components, services, docs>
-
-Likely files touched:
-- `<path>` — <why>
-
-Risks:
-- <risk and mitigation>
-```
-
-## Plan Template
-
-```markdown
-# Plan: <Title>
-
-Spec: `docs/specs/<slug>/spec.md`
-
-## Existing Patterns
-- `<path>` — <pattern to reuse>
-
-## Architecture
-<How the implementation fits current frontend/backend/data boundaries.>
-
-## Data Flow
-1. <trigger>
-2. <frontend/API/backend/storage/event step>
-3. <observable result>
-
-## Affected Files
-- `<path>` — <change>
-
-## Verification Strategy
-- <test command or spec to run>
-- <manual verification only if automation is not practical>
-
-## Open Questions
-- <question or none>
-```
-
-## Tasks Template
-
-```markdown
-# Tasks: <Title>
-
-Spec: `docs/specs/<slug>/spec.md`
-Plan: `docs/specs/<slug>/plan.md`
-
-- [ ] T-1: <small vertical slice>
-  Covers: S-1, AC-1
-  Verify: `<test command or planned test file>`
-
-- [ ] T-2: <next slice>
-  Covers: S-2, AC-2
-  Verify: `<test command or planned test file>`
-```
-
-## OpenCode Workflow
+## Workflow
 
 For full specs:
 
-1. Run `specify` to create or update `spec.md`.
-2. Review the spec with the user before code changes.
-3. Run `plan-from-spec` to create `plan.md`.
-4. Run `tasks-from-spec` to create `tasks.md`.
-5. Implement one task or vertical slice at a time.
-6. Run `verify-spec` before deploy.
-7. Include spec and test evidence in the deploy summary.
+1. Detect the user's implementation intent and auto-select `specify`.
+2. Discover existing context before asking questions: GitHub Issues, relevant
+   Linear tasks only when appropriate, `docs/specs/`, `docs/architecture/`, user
+   guides, source code, and existing tests.
+3. Ask up to five rounds of clarifying questions, one question per message. Wait
+   for the user's response before asking the next question. The questions must
+   be based on discovered context and focus on blocking product decisions.
+4. Summarize the understood vision, scope, non-goals, and unresolved decisions.
+   Wait for user confirmation before writing the final full spec.
+5. Create or update `docs/specs/<slug>/spec.yml`.
+6. Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml`.
+7. Present the spec to the user and wait for approval.
+8. Use `plan-from-spec` and `tasks-from-spec` to fill `implementation_plan` and
+   `tasks` inside the same `spec.yml`.
+9. Write or update the tests listed in `spec.yml` before feature code.
+10. Run the listed red-phase tests and record evidence in `spec.yml`.
+11. Implement one small requirement slice at a time.
+12. Deploy before Playwright green-phase verification because Playwright specs
+    run against `app.dev.openmates.org`.
+13. Run green-phase tests, record evidence in `spec.yml`, and run
+    `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml`.
 
-For inline specs, keep the same shape but write it directly in the issue,
-session task, or response: scenarios, acceptance criteria, and test evidence.
+Implementation must not begin before the user approves the full spec unless the
+user explicitly instructs OpenCode to skip the spec gate.
+
+## Playwright Red And Green Phases
+
+Playwright specs always test the live dev app, not undeployed local code.
+
+- Red phase: run the new or extended `*.spec.ts` against the currently deployed
+  dev app before the implementation is deployed. It should fail for the expected
+  reason.
+- Green phase: deploy the implementation to dev, wait until Vercel is Ready,
+  then run the same spec against `app.dev.openmates.org`. It must pass before the
+  spec can be marked complete.
+
+Backend and unit tests can usually complete both red and green phases before
+deploy. Playwright green evidence is always after deploy.
+
+## Spec YAML Template
+
+```yaml
+id: teams-v1
+title: Teams V1
+status: draft # draft | clarifying | approved | implementing | verified
+
+goal: >
+  Let users create teams, invite members, and manage team access without exposing
+  personal encrypted chat content.
+
+scope:
+  in:
+    - Team creation by logged-in users
+    - Email invitations for v1
+    - Owner, admin, and member roles
+  out:
+    - Team-owned encrypted chats
+    - Enterprise SSO
+
+context_discovery:
+  github_issues:
+    - "#123: Existing public issue or none"
+  docs:
+    - docs/architecture/example.md
+  code_patterns:
+    - backend/core/api/app/routes/example.py
+  tests:
+    - frontend/apps/web_app/tests/settings.spec.ts
+
+clarification:
+  rounds:
+    - question: Should teams own chats in v1, or only members and billing?
+      answer: Teams v1 should not own chats.
+  vision_summary: >
+    Teams v1 manages membership and roles. Team admins cannot read member chat
+    content or personal chat metadata beyond usage totals explicitly approved in
+    the spec.
+  approved_by_user: false
+
+scenarios:
+  - id: S-1
+    title: Owner creates a team
+    given:
+      - Alice is logged in
+    when:
+      - Alice creates a team named Acme
+    then:
+      - Alice becomes the team owner
+      - Acme appears in team settings
+      - Other users cannot see Acme
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A logged-in user can create a team and becomes its owner.
+
+contracts:
+  api:
+    - route: POST /v1/teams
+      request: "{ name: string }"
+      response: "{ id: string, name: string, role: owner }"
+      errors:
+        - 401 when unauthenticated
+  data:
+    - Team records are owned by a creator user ID.
+  ui_states:
+    - Loading, success, validation error, unauthorized.
+  privacy_security:
+    - Team admins cannot read personal encrypted chat content.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_teams.py
+    command: python3 -m pytest backend/tests/test_teams.py
+    covers:
+      - AC-1
+    assertions:
+      - unauthenticated create returns 401
+      - authenticated create stores owner membership
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/teams-settings.spec.ts
+    command: python3 scripts/run_tests.py --spec teams-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+    assertions:
+      - teams settings entry is visible
+      - create-team form creates a visible team row
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/routes/example.py
+  architecture: >
+    Add a teams API and settings UI using existing auth, permissions, and
+    canonical settings components.
+  data_flow:
+    - User submits create-team form.
+    - API validates auth and creates team plus owner membership.
+    - UI refreshes team list.
+  affected_files:
+    - path: backend/core/api/app/routes/teams.py
+      reason: Team API routes
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/teams-v1/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Create team backend slice
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - backend/core/api/app/routes/teams.py
+      - backend/tests/test_teams.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: true
+```
+
+## Scripts
+
+Validate structure and references:
+
+```bash
+python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml
+```
+
+Verify evidence before completion:
+
+```bash
+python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml --phase red
+python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml --phase green
+python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml
+```
+
+`spec_validate.py` fails when acceptance criteria lack test coverage, scenario
+or test IDs are malformed, Playwright tests do not target `app.dev.openmates.org`,
+or Playwright green phase is not `pass_after_deploy`.
+
+`spec_verify.py` fails when required red or green phase evidence is missing.
+
+## Subagents And Separate Sessions
+
+Use subagents inside the spec workflow for bounded work:
+
+- Spec critic: review `spec.yml` for ambiguity, untestable requirements,
+  missing edge cases, and privacy/security gaps.
+- Test author: write tests only, with production source edits forbidden.
+- Red-phase investigator: run or inspect failing tests and confirm they fail for
+  the expected reason.
+- Implementation agent: implement one assigned task or requirement slice only.
+- Code reviewer: review the diff against `spec.yml`.
+
+Use separate OpenCode sessions only for independent work with non-overlapping
+file ownership. Ask the user before spawning separate sessions. Default spawned
+sessions are planning/read-only unless the user explicitly approves execute mode.
 
 ## Commit Policy
 
-Commit durable specs to git. Do not commit scratch notes or private details.
+Commit durable full specs under `docs/specs/<slug>/spec.yml` when they describe
+features, risky behavior, permissions, privacy, APIs, data models, or work that
+future agents need to understand.
 
-Commit:
-
-- Full feature and risk specs under `docs/specs/<slug>/`.
-- Plans and tasks that explain implemented work or future maintenance.
-- Sanitized specs for sensitive areas when they describe public product
-  behavior without private user data.
-
-Do not commit:
-
-- Private user data, raw logs, credentials, private emails, or secrets.
-- Temporary planning scratch files.
-- Specs that only repeat an already-closed trivial change.
-
-Use placeholders for sensitive examples, such as `<USER_EMAIL>` and
-`<TEAM_ID>`.
-
-## Example: Teams Functionality
-
-Teams requires a full spec because it touches permissions, identity, privacy,
-billing/limits, UI states, backend routes, data models, and likely migrations.
-
-Example scenario slice:
-
-```markdown
-### S-1: Owner creates a team
-Given Alice is logged in
-When she creates a team named "Acme"
-Then she becomes the team owner
-And the team appears in her settings
-And no other user can see the team
-
-### S-2: Owner invites a member
-Given Alice owns team "Acme"
-When she invites `<USER_EMAIL>`
-Then an invitation is created with pending status
-And the invited user has no team access before accepting
-
-### S-3: Non-admin cannot invite members
-Given Bob is a team member but not an admin
-When Bob tries to invite another user
-Then the API returns 403
-And no invite is created
-
-### S-4: Team usage does not expose personal chat content
-Given Bob sends a personal encrypted chat message
-When team usage accounting runs
-Then usage totals may update
-But team admins cannot read Bob's personal chat content
-```
-
-Example implementation tasks:
-
-```markdown
-- [ ] T-1: Add team and membership schema plus backend create-team service.
-  Covers: S-1, AC-1
-  Verify: `backend/tests/test_team_permissions.py`
-
-- [ ] T-2: Add invite create/accept/decline API with permission checks.
-  Covers: S-2, S-3, AC-2, AC-3
-  Verify: `backend/tests/test_team_invites.py`
-
-- [ ] T-3: Add settings UI using canonical settings elements.
-  Covers: S-1, S-2, AC-4
-  Verify: `frontend/apps/web_app/tests/teams-settings.spec.ts`
-
-- [ ] T-4: Add team usage accounting without plaintext content access.
-  Covers: S-4, AC-5
-  Verify: `backend/tests/test_team_usage_privacy.py`
-```
-
-The first coding slice should be create-team only, not all of teams. Keep every
-slice independently reviewable and testable.
+Do not commit private user data, raw logs, credentials, private emails, secrets,
+or production identifiers. Use placeholders such as `<USER_EMAIL>`, `<TEAM_ID>`,
+and `<CHAT_ID>`.

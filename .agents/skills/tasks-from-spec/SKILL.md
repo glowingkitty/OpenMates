@@ -1,33 +1,33 @@
 ---
 name: tasks-from-spec
-description: Break an approved spec plan into small OpenCode implementation tasks that each trace to scenarios, acceptance criteria, and verification
+description: Add or update the tasks section inside an approved executable spec.yml, with each task tracing to scenarios, acceptance criteria, and verification
 user-invocable: true
-argument-hint: "docs/specs/<slug>/plan.md"
+argument-hint: "docs/specs/<slug>/spec.yml"
 ---
 
 ## Instructions
 
-You are creating the task breakdown for spec-driven implementation. The output
-must make it possible for OpenCode to implement one small vertical slice at a
-time without losing traceability.
+You are creating the task breakdown for spec-driven implementation inside the
+same `spec.yml`. The output must make it possible for OpenCode to implement one
+small vertical slice at a time without losing traceability.
 
 ### Step 1: Read Inputs
 
 Read:
 
-1. The provided `docs/specs/<slug>/plan.md`
-2. The sibling `docs/specs/<slug>/spec.md`
+1. The provided `docs/specs/<slug>/spec.yml`
+2. The `implementation_plan` section inside that spec
 3. `docs/contributing/guides/spec-driven-development.md`
 
-If either spec or plan is missing, stop and ask the user to run `specify` or
-`plan-from-spec` first.
+If either the spec or `implementation_plan` is missing, stop and ask the user to
+run `specify` or `plan-from-spec` first.
 
 ### Step 2: Create Tasks
 
-Create or update:
+Create or update the `tasks` key inside:
 
 ```text
-docs/specs/<slug>/tasks.md
+docs/specs/<slug>/spec.yml
 ```
 
 Each task must include:
@@ -38,6 +38,12 @@ Each task must include:
 - Expected files or areas touched
 - Verification command or planned test file
 - Whether it is independently deployable
+
+Run validation after editing:
+
+```bash
+python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml
+```
 
 ### Step 3: Slice Rules
 
@@ -52,10 +58,11 @@ owner creation test", not "build teams".
 Report:
 
 ```markdown
-Tasks: docs/specs/<slug>/tasks.md
+Tasks: docs/specs/<slug>/spec.yml#tasks
 First implementation task: T-1 <title>
 Independent deployable slices: <yes/no summary>
-Next: implement T-1, then run `verify-spec docs/specs/<slug>/spec.md`
+Validation: <spec_validate result>
+Next: write tests for T-1, record red evidence, implement T-1, then run `verify-spec docs/specs/<slug>/spec.yml`
 ```
 
 ## Rules

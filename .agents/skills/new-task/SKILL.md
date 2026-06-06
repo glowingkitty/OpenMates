@@ -61,7 +61,7 @@ The create reminder UI is broken — [expanded description based on user input].
 
 ### Spec Readiness
 - Spec size: inline | full | none
-- Full spec path: docs/specs/<slug>/spec.md (if needed)
+- Full spec path: docs/specs/<slug>/spec.yml (if needed)
 ```
 
 ### Step 3: Ask for Confirmation
