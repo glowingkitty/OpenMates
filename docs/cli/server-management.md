@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - technical-users
   - contributors
-last_verified: 2026-03-24
+last_verified: 2026-06-06
 claims:
   - id: cli-server-config-saves-loads-and-removes
     type: unit
@@ -18,10 +18,14 @@ claims:
     type: unit
     file: frontend/packages/openmates-cli/tests/server.test.ts
     assertion: cli-server-compose-uses-base-and-optional-overrides
-  - id: cli-server-requires-real-llm-api-key
+  - id: cli-server-detects-real-llm-api-key
     type: unit
     file: frontend/packages/openmates-cli/tests/server.test.ts
     assertion: cli-server-requires-real-llm-api-key
+  - id: cli-server-source-path-installs-from-local-checkout
+    type: e2e
+    file: .github/workflows/selfhost-smoke.yml
+    assertion: openmates server install --source-path starts self-host smoke stack
 coverage:
   policy: assertion-backed
   reviewed_context:
@@ -35,7 +39,7 @@ coverage:
 
 - `openmates server` commands manage a local Docker Compose installation without requiring a cloud login.
 - The CLI stores the installation path, validates that a path looks like an OpenMates checkout, and builds the Docker Compose command for core or override services.
-- Starting the server requires at least one real `SECRET__<PROVIDER>__API_KEY`; empty, commented, or `IMPORTED_TO_VAULT` values do not count.
+- Starting the server warns when no real LLM API key is configured, but still starts the backend and web app. AI model processing stays unavailable until a real key is added.
 
 Commands for installing, running, and administering a self-hosted OpenMates instance. Server commands do not require login -- they operate directly on the local Docker Compose environment.
 
@@ -43,7 +47,7 @@ Commands for installing, running, and administering a self-hosted OpenMates inst
 
 - **Docker** -- must be installed with the daemon running
 - **Git** -- required for `install` and `update`
-- At least one LLM provider API key (any `SECRET__<PROVIDER>__API_KEY` entry, e.g. OpenAI, Anthropic, Google, Mistral) in the `.env` file
+- Optional LLM provider API key when you want AI chat/model processing
 
 ## Installing
 
@@ -51,6 +55,7 @@ Commands for installing, running, and administering a self-hosted OpenMates inst
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
+openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```
 
 Clones the OpenMates repository, runs setup, and prepares the Docker environment. Default install directory is `~/openmates`.
@@ -59,6 +64,7 @@ Clones the OpenMates repository, runs setup, and prepares the Docker environment
 |--------|---------|-------------|
 | `--path <dir>` | `~/openmates` | Installation directory |
 | `--env-path <file>` | None | Copy a pre-existing `.env` file during install |
+| `--source-path <dir>` | None | Clone from a local checkout instead of GitHub. Intended for CI/testing. |
 
 ## Starting the Server
 
@@ -67,9 +73,11 @@ openmates server start
 openmates server start --with-overrides
 ```
 
-Starts all Docker containers. The `--with-overrides` flag includes admin UIs (Directus CMS, Grafana) defined in `docker-compose.override.yml`.
+Starts all Docker containers for the backend and web app. The web app is available at `http://localhost:5173`, and the backend API is available at `http://localhost:8000`.
 
-Requires at least one LLM provider API key in the `.env` file. The CLI checks for any `SECRET__<PROVIDER>__API_KEY` entry (matching `SECRET__\w+__API_KEY`) with a non-empty value before starting.
+The `--with-overrides` flag includes admin UIs such as Directus CMS and Grafana defined in `docker-compose.override.yml`.
+
+If the `.env` file has no real LLM provider API key, startup continues with a warning. Empty, commented, non-model provider, or `IMPORTED_TO_VAULT` values do not count as configured AI model keys. Add a real key and run `openmates server restart` to enable AI chat/model processing.
 
 ## Stopping the Server
 

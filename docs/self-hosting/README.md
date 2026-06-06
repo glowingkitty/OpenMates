@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-06
 ---
 
 # Self-Hosting
@@ -9,18 +9,17 @@ Run your own OpenMates instance with full control over your data and infrastruct
 
 ## Guide
 
-- [Setup & Installation](setup.md) - Complete step-by-step guide to set up OpenMates on your own server
+- [Setup & Installation](setup.md) - CLI-first guide for installing and starting OpenMates on your own server
 - [Server Hardening](server-hardening.md) - Six baseline protections every public-facing OpenMates server should have
 - [Proton Mail Bridge](proton-bridge.md) - Connect a Proton Mail account for the mail search skill
 
 The setup guide covers:
 
 - Prerequisites and system requirements
-- Running the setup script
-- Configuring API keys (AI providers, payment, etc.)
-- Starting the backend and frontend
+- Installing with `openmates server install`
+- Starting the backend and web app with `openmates server start`
+- Optional AI provider keys and no-key startup behavior
 - Production deployment with Caddy reverse proxy
-- Environment variables reference
 - Management commands
 - Troubleshooting common issues
 
@@ -28,5 +27,5 @@ The setup guide covers:
 
 - A Linux server (Ubuntu/Debian recommended)
 - Docker and Docker Compose
-- At least one AI provider API key (e.g. OpenAI, Anthropic, Google, or Mistral)
+- Optional AI provider API key when you want AI chat/model processing
 - A domain name (for production deployment)
