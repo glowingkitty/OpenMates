@@ -68,7 +68,7 @@
 
   function getConditionIcon(): string {
     if (icon) return icon;
-    const normalized = condition.toLowerCase();
+    const normalized = (condition || '').toLowerCase();
     if (normalized.includes('rain')) return '☔';
     if (normalized.includes('cloud')) return '☁';
     if (normalized.includes('snow')) return '❄';
