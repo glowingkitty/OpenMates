@@ -76,13 +76,9 @@
     return '☀';
   }
 
-  function handleClickCapture(event: MouseEvent): void {
-    if (event.button !== 0 || status !== 'finished') return;
-    onFullscreen();
-  }
 </script>
 
-<div class="weather-day-preview-wrapper" role="presentation" onclickcapture={handleClickCapture}>
+<div class="weather-day-preview-wrapper" role="presentation">
   <UnifiedEmbedPreview
     {id}
     appId="weather"

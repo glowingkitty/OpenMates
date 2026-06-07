@@ -109,3 +109,41 @@ def test_guard_allows_public_edge_compose_ports(monkeypatch) -> None:
     )
 
     assert code_quality_guard.main() == 0
+
+
+def test_guard_runs_embed_structure_audit_for_embed_changes(monkeypatch) -> None:
+    """Parent-child embed structure drift should block embed commits."""
+
+    monkeypatch.setattr(
+        code_quality_guard,
+        "_staged_files",
+        lambda: ["frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte"],
+    )
+    monkeypatch.setattr(code_quality_guard, "_added_lines", lambda: [])
+    monkeypatch.setattr(code_quality_guard, "_staged_file_line_count", lambda _path: 100)
+    monkeypatch.setattr(code_quality_guard, "_is_new_file", lambda _path: False)
+    monkeypatch.setattr(
+        code_quality_guard.audit_embed_structure,
+        "audit_embed_structure",
+        lambda: code_quality_guard.audit_embed_structure.AuditResult(
+            issues=[],
+            warnings=["weather:forecast -> weather_day must use SearchResultsTemplate"],
+        ),
+    )
+
+    assert code_quality_guard.main() == 1
+
+
+def test_guard_skips_embed_structure_audit_for_unrelated_changes(monkeypatch) -> None:
+    """The embed audit should not slow or block unrelated commits."""
+
+    def fail_if_called():
+        raise AssertionError("embed structure audit should not run")
+
+    monkeypatch.setattr(code_quality_guard, "_staged_files", lambda: ["backend/example.py"])
+    monkeypatch.setattr(code_quality_guard, "_added_lines", lambda: [])
+    monkeypatch.setattr(code_quality_guard, "_staged_file_line_count", lambda _path: 100)
+    monkeypatch.setattr(code_quality_guard, "_is_new_file", lambda _path: False)
+    monkeypatch.setattr(code_quality_guard.audit_embed_structure, "audit_embed_structure", fail_if_called)
+
+    assert code_quality_guard.main() == 0

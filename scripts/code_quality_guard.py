@@ -15,12 +15,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+import audit_embed_structure
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_EXTENSIONS = {".py", ".ts", ".tsx", ".svelte", ".js", ".mjs", ".css", ".swift"}
 NEW_FILE_LINE_LIMIT = 800
 TOUCHED_FILE_WARNING_LIMIT = 2500
 PUBLIC_COMPOSE_PORTS = {"80", "443"}
+EMBED_STRUCTURE_PATH_RE = re.compile(
+    r"^(frontend/packages/ui/src/(components/embeds/|data/embedRegistry\.generated\.ts)|scripts/audit_embed_structure\.py)"
+)
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -94,12 +99,25 @@ def _unsafe_compose_port_publish(line: str) -> str | None:
     return None
 
 
+def _should_run_embed_structure_audit(staged_files: list[str]) -> bool:
+    return any(EMBED_STRUCTURE_PATH_RE.search(path) for path in staged_files)
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
     warnings: list[str] = []
 
-    for path in _staged_files():
+    staged_files = _staged_files()
+
+    if _should_run_embed_structure_audit(staged_files):
+        audit_result = audit_embed_structure.audit_embed_structure()
+        for issue in audit_result.issues:
+            blocks.append(f"embed structure: {issue}")
+        for warning in audit_result.warnings:
+            blocks.append(f"embed structure: {warning}")
+
+    for path in staged_files:
         suffix = Path(path).suffix
         if re.search(r"frontend/packages/ui/src/i18n/locales/.*\.json$", path):
             blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")

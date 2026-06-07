@@ -128,7 +128,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(fullscreen.getByTestId('embed-header-title')).toHaveText('Get forecast', { timeout: 15_000 });
 		await expect(fullscreen.getByTestId('embed-header-subtitle')).toHaveText('(Berlin)', { timeout: 15_000 });
 		await expect(fullscreen.locator('[data-app-icon="weather"]').first()).toBeVisible({ timeout: 15_000 });
-		const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
+		const grid = fullscreen.getByTestId('search-template-grid');
 		await expect(grid).toBeVisible({ timeout: 15_000 });
 
 		const dayCards = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]');
@@ -148,7 +148,6 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(firstDay).not.toContainText('Berlin · Deutscher Wetterdienst');
 		expect(await firstDay.evaluate((element: HTMLElement) => element.getAttribute('role'))).toBe('button');
 		await firstDay.click();
-		await expect(grid).toHaveAttribute('data-selected-day-index', '0', { timeout: 15_000 });
 		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-app-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
 	});
@@ -270,13 +269,12 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(weatherParent).toContainText('via Deutscher Wetterdienst', { timeout: 15_000 });
 			await expect(weatherParent.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 15_000 });
 			const fullscreen = await openFullscreen(page, weatherParent);
-			const grid = fullscreen.getByTestId('weather-forecast-fullscreen-grid');
+			const grid = fullscreen.getByTestId('search-template-grid');
 			await expect(grid).toBeVisible({ timeout: 30_000 });
 			const firstDay = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]').first();
 			await expect(firstDay).toBeVisible({ timeout: 30_000 });
 			await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 30_000 });
 			await firstDay.click();
-			await expect(grid).toHaveAttribute('data-selected-day-index', '0', { timeout: 15_000 });
 			await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 			await closeFullscreen(page, fullscreen);
 		} else {
