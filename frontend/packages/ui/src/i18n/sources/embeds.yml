@@ -238,6 +238,463 @@ search_no_results_for_query:
   sv: 'Inga resultat för "{query}"'
   he: 'לא נמצאו תוצאות עבור "{query}"'
   verified_by_human: []
+
+application_title:
+  context: Default title for generated application embeds
+  en: Application
+  de: Anwendung
+  zh: 应用
+  es: Aplicación
+  fr: Application
+  pt: Aplicativo
+  ru: Приложение
+  ja: アプリケーション
+  ko: 애플리케이션
+  it: Applicazione
+  tr: Uygulama
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacja
+  nl: Applicatie
+  ar: تطبيق
+  hi: अनुप्रयोग
+  th: แอปพลิเคชัน
+  cs: Aplikace
+  sv: Applikation
+  he: יישום
+  verified_by_human: []
+application_ready:
+  context: Status text for an application embed that is ready to preview
+  en: Ready to preview
+  de: Bereit zur Vorschau
+  zh: 可预览
+  es: Lista para previsualizar
+  fr: Prête pour l’aperçu
+  pt: Pronto para pré-visualizar
+  ru: Готово к предпросмотру
+  ja: プレビュー準備完了
+  ko: 미리보기 준비됨
+  it: Pronta per l’anteprima
+  tr: Önizlemeye hazır
+  vi: Sẵn sàng xem trước
+  id: Siap dipratinjau
+  pl: Gotowa do podglądu
+  nl: Klaar voor voorbeeld
+  ar: جاهز للمعاينة
+  hi: पूर्वावलोकन के लिए तैयार
+  th: พร้อมแสดงตัวอย่าง
+  cs: Připraveno k náhledu
+  sv: Redo för förhandsvisning
+  he: מוכן לתצוגה מקדימה
+  verified_by_human: []
+application_start_preview:
+  context: Button label to start a generated application live preview
+  en: Start preview
+  de: Vorschau starten
+  zh: 启动预览
+  es: Iniciar vista previa
+  fr: Lancer l’aperçu
+  pt: Iniciar prévia
+  ru: Запустить предпросмотр
+  ja: プレビューを開始
+  ko: 미리보기 시작
+  it: Avvia anteprima
+  tr: Önizlemeyi başlat
+  vi: Bắt đầu xem trước
+  id: Mulai pratinjau
+  pl: Uruchom podgląd
+  nl: Voorbeeld starten
+  ar: بدء المعاينة
+  hi: पूर्वावलोकन शुरू करें
+  th: เริ่มแสดงตัวอย่าง
+  cs: Spustit náhled
+  sv: Starta förhandsvisning
+  he: התחל תצוגה מקדימה
+  verified_by_human: []
+application_stop_preview:
+  context: Button label to stop a generated application live preview
+  en: Stop preview
+  de: Vorschau stoppen
+  zh: 停止预览
+  es: Detener vista previa
+  fr: Arrêter l’aperçu
+  pt: Parar prévia
+  ru: Остановить предпросмотр
+  ja: プレビューを停止
+  ko: 미리보기 중지
+  it: Ferma anteprima
+  tr: Önizlemeyi durdur
+  vi: Dừng xem trước
+  id: Hentikan pratinjau
+  pl: Zatrzymaj podgląd
+  nl: Voorbeeld stoppen
+  ar: إيقاف المعاينة
+  hi: पूर्वावलोकन रोकें
+  th: หยุดแสดงตัวอย่าง
+  cs: Zastavit náhled
+  sv: Stoppa förhandsvisning
+  he: עצור תצוגה מקדימה
+  verified_by_human: []
+application_live_preview:
+  context: Accessible label for the application live preview area
+  en: Live preview
+  de: Live-Vorschau
+  zh: 实时预览
+  es: Vista previa en vivo
+  fr: Aperçu en direct
+  pt: Prévia ao vivo
+  ru: Живой предпросмотр
+  ja: ライブプレビュー
+  ko: 실시간 미리보기
+  it: Anteprima live
+  tr: Canlı önizleme
+  vi: Xem trước trực tiếp
+  id: Pratinjau langsung
+  pl: Podgląd na żywo
+  nl: Live voorbeeld
+  ar: معاينة مباشرة
+  hi: लाइव पूर्वावलोकन
+  th: ตัวอย่างสด
+  cs: Živý náhled
+  sv: Liveförhandsvisning
+  he: תצוגה מקדימה חיה
+  verified_by_human: []
+application_files:
+  context: Label for generated application file list
+  en: Files
+  de: Dateien
+  zh: 文件
+  es: Archivos
+  fr: Fichiers
+  pt: Arquivos
+  ru: Файлы
+  ja: ファイル
+  ko: 파일
+  it: File
+  tr: Dosyalar
+  vi: Tệp
+  id: File
+  pl: Pliki
+  nl: Bestanden
+  ar: الملفات
+  hi: फ़ाइलें
+  th: ไฟล์
+  cs: Soubory
+  sv: Filer
+  he: קבצים
+  verified_by_human: []
+application_preview_not_started:
+  context: Empty state title before application live preview starts
+  en: Preview not started
+  de: Vorschau nicht gestartet
+  zh: 预览未启动
+  es: Vista previa no iniciada
+  fr: Aperçu non lancé
+  pt: Prévia não iniciada
+  ru: Предпросмотр не запущен
+  ja: プレビュー未開始
+  ko: 미리보기가 시작되지 않음
+  it: Anteprima non avviata
+  tr: Önizleme başlatılmadı
+  vi: Chưa bắt đầu xem trước
+  id: Pratinjau belum dimulai
+  pl: Podgląd nieuruchomiony
+  nl: Voorbeeld niet gestart
+  ar: لم تبدأ المعاينة
+  hi: पूर्वावलोकन शुरू नहीं हुआ
+  th: ยังไม่เริ่มแสดงตัวอย่าง
+  cs: Náhled nebyl spuštěn
+  sv: Förhandsvisning ej startad
+  he: התצוגה המקדימה לא הופעלה
+  verified_by_human: []
+application_preview_not_started_description:
+  context: Empty state description before application live preview starts
+  en: Start the preview to run this generated app in an isolated sandbox.
+  de: Starte die Vorschau, um diese generierte App in einer isolierten Sandbox auszuführen.
+  zh: 启动预览，在隔离沙盒中运行此生成的应用。
+  es: Inicia la vista previa para ejecutar esta aplicación generada en un sandbox aislado.
+  fr: Lancez l’aperçu pour exécuter cette application générée dans un bac à sable isolé.
+  pt: Inicie a prévia para executar este app gerado em uma sandbox isolada.
+  ru: Запустите предпросмотр, чтобы выполнить это приложение в изолированной песочнице.
+  ja: プレビューを開始して、この生成アプリを分離サンドボックスで実行します。
+  ko: 미리보기를 시작해 생성된 앱을 격리된 샌드박스에서 실행하세요.
+  it: Avvia l’anteprima per eseguire questa app generata in una sandbox isolata.
+  tr: Bu oluşturulan uygulamayı izole bir sandbox içinde çalıştırmak için önizlemeyi başlatın.
+  vi: Bắt đầu xem trước để chạy ứng dụng được tạo này trong hộp cát cô lập.
+  id: Mulai pratinjau untuk menjalankan aplikasi yang dibuat ini di sandbox terisolasi.
+  pl: Uruchom podgląd, aby wykonać tę wygenerowaną aplikację w izolowanym sandboxie.
+  nl: Start het voorbeeld om deze gegenereerde app in een geïsoleerde sandbox uit te voeren.
+  ar: ابدأ المعاينة لتشغيل هذا التطبيق المُنشأ داخل صندوق رمل معزول.
+  hi: इस जनरेट किए गए ऐप को अलग sandbox में चलाने के लिए पूर्वावलोकन शुरू करें।
+  th: เริ่มตัวอย่างเพื่อเรียกใช้แอปที่สร้างนี้ในแซนด์บ็อกซ์ที่แยกไว้
+  cs: Spusťte náhled a spusťte tuto vygenerovanou aplikaci v izolovaném sandboxu.
+  sv: Starta förhandsvisningen för att köra den genererade appen i en isolerad sandlåda.
+  he: הפעל את התצוגה המקדימה כדי להריץ את היישום שנוצר בארגז חול מבודד.
+  verified_by_human: []
+application_preview_failed:
+  context: Error state for generated application preview startup
+  en: Preview failed
+  de: Vorschau fehlgeschlagen
+  zh: 预览失败
+  es: Error en la vista previa
+  fr: Échec de l’aperçu
+  pt: Falha na prévia
+  ru: Предпросмотр не удался
+  ja: プレビューに失敗しました
+  ko: 미리보기 실패
+  it: Anteprima non riuscita
+  tr: Önizleme başarısız
+  vi: Xem trước thất bại
+  id: Pratinjau gagal
+  pl: Podgląd nie powiódł się
+  nl: Voorbeeld mislukt
+  ar: فشلت المعاينة
+  hi: पूर्वावलोकन विफल
+  th: แสดงตัวอย่างล้มเหลว
+  cs: Náhled selhal
+  sv: Förhandsvisning misslyckades
+  he: התצוגה המקדימה נכשלה
+  verified_by_human: []
+application_preview_stop_failed:
+  context: Error state when stopping generated application preview fails
+  en: Failed to stop preview
+  de: Vorschau konnte nicht gestoppt werden
+  zh: 停止预览失败
+  es: No se pudo detener la vista previa
+  fr: Impossible d’arrêter l’aperçu
+  pt: Falha ao parar a prévia
+  ru: Не удалось остановить предпросмотр
+  ja: プレビューを停止できませんでした
+  ko: 미리보기를 중지하지 못함
+  it: Impossibile fermare l’anteprima
+  tr: Önizleme durdurulamadı
+  vi: Không thể dừng xem trước
+  id: Gagal menghentikan pratinjau
+  pl: Nie udało się zatrzymać podglądu
+  nl: Voorbeeld stoppen mislukt
+  ar: فشل إيقاف المعاينة
+  hi: पूर्वावलोकन रोकने में विफल
+  th: หยุดแสดงตัวอย่างไม่สำเร็จ
+  cs: Náhled se nepodařilo zastavit
+  sv: Det gick inte att stoppa förhandsvisningen
+  he: עצירת התצוגה המקדימה נכשלה
+  verified_by_human: []
+application_preview_stopped:
+  context: Status label after a generated application preview has been stopped
+  en: Preview stopped
+  de: Vorschau gestoppt
+  zh: 预览已停止
+  es: Vista previa detenida
+  fr: Aperçu arrêté
+  pt: Prévia parada
+  ru: Предпросмотр остановлен
+  ja: プレビューを停止しました
+  ko: 미리보기가 중지됨
+  it: Anteprima fermata
+  tr: Önizleme durduruldu
+  vi: Đã dừng xem trước
+  id: Pratinjau dihentikan
+  pl: Podgląd zatrzymany
+  nl: Voorbeeld gestopt
+  ar: توقفت المعاينة
+  hi: पूर्वावलोकन रोक दिया गया
+  th: หยุดแสดงตัวอย่างแล้ว
+  cs: Náhled zastaven
+  sv: Förhandsvisning stoppad
+  he: התצוגה המקדימה נעצרה
+  verified_by_human: []
+application_preview_timeout:
+  context: Status label after a generated application preview session times out
+  en: Preview timed out
+  de: Zeitlimit der Vorschau erreicht
+  zh: 预览已超时
+  es: La vista previa agotó el tiempo
+  fr: L’aperçu a expiré
+  pt: A prévia expirou
+  ru: Время предпросмотра истекло
+  ja: プレビューがタイムアウトしました
+  ko: 미리보기 시간이 초과됨
+  it: Anteprima scaduta
+  tr: Önizleme zaman aşımına uğradı
+  vi: Xem trước đã hết thời gian
+  id: Waktu pratinjau habis
+  pl: Podgląd wygasł
+  nl: Voorbeeld verlopen
+  ar: انتهت مهلة المعاينة
+  hi: पूर्वावलोकन का समय समाप्त हो गया
+  th: แสดงตัวอย่างหมดเวลา
+  cs: Čas náhledu vypršel
+  sv: Förhandsvisningen tog timeout
+  he: פג הזמן הקצוב לתצוגה המקדימה
+  verified_by_human: []
+application_file_singular:
+  context: Singular label for one application file
+  en: file
+  de: Datei
+  zh: 文件
+  es: archivo
+  fr: fichier
+  pt: arquivo
+  ru: файл
+  ja: ファイル
+  ko: 파일
+  it: file
+  tr: dosya
+  vi: tệp
+  id: file
+  pl: plik
+  nl: bestand
+  ar: ملف
+  hi: फ़ाइल
+  th: ไฟล์
+  cs: soubor
+  sv: fil
+  he: קובץ
+  verified_by_human: []
+application_file_plural:
+  context: Plural label for application files
+  en: files
+  de: Dateien
+  zh: 文件
+  es: archivos
+  fr: fichiers
+  pt: arquivos
+  ru: файлов
+  ja: ファイル
+  ko: 파일
+  it: file
+  tr: dosya
+  vi: tệp
+  id: file
+  pl: plików
+  nl: bestanden
+  ar: ملفات
+  hi: फ़ाइलें
+  th: ไฟล์
+  cs: souborů
+  sv: filer
+  he: קבצים
+  verified_by_human: []
+application_file_count:
+  context: Status label with number of application files
+  en: "{count} files"
+  de: "{count} Dateien"
+  zh: "{count} 个文件"
+  es: "{count} archivos"
+  fr: "{count} fichiers"
+  pt: "{count} arquivos"
+  ru: "{count} файлов"
+  ja: "{count} ファイル"
+  ko: "{count}개 파일"
+  it: "{count} file"
+  tr: "{count} dosya"
+  vi: "{count} tệp"
+  id: "{count} file"
+  pl: "{count} plików"
+  nl: "{count} bestanden"
+  ar: "{count} ملفات"
+  hi: "{count} फ़ाइलें"
+  th: "{count} ไฟล์"
+  cs: "{count} souborů"
+  sv: "{count} filer"
+  he: "{count} קבצים"
+  verified_by_human: []
+application_entrypoint_singular:
+  context: Singular label for one application entrypoint
+  en: entrypoint
+  de: Einstiegspunkt
+  zh: 入口点
+  es: punto de entrada
+  fr: point d’entrée
+  pt: ponto de entrada
+  ru: точка входа
+  ja: エントリーポイント
+  ko: 진입점
+  it: punto di ingresso
+  tr: giriş noktası
+  vi: điểm vào
+  id: entrypoint
+  pl: punkt wejścia
+  nl: ingangspunt
+  ar: نقطة دخول
+  hi: प्रवेश बिंदु
+  th: จุดเข้า
+  cs: vstupní bod
+  sv: startpunkt
+  he: נקודת כניסה
+  verified_by_human: []
+application_entrypoint_plural:
+  context: Plural label for application entrypoints
+  en: entrypoints
+  de: Einstiegspunkte
+  zh: 入口点
+  es: puntos de entrada
+  fr: points d’entrée
+  pt: pontos de entrada
+  ru: точки входа
+  ja: エントリーポイント
+  ko: 진입점
+  it: punti di ingresso
+  tr: giriş noktaları
+  vi: điểm vào
+  id: entrypoint
+  pl: punkty wejścia
+  nl: ingangspunten
+  ar: نقاط دخول
+  hi: प्रवेश बिंदु
+  th: จุดเข้า
+  cs: vstupní body
+  sv: startpunkter
+  he: נקודות כניסה
+  verified_by_human: []
+application_open_preview_window:
+  context: Button label to open a generated application preview in a separate browser window
+  en: Open in new window
+  de: In neuem Fenster öffnen
+  zh: 在新窗口中打开
+  es: Abrir en una ventana nueva
+  fr: Ouvrir dans une nouvelle fenêtre
+  pt: Abrir em nova janela
+  ru: Открыть в новом окне
+  ja: 新しいウィンドウで開く
+  ko: 새 창에서 열기
+  it: Apri in una nuova finestra
+  tr: Yeni pencerede aç
+  vi: Mở trong cửa sổ mới
+  id: Buka di jendela baru
+  pl: Otwórz w nowym oknie
+  nl: Openen in nieuw venster
+  ar: فتح في نافذة جديدة
+  hi: नई विंडो में खोलें
+  th: เปิดในหน้าต่างใหม่
+  cs: Otevřít v novém okně
+  sv: Öppna i nytt fönster
+  he: פתח בחלון חדש
+  verified_by_human: []
+application_logs:
+  context: Heading for generated application preview session logs
+  en: Logs
+  de: Protokolle
+  zh: 日志
+  es: Registros
+  fr: Journaux
+  pt: Logs
+  ru: Журналы
+  ja: ログ
+  ko: 로그
+  it: Log
+  tr: Günlükler
+  vi: Nhật ký
+  id: Log
+  pl: Logi
+  nl: Logboeken
+  ar: السجلات
+  hi: लॉग
+  th: บันทึก
+  cs: Protokoly
+  sv: Loggar
+  he: יומנים
+  verified_by_human: []
 open_search_results:
   context: Button label to open search results in fullscreen
   en: Open search results

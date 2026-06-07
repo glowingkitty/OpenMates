@@ -1714,7 +1714,7 @@
                             data-testid="share-short-link-copy"
                             onclick={copyShortLinkToClipboard}
                         >
-                            <span class="short-link-url">{shortLinkUrl}</span>
+                            <span class="short-link-url" data-testid="share-short-link-url">{shortLinkUrl}</span>
                             <span class="short-link-copy-label">
                                 {isShortLinkCopied ? $text('settings.share.link_copied') : $text('settings.share.click_to_copy')}
                             </span>

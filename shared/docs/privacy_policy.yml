@@ -404,8 +404,9 @@ provider_groups:
   code_execution:
     description: >
       These providers are only used when you invoke a code app skill, such as
-      searching public repositories or running code in an isolated sandbox. If
-      you never use the code app, none of your data is shared with them.
+      searching public repositories, running code in an isolated sandbox, or
+      explicitly starting a generated application live preview. If you never use
+      the code app, none of your data is shared with them.
     providers:
       github:
         privacy_policy: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
@@ -429,10 +430,12 @@ provider_groups:
         legal_entity: FOUNDRYLABS, INC.
         used_for:
           - isolated sandbox execution for generated code embeds
+          - isolated live preview sessions for generated application embeds
         data_shared:
           - Code selected for execution
-          - Runtime inputs and execution output needed to run and display the sandbox result
-          - Note: Shared only when you explicitly run code
+          - Generated application files and assets selected for preview
+          - Runtime inputs, preview logs, and execution output needed to run and display the sandbox result
+          - Note: Shared only when you explicitly run code or start an application live preview
 
   # =====================================================================
   # Group F — Web, search, and content retrieval. Only used when you

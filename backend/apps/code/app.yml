@@ -306,6 +306,38 @@ embed_types:
       - name: line_count
         type: number
         required: true
+  # Generated application project — parent embed that references child code-code files.
+  - id: application
+    category: direct
+    frontend_type: code-application
+    backend_type: application
+    has_children: true
+    child_type: code
+    child_frontend_type: code-code
+    groupable: false
+    preview_component: code/ApplicationEmbedPreview.svelte
+    fullscreen_component: code/ApplicationEmbedFullscreen.svelte
+    icon: coding
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.application
+    content_fields:
+      - name: name
+        type: string
+        required: true
+      - name: framework
+        type: string
+      - name: runtime
+        type: string
+      - name: file_refs
+        type: array
+        required: true
+      - name: asset_refs
+        type: array
+      - name: entrypoints
+        type: array
+        required: true
+      - name: latest_screenshot_ref
+        type: string
 skills:
   - id: search_repos
     name_translation_key: code.search_repos

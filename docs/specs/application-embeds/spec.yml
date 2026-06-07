@@ -1,0 +1,931 @@
+id: application-embeds
+title: Application Embeds And Cross-Platform Live Previews
+status: implementing
+
+goal: >
+  Let users generate, inspect, iterate on, and run multi-file web applications
+  inside OpenMates while keeping untrusted application code isolated from the
+  OpenMates app origin, billing preview runtime to the viewer who starts it,
+  and supporting desktop web, Safari iOS/iPadOS, and Apple native clients in v1.
+
+scope:
+  in:
+    - Add a new Code app top-level application embed that owns a project manifest and references child source/asset embeds.
+    - Use existing code-code embeds as child source files and existing image/file embeds as optional application assets.
+    - Add E2B-backed live preview sessions as the v1 cross-platform runtime for generated React, Svelte, static JavaScript, and fullstack applications.
+    - Route all live previews through an OpenMates preview gateway on an env-configured user-content origin.
+    - Require a separate preview origin such as https://openmatesusercontent.org for OpenMates Cloud and an operator-provided equivalent for self-hosting.
+    - Bill preview runtime credits to the authenticated viewer who starts or resumes a preview session, including shared-chat recipients.
+    - Keep application source, manifests, and assets encrypted as normal embeds at rest.
+    - Support opening live previews in embedded fullscreen and in a separate browser window or Apple WKWebView.
+    - Add Apple client application preview support in v1 by rendering authorized preview gateway URLs inside WKWebView with the same isolation, billing, and session lifecycle as web.
+    - Store and render a lightweight screenshot thumbnail for the latest successful application preview state.
+    - Show the screenshot thumbnail in the application embed preview and fullscreen with a play button overlay that starts the E2B preview session.
+    - Support iterative corrections by patching child code-code embeds with existing diff-based editing and syncing successful file changes into the active E2B sandbox.
+    - Support ephemeral sample data and SQLite-backed previews inside E2B for v1 database demos.
+    - Add privacy policy and provider documentation updates for the expanded E2B application preview use case.
+  out:
+    - WebContainers as a v1 runtime. They may be evaluated later as an optional desktop-web optimization.
+    - Normal Vercel preview deployments or public deployments of generated applications.
+    - Persisting live preview database state in E2B after the preview session ends.
+    - Running untrusted generated JavaScript on app.openmates.org or any OpenMates auth-bearing origin.
+    - Sharing OpenMates auth cookies, API tokens, user vault keys, or provider API keys with generated applications.
+    - Full rendered DOM snapshot storage for every preview state in v1.
+    - Real production databases, payment providers, email providers, or third-party API secrets inside generated apps.
+
+context_discovery:
+  github_issues:
+    - "No matching public issue found via gh fallback search: application embed preview E2B generated apps."
+  docs:
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/embed-diff-editing.md
+    - docs/architecture/frontend/mobile-app-code-preview.md
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - backend/core/api/app/routes/code_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/apps/code/app.yml
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+  tests:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/apps/web_app/tests/skill-code-docs.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+
+clarification:
+  rounds:
+    - question: What exact user-content domain should the preview gateway use for OpenMates Cloud, and how should self-hosted instances configure it?
+      answer: >
+        The domain must be configured through environment variables so self-hosted
+        editions can use the feature properly. OpenMates Cloud uses
+        https://openmatesusercontent.org.
+    - question: Should shared-chat recipients be able to run application previews, and who pays for those sessions?
+      answer: >
+        Shared-chat recipients should be able to run the application, but the
+        authenticated viewer who starts the preview is billed. The application
+        creator is never billed for another user opening or running their
+        shared application. Each viewer starts a separate E2B sandbox session;
+        shared recipients never attach to the creator's running sandbox.
+    - question: Should the rendered DOM be cached as part of the application, similar to Code Run output sidecars?
+      answer: >
+        Full DOM caching is deferred from v1 because it risks storage growth,
+        private data capture, stale state, and complex replay semantics. A
+        lightweight screenshot thumbnail is in scope for v1 and should be shown
+        in the application preview and fullscreen with a play button overlay.
+        The durable source of truth remains the application manifest plus child
+        embeds, not the rendered DOM.
+    - question: Should Apple client support be deferred or included in the first implementation?
+      answer: >
+        Apple client support is part of v1. The Apple app should not execute
+        generated application code locally; it should load the authorized
+        preview gateway URL in WKWebView, with the same separate E2B sandbox per
+        viewer and the same preview-origin isolation contract as the web app.
+    - question: Should application preview pricing reuse existing Code Run pricing?
+      answer: >
+        Yes. Application previews reuse the existing Code Run price of 5 credits
+        per started minute of E2B runtime unless implementation discovery shows
+        that a separate SKU is required.
+    - question: How should preview gateway traffic be authorized on the separate user-content origin?
+      answer: >
+        Use a short-lived signed path token in the preview URL, for example
+        /p/<session_id>/<token>/. The token is scoped to one preview session,
+        stored server-side only as a hash, expires with the 5-minute idle timeout
+        or 30-minute hard cap, and is revoked on Stop. It authorizes only
+        sandbox proxy traffic on the preview gateway; normal start/status/stop
+        APIs still require OpenMates authentication.
+  vision_summary: >
+    Application embeds are project containers. They reference encrypted child
+    code and asset embeds, and a viewer can explicitly start an E2B preview
+    session routed through a separate user-content origin. The preview runtime
+    is cross-platform because browsers and Apple clients only load a URL; code
+    executes in E2B, not in the OpenMates app origin or native app process.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Generate a multi-file frontend application
+    given:
+      - Alice is authenticated in a normal chat.
+      - Alice asks OpenMates to create a Svelte recipe manager UI with sample recipes.
+    when:
+      - The assistant generates the application.
+    then:
+      - The assistant message shows one application embed, not a loose stack of unrelated code embeds.
+      - The application embed has child code-code embeds for package.json, src/App.svelte, src/main.ts, and CSS files.
+      - The application embed manifest lists file paths, child embed IDs, framework, runtime, and preview support.
+      - The application embed preview shows either the latest screenshot thumbnail or an empty preview placeholder with a play button overlay.
+      - No live E2B sandbox starts until Alice explicitly starts the preview.
+
+  - id: S-2
+    title: Start a cross-platform live preview
+    given:
+      - Alice has an application embed with E2B preview support.
+      - APPLICATION_PREVIEW_ORIGIN is configured as https://openmatesusercontent.org.
+    when:
+      - Alice clicks the play button overlay on the screenshot thumbnail in application preview or fullscreen.
+    then:
+      - OpenMates shows a credit estimate before or during preview startup.
+      - The backend creates an E2B sandbox and writes the selected application files and assets into it.
+      - The backend starts the configured frontend or fullstack development server.
+      - The fullscreen iframe loads a URL under the configured preview origin.
+      - Alice can open the same preview in a new browser window.
+      - The preview URL contains a short-lived signed path token scoped to Alice's preview session.
+      - The raw E2B URL and traffic access token are not exposed to the client.
+
+  - id: S-3
+    title: Run a fullstack FastAPI application with sample data
+    given:
+      - Alice asks for a React dashboard with a FastAPI backend and customers database.
+    when:
+      - Alice starts the application preview.
+    then:
+      - E2B runs the frontend server and FastAPI server inside the same preview session.
+      - The preview gateway routes frontend traffic and /api/* traffic to the correct sandbox ports.
+      - The backend uses generated sample data or ephemeral SQLite data only.
+      - No production database credentials or OpenMates user data are injected into the sandbox.
+
+  - id: S-4
+    title: Iterate on an active application preview
+    given:
+      - Alice has an active preview for a generated application.
+      - The application includes a child code-code embed for src/App.tsx.
+    when:
+      - Alice asks the assistant to make the cards draggable.
+    then:
+      - The assistant emits diffs or replacement files against the child code embeds.
+      - Successful diffs update the encrypted child embeds and application version metadata.
+      - If the preview session is still active, OpenMates writes the changed files into E2B.
+      - The running dev server hot reloads or restarts without creating a new application embed.
+      - After the preview stabilizes, OpenMates can refresh the screenshot thumbnail for the latest successful preview state.
+
+  - id: S-5
+    title: Shared recipient runs a preview and pays for runtime
+    given:
+      - Alice shares a chat containing an application embed with Bob.
+      - Bob is authenticated and has sufficient credits.
+    when:
+      - Bob opens the shared chat and clicks Start preview.
+    then:
+      - Bob can run the application preview from the shared application source.
+      - Bob starts a separate E2B sandbox for his preview session.
+      - Bob is billed for the E2B preview runtime he starts at the application preview credit rate.
+      - Alice is not billed for Bob's preview session.
+      - Bob cannot access any runtime state, uploaded files, local database state, logs, or secrets from Alice's active or previous preview sessions.
+      - Bob cannot modify Alice's original application embeds unless normal shared-chat editing permissions allow it.
+
+  - id: S-9
+    title: Apple client opens an application preview
+    given:
+      - Alice is signed in to the OpenMates Apple app on iPadOS or macOS.
+      - Alice opens a chat containing an application embed.
+    when:
+      - Alice taps the play button overlay on the application screenshot thumbnail.
+    then:
+      - The Apple app starts or resumes Alice's own E2B preview session through the authenticated API.
+      - The Apple app displays the configured preview gateway URL in WKWebView.
+      - Generated application code runs in E2B, not inside the Apple app process.
+      - The Apple app uses the same stop, idle timeout, billing, and separate-session rules as web.
+
+  - id: S-6
+    title: Preview origin is missing or unsafe
+    given:
+      - A self-hosted operator has not configured APPLICATION_PREVIEW_ORIGIN, or configured an origin that shares the app auth domain.
+    when:
+      - A user opens an application embed.
+    then:
+      - The application source remains visible.
+      - Live preview controls are disabled with an actionable setup message.
+      - No E2B sandbox is started.
+      - Server startup or health checks warn that application live previews are disabled or unsafe.
+
+  - id: S-7
+    title: Untrusted application JavaScript cannot access OpenMates state
+    given:
+      - A malicious generated application attempts to read cookies, localStorage, parent DOM, IndexedDB, camera, microphone, clipboard, or geolocation.
+    when:
+      - The application runs in the preview iframe or a new window.
+    then:
+      - The preview runs on the configured user-content origin, not the OpenMates app origin.
+      - OpenMates auth cookies are not sent to the preview origin.
+      - iframe sandbox and permissions policy block parent access and sensitive browser permissions by default.
+      - The generated application cannot read OpenMates chat plaintext, vault keys, auth tokens, or app IndexedDB.
+
+  - id: S-8
+    title: Stop idle or long-running preview sessions
+    given:
+      - Alice has an active application preview session.
+    when:
+      - Alice clicks Stop, closes the fullscreen long enough for the grace period, the preview heartbeat is idle for 5 minutes, or the preview reaches the 30-minute hard duration limit.
+    then:
+      - OpenMates stops or kills the E2B sandbox within configured limits.
+      - Billing stops when the sandbox is stopped or killed.
+      - Preview logs and a compact status summary remain available for the application session.
+      - The latest successful preview screenshot remains visible on the application embed.
+      - Ephemeral database state is not treated as durable application storage.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The Code app can create and render an application embed that references child code-code and asset embeds by path.
+  - id: AC-2
+    scenario: S-2
+    text: Live preview startup is explicit and never starts an E2B sandbox automatically when an application embed is merely rendered.
+  - id: AC-3
+    scenario: S-2
+    text: Live previews load only through APPLICATION_PREVIEW_ORIGIN using a short-lived signed path token and never expose raw E2B URLs or traffic access tokens to clients.
+  - id: AC-4
+    scenario: S-3
+    text: E2B preview sessions can run frontend-only and fullstack applications, including a FastAPI backend with generated sample or ephemeral SQLite data.
+  - id: AC-5
+    scenario: S-4
+    text: Follow-up edits patch child source embeds and sync changed files into the active E2B preview session when present.
+  - id: AC-6
+    scenario: S-5
+    text: The authenticated viewer who starts a preview session is billed for E2B runtime, including shared-chat recipients, and the application creator is not billed for other viewers' sessions.
+  - id: AC-7
+    scenario: S-6
+    text: Missing or unsafe preview-origin configuration disables live previews with an actionable setup message and prevents sandbox creation.
+  - id: AC-8
+    scenario: S-7
+    text: Untrusted application JavaScript runs on a separate user-content origin with iframe sandboxing and no access to OpenMates cookies, storage, parent DOM, vault keys, or browser permissions by default.
+  - id: AC-9
+    scenario: S-8
+    text: Preview sessions have visible stop controls, a 5-minute idle timeout, a 30-minute hard duration limit, and persistent compact logs/status after stop.
+  - id: AC-10
+    scenario: S-8
+    text: Full rendered DOM snapshots are not stored in v1; durable state is the encrypted application manifest, child embeds, preview logs, and lightweight screenshot thumbnail only.
+  - id: AC-11
+    scenario: S-2
+    text: Application previews can be opened both embedded in fullscreen and in a separate window using the same authorized preview session.
+  - id: AC-12
+    scenario: S-1
+    text: Privacy policy and provider disclosures explain that E2B receives generated application files and runtime inputs only when a viewer explicitly starts a live preview.
+  - id: AC-13
+    scenario: S-1
+    text: Application embed preview and fullscreen show a screenshot thumbnail or placeholder with a play button overlay that starts the E2B live preview only on click.
+  - id: AC-14
+    scenario: S-8
+    text: The latest successful preview screenshot is stored as a lightweight encrypted thumbnail and remains available after the E2B session stops.
+  - id: AC-15
+    scenario: S-9
+    text: Apple clients can start and view application previews through WKWebView without executing generated code inside the native app process.
+  - id: AC-16
+    scenario: S-5
+    text: Every viewer starts an isolated E2B preview sandbox; shared recipients never reuse or attach to the creator's sandbox runtime state.
+  - id: AC-17
+    scenario: S-2
+    text: Application previews use the existing Code Run price of 5 credits per started minute unless a later pricing migration changes the configured rate.
+
+contracts:
+  api:
+    - route: POST /v1/applications/{application_embed_id}/preview/start
+      request: "{ chat_id: string, shared_context?: string, requested_runtime?: string }"
+      response: "{ session_id: string, preview_url: string, status: queued|starting|running, credits_per_minute: number }"
+      errors:
+        - 401 when unauthenticated.
+        - 402 when the viewer lacks enough credits to start the preview.
+        - 403 when the viewer cannot access the application embed.
+        - 409 when APPLICATION_PREVIEW_ORIGIN is missing or unsafe.
+        - 429 when viewer or provider preview concurrency limits are exceeded.
+    - route: POST /v1/applications/preview/{session_id}/stop
+      request: "{}"
+      response: "{ session_id: string, status: stopped|stopping, charged_credits?: number }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the viewer does not own the preview session.
+    - route: GET /v1/applications/preview/{session_id}
+      request: none
+      response: "{ session_id: string, status: queued|starting|running|stopped|failed, logs: compact event list, preview_url?: string }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the viewer does not own the preview session.
+    - route: ALL https://<APPLICATION_PREVIEW_ORIGIN>/p/{session_id}/{path...}
+      request: browser or WKWebView preview traffic under /p/{session_id}/{preview_token}/{path...}.
+      response: proxied application response from the correct E2B sandbox port.
+      errors:
+        - 403 when the signed preview session is invalid, expired, or belongs to another viewer.
+        - 404 when the preview session or route does not exist.
+        - 502 when the E2B sandbox is unavailable.
+  data:
+    - Application embed content includes type=application, name, framework, runtime, entrypoints, file_refs, asset_refs, database mode, version_number, preview_capabilities, and latest_screenshot_ref when available.
+    - file_refs map logical file paths to child code-code embed IDs and include role metadata such as source, config, dependency_manifest, backend, seed, or asset.
+    - asset_refs map logical asset paths to child image/file embed IDs.
+    - Preview sessions are ephemeral server-side records keyed by session_id and viewer user hash, with application_embed_id, chat_id hash, sandbox_id, E2B exposed ports, status, created_at, updated_at, idle deadline, hard deadline, and billing state.
+    - A preview session belongs to exactly one authenticated viewer. Shared recipients get their own session_id, sandbox_id, logs, ephemeral filesystem, and ephemeral database state.
+    - Preview gateway tokens are generated per session and stored only as hashes, never in plaintext session records or logs.
+    - The default idle deadline is 5 minutes after the last authenticated viewer heartbeat or foreground preview activity.
+    - The default hard deadline is 30 minutes after sandbox startup, after which the viewer must explicitly restart a new billed preview session.
+    - Preview logs are compact text events capped by size and retained short-term like Code Run outputs.
+    - latest_screenshot_ref points to a lightweight encrypted image/file embed or sidecar generated from the latest successful preview state.
+    - Full rendered DOM snapshots are not stored in v1.
+  ui_states:
+    - Application preview card shows app name, framework/runtime, file count, asset count, preview status, and screenshot thumbnail or placeholder.
+    - Application fullscreen has Preview, Files, Logs, Data, and Settings/Info areas where appropriate.
+    - Screenshot thumbnails show a play button overlay when no live preview is running; clicking the overlay starts the preview session.
+    - Start preview, Stop preview, Restart preview, Open in new window, and Copy preview URL actions are visible according to session state and permissions.
+    - Missing preview-origin setup shows an actionable self-host/cloud configuration message.
+    - Preview startup shows queued, installing dependencies, starting server, running, failed, stopping, and stopped states.
+    - Timed-out preview states distinguish idle timeout from hard duration limit and let the viewer start a new billed session when credits allow.
+  privacy_security:
+    - APPLICATION_PREVIEW_ORIGIN must be a separate origin that does not receive OpenMates app auth cookies.
+    - Cloud uses https://openmatesusercontent.org; self-host operators must configure their own equivalent origin.
+    - Live preview controls must be disabled if the configured origin is absent, invalid, or matches the app/API auth origin.
+    - Generated application code must never run on app.openmates.org or any OpenMates origin that holds auth, localStorage, IndexedDB, or service workers.
+    - Preview iframes use sandboxing, no-referrer, and a restrictive allow/permissions policy by default.
+    - E2B traffic access tokens, raw sandbox URLs, and provider credentials are server-only.
+    - Preview gateway path tokens are scoped to one session, expire with the session idle/hard deadline, are revoked on stop, and authorize only sandbox proxy traffic.
+    - Logs and debug output must redact preview gateway tokens from /p/{session_id}/{preview_token}/ URLs.
+    - Generated apps receive no OpenMates user secrets, provider API keys, vault keys, production DB credentials, or plaintext chat content beyond the selected generated files/assets needed to run the preview.
+    - E2B provider disclosure must state that generated application files, runtime inputs, and execution logs are sent to E2B only when the viewer explicitly starts a preview.
+  billing:
+    - Preview billing is charged to the authenticated viewer who starts the preview session.
+    - Shared-chat recipients are billed for their own preview sessions and never charge the application creator.
+    - Application previews reuse the existing Code Run pricing of 5 credits per started minute of E2B runtime.
+    - Preview sessions require enough credits for at least the minimum billable interval before sandbox creation.
+    - Billing begins no earlier than sandbox file upload/startup and stops when the sandbox is stopped, killed, failed, timed out, or cancelled.
+    - The UI displays current or estimated credits per minute before or during preview startup.
+  runtime:
+    - v1 primary runtime is E2B for cross-platform support across desktop web, Safari iOS/iPadOS, and Apple native clients.
+    - Apple clients render authorized preview gateway URLs in WKWebView and do not execute generated application code locally.
+    - static previews may remain available for simple HTML/CSS without E2B when JavaScript execution is not required.
+    - WebContainers are out of scope for v1 and may be revisited as a desktop-web cost optimization only.
+
+tests:
+  - id: T-PYTEST-APP-PREVIEW-001
+    type: pytest
+    file: backend/tests/test_application_preview_config.py
+    command: python3 -m pytest backend/tests/test_application_preview_config.py
+    covers:
+      - AC-7
+      - AC-9
+      - AC-16
+      - AC-17
+    assertions:
+      - missing preview origin prevents sandbox creation
+      - preview origin matching app or API origin is rejected
+      - preview start stores a queued viewer-owned session with a user-content preview URL and TTL
+      - preview start dispatches the worker payload only after the queued session record exists
+      - preview sessions are scoped to the authenticated viewer
+      - preview status and stop helpers hide sessions from other viewers
+      - shared recipients receive a distinct sandbox/session from the creator
+      - preview billing uses the configured 5 credits per started minute rate
+      - stop, 5-minute idle timeout, and 30-minute hard timeout paths release sandbox and billing state
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_config.py"
+        timestamp: "2026-06-07T19:44:06Z"
+        notes: "Failed during collection with ModuleNotFoundError before backend/core/api/app/routes/application_preview.py existed."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_config.py"
+        timestamp: "2026-06-07T23:09:44Z"
+        notes: "23 config tests passed for preview-origin validation, manifest payload extraction, queued session creation, route-level worker dispatch, owner-scoped status/stop access, E2B sandbox stop-task dispatch, timeout constants, and 5 credits/minute billing."
+
+  - id: T-PYTEST-APP-MANIFEST-PAYLOAD-001
+    type: pytest
+    file: backend/tests/test_application_preview_config.py
+    command: python3 -m pytest backend/tests/test_application_preview_config.py
+    covers:
+      - AC-1
+      - AC-4
+      - AC-8
+    assertions:
+      - application manifest file_refs resolve to child code embeds with logical paths and roles
+      - preview entrypoints are copied into the worker payload
+      - missing children, non-application parent embeds, and secret-like child content are rejected before worker dispatch
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_config.py"
+        timestamp: "2026-06-07T20:59:54Z"
+        notes: "Failed during collection before build_application_preview_worker_payload existed."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_config.py"
+        timestamp: "2026-06-07T20:59:54Z"
+        notes: "14 config tests passed including 4 manifest-to-worker-payload extraction tests."
+
+  - id: T-PYTEST-APP-GATEWAY-TOKEN-001
+    type: pytest
+    file: backend/tests/test_application_preview_gateway.py
+    command: python3 -m pytest backend/tests/test_application_preview_gateway.py
+    covers:
+      - AC-3
+      - AC-8
+    assertions:
+      - preview gateway validates session access before proxying
+      - preview gateway accepts only the hashed short-lived path token for the matching session
+      - preview gateway rejects stopped, expired, missing, and wrong-token sessions
+      - preview gateway token redaction removes path secrets from logs and debug output
+      - raw E2B URLs and traffic tokens are never returned in client payloads
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway.py"
+        timestamp: "2026-06-07T20:19:47Z"
+        notes: "Failed during collection with ModuleNotFoundError before backend/core/api/app/routes/application_preview_gateway.py existed."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway.py"
+        timestamp: "2026-06-07T20:19:47Z"
+        notes: "4 tests passed for hashed path token URLs, gateway session/token validation, stopped/expired rejection, and token redaction."
+
+  - id: T-PYTEST-APP-GATEWAY-SKELETON-001
+    type: pytest
+    file: backend/tests/test_application_preview_gateway_proxy.py
+    command: python3 -m pytest backend/tests/test_application_preview_gateway_proxy.py
+    covers:
+      - AC-3
+      - AC-8
+    assertions:
+      - gateway skeleton validates the signed path token before returning any response
+      - gateway skeleton returns a deterministic sandbox_starting response until an upstream sandbox port is ready
+      - gateway response headers include no-referrer, noindex, and restrictive permissions policy
+      - gateway skeleton response never includes the plaintext path token
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway_proxy.py"
+        timestamp: "2026-06-07T20:34:35Z"
+        notes: "Failed during collection before build_preview_gateway_response and preview_gateway_security_headers existed."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway_proxy.py"
+        timestamp: "2026-06-07T20:47:17Z"
+        notes: "4 tests passed for token-gated sandbox_starting response, restrictive gateway headers, and upstream forwarding helper coverage."
+
+  - id: T-PYTEST-APP-GATEWAY-PROXY-001
+    type: pytest
+    file: backend/tests/test_application_preview_gateway_proxy.py
+    command: python3 -m pytest backend/tests/test_application_preview_gateway_proxy.py
+    covers:
+      - AC-4
+      - AC-11
+    assertions:
+      - frontend and /api/* routes proxy to configured sandbox ports
+      - Open in new window uses the same authorized preview session and path token
+      - upstream responses preserve safe content headers without leaking raw E2B URLs or traffic tokens
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway_proxy.py"
+        timestamp: "2026-06-07T20:47:17Z"
+        notes: "Failed during collection before GatewayUpstreamResponse and upstream forwarding helpers existed."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway_proxy.py"
+        timestamp: "2026-06-07T23:06:51Z"
+        notes: "5 tests passed including frontend/static forwarding, /api/* routing to the backend upstream, query/body preservation, and unsafe upstream/request header filtering."
+
+  - id: T-PYTEST-E2B-APP-PREVIEW-PLAN-001
+    type: pytest
+    file: backend/tests/test_e2b_application_preview.py
+    command: python3 -m pytest backend/tests/test_e2b_application_preview.py
+    covers:
+      - AC-4
+      - AC-8
+    assertions:
+      - application preview provider planning normalizes safe generated file paths
+      - package.json and requirements.txt produce deterministic dependency install commands
+      - frontend and FastAPI entrypoints bind to externally reachable sandbox hosts and ports
+      - unsafe paths, invalid ports, missing entrypoints, and secret-like file contents are rejected before sandbox upload
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_e2b_application_preview.py"
+        timestamp: "2026-06-07T20:37:06Z"
+        notes: "Failed during collection before backend/shared/providers/e2b_application_preview.py existed."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_e2b_application_preview.py"
+        timestamp: "2026-06-07T20:37:06Z"
+        notes: "8 tests passed for deterministic E2B application-preview file, dependency, and entrypoint planning."
+
+  - id: T-PYTEST-APP-WORKER-LIFECYCLE-001
+    type: pytest
+    file: backend/tests/test_run_application_preview_task.py
+    command: python3 -m pytest backend/tests/test_run_application_preview_task.py
+    covers:
+      - AC-4
+      - AC-9
+      - AC-13
+    assertions:
+      - application preview worker updates queued sessions to running with sandbox id, upstream URL, ports, and billable start time
+      - worker appends compact status events for starting and running states
+      - provider/planning failures mark the session failed without leaking preview tokens or secret-like file content
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 -m pytest backend/tests/test_run_application_preview_task.py"
+        timestamp: "2026-06-07T20:45:07Z"
+        notes: "Failed before ApplicationPreviewRuntime and run_application_preview_task.py existed; initial harness also exposed the package-level Celery import dependency."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 -m pytest backend/tests/test_run_application_preview_task.py"
+        timestamp: "2026-06-07T23:09:44Z"
+        notes: "3 tests passed for fake-provider running lifecycle, planning failure redaction, and queued E2B sandbox cleanup recording."
+
+  - id: T-UNIT-APP-EMBED-001
+    type: unit
+    file: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-1
+      - AC-2
+      - AC-7
+      - AC-10
+      - AC-12
+      - AC-13
+      - AC-14
+    assertions:
+      - application embed renders project metadata and child file counts
+      - application embed renders a screenshot thumbnail or placeholder with a play button overlay
+      - rendering an application embed does not call preview start APIs
+      - clicking the play overlay is the path that calls preview start APIs
+      - missing preview origin disables live preview controls
+      - application content model omits rendered DOM snapshots
+      - provider disclosure text keys exist for E2B application previews
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-APP-PREVIEW-001
+    type: playwright
+    file: frontend/apps/web_app/tests/application-preview.spec.ts
+    command: python3 scripts/run_tests.py --spec application-preview.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-9
+      - AC-11
+      - AC-13
+      - AC-14
+    assertions:
+      - a generated application appears as one application embed with child files
+      - the application embed shows a screenshot thumbnail or preview placeholder with a play overlay
+      - Start preview launches an E2B-backed preview only after user action
+      - preview iframe URL uses the configured user-content origin
+      - React/Svelte frontend preview loads successfully
+      - latest screenshot thumbnail remains visible after stopping the preview
+      - a follow-up file edit updates the running preview
+      - Stop preview ends the session and leaves compact logs/status
+      - Open in new window opens the same authorized preview session
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-APP-SHARE-001
+    type: playwright
+    file: frontend/apps/web_app/tests/application-preview-share.spec.ts
+    command: python3 scripts/run_tests.py --spec application-preview-share.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+      - AC-8
+      - AC-16
+    assertions:
+      - shared recipient can start a preview from a shared application embed
+      - billing/debug output attributes the preview session to the recipient
+      - creator is not charged for recipient preview runtime
+      - shared recipient preview session has a distinct session identifier from the creator's session
+      - shared recipient cannot mutate creator source embeds through preview startup
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-LINT-APP-EMBED-001
+    type: lint
+    file: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    command: python3 scripts/lint_changed.sh
+    covers:
+      - AC-1
+      - AC-5
+      - AC-8
+      - AC-12
+      - AC-13
+      - AC-14
+    assertions:
+      - changed frontend/backend files pass lint and code quality checks
+      - no generated locale JSON is edited directly
+      - no provider secrets or real domains beyond documented placeholders are committed
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-STATIC-APPLE-APP-PREVIEW-001
+    type: lint
+    file: apple/OpenMates/Sources/Features/Embeds/ApplicationPreviewView.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' build
+    covers:
+      - AC-15
+    assertions:
+      - Apple application preview renders authorized preview gateway URLs in WKWebView.
+      - Apple application preview starts sessions through the authenticated API instead of executing generated code locally.
+      - Apple application preview exposes stop and session status controls consistent with web preview state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Existing code-code embeds already render and fullscreen source files using UnifiedEmbedPreview and UnifiedEmbedFullscreen.
+    - Code Run already starts E2B sandboxes from selected encrypted code embeds with credit checks, limits, cancellation, logs, and privacy policy coverage.
+    - Embed Diff-Based Editing already patches child code embeds with unified diffs and version history.
+    - The generated embed registry already maps app.yml embed_types to preview/fullscreen components.
+    - Share links already provide embed keys to recipients without exposing keys to the server.
+  architecture: >
+    Add application as a direct Code app embed type and treat it as a project
+    manifest that references child source and asset embeds. Add an E2B application
+    preview service separate from Code Run terminal execution. Preview sessions
+    are viewer-scoped, billed to the starter, exposed only through a user-content
+    preview gateway, and stopped by explicit controls, idle heartbeat, and hard
+    duration limits.
+  data_flow:
+    - Assistant creates child code-code embeds for application files and a parent application embed manifest referencing those children by path.
+    - User opens application fullscreen and clicks Start preview.
+    - Frontend calls the application preview start API with chat ID and application embed ID.
+    - Backend checks auth, embed access, preview-origin config, credits, and concurrency limits.
+    - Worker resolves/decrypts required child embeds using existing embed access patterns and writes files/assets into a new E2B sandbox.
+    - Worker installs dependencies from allowlisted manifests, starts frontend/backend commands, records exposed ports, and returns a preview gateway URL.
+    - Browser iframe or Apple WKWebView loads the preview gateway URL on APPLICATION_PREVIEW_ORIGIN.
+    - Preview gateway validates session and proxies HTTP/WebSocket traffic to the correct E2B port while injecting provider access server-side.
+    - Follow-up diffs update child embeds and active sandbox files; the dev server hot reloads or restarts.
+    - Stop/idle/hard-timeout kills or stops the sandbox, finalizes billing, and leaves compact logs/status.
+  affected_files:
+    - path: backend/apps/code/app.yml
+      reason: Register application embed type and preview metadata under the Code app.
+    - path: backend/shared/python_schemas/embed_schemas.py
+      reason: Add application embed content schema and preview session schema if central schema coverage exists there.
+    - path: backend/core/api/app/routes/application_preview.py
+      reason: Add authenticated preview start/stop/status API routes.
+    - path: backend/core/api/app/routes/application_preview_gateway.py
+      reason: Add preview-origin gateway/proxy routes for HTTP and WebSocket traffic.
+    - path: backend/apps/code/tasks/run_application_preview_task.py
+      reason: Start and monitor E2B application preview sandboxes.
+    - path: backend/shared/providers/e2b_application_preview.py
+      reason: Provider wrapper for E2B app-preview lifecycle, port exposure, and cleanup.
+    - path: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+      reason: Render the application preview card.
+    - path: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+      reason: Render preview/files/logs/data/settings workspace.
+    - path: frontend/packages/ui/src/services/applicationPreviewService.ts
+      reason: Client API for start/stop/status and stream/log handling.
+    - path: frontend/packages/ui/src/i18n/sources/embeds.yml
+      reason: Add application embed labels and preview state text.
+    - path: shared/docs/privacy_policy.yml
+      reason: Update E2B disclosure for application live previews.
+    - path: frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+      reason: Update user-facing privacy policy text.
+    - path: apple/OpenMates/Sources/Features/Embeds/ApplicationPreviewView.swift
+      reason: Add Apple WKWebView-based application preview surface.
+    - path: apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      reason: Add typed accessors for Apple application preview UI strings if new strings are needed.
+    - path: docs/architecture/messaging/embeds.md
+      reason: Document application parent embeds and child source/asset embed relationships.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/application-embeds/spec.yml
+    - python3 -m pytest backend/tests/test_application_preview_config.py backend/tests/test_application_preview_gateway.py
+    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/run_tests.py --spec application-preview.spec.ts
+    - python3 scripts/run_tests.py --spec application-preview-share.spec.ts
+    - xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' build
+    - python3 scripts/lint_changed.sh
+
+tasks:
+  - id: TASK-1
+    title: Model application embeds and registry entries
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+        - AC-10
+        - AC-12
+        - AC-13
+        - AC-14
+    expected_files:
+      - backend/apps/code/app.yml
+      - backend/shared/python_schemas/embed_schemas.py
+      - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+      - frontend/packages/ui/src/data/embedTextRenderers.ts
+      - frontend/packages/ui/src/i18n/sources/embeds.yml
+    verification:
+      - T-PYTEST-APP-MANIFEST-PAYLOAD-001
+      - T-UNIT-APP-EMBED-001
+      - T-LINT-APP-EMBED-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add preview-origin configuration and backend session model
+    covers:
+      scenarios:
+        - S-2
+        - S-5
+        - S-6
+        - S-8
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-6
+        - AC-7
+        - AC-9
+        - AC-16
+        - AC-17
+    expected_files:
+      - backend/core/api/app/routes/application_preview.py
+      - backend/tests/test_application_preview_config.py
+    verification:
+      - T-PYTEST-APP-PREVIEW-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement E2B application preview worker and gateway
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-8
+        - AC-9
+        - AC-11
+        - AC-13
+        - AC-14
+    expected_files:
+      - backend/apps/code/tasks/run_application_preview_task.py
+      - backend/shared/providers/e2b_application_preview.py
+      - backend/core/api/app/routes/application_preview_gateway.py
+      - backend/tests/test_application_preview_gateway.py
+    verification:
+      - T-PYTEST-APP-GATEWAY-TOKEN-001
+      - T-PYTEST-APP-GATEWAY-SKELETON-001
+      - T-PYTEST-APP-GATEWAY-PROXY-001
+      - T-PYTEST-E2B-APP-PREVIEW-PLAN-001
+      - T-PYTEST-APP-WORKER-LIFECYCLE-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Build frontend application preview workspace
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+        - S-6
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-5
+        - AC-7
+        - AC-9
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+      - frontend/packages/ui/src/services/applicationPreviewService.ts
+      - frontend/apps/web_app/tests/application-preview.spec.ts
+    verification:
+      - T-E2E-APP-PREVIEW-001
+      - T-LINT-APP-EMBED-001
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add shared-recipient preview billing coverage and privacy docs
+    covers:
+      scenarios:
+        - S-5
+        - S-7
+      acceptance_criteria:
+        - AC-6
+        - AC-8
+        - AC-12
+        - AC-16
+    expected_files:
+      - frontend/apps/web_app/tests/application-preview-share.spec.ts
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+      - docs/architecture/messaging/embeds.md
+    verification:
+      - T-E2E-APP-SHARE-001
+      - T-LINT-APP-EMBED-001
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add Apple application preview WKWebView support
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-15
+    expected_files:
+      - apple/OpenMates/Sources/Features/Embeds/ApplicationPreviewView.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      - frontend/packages/ui/src/i18n/sources/embeds.yml
+    verification:
+      - T-STATIC-APPLE-APP-PREVIEW-001
+    independently_deployable: false

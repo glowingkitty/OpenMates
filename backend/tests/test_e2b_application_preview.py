@@ -1,0 +1,71 @@
+# backend/tests/test_e2b_application_preview.py
+#
+# Regression tests for E2B application-preview planning.
+# These tests keep sandbox creation out of scope and verify deterministic file,
+# dependency, and dev-server command planning for the later worker slice.
+
+from __future__ import annotations
+
+import pytest
+
+from backend.shared.providers.e2b_application_preview import (
+    ApplicationPreviewEntrypoint,
+    ApplicationPreviewFile,
+    ApplicationPreviewPlanningError,
+    plan_application_preview_startup,
+)
+
+
+def test_preview_planning_normalizes_files_and_frontend_commands() -> None:
+    plan = plan_application_preview_startup(
+        files=[
+            ApplicationPreviewFile(path="package.json", content='{"scripts":{"dev":"vite"}}'),
+            ApplicationPreviewFile(path="src/App.svelte", content="<main>Hello</main>"),
+        ],
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+
+    assert [file.path for file in plan.files] == ["package.json", "src/App.svelte"]
+    assert plan.install_commands == ["npm install --ignore-scripts --no-audit --no-fund"]
+    assert plan.start_commands == [{"name": "frontend", "command": "npm run dev -- --host 0.0.0.0", "port": 5173}]
+
+
+def test_preview_planning_supports_fastapi_backend_entrypoint() -> None:
+    plan = plan_application_preview_startup(
+        files=[
+            ApplicationPreviewFile(path="requirements.txt", content="fastapi\nuvicorn\n"),
+            ApplicationPreviewFile(path="backend/main.py", content="from fastapi import FastAPI\napp = FastAPI()\n"),
+        ],
+        entrypoints=[ApplicationPreviewEntrypoint(name="api", command="uvicorn backend.main:app", port=8000)],
+    )
+
+    assert plan.install_commands == ["python -m pip install -r requirements.txt"]
+    assert plan.start_commands == [{"name": "api", "command": "uvicorn backend.main:app --host 0.0.0.0 --port 8000", "port": 8000}]
+
+
+@pytest.mark.parametrize("path", ["/etc/passwd", "../secret.txt", "src/../../secret.txt", ""])
+def test_preview_planning_rejects_unsafe_paths(path: str) -> None:
+    with pytest.raises(ApplicationPreviewPlanningError):
+        plan_application_preview_startup(
+            files=[ApplicationPreviewFile(path=path, content="x")],
+            entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+        )
+
+
+def test_preview_planning_rejects_secret_like_file_content() -> None:
+    with pytest.raises(ApplicationPreviewPlanningError, match="secrets"):
+        plan_application_preview_startup(
+            files=[ApplicationPreviewFile(path="src/main.ts", content="const apiKey = 'sk-test-secret-token-1234567890';")],
+            entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+        )
+
+
+def test_preview_planning_requires_entrypoints_and_ports() -> None:
+    with pytest.raises(ApplicationPreviewPlanningError, match="entrypoint"):
+        plan_application_preview_startup(files=[ApplicationPreviewFile(path="index.html", content="ok")], entrypoints=[])
+
+    with pytest.raises(ApplicationPreviewPlanningError, match="port"):
+        plan_application_preview_startup(
+            files=[ApplicationPreviewFile(path="index.html", content="ok")],
+            entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=70_000)],
+        )

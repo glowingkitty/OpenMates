@@ -17,6 +17,7 @@ import { mount, unmount } from "svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
+import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
@@ -192,6 +193,16 @@ export class GroupRenderer implements EmbedRenderer {
         "code-code",
         (item, embedData, decodedContent, content) =>
           this.renderCodeComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "code-application",
+        (item, embedData, decodedContent, content) =>
+          this.renderApplicationComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
       ],
       [
         "code-repo",
@@ -586,6 +597,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderVideoItem(item, embedData, decodedContent);
       case "code-code":
         return this.renderCodeItem(item, embedData, decodedContent);
+      case "code-application":
+        return this.renderApplicationItem(item, embedData, decodedContent);
       case "code-repo":
         return this.renderCodeRepoItem(item, embedData, decodedContent);
       case "docs-doc":
@@ -3006,6 +3019,75 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render generated application embed using the Svelte preview component.
+   */
+  private async renderApplicationComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = item.status === "cancelled" ? "error" : item.status || "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+
+      const component = mount(ApplicationEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          name: decodedContent?.name || item.title,
+          framework: decodedContent?.framework,
+          runtime: decodedContent?.runtime,
+          file_refs: Array.isArray(decodedContent?.file_refs)
+            ? decodedContent.file_refs
+            : [],
+          entrypoints: Array.isArray(decodedContent?.entrypoints)
+            ? decodedContent.entrypoints
+            : [],
+          latest_screenshot_url: decodedContent?.latest_screenshot_url,
+          status: status as "processing" | "finished" | "error",
+          taskId: decodedContent?.task_id,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug("[GroupRenderer] Mounted ApplicationEmbedPreview component:", {
+        embedId,
+        name: decodedContent?.name || item.title,
+        status,
+      });
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting ApplicationEmbedPreview component:",
+        error,
+      );
+      content.innerHTML = await this.renderApplicationItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+    }
+  }
+
+  /**
    * Render document embed using Svelte component
    * Uses DocsEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
    */
@@ -3450,6 +3532,35 @@ export class GroupRenderer implements EmbedRenderer {
       <div class="embed-extended-preview">
         <div class="code-preview">
           <div class="code-snippet">// Code preview would be rendered here</div>
+        </div>
+      </div>
+    `;
+  }
+
+  private async renderApplicationItem(
+    item: EmbedNodeAttributes,
+    _embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const name = decodedContent?.name || item.title || "Application";
+    const fileCount = Array.isArray(decodedContent?.file_refs)
+      ? decodedContent.file_refs.length
+      : 0;
+    const framework = decodedContent?.framework || "Application preview";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon code">
+        <span class="icon icon_code"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${name}</div>
+        <div class="embed-text-line">${fileCount} files, ${framework}</div>
+      </div>
+      <div class="embed-extended-preview">
+        <div class="code-preview">
+          <div class="code-snippet">Application preview</div>
         </div>
       </div>
     `;

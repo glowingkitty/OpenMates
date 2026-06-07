@@ -21,7 +21,7 @@ describe('EMBED_TEXT_RENDERERS registry', () => {
 			'app:health:search_appointments', 'health-appointment',
 			'app:mail:search', 'mail-email',
 			'app:math:calculate', 'math-plot',
-			'code-code', 'app:code:get_docs',
+			'code-code', 'code-application', 'app:code:get_docs',
 			'docs-doc', 'sheets-sheet', 'pdf', 'recording',
 			'app:reminder:set-reminder',
 			'app:shopping:search_products',
@@ -107,6 +107,24 @@ describe('renderEmbedAsText', () => {
 		expect(result).toContain('utils.ts');
 		expect(result).toContain('42 lines');
 		expect(result).toContain('const x = 1;');
+	});
+
+	it('application embed renders project metadata and file refs', () => {
+		const result = renderEmbedAsText('code-application', {
+			name: 'Recipe Manager',
+			framework: 'Svelte',
+			runtime: 'Node',
+			file_refs: [
+				{ path: 'package.json' },
+				{ path: 'src/App.svelte' },
+				{ path: 'src/main.ts' }
+			]
+		});
+
+		expect(result).toContain('**Application**');
+		expect(result).toContain('Recipe Manager');
+		expect(result).toContain('Svelte · Node · 3 files');
+		expect(result).toContain('src/App.svelte');
 	});
 
 	// ── Travel domain ───────────────────────────────────────────────

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-07
 key_files:
   - backend/apps/*/skills/*/embed*.py
   - frontend/packages/ui/src/components/embeds/**/*.svelte
@@ -100,7 +100,31 @@ Full schema: [embed_schemas.py](../../backend/shared/python_schemas/embed_schema
 
 ### Embed Types (`encrypted_type` values)
 
-`app_skill_use` · `website` · `place` · `event` · `code` · `file` · `sheet` · `document` · `image` · `video` · `audio` · `pdf`
+`app_skill_use` · `website` · `place` · `event` · `code` · `application` · `file` · `sheet` · `document` · `image` · `video` · `audio` · `pdf`
+
+### Application Embeds
+
+Application embeds are Code app parent embeds for generated multi-file web apps.
+The parent embed stores only a project manifest: app name, framework/runtime,
+entrypoints, and `file_refs` / `asset_refs` that map logical sandbox paths to
+child `code-code`, image, or file embeds. The durable source of truth remains the
+encrypted parent manifest plus encrypted child embeds; OpenMates does not store a
+full rendered DOM snapshot.
+
+Live previews run only after an explicit user action. The backend creates a
+viewer-scoped E2B sandbox session, writes the selected generated files/assets into
+that sandbox, and returns a short-lived preview URL under the configured
+`APPLICATION_PREVIEW_ORIGIN` user-content site. Clients load that URL in an
+iframe or WKWebView; generated application JavaScript never runs on the OpenMates
+app/API origin and never receives OpenMates auth cookies, vault keys, provider
+API keys, or raw E2B traffic tokens.
+
+Each preview session belongs to exactly one authenticated viewer. Shared-chat
+recipients start their own isolated sandbox and are billed for their own preview
+runtime; they do not attach to, reuse, or charge the creator's sandbox session.
+The gateway stores only a hash of the path token, redacts `/p/<session>/<token>/`
+URLs from logs, and proxies sandbox traffic server-side so raw E2B URLs remain
+server-only.
 
 ### `embed_keys` Collection
 
