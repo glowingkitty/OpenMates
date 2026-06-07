@@ -214,10 +214,11 @@
 
   // ── Handlers ──
 
-  function handleResultSelect(index: number) {
+  function handleResultSelect(index: number, resultsForClick: T[] = allResults) {
+    allResults = resultsForClick;
     selectedIndex = index;
     // Update URL hash to reflect the child embed ID for shareable deep links
-    const result = allResults[index];
+    const result = resultsForClick[index];
     if (result?.embed_id) {
       activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
@@ -346,7 +347,7 @@
       <!-- Results grid -->
       <div class="search-template-grid" data-testid="search-template-grid" style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};">
         {#each results as result, i (result.embed_id)}
-          {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i) })}
+          {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}
         {/each}
       </div>
     {/if}
