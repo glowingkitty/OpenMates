@@ -11,11 +11,13 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	getE2EDebugUrl,
-	getTestAccount
+	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
 const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
+	'settings-change-email.spec.ts'
+);
 const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
 
 async function openLoginDialog(page: any): Promise<void> {

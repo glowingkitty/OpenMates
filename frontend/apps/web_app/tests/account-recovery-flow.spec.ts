@@ -37,7 +37,7 @@ const {
 	checkEmailQuota,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getIsolatedTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
@@ -46,7 +46,7 @@ const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = re
  * Account recovery flow test against a deployed web app.
  *
  * ARCHITECTURE NOTES:
- * - Uses the existing test account (created by signup-flow.spec.ts or manually).
+ * - Uses isolated account slot 14 because this flow resets encrypted account state.
  * - Tests the full recovery flow: request code, enter code, set up new password
  *   (same password for idempotency), complete reset, and verify login works.
  * - The recovery flow permanently deletes chats/settings/memories but preserves
@@ -54,15 +54,17 @@ const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = re
  * - After recovery, the user must login with their new credentials.
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
- * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
+ * - Isolated slot 14 credentials, routed by scripts/run_tests.py.
  * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
  * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
-const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
+const {
+	email: OPENMATES_TEST_ACCOUNT_EMAIL,
+	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
+	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
+} = getIsolatedTestAccount('account-recovery-flow.spec.ts');
 
 test('completes full account recovery flow with same password', async ({
 	page,

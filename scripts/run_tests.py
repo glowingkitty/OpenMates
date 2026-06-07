@@ -80,6 +80,21 @@ GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
+RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
+    "account-recovery-flow.spec.ts": 14,
+    "backup-code-login-flow.spec.ts": 15,
+    "backup-codes-settings.spec.ts": 16,
+    "recovery-key-login-flow.spec.ts": 17,
+    "recovery-key-settings.spec.ts": 18,
+    "settings-change-email.spec.ts": 19,
+    "api-keys-flow.spec.ts": 20,
+}
+RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS = frozenset(RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.values())
+NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
+    slot for slot in range(1, MAX_ACCOUNTS + 1)
+    if slot not in RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS
+)
+CREDENTIAL_UPDATE_ARTIFACT_NAMES = frozenset({"new_otp_key.txt", "api_key.txt"})
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
@@ -861,6 +876,35 @@ class GitHubActionsClient:
         return None
 
 
+def _effective_playwright_batch_size(requested_batch_size: int) -> int:
+    """Keep each batch from assigning the same normal account twice."""
+    if requested_batch_size <= 0:
+        return len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
+    return min(requested_batch_size, len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS))
+
+
+def _account_for_spec_in_batch(spec: str, normal_index: int) -> int:
+    """Return the reserved account for mutating specs, otherwise a normal slot."""
+    reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(spec)
+    if reserved_account is not None:
+        return reserved_account
+    return NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[normal_index % len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)]
+
+
+def build_playwright_dispatch_plan(specs: list[str], batch_size: int) -> list[tuple[int, str, int]]:
+    """Build (batch_index, spec, account) tuples using the credential-isolation policy."""
+    effective_batch_size = _effective_playwright_batch_size(batch_size)
+    plan: list[tuple[int, str, int]] = []
+    for batch_idx, start in enumerate(range(0, len(specs), effective_batch_size)):
+        normal_index = 0
+        for spec in specs[start:start + effective_batch_size]:
+            account = _account_for_spec_in_batch(spec, normal_index)
+            if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                normal_index += 1
+            plan.append((batch_idx, spec, account))
+    return plan
+
+
 # ---------------------------------------------------------------------------
 # BatchRunner
 # ---------------------------------------------------------------------------
@@ -888,12 +932,13 @@ class BatchRunner:
             return SuiteResult(status="skipped", reason="no specs to run")
 
         all_results: list[SpecResult] = []
-        total_batches = (len(self.specs) + self.batch_size - 1) // self.batch_size
+        effective_batch_size = _effective_playwright_batch_size(self.batch_size)
+        total_batches = (len(self.specs) + effective_batch_size - 1) // effective_batch_size
         suite_start = time.time()
 
         for batch_idx in range(total_batches):
-            start = batch_idx * self.batch_size
-            end = min(start + self.batch_size, len(self.specs))
+            start = batch_idx * effective_batch_size
+            end = min(start + effective_batch_size, len(self.specs))
             batch_specs = self.specs[start:end]
 
             print()
@@ -933,9 +978,15 @@ class BatchRunner:
         # Dispatch all specs in this batch
         dispatched: list[tuple[str, int, int]] = []  # (spec, account, run_id)
         dispatch_errors: list[SpecResult] = []
+        normal_account_index = 0
 
         for i, spec in enumerate(specs):
-            account = (batch_idx * self.batch_size + i) % MAX_ACCOUNTS + 1
+            if spec == ACCOUNT_PREFLIGHT_SPEC:
+                account = i + 1
+            else:
+                account = _account_for_spec_in_batch(spec, normal_account_index)
+            if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
+                normal_account_index += 1
             _log(f"  Dispatching {spec} (account {account})")
 
             run_id = self.client.dispatch_spec(spec, account, self.use_mocks)
@@ -1010,6 +1061,7 @@ class BatchRunner:
 
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
+                self._persist_credential_update_artifacts(spec, art_path)
                 self._persist_recording_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
 
@@ -1185,6 +1237,22 @@ class BatchRunner:
                     audit_copied += 1
         if audit_copied:
             _log(f"    Saved {audit_copied} storage-audit snapshot(s) to test-results/storage-audits/")
+
+    @staticmethod
+    def _persist_credential_update_artifacts(spec: str, art_path: Path) -> None:
+        """Copy generated credential-update files outside screenshot directories."""
+        spec_name = spec.replace(".spec.ts", "")
+        dest = RESULTS_DIR / "credential-updates" / spec_name
+        copied = 0
+        for root, _dirs, files in os.walk(art_path):
+            for fname in files:
+                if fname not in CREDENTIAL_UPDATE_ARTIFACT_NAMES:
+                    continue
+                dest.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(Path(root) / fname, dest / fname)
+                copied += 1
+        if copied:
+            _log(f"    Saved {copied} credential update artifact(s) to test-results/credential-updates/{spec_name}/")
 
     @staticmethod
     def _collect_video_paths(art_path: Path) -> list[str]:
@@ -4767,12 +4835,14 @@ class TestOrchestrator:
         if not specs:
             return SuiteResult(status="skipped", reason="no specs to run")
 
-        _log(f"Playwright: {len(specs)} spec(s) via GitHub Actions (batch size: {self.max_concurrent})")
+        effective_batch_size = _effective_playwright_batch_size(self.max_concurrent)
+        _log(f"Playwright: {len(specs)} spec(s) via GitHub Actions (batch size: {effective_batch_size})")
 
         if self.dry_run:
             _log("Dry run — would dispatch these specs:")
-            for s in specs:
-                print(f"    {s}")
+            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent):
+                reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
+                print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
 
         if self.environment == "development" and not _wait_for_vercel_deployment(self.git_sha, self.dot_env):

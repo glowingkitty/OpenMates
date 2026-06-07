@@ -1318,7 +1318,7 @@ async function assertNoMissingTranslations(page: any): Promise<void> {
  *   Slot 1: OPENMATES_TEST_ACCOUNT_1_EMAIL  (or fallback: OPENMATES_TEST_ACCOUNT_EMAIL)
  *   Slot 2: OPENMATES_TEST_ACCOUNT_2_EMAIL
  *   ...
- *   Slot 5: OPENMATES_TEST_ACCOUNT_5_EMAIL
+ *   Slot 20: OPENMATES_TEST_ACCOUNT_20_EMAIL
  *
  * When the numbered slot vars are not set (e.g. running a single test manually),
  * we fall back to the base OPENMATES_TEST_ACCOUNT_* vars for backward compatibility.
@@ -1339,6 +1339,66 @@ function getTestAccount(slot?: number): {
 			process.env[`OPENMATES_TEST_ACCOUNT_${s}_OTP_KEY`] ||
 			process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY
 	};
+}
+
+const ISOLATED_TEST_ACCOUNT_SLOTS: Record<string, number> = {
+	'account-recovery-flow.spec.ts': 14,
+	'backup-code-login-flow.spec.ts': 15,
+	'backup-codes-settings.spec.ts': 16,
+	'recovery-key-login-flow.spec.ts': 17,
+	'recovery-key-settings.spec.ts': 18,
+	'settings-change-email.spec.ts': 19,
+	'api-keys-flow.spec.ts': 20
+};
+
+function _getNumberedTestAccount(slot: number): {
+	email: string | undefined;
+	password: string | undefined;
+	otpKey: string | undefined;
+} {
+	return {
+		email: process.env[`OPENMATES_TEST_ACCOUNT_${slot}_EMAIL`],
+		password: process.env[`OPENMATES_TEST_ACCOUNT_${slot}_PASSWORD`],
+		otpKey: process.env[`OPENMATES_TEST_ACCOUNT_${slot}_OTP_KEY`]
+	};
+}
+
+/**
+ * Retrieve credentials for specs that mutate persistent auth state.
+ *
+ * GitHub Actions maps the selected source account into slot 1 credentials, so
+ * OPENMATES_TEST_ACCOUNT_SOURCE_SLOT is the authoritative original account slot.
+ * Local Docker runs can still use PLAYWRIGHT_WORKER_SLOT directly.
+ */
+function getIsolatedTestAccount(specName: string): {
+	email: string | undefined;
+	password: string | undefined;
+	otpKey: string | undefined;
+} {
+	const expectedSlot = ISOLATED_TEST_ACCOUNT_SLOTS[specName];
+	if (!expectedSlot) {
+		throw new Error(`No isolated test account policy configured for ${specName}.`);
+	}
+
+	const sourceSlotRaw = process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT;
+	const workerSlotRaw = process.env.PLAYWRIGHT_WORKER_SLOT || '1';
+	const actualSourceSlot = parseInt(sourceSlotRaw || workerSlotRaw, 10);
+	if (actualSourceSlot !== expectedSlot) {
+		throw new Error(
+			`${specName} must run on isolated test account slot ${expectedSlot}; received slot ${actualSourceSlot}. ` +
+				'Use scripts/run_tests.py so the reserved account policy is applied.'
+		);
+	}
+
+	const credentialSlot = sourceSlotRaw ? parseInt(workerSlotRaw, 10) : expectedSlot;
+	const account = _getNumberedTestAccount(credentialSlot);
+	if (!account.email || !account.password || !account.otpKey) {
+		throw new Error(
+			`${specName} is missing isolated credentials for source slot ${expectedSlot} ` +
+				`(credential slot ${credentialSlot}). Base OPENMATES_TEST_ACCOUNT_* fallback is disabled for this spec.`
+		);
+	}
+	return account;
 }
 
 /**
@@ -1529,6 +1589,7 @@ module.exports = {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getIsolatedTestAccount,
 	getE2EDebugUrl,
 	withMockMarker,
 	withRecordMarker,

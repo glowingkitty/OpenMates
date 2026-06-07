@@ -36,7 +36,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getIsolatedTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
@@ -45,7 +45,7 @@ const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/c
  * Recovery key setup and login flow test against a deployed web app.
  *
  * ARCHITECTURE NOTES:
- * - Uses the existing test account (must have password + 2FA configured).
+ * - Uses isolated account slot 17 because this flow regenerates the recovery key.
  * - Phase 1: Logs in with password + OTP, navigates to Settings > Security > Recovery Key,
  *   triggers regeneration and captures the recovery key via clipboard.
  * - Phase 2: Logs out, then logs back in using the recovery key (bypasses 2FA entirely).
@@ -53,12 +53,14 @@ const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/c
  *   login flow end-to-end, including the critical key_iv field in the login response.
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
- * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
+ * - Isolated slot 17 credentials, routed by scripts/run_tests.py.
  */
 
-const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
+const {
+	email: OPENMATES_TEST_ACCOUNT_EMAIL,
+	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
+	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
+} = getIsolatedTestAccount('recovery-key-login-flow.spec.ts');
 
 test('sets up recovery key in settings and logs in with recovery key', async ({
 	page,

@@ -36,7 +36,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -46,7 +46,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
  * feature in Settings > Account > Security > Two-Factor Authentication.
  *
  * ARCHITECTURE NOTES:
- * - Uses the existing test account (must have password + 2FA configured).
+ * - Uses isolated account slot 16 because this flow resets backup codes.
  * - Phase 1: Logs in with password + OTP.
  * - Phase 2: Navigates to Settings > Security > 2FA, clicks "Reset Backup Codes".
  * - Phase 3: Authenticates via SecurityAuth (password + OTP).
@@ -56,16 +56,14 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
  * This does NOT test login with backup codes (see backup-code-login-flow.spec.ts).
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
- * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
+ * - Isolated slot 16 credentials, routed by scripts/run_tests.py.
  */
 
 const {
 	email: OPENMATES_TEST_ACCOUNT_EMAIL,
 	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
-} = getTestAccount();
+} = getIsolatedTestAccount('backup-codes-settings.spec.ts');
 
 test('resets backup codes via Settings > Security > 2FA', async ({
 	page,

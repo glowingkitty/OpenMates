@@ -108,7 +108,25 @@ python3 scripts/run_tests.py --daily --dry-run-notify
 
 Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-prod/run-*.json` (rotated to last 7 days).
 
-Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of 20 concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
+Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
+
+### Reserved E2E Credential Accounts
+
+Most specs use the normal account pool. Specs that rotate, reset, or delete persistent auth credentials use reserved account slots and must call `getIsolatedTestAccount(<spec filename>)` instead of `getTestAccount()`.
+
+| Slot | Spec | Why reserved |
+|------|------|--------------|
+| 14 | `account-recovery-flow.spec.ts` | Account reset can delete encrypted account state and may require fresh 2FA setup. |
+| 15 | `backup-code-login-flow.spec.ts` | The Change App flow rotates the TOTP secret. |
+| 16 | `backup-codes-settings.spec.ts` | Backup code reset mutates login recovery material. |
+| 17 | `recovery-key-login-flow.spec.ts` | Recovery key regeneration mutates login recovery material. |
+| 18 | `recovery-key-settings.spec.ts` | Recovery key regeneration mutates login recovery material. |
+| 19 | `settings-change-email.spec.ts` | Email roundtrip mutates the account login identifier. |
+| 20 | `api-keys-flow.spec.ts` | API-key lifecycle tests create/delete developer credentials. |
+
+`scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
+
+API-key cleanup must only delete keys created by E2E specs, currently names starting with `E2E-Test-Key`, `E2E-RestAPI`, or `E2E-Limit-Key`. Never delete arbitrary existing keys to make room at the 5-key limit.
 
 Output: `test-results/run-<timestamp>.json` and `test-results/last-run.json`
 
