@@ -61,7 +61,7 @@
 
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
-  let results = $derived(localResults);
+  let results = $derived(localResults.filter(Boolean));
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   let visibleDays = $derived(results.slice(0, isMobile ? 3 : 4));
