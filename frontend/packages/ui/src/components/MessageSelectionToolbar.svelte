@@ -62,7 +62,8 @@
     // Horizontal: centre over the selection, clamp to viewport.
     let x = anchorRect.left + anchorRect.width / 2;
     const toolbarRect = el?.getBoundingClientRect();
-    const toolbarWidth = Math.min(toolbarRect?.width || TOOLBAR_ESTIMATED_W, vw - EDGE_PAD * 2);
+    const estimatedToolbarWidth = vw <= 480 ? vw - EDGE_PAD * 2 : TOOLBAR_ESTIMATED_W;
+    const toolbarWidth = Math.min(toolbarRect?.width || estimatedToolbarWidth, vw - EDGE_PAD * 2);
     const toolbarHeight = toolbarRect?.height || TOOLBAR_ESTIMATED_H;
     const halfW = toolbarWidth / 2;
     if (x - halfW < EDGE_PAD) x = EDGE_PAD + halfW;
@@ -266,6 +267,8 @@
   @media (max-width: 480px) {
     .msg-sel-toolbar {
       align-items: center;
+      box-sizing: border-box;
+      width: calc(100vw - 16px);
       padding: 4px;
       border-radius: 18px;
     }

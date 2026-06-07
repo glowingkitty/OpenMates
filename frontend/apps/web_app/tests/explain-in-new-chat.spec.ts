@@ -130,12 +130,15 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	);
 	const explainButton = page.locator(SELECTORS.contextMenuExplain);
 	await expect(explainButton).toBeVisible({ timeout: 5000 });
-	await screenshot(page, 'explain-action-visible');
 	// The product handles this action on mousedown to preserve the selected text
-	// before focus/click can collapse it. Dispatch that leading edge directly;
-	// Playwright locator.click() waits for a full click cycle and can race the
-	// intentional menu close triggered by the mousedown handler.
-	await explainButton.dispatchEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+	// before focus/click can collapse it. Dispatch that leading edge immediately;
+	// the context menu is transient and can close between a diagnostic screenshot
+	// and a later locator action.
+	await page.evaluate((selector: string) => {
+		const button = document.querySelector(selector);
+		if (!button) throw new Error('Explain in new chat menu item closed before mousedown');
+		button.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+	}, SELECTORS.contextMenuExplain);
 
 	await expect(page).toHaveURL(sourceUrl, { timeout: 5000 });
 	await expect(page.locator(SELECTORS.notification).filter({ hasText: /background/i })).toBeVisible({ timeout: 20_000 });
