@@ -169,21 +169,27 @@
     {:else}
       <div class="forecast-grid" data-testid="weather-forecast-fullscreen-grid" data-selected-day-index={selectedDayIndex}>
         {#each days as day, index}
-          <WeatherDayEmbedPreview
-            id={day.embed_id}
-            date={day.date}
-            locationName={day.location_name || locationName}
-            provider={day.provider || provider}
-            condition={day.condition}
-            icon={day.icon}
-            temperatureMinC={day.temperature_min_c}
-            temperatureMaxC={day.temperature_max_c}
-            precipitationTotalMm={day.precipitation_total_mm}
-            precipitationProbabilityMaxPct={day.precipitation_probability_max_pct}
-            rainHours={day.rain_hours}
-            status="finished"
-            onFullscreen={() => openDay(index, days, day)}
-          />
+          <div
+            class="weather-day-select-target"
+            role="presentation"
+            onclickcapture={() => openDay(index, days, day)}
+          >
+            <WeatherDayEmbedPreview
+              id={day.embed_id}
+              date={day.date}
+              locationName={day.location_name || locationName}
+              provider={day.provider || provider}
+              condition={day.condition}
+              icon={day.icon}
+              temperatureMinC={day.temperature_min_c}
+              temperatureMaxC={day.temperature_max_c}
+              precipitationTotalMm={day.precipitation_total_mm}
+              precipitationProbabilityMaxPct={day.precipitation_probability_max_pct}
+              rainHours={day.rain_hours}
+              status="finished"
+              onFullscreen={() => openDay(index, days, day)}
+            />
+          </div>
         {/each}
       </div>
 
@@ -222,6 +228,10 @@
     max-width: 720px;
     padding: var(--spacing-12) var(--spacing-5) 120px;
     margin: 0 auto;
+  }
+
+  .weather-day-select-target {
+    width: 100%;
   }
 
   @container fullscreen (max-width: 680px) {
