@@ -154,10 +154,7 @@
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
-
-  let selectedResult = $derived(
-    selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null
-  );
+  let selectedResult = $state<T | null>(null);
 
   let initialChildLookupComplete = $state(false);
   let isOpeningInitialChild = $derived(
@@ -173,12 +170,16 @@
     if (index < 0) return false;
 
     selectedIndex = index;
+    selectedResult = results[index] ?? null;
     initialChildLookupComplete = true;
     return true;
   }
 
   function updateLoadedResults(results: T[]): void {
     allResults = results;
+    if (selectedIndex >= 0) {
+      selectedResult = results[selectedIndex] ?? null;
+    }
     onResultsLoaded?.(results);
 
     if (initialChildEmbedId && !selectInitialChildFromResults(results)) {
@@ -219,6 +220,7 @@
     selectedIndex = index;
     // Update URL hash to reflect the child embed ID for shareable deep links
     const result = resultsForClick[index];
+    selectedResult = result ?? null;
     if (result?.embed_id) {
       activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
@@ -230,6 +232,7 @@
       onClose();
     } else {
       selectedIndex = -1;
+      selectedResult = null;
       // Restore parent embed ID in URL hash
       if (currentEmbedId) {
         activeEmbedStore.setActiveEmbed(currentEmbedId, null);
@@ -240,6 +243,7 @@
   function handleMainClose() {
     if (selectedIndex >= 0 && !initialChildEmbedId) {
       selectedIndex = -1;
+      selectedResult = null;
     } else {
       onClose();
     }
@@ -249,6 +253,7 @@
     if (selectedIndex > 0) {
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
+      selectedResult = result ?? null;
       if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
   }
@@ -257,6 +262,7 @@
     if (selectedIndex < allResults.length - 1) {
       selectedIndex += 1;
       const result = allResults[selectedIndex];
+      selectedResult = result ?? null;
       if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
   }
@@ -307,6 +313,7 @@
   onAutoOpenChild={(index, children) => {
     updateLoadedResults(children as T[]);
     selectedIndex = index;
+    selectedResult = (children as T[])[index] ?? null;
     initialChildLookupComplete = true;
   }}
   {onEmbedDataUpdated}
