@@ -82,7 +82,7 @@
   }
 
   function transformLegacyResults(results: unknown[]): WeatherDayResult[] {
-    return (results as Record<string, unknown>[]).map((result, index) => ({
+    return (results.filter(Boolean) as Record<string, unknown>[]).map((result, index) => ({
       embed_id: `weather-day-${index}`,
       date: result.date as string | undefined,
       location_name: result.location_name as string | undefined,
