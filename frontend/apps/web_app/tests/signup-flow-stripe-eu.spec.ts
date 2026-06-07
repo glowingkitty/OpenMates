@@ -293,7 +293,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	// Submit payment and wait for success.
 	const paymentSubmittedAt = new Date().toISOString();
 	await buyButton.click();
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
+	await expect(page.getByRole('heading', { name: /purchase successful/i })).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'payment-success');
 	logSignupCheckpoint('Purchase completed successfully.');
 
