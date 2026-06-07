@@ -42,8 +42,8 @@
   }: Props = $props();
 
   // Estimated dimensions — real rect read after mount for final placement.
-  const TOOLBAR_W = 340;
-  const TOOLBAR_H = 40;
+  const TOOLBAR_ESTIMATED_W = 340;
+  const TOOLBAR_ESTIMATED_H = 40;
   const GAP = 8; // distance between selection top and toolbar bottom
   const EDGE_PAD = 8;
 
@@ -61,18 +61,21 @@
 
     // Horizontal: centre over the selection, clamp to viewport.
     let x = anchorRect.left + anchorRect.width / 2;
-    const halfW = TOOLBAR_W / 2;
+    const toolbarRect = el?.getBoundingClientRect();
+    const toolbarWidth = Math.min(toolbarRect?.width || TOOLBAR_ESTIMATED_W, vw - EDGE_PAD * 2);
+    const toolbarHeight = toolbarRect?.height || TOOLBAR_ESTIMATED_H;
+    const halfW = toolbarWidth / 2;
     if (x - halfW < EDGE_PAD) x = EDGE_PAD + halfW;
     if (x + halfW > vw - EDGE_PAD) x = vw - EDGE_PAD - halfW;
     left = x;
 
     // Vertical: prefer above the selection; flip below if it would clip.
-    const spaceAbove = anchorRect.top - GAP - TOOLBAR_H;
+    const spaceAbove = anchorRect.top - GAP - toolbarHeight;
     if (spaceAbove >= EDGE_PAD) {
-      top = anchorRect.top - GAP - TOOLBAR_H;
+      top = anchorRect.top - GAP - toolbarHeight;
       placeBelow = false;
     } else {
-      top = Math.min(vh - TOOLBAR_H - EDGE_PAD, anchorRect.bottom + GAP);
+      top = Math.min(vh - toolbarHeight - EDGE_PAD, anchorRect.bottom + GAP);
       placeBelow = true;
     }
   }
@@ -82,6 +85,7 @@
     void anchorRect;
     void show;
     if (show && anchorRect) recompute();
+    if (show && anchorRect) requestAnimationFrame(recompute);
   });
 
   function handle(e: MouseEvent | TouchEvent, action: 'highlight' | 'comment' | 'explain') {
@@ -179,8 +183,11 @@
     top: var(--sel-top);
     transform: translateX(-50%);
     display: flex;
+    flex-wrap: wrap;
     align-items: stretch;
-    height: 40px;
+    justify-content: center;
+    min-height: 40px;
+    max-width: calc(100vw - 16px);
     padding: 0 4px;
     background: var(--color-grey-100);
     color: var(--color-grey-0);
@@ -229,6 +236,7 @@
     border-radius: 16px;
     min-width: 44px; /* iOS tap target */
     min-height: 36px;
+    max-width: 100%;
     transition: background var(--duration-fast) var(--easing-default);
   }
 
@@ -245,12 +253,29 @@
   }
 
   .sel-btn-label {
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.15;
   }
 
   .sel-divider {
     width: 1px;
     background: rgba(255, 255, 255, 0.18);
     margin: 6px 2px;
+  }
+
+  @media (max-width: 480px) {
+    .msg-sel-toolbar {
+      align-items: center;
+      padding: 4px;
+      border-radius: 18px;
+    }
+
+    .sel-btn {
+      padding: 4px 8px;
+    }
+
+    .sel-divider {
+      display: none;
+    }
   }
 </style>

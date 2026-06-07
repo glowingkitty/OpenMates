@@ -151,7 +151,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     isFirstMessage = false,
     isCreditsRestored = false,
     onResend = undefined,
-    canAnnotate = true
+    canAnnotate = true,
   }: {
     role?: MessageRole;
     category?: string;
@@ -476,7 +476,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // `canAnnotate` is wired from the parent (ChatHistory) based on the chat's
   // is_shared_by_others flag. Mirrors the backend's owner-only enforcement
   // in message_highlight_handlers._verify_chat_accessible.
-  let isSharedReadOnly = $derived(!(canAnnotate ?? true));
+  let isSharedRoute = $derived(
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/share/chat')
+  );
+  let isSharedReadOnly = $derived(!(canAnnotate ?? true) || isSharedRoute);
 
   /** The highlight the popover is bound to (or null). */
   let activeHighlight = $derived(

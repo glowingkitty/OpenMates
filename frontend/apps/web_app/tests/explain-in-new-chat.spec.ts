@@ -154,3 +154,48 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	await page.waitForTimeout(1500);
 	await deleteActiveChat(page, log, screenshot, 'cleanup-source-chat');
 });
+
+test('selection toolbar wraps within a mobile viewport', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(300_000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('EXPLAIN_NEW_CHAT_MOBILE_TOOLBAR');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'explain-new-chat-mobile-toolbar' });
+	await archiveExistingScreenshots(log);
+	await page.setViewportSize({ width: 390, height: 844 });
+
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+
+	await sendMessage(
+		page,
+		withMockMarker(
+			'Reply in one short sentence that includes the exact phrase: vector database.',
+			'explain_in_new_chat_seed'
+		),
+		log,
+		screenshot,
+		'mobile-seed'
+	);
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: 'vector database',
+		timeout: 90_000,
+		logCheckpoint: log
+	});
+	await page.waitForTimeout(3000);
+
+	const assistantSelection = await selectInsideMessage(page, SELECTORS.mateMessageContent, 'vector database');
+	expect(assistantSelection.selected).toBe(true);
+	await expect(page.locator(SELECTORS.selectionToolbar)).toBeVisible({ timeout: 5000 });
+	await expect(page.locator(SELECTORS.selectionToolbarExplain)).toBeVisible({ timeout: 5000 });
+
+	const toolbarBox = await page.locator(SELECTORS.selectionToolbar).boundingBox();
+	expect(toolbarBox).not.toBeNull();
+	expect(toolbarBox!.x).toBeGreaterThanOrEqual(0);
+	expect(toolbarBox!.x + toolbarBox!.width).toBeLessThanOrEqual(390);
+	await screenshot(page, 'mobile-toolbar-wrapped');
+
+	await deleteActiveChat(page, log, screenshot, 'cleanup-mobile-toolbar-chat');
+});
