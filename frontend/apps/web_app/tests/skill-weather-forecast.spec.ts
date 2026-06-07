@@ -88,7 +88,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.getByTestId('weather-forecast-preview').first()).toBeVisible();
 	});
 
-	test('Phase 1b: app store weather example has translations, provider icons, responsive fullscreen, and day drilldown', async ({ page }: { page: any }) => {
+	test('Phase 1b: app store weather fallback embed example has translations, provider icons, responsive fullscreen, and day drilldown', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
 
@@ -151,6 +151,34 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(grid).toHaveAttribute('data-selected-day-index', '0', { timeout: 15_000 });
 		await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="embed-fullscreen-overlay"] [data-app-icon="weather"]').last()).toBeVisible({ timeout: 15_000 });
+	});
+
+	test('Phase 1c: app store linked example chat uses the large continue-card preview and opens the chat', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 1600, height: 900 });
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/travel/skill/search_connections'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/travel/skill/search_connections', {
+			timeout: 15_000
+		});
+
+		const exampleChatCard = settingsMenu.locator('[data-testid="app-store-example-chat-card"][data-app-id="travel"][data-skill-id="search_connections"]').first();
+		await expect(exampleChatCard).toBeVisible({ timeout: 15_000 });
+		await expect(exampleChatCard).toHaveClass(/resume-chat-large-card/);
+		await expect(exampleChatCard.getByTestId('resume-large-title')).toContainText(/flight|Bangkok/i);
+		await expect(exampleChatCard.getByTestId('resume-large-title')).not.toContainText('[T:');
+		await expect(exampleChatCard.getByTestId('resume-large-orbs')).toBeVisible({ timeout: 15_000 });
+
+		await exampleChatCard.click();
+		await expect(page).toHaveURL(/#chat-id=example-flights-berlin-bangkok/, { timeout: 15_000 });
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
 	});
 
 	test('Phase 2: CLI apps weather forecast returns daily child results for Germany and international cities', async () => {

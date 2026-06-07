@@ -206,6 +206,14 @@ export function getAllExampleChats(): Chat[] {
   return ALL_EXAMPLE_CHATS.map(exampleChatToChat);
 }
 
+/** Get example chats explicitly linked to an app-store skill page. */
+export function getExampleChatsForSkill(appId: string, skillId: string): Chat[] {
+  const key = `${appId}.${skillId}`;
+  return ALL_EXAMPLE_CHATS.filter((example) =>
+    example.metadata.app_skill_examples?.includes(key),
+  ).map(exampleChatToChat);
+}
+
 /** Get featured example chats (limited to homepage display count) */
 export function getFeaturedExampleChats(): Chat[] {
   return ALL_EXAMPLE_CHATS.filter((c) => c.metadata.featured)

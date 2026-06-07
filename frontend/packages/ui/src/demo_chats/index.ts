@@ -37,6 +37,7 @@ export {
   getExampleChatEmbeds,
   getExampleChatEmbed,
   getAllExampleChats,
+  getExampleChatsForSkill,
   getFeaturedExampleChats,
   getExampleChatData,
   getAllExampleChatData,

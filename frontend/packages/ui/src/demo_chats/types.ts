@@ -106,5 +106,6 @@ export interface ExampleChat {
   metadata: {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order
+    app_skill_examples?: string[]; // App-store skill pages this chat demonstrates, e.g. "travel.search_connections"
   };
 }

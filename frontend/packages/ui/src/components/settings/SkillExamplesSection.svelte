@@ -1,12 +1,11 @@
 <!--
   frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
 
-  App-store "Examples" section shown inside SkillDetails.svelte. Renders a
-  horizontal scrollable row of real, curated embed previews for the given
-  skill, captured from actual provider responses. Clicking a card closes
-  the settings panel and opens the skill's fullscreen inside ActiveChat —
-  using the exact same data-driven fullscreen container, animation and
-  child-embed drilldown as a real chat embed.
+  App-store "Examples" section shown inside SkillDetails.svelte. Prefer real
+  example chats linked to the given skill and render them with the same large
+  preview card used by the new-chat "Continue where you left off" carousel.
+  Falls back to the older curated embed preview fixtures while chat coverage is
+  still incomplete.
 
   Data flow:
     - skillStoreExamplesResolver looks up the preview component and the
@@ -24,13 +23,18 @@
 
 <script lang="ts">
     import type { Component } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { SettingsSectionHeading } from './elements';
+    import ChatPreviewCard from './ChatPreviewCard.svelte';
     import {
         loadSkillExamples,
         hasSkillExamples,
     } from '../../services/skillStoreExamplesResolver';
     import { openSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { getExampleChatsForSkill } from '../../demo_chats';
+    import type { Chat } from '../../types/chat';
 
     interface Props {
         appId: string;
@@ -38,9 +42,11 @@
     }
 
     let { appId, skillId }: Props = $props();
+    const dispatch = createEventDispatcher();
 
     let PreviewComponent = $state<Component | null>(null);
     let examples = $state<Array<Record<string, unknown>>>([]);
+    let chatExamples = $derived(getExampleChatsForSkill(appId, skillId));
 
     // Whether the skill has an examples bundle at all — controls section visibility.
     let available = $derived(hasSkillExamples(appId, skillId));
@@ -140,9 +146,26 @@
             openExample(index);
         }
     }
+
+    function openExampleChat(chat: Chat) {
+        activeChatStore.setActiveChat(chat.chat_id);
+        dispatch('chatSelected', { chat });
+        window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+        dispatch('closeSettings');
+    }
 </script>
 
-{#if available && examples.length > 0 && PreviewComponent}
+{#if chatExamples.length > 0}
+    <div class="section examples-section">
+        <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="skill" />
+        <p class="examples-prefix">{$text('settings.app_store.skills.examples_prefix')}</p>
+        <div class="recent-chats-scroll-container" data-testid="app-store-example-chats">
+            {#each chatExamples as chat (chat.chat_id)}
+                <ChatPreviewCard {chat} {appId} {skillId} onOpen={openExampleChat} />
+            {/each}
+        </div>
+    </div>
+{:else if available && examples.length > 0 && PreviewComponent}
     {@const Preview = PreviewComponent}
     <div class="section examples-section">
         <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="skill" />
@@ -180,6 +203,33 @@
 <style>
     .examples-section {
         margin-top: 2rem;
+    }
+
+    .recent-chats-scroll-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--spacing-8);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        visibility: visible;
+        padding: 0.75rem 0 0.5rem 0;
+        box-sizing: border-box;
+        pointer-events: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .recent-chats-scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .recent-chats-scroll-container :global(.resume-chat-large-card) {
+        flex: 0 0 300px;
     }
 
     .examples-prefix {

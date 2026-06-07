@@ -191,7 +191,13 @@
 {:else if routeInfo.type === 'reminder_entry'}
     <ReminderEntryDetail reminderId={routeInfo.reminderId} startInEditMode={routeInfo.startInEditMode} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
-    <SkillDetails appId={routeInfo.appId} skillId={routeInfo.skillId} on:openSettings={handleOpenSettings} />
+    <SkillDetails
+        appId={routeInfo.appId}
+        skillId={routeInfo.skillId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
 {:else if routeInfo.type === 'focus_details'}
     <FocusModeDetails appId={routeInfo.appId} focusModeId={routeInfo.focusModeId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'settings_memories_category'}
@@ -215,4 +221,3 @@
         color: var(--error-color, #dc3545);
     }
 </style>
-

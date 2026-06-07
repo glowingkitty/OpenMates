@@ -106,5 +106,6 @@ export const flightsBerlinBangkokChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 4,
+    app_skill_examples: ["travel.search_connections"],
   },
 };
