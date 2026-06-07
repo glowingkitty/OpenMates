@@ -54,7 +54,6 @@ const BATCH_SIZE = 10;
 // Delay between batches (ms) to allow the UI to breathe.
 const BATCH_DELAY_MS = 0; // Use microtask-level yield (requestAnimationFrame below)
 const EXPLAIN_SELECTION_MAX_CHARS = 500;
-const EXPLAIN_CHAT_TITLE_MAX_CHARS = 80;
 
 interface StartForkOptions {
   suppressCompleteNotification?: boolean;
@@ -142,8 +141,6 @@ export async function startFork(
 }
 
 export async function startExplainInNewChat({
-  sourceChatId,
-  upToMessageId,
   selectedText,
 }: ExplainInNewChatOptions): Promise<string> {
   const normalizedSelection = normalizeExplainSelection(selectedText);
@@ -151,24 +148,12 @@ export async function startExplainInNewChat({
     throw new Error("Selected text is required to start an explanation chat");
   }
 
-  const current = forkProgressStore.getSnapshot();
-  if (current.status === "running") {
-    throw new Error("A fork is already running");
-  }
-
   const $text = get(text);
   const prompt = $text("chats.explain_in_new_chat.prompt", {
     values: { term: normalizedSelection },
   });
-  const forkTitle = buildExplainChatTitle(normalizedSelection);
 
-  const newChatId = await startFork(sourceChatId, upToMessageId, forkTitle, {
-    suppressCompleteNotification: true,
-    awaitStorageSync: true,
-    afterForkComplete: async (completedChatId) => {
-      await sendBackgroundExplanationPrompt(completedChatId, prompt);
-    },
-  });
+  const newChatId = await createCleanExplanationChat(prompt);
 
   notificationStore.addNotificationWithOptions("info", {
     title: $text("chats.explain_in_new_chat.started_title"),
@@ -377,13 +362,6 @@ function normalizeExplainSelection(selectedText: string): string {
   return selectedText.replace(/\s+/g, " ").trim().slice(0, EXPLAIN_SELECTION_MAX_CHARS);
 }
 
-function buildExplainChatTitle(selectedText: string): string {
-  const title = `Explain: ${selectedText}`;
-  return title.length > EXPLAIN_CHAT_TITLE_MAX_CHARS
-    ? `${title.slice(0, EXPLAIN_CHAT_TITLE_MAX_CHARS - 3)}...`
-    : title;
-}
-
 async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): Promise<void> {
   const nowTimestamp = Math.floor(Date.now() / 1000);
   const message: Message = {
@@ -411,6 +389,36 @@ async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): 
 
   window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId } }));
   await chatSyncService.sendNewMessage(message);
+}
+
+async function createCleanExplanationChat(prompt: string): Promise<string> {
+  const chatId = crypto.randomUUID();
+  const nowTimestamp = Math.floor(Date.now() / 1000);
+  const { encryptedChatKey } = await chatKeyManager.createAndPersistKey(chatId);
+
+  const chat: Chat = {
+    chat_id: chatId,
+    encrypted_title: null,
+    encrypted_chat_key: encryptedChatKey,
+    messages_v: 0,
+    title_v: 0,
+    draft_v: 0,
+    encrypted_draft_md: null,
+    encrypted_draft_preview: null,
+    last_edited_overall_timestamp: nowTimestamp,
+    unread_count: 0,
+    created_at: nowTimestamp,
+    updated_at: nowTimestamp,
+    processing_metadata: false,
+    waiting_for_metadata: true,
+    is_incognito: false,
+  };
+
+  await chatDB.addChat(chat);
+  window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId } }));
+  await sendBackgroundExplanationPrompt(chatId, prompt);
+
+  return chatId;
 }
 
 async function openChatWhenAvailable(chatId: string): Promise<void> {

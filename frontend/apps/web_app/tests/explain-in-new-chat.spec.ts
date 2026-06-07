@@ -4,8 +4,8 @@
  *
  * Verifies the selected-assistant-text workflow: selecting text exposes the
  * Explain in new chat option in the existing highlight context menu, starts a
- * forked background chat, shows an open action notification, and auto-sends the
- * explanation prompt in the new chat without appending it to the source transcript.
+ * clean background chat, shows an open action notification, and auto-sends only
+ * the explanation prompt without appending anything to the source transcript.
  */
 export {};
 
@@ -153,6 +153,12 @@ test('explains selected assistant text in a background new chat', async ({ page 
 
 	const promptText = 'Tell me more about: vector database';
 	await expect(page.getByTestId('message-user').filter({ hasText: promptText })).toBeVisible({ timeout: 30_000 });
+	const explanationChatTextBeforeResponse = (await page.locator(SELECTORS.chatMessage).allTextContents()).join('\n');
+	expect(explanationChatTextBeforeResponse).toContain(promptText);
+	expect(explanationChatTextBeforeResponse).not.toContain('Reply in one short sentence');
+	expect(explanationChatTextBeforeResponse).not.toContain(
+		'A vector database stores and searches embeddings so similar items can be found quickly.'
+	);
 	await waitForAssistantMessage(page, { timeout: 120_000, logCheckpoint: log });
 	await screenshot(page, 'background-explanation-chat-opened');
 
