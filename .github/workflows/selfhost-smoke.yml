@@ -4,6 +4,10 @@ name: "Self-Hosted: Install Smoke"
 
 on:
   workflow_dispatch: {}
+  schedule:
+    # Weekdays at 04:37 UTC. Runs the dedicated self-host stack smoke separately
+    # from normal Playwright because this spec provisions Docker Compose locally.
+    - cron: "37 4 * * 1-5"
   pull_request:
     branches: [dev]
     paths:

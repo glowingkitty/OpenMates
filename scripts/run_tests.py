@@ -4867,6 +4867,7 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        "selfhost-smoke.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
 
