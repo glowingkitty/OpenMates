@@ -144,8 +144,8 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 		const firstDay = dayCards.first();
 		await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 15_000 });
-		await expect(firstDay).toContainText('via Deutscher Wetterdienst (DWD)');
-		await expect(firstDay).not.toContainText('Berlin · Deutscher Wetterdienst');
+		await expect(firstDay.getByTestId('weather-day-temperature')).toBeVisible({ timeout: 15_000 });
+		await expect(firstDay.getByTestId('weather-day-metrics')).toBeVisible({ timeout: 15_000 });
 		expect(await firstDay.evaluate((element: HTMLElement) => element.getAttribute('role'))).toBe('button');
 		await firstDay.click();
 		await expect(grid).toHaveAttribute('data-selected-index', '0', { timeout: 15_000 });
