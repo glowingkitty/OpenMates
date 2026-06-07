@@ -59,6 +59,7 @@ const EXPLAIN_CHAT_TITLE_MAX_CHARS = 80;
 interface StartForkOptions {
   suppressCompleteNotification?: boolean;
   afterForkComplete?: (newChatId: string) => Promise<void> | void;
+  awaitStorageSync?: boolean;
 }
 
 interface ExplainInNewChatOptions {
@@ -163,6 +164,7 @@ export async function startExplainInNewChat({
 
   const newChatId = await startFork(sourceChatId, upToMessageId, forkTitle, {
     suppressCompleteNotification: true,
+    awaitStorageSync: true,
     afterForkComplete: async (completedChatId) => {
       await sendBackgroundExplanationPrompt(completedChatId, prompt);
     },
@@ -331,7 +333,7 @@ async function runForkAsync(
   //         mechanism: the backend detects an empty AI cache for this chat and
   //         asks the client for history. The client responds with all IndexedDB
   //         messages + active_focus_id via handleRequestChatHistoryImpl.
-  syncForkEncryptedToStorage(
+  const storageSync = syncForkEncryptedToStorage(
     newChatId,
     encryptedNewChatKey,
     encryptedTitle,
@@ -341,6 +343,10 @@ async function runForkAsync(
     nowTimestamp,
     messagesToCopy.length,
   );
+
+  if (options.awaitStorageSync) {
+    await storageSync;
+  }
 
   if (options.afterForkComplete) {
     await options.afterForkComplete(newChatId);
@@ -508,8 +514,9 @@ async function reencryptMessage(
  * Also stores the encrypted title, category, and icon so that the chat appears
  * correctly on other devices (and after a full sync cycle).
  *
- * This is fire-and-forget (not awaited) because it happens after the fork is
- * considered complete from the user's perspective.
+ * Normal forks treat this as fire-and-forget because it happens after the fork
+ * is considered complete from the user's perspective. Explain-in-new-chat waits
+ * for the frame to be sent before sending its automatic follow-up prompt.
  */
 function syncForkEncryptedToStorage(
   newChatId: string,
@@ -520,13 +527,13 @@ function syncForkEncryptedToStorage(
   reencryptedMessages: Message[],
   nowTimestamp: number,
   messageCount: number,
-): void {
+): Promise<void> {
   const isConnected = get(websocketStatus).status === "connected";
   if (!isConnected) {
     console.info(
       "[ForkChatService] WebSocket offline — encrypted storage sync will be reconciled via phased_sync on reconnect",
     );
-    return;
+    return Promise.resolve();
   }
 
   // Build the message_history array for the History Injection Flow.
@@ -564,7 +571,7 @@ function syncForkEncryptedToStorage(
     payload.encrypted_icon = encryptedIcon;
   }
 
-  webSocketService
+  return webSocketService
     .sendMessage("encrypted_chat_metadata", payload)
     .then(() => {
       console.info(

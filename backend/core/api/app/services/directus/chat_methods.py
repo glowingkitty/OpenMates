@@ -283,12 +283,13 @@ class ChatMethods:
                 logger.debug(f"Ownership check CACHE HIT for chat {chat_id}, user {user_id}: True")
                 return True
             
-            # 2. If not in cache, check if cache is primed for this user.
-            # If primed and not in cache, the user does NOT own the chat (False).
+            # 2. If not in cache, check whether the cache is primed for logging.
+            # A primed-but-missing cache is still a cache miss for newly-created
+            # chats because persistence can win the race before the chat-list
+            # cache is updated. Always fall back to Directus before rejecting.
             is_primed = await self.directus_service.cache.is_user_cache_primed(user_id)
             if is_primed:
-                logger.debug(f"Ownership check CACHE HIT (primed but missing) for chat {chat_id}, user {user_id}: False")
-                return False
+                logger.debug(f"Ownership check CACHE MISS (primed but missing) for chat {chat_id}, user {user_id}. Falling back to DB.")
             
             # 3. Cache miss or not primed: Fallback to Directus (DB hit)
             logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
