@@ -352,7 +352,12 @@
       {/if}
     {:else}
       <!-- Results grid -->
-      <div class="search-template-grid" data-testid="search-template-grid" style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};">
+      <div
+        class="search-template-grid"
+        data-testid="search-template-grid"
+        data-selected-index={selectedIndex}
+        style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};"
+      >
         {#each results as result, i (result.embed_id)}
           {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}
         {/each}
