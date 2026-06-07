@@ -99,6 +99,24 @@
     }));
   }
 
+  function normalizeWeatherDayResult(result: WeatherDayResult | undefined): WeatherDayResult {
+    return {
+      embed_id: result?.embed_id ?? 'weather-day',
+      date: result?.date,
+      location_name: result?.location_name,
+      provider: result?.provider,
+      condition: result?.condition,
+      icon: result?.icon,
+      temperature_min_c: result?.temperature_min_c,
+      temperature_max_c: result?.temperature_max_c,
+      precipitation_total_mm: result?.precipitation_total_mm,
+      precipitation_probability_max_pct: result?.precipitation_probability_max_pct,
+      rain_hours: result?.rain_hours,
+      wind_speed_max_kmh: result?.wind_speed_max_kmh,
+      hourly: Array.isArray(result?.hourly) ? result.hourly : [],
+    };
+  }
+
 </script>
 
 <SearchResultsTemplate
@@ -124,28 +142,30 @@
   {onShowChat}
 >
   {#snippet resultCard({ result, onSelect })}
+    {@const day = normalizeWeatherDayResult(result)}
     <WeatherDayEmbedPreview
-      id={result.embed_id}
-      date={result.date}
-      locationName={result.location_name || locationName}
-      provider={result.provider || provider}
-      condition={result.condition}
-      icon={result.icon}
-      temperatureMinC={result.temperature_min_c}
-      temperatureMaxC={result.temperature_max_c}
-      precipitationTotalMm={result.precipitation_total_mm}
-      precipitationProbabilityMaxPct={result.precipitation_probability_max_pct}
-      rainHours={result.rain_hours}
+      id={day.embed_id}
+      date={day.date}
+      locationName={day.location_name || locationName}
+      provider={day.provider || provider}
+      condition={day.condition}
+      icon={day.icon}
+      temperatureMinC={day.temperature_min_c}
+      temperatureMaxC={day.temperature_max_c}
+      precipitationTotalMm={day.precipitation_total_mm}
+      precipitationProbabilityMaxPct={day.precipitation_probability_max_pct}
+      rainHours={day.rain_hours}
       status="finished"
       onFullscreen={onSelect}
     />
   {/snippet}
 
   {#snippet childFullscreen(nav)}
+    {@const day = normalizeWeatherDayResult(nav.result)}
     <WeatherDayEmbedFullscreen
-      data={{ decodedContent: nav.result, embedData: {} }}
+      data={{ decodedContent: day, embedData: {} }}
       onClose={nav.onClose}
-      embedId={nav.result.embed_id}
+      embedId={day.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}
       onNavigatePrevious={nav.onPrevious}
