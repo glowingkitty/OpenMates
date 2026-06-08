@@ -8,7 +8,13 @@
  * Tests: exercised indirectly via CLI chat command tests and manual runs.
  */
 
-import WebSocket, { type RawData } from "ws";
+import { createRequire } from "node:module";
+import type { IncomingMessage } from "node:http";
+
+const require = createRequire(import.meta.url);
+const WebSocket = require("ws");
+
+type RawData = Buffer | ArrayBuffer | Buffer[];
 
 export interface WsEnvelope<T = unknown> {
   type: string;
@@ -50,7 +56,7 @@ export interface SendEmbedDataFrame {
 }
 
 export class OpenMatesWsClient {
-  private readonly socket: WebSocket;
+  private readonly socket: InstanceType<typeof WebSocket>;
 
   constructor(options: {
     apiUrl: string;
@@ -99,14 +105,14 @@ export class OpenMatesWsClient {
         clearTimeout(timeout);
         resolve();
       });
-      this.socket.once("error", (error) => {
+      this.socket.once("error", (error: Error) => {
         clearTimeout(timeout);
         reject(error);
       });
       // ws library emits 'unexpected-response' when the server returns a non-101
       // status. When this listener exists, ws does NOT emit the generic 'error'
       // event for the upgrade failure, so there is no double-reject risk.
-      this.socket.once("unexpected-response", (_req, res) => {
+      this.socket.once("unexpected-response", (_req: unknown, res: IncomingMessage) => {
         clearTimeout(timeout);
         if (res.statusCode === 401 || res.statusCode === 403) {
           reject(
@@ -133,7 +139,7 @@ export class OpenMatesWsClient {
 
   sendAsync(type: string, payload: unknown): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.socket.send(JSON.stringify({ type, payload }), (error) => {
+      this.socket.send(JSON.stringify({ type, payload }), (error?: Error) => {
         if (error) reject(error);
         else resolve();
       });

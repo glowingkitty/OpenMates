@@ -9,12 +9,15 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { WebSocketServer } from "ws";
+import { createRequire } from "node:module";
 
 import { OpenMatesWsClient } from "../src/ws.ts";
 
+const require = createRequire(import.meta.url);
+const { WebSocketServer } = require("ws");
+
 describe("OpenMatesWsClient.collectAiResponse", () => {
-  let server: WebSocketServer;
+  let server: InstanceType<typeof WebSocketServer>;
   let apiUrl: string;
 
   before(async () => {
