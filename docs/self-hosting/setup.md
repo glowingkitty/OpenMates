@@ -204,7 +204,13 @@ app.example.com {
 }
 ```
 
-Set production origins and domains in `~/openmates/.env` before restarting. Use HTTPS for any public instance.
+Set production origins and domains in `~/openmates/.env` before restarting. `PRODUCTION_URL` is the backend CORS allowlist used when `SERVER_ENVIRONMENT=production`; for the default local install it is generated as `http://localhost:5173`. For a public instance, replace it with your HTTPS web app origin, or comma-separate multiple trusted web origins:
+
+```env
+PRODUCTION_URL="https://app.example.com"
+```
+
+Use HTTPS for any public instance.
 
 ### Security checklist
 
@@ -243,7 +249,7 @@ Supported signup modes are `invite_only`, `domain_allowlist`, and `invite_and_do
 ### Backend is unreachable from the browser
 
 - Confirm the API health endpoint: `curl http://localhost:8000/health`.
-- If serving from another domain, configure your reverse proxy and frontend API URL consistently.
+- If serving from another domain, configure your reverse proxy, frontend API URL, and `PRODUCTION_URL` consistently.
 - Check browser console errors for blocked CORS or mixed-content requests.
 
 ### Complete reset

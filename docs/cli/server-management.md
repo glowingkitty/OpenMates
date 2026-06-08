@@ -77,6 +77,8 @@ openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-
 
 Default install mode creates a lightweight runtime directory, writes `.env`, stores image-mode Docker Compose files, and uses prebuilt images from `ghcr.io/glowingkitty`. It does not clone the OpenMates repository. Default install directory is `~/openmates`.
 
+The generated `.env` includes `PRODUCTION_URL="http://localhost:5173"` so the production-mode backend allows browser API calls from the default local web app origin. If you serve the web app from another HTTPS domain, update `PRODUCTION_URL` before restarting.
+
 Source mode is the contributor/fork path. Use `--from-source` to clone the official repository, or `--source-path <dir>` to clone from an existing local checkout. Source mode requires Git for clone-based installs and updates, and rebuilds Docker images locally.
 
 Image-mode install defaults to `invite_only`. The install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`. Source-mode installs still use the repository setup script behavior.
