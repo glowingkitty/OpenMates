@@ -626,6 +626,36 @@ async def _recreate_fixture_embeds(
                 logger.info(
                     f"[MOCK] Recreated app_skill_use embed: {old_embed_id} → {placeholder['embed_id']}"
                 )
+            elif embed_type == "application":
+                files = embed_meta.get("files")
+                entrypoints = embed_meta.get("entrypoints")
+                if not isinstance(files, list) or not files:
+                    logger.warning(f"[MOCK] application embed {old_embed_id} has no fixture files — skipping.")
+                    continue
+
+                application_data = await embed_service.create_application_artifact_embed(
+                    name=embed_meta.get("name") or "Generated application",
+                    framework=embed_meta.get("framework") or "web",
+                    runtime=embed_meta.get("runtime") or "node",
+                    files=files,
+                    entrypoints=entrypoints if isinstance(entrypoints, list) else [
+                        {"name": "frontend", "command": "npm run dev", "port": 5173}
+                    ],
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                )
+                if application_data:
+                    new_ref = application_data["embed_reference"]
+                    new_block = f"```json\n{new_ref}\n```"
+                    response = response[:match.start()] + new_block + response[match.end():]
+                    logger.info(
+                        f"[MOCK] Recreated application embed: {old_embed_id} → {application_data['embed_id']}"
+                    )
             else:
                 logger.info(f"[MOCK] Skipping embed recreation for type '{embed_type}' (not yet supported)")
         except Exception as e:

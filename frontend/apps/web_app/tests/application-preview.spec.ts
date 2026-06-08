@@ -13,7 +13,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	withLiveMockMarker
+	withMockMarker
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
@@ -49,7 +49,7 @@ test('generated application embed starts explicit isolated live preview', async 
 
 	await sendMessage(
 		page,
-		withLiveMockMarker(
+		withMockMarker(
 			'Create a tiny Svelte recipe manager application with package.json, src/App.svelte, and src/main.ts. Return it as a runnable generated application preview.',
 			'application_preview'
 		),
