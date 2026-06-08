@@ -296,9 +296,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: github-actions:27152981444
+        timestamp: "2026-06-08T17:40:24Z"
   - id: T-SELFHOST-TIMING
     type: manual
     covers:
@@ -321,9 +321,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: github-actions:27158252624
+        timestamp: "2026-06-08T18:44:51Z"
 
 implementation_plan:
   existing_patterns:
