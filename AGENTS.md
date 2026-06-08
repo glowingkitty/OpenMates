@@ -41,6 +41,7 @@ OpenMates/
 - **No Magic Values:** Extract raw strings/numbers to named constants.
 - **Comments:** Explain business logic and architecture decisions. Link to `docs/architecture/`.
 - **File headers:** Every new `.py`, `.ts`, `.svelte` file needs a header comment (5-10 lines).
+- **Deterministic guardrails:** When repeated bugs, flaky tests, security/privacy risks, provider metadata drift, or OpenCode workflow issues cost debugging time or inference tokens, prefer creating or updating a deterministic script, audit, hook, or focused test guard that prevents the same issue from recurring.
 
 ### DRY: Search Before Writing
 
@@ -72,6 +73,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Add backend shared logic under `backend/shared/python_utils/`, `backend/shared/python_schemas/`, or `backend/shared/providers/`.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
+- Treat deterministic scripts as a first-class outcome of bug fixes and code-quality work. Prefer updating an existing script over adding a new one; wire checks into hooks only when they are path-scoped, fast, and low-noise, otherwise expose them as on-demand scripts from the relevant skill.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.
 - For changed code, run the smallest relevant lint/test/build command that proves the change.

@@ -67,6 +67,10 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 
 ## Additional Test Rules
 
+- When a spec failure points to a repeated flaky pattern, first look for a
+  deterministic helper or audit improvement that would prevent the class of
+  failure across specs. Prefer shared helpers and `scripts/audit_*` checks over
+  one-off sleeps or per-spec workarounds.
 - **NEVER use CSS class selectors in tests.** All element targeting MUST use `data-testid` attributes with `page.getByTestId('name')`. CSS classes are styling concerns and break when CSS changes.
   - Bad: `page.locator('.send-button')`, `page.locator('.chat-title')`
   - Good: `page.getByTestId('send-button')`, `page.getByTestId('chat-title')`

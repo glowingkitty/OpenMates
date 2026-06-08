@@ -35,6 +35,24 @@ already too large.
 - Frontend embed previews/fullscreens should use shared UnifiedEmbed primitives
   instead of repeating layout and lifecycle code.
 
+## Deterministic Scripts And Audits
+
+- When you uncover a recurring bug pattern, flaky test pattern, security/privacy
+  risk, provider metadata drift, code-quality issue, or OpenCode workflow that
+  repeatedly consumes inference, ask whether a deterministic script can prevent
+  or detect it.
+- Prefer updating an existing audit, guard, test helper, or repo script before
+  adding a new script. New scripts should be high-signal, cheap to run, and easy
+  to invoke from skills or hooks.
+- Wire deterministic checks into hooks only when they are path-scoped and
+  low-noise. If a full-repo scan would fail on legacy debt, make the hook check
+  newly changed lines/files and expose `--all` for on-demand cleanup.
+- Every new deterministic script should include focused tests or fixtures that
+  cover both a failing example and an allowed/clean example.
+- Do not use deterministic scripts to hide errors or replace product tests; use
+  them to catch repeatable contracts before humans or agents spend tokens
+  rediscovering the same issue.
+
 ## Error Handling
 
 - Avoid new broad `except Exception` or broad `catch` blocks inside business
@@ -53,6 +71,6 @@ already too large.
 
 - `scripts/code_quality_guard.py` checks staged changes for generated files,
   likely secrets, new oversized files, suppressions, broad catches, cross-skill
-  imports, and store-internal imports.
+  imports, store-internal imports, and path-scoped deterministic audits.
 - Run it manually with `python3 scripts/code_quality_guard.py` when preparing a
   risky refactor.
