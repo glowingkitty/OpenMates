@@ -35,6 +35,34 @@ function extractJsonLd(html: string): Record<string, any> {
 }
 
 test.describe('Example chats loading for new users', () => {
+	async function ensureSidebarVisible(page: any): Promise<void> {
+		const history = page.getByTestId('activity-history-wrapper');
+		if (await history.isVisible().catch(() => false)) {
+			return;
+		}
+
+		const toggle = page.getByTestId('sidebar-toggle');
+		await expect(toggle).toBeVisible({ timeout: 10000 });
+		await toggle.click();
+		await expect(history).toBeVisible({ timeout: 10000 });
+	}
+
+	function examplesSidebarGroup(page: any): any {
+		return page.getByTestId('chat-group').filter({
+			has: page.getByTestId('group-title').filter({ hasText: 'Examples' })
+		}).first();
+	}
+
+	async function sidebarExampleIds(page: any): Promise<string[]> {
+		const group = examplesSidebarGroup(page);
+		await expect(group).toBeVisible({ timeout: 15000 });
+		return group.getByTestId('chat-item-wrapper').evaluateAll((nodes: Element[]) =>
+			nodes
+				.map((node) => node.getAttribute('data-chat-id') || '')
+				.filter(Boolean)
+		);
+	}
+
 	test('example chats appear in for-everyone intro chat', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 
@@ -93,6 +121,40 @@ test.describe('Example chats loading for new users', () => {
 				'Chat card should have a non-empty title'
 			).toBeGreaterThan(0);
 		}
+	});
+
+	test('sidebar example chats show newest first and append older results after show more', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await ensureSidebarVisible(page);
+
+		const initialIds = await sidebarExampleIds(page);
+		expect(initialIds.length, 'Examples group should show the initial example batch').toBeGreaterThan(0);
+		expect(
+			initialIds,
+			'Habit Garden should be in the initial newest-first example batch'
+		).toContain('example-habit-garden-vite-app');
+
+		const showMoreExamples = page.getByTestId('show-more-example-chats');
+		await expect(showMoreExamples).toBeVisible({ timeout: 10000 });
+		await showMoreExamples.click();
+
+		await expect.poll(async () => (await sidebarExampleIds(page)).length, {
+			message: 'Show more should reveal more example chats after the initial batch',
+			timeout: 10000
+		}).toBeGreaterThan(initialIds.length);
+
+		const expandedIds = await sidebarExampleIds(page);
+		expect(
+			expandedIds.slice(0, initialIds.length),
+			'Newly revealed examples should be appended after already-visible examples'
+		).toEqual(initialIds);
 	});
 
 	test('example chat SSR pages are accessible', async ({ request }: { request: any }) => {
