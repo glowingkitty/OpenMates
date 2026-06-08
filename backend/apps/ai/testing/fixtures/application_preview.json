@@ -3,6 +3,7 @@
   "recorded_at": "2026-06-08T09:00:00Z",
   "speed_profile": "instant",
   "initial_delay_ms": 1000,
+  "chunk_delay_ms": 750,
   "user_message_snippet": "Create a tiny Svelte recipe manager application with package.json, src/App.svelte, and src/main.ts.",
   "preprocessing": {
     "can_proceed": true,

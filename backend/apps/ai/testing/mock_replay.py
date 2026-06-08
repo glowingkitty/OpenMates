@@ -123,6 +123,14 @@ def get_chunk_delay_seconds(speed_profile: Optional[str]) -> float:
     return SPEED_PROFILES[DEFAULT_SPEED_PROFILE] / 1000.0
 
 
+def get_fixture_chunk_delay_seconds(fixture_data: Dict[str, Any], speed_profile: Optional[str]) -> float:
+    """Return fixture-specific inter-chunk delay, falling back to speed profile."""
+    chunk_delay_ms = fixture_data.get("chunk_delay_ms")
+    if isinstance(chunk_delay_ms, int) and chunk_delay_ms >= 0:
+        return chunk_delay_ms / 1000.0
+    return get_chunk_delay_seconds(speed_profile)
+
+
 def load_fixture(fixture_id: str) -> Dict[str, Any]:
     """
     Load a fixture JSON file by its ID.
@@ -303,7 +311,7 @@ async def replay_fixture(
 
     # Determine streaming speed
     speed_profile = speed_override or fixture_data.get("speed_profile", DEFAULT_SPEED_PROFILE)
-    chunk_delay = get_chunk_delay_seconds(speed_profile)
+    chunk_delay = get_fixture_chunk_delay_seconds(fixture_data, speed_profile)
 
     logger.info(
         f"[MOCK] Replaying fixture '{fixture_id}' for task {task_id}, "
