@@ -429,6 +429,45 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
       expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
     });
+
+    it("skips draft-only user chats as header navigation targets", async () => {
+      const newestChat = makeChat("newest-chat", {
+        encrypted_title: "encrypted-title",
+        messages_v: 2,
+        last_edited_overall_timestamp: Date.now(),
+      });
+      const draftOnlyChat = makeChat("draft-only-chat", {
+        title: undefined,
+        encrypted_title: null,
+        encrypted_chat_summary: null,
+        encrypted_icon: null,
+        encrypted_category: null,
+        encrypted_draft_md: "encrypted-draft-md",
+        encrypted_draft_preview: "encrypted-draft-preview",
+        draft_v: 1,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: Date.now() - 100,
+      });
+      const olderChat = makeChat("older-chat", {
+        encrypted_title: "older-encrypted-title",
+        messages_v: 1,
+        last_edited_overall_timestamp: Date.now() - 200,
+      });
+
+      setChatNavigationList([newestChat, draftOnlyChat, olderChat], newestChat.chat_id);
+
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: false, hasNext: true });
+
+      await navigateNext();
+
+      const dispatchCalls = vi.mocked(window.dispatchEvent).mock.calls;
+      const dispatchedEvent = dispatchCalls[dispatchCalls.length - 1]?.[0] as
+        | CustomEvent<{ chat: Chat }>
+        | undefined;
+      expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
+    });
   });
 
   describe("updateNavFromCache (cold boot, sidebar closed)", () => {

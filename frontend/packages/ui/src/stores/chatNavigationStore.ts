@@ -87,13 +87,7 @@ function isHeaderNavigableChat(chat: Chat): boolean {
   );
   const hasMessages =
     (chat.messages_v ?? 0) > 0 || (chat.messages?.length ?? 0) > 0;
-  const hasDraft = Boolean(
-    chat.encrypted_draft_md ||
-      chat.encrypted_draft_preview ||
-      (chat.draft_v ?? 0) > 0,
-  );
-
-  return hasMetadata || hasMessages || hasDraft;
+  return hasMetadata || hasMessages;
 }
 
 function toHeaderNavigableChats(chats: Chat[]): Chat[] {
