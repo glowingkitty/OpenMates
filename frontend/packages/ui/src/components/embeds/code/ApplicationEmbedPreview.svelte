@@ -7,13 +7,22 @@
 -->
 
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
 
   interface FileRef {
     path?: string;
     embed_id?: string;
     role?: string;
+  }
+
+  interface ScreenshotRef {
+    files?: { preview?: { s3_key?: string } };
+    s3_base_url?: string;
+    aes_key?: string;
+    aes_nonce?: string;
   }
 
   interface Props {
@@ -24,6 +33,7 @@
     file_refs?: FileRef[];
     entrypoints?: Array<Record<string, unknown>>;
     latest_screenshot_url?: string;
+    latest_screenshot?: ScreenshotRef;
     status: 'processing' | 'finished' | 'error';
     taskId?: string;
     isMobile?: boolean;
@@ -38,6 +48,7 @@
     file_refs = [],
     entrypoints = [],
     latest_screenshot_url,
+    latest_screenshot,
     status,
     taskId,
     isMobile = false,
@@ -48,6 +59,9 @@
   let fileCount = $derived(Array.isArray(file_refs) ? file_refs.length : 0);
   let entrypointCount = $derived(Array.isArray(entrypoints) ? entrypoints.length : 0);
   let skillName = $derived(name || $text('embeds.application_title'));
+  let decryptedScreenshotUrl = $state('');
+  let retainedScreenshotKey = $state('');
+  let screenshotUrl = $derived(latest_screenshot_url || decryptedScreenshotUrl);
   let statusText = $derived.by(() => {
     if (status === 'processing') return $text('embeds.processing');
     if (status === 'error') return $text('embeds.application_preview_failed');
@@ -58,6 +72,45 @@
   function handleStop() {
     // Live preview sessions are started/stopped from fullscreen in this slice.
   }
+
+  async function loadEncryptedScreenshot() {
+    const s3Key = latest_screenshot?.files?.preview?.s3_key;
+    const aesKey = latest_screenshot?.aes_key;
+    const aesNonce = latest_screenshot?.aes_nonce;
+    if (retainedScreenshotKey && s3Key !== retainedScreenshotKey) {
+      releaseCachedImage(retainedScreenshotKey);
+      retainedScreenshotKey = '';
+      decryptedScreenshotUrl = '';
+    }
+    if (latest_screenshot_url || !s3Key || !aesKey || aesNonce === undefined || decryptedScreenshotUrl) return;
+
+    const cached = getCachedImageUrl(s3Key);
+    if (cached) {
+      decryptedScreenshotUrl = cached;
+      retainedScreenshotKey = s3Key;
+      retainCachedImage(s3Key);
+      return;
+    }
+
+    try {
+      await fetchAndDecryptImage(latest_screenshot?.s3_base_url || '', s3Key, aesKey, aesNonce);
+      const decryptedUrl = getCachedImageUrl(s3Key);
+      if (!decryptedUrl) return;
+      decryptedScreenshotUrl = decryptedUrl;
+      retainedScreenshotKey = s3Key;
+      retainCachedImage(s3Key);
+    } catch (error) {
+      console.warn('[ApplicationEmbedPreview] Failed to load encrypted screenshot:', error);
+    }
+  }
+
+  $effect(() => {
+    void loadEncryptedScreenshot();
+  });
+
+  onDestroy(() => {
+    if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
+  });
 </script>
 
 <UnifiedEmbedPreview
@@ -78,8 +131,8 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="application-preview" class:mobile={isMobileLayout}>
       <div class="screenshot-frame" data-testid="application-preview-screenshot">
-        {#if latest_screenshot_url}
-          <img src={latest_screenshot_url} alt="" class="screenshot" />
+        {#if screenshotUrl}
+          <img src={screenshotUrl} alt="" class="screenshot" />
         {:else}
           <div class="placeholder" aria-hidden="true">
             <span class="app-window-dot"></span>

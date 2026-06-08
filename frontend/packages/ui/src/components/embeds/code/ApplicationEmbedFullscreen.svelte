@@ -18,6 +18,7 @@
     stopApplicationPreview,
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
+  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
 
   interface FileRef {
     path?: string;
@@ -29,6 +30,13 @@
     kind: string;
     text: string;
     timestamp: number;
+  }
+
+  interface ScreenshotRef {
+    files?: { preview?: { s3_key?: string } };
+    s3_base_url?: string;
+    aes_key?: string;
+    aes_nonce?: string;
   }
 
   interface Props {
@@ -65,9 +73,13 @@
   let runtime = $derived(typeof dc.runtime === 'string' ? dc.runtime : '');
   let fileRefs = $derived(Array.isArray(dc.file_refs) ? dc.file_refs as FileRef[] : []);
   let initialScreenshotUrl = $derived(typeof dc.latest_screenshot_url === 'string' ? dc.latest_screenshot_url : '');
+  let initialScreenshotRef = $derived((dc.latest_screenshot && typeof dc.latest_screenshot === 'object') ? dc.latest_screenshot as ScreenshotRef : undefined);
   let sessionId = $state<string | null>(null);
   let previewUrl = $state<string | null>(null);
   let latestScreenshotUrl = $state<string>('');
+  let latestScreenshotRef = $state<ScreenshotRef | undefined>(undefined);
+  let decryptedScreenshotUrl = $state('');
+  let retainedScreenshotKey = $state('');
   let previewStatus = $state<ApplicationPreviewStatusValue | 'idle'>('idle');
   let previewEvents = $state<PreviewEvent[]>([]);
   let errorMessage = $state<string | null>(null);
@@ -75,6 +87,7 @@
   let pollTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let subtitle = $derived([framework, runtime].filter(Boolean).join(' · '));
+  let screenshotUrl = $derived(latestScreenshotUrl || initialScreenshotUrl || decryptedScreenshotUrl);
   let canStart = $derived(Boolean(chatId && embedId && !isBusy && previewStatus !== 'running' && previewStatus !== 'starting' && previewStatus !== 'queued'));
   let canStop = $derived(Boolean(sessionId && !isBusy && ['queued', 'starting', 'running'].includes(previewStatus)));
   let canOpenWindow = $derived(Boolean(previewUrl && previewStatus === 'running'));
@@ -89,6 +102,7 @@
 
   onDestroy(() => {
     clearStatusPoll();
+    if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
   });
 
   function clearStatusPoll() {
@@ -112,6 +126,8 @@
       previewStatus = response.status;
       previewEvents = response.events ?? previewEvents;
       latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
+      latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
+      void loadEncryptedScreenshot();
       if (response.status === 'failed' || response.status === 'timeout') {
         errorMessage = response.error || $text('embeds.application_preview_failed');
         return;
@@ -158,6 +174,8 @@
       const status = await getApplicationPreviewStatus(sessionId);
       previewEvents = status.events ?? previewEvents;
       latestScreenshotUrl = status.latest_screenshot_url ?? latestScreenshotUrl;
+      latestScreenshotRef = (status.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
+      void loadEncryptedScreenshot();
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : $text('embeds.application_preview_stop_failed');
     } finally {
@@ -169,6 +187,42 @@
     if (!previewUrl) return;
     window.open(previewUrl, '_blank', 'noopener,noreferrer');
   }
+
+  async function loadEncryptedScreenshot() {
+    const source = latestScreenshotRef || initialScreenshotRef;
+    const s3Key = source?.files?.preview?.s3_key;
+    const aesKey = source?.aes_key;
+    const aesNonce = source?.aes_nonce;
+    if (retainedScreenshotKey && s3Key !== retainedScreenshotKey) {
+      releaseCachedImage(retainedScreenshotKey);
+      retainedScreenshotKey = '';
+      decryptedScreenshotUrl = '';
+    }
+    if (latestScreenshotUrl || initialScreenshotUrl || !s3Key || !aesKey || aesNonce === undefined || decryptedScreenshotUrl) return;
+
+    const cached = getCachedImageUrl(s3Key);
+    if (cached) {
+      decryptedScreenshotUrl = cached;
+      retainedScreenshotKey = s3Key;
+      retainCachedImage(s3Key);
+      return;
+    }
+
+    try {
+      await fetchAndDecryptImage(source?.s3_base_url || '', s3Key, aesKey, aesNonce);
+      const decryptedUrl = getCachedImageUrl(s3Key);
+      if (!decryptedUrl) return;
+      decryptedScreenshotUrl = decryptedUrl;
+      retainedScreenshotKey = s3Key;
+      retainCachedImage(s3Key);
+    } catch (error) {
+      console.warn('[ApplicationEmbedFullscreen] Failed to load encrypted screenshot:', error);
+    }
+  }
+
+  $effect(() => {
+    void loadEncryptedScreenshot();
+  });
 </script>
 
 <UnifiedEmbedFullscreen
@@ -212,9 +266,9 @@
             <h3>{$text('common.loading')}</h3>
             <p>{$text('embeds.application_ready')}</p>
           </div>
-        {:else if latestScreenshotUrl || initialScreenshotUrl}
+        {:else if screenshotUrl}
           <button class="screenshot-preview" data-testid="application-fullscreen-screenshot" type="button" onclick={handleStartPreview} disabled={!canStart} aria-label={$text('embeds.application_start_preview')}>
-            <img src={latestScreenshotUrl || initialScreenshotUrl} alt="" />
+            <img src={screenshotUrl} alt="" />
             <span class="play-overlay" aria-hidden="true">▶</span>
           </button>
         {:else}

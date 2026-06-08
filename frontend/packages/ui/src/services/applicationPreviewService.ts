@@ -23,6 +23,7 @@ export interface ApplicationPreviewStatus {
   error?: string;
   charged_credits?: number;
   latest_screenshot_url?: string;
+  latest_screenshot?: Record<string, unknown>;
 }
 
 interface ApplicationFileRef {

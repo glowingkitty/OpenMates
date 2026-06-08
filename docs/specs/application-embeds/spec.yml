@@ -415,6 +415,7 @@ tests:
       - shared recipients receive a distinct sandbox/session from the creator
       - preview billing uses the configured 5 credits per started minute rate
       - stop, 5-minute idle timeout, and 30-minute hard timeout paths release sandbox and billing state
+      - the latest available screenshot URL and capture timestamp remain on the preview session after Stop
     red_phase:
       required: true
       expected: fail
@@ -428,9 +429,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:python3 -m pytest backend/tests/test_application_preview_config.py"
-        timestamp: "2026-06-07T23:09:44Z"
-        notes: "23 config tests passed for preview-origin validation, manifest payload extraction, queued session creation, route-level worker dispatch, owner-scoped status/stop access, E2B sandbox stop-task dispatch, timeout constants, and 5 credits/minute billing."
+        run_id: "docker:python -m pytest /app/backend/tests/test_application_preview_config.py /app/backend/tests/test_run_application_preview_task.py /app/backend/tests/test_e2b_application_preview.py"
+        timestamp: "2026-06-08T13:29:41Z"
+        notes: "37 focused backend tests passed, including preview-origin validation, manifest payload extraction, queued session creation, route-level worker dispatch, owner-scoped status/stop access, E2B sandbox stop-task dispatch, narrowed encrypted screenshot metadata exposure, screenshot URL preservation after stop, shared-context thumbnail persistence skip, timeout constants, and 5 credits/minute billing."
 
   - id: T-PYTEST-APP-MANIFEST-PAYLOAD-001
     type: pytest
@@ -573,9 +574,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:python3 -m pytest backend/tests/test_e2b_application_preview.py"
-        timestamp: "2026-06-07T20:37:06Z"
-        notes: "8 tests passed for deterministic E2B application-preview file, dependency, and entrypoint planning."
+        run_id: "docker:python -m pytest /app/backend/tests/test_e2b_application_preview.py + live-e2b-smoke"
+        timestamp: "2026-06-08T12:45:13Z"
+        notes: "8 provider planning tests passed. A live E2B smoke in app-code-worker also created a sandbox for a static index.html app, exposed an upstream URL for port 5173, returned HTTP 200 with expected content, and killed the sandbox successfully."
 
   - id: T-PYTEST-APP-WORKER-LIFECYCLE-001
     type: pytest
@@ -602,9 +603,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:python3 -m pytest backend/tests/test_run_application_preview_task.py"
-        timestamp: "2026-06-07T23:09:44Z"
-        notes: "3 tests passed for fake-provider running lifecycle, planning failure redaction, and queued E2B sandbox cleanup recording."
+        run_id: "docker:python -m pytest /app/backend/tests/test_run_application_preview_task.py"
+        timestamp: "2026-06-08T13:29:41Z"
+        notes: "6 worker tests passed for fake-provider running lifecycle, encrypted screenshot metadata capture, encrypted S3 thumbnail indexing under the persistent application embed ID, Directus fallback when the embed cache is missing, shared-context thumbnail persistence skip, application embed metadata update, planning failure redaction, and queued E2B sandbox cleanup recording."
 
   - id: T-PYTEST-APP-ARTIFACT-BUILDER-001
     type: pytest
@@ -667,9 +668,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --suite vitest"
+        timestamp: "2026-06-08T12:45:13Z"
+        notes: "Normal orchestrated runs for application-preview.spec.ts and application-preview-share.spec.ts each dispatched vitest successfully; latest observed run reported 336/336 passed."
 
   - id: T-E2E-APP-PREVIEW-001
     type: playwright
@@ -707,9 +709,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --spec application-preview.spec.ts / github-actions:27137843503"
+        timestamp: "2026-06-08T12:45:13Z"
+        notes: "Normal orchestrator path passed after Vercel Ready gate; summary 1682 total, 1672 passed, 0 failed, 10 skipped."
 
   - id: T-E2E-APP-SHARE-001
     type: playwright
@@ -737,9 +740,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --spec application-preview-share.spec.ts / github-actions:27138104303"
+        timestamp: "2026-06-08T12:45:13Z"
+        notes: "Normal orchestrator path passed after Vercel Ready gate; summary 1682 total, 1672 passed, 0 failed, 10 skipped."
 
   - id: T-LINT-APP-EMBED-001
     type: lint
@@ -767,9 +771,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked_unrelated_worktree
+        run_id: "npm exec -- eslint src/components/embeds/code/ApplicationEmbedPreview.svelte src/components/embeds/code/ApplicationEmbedFullscreen.svelte src/services/applicationPreviewService.ts; npm exec -- svelte-check --tsconfig ./tsconfig.json"
+        timestamp: "2026-06-08T13:24:39Z"
+        notes: "File-scoped eslint passed for the touched application preview UI files after the encrypted screenshot cache lifecycle fix. Svelte-check remains blocked by existing unrelated/generated diagnostics in embedRegistry.generated.ts, modelsMetadata.ts, SvelteKit cookie typings, payment/settings/interactive question components, and other non-application-preview files; no diagnostics were reported for the changed application preview files. Full changed-files lint remains blocked by unrelated dirty worktree files noted earlier."
 
   - id: T-STATIC-APPLE-APP-PREVIEW-001
     type: lint

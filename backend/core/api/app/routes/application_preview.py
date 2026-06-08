@@ -76,6 +76,7 @@ class ApplicationPreviewStatusResponse(BaseModel):
     error: str | None = None
     charged_credits: int | None = None
     latest_screenshot_url: str | None = None
+    latest_screenshot: dict[str, Any] | None = None
 
 
 def build_application_preview_worker_payload(
@@ -507,7 +508,18 @@ def build_application_preview_status_response(data: dict[str, Any]) -> Applicati
         error=data.get("error") if isinstance(data.get("error"), str) else None,
         charged_credits=charged_credits if isinstance(charged_credits, int) else None,
         latest_screenshot_url=data.get("latest_screenshot_url") if isinstance(data.get("latest_screenshot_url"), str) else None,
+        latest_screenshot=_public_latest_screenshot(data.get("latest_screenshot")),
     )
+
+
+def _public_latest_screenshot(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    public: dict[str, Any] = {}
+    for key in ("asset_id", "variant", "files", "s3_base_url", "aes_key", "aes_nonce", "captured_at"):
+        if key in value:
+            public[key] = value[key]
+    return public or None
 
 
 def _public_preview_events(events: Any) -> list[ApplicationPreviewEvent]:

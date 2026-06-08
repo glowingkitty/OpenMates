@@ -9,8 +9,10 @@ from __future__ import annotations
 import json
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from toon_format import encode as toon_encode
 
 from backend.core.api.app.routes.application_preview import (
     ApplicationPreviewStartRequest,
@@ -77,6 +79,221 @@ async def test_run_application_preview_session_marks_session_running_with_upstre
         "Application preview is running.",
     ]
     assert "token-abc" not in json.dumps(stored)
+
+
+@pytest.mark.anyio
+async def test_run_application_preview_session_stores_encrypted_screenshot_metadata() -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+
+    async def fake_provider(**_kwargs):
+        return ApplicationPreviewRuntime(
+            sandbox_id="sandbox-1",
+            upstream_base_url="https://sandbox-1-5173.e2b.dev",
+            ports={"frontend": 5173},
+        )
+
+    async def fake_thumbnail_store(**kwargs):
+        assert kwargs["session_id"] == "session-1"
+        assert kwargs["runtime"].sandbox_id == "sandbox-1"
+        return {
+            "download_url": "https://api.dev.openmates.org/v1/generated-assets/session-1/files/preview/download?token=signed",
+            "metadata": {
+                "asset_id": "session-1",
+                "variant": "preview",
+                "files": {"preview": {"s3_key": "alice/preview.png", "format": "png"}},
+                "s3_base_url": "https://dev-openmates-chatfiles.nbg1.your-objectstorage.com",
+                "aes_key": "base64-key",
+                "aes_nonce": "base64-nonce",
+            },
+        }
+
+    await worker.run_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        payload={
+            "files": [{"path": "package.json", "content": '{"scripts":{"dev":"vite"}}'}],
+            "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        },
+        provider_start=fake_provider,
+        thumbnail_store=fake_thumbnail_store,
+        now=2_030.0,
+    )
+
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    assert stored["status"] == "running"
+    assert stored["latest_screenshot_url"].startswith("https://api.dev.openmates.org/v1/generated-assets/session-1/")
+    assert stored["latest_screenshot"]["asset_id"] == "session-1"
+    assert stored["latest_screenshot"]["files"]["preview"]["s3_key"] == "alice/preview.png"
+    assert stored["latest_screenshot_captured_at"] == 2_030.0
+    assert "token-abc" not in json.dumps(stored)
+
+
+@pytest.mark.anyio
+async def test_store_application_preview_thumbnail_encrypts_s3_and_updates_application_embed(monkeypatch) -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+    application_content = toon_encode({"type": "application", "name": "Recipe App"})
+    await cache.redis.set("embed:app-embed-1", json.dumps({"encrypted_content": application_content}))
+    cache.redis.values.pop("embed:app-embed-1")
+    uploads: list[dict] = []
+    indexed: list[dict] = []
+    cached_s3_keys: list[dict] = []
+    updated_embeds: list[dict] = []
+
+    class FakeEncryptionService:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def initialize(self):
+            return None
+
+        async def encrypt_with_user_key(self, value, _vault_key_id):
+            return f"vault:{value}", None
+
+        async def decrypt_with_user_key(self, value, _vault_key_id):
+            return value.removeprefix("vault:")
+
+    class FakeDirectusService:
+        def __init__(self, **_kwargs):
+            self.embed = SimpleNamespace(update_embed=self.update_embed, get_embed_by_id=self.get_embed_by_id)
+
+        async def get_user_fields_direct(self, _user_id, _fields):
+            return {"vault_key_id": "vault-alice", "storage_used_bytes": 0}
+
+        async def get_embed_by_id(self, embed_id):
+            assert embed_id == "app-embed-1"
+            return {"encrypted_content": application_content}
+
+        async def create_item(self, _collection, record):
+            indexed.append(record)
+            return True, None
+
+        async def update_user(self, *_args, **_kwargs):
+            return True
+
+        async def update_embed(self, embed_id, update_data):
+            updated_embeds.append({"embed_id": embed_id, "update_data": update_data})
+            return update_data
+
+    class FakeS3Service:
+        environment = "development"
+        base_domain = "nbg1.your-objectstorage.com"
+
+        def __init__(self, **_kwargs):
+            pass
+
+        async def initialize(self):
+            return None
+
+        async def upload_file(self, **kwargs):
+            uploads.append(kwargs)
+            return {"url": "s3://stored"}
+
+        async def delete_file(self, **_kwargs):
+            return True
+
+    async def fake_cache_s3_file_keys(_task, **kwargs):
+        cached_s3_keys.append(kwargs)
+        return None
+
+    monkeypatch.setattr(worker, "EncryptionService", FakeEncryptionService)
+    monkeypatch.setattr(worker, "DirectusService", FakeDirectusService)
+    monkeypatch.setattr(worker, "S3UploadService", FakeS3Service)
+    monkeypatch.setattr(worker, "get_bucket_name", lambda _bucket, _env: "dev-openmates-chatfiles")
+    monkeypatch.setattr(worker, "cache_s3_file_keys", fake_cache_s3_file_keys)
+    monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "signed-token")
+    monkeypatch.setattr(worker, "build_download_url", lambda **kwargs: f"{kwargs['base_url']}/download/{kwargs['asset_id']}/{kwargs['variant']}?token={kwargs['token']}")
+
+    result = await worker.store_application_preview_thumbnail(
+        cache_service=cache,
+        session_id="session-1",
+        payload={
+            "application_embed_id": "app-embed-1",
+            "framework": "svelte",
+            "files": [{"path": "src/App.svelte", "content": "<main />"}],
+        },
+        runtime=ApplicationPreviewRuntime(
+            sandbox_id="sandbox-1",
+            upstream_base_url="https://sandbox-1-5173.e2b.dev",
+            ports={"frontend": 5173},
+        ),
+        now=2_030.0,
+        secrets_manager=object(),
+    )
+
+    assert result is not None
+    assert result["download_url"] == "https://api.dev.openmates.org/download/app-embed-1/preview?token=signed-token"
+    assert result["metadata"]["asset_id"] == "app-embed-1"
+    assert result["metadata"]["files"]["preview"]["s3_key"].endswith("_application_preview.png")
+    assert uploads and uploads[0]["content_type"] == "application/octet-stream"
+    assert b"OpenMates" not in uploads[0]["content"]
+    assert indexed and indexed[0]["embed_id"] == "app-embed-1"
+    assert cached_s3_keys and cached_s3_keys[0]["embed_id"] == "app-embed-1"
+    assert updated_embeds and updated_embeds[0]["embed_id"] == "app-embed-1"
+
+    cached_embed = json.loads((await cache.redis.get("embed:app-embed-1")).decode("utf-8"))
+    assert cached_embed["encrypted_content"].startswith("vault:")
+
+
+@pytest.mark.anyio
+async def test_store_application_preview_thumbnail_skips_shared_context_sessions(monkeypatch) -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="shared-app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1", shared_context="encrypted-shared-context"),
+        current_user=_user("recipient-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+
+    monkeypatch.setattr(worker, "EncryptionService", object)
+    monkeypatch.setattr(worker, "DirectusService", object)
+    monkeypatch.setattr(worker, "S3UploadService", object)
+    monkeypatch.setattr(worker, "get_bucket_name", lambda *_args: "dev-openmates-chatfiles")
+    monkeypatch.setattr(worker, "build_download_url", lambda **_kwargs: "")
+    monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "")
+    monkeypatch.setattr(worker, "cache_s3_file_keys", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "index_generated_asset", lambda *_args, **_kwargs: None)
+
+    result = await worker.store_application_preview_thumbnail(
+        cache_service=cache,
+        session_id="session-1",
+        payload={"application_embed_id": "shared-app-embed-1"},
+        runtime=ApplicationPreviewRuntime(
+            sandbox_id="sandbox-1",
+            upstream_base_url="https://sandbox-1-5173.e2b.dev",
+            ports={"frontend": 5173},
+        ),
+        now=2_030.0,
+        secrets_manager=object(),
+    )
+
+    assert result is None
 
 
 @pytest.mark.anyio

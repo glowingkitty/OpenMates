@@ -510,6 +510,13 @@ def test_public_preview_status_excludes_gateway_secrets_and_raw_upstream() -> No
         "preview_token_hash": "hash-token",
         "upstream_base_url": "https://sandbox-1-5173.e2b.dev",
         "latest_screenshot_url": "https://openmatesusercontent.org/thumbs/session-1.png",
+        "latest_screenshot": {
+            "asset_id": "app-embed-1",
+            "variant": "preview",
+            "aes_key": "base64-key",
+            "aes_nonce": "base64-nonce",
+            "vault_wrapped_aes_key": "wrapped-key",
+        },
         "billing_state": {"charged_credits": 5},
         "events": [{"kind": "status", "text": "Application preview is running.", "timestamp": 2_010.0}],
     })
@@ -518,12 +525,19 @@ def test_public_preview_status_excludes_gateway_secrets_and_raw_upstream() -> No
     assert response.status == "running"
     assert response.charged_credits == 5
     assert response.latest_screenshot_url == "https://openmatesusercontent.org/thumbs/session-1.png"
+    assert response.latest_screenshot == {
+        "asset_id": "app-embed-1",
+        "variant": "preview",
+        "aes_key": "base64-key",
+        "aes_nonce": "base64-nonce",
+    }
     assert response.events[0].text == "Application preview is running."
     public_payload = response.model_dump() if hasattr(response, "model_dump") else response.dict()
     assert "viewer_user_id" not in public_payload
     assert "viewer_user_id_hash" not in public_payload
     assert "preview_token_hash" not in public_payload
     assert "upstream_base_url" not in public_payload
+    assert "vault_wrapped_aes_key" not in json.dumps(public_payload)
 
 
 @pytest.mark.anyio
@@ -545,7 +559,12 @@ async def test_stop_preview_session_updates_owner_record_without_cross_user_acce
     )
     session = await cache.redis.get(application_preview_session_key("session-1"))
     stored = json.loads(session.decode("utf-8"))
-    stored.update({"status": "running", "sandbox_id": "sandbox-1"})
+    stored.update({
+        "status": "running",
+        "sandbox_id": "sandbox-1",
+        "latest_screenshot_url": "https://openmatesusercontent.org/thumbs/session-1.png",
+        "latest_screenshot_captured_at": 2_045.0,
+    })
     await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
 
     with pytest.raises(HTTPException) as exc_info:
@@ -561,6 +580,8 @@ async def test_stop_preview_session_updates_owner_record_without_cross_user_acce
     assert stored["stop_reason"] == "user_requested"
     assert stored["sandbox_stop_requested_at"] == 2_060.0
     assert stored["updated_at"] == 2_060.0
+    assert stored["latest_screenshot_url"] == "https://openmatesusercontent.org/thumbs/session-1.png"
+    assert stored["latest_screenshot_captured_at"] == 2_045.0
     assert calls == [
         {
             "name": "code.stop_application_preview",
