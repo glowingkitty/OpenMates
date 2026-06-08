@@ -187,7 +187,8 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await page.setViewportSize({ width: 1600, height: 900 });
 
 		for (const example of linkedExampleChatCases) {
-			await page.goto(getE2EDebugUrl(`/#settings/app_store/${example.appId}/skill/${example.skillId}`), {
+			const settingsPath = `/?example-card=${example.appId}-${example.skillId}#settings/app_store/${example.appId}/skill/${example.skillId}`;
+			await page.goto(getE2EDebugUrl(settingsPath), {
 				waitUntil: 'domcontentloaded'
 			});
 			await page.waitForLoadState('networkidle');
