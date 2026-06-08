@@ -15,6 +15,7 @@ import Foundation
 
 struct DevPreviewLaunchConfiguration: Equatable {
     enum Surface: String {
+        case chatOpening = "chat-opening"
         case embeds
     }
 
@@ -27,25 +28,27 @@ struct DevPreviewLaunchConfiguration: Equatable {
     }
 
     static func parse(environment: [String: String]) -> DevPreviewLaunchConfiguration? {
-        guard environment["DEV_PREVIEW"] == Surface.embeds.rawValue else {
+        guard let surfaceValue = environment["DEV_PREVIEW"],
+              let surface = Surface(rawValue: surfaceValue) else {
             return nil
         }
 
         let app = environment["DEV_PREVIEW_APP"]
             .flatMap(DevEmbedPreviewApp.init(rawValue:)) ?? .web
 
-        return DevPreviewLaunchConfiguration(surface: .embeds, appSlug: app)
+        return DevPreviewLaunchConfiguration(surface: surface, appSlug: app)
     }
 
     static func parse(arguments: [String]) -> DevPreviewLaunchConfiguration? {
-        guard value(after: "--dev-preview", in: arguments) == Surface.embeds.rawValue else {
+        guard let surfaceValue = value(after: "--dev-preview", in: arguments),
+              let surface = Surface(rawValue: surfaceValue) else {
             return nil
         }
 
         let app = value(after: "--dev-preview-app", in: arguments)
             .flatMap(DevEmbedPreviewApp.init(rawValue:)) ?? .web
 
-        return DevPreviewLaunchConfiguration(surface: .embeds, appSlug: app)
+        return DevPreviewLaunchConfiguration(surface: surface, appSlug: app)
     }
 
     static func parse(url: URL) -> DevPreviewLaunchConfiguration? {
@@ -54,13 +57,22 @@ struct DevPreviewLaunchConfiguration: Equatable {
 
         if url.scheme == "openmates", url.host == "dev" {
             let parts = url.pathComponents.filter { $0 != "/" }
-            guard parts.count >= 2, parts[0] == "preview", parts[1] == Surface.embeds.rawValue else {
+            guard parts.count >= 2,
+                  parts[0] == "preview",
+                  let surface = Surface(rawValue: parts[1]) else {
                 return nil
+            }
+            if surface == .chatOpening {
+                return DevPreviewLaunchConfiguration(surface: .chatOpening, appSlug: .web)
             }
             let app = parts.dropFirst(2).first.flatMap(DevEmbedPreviewApp.init(rawValue:))
                 ?? queryApp.flatMap(DevEmbedPreviewApp.init(rawValue:))
                 ?? .web
             return DevPreviewLaunchConfiguration(surface: .embeds, appSlug: app)
+        }
+
+        if url.path.hasPrefix("/dev/preview/chat-opening") {
+            return DevPreviewLaunchConfiguration(surface: .chatOpening, appSlug: .web)
         }
 
         if url.path.hasPrefix("/dev/preview/embeds") {

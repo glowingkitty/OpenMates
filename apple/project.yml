@@ -207,3 +207,44 @@ targets:
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
           - group.org.openmates.app
+
+  OpenMatesUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: OpenMatesUITests
+    dependencies:
+      - target: OpenMates_iOS
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesUITests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.uitests
+        PRODUCT_NAME: OpenMatesUITests
+        TEST_TARGET_NAME: OpenMates_iOS
+        SWIFT_VERSION: "6.0"
+
+  OpenMatesTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OpenMatesTests
+    dependencies:
+      - target: OpenMates_iOS
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesTests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.tests
+        PRODUCT_NAME: OpenMatesTests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates
+        BUNDLE_LOADER: $(TEST_HOST)
+        SWIFT_VERSION: "6.0"
+
+schemes:
+  OpenMates_iOS:
+    build:
+      targets:
+        OpenMates_iOS: all
+    test:
+      targets:
+        - OpenMatesTests
+        - OpenMatesUITests

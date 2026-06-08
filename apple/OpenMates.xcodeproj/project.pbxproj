@@ -98,6 +98,11 @@
 		2E18776FCE989380BE85F46B /* VideoSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6829C40F936ED068744B1F /* VideoSearchIntent.swift */; };
 		2E4386B8EC99E335F06024E3 /* VoiceRecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C085AAB1B7660B7EB15B8A54 /* VoiceRecordingView.swift */; };
 		2F9F90976A31870483467946 /* DevEmbedPreviewGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91D9E41DAC0DA1BB00DC7DD5 /* DevEmbedPreviewGalleryView.swift */; };
+		C0FFEE000000000000000002 /* DevChatOpeningPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */; };
+		C0FFEE000000000000000003 /* DevChatOpeningPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */; };
+		C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */; };
+		C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */; };
+		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
 		30B0859F19D08233DE184B42 /* TravelPriceCalendarEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85945164CEE92FF9FAEA451C /* TravelPriceCalendarEmbedRenderer.swift */; };
 		31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224ACCD58377D1F4497661CC /* BackgroundChatSender.swift */; };
@@ -466,6 +471,20 @@
 			remoteGlobalIDString = A10000000000000000000010;
 			remoteInfo = OpenMatesNotificationService;
 		};
+		C0FFEE000000000000001014 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 02E5AB06E9CF5357E7F6C413;
+			remoteInfo = OpenMates_iOS;
+		};
+		C0FFEE000000000000002014 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 02E5AB06E9CF5357E7F6C413;
+			remoteInfo = OpenMates_iOS;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -661,6 +680,14 @@
 		BD9E81BC0C64D0292A9B5A8E /* SettingsShareDebugLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsShareDebugLogsView.swift; sourceTree = "<group>"; };
 		BE1031D79B03616FF9E0E7F7 /* OpenMates.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenMates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C085AAB1B7660B7EB15B8A54 /* VoiceRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingView.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000001002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C0FFEE000000000000001003 /* OpenMatesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWindowLoadingTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C0FFEE000000000000002003 /* OpenMatesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C204366C8F557707BFA41C6D /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		C292910BF58F5FF7B05512F0 /* NewChatSuggestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatSuggestionsView.swift; sourceTree = "<group>"; };
 		C39A911BB9208FA2A0BF4682 /* PlaceRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceRenderers.swift; sourceTree = "<group>"; };
@@ -726,6 +753,20 @@
 			buildActionMask = 2147483647;
 			files = (
 				07676E979606FF0FAD918D77 /* LucideIcons in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000001007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000002007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1003,6 +1044,7 @@
 			isa = PBXGroup;
 			children = (
 				07628DCDF09C5AFAC4686CCE /* DevEmbedPreviewFixtures.swift */,
+				C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */,
 				91D9E41DAC0DA1BB00DC7DD5 /* DevEmbedPreviewGalleryView.swift */,
 				96F2BC88196C3F2837DC1AB7 /* DevPreviewLaunchConfiguration.swift */,
 			);
@@ -1075,6 +1117,8 @@
 			isa = PBXGroup;
 			children = (
 				65C3B253848F893F8C17738F /* OpenMates */,
+				C0FFEE000000000000002012 /* OpenMatesTests */,
+				C0FFEE000000000000001012 /* OpenMatesUITests */,
 				5CADB8842432593D9E90CD62 /* OpenMates */,
 				EB8536A31BBD5884C13C3AC6 /* OpenMatesShared */,
 				A1000000000000000000000C /* OpenMatesNotificationService */,
@@ -1115,6 +1159,8 @@
 			children = (
 				BE1031D79B03616FF9E0E7F7 /* OpenMates.app */,
 				6B67074848688485A446BC5C /* OpenMates.app */,
+				C0FFEE000000000000002003 /* OpenMatesTests.xctest */,
+				C0FFEE000000000000001003 /* OpenMatesUITests.xctest */,
 				A10000000000000000000009 /* OpenMatesNotificationService.appex */,
 				F376B3E95264F50E89441B25 /* OpenMatesShareExtension_macOS.appex */,
 				8F6573E0E9224234EF13DC13 /* OpenMatesShareExtension.appex */,
@@ -1149,6 +1195,25 @@
 				EC211406AADF88E0D1BF6F4D /* EmbedModels.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000001012 /* OpenMatesUITests */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */,
+				C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */,
+				C0FFEE000000000000001002 /* Info.plist */,
+			);
+			path = OpenMatesUITests;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000002012 /* OpenMatesTests */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
+				C0FFEE000000000000002002 /* Info.plist */,
+			);
+			path = OpenMatesTests;
 			sourceTree = "<group>";
 		};
 		CBBC1C583F7E6B90D265D0AB /* Crypto */ = {
@@ -1503,6 +1568,46 @@
 			productReference = 6B67074848688485A446BC5C /* OpenMates.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C0FFEE000000000000001006 /* OpenMatesUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE000000000000001011 /* Build configuration list for PBXNativeTarget "OpenMatesUITests" */;
+			buildPhases = (
+				C0FFEE000000000000001005 /* Sources */,
+				C0FFEE000000000000001008 /* Resources */,
+				C0FFEE000000000000001007 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0FFEE000000000000001013 /* PBXTargetDependency */,
+			);
+			name = OpenMatesUITests;
+			packageProductDependencies = (
+			);
+			productName = OpenMatesUITests;
+			productReference = C0FFEE000000000000001003 /* OpenMatesUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		C0FFEE000000000000002006 /* OpenMatesTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE000000000000002011 /* Build configuration list for PBXNativeTarget "OpenMatesTests" */;
+			buildPhases = (
+				C0FFEE000000000000002005 /* Sources */,
+				C0FFEE000000000000002008 /* Resources */,
+				C0FFEE000000000000002007 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0FFEE000000000000002013 /* PBXTargetDependency */,
+			);
+			name = OpenMatesTests;
+			packageProductDependencies = (
+			);
+			productName = OpenMatesTests;
+			productReference = C0FFEE000000000000002003 /* OpenMatesTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1524,10 +1629,16 @@
 					942E1AC90EAA3F64F4DA8AE1 = {
 						DevelopmentTeam = 3QCDAKVQFU;
 					};
-					B0B9102F4329EFF5F54A8395 = {
-						DevelopmentTeam = 3QCDAKVQFU;
-					};
+				B0B9102F4329EFF5F54A8395 = {
+					DevelopmentTeam = 3QCDAKVQFU;
 				};
+				C0FFEE000000000000001006 = {
+					DevelopmentTeam = 3QCDAKVQFU;
+				};
+				C0FFEE000000000000002006 = {
+					DevelopmentTeam = 3QCDAKVQFU;
+				};
+			};
 			};
 			buildConfigurationList = 3DABD0695D22918C3E58A140 /* Build configuration list for PBXProject "OpenMates" */;
 			developmentRegion = en;
@@ -1551,6 +1662,8 @@
 				A10000000000000000000010 /* OpenMatesNotificationService */,
 				1C80E5B4A2A0F23B0FA7B6F8 /* OpenMatesWidget */,
 				02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */,
+				C0FFEE000000000000002006 /* OpenMatesTests */,
+				C0FFEE000000000000001006 /* OpenMatesUITests */,
 				B0B9102F4329EFF5F54A8395 /* OpenMates_macOS */,
 			);
 		};
@@ -1582,6 +1695,20 @@
 				22E7991F2249003E9DFE35DD /* example_chats in Resources */,
 				8F7EBA59C5DFF62A8F768F31 /* i18n in Resources */,
 				67FDFBCE2C4AB26B5A20DEC0 /* Mates in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000001008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000002008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1654,6 +1781,7 @@
 				35A7F5D25CFF153AD5A7DC6E /* DailyInspirationView.swift in Sources */,
 				0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */,
 				3955045922CB761CFED0D354 /* DeepLinkHandler.swift in Sources */,
+				C0FFEE000000000000000003 /* DevChatOpeningPreviewView.swift in Sources */,
 				B9912F767455EC7B7FA1E15B /* DevEmbedPreviewFixtures.swift in Sources */,
 				B8B4C38E00B6DE9B02E76EA2 /* DevEmbedPreviewGalleryView.swift in Sources */,
 				8C94593CE3B587A1600D1CC4 /* DevPreviewLaunchConfiguration.swift in Sources */,
@@ -1856,6 +1984,7 @@
 				FBDCDD944394E2D441F00575 /* DailyInspirationView.swift in Sources */,
 				66248975C4C88B3868EDF310 /* DataExtensions.swift in Sources */,
 				CF3BCE81CC3F82339334E851 /* DeepLinkHandler.swift in Sources */,
+				C0FFEE000000000000000002 /* DevChatOpeningPreviewView.swift in Sources */,
 				CA6F6555AA357B7738B875DB /* DevEmbedPreviewFixtures.swift in Sources */,
 				2F9F90976A31870483467946 /* DevEmbedPreviewGalleryView.swift in Sources */,
 				9F95A1AF1C7A31B7C1457464 /* DevPreviewLaunchConfiguration.swift in Sources */,
@@ -2038,6 +2167,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0FFEE000000000000001005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */,
+				C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000002005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -2060,6 +2206,16 @@
 			isa = PBXTargetDependency;
 			target = 1C80E5B4A2A0F23B0FA7B6F8 /* OpenMatesWidget */;
 			targetProxy = 10A94DA7B47A477A22257EC6 /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000001013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */;
+			targetProxy = C0FFEE000000000000001014 /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000002013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */;
+			targetProxy = C0FFEE000000000000002014 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2405,6 +2561,104 @@
 			};
 			name = Release;
 		};
+		C0FFEE000000000000001009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3QCDAKVQFU;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.uitests;
+				PRODUCT_NAME = OpenMatesUITests;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = OpenMates_iOS;
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000001010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3QCDAKVQFU;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.uitests;
+				PRODUCT_NAME = OpenMatesUITests;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = OpenMates_iOS;
+			};
+			name = Release;
+		};
+		C0FFEE000000000000002009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3QCDAKVQFU;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.tests;
+				PRODUCT_NAME = OpenMatesTests;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates";
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000002010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3QCDAKVQFU;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				INFOPLIST_FILE = OpenMatesTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.tests;
+				PRODUCT_NAME = OpenMatesTests;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2467,6 +2721,24 @@
 			buildConfigurations = (
 				B73251D54DB1163385623857 /* Debug */,
 				901ABADF3B360810540B184E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0FFEE000000000000001011 /* Build configuration list for PBXNativeTarget "OpenMatesUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE000000000000001009 /* Debug */,
+				C0FFEE000000000000001010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0FFEE000000000000002011 /* Build configuration list for PBXNativeTarget "OpenMatesTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE000000000000002009 /* Debug */,
+				C0FFEE000000000000002010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

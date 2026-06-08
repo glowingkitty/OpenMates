@@ -21,6 +21,8 @@ struct DevPreviewRootView: View {
 
     var body: some View {
         switch configuration.surface {
+        case .chatOpening:
+            DevChatOpeningPreviewView()
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
