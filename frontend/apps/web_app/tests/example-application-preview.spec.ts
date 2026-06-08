@@ -84,6 +84,7 @@ test.describe('Habit Garden example application preview', () => {
 			(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
 			{ timeout: 90_000 }
 		);
+		const previewStartedAt = Math.floor(Date.now() / 1000);
 		await fullscreenOverlay.getByTestId('application-start-preview').click();
 		const response = await previewStartResponse;
 		expect(response.ok(), `preview start failed with ${response.status()}`).toBe(true);
@@ -115,9 +116,9 @@ test.describe('Habit Garden example application preview', () => {
 			return (usage.entries || []).some((entry: any) =>
 				entry.app_id === 'code' &&
 				entry.skill_id === 'application_preview' &&
-				entry.usage_details?.preview_session_id === payload.session_id &&
-				entry.usage_details?.application_embed_id === HABIT_GARDEN_APPLICATION_EMBED_ID &&
-				entry.usage_details?.charged_minutes >= 1
+				entry.chat_id === HABIT_GARDEN_CHAT_ID &&
+				entry.created_at >= previewStartedAt - 5 &&
+				entry.credits >= 5
 			);
 		}, {
 			message: 'application preview usage entry should be visible after stopping preview',
