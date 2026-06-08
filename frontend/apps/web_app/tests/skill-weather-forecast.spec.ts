@@ -43,6 +43,33 @@ function expectForecastPayload(parsed: any, expectedProvider: string): void {
 	expect(parsed.data?.provider).toContain(expectedProvider);
 }
 
+const linkedExampleChatCases = [
+	{
+		appId: 'images',
+		skillId: 'generate',
+		chatId: 'example-watercolor-robot-balcony',
+		titlePattern: /watercolor|robot|balcony/i
+	},
+	{
+		appId: 'electronics',
+		skillId: 'search_components',
+		chatId: 'example-buck-converters-24v-5v',
+		titlePattern: /buck|converter|24v|5v/i
+	},
+	{
+		appId: 'shopping',
+		skillId: 'search_products',
+		chatId: 'example-organic-groceries-berlin',
+		titlePattern: /organic|groceries|Berlin/i
+	},
+	{
+		appId: 'home',
+		skillId: 'search',
+		chatId: 'example-furnished-apartments-berlin',
+		titlePattern: /furnished|apartments|Berlin/i
+	}
+];
+
 async function expectImageLoaded(locator: any, label = 'image'): Promise<void> {
 	await expect(locator).toBeVisible({ timeout: 15_000 });
 	await expect(async () => {
@@ -153,6 +180,36 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page).toHaveURL(/#chat-id=example-flights-berlin-bangkok/, { timeout: 15_000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
+	});
+
+	test('Phase 1d: representative app store linked example chats are visible and open', async ({ page }: { page: any }) => {
+		test.setTimeout(180_000);
+		await page.setViewportSize({ width: 1600, height: 900 });
+
+		for (const example of linkedExampleChatCases) {
+			await page.goto(getE2EDebugUrl(`/#settings/app_store/${example.appId}/skill/${example.skillId}`), {
+				waitUntil: 'domcontentloaded'
+			});
+			await page.waitForLoadState('networkidle');
+
+			const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+			await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
+			await expect(settingsMenu).toHaveAttribute('data-active-view', `app_store/${example.appId}/skill/${example.skillId}`, {
+				timeout: 15_000
+			});
+
+			const exampleChatCard = settingsMenu.locator(`[data-testid="app-store-example-chat-card"][data-app-id="${example.appId}"][data-skill-id="${example.skillId}"]`).first();
+			await expect(exampleChatCard).toBeVisible({ timeout: 15_000 });
+			await expect(exampleChatCard).toHaveClass(/resume-chat-large-card/);
+			await expect(exampleChatCard.getByTestId('resume-large-title')).toContainText(example.titlePattern);
+			await expect(exampleChatCard.getByTestId('resume-large-title')).not.toContainText('[T:');
+			await expect(exampleChatCard.getByTestId('resume-large-orbs')).toBeVisible({ timeout: 15_000 });
+
+			await exampleChatCard.click();
+			await expect(page).toHaveURL(new RegExp(`#chat-id=${example.chatId}`), { timeout: 15_000 });
+			await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
+			await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
+		}
 	});
 
 	test('Phase 2: CLI apps weather forecast returns daily child results for Germany and international cities', async () => {
