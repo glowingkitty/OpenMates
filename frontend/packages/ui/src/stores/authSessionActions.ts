@@ -23,7 +23,7 @@ import { logout, deleteAllCookies, bumpLoginSessionGeneration } from "./authLogi
 import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Import WebSocket token utilities
 import { notificationStore } from "./notificationStore"; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from "./userProfile"; // Import to load user profile from IndexedDB
-import { loginInterfaceOpen } from "./uiStateStore"; // Import loginInterfaceOpen to control login interface visibility
+import { loginInterfaceOpen, loginStayLoggedInRequested } from "./uiStateStore"; // Import login UI state controls
 import { activeChatStore } from "./activeChatStore"; // Import activeChatStore to navigate to demo-for-everyone on logout
 import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
@@ -848,8 +848,15 @@ export async function checkAuth(
         notificationStore.autoLogout(
           $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
-          7000, // Show for 7 seconds so user can read the hint
+          0, // Persist so the user can act on the login CTA
           $text("login.auto_logout_notification.title"),
+          {
+            actionLabel: $text("login.auto_logout_notification.login_again_action"),
+            onAction: () => {
+              loginStayLoggedInRequested.set(true);
+              loginInterfaceOpen.set(true);
+            },
+          },
         );
 
         // CRITICAL: If user is in signup flow, close signup interface and return to demo
