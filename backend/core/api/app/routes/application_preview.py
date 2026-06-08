@@ -202,12 +202,15 @@ def _decode_toon_content(plaintext_toon: str) -> dict[str, Any] | None:
 
         decoded = toon_decode(plaintext_toon)
     except ImportError:
+        decoded = None
+    except Exception:
+        decoded = None
+
+    if not isinstance(decoded, dict):
         try:
             decoded = json.loads(plaintext_toon)
         except json.JSONDecodeError:
             return None
-    except Exception:
-        return None
     return decoded if isinstance(decoded, dict) else None
 
 

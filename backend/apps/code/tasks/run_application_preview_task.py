@@ -33,7 +33,7 @@ try:  # pragma: no cover - local unit tests do not install Celery.
     from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async, redact_execution_output
-except ModuleNotFoundError:  # pragma: no cover - exercised by lightweight unit imports.
+except (ImportError, ModuleNotFoundError):  # pragma: no cover - exercised by lightweight unit imports.
     app = None
     get_worker_cache_service = None
     SecretsManager = None
