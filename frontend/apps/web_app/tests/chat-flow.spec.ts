@@ -643,6 +643,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
+	const permissionDialog = page.getByTestId('app-settings-memories-permission-dialog');
+	if (await permissionDialog.isVisible({ timeout: 10000 }).catch(() => false)) {
+		logChatCheckpoint('App memories permission dialog appeared; rejecting memories for deterministic test flow.');
+		await page.getByTestId('btn-reject').click();
+		await expect(permissionDialog).not.toBeVisible({ timeout: 10000 });
+	}
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
 	const messageResponseMs = Date.now() - messageSendStartedAt;
