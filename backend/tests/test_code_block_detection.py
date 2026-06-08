@@ -17,6 +17,7 @@ try:
         _build_application_manifest_from_code_embeds,
         _extract_code_embed_ids_from_response,
         _parse_application_preview_combined_files,
+        _parse_application_preview_json_bundle_files,
         _strip_code_file_header_from_content,
         _should_process_chunk_as_code_block,
     )
@@ -234,6 +235,36 @@ console.log('hello');
         assert language == "svelte"
         assert filename == "src/App.svelte"
         assert code == "<script>let count = 1;</script>"
+
+    def test_parses_json_files_bundle_as_application_preview_files(self):
+        result = _parse_application_preview_json_bundle_files(
+            "json",
+            """{
+  "files": {
+    "package.json": { "content": "{\\\"scripts\\\":{\\\"dev\\\":\\\"vite\\\"}}" },
+    "src/App.svelte": { "content": "<main>Hello</main>" },
+    "src/main.ts": { "content": "import App from './App.svelte';" }
+  }
+}""",
+        )
+
+        assert result == [
+            {
+                "language": "json",
+                "filename": "package.json",
+                "content": '{"scripts":{"dev":"vite"}}',
+            },
+            {
+                "language": "svelte",
+                "filename": "src/App.svelte",
+                "content": "<main>Hello</main>",
+            },
+            {
+                "language": "typescript",
+                "filename": "src/main.ts",
+                "content": "import App from './App.svelte';",
+            },
+        ]
 
 
 # ---------------------------------------------------------------------------

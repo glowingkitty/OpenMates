@@ -2304,6 +2304,17 @@ APPLICATION_PREVIEW_COMBINED_LANGUAGES = {
     "generated_application",
     "generated-application",
 }
+APPLICATION_PREVIEW_EXTENSION_LANGUAGES = {
+    ".css": "css",
+    ".html": "html",
+    ".js": "javascript",
+    ".jsx": "jsx",
+    ".json": "json",
+    ".svelte": "svelte",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".vue": "vue",
+}
 
 
 def _should_process_chunk_as_code_block(
@@ -2497,6 +2508,54 @@ def _parse_application_preview_combined_files(
     has_manifest = any(file["filename"] in APPLICATION_PREVIEW_MANIFEST_FILENAMES for file in deduped_files)
     has_source = any(file["filename"].endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS) for file in deduped_files)
     return deduped_files if has_manifest and has_source else []
+
+
+def _language_for_generated_app_path(path: str) -> str:
+    if path == "package.json":
+        return "json"
+    for extension, language in APPLICATION_PREVIEW_EXTENSION_LANGUAGES.items():
+        if path.endswith(extension):
+            return language
+    return ""
+
+
+def _parse_application_preview_json_bundle_files(
+    language: Optional[str],
+    content: str,
+) -> List[Dict[str, str]]:
+    if (language or "").strip().lower() != "json":
+        return []
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, dict) or not isinstance(payload.get("files"), dict):
+        return []
+
+    files: List[Dict[str, str]] = []
+    seen: set[str] = set()
+    for raw_path, raw_file in payload["files"].items():
+        path = _normalize_generated_app_file_path(raw_path if isinstance(raw_path, str) else None)
+        if not path or path in seen:
+            continue
+        if path not in APPLICATION_PREVIEW_MANIFEST_FILENAMES and not path.endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS):
+            continue
+        if isinstance(raw_file, dict):
+            file_content = raw_file.get("content")
+        else:
+            file_content = raw_file
+        if not isinstance(file_content, str) or not file_content.strip():
+            continue
+        seen.add(path)
+        files.append({
+            "language": _language_for_generated_app_path(path),
+            "filename": path,
+            "content": file_content,
+        })
+
+    has_manifest = any(file["filename"] in APPLICATION_PREVIEW_MANIFEST_FILENAMES for file in files)
+    has_source = any(file["filename"].endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS) for file in files)
+    return files if has_manifest and has_source else []
 
 
 def _build_application_manifest_from_code_embeds(
@@ -3868,7 +3927,7 @@ async def _consume_main_processing_stream(
                                         application_preview_files = _parse_application_preview_combined_files(
                                             current_code_language,
                                             code_content,
-                                        )
+                                        ) or _parse_application_preview_json_bundle_files(current_code_language, code_content)
                                         if application_preview_files:
                                             embed_reference_code = await _create_application_preview_child_code_embeds(
                                                 files=application_preview_files,
@@ -4600,6 +4659,53 @@ async def _consume_main_processing_stream(
                                     current_code_embed_id = None
                         # No embed was created (services unavailable or placeholder failed) —
                         # emit accumulated code as raw markdown so it's not silently lost.
+                        application_preview_files_at_close = _parse_application_preview_json_bundle_files(
+                            current_code_language,
+                            current_code_content,
+                        )
+                        if application_preview_files_at_close and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                if current_code_embed_id:
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content="",
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="error",
+                                        log_prefix=log_prefix,
+                                    )
+                                chunk = await _create_application_preview_child_code_embeds(
+                                    files=application_preview_files_at_close,
+                                    embed_service=embed_service,
+                                    generated_code_file_embeds=generated_code_file_embeds,
+                                    request_data=request_data,
+                                    task_id=task_id,
+                                    user_vault_key_id=user_vault_key_id,
+                                    log_prefix=log_prefix,
+                                )
+                                logger.info(
+                                    f"{log_prefix} Created {len(application_preview_files_at_close)} generated "
+                                    "application file embed(s) from JSON bundle"
+                                )
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating generated application embeds from JSON bundle: {e}", exc_info=True)
+                                chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
+
+                            in_code_block = False
+                            in_plot_block = False
+                            in_document_block = False
+                            in_email_block = False
+                            current_document_title = None
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                        # No embed was created (services unavailable or placeholder failed) —
+                        # emit accumulated code as raw markdown so it's not silently lost.
                         elif (
                             not current_code_embed_id
                             and _is_application_preview_combined_language(current_code_language)
@@ -4610,7 +4716,7 @@ async def _consume_main_processing_stream(
                             application_preview_files = _parse_application_preview_combined_files(
                                 current_code_language,
                                 current_code_content,
-                            )
+                            ) or _parse_application_preview_json_bundle_files(current_code_language, current_code_content)
                             if application_preview_files:
                                 try:
                                     from backend.core.api.app.services.embed_service import EmbedService
