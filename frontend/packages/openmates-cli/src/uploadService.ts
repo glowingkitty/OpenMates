@@ -79,6 +79,50 @@ function getUploadOrigin(apiUrl: string): string {
   return "https://app.openmates.org";
 }
 
+function getUploadMimeType(filename: string): string {
+  const ext = extname(filename).toLowerCase();
+  switch (ext) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    case ".gif":
+      return "image/gif";
+    case ".heic":
+      return "image/heic";
+    case ".heif":
+      return "image/heif";
+    case ".bmp":
+      return "image/bmp";
+    case ".tif":
+    case ".tiff":
+      return "image/tiff";
+    case ".svg":
+      return "image/svg+xml";
+    case ".pdf":
+      return "application/pdf";
+    case ".mp3":
+      return "audio/mpeg";
+    case ".m4a":
+    case ".mp4":
+      return "audio/mp4";
+    case ".wav":
+      return "audio/wav";
+    case ".webm":
+      return "audio/webm";
+    case ".ogg":
+    case ".oga":
+      return "audio/ogg";
+    case ".aac":
+      return "audio/aac";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 // ── Upload function ────────────────────────────────────────────────────
 
 /**
@@ -117,7 +161,7 @@ export async function uploadFile(
     try {
       // Build multipart form data for each attempt because request bodies may
       // be consumed even when the transport fails.
-      const blob = new Blob([fileBytes]);
+      const blob = new Blob([fileBytes], { type: getUploadMimeType(filename) });
       const formData = new FormData();
       formData.append("file", blob, filename);
 

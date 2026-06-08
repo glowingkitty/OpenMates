@@ -1385,6 +1385,23 @@ async def cache_upload_embed(
             logger.warning(f"{log_prefix} Redis client not available — skipping embed cache")
             return {"status": "skipped", "reason": "redis_unavailable"}
 
+        cache_key = f"embed:{payload.embed_id}"
+        existing_embed_json = await client.get(cache_key)
+        if existing_embed_json:
+            try:
+                existing_embed = json_lib.loads(existing_embed_json)
+                if isinstance(existing_embed, dict) and existing_embed.get("encrypted_content"):
+                    logger.info(
+                        f"{log_prefix} Existing vault-encrypted embed cache found at '{cache_key}', "
+                        "leaving it intact"
+                    )
+                    return {"status": "preserved", "embed_id": payload.embed_id}
+            except Exception:
+                logger.warning(
+                    f"{log_prefix} Failed to inspect existing embed cache at '{cache_key}', overwriting",
+                    exc_info=True,
+                )
+
         # Build embed data matching the structure expected by embed_service._lookup_embed_content()
         # and view_skill._lookup_embed_content().  Key fields:
         #   - vault_wrapped_aes_key: needed by the skill to decrypt S3 files
@@ -1408,7 +1425,6 @@ async def cache_upload_embed(
         if payload.content_type == "application/pdf":
             embed_data["type"] = "pdf"
 
-        cache_key = f"embed:{payload.embed_id}"
         await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
 
         logger.info(f"{log_prefix} Upload embed cached at key '{cache_key}' (72h TTL)")

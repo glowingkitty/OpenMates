@@ -505,7 +505,7 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
             if encrypted_toon:
                 cache_embed_data = {
                     "embed_id": embed_id,
-                    "type": "app_skill_use",
+                    "type": "pdf",
                     "status": "finished",
                     "encrypted_content": encrypted_toon,
                     "vault_key_id": vault_key_id,
@@ -538,7 +538,7 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
 
         await embed_service.send_embed_data_to_client(
             embed_id=embed_id,
-            embed_type="app_skill_use",
+            embed_type="pdf",
             content_toon=content_toon,
             chat_id=arguments.get("chat_id"),
             message_id=arguments.get("message_id"),

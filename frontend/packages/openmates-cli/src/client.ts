@@ -1535,6 +1535,16 @@ export class OpenMatesClient {
       }
     }
 
+    if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      messagePayload.embeds = params.preparedEmbeds.map((embed) => ({
+        embed_id: embed.embedId,
+        type: embed.type,
+        content: embed.content,
+        status: embed.status,
+        text_preview: embed.textPreview,
+      }));
+    }
+
     const encryptedEmbeds: EncryptedEmbed[] = [...(params.encryptedEmbeds ?? [])];
     if (!params.incognito && params.preparedEmbeds && params.preparedEmbeds.length > 0) {
       const masterKey = this.getMasterKeyBytes();

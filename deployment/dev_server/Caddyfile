@@ -12,6 +12,26 @@
 	email letsencrypt83hd@openmates.org
 }
 
+# Private network listener for satellite services such as upload.openmates.org.
+# The API container is bound to localhost only; this listener exposes only the
+# internal service-to-service routes on the Hetzner private network.
+http://:8008 {
+	@private_internal {
+		remote_ip 10.0.0.0/8
+		path /internal/* /health
+	}
+
+	handle @private_internal {
+		reverse_proxy localhost:8000 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	handle {
+		abort
+	}
+}
+
 api.dev.openmates.org {
 	# Enable structured logging (JSON format) suitable for log processors like Fail2Ban
 	log {

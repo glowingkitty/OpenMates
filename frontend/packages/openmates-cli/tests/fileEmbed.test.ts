@@ -136,6 +136,21 @@ describe("fileEmbed", () => {
     });
   });
 
+  describe("processFiles — audio", () => {
+    it("creates an audio-recording embed that requires upload", () => {
+      const filePath = join(testDir, "voice-note.mp3");
+      writeFileSync(filePath, Buffer.from([0x49, 0x44, 0x33])); // ID3 header
+
+      const result = processFiles([filePath], null);
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.errors.length, 0);
+      assert.equal(result.embeds[0].embed.type, "audio-recording");
+      assert.equal(result.embeds[0].embed.status, "processing");
+      assert.equal(result.embeds[0].requiresUpload, true);
+      assert.ok(result.embeds[0].referenceBlock.includes('"type": "audio-recording"'));
+    });
+  });
+
   describe("processFiles — blocked files", () => {
     it("blocks .pem files", () => {
       const filePath = join(testDir, "server.pem");
