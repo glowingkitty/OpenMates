@@ -27,6 +27,7 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
       # Expose on localhost only — Caddy on this VM proxies to this port.
