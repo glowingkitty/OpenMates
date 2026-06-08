@@ -77,8 +77,13 @@ function hasLlmCredentials(envPath: string): boolean {
 /**
  * Inline copy of composeArgs for testing without requiring tsx.
  */
-function composeArgs(installPath: string, withOverrides: boolean): string[] {
-  const COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
+function composeArgs(installPath: string, withOverrides: boolean, installMode?: "image" | "source"): string[] {
+  const resolvedInstallMode = installMode ?? (
+    existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
+  );
+  const COMPOSE_FILE = resolvedInstallMode === "image"
+    ? join("backend", "core", "docker-compose.selfhost.yml")
+    : join("backend", "core", "docker-compose.yml");
   const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
   const args = ["compose", "--env-file", ".env", "-f", COMPOSE_FILE];
   if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
@@ -197,6 +202,18 @@ describe("resolveServerPath", () => {
     removeServerConfig();
   });
 
+  it("resolves image-mode installs from the self-host compose marker", () => {
+    const imageDir = join(tmpdir(), `openmates-image-test-${Date.now()}`);
+    const composeDir = join(imageDir, "backend", "core");
+    mkdirSync(composeDir, { recursive: true });
+    writeFileSync(join(composeDir, "docker-compose.selfhost.yml"), "services: {}");
+
+    const result = resolveServerPath({ path: imageDir });
+
+    assert.equal(result, imageDir);
+    rmSync(imageDir, { recursive: true, force: true });
+  });
+
   it("throws when no installation found", () => {
     removeServerConfig();
     // Only fails if cwd is not an OpenMates dir — which tmpdir isn't
@@ -248,6 +265,29 @@ describe("composeArgs", () => {
       assert.equal(args.length, 7);
       assert.ok(args.includes(join("backend", "core", "docker-compose.override.yml")));
     });
+  });
+
+  it("uses self-host compose file for image mode", () => {
+    const args = composeArgs(tempDir, false, "image");
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.selfhost.yml"),
+    ]);
+  });
+
+  it("infers image mode from the self-host compose marker", () => {
+    const imageDir = join(tmpdir(), `openmates-image-compose-${Date.now()}`);
+    const composeDir = join(imageDir, "backend", "core");
+    mkdirSync(composeDir, { recursive: true });
+    writeFileSync(join(composeDir, "docker-compose.selfhost.yml"), "services: {}");
+
+    const args = composeArgs(imageDir, false);
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.selfhost.yml"),
+    ]);
+    rmSync(imageDir, { recursive: true, force: true });
   });
 
   it("skips override file when it does not exist", () => {

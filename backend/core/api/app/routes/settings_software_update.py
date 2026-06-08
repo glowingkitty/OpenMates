@@ -3,7 +3,7 @@
 REST API endpoints for software update management.
 
 Provides admin-only endpoints for:
-- Checking for available updates (GitHub commits or Docker Hub images)
+- Checking for available updates (GitHub commits or prebuilt Docker images)
 - Triggering software updates across all servers
 - Polling update installation status
 - Retrieving current version info for all services
@@ -122,7 +122,7 @@ async def require_admin(
 
 def _detect_deployment_mode() -> DeploymentMode:
     """
-    Auto-detect whether this installation uses git (cloned repo) or Docker Hub
+    Auto-detect whether this installation uses git (cloned repo) or Docker images
     (pre-built images) by checking for the .git directory.
 
     Git-cloned setups volume-mount the project root into containers, so .git
@@ -150,7 +150,7 @@ async def _get_current_commit_info() -> Optional[CommitInfo]:
     Get the current commit info.
 
     Priority:
-    1. Build-time env vars (BUILD_COMMIT_SHA etc.) — for Docker Hub images
+    1. Build-time env vars (BUILD_COMMIT_SHA etc.) — for prebuilt images
     2. Core admin sidecar /admin/version endpoint — for git-cloned deployments
        (the API container doesn't have git, but the sidecar mounts the repo)
     3. Git commands as last resort (works if source is volume-mounted into /app)
@@ -502,7 +502,7 @@ async def _get_sidecar_version(
     description=(
         "Checks whether a newer version of OpenMates is available. "
         "In git mode: compares current commit against the latest commit on GitHub. "
-        "In docker mode: checks Docker Hub for newer image tags (not yet implemented). "
+        "In docker mode: reports the current prebuilt image metadata. "
         "Results are cached for 5 minutes to avoid GitHub API rate limits. "
         "Admin only."
     ),
@@ -525,15 +525,15 @@ async def check_for_updates(
     deployment_mode = _detect_deployment_mode()
 
     if deployment_mode == DeploymentMode.DOCKER:
-        # Docker Hub checking is not yet implemented (no images published yet)
+        current_commit = await _get_current_commit_info()
         result = UpdateCheckResult(
             update_available=False,
             deployment_mode=deployment_mode,
-            current_version=None,
+            current_version=current_commit,
             latest_version=None,
             commits_behind=0,
             checked_at=now,
-            error="Docker Hub update checking is not yet available. Images are not yet published.",
+            error=None,
         )
         return result
 

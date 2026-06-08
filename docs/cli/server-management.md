@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - technical-users
   - contributors
-last_verified: 2026-06-06
+last_verified: 2026-06-08
 claims:
   - id: cli-server-config-saves-loads-and-removes
     type: unit
@@ -42,8 +42,9 @@ coverage:
 ## Summary
 
 - `openmates server` commands manage a local Docker Compose installation without requiring a cloud login.
-- The CLI stores the installation path, validates that a path looks like an OpenMates checkout, and builds the Docker Compose command for core or override services.
-- Install asks how signup should work on self-hosted servers: invite codes, email-domain allowlist, or both.
+- Default installs use prebuilt GHCR images, so normal operators do not need Git or a source checkout.
+- The CLI stores the installation path, validates that a path looks like an OpenMates installation, and builds the Docker Compose command for core or override services.
+- Image-mode install defaults to invite-only signup; edit `.env` for email-domain allowlists or invite-plus-domain mode.
 - Starting the server warns when no real LLM API key is configured, but still starts the backend and web app. AI model processing stays unavailable until a real key is added.
 
 Commands for installing, running, and administering a self-hosted OpenMates instance. Server commands do not require login -- they operate directly on the local Docker Compose environment.
@@ -51,8 +52,8 @@ Commands for installing, running, and administering a self-hosted OpenMates inst
 ## Prerequisites
 
 - **Docker** -- must be installed with the daemon running
-- **Git** -- required for `install` and `update`
 - **Node.js/npm** -- used to install the OpenMates CLI package
+- **Git** -- only required for source mode (`--from-source` or `--source-path`)
 - Optional LLM provider API key when you want AI chat/model processing
 
 ## Installing
@@ -69,18 +70,26 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
+openmates server install --image-tag v0.11.0-alpha.0
+openmates server install --from-source --path /opt/openmates-source
 openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```
 
-Clones the OpenMates repository, runs setup, and prepares the Docker environment. Default install directory is `~/openmates`.
+Default install mode creates a lightweight runtime directory, writes `.env`, stores image-mode Docker Compose files, and uses prebuilt images from `ghcr.io/glowingkitty`. It does not clone the OpenMates repository. Default install directory is `~/openmates`.
 
-Interactive installs ask for the self-host signup mode. Non-interactive installs default to `invite_only`. If the selected mode uses invite codes, the install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`.
+Source mode is the contributor/fork path. Use `--from-source` to clone the official repository, or `--source-path <dir>` to clone from an existing local checkout. Source mode requires Git for clone-based installs and updates, and rebuilds Docker images locally.
+
+Image-mode install defaults to `invite_only`. The install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`. Source-mode installs still use the repository setup script behavior.
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--path <dir>` | `~/openmates` | Installation directory |
 | `--env-path <file>` | None | Copy a pre-existing `.env` file during install |
-| `--source-path <dir>` | None | Clone from a local checkout instead of GitHub. Intended for CI/testing. |
+| `--image-tag <tag>` | CLI version tag | Use a specific prebuilt image tag |
+| `--from-source` | Off | Clone/build from source instead of using prebuilt GHCR images |
+| `--source-path <dir>` | None | Clone from a local checkout instead of GitHub. Implies source mode and is intended for CI/testing/contributors. |
+
+The first image-mode start downloads the OpenMates image set and third-party service images. Expect several GB of compressed image downloads on a fresh host; Docker caches layers for later starts and updates.
 
 ## Starting the Server
 
@@ -112,7 +121,7 @@ openmates server restart --rebuild
 
 | Option | Description |
 |--------|-------------|
-| `--rebuild` | Full rebuild: stops containers, rebuilds images, then starts. Use after configuration changes. |
+| `--rebuild` | Source mode only. Full rebuild: stops containers, rebuilds images, then starts. Image-mode installs should use `openmates server update` to pull newer images. |
 
 ## Server Status
 
@@ -145,7 +154,7 @@ openmates server update
 openmates server update --force
 ```
 
-Pulls the latest version from Git and rebuilds Docker containers. The `--force` flag stashes local changes before pulling.
+Image-mode installs run `docker compose pull` and restart the stack. Source-mode installs run `git pull --ff-only`, rebuild containers, and restart. The `--force` flag only applies to source-mode Git updates.
 
 ## Granting Admin Privileges
 

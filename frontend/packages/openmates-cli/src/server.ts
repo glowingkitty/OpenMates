@@ -9,7 +9,8 @@
  */
 
 import { execSync, spawn as nodeSpawn } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,11 +27,67 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
+const SOURCE_COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
+const IMAGE_COMPOSE_FILE = join("backend", "core", "docker-compose.selfhost.yml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
 const DEV_BRANCH = "dev";
+const DEFAULT_IMAGE_REGISTRY = "ghcr.io/glowingkitty";
+const MINIMAL_ENV_TEMPLATE = `# OpenMates self-host image-mode environment
+SECRET__MISTRAL_AI__API_KEY=
+SECRET__CEREBRAS__API_KEY=
+SECRET__GROQ__API_KEY=
+SECRET__OPENAI__API_KEY=
+SECRET__ANTHROPIC__API_KEY=
+SECRET__GOOGLE_AI_STUDIO__API_KEY=
+SECRET__OPENROUTER__API_KEY=
+SECRET__TOGETHER__API_KEY=
+SECRET__BRAVE__API_KEY=
+SECRET__FIRECRAWL__API_KEY=
+SECRET__CONTEXT7__API_KEY=
+DATABASE_ADMIN_EMAIL=admin@example.com
+DATABASE_ADMIN_PASSWORD=
+DATABASE_NAME=directus
+DATABASE_USERNAME=directus
+DATABASE_PASSWORD=
+DIRECTUS_TOKEN=
+DIRECTUS_SECRET=
+DRAGONFLY_PASSWORD=
+OPENOBSERVE_ROOT_EMAIL=admin@openmates.internal
+OPENOBSERVE_ROOT_PASSWORD=
+INTERNAL_API_SHARED_TOKEN=
+TUNNEL_TRIGGER_SECRET=<PLACEHOLDER>
+SERVER_ENVIRONMENT=production
+FRONTEND_URLS="http://localhost:5173"
+TRUSTED_PROXY_IPS="172.16.0.0/12"
+CORE_SIDECAR_URL=http://admin-sidecar:8001
+CLEAR_CACHE_ON_UPDATE=true
+SIGNUP_LIMIT=20
+SELF_HOST_SIGNUP_MODE=invite_only
+SELF_HOST_SIGNUP_ALLOWED_DOMAINS=
+SELF_HOST_FIRST_INVITE_CODE=
+APPLICATION_PREVIEW_ORIGIN=
+OPENMATES_IMAGE_REGISTRY=${DEFAULT_IMAGE_REGISTRY}
+OPENMATES_IMAGE_TAG=
+GIT_WORK_DIR=
+DOCKER_GID=999
+`;
+const VAULT_CONFIG_TEMPLATE = `# Minimal Vault configuration
+listener "tcp" {
+  address = "0.0.0.0:8200"
+  tls_disable = true
+}
+
+storage "file" {
+  path = "/vault/file"
+}
+
+api_addr = "http://0.0.0.0:8200"
+ui = false
+disable_mlock = true
+log_level = "info"
+`;
 const LLM_PROVIDER_ENV_KEYS = new Set([
   "SECRET__MISTRAL_AI__API_KEY",
   "SECRET__CEREBRAS__API_KEY",
@@ -60,9 +117,32 @@ function runInteractive(cmd: string, args: string[], cwd: string): Promise<numbe
   });
 }
 
+function loadConfigForInstallPath(installPath: string): ServerConfig | null {
+  const config = loadServerConfig();
+  return config?.installPath === installPath ? config : null;
+}
+
+function getInstallMode(
+  installPath: string,
+  config: ServerConfig | null = loadConfigForInstallPath(installPath),
+): NonNullable<ServerConfig["installMode"]> {
+  if (config?.installMode) return config.installMode;
+  if (existsSync(join(installPath, IMAGE_COMPOSE_FILE))) return "image";
+  return "source";
+}
+
+function shouldPullImages(): boolean {
+  return process.env.OPENMATES_SKIP_IMAGE_PULL !== "1";
+}
+
 /** Build the docker compose argument array. */
-export function composeArgs(installPath: string, withOverrides: boolean): string[] {
-  const args = ["compose", "--env-file", ".env", "-f", COMPOSE_FILE];
+export function composeArgs(
+  installPath: string,
+  withOverrides: boolean,
+  installMode: ServerConfig["installMode"] = getInstallMode(installPath),
+): string[] {
+  const composeFile = installMode === "image" ? IMAGE_COMPOSE_FILE : SOURCE_COMPOSE_FILE;
+  const args = ["compose", "--env-file", ".env", "-f", composeFile];
   if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
     args.push("-f", COMPOSE_OVERRIDE);
   }
@@ -117,6 +197,91 @@ function getPackageVersion(): string {
   } catch {
     return "";
   }
+}
+
+function getDefaultImageTag(): string {
+  const version = getPackageVersion();
+  return version ? `v${version}` : "dev";
+}
+
+function defaultTemplateRefForVersion(version: string): string {
+  return /-(alpha|beta|rc)(\.|\d|$)/.test(version) ? DEV_BRANCH : `v${version}`;
+}
+
+function randomHex(bytes: number): string {
+  return randomBytes(bytes).toString("hex");
+}
+
+function generateInviteCode(): string {
+  const digits = Array.from(randomBytes(12), (byte) => String(byte % 10)).join("");
+  return `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8, 12)}`;
+}
+
+function getEnvVar(content: string, name: string): string {
+  const match = content.match(new RegExp(`^${name}=(.*)$`, "m"));
+  return match?.[1]?.replace(/^"|"$/g, "") ?? "";
+}
+
+function setEnvVar(content: string, name: string, value: string): string {
+  const line = `${name}=${value}`;
+  const pattern = new RegExp(`^${name}=.*$`, "m");
+  if (pattern.test(content)) {
+    return content.replace(pattern, line);
+  }
+  const separator = content.endsWith("\n") ? "" : "\n";
+  return `${content}${separator}${line}\n`;
+}
+
+function setEnvIfEmpty(content: string, name: string, value: string): string {
+  return getEnvVar(content, name) ? content : setEnvVar(content, name, value);
+}
+
+async function fetchText(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url}: HTTP ${response.status}`);
+  }
+  return response.text();
+}
+
+async function loadSelfHostComposeTemplate(version: string): Promise<string> {
+  const templateDir = process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
+  if (templateDir) {
+    return readFileSync(join(resolve(templateDir), IMAGE_COMPOSE_FILE), "utf-8");
+  }
+
+  const overrideUrl = process.env.OPENMATES_SELFHOST_COMPOSE_URL;
+  if (overrideUrl) {
+    return fetchText(overrideUrl);
+  }
+
+  const ref = defaultTemplateRefForVersion(version);
+  return fetchText(
+    `https://raw.githubusercontent.com/glowingkitty/OpenMates/${ref}/backend/core/docker-compose.selfhost.yml`,
+  );
+}
+
+async function writeImageModeRuntimeFiles(installPath: string, imageTag: string): Promise<void> {
+  const coreDir = join(installPath, "backend", "core");
+  const vaultConfigDir = join(coreDir, "vault", "config");
+  mkdirSync(vaultConfigDir, { recursive: true });
+  writeFileSync(join(coreDir, "docker-compose.selfhost.yml"), await loadSelfHostComposeTemplate(getPackageVersion()));
+  writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
+
+  const envPath = join(installPath, ".env");
+  let envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : MINIMAL_ENV_TEMPLATE;
+  envContent = setEnvIfEmpty(envContent, "DATABASE_ADMIN_PASSWORD", randomHex(12));
+  envContent = setEnvIfEmpty(envContent, "DATABASE_PASSWORD", randomHex(12));
+  envContent = setEnvIfEmpty(envContent, "DIRECTUS_TOKEN", randomHex(32));
+  envContent = setEnvIfEmpty(envContent, "DIRECTUS_SECRET", randomHex(32));
+  envContent = setEnvIfEmpty(envContent, "DRAGONFLY_PASSWORD", randomHex(12));
+  envContent = setEnvIfEmpty(envContent, "OPENOBSERVE_ROOT_PASSWORD", randomHex(32));
+  envContent = setEnvIfEmpty(envContent, "INTERNAL_API_SHARED_TOKEN", randomHex(32));
+  envContent = setEnvIfEmpty(envContent, "SELF_HOST_FIRST_INVITE_CODE", generateInviteCode());
+  envContent = setEnvVar(envContent, "OPENMATES_IMAGE_TAG", imageTag);
+  envContent = setEnvVar(envContent, "OPENMATES_IMAGE_REGISTRY", DEFAULT_IMAGE_REGISTRY);
+  envContent = setEnvVar(envContent, "GIT_WORK_DIR", installPath);
+  writeFileSync(envPath, envContent.endsWith("\n") ? envContent : `${envContent}\n`);
 }
 
 export function defaultCloneBranchForVersion(version: string): string | null {
@@ -203,9 +368,9 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
-  const config = loadServerConfig();
+  const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
-  const args = [...composeArgs(installPath, withOverrides), "ps"];
+  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "ps"];
 
   if (flags.json === true) {
     args.push("--format", "json");
@@ -222,16 +387,23 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   warnIfMissingLlmCredentials(installPath);
 
   const withOverrides = flags["with-overrides"] === true;
-  const args = [...composeArgs(installPath, withOverrides), "up", "-d"];
+  const config = loadConfigForInstallPath(installPath);
+  const installMode = getInstallMode(installPath, config);
+  const pullArgs = [...composeArgs(installPath, withOverrides, installMode), "pull"];
+  const args = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
 
   // Update saved profile if starting with overrides
-  const config = loadServerConfig();
   if (config && withOverrides && config.composeProfile !== "full") {
     saveServerConfig({ ...config, composeProfile: "full" });
   }
 
   console.error("Starting OpenMates server...");
-  const code = await runInteractive("docker", args, installPath);
+  let code = 0;
+  if (installMode === "image" && shouldPullImages()) {
+    code = await runInteractive("docker", pullArgs, installPath);
+    if (code !== 0) process.exit(code);
+  }
+  code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
 
   if (flags.json === true) {
@@ -251,9 +423,9 @@ async function serverStop(flags: Record<string, string | boolean>): Promise<void
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
-  const config = loadServerConfig();
+  const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
-  const args = [...composeArgs(installPath, withOverrides), "down"];
+  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "down"];
 
   console.error("Stopping OpenMates server...");
   const code = await runInteractive("docker", args, installPath);
@@ -270,13 +442,20 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
-  const config = loadServerConfig();
+  const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
+  const installMode = getInstallMode(installPath, config);
 
   if (flags.rebuild === true) {
+    if (installMode === "image") {
+      throw new Error(
+        "Image-mode installs use prebuilt images and cannot rebuild locally. " +
+        "Run 'openmates server update' to pull newer images, or reinstall with --from-source to build from source.",
+      );
+    }
     // Full rebuild: down → rm cache → build → up
     console.error("Rebuilding OpenMates server (this may take a few minutes)...");
-    const downArgs = [...composeArgs(installPath, withOverrides), "down"];
+    const downArgs = [...composeArgs(installPath, withOverrides, installMode), "down"];
     let code = await runInteractive("docker", downArgs, installPath);
     if (code !== 0) process.exit(code);
 
@@ -287,17 +466,17 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
       // Volume may not exist — that's fine
     }
 
-    const buildArgs = [...composeArgs(installPath, withOverrides), "build"];
+    const buildArgs = [...composeArgs(installPath, withOverrides, installMode), "build"];
     code = await runInteractive("docker", buildArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    const upArgs = [...composeArgs(installPath, withOverrides), "up", "-d"];
+    const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
   } else {
     // Graceful restart (no rebuild)
     console.error("Restarting OpenMates server...");
-    const args = [...composeArgs(installPath, withOverrides), "restart"];
+    const args = [...composeArgs(installPath, withOverrides, installMode), "restart"];
     const code = await runInteractive("docker", args, installPath);
     if (code !== 0) process.exit(code);
   }
@@ -313,9 +492,9 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
-  const config = loadServerConfig();
+  const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
-  const args = [...composeArgs(installPath, withOverrides), "logs"];
+  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "logs"];
 
   if (flags.follow === true || flags.f === true) {
     args.push("--follow");
@@ -338,17 +517,65 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
 }
 
 async function serverInstall(flags: Record<string, string | boolean>): Promise<void> {
-  requireGit();
-
   const installPath = typeof flags.path === "string" ? resolve(flags.path) : DEFAULT_INSTALL_PATH;
   const sourcePath = typeof flags["source-path"] === "string" ? resolve(flags["source-path"]) : null;
+  const fromSource = flags["from-source"] === true || sourcePath !== null;
 
   // Check if already installed
-  if (existsSync(join(installPath, "setup.sh"))) {
+  if (existsSync(join(installPath, SOURCE_COMPOSE_FILE)) || existsSync(join(installPath, IMAGE_COMPOSE_FILE))) {
     console.error(`OpenMates already exists at ${installPath}.`);
     console.error("Use 'openmates server update' to update, or choose a different --path.");
     process.exit(1);
   }
+
+  if (!fromSource) {
+    requireDocker();
+    mkdirSync(installPath, { recursive: true });
+
+    // Copy custom .env if provided before generated defaults are filled in.
+    if (typeof flags["env-path"] === "string") {
+      const envSource = resolve(flags["env-path"]);
+      if (!existsSync(envSource)) {
+        throw new Error(`Env file not found: ${envSource}`);
+      }
+      copyFileSync(envSource, join(installPath, ".env"));
+      console.error(`Copied ${envSource} to ${installPath}/.env`);
+    }
+
+    const imageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
+    console.error(`Preparing OpenMates image-mode install at ${installPath}...`);
+    await writeImageModeRuntimeFiles(installPath, imageTag);
+    try {
+      exec("docker network create openmates", installPath);
+    } catch {
+      // Network already exists.
+    }
+
+    saveServerConfig({
+      installPath,
+      installedAt: Date.now(),
+      composeProfile: "core",
+      installMode: "image",
+      imageTag,
+    });
+
+    if (flags.json === true) {
+      printJson({ command: "install", status: "success", path: installPath, mode: "image", imageTag });
+    } else {
+      const firstInvite = getEnvVar(readFileSync(join(installPath, ".env"), "utf-8"), "SELF_HOST_FIRST_INVITE_CODE");
+      console.log(`\nOpenMates installed at ${installPath}`);
+      console.log(`Mode: image (${DEFAULT_IMAGE_REGISTRY}, tag ${imageTag})`);
+      console.log("\nNext steps:");
+      console.log("  1. Run: openmates server start");
+      console.log("  2. Open http://localhost:5173");
+      if (firstInvite) console.log(`  3. Sign up with invite code: ${firstInvite}`);
+      console.log("  4. After signup, make yourself admin: openmates server make-admin your@email.com");
+      console.log("\nOptional: edit .env first to add LLM provider API keys. Source builds are available with --from-source.");
+    }
+    return;
+  }
+
+  requireGit();
 
   // Clone the repository. CI can pass --source-path to test the checked-out branch
   // instead of whatever is currently published on the default remote branch.
@@ -399,10 +626,11 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     installPath,
     installedAt: Date.now(),
     composeProfile: "core",
+    installMode: "source",
   });
 
   if (flags.json === true) {
-    printJson({ command: "install", status: "success", path: installPath });
+    printJson({ command: "install", status: "success", path: installPath, mode: "source" });
   } else {
     console.log(`\nOpenMates installed at ${installPath}`);
     console.log("\nNext steps:");
@@ -414,12 +642,35 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
 }
 
 async function serverUpdate(flags: Record<string, string | boolean>): Promise<void> {
-  requireGit();
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
 
   console.error("Updating OpenMates...");
+
+  const config = loadConfigForInstallPath(installPath);
+  const withOverrides = config?.composeProfile === "full";
+  const installMode = getInstallMode(installPath, config);
+
+  if (installMode === "image") {
+    const pullArgs = [...composeArgs(installPath, withOverrides, installMode), "pull"];
+    console.error("Pulling prebuilt images...");
+    let code = await runInteractive("docker", pullArgs, installPath);
+    if (code !== 0) process.exit(code);
+
+    const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
+    code = await runInteractive("docker", upArgs, installPath);
+    if (code !== 0) process.exit(code);
+
+    if (flags.json === true) {
+      printJson({ command: "update", status: "success", path: installPath, mode: "image" });
+    } else {
+      console.log("Server images pulled and containers restarted.");
+    }
+    return;
+  }
+
+  requireGit();
 
   // Pull latest code
   if (flags.force === true) {
@@ -446,14 +697,12 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
   }
 
   // Rebuild and restart
-  const config = loadServerConfig();
-  const withOverrides = config?.composeProfile === "full";
-  const buildArgs = [...composeArgs(installPath, withOverrides), "build"];
+  const buildArgs = [...composeArgs(installPath, withOverrides, installMode), "build"];
   console.error("Rebuilding containers...");
   let code = await runInteractive("docker", buildArgs, installPath);
   if (code !== 0) process.exit(code);
 
-  const upArgs = [...composeArgs(installPath, withOverrides), "up", "-d"];
+  const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
   code = await runInteractive("docker", upArgs, installPath);
   if (code !== 0) process.exit(code);
 
@@ -468,8 +717,9 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
-  const config = loadServerConfig();
+  const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
+  const installMode = getInstallMode(installPath, config);
 
   const userDataOnly = flags["delete-user-data-only"] === true;
 
@@ -495,12 +745,12 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
 
   if (userDataOnly) {
     // Stop, remove specific volumes, restart
-    const downArgs = [...composeArgs(installPath, withOverrides), "down"];
+    const downArgs = [...composeArgs(installPath, withOverrides, installMode), "down"];
     let code = await runInteractive("docker", downArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    // Remove data volumes
-    for (const vol of ["openmates-cache-data", "openmates-cms-database-data"]) {
+    // Remove data volumes. Keep the legacy database volume name for older installs.
+    for (const vol of ["openmates-cache-data", "openmates-postgres-data", "openmates-cms-database-data"]) {
       try {
         exec(`docker volume rm ${vol}`, installPath);
         console.error(`  Removed volume: ${vol}`);
@@ -509,17 +759,19 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
       }
     }
 
-    // Rebuild and restart
-    const buildArgs = [...composeArgs(installPath, withOverrides), "build"];
-    code = await runInteractive("docker", buildArgs, installPath);
-    if (code !== 0) process.exit(code);
+    // Source installs rebuild after clearing data. Image installs restart from pulled images.
+    if (installMode === "source") {
+      const buildArgs = [...composeArgs(installPath, withOverrides, installMode), "build"];
+      code = await runInteractive("docker", buildArgs, installPath);
+      if (code !== 0) process.exit(code);
+    }
 
-    const upArgs = [...composeArgs(installPath, withOverrides), "up", "-d"];
+    const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
   } else {
     // Full reset: remove everything
-    const args = [...composeArgs(installPath, withOverrides), "down", "-v"];
+    const args = [...composeArgs(installPath, withOverrides, installMode), "down", "-v"];
     const code = await runInteractive("docker", args, installPath);
     if (code !== 0) process.exit(code);
   }
@@ -574,7 +826,7 @@ async function serverUninstall(flags: Record<string, string | boolean>): Promise
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
-  const config = loadServerConfig();
+  const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
   const keepData = flags["keep-data"] === true;
 
@@ -601,7 +853,7 @@ async function serverUninstall(flags: Record<string, string | boolean>): Promise
   console.error("Uninstalling OpenMates...");
 
   // 1. Stop containers and remove volumes + locally built images
-  const downArgs = [...composeArgs(installPath, withOverrides), "down", "--rmi", "local"];
+  const downArgs = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "down", "--rmi", "local"];
   if (!keepData) {
     downArgs.push("-v");
   }
@@ -647,13 +899,13 @@ OpenMates Server Management
 Usage: openmates server <command> [options]
 
 Commands:
-  install         Install OpenMates server (clone repo + run setup)
+  install         Install OpenMates server (prebuilt GHCR images by default)
   start           Start the server
   stop            Stop the server
   restart         Restart the server
   status          Show server status (container health)
   logs            Display server logs
-  update          Update to latest version (git pull + rebuild)
+  update          Update to latest version (pull images, or git pull + rebuild for source installs)
   make-admin      Grant admin privileges to a user
   reset           Reset server data (requires confirmation)
   uninstall       Completely remove OpenMates (requires confirmation)
@@ -667,7 +919,9 @@ Command Options:
   install:
     --path <dir>        Install directory (default: ~/openmates)
     --env-path <file>   Copy a pre-existing .env file during install
-    --source-path <dir> Clone from a local checkout instead of GitHub (CI/testing)
+    --image-tag <tag>   Prebuilt image tag (default: CLI version tag)
+    --from-source       Clone/build from source instead of using prebuilt GHCR images
+    --source-path <dir> Clone from a local checkout instead of GitHub (implies --from-source)
 
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)

@@ -1,0 +1,419 @@
+name: openmates-core
+
+x-openmates-api-image: &openmates-api-image
+  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.11.0-alpha.0}
+
+x-openmates-worker-base: &openmates-worker-base
+  <<: *openmates-api-image
+  restart: unless-stopped
+  user: root
+  env_file: ../../.env
+  environment: &openmates-worker-env
+    PYTHONPATH: "/app"
+    PYTHONDONTWRITEBYTECODE: "1"
+    CMS_URL: "http://cms:8055"
+    DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+    DRAGONFLY_URL: "cache:6379"
+    DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+    VAULT_URL: "http://vault:8200"
+    PROVIDER_CONFIG_DIR: "/app_config/providers"
+    BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+  volumes:
+    - api-logs:/app/logs
+    - vault-setup-data:/vault-data
+  networks:
+    - openmates
+  depends_on:
+    cache:
+      condition: service_healthy
+    cms:
+      condition: service_healthy
+    vault-setup:
+      condition: service_completed_successfully
+    cms-setup:
+      condition: service_completed_successfully
+
+services:
+  api:
+    <<: *openmates-api-image
+    container_name: api
+    restart: unless-stopped
+    stop_grace_period: 15s
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      REST_API_PORT: 8000
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      VAULT_URL: "http://vault:8200"
+      MONITORING_URL: "http://openobserve:5080"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN:-}"
+      CORE_SIDECAR_URL: "http://admin-sidecar:8001"
+    command: sh /app/backend/core/api/wait-for-vault.sh
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - api-logs:/app/logs
+      - vault-setup-data:/vault-data
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cms:
+    container_name: cms
+    image: directus/directus:11.5
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      KEY: "${DIRECTUS_SECRET}"
+      SECRET: "${DIRECTUS_SECRET}"
+      ADMIN_EMAIL: "${DATABASE_ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${DATABASE_ADMIN_PASSWORD}"
+      DB_CLIENT: "pg"
+      DB_HOST: "cms-database"
+      DB_PORT: "5432"
+      DB_DATABASE: "${DATABASE_NAME}"
+      DB_USER: "${DATABASE_USERNAME}"
+      DB_PASSWORD: "${DATABASE_PASSWORD}"
+      PUBLIC_URL: "http://localhost:8055"
+      LOG_LEVEL: "info"
+      CACHE_ENABLED: "true"
+      CACHE_STORE: "redis"
+      REDIS_HOST: "cache"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      REDIS_USERNAME: "default"
+      REFRESH_TOKEN_TTL: "30d"
+      CACHE_SKIP_ALLOWED: "true"
+      CACHE_AUTO_PURGE: "true"
+    volumes:
+      - directus-uploads:/directus/uploads
+      - directus-extensions:/directus/extensions
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    depends_on:
+      cms-database:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  cms-database:
+    container_name: cms-database
+    image: postgres:13-alpine
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - openmates-postgres-data:/var/lib/postgresql/data
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"${DATABASE_USERNAME}\" -d \"${DATABASE_NAME}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cms-setup:
+    container_name: cms-setup
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.11.0-alpha.0}
+    env_file: ../../.env
+    environment:
+      ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      SCHEMAS_DIR: "/usr/src/app/schemas"
+    networks:
+      - openmates
+    depends_on:
+      - cms
+    restart: "no"
+
+  task-worker:
+    <<: *openmates-worker-base
+    container_name: task-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "email,user_init,persistence,health_check,server_stats,demo,reminder,push"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"
+      CELERY_METRICS_PORT: "9101"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  task-scheduler:
+    <<: *openmates-worker-base
+    container_name: task-scheduler
+    command: python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
+    volumes:
+      - api-logs:/app/logs
+      - celerybeat-schedule-data:/celerybeat-data
+      - vault-setup-data:/vault-data
+
+  app-ai-worker:
+    <<: *openmates-worker-base
+    container_name: app-ai-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_ai"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  app-images-worker:
+    <<: *openmates-worker-base
+    container_name: app-images-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_images"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_images --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  app-music-worker:
+    <<: *openmates-worker-base
+    container_name: app-music-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_music"
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-5}"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_music --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  app-videos-worker:
+    <<: *openmates-worker-base
+    container_name: app-videos-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_videos"
+      CELERY_VIDEOS_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_videos --concurrency=$${CELERY_VIDEOS_AUTOSCALE_MAX} --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+
+  app-pdf-worker:
+    <<: *openmates-worker-base
+    container_name: app-pdf-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_pdf"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_pdf --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+
+  app-docs-worker:
+    <<: *openmates-worker-base
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.11.0-alpha.0}
+    container_name: app-docs-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_docs"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_docs --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+
+  app-code-worker:
+    <<: *openmates-worker-base
+    container_name: app-code-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_code"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_code --concurrency=2 --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  app-social-media-worker:
+    <<: *openmates-worker-base
+    container_name: app-social-media-worker
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: "app_social_media"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_social_media --concurrency=2 --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+
+  cache:
+    container_name: cache
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
+    volumes:
+      - cache-data:/data
+    command:
+      - "--maxmemory"
+      - "${CACHE_MAX_MEMORY:-3000mb}"
+      - "--proactor_threads"
+      - "${CACHE_THREADS:-8}"
+      - "--requirepass"
+      - "${DRAGONFLY_PASSWORD}"
+      - "--timeout"
+      - "300"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${DRAGONFLY_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vault:
+    container_name: vault
+    image: hashicorp/vault:1.19
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_LOG_LEVEL: "warn"
+    command: "vault server -log-level=warn -config=/vault/config/vault.hcl"
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault-data:/vault/file
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -q --spider http://127.0.0.1:8200/v1/sys/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  vault-setup:
+    container_name: vault-setup
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.11.0-alpha.0}
+    env_file: ../../.env
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_LOG_LEVEL: "warn"
+      VAULT_AUTO_UNSEAL: "true"
+    volumes:
+      - vault-setup-data:/app/data
+      - ../../.env:/app/dotenv:rw
+    networks:
+      - openmates
+    depends_on:
+      - vault
+    restart: "on-failure"
+    command: >
+      sh -c "echo 'Waiting for Vault to be ready...' && sleep 10 && python setup_vault.py && echo 'Setup complete.'"
+
+  openobserve:
+    container_name: openobserve
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_ROOT_EMAIL}"
+      ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_ROOT_PASSWORD}"
+      ZO_DATA_DIR: "/data"
+      ZO_HTTP_PORT: "5080"
+      ZO_TELEMETRY: "false"
+      ZO_COMPACT_DATA_RETENTION_DAYS: "14"
+    volumes:
+      - openobserve-data:/data
+    networks:
+      - openmates
+    healthcheck:
+      disable: true
+
+  admin-sidecar:
+    container_name: core-admin-sidecar
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.11.0-alpha.0}
+    restart: unless-stopped
+    environment:
+      ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
+      COMPOSE_PROJECT: "openmates"
+      COMPOSE_FILE: "backend/core/docker-compose.selfhost.yml"
+      SERVICES_ALLOWED: "api,task-worker,task-scheduler,cache,admin-sidecar"
+      SERVICE_UPDATE_ALL: "true"
+      SERVICE_UPDATE_TARGET: "api"
+      SERVICE_UPDATE_EXTRAS: "vault-setup,cms-setup"
+      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-true}"
+      CACHE_VOLUME_NAME: "openmates-cache-data"
+      GIT_WORK_DIR: "${GIT_WORK_DIR}"
+      ADMIN_NOTIFY_EMAIL: "${ADMIN_NOTIFY_EMAIL:-}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      PORT: "8001"
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: "${GIT_WORK_DIR}"
+        target: "${GIT_WORK_DIR}"
+    group_add:
+      - "${DOCKER_GID:-999}"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  webapp:
+    container_name: webapp
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.11.0-alpha.0}
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    networks:
+      - openmates
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  openmates:
+    external: true
+    name: openmates
+
+volumes:
+  openmates-postgres-data:
+    name: openmates-postgres-data
+  directus-uploads:
+    name: openmates-directus-uploads
+  directus-extensions:
+    name: openmates-directus-extensions
+  cache-data:
+    name: openmates-cache-data
+  openobserve-data:
+    name: openmates-openobserve-data
+  vault-data:
+    name: openmates-vault-data
+  vault-setup-data:
+    name: openmates-vault-setup-data
+  celerybeat-schedule-data:
+    name: openmates-celerybeat-schedule-data
+  api-logs:
+    name: openmates-api-logs

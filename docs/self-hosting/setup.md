@@ -3,7 +3,7 @@ status: active
 doc_type: how-to
 audience:
   - technical-users
-last_verified: 2026-06-06
+last_verified: 2026-06-08
 claims:
   - id: self-hosting-cli-detects-openmates-installation-path
     type: unit
@@ -34,8 +34,9 @@ coverage:
 ## Summary
 
 - Use `openmates server` for the default install, start, stop, status, logs, update, reset, and uninstall flow.
+- Default installs use prebuilt GHCR images and do not require Git or a source checkout.
 - `openmates server start` brings up the backend and the web app. Open the app at `http://localhost:5173`.
-- During install, choose invite codes, an email-domain allowlist, or both for signup.
+- Default installs generate an invite-only signup configuration; edit `.env` if you want a domain allowlist or invite-plus-domain mode.
 - The first invite creates a normal user. Promote your account separately with `openmates server make-admin <email>`.
 - A fresh self-hosted install can start without provider API keys. AI chat and model processing stay unavailable until you add at least one real LLM provider key.
 - The no-key startup path is verified by the GitHub Actions self-host install smoke workflow.
@@ -46,11 +47,12 @@ The self-hosted edition currently uses API-based AI providers. Offline model sup
 
 - Linux server or workstation. Ubuntu/Debian is recommended.
 - Docker with Docker Compose support.
-- Git.
 - Node.js/npm.
 - 4 GB RAM minimum. 8 GB or more is recommended.
 - 20 GB or more free disk space.
 - Internet access for Docker images, package installs, and any external AI providers you enable.
+
+Git is only required when you explicitly choose source mode with `--from-source` or `--source-path`.
 
 Provider API keys are optional for installation and startup. Add them when you want AI chat, model processing, or provider-backed skills to work.
 
@@ -68,9 +70,11 @@ npm install -g openmates
 openmates server install --path ~/openmates
 ```
 
-The installer prepares the install directory, creates `.env`, generates local secrets, asks how signup should work, and prints the next command to start the server.
+The installer prepares a lightweight runtime directory, writes the image-mode Docker Compose file, creates `.env`, generates local secrets, and prints the next command to start the server. It does not clone the OpenMates repository.
 
-When the terminal is interactive, install asks how signup should work:
+By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.11.0-alpha.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
+
+Image-mode install defaults to invite codes only. You can edit `~/openmates/.env` before starting if you want a different signup mode:
 
 | Mode | Best for | Signup requirement |
 | --- | --- | --- |
@@ -78,13 +82,16 @@ When the terminal is interactive, install asks how signup should work:
 | Email domain allowlist | Teams with a shared email domain | Allowed email domain |
 | Invite code + email domain | More restrictive team/private servers | Both invite code and allowed email domain |
 
-Non-interactive installs default to invite codes only. If the selected mode uses invite codes, setup generates and prints the first signup invite code. This invite code creates a normal user, not an admin.
+Setup generates and prints the first signup invite code. This invite code creates a normal user, not an admin.
 
-For contributors testing an existing checkout, use:
+For contributors testing an existing checkout, use source mode:
 
 ```bash
+openmates server install --from-source --path ~/openmates-source
 openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```
+
+Source mode clones or copies a repository, requires Git for clone-based installs and updates, and rebuilds Docker images locally.
 
 ### 3. Start the Server
 
@@ -174,6 +181,8 @@ openmates server stop --path ~/openmates
 openmates server update --path ~/openmates
 openmates server uninstall --path ~/openmates --yes
 ```
+
+For image-mode installs, `openmates server update` pulls newer images and restarts the stack. For source-mode installs, it runs `git pull --ff-only`, rebuilds images, and restarts containers.
 
 See [CLI server management](../cli/server-management.md) for the full command reference.
 
