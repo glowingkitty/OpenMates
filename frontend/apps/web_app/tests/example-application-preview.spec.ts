@@ -23,6 +23,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const HABIT_GARDEN_CHAT_ID = 'example-habit-garden-vite-app';
 const HABIT_GARDEN_URL = `/#chat-id=${HABIT_GARDEN_CHAT_ID}`;
 const HABIT_GARDEN_APPLICATION_EMBED_ID = '4020cf81-f490-4da8-bd42-c4ea456327f3';
+const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
 
 async function openHabitGardenApplication(page: any): Promise<any> {
 	await page.goto(getE2EDebugUrl(HABIT_GARDEN_URL), { waitUntil: 'domcontentloaded' });
@@ -107,7 +108,7 @@ test.describe('Habit Garden example application preview', () => {
 
 		await expect.poll(async () => {
 			const usageResponse = await page.context().request.get(
-				`/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(HABIT_GARDEN_CHAT_ID)}&limit=20`
+				`${API_BASE_URL}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(HABIT_GARDEN_CHAT_ID)}&limit=20`
 			);
 			if (!usageResponse.ok()) return false;
 			const usage = await usageResponse.json();
