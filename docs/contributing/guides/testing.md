@@ -25,6 +25,24 @@ cd frontend/apps/web_app && npm run test:unit
 npm run test:unit -- --coverage
 ```
 
+### Apple App
+
+Apple verification is required when a change affects a product surface that also
+exists in `apple/OpenMates/`, including chat, sync, auth, settings, embeds,
+billing, shared UI primitives, app chrome, or provider result rendering.
+
+Use XcodeBuildMCP on a Mac when available. If the active OpenCode session runs
+on Linux/dev server and a trusted Mac is reachable through operator-provided SSH
+configuration, use the remote Mac flow in `apple/AGENTS.md`: verify key-based SSH
+access, protect local Mac checkout changes, run `xcodebuild`, use `xcrun simctl`
+for simulator launch/screenshot checks when needed, and shut down any simulator
+booted by the session after verification.
+
+Do not record private hostnames, IP addresses, usernames, SSH aliases, tailnet
+names, auth keys, device names, or personal local paths in tests, specs, docs,
+or final summaries. Use generic evidence such as scheme, simulator family, build
+status, screenshot path, and whether manual parity checks passed.
+
 ### Playwright E2E (GitHub Actions — NOT local)
 
 > **Claude: NEVER run these docker compose commands directly.** Use `python3 scripts/run_tests.py --spec <name>.spec.ts` instead — it dispatches to GitHub Actions with proper test accounts. The commands below document what the CI runner executes internally.
@@ -383,3 +401,4 @@ gh run watch
 - [ ] Tests cover happy path AND at least one error path
 - [ ] Tests don't depend on external services (mock them)
 - [ ] No `time.sleep()` or arbitrary waits
+- [ ] Apple impact was checked for shared product surfaces, and Mac verification or an explicit `not affected` note was recorded

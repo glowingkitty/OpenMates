@@ -76,7 +76,7 @@ struct MentionDropdownView: View {
                 Icon("close", size: 16)
                     .foregroundStyle(Color.fontTertiary)
                     .frame(width: 32, height: 32)
-                    .background(Color.grey15)
+                    .background(Color.grey10)
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
             }
             .buttonStyle(.plain)
@@ -121,6 +121,7 @@ struct MentionDropdownView: View {
     }
 }
 
+@MainActor
 struct MentionItem: Identifiable, Equatable {
     let id: String
     let type: MentionType
@@ -133,6 +134,7 @@ struct MentionItem: Identifiable, Equatable {
     var name: String { AppStrings.localized(nameKey) }
     var subtitle: String { AppStrings.localized(subtitleKey) }
 
+    @MainActor
     enum MentionType: String, Equatable {
         case modelAlias
         case mate

@@ -90,7 +90,7 @@ struct CodeEmbedRenderer: View {
                     codeSourcePanel(isSplit: false)
                 }
             }
-            .background(Color.grey15)
+            .background(Color.grey10)
         }
     }
 
@@ -113,7 +113,7 @@ struct CodeEmbedRenderer: View {
                 .padding(.bottom, .spacing8)
                 .padding(.trailing, .spacing4)
         }
-        .background(Color.grey15)
+        .background(Color.grey10)
         .accessibilityIdentifier("code-source-panel")
     }
 

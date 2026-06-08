@@ -159,7 +159,7 @@ struct ComposerRecordingOverlay: View {
         }
         .padding(.top, .spacing8)
         .padding(.horizontal, .spacing8)
-        .padding(.bottom, .spacing7)
+        .padding(.bottom, .spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient.primary)
         .clipShape(RoundedRectangle(cornerRadius: 24))

@@ -25,12 +25,12 @@ enum PIIType: String, CaseIterable {
 }
 
 enum PIIDetector {
-    private struct Pattern {
+    private struct Pattern: Sendable {
         let type: PIIType
         let expression: NSRegularExpression
-        let validator: ((String) -> Bool)?
+        let validator: (@Sendable (String) -> Bool)?
 
-        init(_ type: PIIType, _ pattern: String, options: NSRegularExpression.Options = [], validator: ((String) -> Bool)? = nil) throws {
+        init(_ type: PIIType, _ pattern: String, options: NSRegularExpression.Options = [], validator: (@Sendable (String) -> Bool)? = nil) throws {
             self.type = type
             self.expression = try NSRegularExpression(pattern: pattern, options: options)
             self.validator = validator

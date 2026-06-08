@@ -99,3 +99,20 @@ Prefer:
 - `.buttonStyle(.plain)` plus OpenMates styling over default button rendering
 
 Performance matters. Avoid expensive work in SwiftUI `body`, including markdown parsing, JSON parsing, image decoding, sorting/filtering large arrays, embed payload normalization, and repeated formatter construction. Cache parsed render data with stable IDs, and keep state scoped narrowly so message-level updates do not invalidate entire screens.
+
+## Remote Mac Verification
+
+When the active OpenCode session runs on a Linux/dev server but a trusted Mac is available over a private network, use SSH for Apple verification instead of guessing from static source.
+
+Use only operator-provided connection details from local runtime configuration, such as `~/.ssh/config`, environment variables, or the current chat. Never commit private connection details to the open source repository. This includes hostnames, IP addresses, usernames, SSH aliases, tailnet names, device names, auth keys, and local filesystem paths outside generic placeholders.
+
+Remote verification flow:
+
+1. Confirm SSH access with key-based authentication before running build commands.
+2. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
+3. Update the Mac checkout with `git pull --ff-only` when the tree is clean, or copy only the files intentionally changed in the current session.
+4. Build with `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" build`.
+5. To verify simulator control, boot the simulator, install the built app, launch it, optionally adjust simulator UI state, and capture a screenshot using `xcrun simctl`.
+6. After verification, shut down any simulator booted by the session with `xcrun simctl shutdown <simulator>` unless the operator explicitly asks to keep it running.
+7. Clean up only temporary artifacts created by the current session, such as copied screenshots or throwaway build logs. Do not delete unrelated DerivedData, caches, or local checkout changes.
+8. Report only generic evidence in committed docs and summaries. Keep private connection details in local shell history or operator notes, not repo files.

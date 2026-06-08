@@ -85,6 +85,7 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 - **Sidebar-closed as default:** Always test chat features with sidebar closed (default <=1440px).
 - **Cold-boot verification:** After fixing chat/nav/sync bugs, verify by clearing IndexedDB + localStorage, then reload.
 - **Use Playwright specs for verification, not Firecrawl.** Specs are repeatable and don't consume API quota. Reserve Firecrawl for debugging when a spec fails.
+- **Apple impact check:** For changes to chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, check whether the Apple app has a counterpart. Record Mac/Xcode verification or an explicit `Apple not affected` note.
 
 ## Test-First Enforcement (Mandatory)
 

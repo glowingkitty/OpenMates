@@ -51,7 +51,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private static func sharedURLText(from value: Any?) -> String? {
+    nonisolated private static func sharedURLText(from value: Any?) -> String? {
         if let url = value as? URL {
             return url.absoluteString
         }
@@ -68,7 +68,7 @@ final class ShareViewController: UIViewController {
         return nil
     }
 
-    private static func sharedPlainText(from value: Any?) -> String? {
+    nonisolated private static func sharedPlainText(from value: Any?) -> String? {
         if let text = value as? String {
             return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
         }

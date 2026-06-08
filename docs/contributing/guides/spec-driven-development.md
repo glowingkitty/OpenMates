@@ -61,7 +61,9 @@ For full specs:
 1. Detect the user's implementation intent and auto-select `specify`.
 2. Discover existing context before asking questions: GitHub Issues, relevant
    Linear tasks only when appropriate, `docs/specs/`, `docs/architecture/`, user
-   guides, source code, and existing tests.
+   guides, source code, and existing tests. If the work touches a shared product
+   surface with an Apple counterpart, discover the mapped Swift files and Apple
+   parity docs too.
 3. Ask up to five rounds of clarifying questions, one question per message. Wait
    for the user's response before asking the next question. The questions must
    be based on discovered context and focus on blocking product decisions.
@@ -82,6 +84,20 @@ For full specs:
 
 Implementation must not begin before the user approves the full spec unless the
 user explicitly instructs OpenCode to skip the spec gate.
+
+## Apple Impact And Parity
+
+For specs that change chat, sync, auth, settings, embeds, billing, shared UI,
+or any other surface that exists in the Apple app, include an `apple_impact`
+section in `spec.yml` before approval. If there is no Apple counterpart, state
+that explicitly so future agents do not have to rediscover it.
+
+The section should list affected Swift files or `none`, parity expectations,
+required native tests or manual Mac verification, and any intentional native
+differences. When runtime verification is required, prefer XcodeBuildMCP on a
+Mac; if the active session runs on Linux and a trusted Mac is available, use the
+remote Mac verification flow in `apple/AGENTS.md` and keep private connection
+details out of the spec.
 
 ## Playwright Red And Green Phases
 
@@ -126,6 +142,16 @@ context_discovery:
     - backend/core/api/app/routes/example.py
   tests:
     - frontend/apps/web_app/tests/settings.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No Apple counterpart for this example team settings flow yet.
+  verification:
+    - Not required for this example.
+  intentional_native_differences:
+    - none
 
 clarification:
   rounds:
