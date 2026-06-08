@@ -1,0 +1,1044 @@
+title:
+  context: "Title of example chat: Organic groceries in Berlin"
+  en: "Organic groceries in Berlin"
+  de: "Organic groceries in Berlin"
+  zh: "Organic groceries in Berlin"
+  es: "Organic groceries in Berlin"
+  fr: "Organic groceries in Berlin"
+  pt: "Organic groceries in Berlin"
+  ru: "Organic groceries in Berlin"
+  ja: "Organic groceries in Berlin"
+  ko: "Organic groceries in Berlin"
+  it: "Organic groceries in Berlin"
+  tr: "Organic groceries in Berlin"
+  vi: "Organic groceries in Berlin"
+  id: "Organic groceries in Berlin"
+  pl: "Organic groceries in Berlin"
+  nl: "Organic groceries in Berlin"
+  ar: "Organic groceries in Berlin"
+  hi: "Organic groceries in Berlin"
+  th: "Organic groceries in Berlin"
+  cs: "Organic groceries in Berlin"
+  sv: "Organic groceries in Berlin"
+  he: "Organic groceries in Berlin"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Organic groceries in Berlin"
+  en: "Find organic oat milk and bananas for Berlin grocery delivery."
+  de: "Find organic oat milk and bananas for Berlin grocery delivery."
+  zh: "Find organic oat milk and bananas for Berlin grocery delivery."
+  es: "Find organic oat milk and bananas for Berlin grocery delivery."
+  fr: "Find organic oat milk and bananas for Berlin grocery delivery."
+  pt: "Find organic oat milk and bananas for Berlin grocery delivery."
+  ru: "Find organic oat milk and bananas for Berlin grocery delivery."
+  ja: "Find organic oat milk and bananas for Berlin grocery delivery."
+  ko: "Find organic oat milk and bananas for Berlin grocery delivery."
+  it: "Find organic oat milk and bananas for Berlin grocery delivery."
+  tr: "Find organic oat milk and bananas for Berlin grocery delivery."
+  vi: "Find organic oat milk and bananas for Berlin grocery delivery."
+  id: "Find organic oat milk and bananas for Berlin grocery delivery."
+  pl: "Find organic oat milk and bananas for Berlin grocery delivery."
+  nl: "Find organic oat milk and bananas for Berlin grocery delivery."
+  ar: "Find organic oat milk and bananas for Berlin grocery delivery."
+  hi: "Find organic oat milk and bananas for Berlin grocery delivery."
+  th: "Find organic oat milk and bananas for Berlin grocery delivery."
+  cs: "Find organic oat milk and bananas for Berlin grocery delivery."
+  sv: "Find organic oat milk and bananas for Berlin grocery delivery."
+  he: "Find organic oat milk and bananas for Berlin grocery delivery."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Organic groceries in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  de: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  zh: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  es: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  fr: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  pt: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  ru: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  ja: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  ko: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  it: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  tr: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  vi: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  id: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  pl: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  nl: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  ar: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  hi: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  th: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  cs: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  sv: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  he: "Find organic oat milk and bananas for grocery delivery in Berlin, sorted by cheapest options."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Organic groceries in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "94c10e1c-be84-4b79-a45b-4e1679ba84db", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0f8e412a-76d5-4d7b-aab5-5b64494493c0", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "b4fa76d0-0a3f-4f4f-b21d-acf451d89f30", "app_id": "images", "skill_id": "search", "query": "organic oat milk package", "provider": "Brave Search"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "275c2e15-9bfb-4f53-bbf8-f3f1e3f1b43d", "app_id": "images", "skill_id": "search", "query": "organic bananas bundle", "provider": "Brave Search"}
+    ```
+
+    For organic grocery delivery in [Berlin](wiki:Berlin), [REWE](wiki:REWE) is one of the most reliable options, offering their own store brand "**REWE Bio**," which typically provides the best value for organic staples.
+
+    ### 🥛 Organic Oat Milk (Bio Haferdrink)
+    In Germany, oat milk is labeled as "Haferdrink." The cheapest organic option is usually the store brand:
+    *   **REWE Bio Haferdrink Natur (1L):** Typically priced around **€0.99 – €1.15**. It is unsweetened and fortified versions (with calcium) are often available for the same or a similar price.
+    *   **Oatly Bio:** Often available for **€1.99**, though prices can drop during sales.
+
+    [!](embed:addjoi.com-2nL)
+    [!](embed:znaturalfoods.com-K19)
+
+    ### 🍌 Organic Bananas (Bio Bananen)
+    Bananas are sold either by the piece or by weight.
+    *   **REWE Bio Bananen:** Usually cost around **€1.79 – €2.29 per kg** or approx. **€0.30 – €0.45 per banana** when sold individually.
+    *   **Chiquita Bio:** Generally more expensive, ranging from **€2.49 per kg** upwards.
+
+    [!](embed:amazon.com-a5a)
+    [!](embed:amazon.com-ZRQ)
+
+    ### Where to Order
+    1.  **REWE Lieferservice:** Best for large weekly hauls with the widest selection of store-brand organic products. You can book delivery slots in advance.
+    2.  **Flink or Getir:** Ideal for rapid delivery (10–20 minutes). Prices are slightly higher than the supermarket, but they frequently carry the "Alnatura" or "REWE Bio" brands.
+    3.  **Picnic:** A milkman-style delivery service that is often the cheapest overall, though you may need to join a waiting list depending on your Berlin district.
+
+    **Pro-Tip:** Check for the **"Naturland"** or **"Demeter"** seals on these products if you are looking for higher organic standards beyond the standard EU Bio logo.
+
+    ***
+
+    **Would you like me to compare prices at a specific rapid delivery service like Flink?**
+    **Do you need help finding other organic staples like eggs or coffee?**
+  verified_by_human: []

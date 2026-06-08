@@ -27,6 +27,28 @@ export interface StreamEvent {
   modelName: string | null;
 }
 
+export interface SendEmbedDataFrame {
+  embed_id: string;
+  type?: string;
+  content?: string;
+  status?: string;
+  text_preview?: string;
+  chat_id?: string;
+  message_id?: string;
+  user_id?: string;
+  embed_ids?: string[];
+  parent_embed_id?: string | null;
+  task_id?: string;
+  version_number?: number;
+  file_path?: string;
+  content_hash?: string;
+  text_length_chars?: number;
+  is_private?: boolean;
+  is_shared?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export class OpenMatesWsClient {
   private readonly socket: WebSocket;
 
@@ -107,6 +129,15 @@ export class OpenMatesWsClient {
 
   send(type: string, payload: unknown): void {
     this.socket.send(JSON.stringify({ type, payload }));
+  }
+
+  sendAsync(type: string, payload: unknown): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.socket.send(JSON.stringify({ type, payload }), (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
   }
 
   waitForMessage(
@@ -224,28 +255,39 @@ export class OpenMatesWsClient {
     chatId: string,
     options?: {
       timeoutMs?: number;
+      asyncEmbedWaitMs?: number;
       onStream?: (event: StreamEvent) => void;
     },
   ): Promise<{
+    messageId: string | null;
+    taskId: string | null;
     content: string;
     category: string | null;
     modelName: string | null;
     followUpSuggestions: string[];
+    embeds: SendEmbedDataFrame[];
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
+    const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? 120_000;
 
     return new Promise((resolve, reject) => {
       let latestContent = "";
+      let messageId: string | null = null;
+      let taskId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
       let followUpSuggestions: string[] = [];
+      const embeds = new Map<string, SendEmbedDataFrame>();
+      const processingEmbedIds = new Set<string>();
       // Track whether the AI response is done so we can wait for post-processing.
       let aiResponseDone = false;
+      let postProcessingDone = false;
       // Post-processing metadata arrives up to ~10 s after the AI response.
       // We wait a short window for it so follow-up suggestions are available.
       const POST_PROCESSING_WINDOW_MS = 12_000;
       let postProcessingTimer: ReturnType<typeof setTimeout> | null = null;
+      let asyncEmbedTimer: ReturnType<typeof setTimeout> | null = null;
 
       const timeout = setTimeout(() => {
         cleanup();
@@ -253,9 +295,62 @@ export class OpenMatesWsClient {
       }, timeoutMs);
 
       const capture = (p: Record<string, unknown>) => {
+        if (typeof p.message_id === "string" && p.message_id)
+          messageId = p.message_id;
+        if (typeof p.task_id === "string" && p.task_id) taskId = p.task_id;
         if (typeof p.category === "string" && p.category) category = p.category;
         if (typeof p.model_name === "string" && p.model_name)
           modelName = p.model_name;
+      };
+
+      const extractMessageContent = (message: Record<string, unknown>): string => {
+        if (typeof message.content === "string") return message.content;
+        const content = message.content;
+        if (!content || typeof content !== "object") return "";
+        try {
+          const root = content as {
+            content?: Array<{ content?: Array<{ text?: unknown }> }>;
+          };
+          const text = root.content?.[0]?.content?.[0]?.text;
+          return typeof text === "string" ? text : "";
+        } catch {
+          return "";
+        }
+      };
+
+      const finishPostProcessingWait = () => {
+        postProcessingDone = true;
+        maybeResolve();
+      };
+
+      const maybeResolve = () => {
+        if (!aiResponseDone || !postProcessingDone) return;
+        if (processingEmbedIds.size > 0 && !asyncEmbedTimer) {
+          asyncEmbedTimer = setTimeout(() => {
+            cleanup();
+            resolve({
+              messageId,
+              taskId,
+              content: latestContent,
+              category,
+              modelName,
+              followUpSuggestions,
+              embeds: [...embeds.values()],
+            });
+          }, asyncEmbedWaitMs);
+          return;
+        }
+        if (processingEmbedIds.size > 0) return;
+        cleanup();
+        resolve({
+          messageId,
+          taskId,
+          content: latestContent,
+          category,
+          modelName,
+          followUpSuggestions,
+          embeds: [...embeds.values()],
+        });
       };
 
       // Called once AI response is done. Start a short window to wait for
@@ -263,16 +358,9 @@ export class OpenMatesWsClient {
       const scheduleResolve = (content: string) => {
         aiResponseDone = true;
         latestContent = content;
+        clearTimeout(timeout);
         // Start the post-processing window — resolve early if we get suggestions.
-        postProcessingTimer = setTimeout(() => {
-          cleanup();
-          resolve({
-            content: latestContent,
-            category,
-            modelName,
-            followUpSuggestions,
-          });
-        }, POST_PROCESSING_WINDOW_MS);
+        postProcessingTimer = setTimeout(finishPostProcessingWait, POST_PROCESSING_WINDOW_MS);
       };
 
       const onMessage = (rawData: RawData) => {
@@ -295,10 +383,31 @@ export class OpenMatesWsClient {
             return;
           }
 
+          if (type === "send_embed_data") {
+            const embedPayload = (p.payload && typeof p.payload === "object"
+              ? p.payload
+              : p) as Record<string, unknown>;
+            if (typeof embedPayload.chat_id === "string" && embedPayload.chat_id !== chatId) {
+              return;
+            }
+            const embedId = embedPayload.embed_id;
+            if (typeof embedId === "string" && embedId) {
+              const status = typeof embedPayload.status === "string" ? embedPayload.status : "finished";
+              embeds.set(embedId, embedPayload as unknown as SendEmbedDataFrame);
+              if (status === "processing") {
+                processingEmbedIds.add(embedId);
+              } else {
+                processingEmbedIds.delete(embedId);
+              }
+              maybeResolve();
+            }
+            return;
+          }
+
           // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId !== userMessageId) return;
+            if (msgId !== userMessageId && p.chat_id !== chatId) return;
             capture(p);
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
@@ -325,13 +434,35 @@ export class OpenMatesWsClient {
           // Background path: single completion event
           if (type === "ai_background_response_completed") {
             const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId && msgId !== userMessageId) return;
+            if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
             if (!msgId && p.chat_id !== chatId) return;
             capture(p);
             const content =
               typeof p.full_content === "string"
                 ? p.full_content
                 : latestContent;
+            onStream?.({ kind: "done", content, category, modelName });
+            scheduleResolve(content);
+            return;
+          }
+
+          // Fallback path: the server may broadcast a completed assistant
+          // message via chat_message_added even when stream frames were missed.
+          if (type === "chat_message_added") {
+            if (p.chat_id !== chatId) return;
+            const rawMessage = p.message;
+            if (!rawMessage || typeof rawMessage !== "object") return;
+            const message = rawMessage as Record<string, unknown>;
+            if (message.role !== "assistant") return;
+            const content = extractMessageContent(message);
+            if (!content) return;
+            capture(message);
+            if (typeof message.category === "string" && message.category) {
+              category = message.category;
+            }
+            if (typeof message.model_name === "string" && message.model_name) {
+              modelName = message.model_name;
+            }
             onStream?.({ kind: "done", content, category, modelName });
             scheduleResolve(content);
             return;
@@ -366,13 +497,7 @@ export class OpenMatesWsClient {
                 clearTimeout(postProcessingTimer);
                 postProcessingTimer = null;
               }
-              cleanup();
-              resolve({
-                content: latestContent,
-                category,
-                modelName,
-                followUpSuggestions,
-              });
+              finishPostProcessingWait();
             }
             return;
           }
@@ -390,10 +515,13 @@ export class OpenMatesWsClient {
         if (aiResponseDone) {
           cleanup();
           resolve({
+            messageId,
+            taskId,
             content: latestContent,
             category,
             modelName,
             followUpSuggestions,
+            embeds: [...embeds.values()],
           });
           return;
         }
@@ -406,6 +534,10 @@ export class OpenMatesWsClient {
         if (postProcessingTimer) {
           clearTimeout(postProcessingTimer);
           postProcessingTimer = null;
+        }
+        if (asyncEmbedTimer) {
+          clearTimeout(asyncEmbedTimer);
+          asyncEmbedTimer = null;
         }
         this.socket.off("message", onMessage);
         this.socket.off("error", onError);

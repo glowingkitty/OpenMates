@@ -24,6 +24,20 @@ import { germanyHistoricFilmIndustryChat } from "./data/example_chats/germany-hi
 import { buildingMaintenanceEmailChat } from "./data/example_chats/building-maintenance-email";
 import { aiWorkshopsMeetupsBerlinChat } from "./data/example_chats/ai-workshops-meetups-berlin";
 import { rightToRepairLawsEuUsChat } from "./data/example_chats/right-to-repair-laws-eu-us";
+import { berlinWeatherBikeCommuteChat } from "./data/example_chats/berlin-weather-bike-commute";
+import { quietCafesTempelhoferFeldChat } from "./data/example_chats/quiet-cafes-tempelhofer-feld";
+import { ragExplainedVideosChat } from "./data/example_chats/rag-explained-videos";
+import { gpt4oAnnouncementSummaryChat } from "./data/example_chats/gpt-4o-announcement-summary";
+import { mortgagePaymentCalculationChat } from "./data/example_chats/mortgage-payment-calculation";
+import { rustVectorDatabaseReposChat } from "./data/example_chats/rust-vector-database-repos";
+import { svelteRunesDocsChat } from "./data/example_chats/svelte-runes-docs";
+import { familyStaysKyotoChat } from "./data/example_chats/family-stays-kyoto";
+import { tedTalkTranscriptSummaryChat } from "./data/example_chats/ted-talk-transcript-summary";
+import { balconyPlantReminderChat } from "./data/example_chats/balcony-plant-reminder";
+import { watercolorRobotBalconyChat } from "./data/example_chats/watercolor-robot-balcony";
+import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24v-5v";
+import { organicGroceriesBerlinChat } from "./data/example_chats/organic-groceries-berlin";
+import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -40,6 +54,20 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   buildingMaintenanceEmailChat,
   aiWorkshopsMeetupsBerlinChat,
   rightToRepairLawsEuUsChat,
+  berlinWeatherBikeCommuteChat,
+  quietCafesTempelhoferFeldChat,
+  ragExplainedVideosChat,
+  gpt4oAnnouncementSummaryChat,
+  mortgagePaymentCalculationChat,
+  rustVectorDatabaseReposChat,
+  svelteRunesDocsChat,
+  familyStaysKyotoChat,
+  tedTalkTranscriptSummaryChat,
+  balconyPlantReminderChat,
+  watercolorRobotBalconyChat,
+  buckConverters24v5vChat,
+  organicGroceriesBerlinChat,
+  furnishedApartmentsBerlinChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */

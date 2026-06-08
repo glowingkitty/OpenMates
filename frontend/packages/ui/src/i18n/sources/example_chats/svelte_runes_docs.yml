@@ -1,0 +1,792 @@
+title:
+  context: "Title of example chat: Svelte Runes Docs"
+  en: "Svelte Runes Docs"
+  de: "Svelte Runes Docs"
+  zh: "Svelte Runes Docs"
+  es: "Svelte Runes Docs"
+  fr: "Svelte Runes Docs"
+  pt: "Svelte Runes Docs"
+  ru: "Svelte Runes Docs"
+  ja: "Svelte Runes Docs"
+  ko: "Svelte Runes Docs"
+  it: "Svelte Runes Docs"
+  tr: "Svelte Runes Docs"
+  vi: "Svelte Runes Docs"
+  id: "Svelte Runes Docs"
+  pl: "Svelte Runes Docs"
+  nl: "Svelte Runes Docs"
+  ar: "Svelte Runes Docs"
+  hi: "Svelte Runes Docs"
+  th: "Svelte Runes Docs"
+  cs: "Svelte Runes Docs"
+  sv: "Svelte Runes Docs"
+  he: "Svelte Runes Docs"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Svelte Runes Docs"
+  en: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  de: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  zh: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  es: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  fr: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  pt: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  ru: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  ja: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  ko: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  it: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  tr: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  vi: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  id: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  pl: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  nl: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  ar: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  hi: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  th: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  cs: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  sv: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  he: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Svelte Runes Docs. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  de: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  zh: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  es: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  fr: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  pt: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  ru: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  ja: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  ko: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  it: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  tr: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  vi: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  id: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  pl: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  nl: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  ar: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  hi: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  th: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  cs: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  sv: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  he: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Svelte Runes Docs. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
+    ```
+
+    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
+
+    ### 1. `$state`
+    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
+
+    ### 2. `$derived`
+    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
+
+    ---
+
+    ### Component Example: Price Calculator
+    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
+
+    ```json
+    {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
+    ```
+
+
+
+    ### Key Takeaways
+    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
+    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
+    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
+
+    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
+
+    **Next Steps:**
+    - [Learn about the $effect rune](/#settings/apps/web)
+    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+  verified_by_human: []

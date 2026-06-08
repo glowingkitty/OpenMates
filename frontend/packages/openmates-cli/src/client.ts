@@ -38,10 +38,11 @@ import {
   clearSyncCache,
   isSyncCacheFresh,
 } from "./storage.js";
-import { OpenMatesWsClient } from "./ws.js";
+import { OpenMatesWsClient, type SendEmbedDataFrame } from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
-import type { EncryptedEmbed } from "./embedCreator.js";
+import type { EncryptedEmbed, EmbedKeyWrapper } from "./embedCreator.js";
+import { computeSHA256 } from "./embedCreator.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -50,6 +51,13 @@ import {
   buildEmbedShareUrl,
   type ShareDuration,
 } from "./shareEncryption.js";
+
+function normalizeUnixSeconds(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return fallback;
+  }
+  return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+}
 
 // ---------------------------------------------------------------------------
 // Memory type registry — mirrors all production-stage entries from app.yml files.
@@ -1478,6 +1486,7 @@ export class OpenMatesClient {
     // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage() key logic
     let chatKeyBytes: Uint8Array | null = null;
     let encryptedChatKey: string | null = null;
+    let baselineMessagesV = 0;
 
     if (!params.incognito) {
       const masterKey = this.getMasterKeyBytes();
@@ -1508,6 +1517,10 @@ export class OpenMatesClient {
             String(c.details.id ?? "").startsWith(chatId),
         );
         if (chat) {
+          baselineMessagesV =
+            typeof chat.details.messages_v === "number"
+              ? chat.details.messages_v
+              : 0;
           const encKey =
             typeof chat.details.encrypted_chat_key === "string"
               ? chat.details.encrypted_chat_key
@@ -1560,6 +1573,7 @@ export class OpenMatesClient {
     }
 
     let assistant = "";
+    let assistantMessageId: string | null = null;
     let category: string | null = null;
     let modelName: string | null = null;
     let followUpSuggestions: string[] = [];
@@ -1568,6 +1582,7 @@ export class OpenMatesClient {
     if (params.incognito) {
       try {
         const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
@@ -1578,10 +1593,62 @@ export class OpenMatesClient {
     } else {
       try {
         const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
         followUpSuggestions = resp.followUpSuggestions;
+
+        if (chatKeyBytes && assistant) {
+          const completedAt = Math.floor(Date.now() / 1000);
+          const encryptedAssistantContent = await encryptWithAesGcmCombined(
+            assistant,
+            chatKeyBytes,
+          );
+          const encryptedCategory = category
+            ? await encryptWithAesGcmCombined(category, chatKeyBytes)
+            : undefined;
+          const encryptedModelName = modelName
+            ? await encryptWithAesGcmCombined(modelName, chatKeyBytes)
+            : undefined;
+          const persistedAssistantMessageId = assistantMessageId ?? randomUUID();
+
+          ws.send("ai_response_completed", {
+            chat_id: chatId,
+            message: {
+              message_id: persistedAssistantMessageId,
+              chat_id: chatId,
+              role: "assistant",
+              created_at: completedAt,
+              status: "synced",
+              user_message_id: messageId,
+              encrypted_content: encryptedAssistantContent,
+              encrypted_category: encryptedCategory,
+              encrypted_model_name: encryptedModelName,
+            },
+            versions: {
+              messages_v: baselineMessagesV + 2,
+              last_edited_overall_timestamp: completedAt,
+            },
+          });
+
+          await ws.waitForMessage(
+            "ai_response_storage_confirmed",
+            (payload) => {
+              const p = payload as Record<string, unknown>;
+              return p.message_id === persistedAssistantMessageId;
+            },
+            20_000,
+          );
+          await this.persistStreamedEmbeds({
+            ws,
+            embeds: resp.embeds,
+            chatId,
+            chatKeyBytes,
+            fallbackMessageId: persistedAssistantMessageId,
+          });
+          clearSyncCache();
+        }
       } finally {
         ws.close();
       }
@@ -1596,6 +1663,139 @@ export class OpenMatesClient {
       mateName,
       followUpSuggestions,
     };
+  }
+
+  private async persistStreamedEmbeds(params: {
+    ws: OpenMatesWsClient;
+    embeds: SendEmbedDataFrame[];
+    chatId: string;
+    chatKeyBytes: Uint8Array;
+    fallbackMessageId: string;
+  }): Promise<void> {
+    const finalized = new Map(
+      params.embeds
+        .filter((embed) => {
+          const status = embed.status ?? "finished";
+          return (
+            embed.embed_id &&
+            embed.content &&
+            status !== "processing" &&
+            status !== "error" &&
+            status !== "cancelled"
+          );
+        })
+        .map((embed) => [embed.embed_id, embed]),
+    );
+    if (finalized.size === 0) return;
+
+    const session = this.requireSession();
+    const masterKey = this.getMasterKeyBytes();
+    const parentKeys = new Map<string, Uint8Array>();
+    const processed = new Set<string>();
+
+    const makeKey = () => {
+      const key = new Uint8Array(32);
+      globalThis.crypto.getRandomValues(key);
+      return key;
+    };
+
+    const persistOne = async (
+      embed: SendEmbedDataFrame,
+      embedKey: Uint8Array,
+      isChild: boolean,
+    ) => {
+      const now = Math.floor(Date.now() / 1000);
+      const createdAt = normalizeUnixSeconds(embed.createdAt, now);
+      const updatedAt = normalizeUnixSeconds(embed.updatedAt, now);
+      const messageId = embed.message_id || params.fallbackMessageId;
+      const userId = embed.user_id || session.hashedEmail;
+      const hashedChatId = computeSHA256(params.chatId);
+      const hashedMessageId = computeSHA256(messageId);
+      const hashedUserId = computeSHA256(userId);
+      const hashedEmbedId = computeSHA256(embed.embed_id);
+      const encryptedContent = await encryptWithAesGcmCombined(
+        embed.content ?? "",
+        embedKey,
+      );
+      const encryptedType = await encryptWithAesGcmCombined(
+        embed.type || "app_skill_use",
+        embedKey,
+      );
+      const encryptedTextPreview = embed.text_preview
+        ? await encryptWithAesGcmCombined(embed.text_preview, embedKey)
+        : undefined;
+
+      await params.ws.sendAsync("store_embed", {
+        embed_id: embed.embed_id,
+        encrypted_type: encryptedType,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: encryptedTextPreview,
+        status: embed.status || "finished",
+        hashed_chat_id: hashedChatId,
+        hashed_message_id: hashedMessageId,
+        hashed_task_id: embed.task_id ? computeSHA256(embed.task_id) : undefined,
+        hashed_user_id: hashedUserId,
+        embed_ids: embed.embed_ids,
+        parent_embed_id: embed.parent_embed_id || undefined,
+        version_number: embed.version_number,
+        file_path: embed.file_path,
+        content_hash: embed.content_hash,
+        text_length_chars: embed.text_length_chars,
+        is_private: embed.is_private ?? false,
+        is_shared: embed.is_shared ?? false,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      });
+
+      if (!isChild) {
+        const keys: EmbedKeyWrapper[] = [
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "master",
+            hashed_chat_id: null,
+            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey),
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "chat",
+            hashed_chat_id: hashedChatId,
+            encrypted_embed_key: await encryptBytesWithAesGcm(
+              embedKey,
+              params.chatKeyBytes,
+            ),
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+        ];
+        await params.ws.sendAsync("store_embed_keys", { keys });
+        parentKeys.set(embed.embed_id, embedKey);
+      }
+    };
+
+    let madeProgress = true;
+    while (processed.size < finalized.size && madeProgress) {
+      madeProgress = false;
+      for (const embed of finalized.values()) {
+        if (processed.has(embed.embed_id)) continue;
+        const parentId = embed.parent_embed_id || null;
+        if (parentId && finalized.has(parentId) && !parentKeys.has(parentId)) {
+          continue;
+        }
+
+        const parentKey = parentId ? parentKeys.get(parentId) : undefined;
+        await persistOne(embed, parentKey ?? makeKey(), Boolean(parentKey));
+        processed.add(embed.embed_id);
+        madeProgress = true;
+      }
+    }
+
+    for (const embed of finalized.values()) {
+      if (processed.has(embed.embed_id)) continue;
+      await persistOne(embed, makeKey(), false);
+      processed.add(embed.embed_id);
+    }
   }
 
   /**

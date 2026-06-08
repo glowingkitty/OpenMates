@@ -1,0 +1,288 @@
+title:
+  context: "Title of example chat: Watercolor robot balcony"
+  en: "Watercolor robot balcony"
+  de: "Watercolor robot balcony"
+  zh: "Watercolor robot balcony"
+  es: "Watercolor robot balcony"
+  fr: "Watercolor robot balcony"
+  pt: "Watercolor robot balcony"
+  ru: "Watercolor robot balcony"
+  ja: "Watercolor robot balcony"
+  ko: "Watercolor robot balcony"
+  it: "Watercolor robot balcony"
+  tr: "Watercolor robot balcony"
+  vi: "Watercolor robot balcony"
+  id: "Watercolor robot balcony"
+  pl: "Watercolor robot balcony"
+  nl: "Watercolor robot balcony"
+  ar: "Watercolor robot balcony"
+  hi: "Watercolor robot balcony"
+  th: "Watercolor robot balcony"
+  cs: "Watercolor robot balcony"
+  sv: "Watercolor robot balcony"
+  he: "Watercolor robot balcony"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Watercolor robot balcony"
+  en: "Generate a cozy watercolor illustration from a simple image prompt."
+  de: "Generate a cozy watercolor illustration from a simple image prompt."
+  zh: "Generate a cozy watercolor illustration from a simple image prompt."
+  es: "Generate a cozy watercolor illustration from a simple image prompt."
+  fr: "Generate a cozy watercolor illustration from a simple image prompt."
+  pt: "Generate a cozy watercolor illustration from a simple image prompt."
+  ru: "Generate a cozy watercolor illustration from a simple image prompt."
+  ja: "Generate a cozy watercolor illustration from a simple image prompt."
+  ko: "Generate a cozy watercolor illustration from a simple image prompt."
+  it: "Generate a cozy watercolor illustration from a simple image prompt."
+  tr: "Generate a cozy watercolor illustration from a simple image prompt."
+  vi: "Generate a cozy watercolor illustration from a simple image prompt."
+  id: "Generate a cozy watercolor illustration from a simple image prompt."
+  pl: "Generate a cozy watercolor illustration from a simple image prompt."
+  nl: "Generate a cozy watercolor illustration from a simple image prompt."
+  ar: "Generate a cozy watercolor illustration from a simple image prompt."
+  hi: "Generate a cozy watercolor illustration from a simple image prompt."
+  th: "Generate a cozy watercolor illustration from a simple image prompt."
+  cs: "Generate a cozy watercolor illustration from a simple image prompt."
+  sv: "Generate a cozy watercolor illustration from a simple image prompt."
+  he: "Generate a cozy watercolor illustration from a simple image prompt."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Watercolor robot balcony. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  de: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  zh: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  es: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  fr: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  pt: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  ru: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  ja: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  ko: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  it: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  tr: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  vi: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  id: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  pl: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  nl: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  ar: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  hi: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  th: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  cs: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  sv: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  he: "Create a cozy watercolor illustration of a small robot watering balcony plants at sunrise, with warm pastel colors."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Watercolor robot balcony. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d3d2de95-748b-4014-85a6-2b14c21f37ef", "app_id": "images", "skill_id": "generate"}
+    ```
+
+    I'm creating that cozy watercolor illustration for you now. It'll feature your little robot friend on a balcony during a beautiful pastel sunrise.
+
+    It should appear in our chat in just a moment!
+
+    While we wait, do you enjoy working with watercolors yourself, or do you prefer other mediums like digital drawing or sketching?
+  verified_by_human: []

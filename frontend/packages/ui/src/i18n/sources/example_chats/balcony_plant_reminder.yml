@@ -1,0 +1,372 @@
+title:
+  context: "Title of example chat: Balcony Plant Reminder"
+  en: "Balcony Plant Reminder"
+  de: "Balcony Plant Reminder"
+  zh: "Balcony Plant Reminder"
+  es: "Balcony Plant Reminder"
+  fr: "Balcony Plant Reminder"
+  pt: "Balcony Plant Reminder"
+  ru: "Balcony Plant Reminder"
+  ja: "Balcony Plant Reminder"
+  ko: "Balcony Plant Reminder"
+  it: "Balcony Plant Reminder"
+  tr: "Balcony Plant Reminder"
+  vi: "Balcony Plant Reminder"
+  id: "Balcony Plant Reminder"
+  pl: "Balcony Plant Reminder"
+  nl: "Balcony Plant Reminder"
+  ar: "Balcony Plant Reminder"
+  hi: "Balcony Plant Reminder"
+  th: "Balcony Plant Reminder"
+  cs: "Balcony Plant Reminder"
+  sv: "Balcony Plant Reminder"
+  he: "Balcony Plant Reminder"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Balcony Plant Reminder"
+  en: "Set a simple reminder to water balcony plants at a specific time."
+  de: "Set a simple reminder to water balcony plants at a specific time."
+  zh: "Set a simple reminder to water balcony plants at a specific time."
+  es: "Set a simple reminder to water balcony plants at a specific time."
+  fr: "Set a simple reminder to water balcony plants at a specific time."
+  pt: "Set a simple reminder to water balcony plants at a specific time."
+  ru: "Set a simple reminder to water balcony plants at a specific time."
+  ja: "Set a simple reminder to water balcony plants at a specific time."
+  ko: "Set a simple reminder to water balcony plants at a specific time."
+  it: "Set a simple reminder to water balcony plants at a specific time."
+  tr: "Set a simple reminder to water balcony plants at a specific time."
+  vi: "Set a simple reminder to water balcony plants at a specific time."
+  id: "Set a simple reminder to water balcony plants at a specific time."
+  pl: "Set a simple reminder to water balcony plants at a specific time."
+  nl: "Set a simple reminder to water balcony plants at a specific time."
+  ar: "Set a simple reminder to water balcony plants at a specific time."
+  hi: "Set a simple reminder to water balcony plants at a specific time."
+  th: "Set a simple reminder to water balcony plants at a specific time."
+  cs: "Set a simple reminder to water balcony plants at a specific time."
+  sv: "Set a simple reminder to water balcony plants at a specific time."
+  he: "Set a simple reminder to water balcony plants at a specific time."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Balcony Plant Reminder. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  de: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  zh: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  es: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  fr: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  pt: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  ru: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  ja: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  ko: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  it: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  tr: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  vi: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  id: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  pl: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  nl: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  ar: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  hi: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  th: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  cs: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  sv: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  he: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Balcony Plant Reminder. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
+    ```
+
+    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
+
+    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
+
+    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
+
+    **Follow-up suggestions:**
+    *   Would you like to make this a recurring weekly reminder?
+    *   Do you need help identifying which plants need more or less water?
+  verified_by_human: []

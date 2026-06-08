@@ -1,0 +1,981 @@
+title:
+  context: "Title of example chat: Furnished apartments in Berlin"
+  en: "Furnished apartments in Berlin"
+  de: "Furnished apartments in Berlin"
+  zh: "Furnished apartments in Berlin"
+  es: "Furnished apartments in Berlin"
+  fr: "Furnished apartments in Berlin"
+  pt: "Furnished apartments in Berlin"
+  ru: "Furnished apartments in Berlin"
+  ja: "Furnished apartments in Berlin"
+  ko: "Furnished apartments in Berlin"
+  it: "Furnished apartments in Berlin"
+  tr: "Furnished apartments in Berlin"
+  vi: "Furnished apartments in Berlin"
+  id: "Furnished apartments in Berlin"
+  pl: "Furnished apartments in Berlin"
+  nl: "Furnished apartments in Berlin"
+  ar: "Furnished apartments in Berlin"
+  hi: "Furnished apartments in Berlin"
+  th: "Furnished apartments in Berlin"
+  cs: "Furnished apartments in Berlin"
+  sv: "Furnished apartments in Berlin"
+  he: "Furnished apartments in Berlin"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Furnished apartments in Berlin"
+  en: "Search current furnished apartment listings in Berlin and compare practical options."
+  de: "Search current furnished apartment listings in Berlin and compare practical options."
+  zh: "Search current furnished apartment listings in Berlin and compare practical options."
+  es: "Search current furnished apartment listings in Berlin and compare practical options."
+  fr: "Search current furnished apartment listings in Berlin and compare practical options."
+  pt: "Search current furnished apartment listings in Berlin and compare practical options."
+  ru: "Search current furnished apartment listings in Berlin and compare practical options."
+  ja: "Search current furnished apartment listings in Berlin and compare practical options."
+  ko: "Search current furnished apartment listings in Berlin and compare practical options."
+  it: "Search current furnished apartment listings in Berlin and compare practical options."
+  tr: "Search current furnished apartment listings in Berlin and compare practical options."
+  vi: "Search current furnished apartment listings in Berlin and compare practical options."
+  id: "Search current furnished apartment listings in Berlin and compare practical options."
+  pl: "Search current furnished apartment listings in Berlin and compare practical options."
+  nl: "Search current furnished apartment listings in Berlin and compare practical options."
+  ar: "Search current furnished apartment listings in Berlin and compare practical options."
+  hi: "Search current furnished apartment listings in Berlin and compare practical options."
+  th: "Search current furnished apartment listings in Berlin and compare practical options."
+  cs: "Search current furnished apartment listings in Berlin and compare practical options."
+  sv: "Search current furnished apartment listings in Berlin and compare practical options."
+  he: "Search current furnished apartment listings in Berlin and compare practical options."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Furnished apartments in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find furnished apartments available in Berlin."
+  de: "Find furnished apartments available in Berlin."
+  zh: "Find furnished apartments available in Berlin."
+  es: "Find furnished apartments available in Berlin."
+  fr: "Find furnished apartments available in Berlin."
+  pt: "Find furnished apartments available in Berlin."
+  ru: "Find furnished apartments available in Berlin."
+  ja: "Find furnished apartments available in Berlin."
+  ko: "Find furnished apartments available in Berlin."
+  it: "Find furnished apartments available in Berlin."
+  tr: "Find furnished apartments available in Berlin."
+  vi: "Find furnished apartments available in Berlin."
+  id: "Find furnished apartments available in Berlin."
+  pl: "Find furnished apartments available in Berlin."
+  nl: "Find furnished apartments available in Berlin."
+  ar: "Find furnished apartments available in Berlin."
+  hi: "Find furnished apartments available in Berlin."
+  th: "Find furnished apartments available in Berlin."
+  cs: "Find furnished apartments available in Berlin."
+  sv: "Find furnished apartments available in Berlin."
+  he: "Find furnished apartments available in Berlin."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Furnished apartments in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f266a349-f41f-4af3-950f-91c464fe6f29", "app_id": "home", "skill_id": "search", "query": "Berlin", "provider": "Multi", "providers": ["ImmoScout24", "Kleinanzeigen", "WG-Gesucht"]}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "e92eb735-8d47-491a-8d7f-18b0ae3ed444", "app_id": "images", "skill_id": "search", "query": "furnished apartment Berlin interior", "provider": "Brave Search"}
+    ```
+
+    I found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.
+
+    ### Featured Furnished Apartment
+    The most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):
+
+    [!](embed:m-bliertes-einzimmerapartment-pDA)
+
+    ### Furnished Rooms & Shared Living
+    If you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:
+
+    *   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.
+    *   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).
+    *   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.
+    *   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.
+
+    ### Visual Preview of Berlin Furnished Interiors
+    To give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:
+
+    [!](embed:e-homes.de-zw3)
+    [!](embed:e-homes.de-2Vt)
+    [!](embed:theblueground.com-ocO)
+    [!](embed:gettyimages.com-LBA)
+    [!](embed:theblueground.com-IAO)
+    [!](embed:rentberry.com-V29)
+
+    ### Specialized Platforms
+    For fully furnished "business" or short-term apartments, you might also want to check platforms like:
+    *   Wunderflats — Specialized in mid-to-long term furnished rentals.
+    *   Blueground — Offers designer-furnished apartments with flexible leases.
+    *   Coming Home — A local Berlin agency for high-end furnished housing.
+
+    **Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.
+
+    Do you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?
+  verified_by_human: []
