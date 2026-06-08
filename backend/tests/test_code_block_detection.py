@@ -15,6 +15,7 @@ import pytest
 try:
     from backend.apps.ai.tasks.stream_consumer import (
         _build_application_manifest_from_code_embeds,
+        _parse_application_preview_combined_files,
         _should_process_chunk_as_code_block,
     )
 except ImportError as _exc:
@@ -155,6 +156,64 @@ class TestGeneratedApplicationManifestDetection:
             "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
             "main_file": "src/main.ts",
         }
+
+    def test_parses_combined_application_preview_block(self):
+        result = _parse_application_preview_combined_files(
+            "application_preview",
+            """json:package.json
+{"scripts":{"dev":"vite"},"dependencies":{"@sveltejs/vite-plugin-svelte":"latest","vite":"latest","svelte":"latest"}}
+typescript:src/main.ts
+import App from './App.svelte';
+
+new App({ target: document.getElementById('app') });
+svelte:src/App.svelte
+<script lang="ts">
+  let recipes = ['Pasta'];
+</script>
+
+<main>{recipes[0]}</main>
+""",
+        )
+
+        assert result == [
+            {
+                "language": "json",
+                "filename": "package.json",
+                "content": '{"scripts":{"dev":"vite"},"dependencies":{"@sveltejs/vite-plugin-svelte":"latest","vite":"latest","svelte":"latest"}}',
+            },
+            {
+                "language": "typescript",
+                "filename": "src/main.ts",
+                "content": "import App from './App.svelte';\n\nnew App({ target: document.getElementById('app') });",
+            },
+            {
+                "language": "svelte",
+                "filename": "src/App.svelte",
+                "content": '<script lang="ts">\n  let recipes = [\'Pasta\'];\n</script>\n\n<main>{recipes[0]}</main>',
+            },
+        ]
+
+    def test_ignores_combined_preview_without_app_manifest(self):
+        result = _parse_application_preview_combined_files(
+            "application_preview",
+            """typescript:src/main.ts
+console.log('hello');
+""",
+        )
+
+        assert result == []
+
+    def test_ignores_combined_preview_when_language_is_regular_code(self):
+        result = _parse_application_preview_combined_files(
+            "typescript",
+            """json:package.json
+{"scripts":{"dev":"vite"}}
+typescript:src/main.ts
+console.log('hello');
+""",
+        )
+
+        assert result == []
 
 
 # ---------------------------------------------------------------------------

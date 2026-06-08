@@ -2297,6 +2297,13 @@ APPLICATION_PREVIEW_MAIN_FILES = (
     "src/App.jsx",
     "index.html",
 )
+APPLICATION_PREVIEW_COMBINED_LANGUAGES = {
+    "application_preview",
+    "application-preview",
+    "app_preview",
+    "generated_application",
+    "generated-application",
+}
 
 
 def _should_process_chunk_as_code_block(
@@ -2394,6 +2401,76 @@ def _normalize_generated_app_file_path(filename: Optional[str]) -> Optional[str]
     return normalized or None
 
 
+def _is_application_preview_combined_language(language: Optional[str]) -> bool:
+    return (language or "").strip().lower() in APPLICATION_PREVIEW_COMBINED_LANGUAGES
+
+
+def _parse_generated_app_file_header(line: str) -> Optional[Dict[str, str]]:
+    match = re.match(r'^([a-zA-Z0-9_+.#-]{1,32}):(.{1,512})$', line.strip())
+    if not match:
+        return None
+
+    language = match.group(1).strip().lower()
+    if not language or language.isdigit():
+        return None
+
+    filename = _normalize_generated_app_file_path(match.group(2))
+    if not filename:
+        return None
+    if (
+        filename not in APPLICATION_PREVIEW_MANIFEST_FILENAMES
+        and not filename.endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS)
+    ):
+        return None
+
+    return {"language": language, "filename": filename}
+
+
+def _parse_application_preview_combined_files(
+    language: Optional[str],
+    content: str,
+) -> List[Dict[str, str]]:
+    if not _is_application_preview_combined_language(language):
+        return []
+
+    files: List[Dict[str, str]] = []
+    current: Optional[Dict[str, str]] = None
+    current_lines: List[str] = []
+
+    def flush_current() -> None:
+        nonlocal current, current_lines
+        if current:
+            file_content = "\n".join(current_lines).strip("\n")
+            if file_content.strip():
+                files.append({**current, "content": file_content})
+        current = None
+        current_lines = []
+
+    for line in content.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        header = _parse_generated_app_file_header(line)
+        if header:
+            flush_current()
+            current = header
+            continue
+        if current:
+            current_lines.append(line)
+
+    flush_current()
+
+    seen: set[str] = set()
+    deduped_files: List[Dict[str, str]] = []
+    for file in files:
+        filename = file["filename"]
+        if filename in seen:
+            continue
+        seen.add(filename)
+        deduped_files.append(file)
+
+    has_manifest = any(file["filename"] in APPLICATION_PREVIEW_MANIFEST_FILENAMES for file in deduped_files)
+    has_source = any(file["filename"].endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS) for file in deduped_files)
+    return deduped_files if has_manifest and has_source else []
+
+
 def _build_application_manifest_from_code_embeds(
     code_embeds: List[Dict[str, str]],
 ) -> Optional[Dict[str, Any]]:
@@ -2444,6 +2521,54 @@ def _record_generated_code_file_embed(
         "filename": path,
         "language": language or "",
     })
+
+
+async def _create_application_preview_child_code_embeds(
+    *,
+    files: List[Dict[str, str]],
+    embed_service: Any,
+    generated_code_file_embeds: List[Dict[str, str]],
+    request_data: AskSkillRequest,
+    task_id: str,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> str:
+    embed_references: List[str] = []
+    for file in files:
+        embed_data = await embed_service.create_code_embed_placeholder(
+            language=file.get("language", ""),
+            chat_id=request_data.chat_id,
+            message_id=request_data.message_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            task_id=task_id,
+            filename=file.get("filename"),
+            log_prefix=log_prefix,
+        )
+        if not embed_data:
+            continue
+
+        embed_id = embed_data["embed_id"]
+        await embed_service.update_code_embed_content(
+            embed_id=embed_id,
+            code_content=file.get("content", ""),
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            log_prefix=log_prefix,
+        )
+        _record_generated_code_file_embed(
+            generated_code_file_embeds,
+            embed_id=embed_id,
+            filename=file.get("filename"),
+            language=file.get("language"),
+        )
+        embed_references.append(f"```json\n{embed_data['embed_reference']}\n```\n\n")
+
+    return "".join(embed_references)
 
 
 async def _consume_main_processing_stream(
@@ -3611,44 +3736,26 @@ async def _consume_main_processing_stream(
                                         current_code_content = ""
                                         current_code_embed_id = None
                                     else:
-                                        # Create code embed placeholder
-                                        embed_data = await embed_service.create_code_embed_placeholder(
-                                            language=current_code_language,
-                                            chat_id=request_data.chat_id,
-                                            message_id=request_data.message_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            task_id=task_id,
-                                            filename=current_code_filename,
-                                            log_prefix=log_prefix
+                                        application_preview_files = _parse_application_preview_combined_files(
+                                            current_code_language,
+                                            code_content,
                                         )
-
-                                        if embed_data:
-                                            current_code_embed_id = embed_data["embed_id"]
-
-                                            # Update with full content and finalize
-                                            await embed_service.update_code_embed_content(
-                                                embed_id=current_code_embed_id,
-                                                code_content=code_content,
-                                                chat_id=request_data.chat_id,
-                                                user_id=request_data.user_id,
-                                                user_id_hash=request_data.user_id_hash,
+                                        if application_preview_files:
+                                            embed_reference_code = await _create_application_preview_child_code_embeds(
+                                                files=application_preview_files,
+                                                embed_service=embed_service,
+                                                generated_code_file_embeds=generated_code_file_embeds,
+                                                request_data=request_data,
+                                                task_id=task_id,
                                                 user_vault_key_id=user_vault_key_id,
-                                                status="finished",
-                                                log_prefix=log_prefix
+                                                log_prefix=log_prefix,
                                             )
-                                            _record_generated_code_file_embed(
-                                                generated_code_file_embeds,
-                                                embed_id=current_code_embed_id,
-                                                filename=current_code_filename,
-                                                language=current_code_language,
-                                            )
-
-                                            # Replace code block with embed reference in chunk
-                                            embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
-                                            chunk = embed_reference_code
-                                            logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                            if embed_reference_code:
+                                                chunk = embed_reference_code
+                                                logger.info(
+                                                    f"{log_prefix} Created {len(application_preview_files)} generated "
+                                                    "application file embed(s) from combined preview block"
+                                                )
 
                                             # Reset state
                                             in_code_block = False
@@ -3656,6 +3763,52 @@ async def _consume_main_processing_stream(
                                             current_code_filename = None
                                             current_code_content = ""
                                             current_code_embed_id = None
+                                        else:
+                                            # Create code embed placeholder
+                                            embed_data = await embed_service.create_code_embed_placeholder(
+                                                language=current_code_language,
+                                                chat_id=request_data.chat_id,
+                                                message_id=request_data.message_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                task_id=task_id,
+                                                filename=current_code_filename,
+                                                log_prefix=log_prefix
+                                            )
+
+                                            if embed_data:
+                                                current_code_embed_id = embed_data["embed_id"]
+
+                                                # Update with full content and finalize
+                                                await embed_service.update_code_embed_content(
+                                                    embed_id=current_code_embed_id,
+                                                    code_content=code_content,
+                                                    chat_id=request_data.chat_id,
+                                                    user_id=request_data.user_id,
+                                                    user_id_hash=request_data.user_id_hash,
+                                                    user_vault_key_id=user_vault_key_id,
+                                                    status="finished",
+                                                    log_prefix=log_prefix
+                                                )
+                                                _record_generated_code_file_embed(
+                                                    generated_code_file_embeds,
+                                                    embed_id=current_code_embed_id,
+                                                    filename=current_code_filename,
+                                                    language=current_code_language,
+                                                )
+
+                                                # Replace code block with embed reference in chunk
+                                                embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                                chunk = embed_reference_code
+                                                logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+
+                                                # Reset state
+                                                in_code_block = False
+                                                current_code_language = ""
+                                                current_code_filename = None
+                                                current_code_content = ""
+                                                current_code_embed_id = None
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating embed for complete block: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
@@ -3717,6 +3870,13 @@ async def _consume_main_processing_stream(
                             # Don't create an embed yet — accumulate content and decide at closing fence
                             chunk = ""  # Don't emit opening fence
                             continue  # Skip embed creation, just track the content
+
+                        if _is_application_preview_combined_language(current_code_language):
+                            chunk = ""
+                            logger.info(
+                                f"{log_prefix} Deferring combined application preview block until closing fence"
+                            )
+                            continue
                         
                         # Create embed placeholder (only for non-suspicious languages)
                         # Plot blocks get math-plot embeds; document blocks get document embeds;
@@ -3953,6 +4113,13 @@ async def _consume_main_processing_stream(
                                 )
                             # Don't create an embed yet - accumulate content and decide at closing fence
                             chunk = ""
+                            continue
+
+                        if _is_application_preview_combined_language(current_code_language):
+                            chunk = ""
+                            logger.info(
+                                f"{log_prefix} Deferring combined application preview block until closing fence"
+                            )
                             continue
 
                         # Now create the embed placeholder with the extracted (or empty) language
@@ -4304,6 +4471,52 @@ async def _consume_main_processing_stream(
                                     current_code_embed_id = None
                         # No embed was created (services unavailable or placeholder failed) —
                         # emit accumulated code as raw markdown so it's not silently lost.
+                        elif (
+                            not current_code_embed_id
+                            and _is_application_preview_combined_language(current_code_language)
+                            and directus_service
+                            and encryption_service
+                            and user_vault_key_id
+                        ):
+                            application_preview_files = _parse_application_preview_combined_files(
+                                current_code_language,
+                                current_code_content,
+                            )
+                            if application_preview_files:
+                                try:
+                                    from backend.core.api.app.services.embed_service import EmbedService
+                                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    chunk = await _create_application_preview_child_code_embeds(
+                                        files=application_preview_files,
+                                        embed_service=embed_service,
+                                        generated_code_file_embeds=generated_code_file_embeds,
+                                        request_data=request_data,
+                                        task_id=task_id,
+                                        user_vault_key_id=user_vault_key_id,
+                                        log_prefix=log_prefix,
+                                    )
+                                    logger.info(
+                                        f"{log_prefix} Created {len(application_preview_files)} generated "
+                                        "application file embed(s) from multi-chunk preview block"
+                                    )
+                                except Exception as e:
+                                    logger.error(
+                                        f"{log_prefix} Error creating generated application file embeds: {e}",
+                                        exc_info=True,
+                                    )
+                                    chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
+                            else:
+                                chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
+
+                            in_code_block = False
+                            in_plot_block = False
+                            in_document_block = False
+                            in_email_block = False
+                            current_document_title = None
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
                         elif not current_code_embed_id:
                             logger.warning(
                                 f"{log_prefix} Code block closed but no embed was created — "
