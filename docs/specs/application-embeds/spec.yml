@@ -833,21 +833,23 @@ tests:
       - authenticated user opening the Habit Garden example can start a live E2B preview
       - preview iframe URL uses https://dev.openmatesusercontent.org and never exposes e2b.app
       - iframe content does not show Vite's Blocked request page and renders Habit Garden content
-      - billing usage details show an application preview charge linked to the example chat after stop
+      - billing usage entries show an application preview charge linked to the example chat after stop
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "github-actions:27171244941"
+        timestamp: "2026-06-08T22:34:27Z"
+        notes: "Failed before the final spec fixes: first on application embed click interception, then on live preview blocked-host/usage assertion issues. This confirmed the new Habit Garden E2E was exercising the intended auth, preview, and billing path."
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --spec example-application-preview.spec.ts / github-actions:27173573217"
+        timestamp: "2026-06-08T23:31:27Z"
+        notes: "Vercel was Ready for eb760e7e0 before dispatch. The focused Playwright spec passed after app-code-worker was restarted to load the backend Vite allowed-host config. Orchestrator still reported unrelated pre-existing pytest-unit failures in security/share-chat/temp-image/webhook suites."
 
   - id: T-LINT-APP-EMBED-001
     type: lint
