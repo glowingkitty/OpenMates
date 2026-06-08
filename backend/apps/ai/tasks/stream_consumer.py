@@ -2558,6 +2558,24 @@ def _parse_application_preview_json_bundle_files(
     return files if has_manifest and has_source else []
 
 
+def _extract_application_preview_files_from_markdown_code_block(
+    response_text: str,
+) -> tuple[List[Dict[str, str]], str]:
+    pattern = re.compile(r'```(?P<language>[a-zA-Z0-9_+.#-]*)\s*\n(?P<content>.*?)\n\s*```', re.DOTALL)
+    for match in pattern.finditer(response_text):
+        language = match.group("language")
+        content = match.group("content")
+        files = (
+            _parse_application_preview_json_bundle_files(language, content)
+            or _parse_application_preview_combined_files(language, content)
+        )
+        if not files:
+            continue
+        cleaned_response = response_text[:match.start()] + response_text[match.end():]
+        return files, cleaned_response.strip()
+    return [], response_text
+
+
 def _build_application_manifest_from_code_embeds(
     code_embeds: List[Dict[str, str]],
 ) -> Optional[Dict[str, Any]]:
@@ -5240,43 +5258,67 @@ async def _consume_main_processing_stream(
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
         and not application_parent_embed_created
-        and generated_code_file_embeds
         and cache_service
         and directus_service
         and encryption_service
         and user_vault_key_id
     ):
         try:
-            application_reference = await _create_application_parent_embed_reference(
-                generated_code_file_embeds=generated_code_file_embeds,
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service,
-                request_data=request_data,
-                task_id=task_id,
-                user_vault_key_id=user_vault_key_id,
-                log_prefix=log_prefix,
-                response_text=aggregated_response,
-            )
-            if application_reference:
-                aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
-                final_response_chunks = [aggregated_response]
-                application_parent_embed_created = True
-                app_payload = _create_redis_payload(
-                    task_id,
-                    request_data,
+            if not generated_code_file_embeds:
+                raw_application_files, cleaned_response = _extract_application_preview_files_from_markdown_code_block(
                     aggregated_response,
-                    stream_chunk_count + 5,
-                    is_final=False,
-                    model_name=stream_model_name,
                 )
-                await _publish_to_redis(
-                    cache_service,
-                    redis_channel_name,
-                    app_payload,
-                    log_prefix,
-                    "Published early response with generated application embed reference",
+                if raw_application_files:
+                    from backend.core.api.app.services.embed_service import EmbedService
+
+                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                    child_references = await _create_application_preview_child_code_embeds(
+                        files=raw_application_files,
+                        embed_service=embed_service,
+                        generated_code_file_embeds=generated_code_file_embeds,
+                        request_data=request_data,
+                        task_id=task_id,
+                        user_vault_key_id=user_vault_key_id,
+                        log_prefix=log_prefix,
+                    )
+                    aggregated_response = cleaned_response.rstrip() + "\n\n" + child_references
+                    final_response_chunks = [aggregated_response]
+                    logger.info(
+                        f"{log_prefix} Created {len(raw_application_files)} generated application file embed(s) "
+                        "from raw markdown code block"
+                    )
+
+            if generated_code_file_embeds:
+                application_reference = await _create_application_parent_embed_reference(
+                    generated_code_file_embeds=generated_code_file_embeds,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    request_data=request_data,
+                    task_id=task_id,
+                    user_vault_key_id=user_vault_key_id,
+                    log_prefix=log_prefix,
+                    response_text=aggregated_response,
                 )
+                if application_reference:
+                    aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
+                    final_response_chunks = [aggregated_response]
+                    application_parent_embed_created = True
+                    app_payload = _create_redis_payload(
+                        task_id,
+                        request_data,
+                        aggregated_response,
+                        stream_chunk_count + 5,
+                        is_final=False,
+                        model_name=stream_model_name,
+                    )
+                    await _publish_to_redis(
+                        cache_service,
+                        redis_channel_name,
+                        app_payload,
+                        log_prefix,
+                        "Published early response with generated application embed reference",
+                    )
         except Exception as e:
             logger.error(f"{log_prefix} Error creating early generated application parent embed: {e}", exc_info=True)
 
@@ -5881,13 +5923,39 @@ async def _consume_main_processing_stream(
         aggregated_response
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
-        and generated_code_file_embeds
         and cache_service
         and directus_service
         and encryption_service
         and user_vault_key_id
     ):
         try:
+            if not generated_code_file_embeds:
+                raw_application_files, cleaned_response = _extract_application_preview_files_from_markdown_code_block(
+                    aggregated_response,
+                )
+                if raw_application_files:
+                    from backend.core.api.app.services.embed_service import EmbedService
+
+                    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                    child_references = await _create_application_preview_child_code_embeds(
+                        files=raw_application_files,
+                        embed_service=embed_service,
+                        generated_code_file_embeds=generated_code_file_embeds,
+                        request_data=request_data,
+                        task_id=task_id,
+                        user_vault_key_id=user_vault_key_id,
+                        log_prefix=log_prefix,
+                    )
+                    aggregated_response = cleaned_response.rstrip() + "\n\n" + child_references
+                    final_response_chunks = [aggregated_response]
+                    logger.info(
+                        f"{log_prefix} Created {len(raw_application_files)} generated application file embed(s) "
+                        "from raw markdown code block"
+                    )
+
+            if not generated_code_file_embeds:
+                raise ValueError("no generated code file embeds available for application parent")
+
             application_reference = await _create_application_parent_embed_reference(
                 generated_code_file_embeds=generated_code_file_embeds,
                 cache_service=cache_service,

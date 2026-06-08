@@ -16,6 +16,7 @@ try:
     from backend.apps.ai.tasks.stream_consumer import (
         _build_application_manifest_from_code_embeds,
         _extract_code_embed_ids_from_response,
+        _extract_application_preview_files_from_markdown_code_block,
         _parse_application_preview_combined_files,
         _parse_application_preview_json_bundle_files,
         _strip_code_file_header_from_content,
@@ -265,6 +266,19 @@ console.log('hello');
                 "content": "import App from './App.svelte';",
             },
         ]
+
+    def test_extracts_application_files_from_raw_markdown_json_fence(self):
+        files, cleaned = _extract_application_preview_files_from_markdown_code_block(
+            "Intro\n```json\n"
+            '{"files":{"package.json":{"content":"{}"},"src/App.svelte":{"content":"<main />"}}}'
+            "\n```\nOutro"
+        )
+
+        assert files == [
+            {"language": "json", "filename": "package.json", "content": "{}"},
+            {"language": "svelte", "filename": "src/App.svelte", "content": "<main />"},
+        ]
+        assert cleaned == "Intro\n\nOutro"
 
 
 # ---------------------------------------------------------------------------
