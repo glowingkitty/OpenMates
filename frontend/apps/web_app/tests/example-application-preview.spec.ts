@@ -17,17 +17,26 @@ const {
 	getTestAccount
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
-const { waitForEmbedFinished, openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
+const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const HABIT_GARDEN_CHAT_ID = 'example-habit-garden-vite-app';
 const HABIT_GARDEN_URL = `/#chat-id=${HABIT_GARDEN_CHAT_ID}`;
+const HABIT_GARDEN_APPLICATION_EMBED_ID = '4020cf81-f490-4da8-bd42-c4ea456327f3';
 
 async function openHabitGardenApplication(page: any): Promise<any> {
 	await page.goto(getE2EDebugUrl(HABIT_GARDEN_URL), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('load');
-	const applicationEmbed = await waitForEmbedFinished(page, 'code', 'application', 90_000);
-	return openFullscreen(page, applicationEmbed);
+	const applicationEmbed = page.locator(
+		`[data-testid="embed-preview"][data-embed-id="${HABIT_GARDEN_APPLICATION_EMBED_ID}"][data-status="finished"]`
+	);
+	await expect(applicationEmbed).toBeVisible({ timeout: 90_000 });
+	await applicationEmbed.focus();
+	await page.keyboard.press('Enter');
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	await expect(fullscreenOverlay).toBeVisible({ timeout: 10_000 });
+	await page.waitForTimeout(500); // animation
+	return fullscreenOverlay;
 }
 
 test.describe('Habit Garden example application preview', () => {
@@ -106,7 +115,7 @@ test.describe('Habit Garden example application preview', () => {
 				entry.app_id === 'code' &&
 				entry.skill_id === 'application_preview' &&
 				entry.usage_details?.preview_session_id === payload.session_id &&
-				entry.usage_details?.application_embed_id === '4020cf81-f490-4da8-bd42-c4ea456327f3' &&
+				entry.usage_details?.application_embed_id === HABIT_GARDEN_APPLICATION_EMBED_ID &&
 				entry.usage_details?.charged_minutes >= 1
 			);
 		}, {
