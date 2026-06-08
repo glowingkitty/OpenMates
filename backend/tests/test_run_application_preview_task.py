@@ -224,6 +224,7 @@ async def test_store_application_preview_thumbnail_encrypts_s3_and_updates_appli
     monkeypatch.setattr(worker, "cache_s3_file_keys", fake_cache_s3_file_keys)
     monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "signed-token")
     monkeypatch.setattr(worker, "build_download_url", lambda **kwargs: f"{kwargs['base_url']}/download/{kwargs['asset_id']}/{kwargs['variant']}?token={kwargs['token']}")
+    monkeypatch.setattr(worker, "_build_application_preview_thumbnail_png", lambda **_kwargs: b"fake-png-bytes")
 
     result = await worker.store_application_preview_thumbnail(
         cache_service=cache,
