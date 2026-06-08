@@ -8,10 +8,9 @@
   query + "via {provider}" text, and favicon row with source count below.
 
   Architecture: See docs/architecture/embeds.md
-  The parent embed content stores query, provider, result_count, and embed_ids
-  (child embed IDs) — NOT the actual image results array. To show thumbnail
-  previews, this component must load child embeds and extract thumbnail_url
-  from their decoded TOON content when results are not directly available.
+  The parent embed content stores query, provider, result_count, preview metadata,
+  and embed_ids. Chat previews stay metadata-only; fullscreen loads child embeds
+  when the user explicitly opens it.
 -->
 
 <script lang="ts">
@@ -19,7 +18,6 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { limitLegacyPreviewChildIds } from '../embedPreviewHydration';
 
   /**
    * Single image search result (child embed content schema).
@@ -70,7 +68,6 @@
   let localStatus   = $state<'processing' | 'finished' | 'error'>('processing');
   let localResults  = $state<ImageResult[]>([]);
   let localTaskId   = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
 
   $effect(() => {
     localQuery       = queryProp       || '';
@@ -133,9 +130,9 @@
    * Handle embed data updates from server (processing -> finished transition).
    * UnifiedEmbedPreview calls this when an embedUpdated event arrives.
    *
-   * CRITICAL: The parent embed content stores embed_ids (child embed IDs) but NOT
-   * the actual results array with image URLs. When status transitions to "finished"
-   * and results is empty, we must load child embeds to extract thumbnail URLs.
+   * CRITICAL: Preview mount must not hydrate child image embeds. The parent embed
+   * may include lightweight preview_results/preview_thumbnails; otherwise the
+   * preview renders metadata only and fullscreen loads child embeds on demand.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
@@ -148,41 +145,7 @@
       const previewResults = c.results || c.preview_results || c.preview_thumbnails;
       if (Array.isArray(previewResults) && (previewResults as unknown[]).length > 0) {
         localResults = previewResults as ImageResult[];
-      } else if (data.status === 'finished' && c.embed_ids && !isLoadingChildren) {
-        const childEmbedIds = typeof c.embed_ids === 'string'
-          ? c.embed_ids.split('|').filter((cid) => cid.length > 0)
-          : Array.isArray(c.embed_ids) ? (c.embed_ids as string[]) : [];
-        if (childEmbedIds.length > 0) {
-          loadChildEmbedsForPreview(limitLegacyPreviewChildIds(childEmbedIds, THUMB_MAX_COUNT));
-        }
       }
-    }
-  }
-
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    if (isLoadingChildren) return;
-    isLoadingChildren = true;
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 2, 200);
-      const imageResults = await Promise.all(childEmbeds.map(async (embed) => {
-        const content = embed.content ? await decodeToonContent(embed.content) : null;
-        if (!content) return null;
-        return {
-          title: (content.title as string) || '',
-          source_page_url: (content.source_page_url as string) || '',
-          image_url: (content.image_url as string) || '',
-          thumbnail_url: (content.thumbnail_url as string) || '',
-          source: (content.source as string) || '',
-          favicon_url: (content.favicon_url as string) || '',
-        } as ImageResult;
-      }));
-      const validResults = imageResults.filter((result): result is ImageResult => result !== null);
-      if (validResults.length > 0) localResults = validResults;
-    } catch (error) {
-      console.warn('[ImagesSearchEmbedPreview] Legacy preview child-load budget failed:', error);
-    } finally {
-      isLoadingChildren = false;
     }
   }
 
@@ -250,9 +213,6 @@
         <div class="text-content">
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
-          {#if isLoadingChildren}
-            <span class="ds-loading-text">{$text('common.loading')}</span>
-          {/if}
         </div>
       {:else}
         <!-- Processing: show query + provider -->

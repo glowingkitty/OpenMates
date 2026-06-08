@@ -1717,6 +1717,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         ? decodedContent.status
         : null;
     const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids;
+    const embedIdCount = Array.isArray(rawEmbedIds)
+      ? rawEmbedIds.length
+      : typeof rawEmbedIds === "string"
+        ? rawEmbedIds.split("|").filter((id: string) => id.length > 0).length
+        : 0;
     const hasEmbedIds = Array.isArray(rawEmbedIds)
       ? rawEmbedIds.length > 0
       : typeof rawEmbedIds === "string" && rawEmbedIds.length > 0;
@@ -1734,6 +1739,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
     const results = decodedContent?.results || [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || embedIdCount;
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -1765,6 +1773,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           providers,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          result_count: resultCount,
           taskId,
           skillTaskId,
           isMobile: false,

@@ -75,6 +75,8 @@
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Event results (for finished state) */
     results?: EventResult[];
+    /** Parent-embed result count used without hydrating child embeds */
+    result_count?: number;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -108,6 +110,7 @@
     providers: providersProp,
     status: statusProp,
     results: resultsProp = [],
+    result_count: resultCountProp = 0,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -121,9 +124,9 @@
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<EventResult[]>([]);
+  let localResultCount = $state(0);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
 
   // Initialize local state from props
   $effect(() => {
@@ -133,6 +136,7 @@
       localProviders = providersProp || [];
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
+      localResultCount = resultCountProp || resultsProp?.length || 0;
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
     }
@@ -151,9 +155,8 @@
    * Handle embed data updates from UnifiedEmbedPreview.
    * Called when the parent component receives and decodes updated embed data.
    *
-   * Events results are stored as child embeds (like news/web search). When status becomes
-   * "finished" and embed_ids are present but no inline results, we load child embeds
-   * asynchronously to get the total event count for the preview card.
+   * Preview cards must remain metadata-only. Full child event rows are loaded by
+   * fullscreen views on explicit user action, not by the chat transcript preview.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[EventsSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
@@ -174,49 +177,21 @@
       if (Array.isArray(content.providers)) localProviders = content.providers as string[];
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as EventResult[];
+        localResultCount = localResults.length;
         console.debug(`[EventsSearchEmbedPreview] Updated results (inline):`, localResults.length);
+      }
+      if (typeof content.result_count === 'number') {
+        localResultCount = content.result_count;
+      } else if (data.status === 'finished' && localResultCount === 0) {
+        const embedIds = content.embed_ids;
+        const childEmbedIds: string[] = typeof embedIds === 'string'
+          ? embedIds.split('|').filter((eid: string) => eid.length > 0)
+          : Array.isArray(embedIds) ? (embedIds as string[]) : [];
+        localResultCount = childEmbedIds.length;
       }
       if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
-
-      // When finished and embed_ids are present but no inline results, load child embeds
-      // to get the count for display. Events don't have favicons so we just need the count.
-      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || (content.results as unknown[]).length === 0)) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((eid: string) => eid.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            console.debug(`[EventsSearchEmbedPreview] Loading child embeds for count (${childEmbedIds.length} embed_ids)`);
-            isLoadingChildren = true;
-            loadChildEmbedCount(childEmbedIds);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Load child embeds to get total event count for preview display.
-   * We only need the count — no content decoding required.
-   * Uses retry logic because child embeds might not be persisted yet.
-   */
-  async function loadChildEmbedCount(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-      if (childEmbeds.length > 0) {
-        // Create minimal placeholder results (just need the count — no content needed)
-        localResults = childEmbeds.map(() => ({} as EventResult));
-        console.debug(`[EventsSearchEmbedPreview] Loaded ${childEmbeds.length} child embeds for count display`);
-      }
-    } catch (error) {
-      console.warn('[EventsSearchEmbedPreview] Error loading child embeds for count:', error);
-      // Continue without results — preview will just show query/provider without count
-    } finally {
-      isLoadingChildren = false;
     }
   }
 
@@ -246,7 +221,7 @@
   });
 
   // Event count for finished state: the total number of results
-  let eventCount = $derived(results?.length || 0);
+  let eventCount = $derived(localResultCount || results?.length || 0);
 
   /**
    * Handle stop button — cancels this specific skill or the entire AI task as fallback.
@@ -303,8 +278,6 @@
             <span class="event-count">
               {$text('embeds.more_results').replace('{count}', String(eventCount))}
             </span>
-          {:else if isLoadingChildren}
-            <span class="ds-loading-text">{$text('common.loading')}</span>
           {/if}
         </div>
       {/if}

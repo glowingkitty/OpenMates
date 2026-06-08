@@ -1262,6 +1262,7 @@ export class GroupRenderer implements EmbedRenderer {
             providers,
             status,
             results,
+            result_count: resultCount || childEmbedIds.length,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
