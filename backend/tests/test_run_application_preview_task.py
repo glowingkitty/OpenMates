@@ -217,11 +217,16 @@ async def test_store_application_preview_thumbnail_encrypts_s3_and_updates_appli
         cached_s3_keys.append(kwargs)
         return None
 
+    async def fake_index_generated_asset(_task, **kwargs):
+        indexed.append({"embed_id": kwargs["embed_id"], **kwargs})
+        return True
+
     monkeypatch.setattr(worker, "EncryptionService", FakeEncryptionService)
     monkeypatch.setattr(worker, "DirectusService", FakeDirectusService)
     monkeypatch.setattr(worker, "S3UploadService", FakeS3Service)
     monkeypatch.setattr(worker, "get_bucket_name", lambda _bucket, _env: "dev-openmates-chatfiles")
     monkeypatch.setattr(worker, "cache_s3_file_keys", fake_cache_s3_file_keys)
+    monkeypatch.setattr(worker, "index_generated_asset", fake_index_generated_asset)
     monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "signed-token")
     monkeypatch.setattr(worker, "build_download_url", lambda **kwargs: f"{kwargs['base_url']}/download/{kwargs['asset_id']}/{kwargs['variant']}?token={kwargs['token']}")
     monkeypatch.setattr(worker, "_build_application_preview_thumbnail_png", lambda **_kwargs: b"fake-png-bytes")
