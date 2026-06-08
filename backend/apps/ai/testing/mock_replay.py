@@ -74,6 +74,7 @@ SPEED_PROFILES = {
 }
 
 DEFAULT_SPEED_PROFILE = "instant"
+DEFAULT_INITIAL_CHUNK_DELAY_MS = 250
 
 
 def detect_marker(content: str) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -129,6 +130,14 @@ def get_fixture_chunk_delay_seconds(fixture_data: Dict[str, Any], speed_profile:
     if isinstance(chunk_delay_ms, int) and chunk_delay_ms >= 0:
         return chunk_delay_ms / 1000.0
     return get_chunk_delay_seconds(speed_profile)
+
+
+def get_fixture_initial_delay_seconds(fixture_data: Dict[str, Any]) -> float:
+    """Return the delay between typing-start and the first mocked stream chunk."""
+    initial_delay_ms = fixture_data.get("initial_delay_ms")
+    if isinstance(initial_delay_ms, int) and initial_delay_ms >= 0:
+        return initial_delay_ms / 1000.0
+    return DEFAULT_INITIAL_CHUNK_DELAY_MS / 1000.0
 
 
 def load_fixture(fixture_id: str) -> Dict[str, Any]:
@@ -329,9 +338,9 @@ async def replay_fixture(
         fixture_data, task_id, request_data, cache_service, preprocessing_result
     )
 
-    initial_delay_ms = fixture_data.get("initial_delay_ms")
-    if isinstance(initial_delay_ms, int) and initial_delay_ms > 0:
-        await asyncio.sleep(initial_delay_ms / 1000.0)
+    initial_delay = get_fixture_initial_delay_seconds(fixture_data)
+    if initial_delay > 0:
+        await asyncio.sleep(initial_delay)
 
     # --- 3. Build skill event schedule ---
     skill_events_by_fraction = _build_skill_event_schedule(fixture_data)

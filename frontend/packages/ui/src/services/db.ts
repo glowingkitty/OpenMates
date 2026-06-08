@@ -37,6 +37,7 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
+import { browser } from "$app/environment";
 import {
   forcedLogoutInProgress,
   isLoggingOut,
@@ -1467,6 +1468,14 @@ class ChatDatabase {
     return messageOps.getMessagesForChat(this, chat_id, transaction);
   }
 
+  async getMessageWindowForChat(
+    chat_id: string,
+    options: messageOps.MessageWindowOptions = {},
+    transaction?: IDBTransaction,
+  ): Promise<messageOps.MessageWindowResult> {
+    return messageOps.getMessageWindowForChat(this, chat_id, options, transaction);
+  }
+
   async getMessage(
     message_id: string,
     transaction?: IDBTransaction,
@@ -2245,13 +2254,15 @@ export const chatDB = new ChatDatabase();
  * If init() throws (e.g. blocked during logout), the promise stays pending —
  * callers should add a timeout guard for that edge case.
  */
-export const cryptoReady: Promise<void> = chatDB
-  .init()
-  .then(() => chatDB.loadChatKeysFromDatabase())
-  .catch((err) => {
-    // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
-    console.warn(
-      "[db] cryptoReady init failed (may be expected during logout):",
-      err,
-    );
-  });
+export const cryptoReady: Promise<void> = browser
+  ? chatDB
+      .init()
+      .then(() => chatDB.loadChatKeysFromDatabase())
+      .catch((err) => {
+        // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
+        console.warn(
+          "[db] cryptoReady init failed (may be expected during logout):",
+          err,
+        );
+      })
+  : Promise.resolve();
