@@ -127,7 +127,6 @@ For a fresh no-key install, `/v1/settings/server-status` should include:
 ```json
 {
   "is_self_hosted": true,
-  "payment_enabled": false,
   "ai_models_configured": false
 }
 ```
@@ -185,6 +184,21 @@ openmates server uninstall --path ~/openmates --yes
 For image-mode installs, `openmates server update` pulls newer images and restarts the stack. For source-mode installs, it runs `git pull --ff-only`, rebuilds images, and restarts containers.
 
 See [CLI server management](../cli/server-management.md) for the full command reference.
+
+## Images and Runtime Containers
+
+The GHCR package list is shorter than the runtime container list. OpenMates publishes a small set of reusable images, then Docker Compose starts multiple containers from those images with different commands and Celery queues.
+
+| GHCR image | Runtime role |
+| --- | --- |
+| `openmates-api` | API server plus most worker containers, including AI, images, music, videos, PDF, code, social media, task worker, and scheduler queues. |
+| `openmates-docs-worker` | Document-processing worker with extra document tooling such as LibreOffice, kept separate so the main API image stays smaller. |
+| `openmates-webapp` | SvelteKit web app served on `http://localhost:5173`. |
+| `openmates-cms-setup` | One-shot Directus schema/setup container. |
+| `openmates-vault-setup` | One-shot Vault initialization, unseal, policy, token, and secret import container. |
+| `openmates-admin-sidecar` | Local admin helper with host-level access isolated from the main API container. |
+
+Other OpenMates apps are not missing. They are Python app modules inside the shared API image and are loaded by the API/worker registry at startup. Dedicated containers exist only where separate queues, memory limits, or system dependencies are useful.
 
 ## Production Notes
 

@@ -275,7 +275,7 @@ changes to the documentation (to keep the documentation up to date).
         return views;
     });
 
-    // Payment status - check if payment is enabled (self-hosted mode detection)
+    // Cloud payment status. Self-hosted mode hides billing based on is_self_hosted.
     let paymentEnabled = $state(true); // Default to true, will be updated on mount
     let _serverEdition = $state<string | null>(null); // Server edition for display (currently unused but kept for future use)
     let isSelfHosted = $state(false); // Self-hosted status from request-based validation
@@ -1960,8 +1960,7 @@ changes to the documentation (to keep the documentation up to date).
                     // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
                     // This correctly identifies localhost and other self-hosted instances
                     isSelfHosted = status.is_self_hosted || false;
-                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
-                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    // Self-hosted responses omit payment_enabled; hide billing from is_self_hosted.
                     if (isSelfHosted) {
                         paymentEnabled = false;
                     } else {

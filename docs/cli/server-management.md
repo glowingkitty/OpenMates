@@ -93,6 +93,8 @@ Image-mode install defaults to `invite_only`. The install output includes the fi
 
 The first image-mode start downloads the OpenMates image set and third-party service images. Expect several GB of compressed image downloads on a fresh host; Docker caches layers for later starts and updates.
 
+The GHCR package list is intentionally smaller than the runtime container list. Several containers, such as `api`, `task-worker`, `app-ai-worker`, `app-images-worker`, and other app workers, reuse the `openmates-api` image with different commands and Celery queues. `openmates-docs-worker` is split out only because document processing needs extra OS tooling. See [self-hosting setup](../self-hosting/setup.md#images-and-runtime-containers) for the image-to-container mapping.
+
 ## Starting the Server
 
 ```

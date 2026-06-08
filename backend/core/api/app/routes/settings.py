@@ -2404,7 +2404,7 @@ async def get_billing_overview(
 # --- Endpoint for server status (payment enabled, server edition, etc.) ---
 class ServerStatusResponse(BaseModel):
     """Response model for server status endpoint"""
-    payment_enabled: bool
+    payment_enabled: Optional[bool] = None
     is_self_hosted: bool
     is_development: bool
     server_edition: str  # "production" | "development" | "self_hosted" (deprecated, use is_self_hosted)
@@ -2418,6 +2418,7 @@ class ServerStatusResponse(BaseModel):
 @router.get(
     "/server-status",
     response_model=ServerStatusResponse,
+    response_model_exclude_none=True,
     include_in_schema=False,  # Exclude from OpenAPI docs - internal endpoint for frontend
     dependencies=[Security(optional_api_key_scheme)]  # Public endpoint, but add security scheme for Swagger UI
 )
@@ -2426,10 +2427,10 @@ async def get_server_status(
     request: Request
 ):
     """
-    Get server status information including payment enablement and server edition.
+    Get server status information including server edition and self-host status.
     
     This is a public endpoint (no authentication required) that allows the frontend
-    to check if payment features should be displayed and what server edition is running.
+    to check which server edition is running.
     
     This endpoint uses request-based validation to determine if the server is self-hosted.
     It extracts the domain from the request headers (Origin or Host) and validates it
@@ -2437,8 +2438,8 @@ async def get_server_status(
     than environment variable-based detection alone.
     
     Returns:
-        ServerStatusResponse with payment_enabled, is_self_hosted, is_development, 
-        server_edition (deprecated), and domain
+        ServerStatusResponse with is_self_hosted, is_development, server_edition
+        (deprecated), domain, and cloud-only payment_enabled.
     """
     try:
         # Import server mode utilities
@@ -2457,10 +2458,10 @@ async def get_server_status(
         # This cannot be easily spoofed by environment variables
         is_self_hosted = is_self_hosted_from_request
         
-        # CRITICAL: If self-hosted (from request validation), payment is ALWAYS disabled
-        # This overrides any environment-based logic that might enable payment for localhost in dev mode
+        # Self-hosted responses intentionally omit cloud payment status. The UI hides
+        # billing from is_self_hosted instead of rendering a disabled payment state.
         if is_self_hosted:
-            payment_enabled = False
+            payment_enabled = None
         else:
             # Only check environment-based payment logic if NOT self-hosted
             payment_enabled = is_payment_enabled()
@@ -2498,7 +2499,7 @@ async def get_server_status(
         logger.error(f"Error fetching server status: {str(e)}", exc_info=True)
         # Return safe defaults on error (assume self-hosted to be safe)
         return ServerStatusResponse(
-            payment_enabled=False,
+            payment_enabled=None,
             is_self_hosted=True,
             is_development=False,
             server_edition="self_hosted",
@@ -2600,21 +2601,14 @@ class IssueReportResponse(BaseModel):
     screenshot_uploaded: bool = False
 
 
-async def _trigger_agent_issue_investigation(
+async def _queue_agent_issue_investigation(
     *,
     request: Request,
     issue_id: Optional[str],
-    issue_title: str,
-    issue_description: Optional[str],
-    chat_or_embed_url: Optional[str],
-    console_logs: Optional[str],
-    action_history: Optional[str],
-    screenshot_presigned_url: Optional[str],
     agent_action: str = "fix",
 ) -> None:
     """
-    Fire-and-forget: ask the admin sidecar to start an OpenCode session
-    investigating this issue.
+    Mark an admin issue report as pending for the host-side OpenCode poller.
 
     Args:
         agent_action: 'research' for investigate-only instructions, 'fix' for direct implementation.
@@ -2623,80 +2617,34 @@ async def _trigger_agent_issue_investigation(
     - The reporter is a verified admin user (``is_from_admin`` is True)
     - Admin reports always trigger this with 'research' or 'fix'
 
-    The sidecar runs on the host where OpenCode is installed; the API runs inside
-    Docker, so we delegate via an authenticated HTTP call to
-    ``CORE_SIDECAR_URL/admin/claude-investigate``.
+    The API runs inside Docker and must not execute or trigger host binaries.
+    A host-owned systemd timer polls admin reports with ``agent_status=pending``
+    and starts OpenCode as the host user.
 
-    Architecture reference: docs/architecture/admin-console-log-forwarding.md
+    Architecture reference: docs/architecture/infrastructure/cronjobs.md
     """
-    import aiohttp
-
-    core_sidecar_url = os.getenv("CORE_SIDECAR_URL", "").rstrip("/")
-    # The key is injected by Vault under the vault-prefixed name (same as settings_software_update.py)
-    core_sidecar_key = os.getenv("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
-
-    if not core_sidecar_url:
-        logger.warning(
-            "[report_issue/agent] CORE_SIDECAR_URL not set — "
-            "cannot trigger OpenCode investigation"
-        )
+    if not issue_id:
+        logger.warning("[report_issue/agent] Cannot queue OpenCode investigation without issue_id")
         return
 
-    if not core_sidecar_key:
-        logger.warning(
-            "[report_issue/agent] SECRET__CORE_SERVER__ADMIN_LOG_API_KEY not set — "
-            "cannot authenticate with admin sidecar"
-        )
-        return
-
-    # Build a compact context block for the prompt
-    environment = os.getenv("SERVER_ENVIRONMENT", "development")
-    production_url = os.getenv("PRODUCTION_URL", "")
-    domain = production_url or "unknown domain"
-
-    payload = {
-        "issue_id": issue_id or "unknown",
-        "issue_title": issue_title,
-        "issue_description": issue_description or "",
-        "chat_or_embed_url": chat_or_embed_url or "",
-        "console_logs": (console_logs or "")[:10000],  # Trim to avoid huge prompts
-        "action_history": action_history or "",
-        "screenshot_presigned_url": screenshot_presigned_url or "",
-        "environment": environment,
-        "domain": domain,
-        "agent_action": agent_action,
-    }
-
-    endpoint = f"{core_sidecar_url}/admin/claude-investigate"
+    directus_service: DirectusService = request.app.state.directus_service
+    session_title = f"issue-investigation {issue_id[:8]} {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
     logger.info(
-        f"[report_issue/agent] Triggering OpenCode investigation via sidecar: {endpoint} "
-        f"(issue_id={issue_id})"
+        f"[report_issue/agent] Queueing OpenCode investigation for host poller "
+        f"(issue_id={issue_id}, action={agent_action})"
     )
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=15)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                endpoint,
-                json=payload,
-                headers={"X-Admin-Log-Key": core_sidecar_key},
-            ) as resp:
-                if resp.status == 202:
-                    logger.info(
-                        f"[report_issue/agent] Sidecar accepted investigation request "
-                        f"(issue_id={issue_id})"
-                    )
-                else:
-                    body = await resp.text()
-                    logger.warning(
-                        f"[report_issue/agent] Sidecar returned HTTP {resp.status} "
-                        f"for investigation request (issue_id={issue_id}): {body[:300]}"
-                    )
-    except Exception as exc:
-        logger.error(
-            f"[report_issue/agent] HTTP call to sidecar failed (issue_id={issue_id}): {exc}",
-            exc_info=True
-        )
+    await directus_service.update_item(
+        "issues",
+        issue_id,
+        {
+            "agent_action": agent_action,
+            "agent_status": "pending",
+            "agent_session_title": session_title,
+            "agent_error": None,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        },
+        admin_required=True,
+    )
 
 
 @router.post(
@@ -3228,20 +3176,14 @@ async def report_issue(
                 f"(admin toggle off)"
             )
 
-        # Admin-only: every verified admin report triggers OpenCode.
+        # Admin-only: every verified admin report is queued for the host OpenCode poller.
         # Direct implementation is opt-in; otherwise the task investigates and recommends only.
         if is_from_admin:
             admin_agent_action = "fix" if issue_data.agent_action == "fix" else "research"
             try:
-                await _trigger_agent_issue_investigation(
+                await _queue_agent_issue_investigation(
                     request=request,
                     issue_id=issue_id,
-                    issue_title=sanitized_title,
-                    issue_description=sanitized_description,
-                    chat_or_embed_url=sanitized_url,
-                    console_logs=console_logs_str,
-                    action_history=action_history_str,
-                    screenshot_presigned_url=screenshot_presigned_url,
                     agent_action=admin_agent_action,
                 )
             except Exception as _agent_err:

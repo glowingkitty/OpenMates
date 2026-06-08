@@ -1,7 +1,7 @@
 /**
  * Server Status Store
  * 
- * Stores server configuration status (self-hosted, payment enabled, etc.)
+ * Stores server configuration status (self-hosted, AI model readiness, etc.)
  * that is fetched once at app initialization and shared across all components.
  * 
  * This prevents multiple API calls to /v1/settings/server-status and avoids
@@ -16,8 +16,8 @@ import { getApiEndpoint } from '../config/api';
 interface ServerStatus {
     /** Whether this is a self-hosted instance (localhost or custom domain) */
     is_self_hosted: boolean;
-    /** Whether payment features are enabled */
-    payment_enabled: boolean;
+    /** Cloud-only payment status. Self-hosted responses omit this field. */
+    payment_enabled?: boolean;
     /** Server edition: "production" | "development" | "self_hosted" */
     server_edition: string | null;
     /** The domain of the server */
@@ -66,30 +66,11 @@ export const isSelfHosted = derived(
 );
 
 /**
- * Whether payment features are enabled.
- * Returns true until status is fetched (safe default - assumes payment enabled).
- * After fetch, returns the actual payment enabled status.
- */
-const isPaymentEnabled = derived(
-    serverStatusStore,
-    ($state) => $state.status?.payment_enabled ?? true
-);
-
-/**
  * Server edition: "production" | "development" | "self_hosted" | null
  */
 export const serverEdition = derived(
     serverStatusStore,
     ($state) => $state.status?.server_edition ?? null
-);
-
-/**
- * Whether the server status has been initialized (fetched at least once).
- * Components can use this to conditionally render content that depends on server status.
- */
-const isServerStatusInitialized = derived(
-    serverStatusStore,
-    ($state) => $state.initialized
 );
 
 // --- Actions ---
@@ -137,7 +118,7 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
         
         const status: ServerStatus = {
             is_self_hosted: data.is_self_hosted ?? false,
-            payment_enabled: data.payment_enabled ?? true,
+            payment_enabled: data.is_self_hosted ? false : data.payment_enabled ?? true,
             server_edition: data.server_edition ?? null,
             domain: data.domain ?? null,
             ai_models_configured: data.ai_models_configured ?? true
@@ -168,14 +149,6 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
         
         return null;
     }
-}
-
-/**
- * Resets the server status store to initial state.
- * Useful for testing or when the user logs out.
- */
-function resetServerStatus(): void {
-    serverStatusStore.set(initialState);
 }
 
 // Export the store for direct access if needed
