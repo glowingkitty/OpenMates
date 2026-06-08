@@ -643,14 +643,20 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
+	const assistantResponse = page.getByTestId('message-assistant');
 	const permissionDialog = page.getByTestId('app-settings-memories-permission-dialog');
-	if (await permissionDialog.isVisible({ timeout: 10000 }).catch(() => false)) {
+	const firstResponseOrPermission = await Promise.race([
+		permissionDialog.waitFor({ state: 'visible', timeout: 60000 }).then(() => 'permission').catch(() => null),
+		expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 }).then(() => 'assistant').catch(() => null)
+	]);
+	if (firstResponseOrPermission === 'permission') {
 		logChatCheckpoint('App memories permission dialog appeared; rejecting memories for deterministic test flow.');
 		await page.getByTestId('btn-reject').click();
 		await expect(permissionDialog).not.toBeVisible({ timeout: 10000 });
 	}
-	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
+	if (firstResponseOrPermission !== 'assistant') {
+		await expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
+	}
 	const messageResponseMs = Date.now() - messageSendStartedAt;
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
 	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });
