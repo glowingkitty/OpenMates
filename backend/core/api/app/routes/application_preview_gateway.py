@@ -38,6 +38,16 @@ BLOCKED_UPSTREAM_HEADERS = {
     "x-e2b-token",
 }
 FORWARDED_REQUEST_HEADERS = {"accept", "content-type"}
+REWRITABLE_UPSTREAM_CONTENT_TYPES = {
+    "text/html",
+    "application/javascript",
+    "text/javascript",
+    "application/x-javascript",
+    "text/css",
+}
+HTML_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>\b(?:src|href|action)\s*=\s*[\"'])/(?!/|p/)(?P<path>[^\"']+)")
+QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"']+)")
+CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
 
 
 @dataclass(frozen=True)
@@ -117,10 +127,16 @@ async def build_preview_gateway_response(
         body=body,
         headers=_filtered_request_headers(request_headers or {}),
     )
+    response_headers = _filtered_upstream_headers(upstream.headers)
     return Response(
-        content=upstream.body,
+        content=_rewrite_root_relative_preview_references(
+            upstream.body,
+            response_headers,
+            session_id=session_id,
+            preview_token=preview_token,
+        ),
         status_code=upstream.status_code,
-        headers={**_filtered_upstream_headers(upstream.headers), **preview_gateway_security_headers()},
+        headers={**response_headers, **preview_gateway_security_headers()},
     )
 
 
@@ -176,6 +192,36 @@ def _filtered_request_headers(headers: dict[str, str]) -> dict[str, str]:
         for key, value in headers.items()
         if key.lower() in FORWARDED_REQUEST_HEADERS
     }
+
+
+def _rewrite_root_relative_preview_references(
+    body: bytes,
+    headers: dict[str, str],
+    *,
+    session_id: str,
+    preview_token: str,
+) -> bytes:
+    content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type not in REWRITABLE_UPSTREAM_CONTENT_TYPES:
+        return body
+
+    try:
+        text = body.decode("utf-8")
+    except UnicodeDecodeError:
+        return body
+
+    signed_prefix = f"/p/{session_id}/{preview_token}"
+
+    def rewrite_match(match: re.Match[str]) -> str:
+        return f"{match.group('prefix')}{signed_prefix}/{match.group('path')}"
+
+    if content_type == "text/html":
+        text = HTML_ROOT_PATH_PATTERN.sub(rewrite_match, text)
+    elif content_type == "text/css":
+        text = CSS_URL_ROOT_PATH_PATTERN.sub(rewrite_match, text)
+    else:
+        text = QUOTED_ROOT_PATH_PATTERN.sub(rewrite_match, text)
+    return text.encode("utf-8")
 
 
 @router.api_route("/p/{session_id}/{preview_token}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])

@@ -18,6 +18,8 @@ from backend.core.api.app.routes.application_preview import (
     create_application_preview_session,
 )
 from backend.core.api.app.routes.application_preview_gateway import (
+    GatewayUpstreamResponse,
+    build_preview_gateway_response,
     redact_preview_gateway_tokens,
     validate_preview_gateway_access,
 )
@@ -105,3 +107,79 @@ def test_redact_preview_gateway_tokens_removes_path_secret() -> None:
     assert "token-def" not in redacted
     assert "/p/session-1/<REDACTED_PREVIEW_TOKEN>/src/main.js" in redacted
     assert "/p/session-2/<REDACTED_PREVIEW_TOKEN>/" in redacted
+
+
+@pytest.mark.anyio
+async def test_gateway_rewrites_root_relative_html_assets_to_signed_path() -> None:
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
+    await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
+
+    async def upstream_fetch(_url: str, _method: str, **_kwargs):
+        return GatewayUpstreamResponse(
+            status_code=200,
+            body=b'<link rel="stylesheet" href="/src/style.css"><script type="module" src="/src/main.js"></script>',
+            headers={"content-type": "text/html; charset=utf-8"},
+        )
+
+    response = await build_preview_gateway_response(
+        cache,
+        "session-1",
+        "token-abc",
+        "",
+        now=2_030.0,
+        upstream_fetch=upstream_fetch,
+    )
+
+    body = response.body.decode("utf-8")
+    assert 'href="/p/session-1/token-abc/src/style.css"' in body
+    assert 'src="/p/session-1/token-abc/src/main.js"' in body
+
+
+@pytest.mark.anyio
+async def test_gateway_rewrites_root_relative_module_imports_to_signed_path() -> None:
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
+    await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
+
+    async def upstream_fetch(_url: str, _method: str, **_kwargs):
+        return GatewayUpstreamResponse(
+            status_code=200,
+            body=b'import "/src/style.css"; import app from "/src/App.js";',
+            headers={"content-type": "application/javascript"},
+        )
+
+    response = await build_preview_gateway_response(
+        cache,
+        "session-1",
+        "token-abc",
+        "src/main.js",
+        now=2_030.0,
+        upstream_fetch=upstream_fetch,
+    )
+
+    body = response.body.decode("utf-8")
+    assert '"/p/session-1/token-abc/src/style.css"' in body
+    assert '"/p/session-1/token-abc/src/App.js"' in body
