@@ -36,6 +36,48 @@ DEFAULT_SENDER_EMAIL = "noreply@openmates.org"
 DEFAULT_SENDER_NAME = "OpenMates"
 MAX_FINDINGS_IN_EMAIL = 15
 
+SEVERITIES_PRIORITY = ("critical", "high", "medium")
+SEVERITIES_OBSERVATION = ("low", "info")
+
+RULE_FIX_GUIDANCE = {
+    "ARCH-CROSS-APP-SHARED-HELPER": (
+        "Cross-app helper imports",
+        "Move reusable helpers out of backend/apps/ai into backend/shared/python_utils or BaseSkill.",
+    ),
+    "ARCH-CROSS-APP-IMPORT": (
+        "Cross-app imports",
+        "Keep skills isolated by moving shared behavior to backend/shared or a shared provider wrapper.",
+    ),
+    "ENC-GET-KEY-SYNC": (
+        "Synchronous chat-key access",
+        "Replace unsafe sync access with async ChatKeyManager calls, or add a KEYS-04 justification where sync access is intentional.",
+    ),
+    "ENC-DIRECT-CHAT-KEY-DECRYPT": (
+        "Direct chat-key unwraps",
+        "Route chat-key loading through ChatKeyManager or document/allowlist true key-management modules.",
+    ),
+    "SETTINGS-HARDCODED-COLOR": (
+        "Hardcoded settings colors",
+        "Replace raw color literals with design-token CSS variables or canonical settings/elements components.",
+    ),
+    "SETTINGS-MISSING-TESTID": (
+        "Missing settings test IDs",
+        "Add stable kebab-case data-testid attributes to interactive settings controls.",
+    ),
+    "SETTINGS-INLINE-STYLE": (
+        "Inline settings styles",
+        "Move styles to token-backed CSS classes or canonical settings/elements components.",
+    ),
+    "SETTINGS-ADHOC-CONTROL": (
+        "Ad-hoc settings controls",
+        "Replace custom controls with the canonical settings/elements primitives where practical.",
+    ),
+    "APP-SKILLS-DIR-MISSING": (
+        "Declared skill directories missing",
+        "Confirm planned metadata-only apps or add the missing backend skills directory.",
+    ),
+}
+
 
 def _read_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
@@ -101,29 +143,72 @@ def _email_subject(report: dict[str, Any], environment: str) -> str:
     return f"[OpenMates] Weekly contract audits: {status} ({environment})"
 
 
+def _severity_sum(counts: dict[str, Any], severities: tuple[str, ...]) -> int:
+    return sum(int(counts.get(severity, 0)) for severity in severities)
+
+
+def _priority_total(summary: dict[str, Any]) -> int:
+    return _severity_sum(summary.get("counts_by_severity", {}), SEVERITIES_PRIORITY)
+
+
+def _observation_total(summary: dict[str, Any]) -> int:
+    return _severity_sum(summary.get("counts_by_severity", {}), SEVERITIES_OBSERVATION)
+
+
+def _rule_fix_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    counts_by_rule = report["summary"].get("counts_by_rule", {})
+    rows = []
+    for rule_id, count in sorted(counts_by_rule.items(), key=lambda item: int(item[1]), reverse=True):
+        title, next_step = RULE_FIX_GUIDANCE.get(rule_id, (rule_id, "Review sampled findings in the JSON report."))
+        rows.append({"rule_id": rule_id, "count": int(count), "title": title, "next_step": next_step})
+    return rows
+
+
 def _top_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
     findings = report.get("findings", [])
     return [finding for finding in findings[:MAX_FINDINGS_IN_EMAIL] if isinstance(finding, dict)]
 
 
+def _top_priority_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        finding for finding in _top_findings(report)
+        if contract_audits.severity_at_or_above(str(finding.get("severity", "info")), "medium")
+    ]
+
+
 def _build_text_email(report: dict[str, Any], report_path: Path, git_sha: str, git_branch: str, environment: str) -> str:
     summary = report["summary"]
     counts = summary["counts_by_severity"]
+    priority = _priority_total(summary)
+    observations = _observation_total(summary)
     lines = [
         f"Weekly Contract Audits ({environment})",
         "=" * 42,
+        "This is a deterministic static audit, not a test run.",
+        "Priority findings are critical/high/medium items. Low/info findings are tracked as observations.",
+        "",
         f"Generated: {report['generated_at']}",
         f"Git: {git_sha}@{git_branch}",
         f"JSON report: {report_path.relative_to(REPO_ROOT)}",
         "",
         f"Total findings: {summary['total_findings']}",
+        f"Priority findings: {priority}",
+        f"Observations: {observations}",
         f"Emitted for review: {summary.get('emitted_findings', len(report.get('findings', [])))} (max {summary.get('max_findings_per_rule', 'n/a')} per rule)",
         "Critical: {critical}  High: {high}  Medium: {medium}  Low: {low}  Info: {info}".format(**counts),
         "",
-        "Findings by audit:",
+        "Findings by audit area:",
     ]
     for audit, count in summary.get("counts_by_audit", {}).items():
-        lines.append(f"- {audit}: {count}")
+        audit_counts = summary.get("counts_by_audit_severity", {}).get(audit, {})
+        audit_priority = _severity_sum(audit_counts, SEVERITIES_PRIORITY)
+        audit_observations = _severity_sum(audit_counts, SEVERITIES_OBSERVATION)
+        lines.append(f"- {audit}: {count} total, {audit_priority} priority, {audit_observations} observations")
+
+    lines.append("")
+    lines.append("Recommended fix order:")
+    for row in _rule_fix_rows(report)[:6]:
+        lines.append(f"- {row['count']}x {row['title']}: {row['next_step']}")
 
     omitted = summary.get("omitted_by_rule", {})
     if omitted:
@@ -133,15 +218,18 @@ def _build_text_email(report: dict[str, Any], report_path: Path, git_sha: str, g
             lines.append(f"- {rule_id}: {count}")
 
     lines.append("")
-    lines.append("Top findings:")
-    for finding in _top_findings(report):
+    lines.append("Top sampled priority findings:")
+    priority_findings = _top_priority_findings(report)
+    if not priority_findings:
+        lines.append("- None in the emitted sample.")
+    for finding in priority_findings:
         lines.append(
             f"- [{finding['severity']}] {finding['rule_id']} {finding['file']}:{finding['line']} — {finding['title']}"
         )
     lines.extend(
         [
             "",
-            "This is a deterministic static audit. Review the JSON artifact before treating findings as release blockers.",
+            "Review the JSON artifact before treating individual findings as release blockers.",
         ]
     )
     return "\n".join(lines)
@@ -150,10 +238,25 @@ def _build_text_email(report: dict[str, Any], report_path: Path, git_sha: str, g
 def _build_html_email(report: dict[str, Any], report_path: Path, git_sha: str, git_branch: str, environment: str) -> str:
     summary = report["summary"]
     counts = summary["counts_by_severity"]
+    priority = _priority_total(summary)
+    observations = _observation_total(summary)
     status_color = "#ef4444" if counts.get("critical", 0) or counts.get("high", 0) else "#22c55e"
     audit_rows = "".join(
-        f"<tr><td style='padding:6px'><code>{html.escape(str(audit))}</code></td><td style='padding:6px;text-align:right'>{int(count)}</td></tr>"
+        "<tr>"
+        f"<td style='padding:6px'><code>{html.escape(str(audit))}</code></td>"
+        f"<td style='padding:6px;text-align:right'>{int(count)}</td>"
+        f"<td style='padding:6px;text-align:right;color:#b91c1c'><b>{_severity_sum(summary.get('counts_by_audit_severity', {}).get(audit, {}), SEVERITIES_PRIORITY)}</b></td>"
+        f"<td style='padding:6px;text-align:right;color:#6b7280'>{_severity_sum(summary.get('counts_by_audit_severity', {}).get(audit, {}), SEVERITIES_OBSERVATION)}</td>"
+        "</tr>"
         for audit, count in summary.get("counts_by_audit", {}).items()
+    )
+    rule_rows = "".join(
+        "<tr>"
+        f"<td style='padding:6px;text-align:right'><b>{row['count']}</b></td>"
+        f"<td style='padding:6px'><code>{html.escape(str(row['rule_id']))}</code><br>{html.escape(str(row['title']))}</td>"
+        f"<td style='padding:6px'>{html.escape(str(row['next_step']))}</td>"
+        "</tr>"
+        for row in _rule_fix_rows(report)[:6]
     )
     finding_rows = "".join(
         "<tr>"
@@ -162,13 +265,16 @@ def _build_html_email(report: dict[str, Any], report_path: Path, git_sha: str, g
         f"<td style='padding:6px'><code>{html.escape(str(finding['file']))}:{int(finding['line'])}</code></td>"
         f"<td style='padding:6px'>{html.escape(str(finding['recommendation']))}</td>"
         "</tr>"
-        for finding in _top_findings(report)
-    )
+        for finding in _top_priority_findings(report)
+    ) or "<tr><td colspan='4' style='padding:6px;color:#6b7280'>None in the emitted sample.</td></tr>"
     return f"""<html><body style="font-family:Arial,sans-serif;background:#f9fafb;color:#111827;padding:24px">
 <h2 style="color:{status_color};margin:0 0 12px">Weekly Contract Audits</h2>
+<p style="margin:0 0 12px;color:#4b5563"><b>This is a deterministic static audit, not a test run.</b> Priority findings are critical/high/medium items. Low/info findings are tracked as observations.</p>
 <p style="margin:0 0 16px;color:#4b5563">Generated: <code>{html.escape(str(report['generated_at']))}</code><br>Git: <code>{html.escape(git_sha)}@{html.escape(git_branch)}</code><br>Environment: {html.escape(environment)}<br>JSON report: <code>{html.escape(str(report_path.relative_to(REPO_ROOT)))}</code></p>
 <table style="border-collapse:collapse;margin:16px 0;background:white">
 <tr><td style="padding:6px 16px;color:#4b5563">Total</td><td style="padding:6px 16px"><b>{int(summary['total_findings'])}</b></td></tr>
+<tr><td style="padding:6px 16px;color:#b91c1c">Priority findings</td><td style="padding:6px 16px"><b>{priority}</b></td></tr>
+<tr><td style="padding:6px 16px;color:#6b7280">Observations</td><td style="padding:6px 16px"><b>{observations}</b></td></tr>
 <tr><td style="padding:6px 16px;color:#4b5563">Emitted sample</td><td style="padding:6px 16px"><b>{int(summary.get('emitted_findings', len(report.get('findings', []))))}</b></td></tr>
 <tr><td style="padding:6px 16px;color:#991b1b">Critical</td><td style="padding:6px 16px"><b>{int(counts.get('critical', 0))}</b></td></tr>
 <tr><td style="padding:6px 16px;color:#b91c1c">High</td><td style="padding:6px 16px"><b>{int(counts.get('high', 0))}</b></td></tr>
@@ -176,14 +282,16 @@ def _build_html_email(report: dict[str, Any], report_path: Path, git_sha: str, g
 <tr><td style="padding:6px 16px;color:#374151">Low</td><td style="padding:6px 16px"><b>{int(counts.get('low', 0))}</b></td></tr>
 <tr><td style="padding:6px 16px;color:#6b7280">Info</td><td style="padding:6px 16px"><b>{int(counts.get('info', 0))}</b></td></tr>
 </table>
-<h3>Findings by audit</h3>
-<table style="border-collapse:collapse;background:white;font-size:13px">{audit_rows}</table>
-<h3>Top findings</h3>
+<h3>Findings by audit area</h3>
+<table style="border-collapse:collapse;background:white;font-size:13px"><tr style="background:#eef2ff"><th style="text-align:left;padding:6px">Audit</th><th style="text-align:right;padding:6px">Total</th><th style="text-align:right;padding:6px">Priority</th><th style="text-align:right;padding:6px">Observations</th></tr>{audit_rows}</table>
+<h3>Recommended fix order</h3>
+<table style="border-collapse:collapse;width:100%;background:white;font-size:13px"><tr style="background:#eef2ff"><th style="text-align:right;padding:6px">Count</th><th style="text-align:left;padding:6px">Rule</th><th style="text-align:left;padding:6px">Next step</th></tr>{rule_rows}</table>
+<h3>Top sampled priority findings</h3>
 <table style="border-collapse:collapse;width:100%;background:white;font-size:13px">
 <tr style="background:#eef2ff"><th style="text-align:left;padding:6px">Severity</th><th style="text-align:left;padding:6px">Rule</th><th style="text-align:left;padding:6px">Location</th><th style="text-align:left;padding:6px">Recommendation</th></tr>
 {finding_rows}
 </table>
-<p style="color:#6b7280;font-size:12px;margin-top:16px">This deterministic static audit is stored as JSON for on-demand agent processing.</p>
+<p style="color:#6b7280;font-size:12px;margin-top:16px">The sampled findings are capped per rule. Use the JSON artifact for the full count and exact locations.</p>
 </body></html>"""
 
 
@@ -229,6 +337,7 @@ def _build_internal_summary_payload(
     duration_seconds: int,
     report_path: Path,
 ) -> dict[str, Any]:
+    summary = report["summary"]
     findings = report.get("findings", [])
     failed_findings = [
         finding for finding in findings
@@ -247,23 +356,28 @@ def _build_internal_summary_payload(
         {
             "suite": f"contract-audit:{finding['audit']}",
             "name": f"{finding['severity']} · {finding['rule_id']}",
-            "error": f"{finding['file']}:{finding['line']} — {finding['title']}. Report: {report_path.relative_to(REPO_ROOT)}",
+            "error": (
+                f"{finding['file']}:{finding['line']} — {finding['title']}. "
+                f"Recommended fix: {finding['recommendation']} Report: {report_path.relative_to(REPO_ROOT)}"
+            ),
         }
         for finding in failed_findings[:50]
     ]
-    counts_by_audit = report["summary"].get("counts_by_audit", {})
+    counts_by_audit = summary.get("counts_by_audit", {})
+    counts_by_audit_severity = summary.get("counts_by_audit_severity", {})
     suites = [
         {
             "name": f"contract-audit:{audit}",
             "total": int(count),
-            "passed": 0,
-            "failed": int(count),
-            "status": "failed" if count else "passed",
+            "passed": _severity_sum(counts_by_audit_severity.get(audit, {}), SEVERITIES_OBSERVATION),
+            "failed": _severity_sum(counts_by_audit_severity.get(audit, {}), SEVERITIES_PRIORITY),
+            "status": "failed" if _severity_sum(counts_by_audit_severity.get(audit, {}), SEVERITIES_PRIORITY) else "passed",
         }
         for audit, count in counts_by_audit.items()
     ]
-    total = int(report["summary"]["total_findings"])
-    failed = len(failed_findings)
+    total = int(summary["total_findings"])
+    failed = _priority_total(summary)
+    passed = _observation_total(summary)
     return {
         "recipient_email": recipient,
         "environment": environment,
@@ -272,7 +386,7 @@ def _build_internal_summary_payload(
         "git_branch": git_branch,
         "duration_seconds": duration_seconds,
         "total": total,
-        "passed": max(0, total - failed),
+        "passed": passed,
         "failed": failed,
         "dispatch_error": 0,
         "timeout": 0,
@@ -283,6 +397,25 @@ def _build_internal_summary_payload(
         "failed_tests": failed_tests,
         "all_tests": all_tests or [{"suite": "contract-audits", "name": "no findings", "status": "passed", "duration_seconds": 0}],
         "subject_override": subject,
+        "summary_copy": {
+            "header_success": "No priority contract findings",
+            "header_failure": "{failed} priority findings of {total} total findings",
+            "intro_note": "This is a deterministic static contract audit, not a test run. Priority findings are critical/high/medium static findings; low/info items are tracked as observations.",
+            "status_success": "NO PRIORITY FINDINGS",
+            "status_failure": "{failed} PRIORITY FINDINGS",
+            "item_label_plural": "findings",
+            "passed_label": "observations",
+            "failed_label": "priority",
+            "suites_label": "Audit Areas",
+            "suite_name_header": "Audit Area",
+            "passed_header": "Observations",
+            "failed_header": "Priority",
+            "status_passed": "CLEAR",
+            "status_failed": "NEEDS REVIEW",
+            "failed_tests_label": "Top Priority Findings (sample)",
+            "all_tests_label": "Sampled Findings",
+            "footer_note": "Findings are capped per rule in this email. Review the JSON artifact for full counts, exact locations, and omitted repeated findings.",
+        },
     }
 
 

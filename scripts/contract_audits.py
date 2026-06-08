@@ -505,6 +505,10 @@ def build_report(selected_audits: list[str] | None = None) -> dict:
     by_severity_all = Counter(item.severity for item in findings_sorted_all)
     by_audit_all = Counter(item.audit for item in findings_sorted_all)
     by_rule_all = Counter(item.rule_id for item in findings_sorted_all)
+    by_audit_severity_all: dict[str, dict[str, int]] = {}
+    for item in findings_sorted_all:
+        audit_counts = by_audit_severity_all.setdefault(item.audit, {severity: 0 for severity in SEVERITY_ORDER})
+        audit_counts[item.severity] += 1
 
     emitted: list[Finding] = []
     emitted_by_rule: Counter[str] = Counter()
@@ -530,6 +534,7 @@ def build_report(selected_audits: list[str] | None = None) -> dict:
             "omitted_by_rule": omitted_by_rule,
             "counts_by_severity": {severity: by_severity_all.get(severity, 0) for severity in SEVERITY_ORDER},
             "counts_by_audit": dict(sorted(by_audit_all.items())),
+            "counts_by_audit_severity": dict(sorted(by_audit_severity_all.items())),
             "counts_by_rule": dict(sorted(by_rule_all.items())),
         },
         "findings": [asdict(finding) for finding in emitted],

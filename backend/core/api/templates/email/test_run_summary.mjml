@@ -30,16 +30,22 @@
           <!-- Headline -->
           <mj-text font-size="30px" padding-bottom="30px">
             {% if failed == 0 %}
-            <mark>{{ t.email.test_run_summary.header_success.text }}</mark>
+            <mark>{{ summary_copy.header_success }}</mark>
             {% else %}
-            <mark>{{ t.email.test_run_summary.header_failure.text | replace("{failed}", failed | string) | replace("{total}", total | string) }}</mark>
+            <mark>{{ summary_copy.header_failure | replace("{failed}", failed | string) | replace("{total}", total | string) }}</mark>
             {% endif %}
           </mj-text>
+
+          {% if summary_copy.intro_note %}
+          <mj-text font-size="14px" padding-bottom="20px" color="{% if darkmode %}#bdbdbd{% else %}#4b5563{% endif %}">
+            {{ summary_copy.intro_note }}
+          </mj-text>
+          {% endif %}
 
           <!-- Overall status badge -->
           <mj-text font-size="18px" padding-bottom="20px">
             <span style="background-color: {% if failed == 0 %}#4CAF50{% else %}#F44336{% endif %}; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-weight: bold;">
-              {% if failed == 0 %}✓ PASSED{% else %}✗ {{ failed }} FAILED{% endif %}
+              {% if failed == 0 %}✓ {{ summary_copy.status_success }}{% else %}✗ {{ summary_copy.status_failure | replace("{failed}", failed | string) | replace("{total}", total | string) }}{% endif %}
             </span>
           </mj-text>
 
@@ -66,16 +72,16 @@
           </mj-text>
 
           <mj-text font-size="15px" padding-bottom="20px">
-            <strong>Total:</strong>&nbsp;{{ total }} tests &nbsp;|&nbsp;
-            <span style="color: #4CAF50; font-weight: bold;">{{ passed }} passed</span>&nbsp;|&nbsp;
-            {% if failed > 0 %}<span style="color: #F44336; font-weight: bold;">{{ failed }} failed</span>{% else %}<span style="color: #4CAF50;">0 failed</span>{% endif %}
-            {% if skipped > 0 %}&nbsp;|&nbsp;<span style="color: #FF9800;">{{ skipped }} skipped</span>{% endif %}
-            {% if not_started > 0 %}&nbsp;|&nbsp;<span style="color: #9E9E9E;">{{ not_started }} not started</span>{% endif %}
+            <strong>Total:</strong>&nbsp;{{ total }} {{ summary_copy.item_label_plural }} &nbsp;|&nbsp;
+            <span style="color: #4CAF50; font-weight: bold;">{{ passed }} {{ summary_copy.passed_label }}</span>&nbsp;|&nbsp;
+            {% if failed > 0 %}<span style="color: #F44336; font-weight: bold;">{{ failed }} {{ summary_copy.failed_label }}</span>{% else %}<span style="color: #4CAF50;">0 {{ summary_copy.failed_label }}</span>{% endif %}
+            {% if skipped > 0 %}&nbsp;|&nbsp;<span style="color: #FF9800;">{{ skipped }} {{ summary_copy.skipped_label }}</span>{% endif %}
+            {% if not_started > 0 %}&nbsp;|&nbsp;<span style="color: #9E9E9E;">{{ not_started }} {{ summary_copy.not_started_label }}</span>{% endif %}
           </mj-text>
 
           <!-- Suite Breakdown -->
           <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
-            {{ t.email.test_run_summary.suites_label.text }}
+            {{ summary_copy.suites_label }}
           </mj-text>
 
           <!-- Suite table -->
@@ -83,10 +89,10 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
               <thead>
                 <tr style="border-bottom: 2px solid {% if darkmode %}#555{% else %}#ddd{% endif %};">
-                  <th style="padding: 8px 12px; font-weight: bold;">Suite</th>
+                  <th style="padding: 8px 12px; font-weight: bold;">{{ summary_copy.suite_name_header }}</th>
                   <th style="padding: 8px 12px; font-weight: bold; text-align: center;">Total</th>
-                  <th style="padding: 8px 12px; font-weight: bold; text-align: center; color: #4CAF50;">Passed</th>
-                  <th style="padding: 8px 12px; font-weight: bold; text-align: center; color: #F44336;">Failed</th>
+                  <th style="padding: 8px 12px; font-weight: bold; text-align: center; color: #4CAF50;">{{ summary_copy.passed_header }}</th>
+                  <th style="padding: 8px 12px; font-weight: bold; text-align: center; color: #F44336;">{{ summary_copy.failed_header }}</th>
                   <th style="padding: 8px 12px; font-weight: bold; text-align: center;">Status</th>
                 </tr>
               </thead>
@@ -99,11 +105,11 @@
                   <td style="padding: 8px 12px; text-align: center; color: {% if suite.failed > 0 %}#F44336{% else %}inherit{% endif %};">{{ suite.failed }}</td>
                   <td style="padding: 8px 12px; text-align: center;">
                     {% if suite.status == 'skipped' %}
-                    <span style="color: #FF9800;">SKIPPED</span>
+                    <span style="color: #FF9800;">{{ summary_copy.status_skipped }}</span>
                     {% elif suite.failed > 0 %}
-                    <span style="color: #F44336; font-weight: bold;">FAILED</span>
+                    <span style="color: #F44336; font-weight: bold;">{{ summary_copy.status_failed }}</span>
                     {% else %}
-                    <span style="color: #4CAF50; font-weight: bold;">PASSED</span>
+                    <span style="color: #4CAF50; font-weight: bold;">{{ summary_copy.status_passed }}</span>
                     {% endif %}
                   </td>
                 </tr>
@@ -115,7 +121,7 @@
           <!-- Failed Tests section (only shown when there are failures) -->
           {% if failed_tests %}
           <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
-            {{ t.email.test_run_summary.failed_tests_label.text }}
+            {{ summary_copy.failed_tests_label }}
           </mj-text>
 
           {% for test in failed_tests %}
@@ -135,7 +141,7 @@
           <!-- All Tests section — full list grouped by suite with pass/fail icons -->
           {% if has_all_tests %}
           <mj-text font-size="18px" padding-bottom="10px" padding-top="10px" font-weight="bold">
-            All Tests
+            {{ summary_copy.all_tests_label }}
           </mj-text>
 
           {% for suite_name, tests in all_tests_by_suite.items() %}
@@ -157,7 +163,7 @@
 
           <!-- Footer note -->
           <mj-text font-size="13px" padding-bottom="30px" font-style="italic" color="{% if darkmode %}#888{% else %}#999{% endif %}">
-            {{ t.email.test_run_summary.footer_note.text }}
+            {{ summary_copy.footer_note }}
           </mj-text>
         </mj-column>
       </mj-section>
