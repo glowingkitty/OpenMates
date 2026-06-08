@@ -93,6 +93,7 @@ api.dev.openmates.org {
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
 	# Includes /v1/apps/reminder/skills/* — webapp uses credentials: include for reminder creation/management
 	# Includes /v1/code/run and /v1/code/run/* — authenticated Code Run starts and streams
+	# Includes /v1/applications/* — authenticated generated application preview sessions.
 	# from the webapp must pass through FastAPI CORS instead of the public CORS handler.
 	# Includes /v1/users/* — profile image endpoint uses session cookie (credentials: include);
 	#   browsers block wildcard CORS with credentials, so it must pass through FastAPI CORSMiddleware.
@@ -104,7 +105,7 @@ api.dev.openmates.org {
 	# calls it with credentials: include (session cookie) — browsers block wildcard CORS
 	# with credentials, so it must go through FastAPI's CORSMiddleware (specific origin).
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/test-recordings /v1/test-recordings/* /v1/webhooks /v1/webhooks/* /v1/telemetry/* /v1/client-logs
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/applications/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/test-recordings /v1/test-recordings/* /v1/webhooks /v1/webhooks/* /v1/telemetry/* /v1/client-logs
 		method OPTIONS
 	}
 
@@ -116,6 +117,7 @@ api.dev.openmates.org {
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
 	# Includes /v1/apps/reminder/skills/* — webapp uses credentials: include for reminder creation/management
 	# Includes /v1/code/run and /v1/code/run/* — authenticated Code Run starts and streams.
+	# Includes /v1/applications/* — authenticated generated application preview sessions.
 	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
 	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
 	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
@@ -123,7 +125,7 @@ api.dev.openmates.org {
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/test-recordings /v1/test-recordings/* /v1/webhooks /v1/webhooks/* /v1/telemetry/* /v1/client-logs
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/applications/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/test-recordings /v1/test-recordings/* /v1/webhooks /v1/webhooks/* /v1/telemetry/* /v1/client-logs
 		not method OPTIONS
 	}
 
