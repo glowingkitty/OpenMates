@@ -32,12 +32,12 @@ http://:8008 {
 	}
 }
 
-openmatesusercontent.org {
+dev.openmatesusercontent.org {
 	# User-content origin for generated application previews.
 	# Only the signed preview gateway is exposed here; OpenMates API/auth routes
 	# stay on api.dev.openmates.org so app cookies are never sent to previews.
 	log {
-		output file /var/log/caddy/openmatesusercontent.org.log {
+		output file /var/log/caddy/dev.openmatesusercontent.org.log {
 			roll_size 100mb
 			roll_keep 10
 			roll_keep_for 720h # 30 days

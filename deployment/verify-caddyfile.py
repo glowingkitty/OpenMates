@@ -21,7 +21,10 @@ from pathlib import Path
 EXPECTED_PORTS = {
     8000: "api (FastAPI gateway)",
 }
-USER_CONTENT_DOMAIN = "openmatesusercontent.org"
+USER_CONTENT_DOMAINS = {
+    "dev": "dev.openmatesusercontent.org",
+    "prod": "openmatesusercontent.org",
+}
 
 # FastAPI router prefixes registered in backend/core/api/main.py.
 # Each entry: (prefix, description, internal_only)
@@ -147,21 +150,22 @@ def parse_caddyfile_ports(content: str) -> set[int]:
     return ports
 
 
-def validate_user_content_gateway(content: str) -> list[str]:
+def validate_user_content_gateway(content: str, *, server_type: str) -> list[str]:
     """Verify generated app previews have a dedicated user-content gateway."""
     issues = []
-    block = extract_named_block(content, USER_CONTENT_DOMAIN)
+    expected_domain = USER_CONTENT_DOMAINS[server_type]
+    block = extract_named_block(content, expected_domain)
     if not block:
-        return [f"Missing {USER_CONTENT_DOMAIN} site block for application preview gateway"]
+        return [f"Missing {expected_domain} site block for application preview gateway"]
 
     if "/p/*" not in parse_caddyfile_paths(block):
-        issues.append(f"{USER_CONTENT_DOMAIN} must expose only the signed /p/* preview gateway")
+        issues.append(f"{expected_domain} must expose only the signed /p/* preview gateway")
     if "reverse_proxy localhost:8000" not in block:
-        issues.append(f"{USER_CONTENT_DOMAIN} /p/* must reverse_proxy to localhost:8000")
+        issues.append(f"{expected_domain} /p/* must reverse_proxy to localhost:8000")
     if re.search(r'\bpath\s+[^\n]*?/v1(?:/|\*|\s|$)', block):
-        issues.append(f"{USER_CONTENT_DOMAIN} must not expose /v1/* API routes")
+        issues.append(f"{expected_domain} must not expose /v1/* API routes")
     if "X-Frame-Options" in block:
-        issues.append(f"{USER_CONTENT_DOMAIN} must not set X-Frame-Options because previews are iframed")
+        issues.append(f"{expected_domain} must not set X-Frame-Options because previews are iframed")
     return issues
 
 
@@ -327,13 +331,14 @@ def main():
 
     # --- Check 4: User-content preview gateway ---
     print(f"{BOLD}[4] User-content preview gateway{RESET}")
-    user_content_issues = validate_user_content_gateway(content)
+    expected_user_content_domain = USER_CONTENT_DOMAINS[server_type]
+    user_content_issues = validate_user_content_gateway(content, server_type=server_type)
     if user_content_issues:
         for issue in user_content_issues:
             print(f"  {RED}!!{RESET}  {issue}")
             issues.append(issue)
     else:
-        print(f"  {GREEN}OK{RESET}  {USER_CONTENT_DOMAIN} exposes signed /p/* gateway only")
+        print(f"  {GREEN}OK{RESET}  {expected_user_content_domain} exposes signed /p/* gateway only")
 
     print()
 
