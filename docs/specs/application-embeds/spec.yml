@@ -11,6 +11,7 @@ goal: >
 scope:
   in:
     - Add a new Code app top-level application embed that owns a project manifest and references child source/asset embeds.
+    - Add a structured backend application artifact builder as the primary creation path for generated runnable apps.
     - Use existing code-code embeds as child source files and existing image/file embeds as optional application assets.
     - Add E2B-backed live preview sessions as the v1 cross-platform runtime for generated React, Svelte, static JavaScript, and fullstack applications.
     - Route all live previews through an OpenMates preview gateway on an env-configured user-content origin.
@@ -22,6 +23,7 @@ scope:
     - Store and render a lightweight screenshot thumbnail for the latest successful application preview state.
     - Show the screenshot thumbnail in the application embed preview and fullscreen with a play button overlay that starts the E2B preview session.
     - Support iterative corrections by patching child code-code embeds with existing diff-based editing and syncing successful file changes into the active E2B sandbox.
+    - Keep parser-based inference from Markdown/code fences as a best-effort fallback when no structured artifact was emitted.
     - Support ephemeral sample data and SQLite-backed previews inside E2B for v1 database demos.
     - Add privacy policy and provider documentation updates for the expanded E2B application preview use case.
   out:
@@ -52,6 +54,8 @@ context_discovery:
     - backend/shared/providers/e2b_code_runner.py
     - backend/apps/code/app.yml
     - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
   tests:
     - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
     - frontend/apps/web_app/tests/skill-code-docs.spec.ts
@@ -104,22 +108,42 @@ clarification:
     session routed through a separate user-content origin. The preview runtime
     is cross-platform because browsers and Apple clients only load a URL; code
     executes in E2B, not in the OpenMates app origin or native app process.
+    The primary creation path is now a structured backend application artifact
+    builder that atomically creates child file embeds and one parent application
+    embed; stream parser inference remains a fallback for legacy or free-form
+    Markdown responses only.
   approved_by_user: true
 
 scenarios:
   - id: S-1
-    title: Generate a multi-file frontend application
+    title: Generate a multi-file frontend application through a structured artifact
     given:
       - Alice is authenticated in a normal chat.
       - Alice asks OpenMates to create a Svelte recipe manager UI with sample recipes.
     when:
-      - The assistant generates the application.
+      - The assistant chooses the generated-application artifact path.
     then:
+      - The backend receives one structured application artifact payload with manifest metadata and files.
+      - The backend validates file paths, entrypoints, runtime metadata, and secret-like content before creating embeds.
+      - The backend atomically creates child code-code embeds and one parent code-application embed for the same message.
       - The assistant message shows one application embed, not a loose stack of unrelated code embeds.
       - The application embed has child code-code embeds for package.json, src/App.svelte, src/main.ts, and CSS files.
       - The application embed manifest lists file paths, child embed IDs, framework, runtime, and preview support.
       - The application embed preview shows either the latest screenshot thumbnail or an empty preview placeholder with a play button overlay.
       - No live E2B sandbox starts until Alice explicitly starts the preview.
+
+  - id: S-10
+    title: Fall back from Markdown code fences to an application parent
+    given:
+      - Alice asks for a generated application.
+      - The assistant outputs ordinary Markdown code fences instead of a structured application artifact.
+    when:
+      - The backend detects child code-code embeds whose filenames form a runnable app manifest.
+    then:
+      - The backend creates at most one parent code-application embed referencing those child files.
+      - The fallback requires a dependency manifest, at least one recognized source file, and a known entrypoint before creating the parent.
+      - The fallback never starts a preview sandbox automatically.
+      - If the file set is incomplete, OpenMates leaves the code embeds visible and does not create a misleading application parent.
 
   - id: S-2
     title: Start a cross-platform live preview
@@ -231,7 +255,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: The Code app can create and render an application embed that references child code-code and asset embeds by path.
+    text: The Code app can create and render an application embed that references child code-code and asset embeds by path through a structured application artifact builder.
   - id: AC-2
     scenario: S-2
     text: Live preview startup is explicit and never starts an E2B sandbox automatically when an application embed is merely rendered.
@@ -280,9 +304,23 @@ acceptance_criteria:
   - id: AC-17
     scenario: S-2
     text: Application previews use the existing Code Run price of 5 credits per started minute unless a later pricing migration changes the configured rate.
+  - id: AC-18
+    scenario: S-1
+    text: Structured application artifact creation validates the manifest and creates child file embeds plus exactly one parent application embed in one backend-owned operation.
+  - id: AC-19
+    scenario: S-10
+    text: Parser-based Markdown/code-fence inference remains a fallback only and creates at most one parent application embed after a runnable manifest is detected.
 
 contracts:
   api:
+    - route: internal application artifact builder
+      request: "{ name: string, framework?: string, runtime: node|web|python, files: [{ path: string, language?: string, content: string, role?: string }], entrypoints: [{ name: string, command: string, port: number }], assets?: [...] }"
+      response: "{ application_embed_id: string, child_embed_ids: string[], embed_reference: string }"
+      errors:
+        - validation error when required manifest files, source files, or entrypoints are missing.
+        - validation error when paths are unsafe, duplicated, absolute, or outside the project root.
+        - validation error when file content appears to include secrets or OpenMates credentials.
+        - explicit typed failure when any child or parent embed cannot be created.
     - route: POST /v1/applications/{application_embed_id}/preview/start
       request: "{ chat_id: string, shared_context?: string, requested_runtime?: string }"
       response: "{ session_id: string, preview_url: string, status: queued|starting|running, credits_per_minute: number }"
@@ -312,6 +350,7 @@ contracts:
         - 404 when the preview session or route does not exist.
         - 502 when the E2B sandbox is unavailable.
   data:
+    - The structured artifact builder is the primary source of application embeds; it produces child file embeds and parent application manifests from a validated payload instead of parsing assistant Markdown.
     - Application embed content includes type=application, name, framework, runtime, entrypoints, file_refs, asset_refs, database mode, version_number, preview_capabilities, and latest_screenshot_ref when available.
     - file_refs map logical file paths to child code-code embed IDs and include role metadata such as source, config, dependency_manifest, backend, seed, or asset.
     - asset_refs map logical asset paths to child image/file embed IDs.
@@ -323,6 +362,7 @@ contracts:
     - Preview logs are compact text events capped by size and retained short-term like Code Run outputs.
     - latest_screenshot_ref points to a lightweight encrypted image/file embed or sidecar generated from the latest successful preview state.
     - Full rendered DOM snapshots are not stored in v1.
+    - Parser-inferred application parents are marked by backend provenance as fallback-created for logs/debugging, but the client rendering contract is identical to structured-created application parents.
   ui_states:
     - Application preview card shows app name, framework/runtime, file count, asset count, preview status, and screenshot thumbnail or placeholder.
     - Application fullscreen has Preview, Files, Logs, Data, and Settings/Info areas where appropriate.
@@ -566,12 +606,42 @@ tests:
         timestamp: "2026-06-07T23:09:44Z"
         notes: "3 tests passed for fake-provider running lifecycle, planning failure redaction, and queued E2B sandbox cleanup recording."
 
+  - id: T-PYTEST-APP-ARTIFACT-BUILDER-001
+    type: pytest
+    file: backend/tests/test_code_block_detection.py
+    command: python3 -m pytest backend/tests/test_code_block_detection.py
+    covers:
+      - AC-18
+      - AC-19
+    assertions:
+      - structured application artifacts create child code embeds and exactly one parent application embed through a backend-owned builder path
+      - unsafe or incomplete structured application artifacts are rejected without creating a parent embed
+      - Markdown/code-fence fallback creates at most one parent application embed after a runnable manifest is detected
+      - fallback inference does not create an application parent for incomplete file sets
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker:python -m pytest /app/backend/tests/test_code_block_detection.py"
+        timestamp: "2026-06-08T08:44:33Z"
+        notes: "40 focused stream/parser tests passed, including structured artifact builder child+parent creation, unsafe path rejection, and parent-only structured stream reference coverage. Broader application-preview backend suite passed 83 tests in the same verification pass."
+
   - id: T-UNIT-APP-EMBED-001
     type: unit
     file: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
     command: python3 scripts/run_tests.py --suite vitest
     covers:
       - AC-1
+      - AC-18
+      - AC-19
       - AC-2
       - AC-7
       - AC-10
@@ -735,13 +805,19 @@ implementation_plan:
     - Share links already provide embed keys to recipients without exposing keys to the server.
   architecture: >
     Add application as a direct Code app embed type and treat it as a project
-    manifest that references child source and asset embeds. Add an E2B application
-    preview service separate from Code Run terminal execution. Preview sessions
-    are viewer-scoped, billed to the starter, exposed only through a user-content
-    preview gateway, and stopped by explicit controls, idle heartbeat, and hard
-    duration limits.
+    manifest that references child source and asset embeds. The AI pipeline's
+    primary runnable-app path is a structured application artifact builder that
+    validates a typed payload, creates child code/file embeds, and creates one
+    parent application embed from the same backend-owned operation. Markdown and
+    code-fence inference remains as a compatibility fallback only. Add an E2B
+    application preview service separate from Code Run terminal execution.
+    Preview sessions are viewer-scoped, billed to the starter, exposed only
+    through a user-content preview gateway, and stopped by explicit controls,
+    idle heartbeat, and hard duration limits.
   data_flow:
-    - Assistant creates child code-code embeds for application files and a parent application embed manifest referencing those children by path.
+    - Assistant emits or invokes a structured generated-application artifact containing manifest metadata, entrypoints, and file payloads.
+    - Backend validates the artifact and creates child code-code embeds plus one parent code-application embed in a controlled operation.
+    - If no structured artifact is emitted, stream parsing can infer a parent application embed from already-created child code embeds only after a runnable manifest is complete.
     - User opens application fullscreen and clicks Start preview.
     - Frontend calls the application preview start API with chat ID and application embed ID.
     - Backend checks auth, embed access, preview-origin config, credits, and concurrency limits.
@@ -754,6 +830,10 @@ implementation_plan:
   affected_files:
     - path: backend/apps/code/app.yml
       reason: Register application embed type and preview metadata under the Code app.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Use structured application artifact creation as the primary generated-app path and keep manifest inference as fallback.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Provide the backend-owned application artifact builder that creates child and parent embeds consistently.
     - path: backend/shared/python_schemas/embed_schemas.py
       reason: Add application embed content schema and preview session schema if central schema coverage exists there.
     - path: backend/core/api/app/routes/application_preview.py
@@ -784,6 +864,7 @@ implementation_plan:
       reason: Document application parent embeds and child source/asset embed relationships.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/application-embeds/spec.yml
+    - python3 -m pytest backend/tests/test_code_block_detection.py
     - python3 -m pytest backend/tests/test_application_preview_config.py backend/tests/test_application_preview_gateway.py
     - python3 scripts/run_tests.py --suite vitest
     - python3 scripts/run_tests.py --spec application-preview.spec.ts
@@ -792,6 +873,23 @@ implementation_plan:
     - python3 scripts/lint_changed.sh
 
 tasks:
+  - id: TASK-0
+    title: Add structured application artifact builder
+    covers:
+      scenarios:
+        - S-1
+        - S-10
+      acceptance_criteria:
+        - AC-18
+        - AC-19
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_code_block_detection.py
+    verification:
+      - T-PYTEST-APP-ARTIFACT-BUILDER-001
+    independently_deployable: false
+
   - id: TASK-1
     title: Model application embeds and registry entries
     covers:

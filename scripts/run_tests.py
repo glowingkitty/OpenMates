@@ -701,7 +701,9 @@ class GitHubActionsClient:
              "--ref", GH_BRANCH,
              "-f", f"spec={spec}",
              "-f", f"account={account}",
-             "-f", f"use_mocks={'true' if use_mocks else 'false'}"],
+             "-f", f"use_mocks={'true' if use_mocks else 'false'}",
+             "-f", "use_live_mocks=true",
+             "-f", "record_live_fixtures=false"],
             capture_output=True, text=True,
         )
         if rc.returncode != 0:

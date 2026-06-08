@@ -22,8 +22,26 @@ from backend.shared.python_schemas.embed_status import (
 )
 from backend.shared.providers.youtube.youtube_metadata import extract_youtube_id_from_url
 from backend.shared.providers.github import build_github_repo_embed, is_github_repo_url
+from backend.shared.providers.e2b_application_preview import (
+    ApplicationPreviewEntrypoint,
+    ApplicationPreviewFile,
+    ApplicationPreviewPlanningError,
+    plan_application_preview_startup,
+)
 
 logger = logging.getLogger(__name__)
+
+APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
+APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
+    ".svelte",
+    ".vue",
+    ".tsx",
+    ".jsx",
+    ".ts",
+    ".js",
+    ".css",
+    ".html",
+)
 
 EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "app_id",
@@ -769,6 +787,7 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         task_id: Optional[str] = None,
+        provenance: Optional[str] = None,
         log_prefix: str = "",
     ) -> Optional[Dict[str, Any]]:
         """Create a finished generated-application parent embed for code file embeds."""
@@ -798,6 +817,8 @@ class EmbedService:
                 "embed_ref": embed_ref,
                 "status": "finished",
             }
+            if provenance:
+                content["provenance"] = provenance
             content_toon = encode(_flatten_for_toon_tabular(content))
             text_length_chars = len(content_toon)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
@@ -867,6 +888,131 @@ class EmbedService:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating application embed: {e}", exc_info=True)
             return None
+
+    async def create_application_artifact_embed(
+        self,
+        *,
+        name: str,
+        framework: str,
+        runtime: str,
+        files: List[Dict[str, Any]],
+        entrypoints: List[Dict[str, Any]],
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create child file embeds and one parent application embed from a structured artifact."""
+        try:
+            normalized_entrypoints = [
+                ApplicationPreviewEntrypoint(
+                    name=str(entrypoint.get("name") or "frontend"),
+                    command=str(entrypoint.get("command") or "npm run dev"),
+                    port=int(entrypoint.get("port") or 5173),
+                )
+                for entrypoint in entrypoints
+            ]
+            normalized_files = [
+                ApplicationPreviewFile(
+                    path=str(file.get("path") or file.get("filename") or ""),
+                    content=str(file.get("content") or ""),
+                )
+                for file in files
+            ]
+            plan = plan_application_preview_startup(
+                files=normalized_files,
+                entrypoints=normalized_entrypoints,
+            )
+        except (ApplicationPreviewPlanningError, TypeError, ValueError) as exc:
+            logger.warning(f"{log_prefix} Invalid generated application artifact: {exc}")
+            return None
+
+        paths = [file.path for file in plan.files]
+        has_manifest = any(path in APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS for path in paths)
+        has_source = any(path.endswith(APPLICATION_ARTIFACT_SOURCE_EXTENSIONS) for path in paths)
+        if not has_manifest or not has_source:
+            logger.info(
+                f"{log_prefix} Generated application artifact is incomplete "
+                f"(has_manifest={has_manifest}, has_source={has_source})"
+            )
+            return None
+
+        child_refs: List[Dict[str, Any]] = []
+        for planned_file in plan.files:
+            source_file = next(
+                (file for file in files if str(file.get("path") or file.get("filename") or "") == planned_file.path),
+                {},
+            )
+            language = source_file.get("language") or EmbedService._language_for_application_artifact_path(planned_file.path)
+            child_embed = await self.create_code_embed_placeholder(
+                language=str(language or ""),
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                filename=planned_file.path,
+                log_prefix=log_prefix,
+            )
+            if not child_embed:
+                logger.error(f"{log_prefix} Could not create generated application child embed for {planned_file.path}")
+                return None
+
+            child_embed_id = child_embed["embed_id"]
+            updated = await self.update_code_embed_content(
+                embed_id=child_embed_id,
+                code_content=planned_file.content,
+                chat_id=chat_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                status="finished",
+                log_prefix=log_prefix,
+            )
+            if not updated:
+                logger.error(f"{log_prefix} Could not finalize generated application child embed {child_embed_id}")
+                return None
+
+            role = "dependency_manifest" if planned_file.path in APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS else "source"
+            child_refs.append({"path": planned_file.path, "embed_id": child_embed_id, "role": role})
+
+        return await self.create_application_embed(
+            name=name or "Generated application",
+            framework=framework or "web",
+            runtime=runtime or "node",
+            file_refs=child_refs,
+            entrypoints=plan.start_commands,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            task_id=task_id,
+            provenance="structured_artifact",
+            log_prefix=log_prefix,
+        )
+
+    @staticmethod
+    def _language_for_application_artifact_path(path: str) -> str:
+        extension_map = {
+            ".css": "css",
+            ".html": "html",
+            ".js": "javascript",
+            ".jsx": "jsx",
+            ".json": "json",
+            ".svelte": "svelte",
+            ".ts": "typescript",
+            ".tsx": "tsx",
+            ".vue": "vue",
+        }
+        for extension, language in extension_map.items():
+            if path.endswith(extension):
+                return language
+        return ""
 
     # =========================================================================
     # Table/sheet embed methods (for markdown tables detected in AI responses)

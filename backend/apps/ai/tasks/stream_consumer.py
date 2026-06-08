@@ -2611,6 +2611,16 @@ def _build_application_manifest_from_code_embeds(
     }
 
 
+def _has_stream_ready_application_manifest(code_embeds: List[Dict[str, str]]) -> bool:
+    manifest = _build_application_manifest_from_code_embeds(code_embeds)
+    if not manifest:
+        return False
+
+    paths = {ref["path"] for ref in manifest["file_refs"]}
+    has_entrypoint = any(path in paths for path in APPLICATION_PREVIEW_MAIN_FILES)
+    return has_entrypoint and len(paths) >= 3
+
+
 def _record_generated_code_file_embed(
     code_embeds: List[Dict[str, str]],
     *,
@@ -2674,6 +2684,52 @@ async def _create_application_preview_child_code_embeds(
         embed_references.append(f"```json\n{embed_data['embed_reference']}\n```\n\n")
 
     return "".join(embed_references)
+
+
+async def _create_application_artifact_embed_reference(
+    *,
+    files: List[Dict[str, str]],
+    embed_service: Any,
+    generated_code_file_embeds: List[Dict[str, str]],
+    request_data: AskSkillRequest,
+    task_id: str,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> Optional[str]:
+    application_embed_data = await embed_service.create_application_artifact_embed(
+        name="Generated application",
+        framework="svelte" if any(file.get("filename", "").endswith(".svelte") for file in files) else "web",
+        runtime="node",
+        files=[
+            {
+                "path": file.get("filename", ""),
+                "language": file.get("language", ""),
+                "content": file.get("content", ""),
+            }
+            for file in files
+        ],
+        entrypoints=[{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        chat_id=request_data.chat_id,
+        message_id=request_data.message_id,
+        user_id=request_data.user_id,
+        user_id_hash=request_data.user_id_hash,
+        user_vault_key_id=user_vault_key_id,
+        task_id=task_id,
+        log_prefix=log_prefix,
+    )
+    if not application_embed_data:
+        return None
+
+    child_embed_ids = application_embed_data.get("child_embed_ids") or []
+    for file, embed_id in zip(files, child_embed_ids):
+        _record_generated_code_file_embed(
+            generated_code_file_embeds,
+            embed_id=str(embed_id),
+            filename=file.get("filename"),
+            language=file.get("language"),
+        )
+
+    return f"```json\n{application_embed_data['embed_reference']}\n```\n\n"
 
 
 async def _infer_generated_code_file_embeds_from_response(
@@ -2768,6 +2824,7 @@ async def _create_application_parent_embed_reference(
         user_id_hash=request_data.user_id_hash,
         user_vault_key_id=user_vault_key_id,
         task_id=task_id,
+        provenance="fallback_stream_inference",
         log_prefix=log_prefix,
     )
     if not application_embed_data:
@@ -3947,7 +4004,7 @@ async def _consume_main_processing_stream(
                                             code_content,
                                         ) or _parse_application_preview_json_bundle_files(current_code_language, code_content)
                                         if application_preview_files:
-                                            embed_reference_code = await _create_application_preview_child_code_embeds(
+                                            embed_reference_code = await _create_application_artifact_embed_reference(
                                                 files=application_preview_files,
                                                 embed_service=embed_service,
                                                 generated_code_file_embeds=generated_code_file_embeds,
@@ -3958,9 +4015,10 @@ async def _consume_main_processing_stream(
                                             )
                                             if embed_reference_code:
                                                 chunk = embed_reference_code
+                                                application_parent_embed_created = True
                                                 logger.info(
-                                                    f"{log_prefix} Created {len(application_preview_files)} generated "
-                                                    "application file embed(s) from combined preview block"
+                                                    f"{log_prefix} Created generated application artifact from "
+                                                    f"{len(application_preview_files)} file(s) in combined preview block"
                                                 )
 
                                             # Reset state
@@ -4696,7 +4754,7 @@ async def _consume_main_processing_stream(
                                         status="error",
                                         log_prefix=log_prefix,
                                     )
-                                chunk = await _create_application_preview_child_code_embeds(
+                                chunk = await _create_application_artifact_embed_reference(
                                     files=application_preview_files_at_close,
                                     embed_service=embed_service,
                                     generated_code_file_embeds=generated_code_file_embeds,
@@ -4705,10 +4763,12 @@ async def _consume_main_processing_stream(
                                     user_vault_key_id=user_vault_key_id,
                                     log_prefix=log_prefix,
                                 )
-                                logger.info(
-                                    f"{log_prefix} Created {len(application_preview_files_at_close)} generated "
-                                    "application file embed(s) from JSON bundle"
-                                )
+                                if chunk:
+                                    application_parent_embed_created = True
+                                    logger.info(
+                                        f"{log_prefix} Created generated application artifact from "
+                                        f"{len(application_preview_files_at_close)} file(s) in JSON bundle"
+                                    )
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating generated application embeds from JSON bundle: {e}", exc_info=True)
                                 chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
@@ -4739,7 +4799,7 @@ async def _consume_main_processing_stream(
                                 try:
                                     from backend.core.api.app.services.embed_service import EmbedService
                                     embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                                    chunk = await _create_application_preview_child_code_embeds(
+                                    chunk = await _create_application_artifact_embed_reference(
                                         files=application_preview_files,
                                         embed_service=embed_service,
                                         generated_code_file_embeds=generated_code_file_embeds,
@@ -4748,10 +4808,12 @@ async def _consume_main_processing_stream(
                                         user_vault_key_id=user_vault_key_id,
                                         log_prefix=log_prefix,
                                     )
-                                    logger.info(
-                                        f"{log_prefix} Created {len(application_preview_files)} generated "
-                                        "application file embed(s) from multi-chunk preview block"
-                                    )
+                                    if chunk:
+                                        application_parent_embed_created = True
+                                        logger.info(
+                                            f"{log_prefix} Created generated application artifact from "
+                                            f"{len(application_preview_files)} file(s) in multi-chunk preview block"
+                                        )
                                 except Exception as e:
                                     logger.error(
                                         f"{log_prefix} Error creating generated application file embeds: {e}",
@@ -4882,8 +4944,36 @@ async def _consume_main_processing_stream(
                                         filename=current_code_filename,
                                         language=current_code_language,
                                     )
-                                     
+                                      
                                     logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+
+                                    if (
+                                        not application_parent_embed_created
+                                        and cache_service
+                                        and directus_service
+                                        and encryption_service
+                                        and user_vault_key_id
+                                        and _has_stream_ready_application_manifest(generated_code_file_embeds)
+                                    ):
+                                        application_reference = await _create_application_parent_embed_reference(
+                                            generated_code_file_embeds=generated_code_file_embeds,
+                                            cache_service=cache_service,
+                                            directus_service=directus_service,
+                                            encryption_service=encryption_service,
+                                            request_data=request_data,
+                                            task_id=task_id,
+                                            user_vault_key_id=user_vault_key_id,
+                                            log_prefix=log_prefix,
+                                            response_text="".join(final_response_chunks),
+                                        )
+                                        if application_reference:
+                                            final_response_chunks.append(application_reference)
+                                            stream_chunk_count += 1
+                                            application_parent_embed_created = True
+                                            logger.info(
+                                                f"{log_prefix} Published streaming generated application embed reference "
+                                                f"after {len(generated_code_file_embeds)} file embed(s)"
+                                            )
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
                         
@@ -5272,7 +5362,7 @@ async def _consume_main_processing_stream(
                     from backend.core.api.app.services.embed_service import EmbedService
 
                     embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                    child_references = await _create_application_preview_child_code_embeds(
+                    application_reference = await _create_application_artifact_embed_reference(
                         files=raw_application_files,
                         embed_service=embed_service,
                         generated_code_file_embeds=generated_code_file_embeds,
@@ -5281,14 +5371,16 @@ async def _consume_main_processing_stream(
                         user_vault_key_id=user_vault_key_id,
                         log_prefix=log_prefix,
                     )
-                    aggregated_response = cleaned_response.rstrip() + "\n\n" + child_references
-                    final_response_chunks = [aggregated_response]
-                    logger.info(
-                        f"{log_prefix} Created {len(raw_application_files)} generated application file embed(s) "
-                        "from raw markdown code block"
-                    )
+                    if application_reference:
+                        aggregated_response = cleaned_response.rstrip() + "\n\n" + application_reference
+                        final_response_chunks = [aggregated_response]
+                        application_parent_embed_created = True
+                        logger.info(
+                            f"{log_prefix} Created generated application artifact from "
+                            f"{len(raw_application_files)} raw markdown file(s)"
+                        )
 
-            if generated_code_file_embeds:
+            if generated_code_file_embeds and not application_parent_embed_created:
                 application_reference = await _create_application_parent_embed_reference(
                     generated_code_file_embeds=generated_code_file_embeds,
                     cache_service=cache_service,
@@ -5923,6 +6015,7 @@ async def _consume_main_processing_stream(
         aggregated_response
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
+        and not application_parent_embed_created
         and cache_service
         and directus_service
         and encryption_service
@@ -5937,7 +6030,7 @@ async def _consume_main_processing_stream(
                     from backend.core.api.app.services.embed_service import EmbedService
 
                     embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                    child_references = await _create_application_preview_child_code_embeds(
+                    application_reference = await _create_application_artifact_embed_reference(
                         files=raw_application_files,
                         embed_service=embed_service,
                         generated_code_file_embeds=generated_code_file_embeds,
@@ -5946,27 +6039,33 @@ async def _consume_main_processing_stream(
                         user_vault_key_id=user_vault_key_id,
                         log_prefix=log_prefix,
                     )
-                    aggregated_response = cleaned_response.rstrip() + "\n\n" + child_references
-                    final_response_chunks = [aggregated_response]
-                    logger.info(
-                        f"{log_prefix} Created {len(raw_application_files)} generated application file embed(s) "
-                        "from raw markdown code block"
-                    )
+                    if application_reference:
+                        aggregated_response = cleaned_response.rstrip() + "\n\n" + application_reference
+                        final_response_chunks = [aggregated_response]
+                        application_parent_embed_created = True
+                        logger.info(
+                            f"{log_prefix} Created generated application artifact from "
+                            f"{len(raw_application_files)} raw markdown file(s)"
+                        )
 
-            if not generated_code_file_embeds:
+            if application_parent_embed_created:
+                generated_code_file_embeds = []
+            elif not generated_code_file_embeds:
                 raise ValueError("no generated code file embeds available for application parent")
 
-            application_reference = await _create_application_parent_embed_reference(
-                generated_code_file_embeds=generated_code_file_embeds,
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service,
-                request_data=request_data,
-                task_id=task_id,
-                user_vault_key_id=user_vault_key_id,
-                log_prefix=log_prefix,
-                response_text=aggregated_response,
-            )
+            application_reference = None
+            if not application_parent_embed_created:
+                application_reference = await _create_application_parent_embed_reference(
+                    generated_code_file_embeds=generated_code_file_embeds,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    request_data=request_data,
+                    task_id=task_id,
+                    user_vault_key_id=user_vault_key_id,
+                    log_prefix=log_prefix,
+                    response_text=aggregated_response,
+                )
             if application_reference:
                 aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
                 final_response_chunks = [aggregated_response]
