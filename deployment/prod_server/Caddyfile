@@ -32,6 +32,42 @@ http://:8008 {
 	}
 }
 
+openmatesusercontent.org {
+	# User-content origin for generated application previews.
+	# Only the signed preview gateway is exposed here; OpenMates API/auth routes
+	# stay on api.openmates.org so app cookies are never sent to previews.
+	log {
+		output file /var/log/caddy/openmatesusercontent.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Robots-Tag "noindex, nofollow"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), clipboard-read=(), clipboard-write=()"
+		-Server
+	}
+
+	@preview_gateway path /p/*
+
+	handle @preview_gateway {
+		reverse_proxy localhost:8000 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	handle {
+		abort
+	}
+}
+
 api.openmates.org {
 	# Enable structured logging (JSON format) suitable for log processors like Fail2Ban
 	log {
