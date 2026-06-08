@@ -26,7 +26,7 @@ MAX_RESULT_COUNT = 10
 
 
 async def _sanitize_external_content(**kwargs: Any) -> str | None:
-    from backend.apps.ai.processing.content_sanitization import sanitize_external_content
+    from backend.shared.python_utils.app_skill_helpers import sanitize_external_content
 
     return await sanitize_external_content(**kwargs)
 

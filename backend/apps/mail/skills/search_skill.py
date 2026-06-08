@@ -18,10 +18,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from celery import Celery
 from pydantic import BaseModel, Field
 
-from backend.apps.ai.processing.external_result_sanitizer import (
+from backend.shared.python_utils.app_skill_helpers import (
+    check_rate_limit,
     sanitize_long_text_fields_in_payload,
+    wait_for_rate_limit,
 )
-from backend.apps.ai.processing.skill_executor import check_rate_limit, wait_for_rate_limit
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager

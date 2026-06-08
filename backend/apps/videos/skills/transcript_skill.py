@@ -27,7 +27,7 @@ except ImportError:
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.apps.ai.processing.skill_executor import sanitize_external_content
+from backend.shared.python_utils.app_skill_helpers import sanitize_external_content
 from backend.shared.providers.youtube.youtube_metadata import get_video_metadata_batched
 from backend.core.api.app.services.creators.revenue_service import CreatorRevenueService
 from backend.core.api.app.services.directus import DirectusService

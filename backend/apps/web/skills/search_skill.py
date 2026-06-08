@@ -21,7 +21,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_web
 from backend.shared.python_utils.domain_filter import load_tabloid_blocklist, filter_results_by_domain
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
+from backend.shared.python_utils.app_skill_helpers import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.providers.youtube.youtube_metadata import (

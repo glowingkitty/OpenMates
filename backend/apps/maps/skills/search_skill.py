@@ -16,8 +16,11 @@ from celery import Celery  # For Celery type hinting
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_maps.google_places import search_places
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.apps.ai.processing.skill_executor import check_rate_limit, wait_for_rate_limit
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import (
+    check_rate_limit,
+    sanitize_long_text_fields_in_payload,
+    wait_for_rate_limit,
+)
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 

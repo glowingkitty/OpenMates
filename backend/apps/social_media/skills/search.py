@@ -13,7 +13,7 @@ import logging
 import uuid
 from typing import Any, Optional
 
-from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
+from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.apps.base_skill import BaseSkill
 from backend.apps.social_media.search_collection import SearchRequestItem, SearchResponse
 

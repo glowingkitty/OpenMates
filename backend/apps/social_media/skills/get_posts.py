@@ -14,7 +14,7 @@ import uuid
 from typing import Any, Optional
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
+from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.apps.social_media.collection import GetPostsRequestItem, GetPostsResponse
 
 logger = logging.getLogger(__name__)

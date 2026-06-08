@@ -45,7 +45,7 @@ from celery import Celery  # For type hinting only
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
 from backend.apps.events.providers import eventbrite as eventbrite_provider
 from backend.apps.events.providers import google_events as google_events_provider

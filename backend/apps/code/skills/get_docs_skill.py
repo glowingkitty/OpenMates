@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 from celery import Celery
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.skill_executor import sanitize_external_content
+from backend.shared.python_utils.app_skill_helpers import sanitize_external_content
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 # Context7 docs are treated as external content and sanitized before returning.
 
