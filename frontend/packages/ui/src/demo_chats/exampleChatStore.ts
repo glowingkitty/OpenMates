@@ -54,10 +54,6 @@ import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminde
 import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
 import { mastodonAccountRecentPostsChat } from "./data/example_chats/mastodon-account-recent-posts";
 import { habitGardenViteAppChat } from "./data/example_chats/habit-garden-vite-app";
-import { openmatesPdfPageSecretChat } from "./data/example_chats/openmates-pdf-page-secret";
-import { pdfKeywordSearchBetaChat } from "./data/example_chats/pdf-keyword-search-beta";
-import { pdfPageLayoutViewChat } from "./data/example_chats/pdf-page-layout-view";
-import { uploadedImageVectorizeSvgChat } from "./data/example_chats/uploaded-image-vectorize-svg";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -104,10 +100,6 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   fediverseActivitypubSocialSearchChat,
   mastodonAccountRecentPostsChat,
   habitGardenViteAppChat,
-  openmatesPdfPageSecretChat,
-  pdfKeywordSearchBetaChat,
-  pdfPageLayoutViewChat,
-  uploadedImageVectorizeSvgChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
