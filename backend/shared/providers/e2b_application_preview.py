@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
+VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -180,9 +181,10 @@ def start_application_preview_in_e2b(
     ports = {str(command["name"]): int(command["port"]) for command in plan.start_commands}
     upstream_base_urls = {name: _sandbox_host(sandbox, port) for name, port in ports.items()}
     vite_allowed_hosts = _vite_allowed_hosts(upstream_base_urls)
+    vite_config_path = _write_vite_allowed_hosts_config(sandbox, plan.files, vite_allowed_hosts)
     for command in plan.start_commands:
         sandbox.commands.run(
-            _with_vite_allowed_hosts(str(command["command"]), vite_allowed_hosts),
+            _with_vite_preview_settings(str(command["command"]), vite_allowed_hosts, vite_config_path),
             background=True,
             timeout=30,
         )
@@ -243,6 +245,47 @@ def _with_vite_allowed_hosts(command: str, allowed_hosts: list[str]) -> str:
     if not allowed_hosts or VITE_ALLOWED_HOSTS_ENV in command:
         return command
     return f"{VITE_ALLOWED_HOSTS_ENV}={shlex.quote(','.join(allowed_hosts))} {command}"
+
+
+def _with_vite_preview_settings(command: str, allowed_hosts: list[str], vite_config_path: str | None) -> str:
+    configured = _with_vite_allowed_hosts(command, allowed_hosts)
+    if not vite_config_path or not _is_vite_dev_command(command) or "--config" in command:
+        return configured
+    return f"{configured} --config {shlex.quote(vite_config_path)}"
+
+
+def _is_vite_dev_command(command: str) -> bool:
+    parts = shlex.split(command)
+    if not parts:
+        return False
+    return parts[:3] == ["npm", "run", "dev"] or parts[0].endswith("vite") or parts[0] == "vite"
+
+
+def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPreviewFile], allowed_hosts: list[str]) -> str | None:
+    if not allowed_hosts or not _has_vite_dependency(files):
+        return None
+    hosts = ", ".join(repr(host) for host in allowed_hosts)
+    sandbox.files.write_files([
+        {
+            "path": VITE_OPENMATES_CONFIG_PATH,
+            "data": (
+                "import { defineConfig } from 'vite';\n\n"
+                "export default defineConfig({\n"
+                "  server: {\n"
+                f"    allowedHosts: [{hosts}],\n"
+                "  },\n"
+                "});\n"
+            ),
+        }
+    ])
+    return VITE_OPENMATES_CONFIG_PATH
+
+
+def _has_vite_dependency(files: list[ApplicationPreviewFile]) -> bool:
+    for file in files:
+        if file.path.rsplit("/", 1)[-1] == "package.json" and "vite" in file.content:
+            return True
+    return False
 
 
 def _sandbox_screenshot_url(sandbox: Any) -> str | None:

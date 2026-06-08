@@ -13,7 +13,9 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewFile,
     ApplicationPreviewPlanningError,
     _vite_allowed_hosts,
+    _with_vite_preview_settings,
     _with_vite_allowed_hosts,
+    _write_vite_allowed_hosts_config,
     plan_application_preview_startup,
 )
 
@@ -57,6 +59,45 @@ def test_preview_start_command_allows_exact_e2b_vite_hosts() -> None:
 
     assert hosts == ["5173-izr5goe7od08cvlqzemo8.e2b.app"]
     assert command == "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=5173-izr5goe7od08cvlqzemo8.e2b.app npm run dev -- --host 0.0.0.0"
+
+
+def test_preview_start_command_uses_generated_vite_config() -> None:
+    command = _with_vite_preview_settings(
+        "npm run dev -- --host 0.0.0.0",
+        ["5173-izr5goe7od08cvlqzemo8.e2b.app"],
+        "vite.config.openmates.mjs",
+    )
+
+    assert command == (
+        "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=5173-izr5goe7od08cvlqzemo8.e2b.app "
+        "npm run dev -- --host 0.0.0.0 --config vite.config.openmates.mjs"
+    )
+
+
+def test_preview_writes_generated_vite_allowed_hosts_config() -> None:
+    class FakeFiles:
+        def __init__(self) -> None:
+            self.payloads = []
+
+        def write_files(self, payload):
+            self.payloads.append(payload)
+
+    class FakeSandbox:
+        def __init__(self) -> None:
+            self.files = FakeFiles()
+
+    sandbox = FakeSandbox()
+
+    path = _write_vite_allowed_hosts_config(
+        sandbox,
+        [ApplicationPreviewFile(path="package.json", content='{"devDependencies":{"vite":"^5.0.0"}}')],
+        ["5173-izr5goe7od08cvlqzemo8.e2b.app"],
+    )
+
+    assert path == "vite.config.openmates.mjs"
+    written = sandbox.files.payloads[0][0]
+    assert written["path"] == "vite.config.openmates.mjs"
+    assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
 
 
 def test_preview_start_command_does_not_duplicate_vite_allowed_hosts_env() -> None:

@@ -11,6 +11,7 @@ import asyncio
 import base64
 import json
 import logging
+import math
 import os
 import time
 import uuid
@@ -19,10 +20,12 @@ from io import BytesIO
 from typing import Any, Awaitable, Callable
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import httpx
 from toon_format import decode as toon_decode
 from toon_format import encode as toon_encode
 
 from backend.core.api.app.routes.application_preview import (
+    APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
     APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
     application_preview_session_key,
 )
@@ -40,6 +43,8 @@ logger = logging.getLogger(__name__)
 APPLICATION_PREVIEW_SCREENSHOT_VARIANT = "preview"
 APPLICATION_PREVIEW_SCREENSHOT_WIDTH = 960
 APPLICATION_PREVIEW_SCREENSHOT_HEIGHT = 540
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
 
 try:  # pragma: no cover - local unit tests do not install Celery.
     from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
@@ -164,12 +169,19 @@ async def stop_application_preview_sandbox(
     try:
         stopped = await _stop_runtime(provider_stop, sandbox_id=sandbox_id, api_key=api_key)
         text = "Application preview sandbox stopped." if stopped else "Application preview sandbox stop was requested."
+        charge_patch = await _charge_preview_if_needed(
+            cache_service=cache_service,
+            session_id=session_id,
+            stopped_at=stopped_at,
+            billing_phase="stopped",
+        )
         await _patch_session(
             cache_service,
             session_id,
             {
                 "sandbox_stopped_at": stopped_at,
                 "updated_at": stopped_at,
+                **charge_patch,
                 "events+": [{"kind": "status", "text": text, "timestamp": stopped_at}],
             },
         )
@@ -256,6 +268,81 @@ async def _patch_session(cache_service: Any, session_id: str, patch: dict[str, A
     if events:
         data.setdefault("events", []).extend(events)
     await client.set(application_preview_session_key(session_id), json.dumps(data), ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS)
+
+
+async def _charge_preview_if_needed(
+    *,
+    cache_service: Any,
+    session_id: str,
+    stopped_at: float,
+    billing_phase: str,
+) -> dict[str, Any]:
+    client = await cache_service.client
+    raw = await client.get(application_preview_session_key(session_id))
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
+    billing_state = data.get("billing_state") if isinstance(data.get("billing_state"), dict) else {}
+    if billing_state.get("charged_credits"):
+        return {}
+
+    billable_started_at = float(billing_state.get("billable_started_at") or 0)
+    duration_seconds = max(0.0, stopped_at - billable_started_at) if billable_started_at else 0.0
+    if duration_seconds <= 0:
+        return {}
+
+    charged_minutes = max(1, math.ceil(duration_seconds / 60))
+    charged_credits = charged_minutes * APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE
+    await _charge_preview_credits(
+        session=data,
+        session_id=session_id,
+        credits=charged_credits,
+        usage_details={
+            "billing_phase": billing_phase,
+            "duration_seconds": round(duration_seconds, 3),
+            "charged_minutes": charged_minutes,
+            "total_charged_minutes": charged_minutes,
+        },
+    )
+    return {
+        "billing_state.charged_credits": charged_credits,
+        "billing_state.charged_minutes": charged_minutes,
+        "billing_state.duration_seconds": round(duration_seconds, 3),
+    }
+
+
+async def _charge_preview_credits(
+    *,
+    session: dict[str, Any],
+    session_id: str,
+    credits: int,
+    usage_details: dict[str, Any],
+) -> None:
+    usage_context = session.get("usage_context") if isinstance(session.get("usage_context"), dict) else {}
+    charge_payload = {
+        "user_id": session["viewer_user_id"],
+        "user_id_hash": session["viewer_user_id_hash"],
+        "credits": credits,
+        "skill_id": "application_preview",
+        "app_id": "code",
+        "usage_details": {
+            "preview_session_id": session_id,
+            "application_embed_id": session.get("application_embed_id"),
+            "chat_id": usage_context.get("chat_id"),
+            "credits_per_minute": APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
+            **usage_details,
+        },
+        "api_key_hash": None,
+        "device_hash": None,
+    }
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            f"{INTERNAL_API_BASE_URL}/internal/billing/charge",
+            json=charge_payload,
+            headers=headers,
+        )
+        response.raise_for_status()
 
 
 async def store_application_preview_thumbnail(

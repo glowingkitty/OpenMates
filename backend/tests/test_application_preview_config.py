@@ -152,6 +152,7 @@ def test_preview_session_record_is_viewer_scoped_and_timeout_bounded() -> None:
     assert record["viewer_user_id_hash"] == hashlib.sha256(b"bob-user").hexdigest()
     assert record["chat_id_hash"] == hashlib.sha256(b"shared-chat").hexdigest()
     assert record["application_embed_id"] == "app-embed-1"
+    assert record["usage_context"] == {"chat_id": "shared-chat", "application_embed_id": "app-embed-1"}
     assert record["status"] == "queued"
     assert record["idle_deadline"] == 1_000.0 + APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS
     assert record["hard_deadline"] == 1_000.0 + APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS

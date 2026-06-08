@@ -369,3 +369,130 @@ async def test_stop_application_preview_sandbox_records_cleanup_event() -> None:
     assert calls == [{"sandbox_id": "sandbox-1", "api_key": "e2b-key"}]
     assert stored["sandbox_stopped_at"] == 2_090.0
     assert stored["events"][-1]["text"] == "Application preview sandbox stopped."
+
+
+@pytest.mark.anyio
+async def test_stop_application_preview_sandbox_charges_usage_once(monkeypatch) -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    stored["billing_state"]["billable_started_at"] = 2_030.0
+    await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
+
+    charges: list[dict] = []
+
+    async def fake_charge(**kwargs) -> None:
+        charges.append(kwargs)
+
+    monkeypatch.setattr(worker, "_charge_preview_credits", fake_charge)
+
+    await worker.stop_application_preview_sandbox(
+        cache_service=cache,
+        session_id="session-1",
+        sandbox_id="sandbox-1",
+        api_key="e2b-key",
+        provider_stop=lambda **_kwargs: True,
+        now=2_091.0,
+    )
+
+    charged = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    assert charges[0]["session_id"] == "session-1"
+    assert charges[0]["credits"] == 10
+    assert charges[0]["usage_details"] == {
+        "billing_phase": "stopped",
+        "duration_seconds": 61.0,
+        "charged_minutes": 2,
+        "total_charged_minutes": 2,
+    }
+    assert charges[0]["session"]["viewer_user_id"] == "alice-user"
+    assert charges[0]["session"]["usage_context"] == {"chat_id": "chat-1", "application_embed_id": "app-embed-1"}
+    assert charged["billing_state"]["charged_credits"] == 10
+    assert charged["billing_state"]["charged_minutes"] == 2
+
+    await worker.stop_application_preview_sandbox(
+        cache_service=cache,
+        session_id="session-1",
+        sandbox_id="sandbox-1",
+        api_key="e2b-key",
+        provider_stop=lambda **_kwargs: True,
+        now=2_120.0,
+    )
+    assert len(charges) == 1
+
+
+@pytest.mark.anyio
+async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch) -> None:
+    worker = _load_worker_module()
+    requests: list[dict] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeAsyncClient:
+        def __init__(self, *, timeout: int) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args) -> None:
+            return None
+
+        async def post(self, url: str, *, json: dict, headers: dict) -> FakeResponse:
+            requests.append({"url": url, "json": json, "headers": headers, "timeout": self.timeout})
+            return FakeResponse()
+
+    monkeypatch.setattr(worker.httpx, "AsyncClient", FakeAsyncClient)
+
+    await worker._charge_preview_credits(
+        session={
+            "viewer_user_id": "alice-user",
+            "viewer_user_id_hash": "alice-hash",
+            "application_embed_id": "app-embed-1",
+            "usage_context": {"chat_id": "chat-1", "application_embed_id": "app-embed-1"},
+        },
+        session_id="session-1",
+        credits=10,
+        usage_details={"billing_phase": "stopped", "duration_seconds": 61.0, "charged_minutes": 2},
+    )
+
+    assert requests[0]["headers"]["Content-Type"] == "application/json"
+    if worker.INTERNAL_API_SHARED_TOKEN:
+        assert requests[0]["headers"]["X-Internal-Service-Token"] == worker.INTERNAL_API_SHARED_TOKEN
+    else:
+        assert "X-Internal-Service-Token" not in requests[0]["headers"]
+    assert [{"url": item["url"], "json": item["json"], "timeout": item["timeout"]} for item in requests] == [
+        {
+            "url": "http://api:8000/internal/billing/charge",
+            "json": {
+                "user_id": "alice-user",
+                "user_id_hash": "alice-hash",
+                "credits": 10,
+                "skill_id": "application_preview",
+                "app_id": "code",
+                "usage_details": {
+                    "preview_session_id": "session-1",
+                    "application_embed_id": "app-embed-1",
+                    "chat_id": "chat-1",
+                    "credits_per_minute": 5,
+                    "billing_phase": "stopped",
+                    "duration_seconds": 61.0,
+                    "charged_minutes": 2,
+                },
+                "api_key_hash": None,
+                "device_hash": None,
+            },
+            "timeout": 30,
+        }
+    ]

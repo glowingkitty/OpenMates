@@ -202,6 +202,41 @@ scenarios:
       - Bob cannot access any runtime state, uploaded files, local database state, logs, or secrets from Alice's active or previous preview sessions.
       - Bob cannot modify Alice's original application embeds unless normal shared-chat editing permissions allow it.
 
+  - id: S-11
+    title: Authenticated user runs the Habit Garden example application
+    given:
+      - Alice is authenticated and has enough credits for at least one started preview minute.
+      - Alice opens the example chat example-habit-garden-vite-app on app.dev.openmates.org.
+    when:
+      - Alice opens the Habit Garden application embed fullscreen and clicks Start preview.
+    then:
+      - The API starts a viewer-owned application preview session using the dev user-content origin.
+      - E2B starts the generated Vite application with server.allowedHosts covering the exact E2B sandbox host.
+      - The iframe loads Habit Garden application content through the preview gateway without showing Vite's Blocked request page.
+      - The preview URL does not expose the raw E2B host to the client.
+
+  - id: S-12
+    title: Unauthenticated user cannot start billable example preview
+    given:
+      - An unauthenticated visitor opens the Habit Garden example chat.
+    when:
+      - The visitor opens the application embed and clicks Start preview.
+    then:
+      - No preview/start API request creates a session or E2B sandbox.
+      - The visitor is forwarded to the signup or login flow.
+      - No credits or usage records are created for anonymous preview attempts.
+
+  - id: S-13
+    title: Application preview runtime appears in usage and billing history
+    given:
+      - Alice is authenticated and starts a Habit Garden preview from the example chat.
+    when:
+      - The preview reaches a billable running state and then stops or times out.
+    then:
+      - Alice is charged according to the application preview started-minute rate.
+      - A usage entry is created for Alice with app_id=code, skill_id=application_preview, the preview session id, application embed id, and chat id.
+      - The usage entry appears in the billing usage UI so Alice can understand where her credits went.
+
   - id: S-9
     title: Apple client opens an application preview
     given:
@@ -310,6 +345,15 @@ acceptance_criteria:
   - id: AC-19
     scenario: S-10
     text: Parser-based Markdown/code-fence inference remains a fallback only and creates at most one parent application embed after a runnable manifest is detected.
+  - id: AC-20
+    scenario: S-11
+    text: The Habit Garden example application can be started by an authenticated user and renders live app content through E2B and the preview gateway without Vite allowed-host rejection.
+  - id: AC-21
+    scenario: S-12
+    text: Unauthenticated users cannot start application previews from example chats; the Start preview action forwards them to signup/login without creating a preview session or charge.
+  - id: AC-22
+    scenario: S-13
+    text: Every billed application preview session creates a user-visible usage entry tied to the authenticated user, chat, application embed, and preview session.
 
 contracts:
   api:
@@ -389,6 +433,7 @@ contracts:
     - Preview sessions require enough credits for at least the minimum billable interval before sandbox creation.
     - Billing begins no earlier than sandbox file upload/startup and stops when the sandbox is stopped, killed, failed, timed out, or cancelled.
     - The UI displays current or estimated credits per minute before or during preview startup.
+    - Usage history records application preview charges under app_id=code and skill_id=application_preview with chat_id, application_embed_id, preview_session_id, charged_minutes, and duration_seconds metadata.
   runtime:
     - v1 primary runtime is E2B for cross-platform support across desktop web, Safari iOS/iPadOS, and Apple native clients.
     - Apple clients render authorized preview gateway URLs in WKWebView and do not execute generated application code locally.
@@ -560,6 +605,7 @@ tests:
       - application preview provider planning normalizes safe generated file paths
       - package.json and requirements.txt produce deterministic dependency install commands
       - frontend and FastAPI entrypoints bind to externally reachable sandbox hosts and ports
+      - Vite previews write a generated Vite config with server.allowedHosts for the exact E2B sandbox host
       - unsafe paths, invalid ports, missing entrypoints, and secret-like file contents are rejected before sandbox upload
     red_phase:
       required: true
@@ -577,6 +623,34 @@ tests:
         run_id: "docker:python -m pytest /app/backend/tests/test_e2b_application_preview.py + live-e2b-smoke"
         timestamp: "2026-06-08T12:45:13Z"
         notes: "8 provider planning tests passed. A live E2B smoke in app-code-worker also created a sandbox for a static index.html app, exposed an upstream URL for port 5173, returned HTTP 200 with expected content, and killed the sandbox successfully."
+
+  - id: T-PYTEST-APP-PREVIEW-USAGE-001
+    type: pytest
+    file: backend/tests/test_run_application_preview_task.py
+    command: python3 -m pytest backend/tests/test_run_application_preview_task.py
+    covers:
+      - AC-6
+      - AC-17
+      - AC-22
+    assertions:
+      - stopping a billable application preview charges the authenticated viewer once
+      - charge payload includes app_id=code and skill_id=application_preview
+      - charge usage details include chat_id, application_embed_id, preview_session_id, charged_minutes, duration_seconds, and billing_phase
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_e2b_application_preview.py /app/backend/tests/test_application_preview_gateway.py /app/backend/tests/test_application_preview_config.py /app/backend/tests/test_run_application_preview_task.py -q"
+        timestamp: "2026-06-08T22:19:00Z"
+        notes: "Focused application preview backend suite passed with 49 tests, including stop-time billing and internal charge payload coverage."
 
   - id: T-PYTEST-APP-WORKER-LIFECYCLE-001
     type: pytest
@@ -744,6 +818,36 @@ tests:
         run_id: "python3 scripts/run_tests.py --suite playwright --spec application-preview-share.spec.ts / github-actions:27142440000"
         timestamp: "2026-06-08T13:54:14Z"
         notes: "Playwright-only post-deploy run passed after Vercel Ready gate for commit 534d54a08; summary 1 total, 1 passed, 0 failed."
+
+  - id: T-E2E-HABIT-GARDEN-APP-PREVIEW-001
+    type: playwright
+    file: frontend/apps/web_app/tests/example-application-preview.spec.ts
+    command: python3 scripts/run_tests.py --spec example-application-preview.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-20
+      - AC-21
+      - AC-22
+    assertions:
+      - unauthenticated visitor opening the Habit Garden example cannot start a preview and is routed to signup/login
+      - authenticated user opening the Habit Garden example can start a live E2B preview
+      - preview iframe URL uses https://dev.openmatesusercontent.org and never exposes e2b.app
+      - iframe content does not show Vite's Blocked request page and renders Habit Garden content
+      - billing usage details show an application preview charge linked to the example chat after stop
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
 
   - id: T-LINT-APP-EMBED-001
     type: lint

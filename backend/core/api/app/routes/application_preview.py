@@ -389,6 +389,10 @@ def build_preview_session_record(
         "viewer_user_id_hash": _sha256_hex(viewer_user_id),
         "chat_id_hash": _sha256_hex(chat_id),
         "application_embed_id": application_embed_id,
+        "usage_context": {
+            "chat_id": chat_id,
+            "application_embed_id": application_embed_id,
+        },
         "status": "queued",
         "created_at": now,
         "updated_at": now,

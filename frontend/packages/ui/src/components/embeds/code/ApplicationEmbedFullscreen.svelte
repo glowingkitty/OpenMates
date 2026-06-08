@@ -10,6 +10,7 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import { authStore } from '../../../stores/authStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import {
     buildApplicationPreviewSharedContext,
@@ -143,6 +144,10 @@
 
   async function handleStartPreview() {
     if (!chatId || !embedId || isBusy) return;
+    if (!$authStore.isAuthenticated) {
+      window.dispatchEvent(new CustomEvent('openSignupInterface'));
+      return;
+    }
     isBusy = true;
     errorMessage = null;
     previewEvents = [];
