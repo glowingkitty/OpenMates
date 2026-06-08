@@ -1,0 +1,247 @@
+title:
+  context: "Title of example chat: Transcribe a voice note"
+  en: "Transcribe a voice note"
+  de: "Transcribe a voice note"
+  zh: "Transcribe a voice note"
+  es: "Transcribe a voice note"
+  fr: "Transcribe a voice note"
+  pt: "Transcribe a voice note"
+  ru: "Transcribe a voice note"
+  ja: "Transcribe a voice note"
+  ko: "Transcribe a voice note"
+  it: "Transcribe a voice note"
+  tr: "Transcribe a voice note"
+  vi: "Transcribe a voice note"
+  id: "Transcribe a voice note"
+  pl: "Transcribe a voice note"
+  nl: "Transcribe a voice note"
+  ar: "Transcribe a voice note"
+  hi: "Transcribe a voice note"
+  th: "Transcribe a voice note"
+  cs: "Transcribe a voice note"
+  sv: "Transcribe a voice note"
+  he: "Transcribe a voice note"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Transcribe a voice note"
+  en: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  de: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  zh: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  es: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  fr: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  pt: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  ru: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  ja: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  ko: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  it: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  tr: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  vi: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  id: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  pl: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  nl: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  ar: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  hi: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  th: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  cs: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  sv: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  he: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Transcribe a voice note. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  de: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  zh: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  es: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  fr: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  pt: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  ru: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  ja: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  ko: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  it: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  tr: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  vi: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  id: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  pl: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  nl: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  ar: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  hi: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  th: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  cs: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  sv: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  he: |
+    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    ```json
+    {
+      "type": "audio-recording",
+      "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b"
+    }
+    ```
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Transcribe a voice note. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "OpenMates can transcribe short voice notes from the command line."
+  de: "OpenMates can transcribe short voice notes from the command line."
+  zh: "OpenMates can transcribe short voice notes from the command line."
+  es: "OpenMates can transcribe short voice notes from the command line."
+  fr: "OpenMates can transcribe short voice notes from the command line."
+  pt: "OpenMates can transcribe short voice notes from the command line."
+  ru: "OpenMates can transcribe short voice notes from the command line."
+  ja: "OpenMates can transcribe short voice notes from the command line."
+  ko: "OpenMates can transcribe short voice notes from the command line."
+  it: "OpenMates can transcribe short voice notes from the command line."
+  tr: "OpenMates can transcribe short voice notes from the command line."
+  vi: "OpenMates can transcribe short voice notes from the command line."
+  id: "OpenMates can transcribe short voice notes from the command line."
+  pl: "OpenMates can transcribe short voice notes from the command line."
+  nl: "OpenMates can transcribe short voice notes from the command line."
+  ar: "OpenMates can transcribe short voice notes from the command line."
+  hi: "OpenMates can transcribe short voice notes from the command line."
+  th: "OpenMates can transcribe short voice notes from the command line."
+  cs: "OpenMates can transcribe short voice notes from the command line."
+  sv: "OpenMates can transcribe short voice notes from the command line."
+  he: "OpenMates can transcribe short voice notes from the command line."
+  verified_by_human: []
+

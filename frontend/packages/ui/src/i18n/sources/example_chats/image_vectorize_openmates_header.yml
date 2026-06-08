@@ -1,0 +1,352 @@
+title:
+  context: "Title of example chat: Vectorize an image to SVG"
+  en: "Vectorize an image to SVG"
+  de: "Vectorize an image to SVG"
+  zh: "Vectorize an image to SVG"
+  es: "Vectorize an image to SVG"
+  fr: "Vectorize an image to SVG"
+  pt: "Vectorize an image to SVG"
+  ru: "Vectorize an image to SVG"
+  ja: "Vectorize an image to SVG"
+  ko: "Vectorize an image to SVG"
+  it: "Vectorize an image to SVG"
+  tr: "Vectorize an image to SVG"
+  vi: "Vectorize an image to SVG"
+  id: "Vectorize an image to SVG"
+  pl: "Vectorize an image to SVG"
+  nl: "Vectorize an image to SVG"
+  ar: "Vectorize an image to SVG"
+  hi: "Vectorize an image to SVG"
+  th: "Vectorize an image to SVG"
+  cs: "Vectorize an image to SVG"
+  sv: "Vectorize an image to SVG"
+  he: "Vectorize an image to SVG"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Vectorize an image to SVG"
+  en: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  de: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  zh: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  es: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  fr: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  pt: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  ru: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  ja: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  ko: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  it: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  tr: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  vi: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  id: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  pl: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  nl: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  ar: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  hi: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  th: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  cs: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  sv: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  he: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Vectorize an image to SVG. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  de: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  zh: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  es: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  fr: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  pt: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  ru: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  ja: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  ko: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  it: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  tr: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  vi: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  id: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  pl: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  nl: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  ar: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  hi: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  th: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  cs: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  sv: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  he: |
+    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    ```json
+    {
+      "type": "image",
+      "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371"
+    }
+    ```
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Vectorize an image to SVG. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
+    ```
+    
+    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+  verified_by_human: []
+

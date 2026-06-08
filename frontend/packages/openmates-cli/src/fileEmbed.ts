@@ -15,6 +15,9 @@
  * - PDFs (.pdf):
  *   Uploaded to S3 → PDF embed created → background OCR triggered
  *
+ * - Audio (.mp3, .wav, .webm, etc.):
+ *   Uploaded to S3 → audio-recording embed created for audio.transcribe
+ *
  * - Sensitive files (.env, .pem, .key, SSH keys):
  *   .env: zero-knowledge processing (only names + last 3 chars shown)
  *   .pem/.key/SSH: blocked by default
@@ -76,6 +79,11 @@ const IMAGE_EXTENSIONS = new Set([
   "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp", "tiff", "tif", "svg",
 ]);
 
+/** Audio file extensions supported by the upload service and audio.transcribe skill. */
+const AUDIO_EXTENSIONS = new Set([
+  "mp3", "m4a", "mp4", "wav", "webm", "ogg", "oga", "aac",
+]);
+
 /** Check if a filename matches .env or .env.* pattern */
 function isEnvFile(filename: string): boolean {
   const lower = filename.toLowerCase();
@@ -105,6 +113,11 @@ function isImageFile(filename: string): boolean {
 /** Check if filename is a PDF */
 function isPDFFile(filename: string): boolean {
   return getExt(filename) === "pdf";
+}
+
+/** Check if filename is an audio file. */
+function isAudioFile(filename: string): boolean {
+  return AUDIO_EXTENSIONS.has(getExt(filename));
 }
 
 // ── Language detection ─────────────────────────────────────────────────
@@ -142,7 +155,7 @@ export interface ProcessedFileEmbed {
   secretsRedacted: boolean;
   /** Whether this was zero-knowledge .env processing */
   zeroKnowledge: boolean;
-  /** Whether this requires S3 upload (images, PDFs) */
+  /** Whether this requires S3 upload (images, PDFs, audio) */
   requiresUpload: boolean;
   /** For upload files: the local file path for upload */
   localPath?: string;
@@ -300,10 +313,14 @@ export function processFiles(
       const result = processPDFFile(resolvedPath, filename);
       if (result) embeds.push(result);
       else errors.push({ path: rawPath, error: "Failed to process PDF" });
+    } else if (isAudioFile(filename)) {
+      const result = processAudioFile(resolvedPath, filename);
+      if (result) embeds.push(result);
+      else errors.push({ path: rawPath, error: "Failed to process audio" });
     } else {
       errors.push({
         path: rawPath,
-        error: `Unsupported file type: .${ext}. Supported: code/text, images, PDFs.`,
+        error: `Unsupported file type: .${ext}. Supported: code/text, images, PDFs, audio.`,
       });
     }
   }
@@ -464,6 +481,50 @@ function processPDFFile(
     return {
       embed,
       referenceBlock: createEmbedReferenceBlock("pdf", embedId),
+      displayName: filename,
+      secretsRedacted: false,
+      zeroKnowledge: false,
+      requiresUpload: true,
+      localPath: filePath,
+    };
+  } catch (e) {
+    process.stderr.write(
+      `\x1b[31mError:\x1b[0m Failed to process ${filename}: ${e instanceof Error ? e.message : String(e)}\n`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Process an audio file for S3 upload.
+ * The uploaded file becomes an audio-recording embed that audio.transcribe can consume.
+ */
+function processAudioFile(
+  filePath: string,
+  filename: string,
+): ProcessedFileEmbed | null {
+  try {
+    const embedId = generateEmbedId();
+
+    const embedContent = toonEncodeContent({
+      app_id: "audio",
+      skill_id: "transcribe",
+      type: "audio-recording",
+      status: "uploading",
+      filename,
+    });
+
+    const embed: PreparedEmbed = {
+      embedId,
+      type: "audio-recording",
+      content: embedContent,
+      textPreview: filename,
+      status: "processing",
+    };
+
+    return {
+      embed,
+      referenceBlock: createEmbedReferenceBlock("audio-recording", embedId),
       displayName: filename,
       secretsRedacted: false,
       zeroKnowledge: false,

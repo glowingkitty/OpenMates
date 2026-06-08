@@ -1,0 +1,633 @@
+title:
+  context: "Title of example chat: Search inside a PDF"
+  en: "Search inside a PDF"
+  de: "Search inside a PDF"
+  zh: "Search inside a PDF"
+  es: "Search inside a PDF"
+  fr: "Search inside a PDF"
+  pt: "Search inside a PDF"
+  ru: "Search inside a PDF"
+  ja: "Search inside a PDF"
+  ko: "Search inside a PDF"
+  it: "Search inside a PDF"
+  tr: "Search inside a PDF"
+  vi: "Search inside a PDF"
+  id: "Search inside a PDF"
+  pl: "Search inside a PDF"
+  nl: "Search inside a PDF"
+  ar: "Search inside a PDF"
+  hi: "Search inside a PDF"
+  th: "Search inside a PDF"
+  cs: "Search inside a PDF"
+  sv: "Search inside a PDF"
+  he: "Search inside a PDF"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Search inside a PDF"
+  en: "Search an uploaded PDF for a term and inspect the matching page context."
+  de: "Search an uploaded PDF for a term and inspect the matching page context."
+  zh: "Search an uploaded PDF for a term and inspect the matching page context."
+  es: "Search an uploaded PDF for a term and inspect the matching page context."
+  fr: "Search an uploaded PDF for a term and inspect the matching page context."
+  pt: "Search an uploaded PDF for a term and inspect the matching page context."
+  ru: "Search an uploaded PDF for a term and inspect the matching page context."
+  ja: "Search an uploaded PDF for a term and inspect the matching page context."
+  ko: "Search an uploaded PDF for a term and inspect the matching page context."
+  it: "Search an uploaded PDF for a term and inspect the matching page context."
+  tr: "Search an uploaded PDF for a term and inspect the matching page context."
+  vi: "Search an uploaded PDF for a term and inspect the matching page context."
+  id: "Search an uploaded PDF for a term and inspect the matching page context."
+  pl: "Search an uploaded PDF for a term and inspect the matching page context."
+  nl: "Search an uploaded PDF for a term and inspect the matching page context."
+  ar: "Search an uploaded PDF for a term and inspect the matching page context."
+  hi: "Search an uploaded PDF for a term and inspect the matching page context."
+  th: "Search an uploaded PDF for a term and inspect the matching page context."
+  cs: "Search an uploaded PDF for a term and inspect the matching page context."
+  sv: "Search an uploaded PDF for a term and inspect the matching page context."
+  he: "Search an uploaded PDF for a term and inspect the matching page context."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Search inside a PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  de: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  zh: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  es: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  fr: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  pt: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  ru: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  ja: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  ko: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  it: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  tr: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  vi: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  id: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  pl: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  nl: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  ar: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  hi: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  th: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  cs: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  sv: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  he: |
+    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "de37eb8c-b8a8-4bee-b2cd-e161a19bf84f"
+    }
+    ```
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Search inside a PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  de: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  zh: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  es: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  fr: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  pt: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  ru: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  ja: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  ko: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  it: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  tr: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  vi: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  id: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  pl: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  nl: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  ar: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  hi: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  th: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  cs: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  sv: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  he: |
+    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    
+    What kind of information are you planning to look for in this document later?
+    
+    **Next steps:**
+    - You can ask me to search for specific keywords or topics within the PDF.
+    - I can also summarize the contents of the document for you once it's finished processing.
+  verified_by_human: []
+
+message_3:
+  context: "user message 3 in example chat: Search inside a PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  de: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  zh: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  es: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  fr: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  pt: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  ru: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  ja: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  ko: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  it: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  tr: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  vi: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  id: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  pl: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  nl: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  ar: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  hi: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  th: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  cs: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  sv: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  he: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  verified_by_human: []
+
+message_4:
+  context: "assistant message 4 in example chat: Search inside a PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
+    ```
+    
+    On page 1 of the document, the search for "encryption" returned the following:
+    
+    **Next steps:**
+    - Would you like me to check page 2 for more technical details on its architecture?
+    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+  verified_by_human: []
+

@@ -37,8 +37,8 @@ import { OutputRedactor } from "./outputRedactor.js";
 import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
-import { uploadFile } from "./uploadService.js";
-import { toonEncodeContent } from "./embedCreator.js";
+import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
+import { createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 import { handleServer, printServerHelp } from "./server.js";
@@ -2797,27 +2797,76 @@ async function sendMessageStreaming(
               const session = client.getSession();
               const uploadResult = await uploadFile(fe.localPath, session);
 
-              // Update the embed with upload server response data
-              fe.embed.content = toonEncodeContent({
-                type: fe.embed.type === "pdf" ? "pdf" : "image",
-                app_id: "images",
-                skill_id: "upload",
-                status: "finished",
-                filename: fe.displayName,
-                content_hash: uploadResult.content_hash,
-                s3_base_url: uploadResult.s3_base_url,
-                files: uploadResult.files,
-                aes_key: uploadResult.aes_key,
-                aes_nonce: uploadResult.aes_nonce,
-                vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
-                ai_detection: uploadResult.ai_detection,
-              });
-              fe.embed.status =
-                fe.embed.type === "pdf" ? "processing" : "finished";
+              const embedType = fe.embed.type;
+              const audioTranscription =
+                embedType === "audio-recording"
+                  ? await transcribeUploadedAudio(
+                      uploadResult,
+                      fe.displayName,
+                      session,
+                      { chatId: params.chatId, requestId: uploadResult.embed_id },
+                    )
+                  : null;
+              const uploadedContent =
+                embedType === "audio-recording"
+                  ? {
+                      app_id: "audio",
+                      skill_id: "transcribe",
+                      type: "audio-recording",
+                      status: "finished",
+                      filename: fe.displayName,
+                      mime_type: uploadResult.content_type,
+                      transcript: audioTranscription?.transcript ?? null,
+                      transcript_original: audioTranscription?.transcript_original ?? null,
+                      transcript_corrected: audioTranscription?.transcript_corrected ?? null,
+                      use_corrected: audioTranscription?.use_corrected ?? null,
+                      correction_model: audioTranscription?.correction_model ?? null,
+                      model: audioTranscription?.model ?? null,
+                      s3_base_url: uploadResult.s3_base_url,
+                      files: uploadResult.files,
+                      aes_key: uploadResult.aes_key,
+                      aes_nonce: uploadResult.aes_nonce,
+                      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                    }
+                  : embedType === "pdf"
+                    ? {
+                        type: "pdf",
+                        status: "processing",
+                        filename: fe.displayName,
+                        page_count: uploadResult.page_count ?? null,
+                        content_hash: uploadResult.content_hash,
+                        s3_base_url: uploadResult.s3_base_url,
+                        files: uploadResult.files,
+                        aes_key: uploadResult.aes_key,
+                        aes_nonce: uploadResult.aes_nonce,
+                        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                      }
+                    : {
+                        type: "image",
+                        app_id: "images",
+                        skill_id: "upload",
+                        status: "finished",
+                        filename: fe.displayName,
+                        content_hash: uploadResult.content_hash,
+                        s3_base_url: uploadResult.s3_base_url,
+                        files: uploadResult.files,
+                        aes_key: uploadResult.aes_key,
+                        aes_nonce: uploadResult.aes_nonce,
+                        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                        ai_detection: uploadResult.ai_detection,
+                      };
+
+              // Update the embed with upload server response data.
+              fe.embed.content = toonEncodeContent(uploadedContent);
+              fe.embed.status = embedType === "pdf" ? "processing" : "finished";
               fe.embed.contentHash = uploadResult.content_hash;
 
               // Use the server-assigned embed_id
               fe.embed.embedId = uploadResult.embed_id;
+              fe.referenceBlock = createEmbedReferenceBlock(
+                embedType,
+                uploadResult.embed_id,
+              );
 
               if (!params.json) {
                 process.stderr.write(

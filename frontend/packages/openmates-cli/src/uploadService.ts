@@ -49,6 +49,35 @@ export interface UploadFileResponse {
   page_count?: number;
 }
 
+export interface AudioTranscriptionData {
+  transcript: string | null;
+  transcript_original: string | null;
+  transcript_corrected: string | null;
+  use_corrected: boolean | null;
+  correction_model: string | null;
+  model: string | null;
+}
+
+interface AudioTranscriptionResponse {
+  success?: boolean;
+  error?: string;
+  data?: {
+    results?: Array<{
+      id?: string;
+      error?: string | null;
+      results?: Array<{
+        transcript?: string | null;
+        transcript_original?: string | null;
+        transcript_corrected?: string | null;
+        use_corrected?: boolean | null;
+        correction_model?: string | null;
+        model?: string | null;
+        error?: string | null;
+      }>;
+    }>;
+  };
+}
+
 // ── Upload URL resolution ──────────────────────────────────────────────
 
 /**
@@ -220,6 +249,92 @@ export async function uploadFile(
 
   const data = (await response.json()) as UploadFileResponse;
   return data;
+}
+
+export async function transcribeUploadedAudio(
+  uploadResult: UploadFileResponse,
+  filename: string,
+  session: OpenMatesSession,
+  options: { chatId?: string; requestId?: string } = {},
+): Promise<AudioTranscriptionData> {
+  const s3Key =
+    uploadResult.files?.original?.s3_key ??
+    Object.values(uploadResult.files ?? {})[0]?.s3_key;
+
+  if (!s3Key) {
+    throw new Error("Upload succeeded but no audio file key was returned.");
+  }
+
+  const cookies: string[] = [];
+  if (session.cookies?.auth_refresh_token) {
+    cookies.push(`auth_refresh_token=${session.cookies.auth_refresh_token}`);
+  }
+
+  const requestItem: Record<string, unknown> = {
+    id: options.requestId ?? uploadResult.embed_id,
+    embed_id: uploadResult.embed_id,
+    s3_key: s3Key,
+    s3_base_url: uploadResult.s3_base_url,
+    aes_key: uploadResult.aes_key,
+    aes_nonce: uploadResult.aes_nonce,
+    vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+    filename,
+    mime_type: uploadResult.content_type,
+  };
+  if (options.chatId) {
+    requestItem.chat_id = options.chatId;
+  }
+
+  const response = await fetch(
+    `${session.apiUrl.replace(/\/$/, "")}/v1/apps/audio/skills/transcribe`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(cookies.length > 0 ? { Cookie: cookies.join("; ") } : {}),
+      },
+      body: JSON.stringify({ requests: [requestItem] }),
+      signal: AbortSignal.timeout(10 * 60 * 1000),
+    },
+  );
+
+  if (!response.ok) {
+    let detail = `Transcription failed (HTTP ${response.status}).`;
+    try {
+      const data = (await response.json()) as { detail?: string; error?: string };
+      detail = data.detail ?? data.error ?? detail;
+    } catch {
+      // Keep the status-based detail when the response body is not JSON.
+    }
+    throw new Error(detail);
+  }
+
+  const data = (await response.json()) as AudioTranscriptionResponse;
+  if (data.success === false) {
+    throw new Error(data.error ?? "Transcription failed.");
+  }
+
+  const requestId = options.requestId ?? uploadResult.embed_id;
+  const group =
+    data.data?.results?.find((item) => item.id === requestId) ??
+    data.data?.results?.[0];
+  const result = group?.results?.[0];
+  if (!result) {
+    throw new Error(group?.error ?? "Transcription response did not include a result.");
+  }
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  return {
+    transcript: result.transcript ?? null,
+    transcript_original: result.transcript_original ?? null,
+    transcript_corrected: result.transcript_corrected ?? null,
+    use_corrected: result.use_corrected ?? null,
+    correction_model: result.correction_model ?? null,
+    model: result.model ?? null,
+  };
 }
 
 export interface ProfileImageUploadResponse {

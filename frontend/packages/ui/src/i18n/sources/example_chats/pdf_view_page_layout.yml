@@ -1,0 +1,625 @@
+title:
+  context: "Title of example chat: View a PDF page"
+  en: "View a PDF page"
+  de: "View a PDF page"
+  zh: "View a PDF page"
+  es: "View a PDF page"
+  fr: "View a PDF page"
+  pt: "View a PDF page"
+  ru: "View a PDF page"
+  ja: "View a PDF page"
+  ko: "View a PDF page"
+  it: "View a PDF page"
+  tr: "View a PDF page"
+  vi: "View a PDF page"
+  id: "View a PDF page"
+  pl: "View a PDF page"
+  nl: "View a PDF page"
+  ar: "View a PDF page"
+  hi: "View a PDF page"
+  th: "View a PDF page"
+  cs: "View a PDF page"
+  sv: "View a PDF page"
+  he: "View a PDF page"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: View a PDF page"
+  en: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  de: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  zh: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  es: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  fr: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  pt: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  ru: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  ja: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  ko: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  it: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  tr: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  vi: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  id: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  pl: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  nl: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  ar: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  hi: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  th: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  cs: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  sv: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  he: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: View a PDF page. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  de: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  zh: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  es: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  fr: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  pt: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  ru: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  ja: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  ko: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  it: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  tr: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  vi: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  id: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  pl: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  nl: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  ar: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  hi: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  th: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  cs: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  sv: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  he: |
+    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    ```json
+    {
+      "type": "pdf",
+      "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42"
+    }
+    ```
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: View a PDF page. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}
+    ```
+    
+    _
+    The first page of sample.pdf features a clean, professional layout with the following structure:
+    
+    ### **Visual Layout Overview**
+    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
+    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
+    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
+    *   **Bullet List Structure:** 
+        *   The list is introduced by the phrase "Key facts on this page:".
+        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
+        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
+    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    
+    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+  verified_by_human: []
+
