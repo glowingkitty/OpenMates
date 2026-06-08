@@ -41,8 +41,8 @@ import {
 import { OpenMatesWsClient, type SendEmbedDataFrame } from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
-import type { EncryptedEmbed, EmbedKeyWrapper } from "./embedCreator.js";
-import { computeSHA256 } from "./embedCreator.js";
+import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
+import { computeSHA256, encryptEmbed } from "./embedCreator.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -1428,6 +1428,8 @@ export class OpenMatesClient {
     onStream?: (event: import("./ws.js").StreamEvent) => void;
     /** Encrypted file embeds to attach to the message (code, images, PDFs). */
     encryptedEmbeds?: EncryptedEmbed[];
+    /** Prepared embeds to encrypt after the real chat/message IDs are known. */
+    preparedEmbeds?: PreparedEmbed[];
   }): Promise<{
     chatId: string;
     assistant: string;
@@ -1533,10 +1535,26 @@ export class OpenMatesClient {
       }
     }
 
-    // Attach encrypted file embeds if present
-    // Mirrors: chatSyncServiceSenders.ts encrypted_embeds array
-    if (params.encryptedEmbeds && params.encryptedEmbeds.length > 0) {
-      messagePayload.encrypted_embeds = params.encryptedEmbeds;
+    const encryptedEmbeds: EncryptedEmbed[] = [...(params.encryptedEmbeds ?? [])];
+    if (!params.incognito && params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      const masterKey = this.getMasterKeyBytes();
+      for (const embed of params.preparedEmbeds) {
+        const encrypted = await encryptEmbed(
+          embed,
+          masterKey,
+          chatKeyBytes,
+          chatId,
+          messageId,
+          session.hashedEmail,
+        );
+        if (encrypted) encryptedEmbeds.push(encrypted);
+      }
+    }
+
+    // Attach encrypted client-created embeds if present.
+    // Mirrors: chatSyncServiceSenders.ts encrypted_embeds array.
+    if (encryptedEmbeds.length > 0) {
+      messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
     ws.send("chat_message_added", messagePayload);

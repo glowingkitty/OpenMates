@@ -63,6 +63,69 @@ const LANGUAGES = [
   'he',
 ];
 
+const CANONICAL_CATEGORIES = new Set([
+  'software_development',
+  'business_development',
+  'medical_health',
+  'legal_law',
+  'openmates_official',
+  'maker_prototyping',
+  'marketing_sales',
+  'finance',
+  'design',
+  'electrical_engineering',
+  'movies_tv',
+  'history',
+  'science',
+  'life_coach_psychology',
+  'cooking_food',
+  'activism',
+  'general_knowledge',
+  'onboarding_support',
+]);
+
+const CATEGORY_ALIASES = new Map([
+  ['research', 'general_knowledge'],
+  ['development', 'software_development'],
+  ['software development', 'software_development'],
+  ['software_development', 'software_development'],
+  ['business', 'business_development'],
+  ['business development', 'business_development'],
+  ['health', 'medical_health'],
+  ['medical', 'medical_health'],
+  ['medical health', 'medical_health'],
+  ['legal', 'legal_law'],
+  ['law', 'legal_law'],
+  ['maker', 'maker_prototyping'],
+  ['maker prototyping', 'maker_prototyping'],
+  ['marketing', 'marketing_sales'],
+  ['sales', 'marketing_sales'],
+  ['marketing sales', 'marketing_sales'],
+  ['video', 'movies_tv'],
+  ['videos', 'movies_tv'],
+  ['movies', 'movies_tv'],
+  ['movies tv', 'movies_tv'],
+  ['finance', 'finance'],
+  ['design', 'design'],
+  ['electrical', 'electrical_engineering'],
+  ['electrical engineering', 'electrical_engineering'],
+  ['history', 'history'],
+  ['science', 'science'],
+  ['psychology', 'life_coach_psychology'],
+  ['life coach psychology', 'life_coach_psychology'],
+  ['cooking', 'cooking_food'],
+  ['food', 'cooking_food'],
+  ['cooking food', 'cooking_food'],
+  ['activism', 'activism'],
+  ['travel', 'general_knowledge'],
+  ['productivity', 'general_knowledge'],
+  ['general', 'general_knowledge'],
+  ['general knowledge', 'general_knowledge'],
+  ['general_knowledge', 'general_knowledge'],
+  ['support', 'onboarding_support'],
+  ['onboarding support', 'onboarding_support'],
+]);
+
 function usage() {
   console.error(`Usage: node scripts/create-example-chat-from-share.mjs <share-url> --slug <slug> [options]
 
@@ -291,6 +354,20 @@ function tsArray(values) {
   return `[${values.map((value) => tsString(value)).join(', ')}]`;
 }
 
+function normalizeCategory(value) {
+  if (!value) return 'general_knowledge';
+  const trimmed = String(value).trim();
+  if (CANONICAL_CATEGORIES.has(trimmed)) return trimmed;
+
+  const normalized = trimmed.toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+  const alias = CATEGORY_ALIASES.get(normalized);
+  if (alias) return alias;
+
+  throw new Error(
+    `Invalid category "${value}". Use a canonical category ID: ${[...CANONICAL_CATEGORIES].sort().join(', ')}`,
+  );
+}
+
 function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
   const messages = chat.messages.map((message, index) => ({
@@ -420,7 +497,7 @@ function main() {
     title: args.title || chat.title || slug,
     summary: args.summary || chat.summary || '',
     icon: args.icon || chat.icon || 'search',
-    category: args.category || chat.category || 'general_knowledge',
+    category: normalizeCategory(args.category || chat.category),
     keywords: args.keywords,
     featured: args.featured,
     followUps: Array.isArray(chat.follow_up_suggestions) ? chat.follow_up_suggestions : [],
@@ -438,6 +515,7 @@ function main() {
   console.log(`Example chat scaffold: ${metadata.title}`);
   console.log(`  chat_id: ${metadata.chatId}`);
   console.log(`  slug: ${metadata.slug}`);
+  console.log(`  category: ${metadata.category}`);
   console.log(`  messages: ${chat.messages.length}`);
   console.log(`  embeds: ${chat.embeds.length}`);
   console.log(`  order: ${metadata.order}`);

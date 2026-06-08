@@ -12,7 +12,7 @@ export const gpt4oAnnouncementSummaryChat: ExampleChat = {
   title: "example_chats.gpt_4o_announcement_summary.title",
   summary: "example_chats.gpt_4o_announcement_summary.summary",
   icon: "globe",
-  category: "Research",
+  category: "general_knowledge",
   keywords: ["web", "reading", "OpenAI", "GPT-4o", "summary"],
   follow_up_suggestions: [],
   messages: [

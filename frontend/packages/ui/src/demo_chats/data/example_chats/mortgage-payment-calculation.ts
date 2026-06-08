@@ -12,7 +12,7 @@ export const mortgagePaymentCalculationChat: ExampleChat = {
   title: "example_chats.mortgage_payment_calculation.title",
   summary: "example_chats.mortgage_payment_calculation.summary",
   icon: "calculator",
-  category: "Finance",
+  category: "finance",
   keywords: ["mortgage", "calculation", "interest", "finance", "loan"],
   follow_up_suggestions: [],
   messages: [

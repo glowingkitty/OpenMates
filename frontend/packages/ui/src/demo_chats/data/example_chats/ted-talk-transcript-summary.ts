@@ -12,7 +12,7 @@ export const tedTalkTranscriptSummaryChat: ExampleChat = {
   title: "example_chats.ted_talk_transcript_summary.title",
   summary: "example_chats.ted_talk_transcript_summary.summary",
   icon: "video",
-  category: "Video",
+  category: "movies_tv",
   keywords: ["YouTube", "transcript", "TED talk", "summary", "public speaking"],
   follow_up_suggestions: [],
   messages: [

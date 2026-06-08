@@ -35,10 +35,11 @@ import {
 } from "./mentions.js";
 import { OutputRedactor } from "./outputRedactor.js";
 import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
-import { encryptEmbed, type EncryptedEmbed } from "./embedCreator.js";
+import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
 import { uploadFile } from "./uploadService.js";
 import { toonEncodeContent } from "./embedCreator.js";
+import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 import { handleServer, printServerHelp } from "./server.js";
 
@@ -2715,8 +2716,8 @@ async function sendMessageStreaming(
     }
   };
 
-  // ── Encrypted embeds array (populated by file processing below) ────
-  const encryptedEmbeds: EncryptedEmbed[] = [];
+  // ── Prepared embeds array (encrypted after real chat/message IDs exist) ────
+  const preparedEmbeds: PreparedEmbed[] = [];
 
   // ── Mention resolution ─────────────────────────────────────────────
   // Parse @mentions in the message, resolve to backend wire syntax.
@@ -2851,31 +2852,7 @@ async function sendMessageStreaming(
           finalMessage += embedRefs;
         }
 
-        // Encrypt all embeds for the WebSocket payload
-        try {
-          const { masterKey, userId } = client.getEmbedEncryptionKeys();
-          for (const fe of fileResult.embeds) {
-            // Note: chatKey is null for new chats — server assigns it.
-            // For existing chats, we'd need to fetch the chat key from cache.
-            // For now, only master key wrapping is used (sufficient for owner access).
-            const encrypted = await encryptEmbed(
-              fe.embed,
-              masterKey,
-              null, // chatKey — not available in CLI yet for new chats
-              params.chatId || "new", // will be replaced by server
-              "pending", // messageId set during send
-              userId,
-            );
-            if (encrypted) {
-              encryptedEmbeds.push(encrypted);
-            }
-          }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          process.stderr.write(
-            `\x1b[33mWarning:\x1b[0m Embed encryption failed: ${msg}. Files sent without encryption.\n`,
-          );
-        }
+        preparedEmbeds.push(...fileResult.embeds.map((fileEmbed) => fileEmbed.embed));
       }
 
       // Show resolved mentions as confirmation
@@ -2895,12 +2872,16 @@ async function sendMessageStreaming(
     }
   }
 
+  const urlResult = prepareUrlEmbeds(finalMessage);
+  finalMessage = urlResult.message;
+  preparedEmbeds.push(...urlResult.embeds);
+
   const result = await client.sendMessage({
     message: finalMessage,
     chatId: params.chatId,
     incognito: params.incognito,
     onStream,
-    encryptedEmbeds: encryptedEmbeds.length > 0 ? encryptedEmbeds : undefined,
+    preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
   });
 
   clearTyping();

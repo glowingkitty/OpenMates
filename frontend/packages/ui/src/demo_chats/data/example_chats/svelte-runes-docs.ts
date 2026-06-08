@@ -12,7 +12,7 @@ export const svelteRunesDocsChat: ExampleChat = {
   title: "example_chats.svelte_runes_docs.title",
   summary: "example_chats.svelte_runes_docs.summary",
   icon: "code",
-  category: "Development",
+  category: "software_development",
   keywords: ["Svelte", "documentation", "runes", "state", "derived"],
   follow_up_suggestions: [],
   messages: [

@@ -12,7 +12,7 @@ export const familyStaysKyotoChat: ExampleChat = {
   title: "example_chats.family_stays_kyoto.title",
   summary: "example_chats.family_stays_kyoto.summary",
   icon: "hotel",
-  category: "Travel",
+  category: "general_knowledge",
   keywords: ["Kyoto", "hotels", "family", "travel", "public transit"],
   follow_up_suggestions: [],
   messages: [

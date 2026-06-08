@@ -170,8 +170,11 @@ export function generateEmbedId(): string {
 export function createEmbedReferenceBlock(
   type: string,
   embedId: string,
+  url?: string,
 ): string {
-  const ref = JSON.stringify({ type, embed_id: embedId }, null, 2);
+  const data: Record<string, string> = { type, embed_id: embedId };
+  if (url) data.url = url;
+  const ref = JSON.stringify(data, null, 2);
   return "```json\n" + ref + "\n```";
 }
 

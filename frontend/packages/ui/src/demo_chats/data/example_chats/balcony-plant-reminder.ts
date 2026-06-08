@@ -12,7 +12,7 @@ export const balconyPlantReminderChat: ExampleChat = {
   title: "example_chats.balcony_plant_reminder.title",
   summary: "example_chats.balcony_plant_reminder.summary",
   icon: "bell",
-  category: "Productivity",
+  category: "general_knowledge",
   keywords: ["reminder", "plants", "schedule", "notification", "balcony"],
   follow_up_suggestions: [],
   messages: [

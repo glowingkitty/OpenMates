@@ -12,7 +12,7 @@ export const rustVectorDatabaseReposChat: ExampleChat = {
   title: "example_chats.rust_vector_database_repos.title",
   summary: "example_chats.rust_vector_database_repos.summary",
   icon: "code",
-  category: "Development",
+  category: "software_development",
   keywords: ["GitHub", "Rust", "vector database", "repositories", "self-hosted"],
   follow_up_suggestions: [],
   messages: [
