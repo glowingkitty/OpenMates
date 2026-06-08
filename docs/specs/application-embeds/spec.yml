@@ -710,9 +710,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "python3 scripts/run_tests.py --spec application-preview.spec.ts / github-actions:27137843503"
-        timestamp: "2026-06-08T12:45:13Z"
-        notes: "Normal orchestrator path passed after Vercel Ready gate; summary 1682 total, 1672 passed, 0 failed, 10 skipped."
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec application-preview.spec.ts / github-actions:27142303297"
+        timestamp: "2026-06-08T13:54:14Z"
+        notes: "Playwright-only post-deploy run passed after Vercel Ready gate for commit 534d54a08; summary 1 total, 1 passed, 0 failed. A prior attempt hit transient api.dev.openmates.org connection-refused errors during login setup before app-preview code ran, then passed on rerun after API health recovered."
 
   - id: T-E2E-APP-SHARE-001
     type: playwright
@@ -741,9 +741,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "python3 scripts/run_tests.py --spec application-preview-share.spec.ts / github-actions:27138104303"
-        timestamp: "2026-06-08T12:45:13Z"
-        notes: "Normal orchestrator path passed after Vercel Ready gate; summary 1682 total, 1672 passed, 0 failed, 10 skipped."
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec application-preview-share.spec.ts / github-actions:27142440000"
+        timestamp: "2026-06-08T13:54:14Z"
+        notes: "Playwright-only post-deploy run passed after Vercel Ready gate for commit 534d54a08; summary 1 total, 1 passed, 0 failed."
 
   - id: T-LINT-APP-EMBED-001
     type: lint
