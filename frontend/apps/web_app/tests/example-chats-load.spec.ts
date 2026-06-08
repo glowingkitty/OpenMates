@@ -52,9 +52,7 @@ test.describe('Example chats loading for new users', () => {
 	}
 
 	function examplesSidebarGroup(page: any): any {
-		return page.getByTestId('chat-group').filter({
-			has: page.getByTestId('group-title').filter({ hasText: 'Examples' })
-		}).first();
+		return page.locator('[data-testid="chat-group"][data-group-key="examples"]').first();
 	}
 
 	async function sidebarExampleIds(page: any): Promise<string[]> {

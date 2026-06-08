@@ -3904,7 +3904,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
 			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
 				{#if groupItems.length > 0}
-					<div class="chat-group" data-testid="chat-group">
+					<div class="chat-group" data-testid="chat-group" data-group-key={groupKey}>
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
