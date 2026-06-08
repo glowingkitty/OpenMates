@@ -12,6 +12,8 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewEntrypoint,
     ApplicationPreviewFile,
     ApplicationPreviewPlanningError,
+    _vite_allowed_hosts,
+    _with_vite_allowed_hosts,
     plan_application_preview_startup,
 )
 
@@ -41,6 +43,29 @@ def test_preview_planning_supports_fastapi_backend_entrypoint() -> None:
 
     assert plan.install_commands == ["python -m pip install -r requirements.txt"]
     assert plan.start_commands == [{"name": "api", "command": "uvicorn backend.main:app --host 0.0.0.0 --port 8000", "port": 8000}]
+
+
+def test_preview_start_command_allows_exact_e2b_vite_hosts() -> None:
+    hosts = _vite_allowed_hosts(
+        {
+            "frontend": "https://5173-izr5goe7od08cvlqzemo8.e2b.app",
+            "duplicate": "https://5173-izr5goe7od08cvlqzemo8.e2b.app/",
+        }
+    )
+
+    command = _with_vite_allowed_hosts("npm run dev -- --host 0.0.0.0", hosts)
+
+    assert hosts == ["5173-izr5goe7od08cvlqzemo8.e2b.app"]
+    assert command == "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=5173-izr5goe7od08cvlqzemo8.e2b.app npm run dev -- --host 0.0.0.0"
+
+
+def test_preview_start_command_does_not_duplicate_vite_allowed_hosts_env() -> None:
+    command = _with_vite_allowed_hosts(
+        "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=custom.example npm run dev",
+        ["5173-izr5goe7od08cvlqzemo8.e2b.app"],
+    )
+
+    assert command == "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=custom.example npm run dev"
 
 
 @pytest.mark.parametrize("path", ["/etc/passwd", "../secret.txt", "src/../../secret.txt", ""])

@@ -373,7 +373,7 @@ contracts:
     - Timed-out preview states distinguish idle timeout from hard duration limit and let the viewer start a new billed session when credits allow.
   privacy_security:
     - APPLICATION_PREVIEW_ORIGIN must be a separate origin that does not receive OpenMates app auth cookies.
-    - Cloud uses https://openmatesusercontent.org; self-host operators must configure their own equivalent origin.
+    - Cloud production uses https://openmatesusercontent.org and Cloud dev uses https://dev.openmatesusercontent.org; each environment must have its own equivalent origin.
     - Live preview controls must be disabled if the configured origin is absent, invalid, or matches the app/API auth origin.
     - Generated application code must never run on app.openmates.org or any OpenMates origin that holds auth, localStorage, IndexedDB, or service workers.
     - Preview iframes use sandboxing, no-referrer, and a restrictive allow/permissions policy by default.

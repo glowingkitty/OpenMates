@@ -12,9 +12,11 @@ import shlex
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
+from urllib.parse import urlparse
 
 
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
+VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -174,11 +176,17 @@ def start_application_preview_in_e2b(
     _write_files(sandbox, plan.files)
     for command in plan.install_commands:
         sandbox.commands.run(command, timeout=180)
-    for command in plan.start_commands:
-        sandbox.commands.run(str(command["command"]), background=True, timeout=30)
 
     ports = {str(command["name"]): int(command["port"]) for command in plan.start_commands}
     upstream_base_urls = {name: _sandbox_host(sandbox, port) for name, port in ports.items()}
+    vite_allowed_hosts = _vite_allowed_hosts(upstream_base_urls)
+    for command in plan.start_commands:
+        sandbox.commands.run(
+            _with_vite_allowed_hosts(str(command["command"]), vite_allowed_hosts),
+            background=True,
+            timeout=30,
+        )
+
     primary_name = "frontend" if "frontend" in upstream_base_urls else next(iter(upstream_base_urls))
     return ApplicationPreviewRuntime(
         sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
@@ -220,6 +228,21 @@ def _sandbox_host(sandbox: Any, port: int) -> str:
         host = ports.get_host(port)
         return str(host if str(host).startswith("http") else f"https://{host}")
     raise RuntimeError("E2B sandbox does not expose a preview host helper")
+
+
+def _vite_allowed_hosts(upstream_base_urls: dict[str, str]) -> list[str]:
+    hosts = []
+    for url in upstream_base_urls.values():
+        hostname = urlparse(url).hostname
+        if hostname and hostname not in hosts:
+            hosts.append(hostname)
+    return hosts
+
+
+def _with_vite_allowed_hosts(command: str, allowed_hosts: list[str]) -> str:
+    if not allowed_hosts or VITE_ALLOWED_HOSTS_ENV in command:
+        return command
+    return f"{VITE_ALLOWED_HOSTS_ENV}={shlex.quote(','.join(allowed_hosts))} {command}"
 
 
 def _sandbox_screenshot_url(sandbox: Any) -> str | None:
