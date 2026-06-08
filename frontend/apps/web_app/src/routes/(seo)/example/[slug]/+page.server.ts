@@ -77,6 +77,23 @@ function stripMarkdownForSchema(content: string): string {
 		.trim();
 }
 
+function summarizeJsonToolBlocks(content: string): string {
+	const summaries: string[] = [];
+
+	for (const match of content.matchAll(/```json\s*([\s\S]*?)```/g)) {
+		try {
+			const payload = JSON.parse(match[1]);
+			if (payload?.type === 'app_skill_use' && payload.app_id && payload.skill_id) {
+				summaries.push(`Used ${payload.app_id}.${payload.skill_id} to retrieve app results.`);
+			}
+		} catch {
+			continue;
+		}
+	}
+
+	return summaries.join(' ');
+}
+
 function buildEmbedRefMap(chat: ExampleChat): Map<string, SeoSource> {
 	const byRef = new Map<string, SeoSource>();
 
@@ -147,6 +164,11 @@ function toReadableMessageContent(role: string, content: string): string {
 	if (textLines.length > 0) {
 		displayContent = textLines.join('\n');
 	} else {
+		const toolSummary = summarizeJsonToolBlocks(displayContent);
+		if (toolSummary) {
+			displayContent = toolSummary;
+		}
+
 		const queryMatches = [...displayContent.matchAll(/"query"\s*:\s*"([^"]+)"/g)];
 		if (queryMatches.length > 0) {
 			displayContent = queryMatches.map((match) => `Searched: ${match[1]}`).join('\n');
