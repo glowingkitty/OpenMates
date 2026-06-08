@@ -17,7 +17,11 @@
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 function countMatches(text: string, pattern: RegExp): number {
 	return [...text.matchAll(pattern)].length;
@@ -128,10 +132,10 @@ test.describe('Example chats loading for new users', () => {
 	}: {
 		page: any;
 	}) => {
-		test.setTimeout(60000);
+		test.setTimeout(180000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
+		await loginToTestAccount(page);
 		await ensureSidebarVisible(page);
 
 		const initialIds = await sidebarExampleIds(page);

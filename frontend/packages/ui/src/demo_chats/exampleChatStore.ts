@@ -279,7 +279,7 @@ export function getAllExampleChats(): Chat[] {
 /** Get the most recently added example chats for compact sidebar display. */
 export function getRecentExampleChats(limit = FEATURED_LIMIT): Chat[] {
   return ALL_EXAMPLE_CHATS.slice()
-    .sort((a, b) => b.metadata.order - a.metadata.order)
+    .sort((a, b) => a.metadata.order - b.metadata.order)
     .slice(0, limit)
     .map(exampleChatToChat);
 }
