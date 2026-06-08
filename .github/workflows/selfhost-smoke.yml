@@ -132,12 +132,25 @@ jobs:
 
       - name: Build local image-mode images
         run: |
-          docker build -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} -f backend/core/api/Dockerfile.selfhost .
-          docker build -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
-          docker build -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
-          docker build -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
-          docker build -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} -f backend/admin_sidecar/Dockerfile .
-          docker build -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted -f frontend/apps/web_app/Dockerfile .
+          build_with_retry() {
+            for attempt in 1 2 3; do
+              if docker build "$@"; then
+                return 0
+              fi
+              if [ "$attempt" = "3" ]; then
+                return 1
+              fi
+              echo "docker build failed on attempt $attempt; retrying after registry backoff..."
+              sleep $((attempt * 20))
+            done
+          }
+
+          build_with_retry -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} -f backend/core/api/Dockerfile.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
+          build_with_retry -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
+          build_with_retry -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} -f backend/admin_sidecar/Dockerfile .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted -f frontend/apps/web_app/Dockerfile .
 
       - name: Image-mode self-hosted install and timing
         env:
