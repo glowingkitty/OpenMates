@@ -404,8 +404,8 @@ export const ${varName}: ExampleChat = {
   category: ${tsString(metadata.category)},
   keywords: ${tsArray(metadata.keywords)},
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
-  messages: ${JSON.stringify(messages, null, 4).replace(/"([^"\n]+)":/g, '$1:')},
-  embeds: ${JSON.stringify(embeds, null, 4).replace(/"([^"\n]+)":/g, '$1:')},
+  messages: ${JSON.stringify(messages, null, 4)},
+  embeds: ${JSON.stringify(embeds, null, 4)},
   metadata: {
     featured: ${metadata.featured},
     order: ${metadata.order},

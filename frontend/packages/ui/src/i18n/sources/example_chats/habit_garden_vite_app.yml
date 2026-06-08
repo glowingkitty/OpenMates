@@ -1,0 +1,919 @@
+title:
+  context: "Title of example chat: Habit Garden Vite App"
+  en: "Habit Garden Vite App"
+  de: "Habit Garden Vite App"
+  zh: "Habit Garden Vite App"
+  es: "Habit Garden Vite App"
+  fr: "Habit Garden Vite App"
+  pt: "Habit Garden Vite App"
+  ru: "Habit Garden Vite App"
+  ja: "Habit Garden Vite App"
+  ko: "Habit Garden Vite App"
+  it: "Habit Garden Vite App"
+  tr: "Habit Garden Vite App"
+  vi: "Habit Garden Vite App"
+  id: "Habit Garden Vite App"
+  pl: "Habit Garden Vite App"
+  nl: "Habit Garden Vite App"
+  ar: "Habit Garden Vite App"
+  hi: "Habit Garden Vite App"
+  th: "Habit Garden Vite App"
+  cs: "Habit Garden Vite App"
+  sv: "Habit Garden Vite App"
+  he: "Habit Garden Vite App"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Habit Garden Vite App"
+  en: "Build a runnable habit-tracking garden app from generated Vite project files."
+  de: "Build a runnable habit-tracking garden app from generated Vite project files."
+  zh: "Build a runnable habit-tracking garden app from generated Vite project files."
+  es: "Build a runnable habit-tracking garden app from generated Vite project files."
+  fr: "Build a runnable habit-tracking garden app from generated Vite project files."
+  pt: "Build a runnable habit-tracking garden app from generated Vite project files."
+  ru: "Build a runnable habit-tracking garden app from generated Vite project files."
+  ja: "Build a runnable habit-tracking garden app from generated Vite project files."
+  ko: "Build a runnable habit-tracking garden app from generated Vite project files."
+  it: "Build a runnable habit-tracking garden app from generated Vite project files."
+  tr: "Build a runnable habit-tracking garden app from generated Vite project files."
+  vi: "Build a runnable habit-tracking garden app from generated Vite project files."
+  id: "Build a runnable habit-tracking garden app from generated Vite project files."
+  pl: "Build a runnable habit-tracking garden app from generated Vite project files."
+  nl: "Build a runnable habit-tracking garden app from generated Vite project files."
+  ar: "Build a runnable habit-tracking garden app from generated Vite project files."
+  hi: "Build a runnable habit-tracking garden app from generated Vite project files."
+  th: "Build a runnable habit-tracking garden app from generated Vite project files."
+  cs: "Build a runnable habit-tracking garden app from generated Vite project files."
+  sv: "Build a runnable habit-tracking garden app from generated Vite project files."
+  he: "Build a runnable habit-tracking garden app from generated Vite project files."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Habit Garden Vite App. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  de: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  zh: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  es: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  fr: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  pt: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  ru: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  ja: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  ko: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  it: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  tr: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  vi: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  id: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  pl: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  nl: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  ar: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  hi: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  th: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  cs: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  sv: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  he: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Habit Garden Vite App. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  zh: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  es: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  fr: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pt: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ru: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ja: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ko: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  it: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  tr: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  vi: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  id: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pl: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  nl: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ar: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  hi: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  th: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  cs: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  sv: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  he: |
+    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    
+    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    
+    ### `package.json`
+    ```json
+    {"type": "code", "embed_id": "6205b216-da05-4bf4-8d4c-d4a30e50ba6b"}
+    ```
+    
+    
+    
+    ### `index.html`
+    ```json
+    {"type": "code", "embed_id": "35a05ba6-a5a5-492e-9785-19d93a24cabf"}
+    ```
+    
+    
+    
+    ### `src/style.css`
+    ```json
+    {"type": "code", "embed_id": "c175730b-6e35-4e35-b9dd-49eacc1abe81"}
+    ```
+    
+    ```json
+    {"type": "application", "embed_id": "4020cf81-f490-4da8-bd42-c4ea456327f3", "app_id": "code", "skill_id": "application"}
+    ```
+    
+    
+    
+    ### `src/main.js`
+    ```json
+    {"type": "code", "embed_id": "c1c32384-39e9-4d22-b8b5-238acb293f2a"}
+    ```
+    
+    
+    
+    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  verified_by_human: []
+
