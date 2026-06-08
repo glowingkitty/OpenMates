@@ -347,9 +347,9 @@ tests:
       required: false
       expected: pass
       evidence:
-        status: pending_post_deploy
-        run_id: vitest_dispatch_runs_against_dev_commit_not_uncommitted_worktree
-        timestamp: "2026-06-08T12:17:48Z"
+        status: passed
+        run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
+        timestamp: "2026-06-08T13:03:22Z"
 
   - id: T-VITEST-EMBED-PREVIEW-METADATA
     type: vitest
@@ -374,9 +374,9 @@ tests:
       required: false
       expected: pass
       evidence:
-        status: pending_post_deploy
-        run_id: vitest_dispatch_runs_against_dev_commit_not_uncommitted_worktree
-        timestamp: "2026-06-08T12:17:48Z"
+        status: passed
+        run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
+        timestamp: "2026-06-08T13:03:22Z"
 
   - id: T-VITEST-DEEP-LINK
     type: vitest
@@ -400,9 +400,9 @@ tests:
       required: false
       expected: pass
       evidence:
-        status: pending_post_deploy
-        run_id: vitest_dispatch_runs_against_dev_commit_not_uncommitted_worktree
-        timestamp: "2026-06-08T12:17:48Z"
+        status: passed
+        run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
+        timestamp: "2026-06-08T13:03:22Z"
 
   - id: T-PYTEST-SHARE-WINDOW
     type: pytest
