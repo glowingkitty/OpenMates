@@ -2426,6 +2426,34 @@ def _parse_generated_app_file_header(line: str) -> Optional[Dict[str, str]]:
     return {"language": language, "filename": filename}
 
 
+def _extract_code_embed_ids_from_response(response_text: str) -> List[str]:
+    embed_ids: List[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r'```json\s*\n(.*?)\n\s*```', response_text, flags=re.DOTALL):
+        try:
+            payload = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict) or payload.get("type") != "code":
+            continue
+        embed_id = payload.get("embed_id")
+        if isinstance(embed_id, str) and embed_id and embed_id not in seen:
+            seen.add(embed_id)
+            embed_ids.append(embed_id)
+    return embed_ids
+
+
+def _strip_code_file_header_from_content(code_content: str) -> tuple[str, Optional[str], Optional[str]]:
+    normalized = code_content.replace("\r\n", "\n").replace("\r", "\n")
+    first_newline_index = normalized.find("\n")
+    first_line = normalized if first_newline_index == -1 else normalized[:first_newline_index]
+    header = _parse_generated_app_file_header(first_line)
+    if not header:
+        return normalized, None, None
+    stripped = "" if first_newline_index == -1 else normalized[first_newline_index + 1:]
+    return stripped, header["language"], header["filename"]
+
+
 def _parse_application_preview_combined_files(
     language: Optional[str],
     content: str,
@@ -2571,6 +2599,41 @@ async def _create_application_preview_child_code_embeds(
     return "".join(embed_references)
 
 
+async def _infer_generated_code_file_embeds_from_response(
+    *,
+    response_text: str,
+    embed_service: Any,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> List[Dict[str, str]]:
+    inferred: List[Dict[str, str]] = []
+    for embed_id in _extract_code_embed_ids_from_response(response_text):
+        toon = await embed_service._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+        if not toon:
+            continue
+        try:
+            from toon_format import decode
+
+            decoded = decode(toon)
+        except Exception as exc:
+            logger.debug(f"{log_prefix} Could not decode code embed {embed_id} for application fallback: {exc}")
+            continue
+        if not isinstance(decoded, dict) or decoded.get("type") != "code":
+            continue
+
+        raw_code = decoded.get("code") if isinstance(decoded.get("code"), str) else ""
+        _, header_language, header_filename = _strip_code_file_header_from_content(raw_code)
+        filename = decoded.get("filename") if isinstance(decoded.get("filename"), str) else None
+        language = decoded.get("language") if isinstance(decoded.get("language"), str) else None
+        _record_generated_code_file_embed(
+            inferred,
+            embed_id=embed_id,
+            filename=filename or header_filename,
+            language=language or header_language,
+        )
+    return inferred
+
+
 async def _create_application_parent_embed_reference(
     *,
     generated_code_file_embeds: List[Dict[str, str]],
@@ -2581,18 +2644,41 @@ async def _create_application_parent_embed_reference(
     task_id: str,
     user_vault_key_id: str,
     log_prefix: str,
+    response_text: str = "",
 ) -> Optional[str]:
     application_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+    embed_service = None
     if not application_manifest:
-        logger.info(
-            f"{log_prefix} Generated code file embeds did not form an application manifest "
-            f"(file_count={len(generated_code_file_embeds)})"
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        embed_service = EmbedService(cache_service, directus_service, encryption_service)
+        inferred_embeds = await _infer_generated_code_file_embeds_from_response(
+            response_text=response_text,
+            embed_service=embed_service,
+            user_vault_key_id=user_vault_key_id,
+            log_prefix=log_prefix,
         )
-        return None
+        if inferred_embeds:
+            known_paths = {
+                _normalize_generated_app_file_path(embed.get("filename"))
+                for embed in generated_code_file_embeds
+            }
+            generated_code_file_embeds.extend(
+                embed for embed in inferred_embeds
+                if _normalize_generated_app_file_path(embed.get("filename")) not in known_paths
+            )
+            application_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+        if not application_manifest:
+            logger.info(
+                f"{log_prefix} Generated code file embeds did not form an application manifest "
+                f"(file_count={len(generated_code_file_embeds)})"
+            )
+            return None
 
-    from backend.core.api.app.services.embed_service import EmbedService
+    if embed_service is None:
+        from backend.core.api.app.services.embed_service import EmbedService
 
-    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+        embed_service = EmbedService(cache_service, directus_service, encryption_service)
     application_embed_data = await embed_service.create_application_embed(
         name=application_manifest["name"],
         framework=application_manifest["framework"],
@@ -5064,6 +5150,7 @@ async def _consume_main_processing_stream(
                 task_id=task_id,
                 user_vault_key_id=user_vault_key_id,
                 log_prefix=log_prefix,
+                response_text=aggregated_response,
             )
             if application_reference:
                 aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
@@ -5694,47 +5781,38 @@ async def _consume_main_processing_stream(
         and encryption_service
         and user_vault_key_id
     ):
-        application_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
-        if application_manifest:
-            try:
-                from backend.core.api.app.services.embed_service import EmbedService
-
-                embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                application_embed_data = await embed_service.create_application_embed(
-                    name=application_manifest["name"],
-                    framework=application_manifest["framework"],
-                    runtime=application_manifest["runtime"],
-                    file_refs=application_manifest["file_refs"],
-                    entrypoints=application_manifest["entrypoints"],
-                    chat_id=request_data.chat_id,
-                    message_id=request_data.message_id,
-                    user_id=request_data.user_id,
-                    user_id_hash=request_data.user_id_hash,
-                    user_vault_key_id=user_vault_key_id,
-                    task_id=task_id,
-                    log_prefix=log_prefix,
+        try:
+            application_reference = await _create_application_parent_embed_reference(
+                generated_code_file_embeds=generated_code_file_embeds,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                request_data=request_data,
+                task_id=task_id,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+                response_text=aggregated_response,
+            )
+            if application_reference:
+                aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
+                final_response_chunks = [aggregated_response]
+                app_payload = _create_redis_payload(
+                    task_id,
+                    request_data,
+                    aggregated_response,
+                    stream_chunk_count + 5,
+                    is_final=False,
+                    model_name=stream_model_name,
                 )
-                if application_embed_data:
-                    application_reference = f"```json\n{application_embed_data['embed_reference']}\n```\n\n"
-                    aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
-                    final_response_chunks = [aggregated_response]
-                    app_payload = _create_redis_payload(
-                        task_id,
-                        request_data,
-                        aggregated_response,
-                        stream_chunk_count + 5,
-                        is_final=False,
-                        model_name=stream_model_name,
-                    )
-                    await _publish_to_redis(
-                        cache_service,
-                        redis_channel_name,
-                        app_payload,
-                        log_prefix,
-                        "Published response with generated application embed reference",
-                    )
-            except Exception as e:
-                logger.error(f"{log_prefix} Error creating generated application parent embed: {e}", exc_info=True)
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    app_payload,
+                    log_prefix,
+                    "Published response with generated application embed reference",
+                )
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating generated application parent embed: {e}", exc_info=True)
 
     # --- Hardcoded Advice Disclaimer Injection ---
     # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.

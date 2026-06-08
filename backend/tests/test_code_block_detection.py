@@ -15,7 +15,9 @@ import pytest
 try:
     from backend.apps.ai.tasks.stream_consumer import (
         _build_application_manifest_from_code_embeds,
+        _extract_code_embed_ids_from_response,
         _parse_application_preview_combined_files,
+        _strip_code_file_header_from_content,
         _should_process_chunk_as_code_block,
     )
 except ImportError as _exc:
@@ -214,6 +216,24 @@ console.log('hello');
         )
 
         assert result == []
+
+    def test_extracts_code_embed_ids_from_response_json_refs(self):
+        result = _extract_code_embed_ids_from_response(
+            'Intro\n```json\n{"type":"code","embed_id":"file-app"}\n```\n'
+            '```json\n{"type":"application","embed_id":"app-parent"}\n```\n'
+            '```json\n{"type":"code","embed_id":"file-package"}\n```\n'
+        )
+
+        assert result == ["file-app", "file-package"]
+
+    def test_strips_code_file_header_from_content(self):
+        code, language, filename = _strip_code_file_header_from_content(
+            "svelte:src/App.svelte\n<script>let count = 1;</script>"
+        )
+
+        assert language == "svelte"
+        assert filename == "src/App.svelte"
+        assert code == "<script>let count = 1;</script>"
 
 
 # ---------------------------------------------------------------------------
