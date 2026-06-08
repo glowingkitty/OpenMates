@@ -18,6 +18,15 @@ struct EmbedPreviewCard: View {
         static let expandedInfoBarOffset: CGFloat = 15
         static let expandedBottomOutset: CGFloat = 30
         static let cornerRadius: CGFloat = 30
+        static let minimumProcessingDuration: TimeInterval = 0.5
+        static let storedEncryptedHintDuration: UInt64 = 2_000_000_000
+        static let openDetailsHintDuration: UInt64 = 2_000_000_000
+    }
+
+    private enum StatusHintPhase {
+        case settled
+        case storedEncrypted
+        case openDetails
     }
 
     let embed: EmbedRecord
@@ -27,6 +36,9 @@ struct EmbedPreviewCard: View {
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
+    @State private var processingStartDate: Date?
+    @State private var statusHintPhase: StatusHintPhase = .settled
+    @State private var statusHintTask: Task<Void, Never>?
 
     init(
         embed: EmbedRecord,
@@ -79,6 +91,54 @@ struct EmbedPreviewCard: View {
             title: embedType?.displayName
         )
         .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
+        .onAppear {
+            if embed.status == .processing && processingStartDate == nil {
+                processingStartDate = Date()
+            }
+        }
+        .onChange(of: embed.status) { oldStatus, newStatus in
+            handleStatusChange(from: oldStatus, to: newStatus)
+        }
+        .onDisappear {
+            statusHintTask?.cancel()
+        }
+    }
+
+    private func handleStatusChange(from oldStatus: EmbedStatus, to newStatus: EmbedStatus) {
+        statusHintTask?.cancel()
+
+        if newStatus == .processing {
+            processingStartDate = Date()
+            statusHintPhase = .settled
+            return
+        }
+
+        guard oldStatus == .processing, newStatus == .finished else {
+            processingStartDate = nil
+            statusHintPhase = .settled
+            return
+        }
+
+        let duration = processingStartDate.map { Date().timeIntervalSince($0) } ?? 0
+        processingStartDate = nil
+        guard duration >= Constants.minimumProcessingDuration else {
+            statusHintPhase = .settled
+            return
+        }
+
+        statusHintPhase = .storedEncrypted
+        statusHintTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: Constants.storedEncryptedHintDuration)
+                guard !Task.isCancelled else { return }
+                statusHintPhase = .openDetails
+                try await Task.sleep(nanoseconds: Constants.openDetailsHintDuration)
+                guard !Task.isCancelled else { return }
+                statusHintPhase = .settled
+            } catch {
+                // Cancellation is expected when the card unmounts or status changes again.
+            }
+        }
     }
 
     private var cardWidth: CGFloat? {
@@ -296,6 +356,16 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusSubtitle: String? {
+        if statusHintPhase == .storedEncrypted {
+            return AppStrings.embedStoredEncrypted
+        }
+        if statusHintPhase == .openDetails {
+            #if os(macOS)
+            return AppStrings.embedClickToShowDetails
+            #else
+            return AppStrings.embedTapToShowDetails
+            #endif
+        }
         if embed.isAppSkillUse {
             return nil
         }

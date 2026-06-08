@@ -987,13 +987,14 @@ struct MainAppView: View {
             )
         } else if isAuthenticated, let chatId = selectedChatId {
             let isPublic = publicChatGroup(for: chatId) != nil
+            let initialWindow: [Message] = isPublic ? [] : chatStore.initialMessageWindow(for: chatId)
             ChatView(
                 chatId: chatId,
                 bannerState: isPublic ? demoBannerState(for: chatId) : nil,
                 bannerCreatedAt: nil,
                 initialChat: isPublic ? nil : chatStore.chat(for: chatId),
-                initialMessages: isPublic ? [] : chatStore.messages(for: chatId),
-                initialEmbeds: isPublic ? [] : chatStore.embeds(for: chatId),
+                initialMessages: initialWindow,
+                initialEmbeds: isPublic ? [] : chatStore.initialEmbedsForVisibleWindow(for: chatId, messages: initialWindow),
                 wsManager: wsManager,
                 chatStore: chatStore,
                 isSettingsOpen: !isCompactShell && showSettings,

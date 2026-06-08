@@ -457,6 +457,35 @@ final class OfflineStore: ObservableObject {
         return (try? context.fetch(descriptor))?.map { $0.toMessage() } ?? []
     }
 
+    func loadLatestMessageWindow(chatId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetChatId = chatId
+        var descriptor = FetchDescriptor<PersistedMessage>(
+            predicate: #Predicate { $0.chatId == targetChatId },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        let newestFirst = (try? context.fetch(descriptor)) ?? []
+        return newestFirst.map { $0.toMessage() }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func loadOlderMessageWindow(chatId: String, before messageId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetChatId = chatId
+        let boundaryDescriptor = FetchDescriptor<PersistedMessage>(
+            predicate: #Predicate { $0.id == messageId }
+        )
+        guard let boundary = try? context.fetch(boundaryDescriptor).first else { return [] }
+        let boundaryCreatedAt = boundary.createdAt
+        var descriptor = FetchDescriptor<PersistedMessage>(
+            predicate: #Predicate { $0.chatId == targetChatId && $0.createdAt < boundaryCreatedAt },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        let newestFirst = (try? context.fetch(descriptor)) ?? []
+        return newestFirst.map { $0.toMessage() }.sorted { $0.createdAt < $1.createdAt }
+    }
+
     func loadEmbeds(chatId: String) -> [EmbedRecord] {
         guard let context = modelContext else { return [] }
         let targetChatId = chatId

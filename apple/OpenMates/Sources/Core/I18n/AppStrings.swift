@@ -310,6 +310,9 @@ enum AppStrings {
     static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var via: String { L("embeds.via") }
     static var searchFailed: String { L("embeds.search_failed") }
+    static var embedStoredEncrypted: String { L("embeds.stored_encrypted") }
+    static var embedClickToShowDetails: String { L("embeds.click_to_show_details") }
+    static var embedTapToShowDetails: String { L("embeds.tap_to_show_details") }
     static var genericProcessingError: String { L("chat.an_error_occured") }
     static var imageSearchViewSource: String { L("embeds.image_search.view_source") }
     static var imageSearchOpenImage: String { L("embeds.image_search.open_image") }

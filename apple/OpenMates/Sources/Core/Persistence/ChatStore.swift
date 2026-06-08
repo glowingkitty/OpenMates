@@ -7,6 +7,8 @@ import SwiftUI
 
 @MainActor
 final class ChatStore: ObservableObject {
+    static let boundedWindowSize = 50
+
     @Published var chats: [Chat] = []
     @Published private var messagesByChat: [String: [Message]] = [:]
     @Published private var embedsByChat: [String: [String: EmbedRecord]] = [:]
@@ -109,8 +111,36 @@ final class ChatStore: ObservableObject {
         messagesByChat[chatId] ?? []
     }
 
+    func initialMessageWindow(for chatId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        let messages = sortedMessages(for: chatId)
+        guard messages.count > limit else { return messages }
+        return Array(messages.suffix(limit))
+    }
+
+    func olderMessageWindow(for chatId: String, before messageId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        let messages = sortedMessages(for: chatId)
+        guard let boundaryIndex = messages.firstIndex(where: { $0.id == messageId }), boundaryIndex > 0 else {
+            return []
+        }
+        let startIndex = max(0, boundaryIndex - limit)
+        return Array(messages[startIndex..<boundaryIndex])
+    }
+
+    func hasOlderMessages(for chatId: String, before messageId: String?) -> Bool {
+        guard let messageId else { return false }
+        let messages = sortedMessages(for: chatId)
+        guard let boundaryIndex = messages.firstIndex(where: { $0.id == messageId }) else { return false }
+        return boundaryIndex > 0
+    }
+
     func embeds(for chatId: String) -> [EmbedRecord] {
         Array((embedsByChat[chatId] ?? [:]).values)
+    }
+
+    func initialEmbedsForVisibleWindow(for chatId: String, messages: [Message]) -> [EmbedRecord] {
+        let records = embedsByChat[chatId] ?? [:]
+        guard !records.isEmpty else { return [] }
+        return lightweightEmbeds(for: messages, records: records)
     }
 
     func setMessages(for chatId: String, messages: [Message]) {
@@ -217,6 +247,22 @@ final class ChatStore: ObservableObject {
         chats.sort { a, b in
             (a.lastMessageDate ?? .distantPast) > (b.lastMessageDate ?? .distantPast)
         }
+    }
+
+    private func sortedMessages(for chatId: String) -> [Message] {
+        (messagesByChat[chatId] ?? []).sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private func lightweightEmbeds(for messages: [Message], records: [String: EmbedRecord]) -> [EmbedRecord] {
+        let referencedIds = Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
+        guard !referencedIds.isEmpty else { return [] }
+        var includedIds = referencedIds
+        for id in referencedIds {
+            if let parentId = records[id]?.parentEmbedId {
+                includedIds.insert(parentId)
+            }
+        }
+        return includedIds.compactMap { records[$0] }
     }
 
     private func logMetadataMerge(existing: Chat, incoming: Chat) {

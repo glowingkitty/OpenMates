@@ -9,6 +9,14 @@ import CryptoKit
 
 @MainActor
 final class ChatViewModel: ObservableObject {
+    struct ChatOpeningMetrics: Equatable {
+        var initialMessagesReceived = 0
+        var initialMessagesDecrypted = 0
+        var initialEmbedsReceived = 0
+        var fullEmbedsDecrypted = 0
+        var firstUsefulRenderMs = 0
+    }
+
     @Published var chat: Chat?
     @Published var messages: [Message] = []
     @Published var embedRecords: [String: EmbedRecord] = [:]
@@ -18,6 +26,7 @@ final class ChatViewModel: ObservableObject {
     @Published var streamingMessageId: String?
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
+    @Published private(set) var openingMetrics = ChatOpeningMetrics()
     @Published private(set) var pendingComposerEmbeds: [ComposerPendingEmbed] = []
 
     var hasPendingComposerEmbeds: Bool {
@@ -162,9 +171,12 @@ final class ChatViewModel: ObservableObject {
 
         chat = loadedChat
         let rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        openingMetrics.initialMessagesReceived = rawMessages.count
+        openingMetrics.initialEmbedsReceived = syncedEmbeds.count
         allMessages = rawMessages
         let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
+        openingMetrics.initialMessagesDecrypted = decryptedMessages.count
         guard generation == loadGeneration else { return }
         let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
         let existingRecords = embedRecords
@@ -173,13 +185,8 @@ final class ChatViewModel: ObservableObject {
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
         followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
-        if visibleWindowStartIndex > 0 {
-            messages = embedded.messages
-            hasOlderMessages = true
-        } else {
-            messages = embedded.messages
-            hasOlderMessages = false
-        }
+        messages = embedded.messages
+        hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
 
         subscribeToStream(chatId: loadedChat.id)
         subscribeToEmbedUpdates(chatId: loadedChat.id)
@@ -187,6 +194,7 @@ final class ChatViewModel: ObservableObject {
         NativeSyncPerfLog.info(
             "phase=loadSyncedChatFirstPaint chat=\(loadedChat.id.prefix(8)) visibleMessages=\(decryptedMessages.count) totalMessages=\(rawMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
         )
+        openingMetrics.firstUsefulRenderMs = NativeSyncPerfLog.ms(since: start)
         scheduleEmbedHydration(
             syncedEmbeds: syncedEmbeds,
             referencedIds: referencedIds,
@@ -222,6 +230,7 @@ final class ChatViewModel: ObservableObject {
             self.embedRecords = decryptedSyncedEmbeds.reduce(into: self.embedRecords) { records, embed in
                 records[embed.id] = embed
             }
+            self.openingMetrics.fullEmbedsDecrypted += decryptedSyncedEmbeds.filter { $0.rawData != nil }.count
             await self.loadEmbeds(for: self.messages.map(\.id))
             NativeSyncPerfLog.info(
                 "phase=embedHydrationComplete source=\(source) chat=\(chatId.prefix(8)) referenced=\(referencedIds.count) related=\(relatedSyncedEmbeds.count) decrypted=\(decryptedSyncedEmbeds.filter { $0.rawData != nil }.count) totalRecords=\(self.embedRecords.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -440,6 +449,25 @@ final class ChatViewModel: ObservableObject {
     func loadOlderMessages() {
         guard hasOlderMessages, !isLoadingOlder else { return }
         isLoadingOlder = true
+
+        if let chatId = chat?.id,
+           let topMessageId = messages.first?.id,
+           let olderBatch = chatStore?.olderMessageWindow(for: chatId, before: topMessageId),
+           !olderBatch.isEmpty {
+            Task { @MainActor in
+                let decrypted = await decryptMessages(olderBatch, chatId: chatId)
+                let embedded = PublicChatContent.attachEmbeds(to: decrypted)
+                for (id, record) in embedded.records {
+                    embedRecords[id] = record
+                }
+                messages.insert(contentsOf: embedded.messages, at: 0)
+                allMessages.insert(contentsOf: olderBatch, at: 0)
+                hasOlderMessages = chatStore?.hasOlderMessages(for: chatId, before: embedded.messages.first?.id) ?? false
+                await loadEmbeds(for: embedded.messages.map(\.id))
+                isLoadingOlder = false
+            }
+            return
+        }
 
         let currentStartIndex = visibleWindowStartIndex
 
@@ -886,8 +914,9 @@ final class ChatViewModel: ObservableObject {
             let preferredStart = max(0, anchorIndex - 8)
             let maxStart = rawMessages.count - messagesPageSize
             let start = min(preferredStart, maxStart)
+            let end = min(rawMessages.count, start + messagesPageSize)
             visibleWindowStartIndex = start
-            return Array(rawMessages[start..<rawMessages.count])
+            return Array(rawMessages[start..<end])
         }
 
         visibleWindowStartIndex = rawMessages.count - messagesPageSize
@@ -897,24 +926,10 @@ final class ChatViewModel: ObservableObject {
     private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {
         guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
         let recordsById = EmbedRecord.dictionaryById(embeds, context: "chatViewModel.relatedEmbeds")
-        var childIdsByParent: [String: Set<String>] = [:]
-        for embed in embeds {
-            if let parentId = embed.parentEmbedId {
-                childIdsByParent[parentId, default: []].insert(embed.id)
-            }
-            for childId in embed.childEmbedIds {
-                childIdsByParent[embed.id, default: []].insert(childId)
-            }
-        }
-
         var included = referencedIds
-        var pending = Array(referencedIds)
-        while let id = pending.popLast() {
-            if let record = recordsById[id], let parentId = record.parentEmbedId, included.insert(parentId).inserted {
-                pending.append(parentId)
-            }
-            for childId in childIdsByParent[id] ?? [] where included.insert(childId).inserted {
-                pending.append(childId)
+        for id in referencedIds {
+            if let parentId = recordsById[id]?.parentEmbedId {
+                included.insert(parentId)
             }
         }
         return embeds.filter { included.contains($0.id) }

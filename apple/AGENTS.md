@@ -102,17 +102,44 @@ Performance matters. Avoid expensive work in SwiftUI `body`, including markdown 
 
 ## Remote Mac Verification
 
-When the active OpenCode session runs on a Linux/dev server but a trusted Mac is available over a private network, use SSH for Apple verification instead of guessing from static source.
+When the active OpenCode session runs on a Linux/dev server, attempt Apple
+verification through a trusted Mac on Tailscale/SSH before saying Mac/Xcode
+verification is unavailable. This is mandatory for changes that affect
+Apple-backed surfaces such as chat, sync, auth, settings, embeds, billing,
+shared UI, app chrome, or provider result rendering.
 
-Use only operator-provided connection details from local runtime configuration, such as `~/.ssh/config`, environment variables, or the current chat. Never commit private connection details to the open source repository. This includes hostnames, IP addresses, usernames, SSH aliases, tailnet names, device names, auth keys, and local filesystem paths outside generic placeholders.
+Use only operator-provided connection details from local runtime configuration,
+such as `~/.ssh/config`, environment variables, or the current chat. Never commit
+private connection details to the open source repository. This includes
+hostnames, IP addresses, usernames, SSH aliases, tailnet names, device names,
+auth keys, and local filesystem paths outside generic placeholders.
 
 Remote verification flow:
 
 1. Confirm SSH access with key-based authentication before running build commands.
-2. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
-3. Update the Mac checkout with `git pull --ff-only` when the tree is clean, or copy only the files intentionally changed in the current session.
-4. Build with `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" build`.
-5. To verify simulator control, boot the simulator, install the built app, launch it, optionally adjust simulator UI state, and capture a screenshot using `xcrun simctl`.
-6. After verification, shut down any simulator booted by the session with `xcrun simctl shutdown <simulator>` unless the operator explicitly asks to keep it running.
-7. Clean up only temporary artifacts created by the current session, such as copied screenshots or throwaway build logs. Do not delete unrelated DerivedData, caches, or local checkout changes.
-8. Report only generic evidence in committed docs and summaries. Keep private connection details in local shell history or operator notes, not repo files.
+2. Locate the Mac checkout without printing private paths. Prefer known local
+   configuration; if needed, use a sanitized project lookup for
+   `apple/OpenMates.xcodeproj` and report only success or `project_not_found`.
+3. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
+4. Update the Mac checkout with `git pull --ff-only` when the tree is clean, or
+   copy only the files intentionally changed in the current session.
+5. At minimum, run `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build`
+   to prove the native project compiles.
+6. For visual or interaction parity, run a simulator build with a concrete
+   destination, install and launch the app with `xcrun simctl`, optionally adjust
+   simulator UI state, and capture a screenshot.
+7. After verification, shut down any simulator booted by the session with
+   `xcrun simctl shutdown <simulator>` unless the operator explicitly asks to
+   keep it running.
+8. Clean up only temporary artifacts created by the current session, such as
+   copied screenshots or throwaway build logs. Do not delete unrelated
+   DerivedData, caches, or local checkout changes.
+9. Report only generic evidence in committed docs and summaries: build command
+   class, scheme, simulator family, result, and sanitized failure classes such as
+   `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
+   connection details in local shell history or operator notes, not repo files.
+
+Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
+a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found
+the checkout, `xcodebuild -showBuildSettings` worked, and a generic
+`OpenMates_iOS` iOS Simulator build completed successfully.

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-08
 ---
 
 # Testing Reference
@@ -32,11 +32,33 @@ exists in `apple/OpenMates/`, including chat, sync, auth, settings, embeds,
 billing, shared UI primitives, app chrome, or provider result rendering.
 
 Use XcodeBuildMCP on a Mac when available. If the active OpenCode session runs
-on Linux/dev server and a trusted Mac is reachable through operator-provided SSH
-configuration, use the remote Mac flow in `apple/AGENTS.md`: verify key-based SSH
-access, protect local Mac checkout changes, run `xcodebuild`, use `xcrun simctl`
-for simulator launch/screenshot checks when needed, and shut down any simulator
-booted by the session after verification.
+on Linux/dev server, you MUST attempt the remote Mac Xcode CLI flow through
+Tailscale/SSH before marking Apple verification unavailable. Use only
+operator-provided local runtime configuration, such as `~/.ssh/config`, current
+environment variables, or explicit details from the user. The minimum acceptable
+attempt is key-based SSH to the Mac plus an `xcodebuild` command against
+`apple/OpenMates.xcodeproj`; a stronger verification is a full build, simulator
+launch, and screenshot parity check. Use the remote Mac flow in
+`apple/AGENTS.md`: verify SSH access, protect local Mac checkout changes, run
+`xcodebuild`, use `xcrun simctl` for simulator launch/screenshot checks when
+needed, and shut down any simulator booted by the session after verification.
+
+Remote Xcode CLI probe pattern, with all private connection details kept local:
+
+```bash
+# On the Mac, from its OpenMates checkout:
+xcodebuild -project apple/OpenMates.xcodeproj \
+  -scheme OpenMates_iOS \
+  -destination 'generic/platform=iOS Simulator' \
+  build
+```
+
+If the Mac is reachable but the checkout cannot be found, or if key-based SSH is
+not available, record the sanitized failure class, such as `ssh_failed`,
+`project_not_found`, or `xcode_build_failed`, and ask the user for the missing
+access/path instead of silently skipping Apple verification. This Tailscale/SSH
+route was validated on 2026-06-08 with `xcodebuild -version`,
+`xcodebuild -showBuildSettings`, and a generic iOS Simulator build.
 
 Do not record private hostnames, IP addresses, usernames, SSH aliases, tailnet
 names, auth keys, device names, or personal local paths in tests, specs, docs,
