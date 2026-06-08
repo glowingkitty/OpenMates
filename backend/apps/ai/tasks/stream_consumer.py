@@ -2278,6 +2278,25 @@ async def _validate_paragraph_urls(
 # (not converted to a code embed). Prevents broken/empty embeds from example code
 # fences or garbled output.
 MIN_CODE_EMBED_CONTENT_LENGTH = 20
+APPLICATION_PREVIEW_MANIFEST_FILENAMES = {"package.json"}
+APPLICATION_PREVIEW_SOURCE_EXTENSIONS = (
+    ".svelte",
+    ".vue",
+    ".tsx",
+    ".jsx",
+    ".ts",
+    ".js",
+    ".css",
+    ".html",
+)
+APPLICATION_PREVIEW_MAIN_FILES = (
+    "src/main.ts",
+    "src/main.js",
+    "src/App.svelte",
+    "src/App.tsx",
+    "src/App.jsx",
+    "index.html",
+)
 
 
 def _should_process_chunk_as_code_block(
@@ -2364,6 +2383,67 @@ def _is_code_block_too_short_for_embed(code_content: str) -> bool:
     Fix for issue 6a948813.
     """
     return len(code_content.strip()) < MIN_CODE_EMBED_CONTENT_LENGTH
+
+
+def _normalize_generated_app_file_path(filename: Optional[str]) -> Optional[str]:
+    if not filename:
+        return None
+    normalized = str(filename).strip().replace("\\", "/").lstrip("/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized or None
+
+
+def _build_application_manifest_from_code_embeds(
+    code_embeds: List[Dict[str, str]],
+) -> Optional[Dict[str, Any]]:
+    seen_paths: set[str] = set()
+    file_refs: List[Dict[str, str]] = []
+
+    for code_embed in code_embeds:
+        path = _normalize_generated_app_file_path(code_embed.get("filename"))
+        embed_id = code_embed.get("embed_id")
+        if not path or not embed_id or path in seen_paths:
+            continue
+        seen_paths.add(path)
+        role = "dependency_manifest" if path in APPLICATION_PREVIEW_MANIFEST_FILENAMES else "source"
+        file_refs.append({"path": path, "embed_id": embed_id, "role": role})
+
+    has_manifest = any(ref["role"] == "dependency_manifest" for ref in file_refs)
+    has_source = any(ref["path"].endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS) for ref in file_refs)
+    if not has_manifest or not has_source:
+        return None
+
+    framework = "svelte" if any(ref["path"].endswith(".svelte") for ref in file_refs) else "web"
+    main_file = next((path for path in APPLICATION_PREVIEW_MAIN_FILES if path in seen_paths), None)
+    if not main_file:
+        main_file = next((ref["path"] for ref in file_refs if ref["role"] == "source"), "")
+
+    return {
+        "name": "Generated application",
+        "framework": framework,
+        "runtime": "node",
+        "file_refs": file_refs,
+        "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        "main_file": main_file,
+    }
+
+
+def _record_generated_code_file_embed(
+    code_embeds: List[Dict[str, str]],
+    *,
+    embed_id: Optional[str],
+    filename: Optional[str],
+    language: Optional[str],
+) -> None:
+    path = _normalize_generated_app_file_path(filename)
+    if not embed_id or not path:
+        return
+    code_embeds.append({
+        "embed_id": embed_id,
+        "filename": path,
+        "language": language or "",
+    })
 
 
 async def _consume_main_processing_stream(
@@ -2561,6 +2641,7 @@ async def _consume_main_processing_stream(
     current_code_filename: Optional[str] = None
     current_code_content = ""
     current_code_embed_id: Optional[str] = None
+    generated_code_file_embeds: List[Dict[str, str]] = []
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
@@ -3557,6 +3638,12 @@ async def _consume_main_processing_stream(
                                                 status="finished",
                                                 log_prefix=log_prefix
                                             )
+                                            _record_generated_code_file_embed(
+                                                generated_code_file_embeds,
+                                                embed_id=current_code_embed_id,
+                                                filename=current_code_filename,
+                                                language=current_code_language,
+                                            )
 
                                             # Replace code block with embed reference in chunk
                                             embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
@@ -4323,7 +4410,13 @@ async def _consume_main_processing_stream(
                                         status="finished",
                                         log_prefix=log_prefix
                                     )
-                                    
+                                    _record_generated_code_file_embed(
+                                        generated_code_file_embeds,
+                                        embed_id=current_code_embed_id,
+                                        filename=current_code_filename,
+                                        language=current_code_language,
+                                    )
+                                     
                                     logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
@@ -5284,6 +5377,61 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     "Published response with safeguard-processed URLs",
                 )
+
+    # Generated multi-file web apps are emitted as normal code-file embeds while
+    # streaming. Once the stream is complete, add one application parent embed
+    # that references those child file embeds and powers live preview startup.
+    if (
+        aggregated_response
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+        and generated_code_file_embeds
+        and cache_service
+        and directus_service
+        and encryption_service
+        and user_vault_key_id
+    ):
+        application_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+        if application_manifest:
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+
+                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                application_embed_data = await embed_service.create_application_embed(
+                    name=application_manifest["name"],
+                    framework=application_manifest["framework"],
+                    runtime=application_manifest["runtime"],
+                    file_refs=application_manifest["file_refs"],
+                    entrypoints=application_manifest["entrypoints"],
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                )
+                if application_embed_data:
+                    application_reference = f"```json\n{application_embed_data['embed_reference']}\n```\n\n"
+                    aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
+                    final_response_chunks = [aggregated_response]
+                    app_payload = _create_redis_payload(
+                        task_id,
+                        request_data,
+                        aggregated_response,
+                        stream_chunk_count + 5,
+                        is_final=False,
+                        model_name=stream_model_name,
+                    )
+                    await _publish_to_redis(
+                        cache_service,
+                        redis_channel_name,
+                        app_payload,
+                        log_prefix,
+                        "Published response with generated application embed reference",
+                    )
+            except Exception as e:
+                logger.error(f"{log_prefix} Error creating generated application parent embed: {e}", exc_info=True)
 
     # --- Hardcoded Advice Disclaimer Injection ---
     # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.

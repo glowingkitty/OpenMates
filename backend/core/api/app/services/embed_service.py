@@ -755,6 +755,119 @@ class EmbedService:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
             return False
 
+    async def create_application_embed(
+        self,
+        *,
+        name: str,
+        framework: str,
+        runtime: str,
+        file_refs: List[Dict[str, Any]],
+        entrypoints: List[Dict[str, Any]],
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a finished generated-application parent embed for code file embeds."""
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
+            embed_ref = self._generate_direct_embed_ref(
+                "application",
+                embed_id,
+                {"name": name or "application"},
+            )
+
+            content = {
+                "type": "application",
+                "app_id": "code",
+                "skill_id": "application",
+                "name": name or "Generated application",
+                "framework": framework,
+                "runtime": runtime,
+                "file_refs": file_refs,
+                "entrypoints": entrypoints,
+                "embed_ids": child_embed_ids,
+                "embed_ref": embed_ref,
+                "status": "finished",
+            }
+            content_toon = encode(_flatten_for_toon_tabular(content))
+            text_length_chars = len(content_toon)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                content_toon,
+                user_vault_key_id,
+            )
+
+            created_at = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "application",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "finished",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": child_embed_ids,
+                "encrypted_content": encrypted_content,
+                "text_length_chars": text_length_chars,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="application",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                task_id=task_id,
+                embed_ids=child_embed_ids,
+                text_length_chars=text_length_chars,
+                created_at=created_at,
+                updated_at=created_at,
+                log_prefix=log_prefix,
+                check_cache_status=False,
+                app_id="code",
+                skill_id="application",
+            )
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            self._schedule_embed_persistence_fallback(embed_id)
+            logger.info(
+                f"{log_prefix} Created generated application embed {embed_id} "
+                f"with {len(child_embed_ids)} file refs"
+            )
+
+            embed_reference = json.dumps({
+                "type": "application",
+                "embed_id": embed_id,
+                "app_id": "code",
+                "skill_id": "application",
+            })
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference,
+                "child_embed_ids": child_embed_ids,
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating application embed: {e}", exc_info=True)
+            return None
+
     # =========================================================================
     # Table/sheet embed methods (for markdown tables detected in AI responses)
     # Mirrors the code embed pattern but uses type="sheet" with markdown table content.

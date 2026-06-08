@@ -31,6 +31,14 @@ on:
         description: "Use mock LLM responses (requires recorded fixtures)"
         type: boolean
         default: true
+      record_live_fixtures:
+        description: "Record live provider fixtures instead of replaying cached provider mocks"
+        type: boolean
+        default: false
+      use_live_mocks:
+        description: "Use cached live provider mocks for specs that call withLiveMockMarker()"
+        type: boolean
+        default: true
       create_account_slot:
         description: "Account slot for create-test-account.spec.ts (1-20). Leave empty for normal tests."
         type: string
@@ -83,6 +91,8 @@ jobs:
           GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
           E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
+          E2E_USE_LIVE_MOCKS: ${{ github.event.inputs.use_live_mocks == 'true' && '1' || '' }}
+          E2E_RECORD_LIVE_FIXTURES: ${{ github.event.inputs.record_live_fixtures == 'true' && '1' || '' }}
           CREATE_ACCOUNT_SLOT: ${{ github.event.inputs.create_account_slot }}
       - name: Show results
         if: always()

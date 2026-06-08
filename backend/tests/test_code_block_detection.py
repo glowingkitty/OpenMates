@@ -14,6 +14,7 @@ import pytest
 
 try:
     from backend.apps.ai.tasks.stream_consumer import (
+        _build_application_manifest_from_code_embeds,
         _should_process_chunk_as_code_block,
     )
 except ImportError as _exc:
@@ -74,6 +75,7 @@ class TestRealCodeFenceDetection:
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
         assert result is True
 
+
     def test_fence_at_start_of_response(self):
         """Code block as first content should be detected."""
         chunk = "```javascript\nconsole.log('hello')\n```"
@@ -122,6 +124,37 @@ class TestRealCodeFenceDetection:
         aggregated = "```python\ndef hello():\n"
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=True)
         assert result is False
+
+
+class TestGeneratedApplicationManifestDetection:
+    """Test conservative grouping of generated code files into an app manifest."""
+
+    def test_requires_package_manifest_and_source_file(self):
+        result = _build_application_manifest_from_code_embeds([
+            {"embed_id": "file-app", "filename": "src/App.svelte", "language": "svelte"},
+        ])
+
+        assert result is None
+
+    def test_builds_svelte_node_application_manifest(self):
+        result = _build_application_manifest_from_code_embeds([
+            {"embed_id": "file-package", "filename": "./package.json", "language": "json"},
+            {"embed_id": "file-app", "filename": "src/App.svelte", "language": "svelte"},
+            {"embed_id": "file-main", "filename": "src/main.ts", "language": "typescript"},
+        ])
+
+        assert result == {
+            "name": "Generated application",
+            "framework": "svelte",
+            "runtime": "node",
+            "file_refs": [
+                {"path": "package.json", "embed_id": "file-package", "role": "dependency_manifest"},
+                {"path": "src/App.svelte", "embed_id": "file-app", "role": "source"},
+                {"path": "src/main.ts", "embed_id": "file-main", "role": "source"},
+            ],
+            "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+            "main_file": "src/main.ts",
+        }
 
 
 # ---------------------------------------------------------------------------
