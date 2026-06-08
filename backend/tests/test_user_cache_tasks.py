@@ -75,3 +75,33 @@ def test_cached_chat_versions_from_details_keeps_valid_versions(monkeypatch) -> 
 
     assert versions.messages_v == 4
     assert versions.title_v == 2
+
+
+def test_effective_chat_timestamp_tolerates_nullable_directus_fields(monkeypatch) -> None:
+    user_cache_tasks = _load_user_cache_tasks_module(monkeypatch)
+
+    timestamp = user_cache_tasks._effective_chat_timestamp(
+        {
+            "last_edited_overall_timestamp": None,
+            "updated_at": 20,
+            "created_at": None,
+        },
+        draft_updated_at=None,
+    )
+
+    assert timestamp == 20
+
+
+def test_effective_chat_timestamp_uses_draft_when_newer(monkeypatch) -> None:
+    user_cache_tasks = _load_user_cache_tasks_module(monkeypatch)
+
+    timestamp = user_cache_tasks._effective_chat_timestamp(
+        {
+            "last_edited_overall_timestamp": None,
+            "updated_at": 20,
+            "created_at": 10,
+        },
+        draft_updated_at=30,
+    )
+
+    assert timestamp == 30
