@@ -80,7 +80,7 @@ export function parseDeepLink(
     const params = new URLSearchParams(extraParams.startsWith("&") ? extraParams.slice(1) : extraParams);
 
     // Extract optional message-id param
-    const messageId = params.get("message-id") ?? params.get("message_id");
+    const messageId = params.get("message-id") ?? params.get("message_id") ?? params.get("messageid");
 
     // Extract optional scroll param — 'latest-response' means scroll to top of newest assistant message
     const scrollToLatestResponse = params.get("scroll") === "latest-response";
@@ -156,6 +156,19 @@ export function parseDeepLink(
   }
 
   return { type: "unknown", data: null };
+}
+
+export function buildChatMessageLink(
+  chatId: string,
+  messageId: string,
+  baseUrl?: string,
+): string {
+  const origin = baseUrl ?? (typeof window !== "undefined" ? window.location.origin + window.location.pathname : "");
+  const hashParams = new URLSearchParams({
+    "chat-id": chatId,
+    "message-id": messageId,
+  });
+  return `${origin}#${hashParams.toString()}`;
 }
 
 /**

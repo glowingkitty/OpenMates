@@ -15,6 +15,7 @@
         show?: boolean;
         onClose?: () => void;
         onCopy?: () => void;
+        onCopyLink?: () => void;
         onSelect?: () => void;
         onDelete?: () => void;
         onFork?: () => void;        // Callback to open the fork conversation settings panel
@@ -39,6 +40,7 @@
         show = false,
         onClose,
         onCopy,
+        onCopyLink,
         onSelect,
         onDelete,
         onFork,
@@ -197,7 +199,7 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment' | 'explain_in_new_chat', event: Event) {
+    function handleAction(action: 'copy' | 'copy_link' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment' | 'explain_in_new_chat', event: Event) {
         event.stopPropagation();
         event.preventDefault();
 
@@ -215,6 +217,7 @@
         console.debug('[MessageContextMenu] Action triggered:', action);
 
         if (action === 'copy') onCopy?.();
+        if (action === 'copy_link') onCopyLink?.();
         if (action === 'select') onSelect?.();
         if (action === 'edit') onEdit?.();
         if (action === 'highlight') onHighlight?.();
@@ -301,6 +304,17 @@
             <div class="clickable-icon icon_copy"></div>
             {$text('common.copy')}
         </button>
+
+        {#if onCopyLink}
+            <button
+                class="menu-item copy-link"
+                data-testid="chat-context-copy-link"
+                onclick={(event) => handleAction('copy_link', event)}
+            >
+                <div class="clickable-icon icon_link"></div>
+                {$text('enter_message.press_and_hold_menu.copy_link')}
+            </button>
+        {/if}
 
         {#if isTouchDevice}
             <button

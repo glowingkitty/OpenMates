@@ -506,7 +506,15 @@
 
 		// CRITICAL: During initial hash load, always process (store might be initialized from hash but chat not loaded)
 		// After initial load, skip if chat is already active in store (prevents unnecessary processing)
-		if (!isProcessingInitialHash && $activeChatStore === chatId && lastLoadedChatId === chatId) {
+		if (
+			!isProcessingInitialHash &&
+			$activeChatStore === chatId &&
+			lastLoadedChatId === chatId &&
+			!messageId &&
+			!scrollToLatestResponse &&
+			!embedId &&
+			!autoplayVideo
+		) {
 			console.debug(
 				`[+page.svelte] Chat ${chatId} is already active (not initial load), skipping deep link processing`
 			);
@@ -522,7 +530,7 @@
 			const exampleChatObj = getExampleChat(chatId);
 			if (exampleChatObj && activeChat) {
 				// Example chats are static — load directly (embed refs already registered on page load)
-				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo });
+				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo, messageId });
 				lastLoadedChatId = exampleChatObj.chat_id;
 
 				const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -569,7 +577,7 @@
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
-					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo });
+					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
 					lastLoadedChatId = chat.chat_id;
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -640,7 +648,7 @@
 
 				const loadSessionStorageChat = async (retries = 20): Promise<void> => {
 					if (activeChat) {
-						activeChat.loadChat(virtualChat, { scrollToLatestResponse });
+						activeChat.loadChat(virtualChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = virtualChat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -690,7 +698,7 @@
 
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
-						activeChat.loadChat(chat, { scrollToLatestResponse });
+						activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = chat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat

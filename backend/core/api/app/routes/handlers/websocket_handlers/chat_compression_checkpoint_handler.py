@@ -4,6 +4,7 @@
 # checkpoint content into Directus zero-knowledge storage.
 
 import logging
+import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -197,6 +198,7 @@ async def _handle_get_compressed_chat_old_messages(
     chat_id = payload.get("chat_id")
     checkpoint_id = payload.get("checkpoint_id")
     before_timestamp = payload.get("before_timestamp")
+    target_message_id = payload.get("target_message_id")
     limit = min(int(payload.get("limit") or DEFAULT_OLD_MESSAGE_LIMIT), MAX_OLD_MESSAGE_LIMIT)
 
     if not chat_id or not checkpoint_id or before_timestamp is None:
@@ -235,11 +237,29 @@ async def _handle_get_compressed_chat_old_messages(
         )
         return
 
+    if target_message_id:
+        target_message = await directus_service.chat.get_message_for_chat_by_client_id(
+            chat_id=chat_id,
+            message_id=target_message_id,
+        )
+        if target_message:
+            before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+
     messages: List[str] = await directus_service.chat.get_messages_for_chat_before_timestamp(
         chat_id=chat_id,
         before_timestamp=int(before_timestamp),
-        limit=limit,
+        limit=limit + 1,
     )
+    has_more = len(messages) > limit
+    if has_more:
+        messages = messages[1:]
+    next_before_timestamp = None
+    if has_more and messages:
+        try:
+            first_message = json.loads(messages[0])
+            next_before_timestamp = int(first_message.get("created_at")) - 1
+        except Exception:
+            next_before_timestamp = None
     await manager.send_personal_message(
         {
             "type": "compressed_chat_old_messages_response",
@@ -247,7 +267,9 @@ async def _handle_get_compressed_chat_old_messages(
                 "chat_id": chat_id,
                 "checkpoint_id": checkpoint_id,
                 "messages": messages,
-                "has_more": len(messages) == limit,
+                "has_more": has_more,
+                "next_before_timestamp": next_before_timestamp,
+                "target_message_id": target_message_id,
             },
         },
         user_id,

@@ -29,6 +29,102 @@ interface ChatDatabaseInstance {
 
 // Store name constant (must match the one in db.ts)
 const MESSAGES_STORE_NAME = "messages";
+const DEFAULT_MESSAGE_WINDOW_LIMIT = 40;
+const MAX_MESSAGE_WINDOW_LIMIT = 100;
+
+export type MessageWindowDirection = "latest" | "before" | "after" | "around";
+
+export interface MessageWindowOptions {
+  direction?: MessageWindowDirection;
+  limit?: number;
+  anchorMessageId?: string;
+  anchorCreatedAt?: number;
+  beforeTimestamp?: number;
+  afterTimestamp?: number;
+  compressedUpToTimestamp?: number;
+}
+
+export interface MessageWindowResult {
+  messages: Message[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+  startCursor: number | null;
+  endCursor: number | null;
+  anchorFound: boolean;
+}
+
+function clampWindowLimit(limit?: number): number {
+  if (!Number.isFinite(limit) || !limit || limit < 1) {
+    return DEFAULT_MESSAGE_WINDOW_LIMIT;
+  }
+  return Math.min(Math.floor(limit), MAX_MESSAGE_WINDOW_LIMIT);
+}
+
+function chatRange(
+  chatId: string,
+  lowerTimestamp: number = -Infinity,
+  upperTimestamp: number = Infinity,
+  lowerOpen = false,
+  upperOpen = false,
+): IDBKeyRange {
+  return IDBKeyRange.bound(
+    [chatId, lowerTimestamp],
+    [chatId, upperTimestamp],
+    lowerOpen,
+    upperOpen,
+  );
+}
+
+function readCursorWindow(
+  index: IDBIndex,
+  range: IDBKeyRange,
+  direction: IDBCursorDirection,
+  limit: number,
+): Promise<{ records: Message[]; hasMore: boolean }> {
+  return new Promise((resolve, reject) => {
+    const records: Message[] = [];
+    const request = index.openCursor(range, direction);
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve({ records, hasMore: false });
+        return;
+      }
+      if (records.length >= limit) {
+        resolve({ records, hasMore: true });
+        return;
+      }
+      records.push(cursor.value as Message);
+      cursor.continue();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function decryptWindow(
+  dbInstance: ChatDatabaseInstance,
+  records: Message[],
+  chatId: string,
+): Promise<Message[]> {
+  return Promise.all(records.map((msg) => dbInstance.decryptMessageFields(msg, chatId)));
+}
+
+function windowResult(
+  messages: Message[],
+  hasMoreBefore: boolean,
+  hasMoreAfter: boolean,
+  anchorFound = true,
+): MessageWindowResult {
+  return {
+    messages,
+    hasMoreBefore,
+    hasMoreAfter,
+    startCursor: messages[0]?.created_at ?? null,
+    endCursor: messages[messages.length - 1]?.created_at ?? null,
+    anchorFound,
+  };
+}
 
 // ============================================================================
 // MESSAGE STATUS PRIORITY
@@ -336,6 +432,109 @@ export async function getMessagesForChat(
       reject(request.error);
     };
   });
+}
+
+/**
+ * Get a bounded message window for scalable chat opening and virtualized history.
+ * This intentionally uses cursors instead of getAll(), so it reads and decrypts
+ * only the requested window plus one sentinel row for has-more detection.
+ */
+export async function getMessageWindowForChat(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+  options: MessageWindowOptions = {},
+  transaction?: IDBTransaction,
+): Promise<MessageWindowResult> {
+  await dbInstance.init();
+  const limit = clampWindowLimit(options.limit);
+  const direction = options.direction ?? "latest";
+
+  let anchorRecord: Message | null = null;
+  if (direction === "around" && options.anchorMessageId) {
+    const anchorTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+    anchorRecord = await new Promise<Message | null>((resolve, reject) => {
+      const request = anchorTransaction.objectStore(MESSAGES_STORE_NAME).get(options.anchorMessageId!);
+      request.onsuccess = () => resolve((request.result as Message | undefined) ?? null);
+      request.onerror = () => reject(request.error);
+    });
+    if (anchorRecord?.chat_id !== chat_id) {
+      anchorRecord = null;
+    }
+  }
+
+  const currentTransaction =
+    transaction ||
+    (await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly"));
+  const store = currentTransaction.objectStore(MESSAGES_STORE_NAME);
+  const index = store.index("chat_id_created_at");
+
+  if (direction === "around") {
+    const anchorCreatedAt = anchorRecord?.created_at ?? options.anchorCreatedAt;
+    if (!anchorCreatedAt) {
+      return windowResult([], false, false, false);
+    }
+
+    const beforeLimit = Math.floor((limit - 1) / 2);
+    const afterLimit = limit - 1 - beforeLimit;
+    const before = beforeLimit > 0
+      ? await readCursorWindow(
+          index,
+          chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, anchorCreatedAt, !!options.compressedUpToTimestamp, true),
+          "prev",
+          beforeLimit,
+        )
+      : { records: [], hasMore: false };
+    const after = afterLimit > 0
+      ? await readCursorWindow(
+          index,
+          chatRange(chat_id, anchorCreatedAt, Infinity, true, false),
+          "next",
+          afterLimit,
+        )
+      : { records: [], hasMore: false };
+    const encryptedMessages = [
+      ...before.records.reverse(),
+      ...(anchorRecord ? [anchorRecord] : []),
+      ...after.records,
+    ];
+    const messages = await decryptWindow(dbInstance, encryptedMessages, chat_id);
+    return windowResult(messages, before.hasMore, after.hasMore, !!anchorRecord || !!options.anchorCreatedAt);
+  }
+
+  if (direction === "before") {
+    const beforeTimestamp = options.beforeTimestamp ?? options.anchorCreatedAt;
+    if (!beforeTimestamp) return windowResult([], false, false, false);
+    const { records, hasMore } = await readCursorWindow(
+      index,
+      chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, beforeTimestamp, !!options.compressedUpToTimestamp, true),
+      "prev",
+      limit,
+    );
+    const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
+    return windowResult(messages, hasMore, true);
+  }
+
+  if (direction === "after") {
+    const afterTimestamp = options.afterTimestamp ?? options.anchorCreatedAt;
+    if (!afterTimestamp) return windowResult([], false, false, false);
+    const { records, hasMore } = await readCursorWindow(
+      index,
+      chatRange(chat_id, afterTimestamp, Infinity, true, false),
+      "next",
+      limit,
+    );
+    const messages = await decryptWindow(dbInstance, records, chat_id);
+    return windowResult(messages, true, hasMore);
+  }
+
+  const { records, hasMore } = await readCursorWindow(
+    index,
+    chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, Infinity, !!options.compressedUpToTimestamp, false),
+    "prev",
+    limit,
+  );
+  const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
+  return windowResult(messages, hasMore, false);
 }
 
 /**

@@ -901,7 +901,7 @@ class ChatMethods:
                 'created_at': {'_lte': before_timestamp},
             },
             'fields': MESSAGE_ALL_FIELDS,
-            'sort': 'created_at',
+            'sort': '-created_at',
             'limit': limit,
         }
         try:
@@ -912,6 +912,7 @@ class ChatMethods:
             )
             if not messages_from_db:
                 return []
+            messages_from_db.reverse()
             for msg in messages_from_db:
                 msg['message_id'] = msg.get('client_message_id') or msg.get('id')
             return [json.dumps(msg) for msg in messages_from_db]
@@ -921,6 +922,38 @@ class ChatMethods:
                 exc_info=True,
             )
             return []
+
+    async def get_message_for_chat_by_client_id(
+        self,
+        chat_id: str,
+        message_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch one encrypted message row by client or Directus id within a chat."""
+        for id_field in ('client_message_id', 'id'):
+            try:
+                rows = await self.directus_service.get_items(
+                    'messages',
+                    params={
+                        'filter': {
+                            'chat_id': {'_eq': chat_id},
+                            id_field: {'_eq': message_id},
+                        },
+                        'fields': MESSAGE_ALL_FIELDS,
+                        'limit': 1,
+                    },
+                    admin_required=True,
+                )
+                if rows:
+                    row = rows[0]
+                    row['message_id'] = row.get('client_message_id') or row.get('id')
+                    return row
+            except Exception as e:
+                logger.error(
+                    f"Error fetching message {message_id} for chat {chat_id} by {id_field}: {e}",
+                    exc_info=True,
+                )
+                return None
+        return None
 
     async def get_all_user_drafts(self, user_id: str) -> Dict[str, Dict[str, Any]]:
         """

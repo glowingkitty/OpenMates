@@ -144,6 +144,24 @@
 		updated_at: number;
 	};
 
+	type ShareChatPayload = {
+		chat_id?: string;
+		encrypted_title?: string | null;
+		encrypted_chat_summary?: string | null;
+		encrypted_follow_up_request_suggestions?: string | null;
+		encrypted_icon?: string | null;
+		encrypted_category?: string | null;
+		messages?: Array<string | ShareChatServerMessage>;
+		embeds?: ShareChatEmbedLike[];
+		embed_keys?: ShareChatEmbedKey[];
+		sub_chats?: ShareChatSubChat[];
+		code_run_outputs?: ShareChatCodeRunOutput[];
+		message_highlights?: ShareChatHighlight[];
+		share_pii?: boolean;
+		share_highlights?: boolean;
+		message_window?: { has_more?: boolean; next_before_timestamp?: number | null };
+	};
+
 	/**
 	 * Extract the encryption key and message ID from the URL fragment
 	 * Format: #key={encrypted_blob} or #key={encrypted_blob}&messageid={messageId}
@@ -190,7 +208,8 @@
 	 * Returns chat, messages, embeds, and embed_keys for the wrapped key architecture
 	 */
 	async function fetchChatFromServer(
-		chatId: string
+		chatId: string,
+		messageId: string | null = null
 	): Promise<{
 		chat: Chat | null;
 		messages: Message[];
@@ -201,12 +220,37 @@
 		message_highlights: ShareChatHighlight[];
 	}> {
 		try {
-			const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
-			if (!response.ok) {
-				throw new Error(`Server returned ${response.status}`);
+			let data: ShareChatPayload;
+			try {
+				const messageParams = new URLSearchParams({ limit: '40' });
+				if (messageId) {
+					messageParams.set('target_message_id', messageId);
+				}
+				const [manifestResponse, messagesResponse] = await Promise.all([
+					fetch(getApiEndpoint(`/v1/share/chat/${chatId}/manifest`)),
+					fetch(getApiEndpoint(`/v1/share/chat/${chatId}/messages?${messageParams.toString()}`))
+				]);
+				if (!manifestResponse.ok || !messagesResponse.ok) {
+					throw new Error(`Windowed share endpoints returned ${manifestResponse.status}/${messagesResponse.status}`);
+				}
+				const manifestData = await manifestResponse.json();
+				const messageWindowData = await messagesResponse.json();
+				data = {
+					...manifestData,
+					messages: messageWindowData.messages || [],
+					message_window: {
+						has_more: !!messageWindowData.has_more,
+						next_before_timestamp: messageWindowData.next_before_timestamp ?? null
+					}
+				};
+			} catch (windowedError) {
+				console.warn('[ShareChat] Windowed share load failed, falling back to legacy full payload:', windowedError);
+				const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
+				if (!response.ok) {
+					throw new Error(`Server returned ${response.status}`);
+				}
+				data = await response.json();
 			}
-
-			const data = await response.json();
 
 			// Check if this is dummy data (non-existent chat)
 			// The backend returns dummy data for non-existent chats to prevent enumeration
@@ -244,6 +288,8 @@
 					? Math.max(...messageTimestamps)
 					: Math.floor(Date.now() / 1000);
 
+			const resolvedChatId = data.chat_id || chatId;
+
 			// Convert parsed messages to Message format
 			const messages: Message[] = parsedMessages.flatMap((messageObj) => {
 				const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
@@ -259,7 +305,7 @@
 				// local copy (so any stable ID is fine for them).
 				return [{
 					message_id: messageId,
-					chat_id: data.chat_id,
+					chat_id: resolvedChatId,
 					role,
 					created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
 					status: 'synced' as const,
@@ -305,7 +351,7 @@
 			// If the chat is owned by another user, the ownership check will detect it
 			// CRITICAL: Mark as shared_by_others since user accessed via share link (not their own chat)
 			const chat: Chat = {
-				chat_id: data.chat_id,
+				chat_id: resolvedChatId,
 				encrypted_title: data.encrypted_title || null,
 				messages_v: messages.length, // Set based on actual message count
 				title_v: 0,
@@ -324,6 +370,8 @@
 				is_shared_by_others: true,
 				share_pii: data.share_pii ?? false,
 				share_highlights: data.share_highlights ?? true,
+				shared_message_window_has_more_before: !!data.message_window?.has_more,
+				shared_message_window_next_before_timestamp: data.message_window?.next_before_timestamp ?? null,
 				group_key: 'shared_by_others'
 			};
 
@@ -342,7 +390,7 @@
 					encrypted_chat_summary: subChat.encrypted_chat_summary || null,
 					encrypted_icon: subChat.encrypted_icon || null,
 					encrypted_category: subChat.encrypted_category || null,
-					parent_id: data.chat_id,
+					parent_id: resolvedChatId,
 					is_sub_chat: true,
 					is_shared_by_others: true,
 					share_pii: data.share_pii ?? false,
@@ -521,7 +569,7 @@
 				embed_keys: fetchedEmbedKeys,
 				code_run_outputs: fetchedCodeRunOutputs,
 				message_highlights: fetchedMessageHighlights
-			} = await fetchChatFromServer(chatId);
+			} = await fetchChatFromServer(chatId, messageId);
 
 			if (!fetchedChat) {
 				error = 'Chat not found. The chat may have been deleted or the link is invalid.';

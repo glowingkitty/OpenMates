@@ -850,7 +850,7 @@
   let parentChatId = $state<string | null>(null);
   let parentChatTitle = $state<string | null>(null);
 
-  async function checkParentChat(activeId: string | null | undefined) {
+  async function checkParentChat(activeId: string | null | undefined, retries = 5) {
     if (!activeId) {
       parentChatId = null;
       parentChatTitle = null;
@@ -865,6 +865,9 @@
         parentChatId = chat.parent_id;
         const parentChat = await getChat(chatDB, chat.parent_id);
         parentChatTitle = parentChat?.title || "Parent Chat";
+      } else if (chat?.is_sub_chat && retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return checkParentChat(activeId, retries - 1);
       } else {
         parentChatId = null;
         parentChatTitle = null;
@@ -1726,6 +1729,7 @@
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
+  let olderWindowRequestInFlight = false;
 
   // Track scroll position with optimized performance using requestAnimationFrame
   // This ensures smooth scrolling without blocking the main thread
@@ -1781,6 +1785,13 @@
     
     // Dispatch immediate event for UI state changes (button visibility)
     dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
+    if (isAtTopLocal && !olderWindowRequestInFlight && messages.length > 0) {
+      olderWindowRequestInFlight = true;
+      dispatch('loadOlderMessages', { beforeTimestamp: messages[0].created_at, firstMessageId: messages[0].message_id });
+      setTimeout(() => {
+        olderWindowRequestInFlight = false;
+      }, 500);
+    }
   }
 
   // Find the last message that's currently visible in viewport
@@ -2086,6 +2097,7 @@
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
+                     class:target-message={$messageHighlightStore === msg.id}
                      data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
@@ -2408,6 +2420,12 @@
 
   .message-wrapper :global(.chat-message) {
     width: 100%;
+  }
+
+  .message-wrapper.target-message {
+    outline: 2px solid var(--color-orange-50, #f59e0b);
+    outline-offset: 4px;
+    border-radius: var(--radius-8);
   }
 
   /* "Show earlier messages" toggle button for compressed chats.

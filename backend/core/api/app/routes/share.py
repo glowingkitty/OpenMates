@@ -9,7 +9,7 @@ import re
 import time
 import os
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.directus import DirectusService
@@ -101,6 +101,102 @@ def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
         "encrypted_chat_summary": dummy_summary,
         "messages": dummy_messages,
         "is_dummy": True  # Internal flag, not sent to client
+    }
+
+async def get_shared_chat_or_dummy(chat_id: str, directus_service: DirectusService) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if not chat or chat.get("is_private", False):
+        dummy_data = generate_dummy_encrypted_data(chat_id)
+        dummy_data.pop("is_dummy", None)
+        return None, dummy_data
+    return chat, None
+
+def sanitize_shared_pii(messages: List[Any], share_pii: bool) -> List[Any]:
+    if share_pii or not messages:
+        return messages
+    import json
+    sanitized_messages = []
+    for message in messages:
+        if isinstance(message, str):
+            try:
+                parsed_message = json.loads(message)
+                if isinstance(parsed_message, dict):
+                    parsed_message.pop("encrypted_pii_mappings", None)
+                    sanitized_messages.append(json.dumps(parsed_message))
+                else:
+                    sanitized_messages.append(message)
+            except Exception:
+                sanitized_messages.append(message)
+            continue
+        sanitized = dict(message)
+        sanitized.pop("encrypted_pii_mappings", None)
+        sanitized_messages.append(sanitized)
+    return sanitized_messages
+
+async def get_shared_chat_auxiliary_payload(
+    chat_id: str,
+    chat: Dict[str, Any],
+    directus_service: DirectusService,
+) -> Dict[str, Any]:
+    import hashlib
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    share_highlights = chat.get("share_highlights", True)
+    if share_highlights is None:
+        share_highlights = True
+
+    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+    message_highlights = []
+    if share_highlights:
+        message_highlights = await directus_service.get_items(
+            "message_highlights",
+            params={
+                "filter[chat_id][_eq]": chat_id,
+                "fields": "id,chat_id,message_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+                "sort": "created_at",
+                "limit": -1,
+            },
+            admin_required=True,
+        ) or []
+    code_run_outputs = await directus_service.get_items(
+        "code_run_outputs",
+        params={
+            "filter[chat_id][_eq]": chat_id,
+            "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+            "sort": "-updated_at",
+            "limit": -1,
+        },
+        admin_required=True,
+    ) or []
+    sub_chats = await directus_service.get_items(
+        "chats",
+        params={
+            "filter[parent_id][_eq]": chat_id,
+            "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
+            "sort": "created_at",
+            "limit": -1,
+        },
+        admin_required=True,
+    ) or []
+    return {
+        "embeds": embeds or [],
+        "embed_keys": embed_keys or [],
+        "sub_chats": sub_chats,
+        "code_run_outputs": code_run_outputs,
+        "message_highlights": message_highlights,
+        "share_highlights": bool(share_highlights),
+    }
+
+def shared_chat_metadata_payload(chat_id: str, chat: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "chat_id": chat_id,
+        "encrypted_title": chat.get("encrypted_title"),
+        "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
+        "encrypted_follow_up_request_suggestions": chat.get("encrypted_follow_up_request_suggestions"),
+        "encrypted_icon": chat.get("encrypted_icon"),
+        "encrypted_category": chat.get("encrypted_category"),
+        "share_pii": bool(chat.get("share_pii", False)),
+        "is_dummy": False,
     }
 
 # --- Endpoints ---
@@ -252,6 +348,79 @@ async def get_shared_chat(
         dummy_data = generate_dummy_encrypted_data(chat_id)
         dummy_data.pop("is_dummy", None)
         return dummy_data
+
+@router.get("/chat/{chat_id}/manifest")
+@limiter.limit("30/minute")
+async def get_shared_chat_manifest(
+    request: Request,
+    chat_id: str,
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """Get shared-chat metadata and auxiliary encrypted records without messages."""
+    try:
+        chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+        if dummy is not None or chat is None:
+            return dummy or generate_dummy_encrypted_data(chat_id)
+        payload = shared_chat_metadata_payload(chat_id, chat)
+        payload.update(await get_shared_chat_auxiliary_payload(chat_id, chat, directus_service))
+        payload["messages"] = []
+        return payload
+    except Exception as e:
+        logger.error(f"Error fetching shared chat manifest {chat_id}: {e}", exc_info=True)
+        dummy_data = generate_dummy_encrypted_data(chat_id)
+        dummy_data.pop("is_dummy", None)
+        return dummy_data
+
+@router.get("/chat/{chat_id}/messages")
+@limiter.limit("60/minute")
+async def get_shared_chat_message_window(
+    request: Request,
+    chat_id: str,
+    before_timestamp: int = Query(default=2147483647),
+    target_message_id: Optional[str] = Query(default=None),
+    limit: int = Query(default=40, ge=1, le=100),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """Get a bounded encrypted shared-chat message window."""
+    try:
+        chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+        if dummy is not None or chat is None:
+            return {"chat_id": chat_id, "messages": (dummy or {}).get("messages", []), "has_more": False, "next_before_timestamp": None}
+        if target_message_id:
+            target_message = await directus_service.chat.get_message_for_chat_by_client_id(
+                chat_id=chat_id,
+                message_id=target_message_id,
+            )
+            if target_message:
+                before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+        messages = await directus_service.chat.get_messages_for_chat_before_timestamp(
+            chat_id=chat_id,
+            before_timestamp=before_timestamp,
+            limit=limit + 1,
+        )
+        has_more = len(messages) > limit
+        if has_more:
+            messages = messages[1:]
+        messages = sanitize_shared_pii(messages, bool(chat.get("share_pii", False)))
+        next_before_timestamp = None
+        if has_more and messages:
+            import json
+            try:
+                next_before_timestamp = int(json.loads(messages[0]).get("created_at")) - 1
+            except Exception:
+                next_before_timestamp = None
+        return {
+            "chat_id": chat_id,
+            "messages": messages,
+            "has_more": has_more,
+            "next_before_timestamp": next_before_timestamp,
+            "target_message_id": target_message_id,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching shared chat messages {chat_id}: {e}", exc_info=True)
+        dummy_data = generate_dummy_encrypted_data(chat_id)
+        dummy_data.pop("is_dummy", None)
+        return {"chat_id": chat_id, "messages": dummy_data.get("messages", []), "has_more": False, "next_before_timestamp": None}
 
 @router.get("/chat/{chat_id}/og-metadata")
 @limiter.limit("60/minute")  # Higher limit since this is used for every share page load

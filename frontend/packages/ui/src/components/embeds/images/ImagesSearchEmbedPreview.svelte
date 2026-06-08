@@ -19,6 +19,7 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { limitLegacyPreviewChildIds } from '../embedPreviewHydration';
 
   /**
    * Single image search result (child embed content schema).
@@ -69,7 +70,6 @@
   let localStatus   = $state<'processing' | 'finished' | 'error'>('processing');
   let localResults  = $state<ImageResult[]>([]);
   let localTaskId   = $state<string | undefined>(undefined);
-  /** Track whether child-embed loading is already in progress to avoid duplicates */
   let isLoadingChildren = $state(false);
 
   $effect(() => {
@@ -145,66 +145,47 @@
       const c = data.decodedContent as Record<string, unknown>;
       if (c.query)    localQuery    = c.query    as string;
       if (c.provider) localProvider = c.provider as string;
-      if (Array.isArray(c.results) && (c.results as unknown[]).length > 0) {
-        localResults = c.results as ImageResult[];
-      }
-
-      // CRITICAL FIX: When status is "finished" and we have embed_ids but no results,
-      // load child embeds asynchronously to get thumbnail URLs for the preview strip.
-      if (data.status === 'finished' && (!c.results || !Array.isArray(c.results) || (c.results as unknown[]).length === 0)) {
-        const embedIds = c.embed_ids;
-        if (embedIds) {
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((cid: string) => cid.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            loadChildEmbedsForPreview(childEmbedIds);
-          }
+      const previewResults = c.results || c.preview_results || c.preview_thumbnails;
+      if (Array.isArray(previewResults) && (previewResults as unknown[]).length > 0) {
+        localResults = previewResults as ImageResult[];
+      } else if (data.status === 'finished' && c.embed_ids && !isLoadingChildren) {
+        const childEmbedIds = typeof c.embed_ids === 'string'
+          ? c.embed_ids.split('|').filter((cid) => cid.length > 0)
+          : Array.isArray(c.embed_ids) ? (c.embed_ids as string[]) : [];
+        if (childEmbedIds.length > 0) {
+          loadChildEmbedsForPreview(limitLegacyPreviewChildIds(childEmbedIds, THUMB_MAX_COUNT));
         }
       }
     }
   }
 
-  /**
-   * Load child embeds to extract thumbnail URLs for the preview strip.
-   * Uses retry logic because child embeds might not be persisted yet.
-   */
   async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
     if (isLoadingChildren) return;
     isLoadingChildren = true;
-
     try {
       const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-
-      if (childEmbeds.length > 0) {
-        const imageResults = await Promise.all(childEmbeds.map(async (embed) => {
-          const content = embed.content ? await decodeToonContent(embed.content) : null;
-          if (!content) return null;
-
-          return {
-            title:           (content.title as string) || '',
-            source_page_url: (content.source_page_url as string) || '',
-            image_url:       (content.image_url as string) || '',
-            thumbnail_url:   (content.thumbnail_url as string) || '',
-            source:          (content.source as string) || '',
-            favicon_url:     (content.favicon_url as string) || '',
-          } as ImageResult;
-        }));
-
-        const validResults = imageResults.filter(r => r !== null) as ImageResult[];
-        if (validResults.length > 0) {
-          localResults = validResults;
-        }
-      }
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 2, 200);
+      const imageResults = await Promise.all(childEmbeds.map(async (embed) => {
+        const content = embed.content ? await decodeToonContent(embed.content) : null;
+        if (!content) return null;
+        return {
+          title: (content.title as string) || '',
+          source_page_url: (content.source_page_url as string) || '',
+          image_url: (content.image_url as string) || '',
+          thumbnail_url: (content.thumbnail_url as string) || '',
+          source: (content.source as string) || '',
+          favicon_url: (content.favicon_url as string) || '',
+        } as ImageResult;
+      }));
+      const validResults = imageResults.filter((result): result is ImageResult => result !== null);
+      if (validResults.length > 0) localResults = validResults;
     } catch (error) {
-      console.warn('[ImagesSearchEmbedPreview] Error loading child embeds for preview:', error);
+      console.warn('[ImagesSearchEmbedPreview] Legacy preview child-load budget failed:', error);
     } finally {
       isLoadingChildren = false;
     }
   }
+
 </script>
 
 <UnifiedEmbedPreview

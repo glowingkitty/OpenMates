@@ -4438,9 +4438,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
-    let currentChat = $state<Chat | null>(initialPublicChat);
-    let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-    let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+     let currentChat = $state<Chat | null>(initialPublicChat);
+     let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+     let currentMessageWindowHasMoreBefore = $state(false);
+     let olderMessageWindowLoading = $state(false);
 
     async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
         const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
@@ -4512,6 +4514,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
     // Used to render the "Focus active" header banner in the chat view.
     let activeFocusId = $state<string | null>(null);
+    // Guard flag: set by focusModeActivatedHandler to prevent the $effect async metadata
+    // load from overwriting activeFocusId with a stale null when the WebSocket event
+    // fires before the focus_id has been persisted to IndexedDB.
+    let focusPillSetByEvent = false;
+    // Tracks the last chat_id for which the $effect ran, so we can detect a genuine
+    // chat switch (where focusPillSetByEvent must be reset) vs. a same-chat refresh
+    // (where the guard must be preserved).
+    let lastLoadedChatId: string | null = null;
     // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
     let activeFocusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
     // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
@@ -4650,22 +4660,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
     $effect(() => {
         const chatId = currentChat?.chat_id;
+        // Reset the event-guard flag when the chat identity changes so a fresh
+        // metadata load from a new chat is not erroneously suppressed by a prior
+        // activation event.
+        if (chatId !== lastLoadedChatId) {
+            focusPillSetByEvent = false;
+        }
         if (!chatId) {
             activeFocusId = null;
+            lastLoadedChatId = null;
             return;
         }
+        const loadedChatId = chatId;
+        lastLoadedChatId = chatId;
         // Read asynchronously — use the cached value if available
         (async () => {
             try {
                 const { chatMetadataCache } = await import('../services/chatMetadataCache');
                 const metadata = await chatMetadataCache.getDecryptedMetadata(currentChat!);
                 // Only update if the chat hasn't changed since we started loading
-                if (currentChat?.chat_id === chatId) {
+                // AND the event handler hasn't already set a more current value.
+                if (currentChat?.chat_id === loadedChatId && !focusPillSetByEvent) {
                     activeFocusId = metadata?.activeFocusId ?? null;
                 }
             } catch (e) {
                 console.warn('[ActiveChat] Could not load active focus ID:', e);
-                activeFocusId = null;
+                if (!focusPillSetByEvent) {
+                    activeFocusId = null;
+                }
             }
         })();
     });
@@ -7340,7 +7362,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading from IndexedDB for chat:', currentChat.chat_id);
             try {
-                const freshMessages: ChatMessageModel[] = await chatDB.getMessagesForChat(currentChat.chat_id);
+                const freshWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                const freshMessages: ChatMessageModel[] = freshWindow.messages;
+                currentMessageWindowHasMoreBefore = freshWindow.hasMoreBefore;
 
                 // Preserve any in-flight streaming messages — the DB won't have
                 // the latest streaming content, so keep our local copies.
@@ -7384,7 +7408,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function _loadMessagesForCurrentChat() {
         if (currentChat?.chat_id) {
             console.debug(`[ActiveChat] Reloading messages for chat: ${currentChat.chat_id}`);
-            currentMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            const messageWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+            currentMessages = messageWindow.messages;
+            currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
             if (chatHistoryRef) {
                 chatHistoryRef.updateMessages(currentMessages);
             }
@@ -7496,6 +7522,94 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }, 1000);
     }
 
+    async function handleLoadOlderMessages(event: CustomEvent) {
+        if (!currentChat?.chat_id || olderMessageWindowLoading) return;
+        if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
+        const { beforeTimestamp, firstMessageId } = event.detail as { beforeTimestamp?: number; firstMessageId?: string };
+        if (!beforeTimestamp) return;
+
+        olderMessageWindowLoading = true;
+        try {
+            if (currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before && currentChat.shared_message_window_next_before_timestamp) {
+                const response = await fetch(getApiEndpoint(`/v1/share/chat/${currentChat.chat_id}/messages?before_timestamp=${currentChat.shared_message_window_next_before_timestamp}&limit=40`));
+                if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
+                const payload = await response.json() as {
+                    messages?: Array<string | Record<string, unknown>>;
+                    has_more?: boolean;
+                    next_before_timestamp?: number | null;
+                };
+                const parsedMessages: ChatMessageModel[] = (payload.messages || []).flatMap((raw) => {
+                    const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
+                    const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
+                    if (typeof messageId !== 'string') return [];
+                    return [{
+                        message_id: messageId,
+                        chat_id: currentChat!.chat_id,
+                        role: messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user',
+                        created_at: typeof messageObj.created_at === 'number' ? messageObj.created_at : Math.floor(Date.now() / 1000),
+                        status: 'synced' as const,
+                        encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
+                        encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+                        encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
+                        encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
+                        user_message_id: typeof messageObj.user_message_id === 'string' ? messageObj.user_message_id : undefined,
+                        encrypted_pii_mappings: typeof messageObj.encrypted_pii_mappings === 'string' ? messageObj.encrypted_pii_mappings : undefined,
+                        client_message_id: typeof messageObj.client_message_id === 'string' ? messageObj.client_message_id : undefined,
+                    }];
+                });
+                if (parsedMessages.length > 0) {
+                    await chatDB.batchSaveMessages(parsedMessages);
+                    currentChat = {
+                        ...currentChat,
+                        shared_message_window_has_more_before: !!payload.has_more,
+                        shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? null,
+                    };
+                    currentMessageWindowHasMoreBefore = !!payload.has_more;
+                    await chatDB.updateChat(currentChat);
+                    const existingIds = new Set(currentMessages.map((message) => message.message_id));
+                    currentMessages = [
+                        ...parsedMessages.filter((message) => !existingIds.has(message.message_id)),
+                        ...currentMessages,
+                    ];
+                    chatHistoryRef?.updateMessages(currentMessages);
+                    if (firstMessageId) {
+                        await tick();
+                        chatHistoryRef?.restoreScrollPosition(firstMessageId);
+                    }
+                } else {
+                    currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null };
+                }
+                return;
+            }
+            if (!currentMessageWindowHasMoreBefore) return;
+            const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+            const olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                direction: 'before',
+                beforeTimestamp,
+                compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
+            });
+            if (olderWindow.messages.length === 0) {
+                currentMessageWindowHasMoreBefore = false;
+                return;
+            }
+            const existingIds = new Set(currentMessages.map((message) => message.message_id));
+            currentMessages = [
+                ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
+                ...currentMessages,
+            ];
+            currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
+            chatHistoryRef?.updateMessages(currentMessages);
+            if (firstMessageId) {
+                await tick();
+                chatHistoryRef?.restoreScrollPosition(firstMessageId);
+            }
+        } catch (error) {
+            console.error('[ActiveChat] Failed to load older message window:', error);
+        } finally {
+            olderMessageWindowLoading = false;
+        }
+    }
+
     // Handle scrolled to bottom (mark as read)
     async function handleScrolledToBottom() {
         // Update isAtBottom state to show action buttons
@@ -7526,15 +7640,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null }) {
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
          // On slow devices (iPad), this window can be 100-500ms, long enough for sync events to
          // append messages from the wrong chat. The generation counter prevents stale completions
          // from overwriting currentMessages after a newer loadChat has started.
-         const thisLoadGeneration = ++loadChatGeneration;
-         currentCompressionCheckpoints = [];
+          const thisLoadGeneration = ++loadChatGeneration;
+          currentCompressionCheckpoints = [];
+          currentMessageWindowHasMoreBefore = false;
+          olderMessageWindowLoading = false;
 
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
@@ -7905,7 +8021,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     // Try to load messages from IndexedDB (might be a real chat)
                     try {
-                        newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                        const windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                            direction: options?.messageId ? 'around' : 'latest',
+                            anchorMessageId: options?.messageId ?? undefined,
+                        });
+                        newMessages = windowResult.messages;
+                        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
                         console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                     } catch (error) {
                         // If database is unavailable, use empty messages
@@ -7917,8 +8038,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
                 try {
-                    newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
                     currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
+                    const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+                    const windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                        direction: options?.messageId ? 'around' : 'latest',
+                        anchorMessageId: options?.messageId ?? undefined,
+                        compressedUpToTimestamp: latestCheckpoint && !options?.messageId
+                            ? latestCheckpoint.compressed_up_to_timestamp
+                            : undefined,
+                    });
+                    newMessages = windowResult.messages;
+                    currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                 } catch (error) {
                     // If database is unavailable (e.g., being deleted during logout), use empty messages
@@ -8236,6 +8366,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }, 200);
                 // When coming from a background-chat notification, scroll to the top of the
                 // latest assistant message so the user can read the reply from the beginning.
+                } else if (options?.messageId) {
+                    chatHistoryRef.restoreScrollPosition(options.messageId);
+                    console.debug('[ActiveChat] Message deep link - scrolled to target message:', options.messageId);
+                    setTimeout(() => {
+                        isAtBottom = false;
+                    }, 200);
                 } else if (options?.scrollToLatestResponse) {
                     chatHistoryRef.scrollToLatestAssistantMessage();
                     console.debug('[ActiveChat] Notification navigation - scrolled to top of latest assistant message');
@@ -8900,6 +9036,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { chat_id, focus_id } = event.detail || {};
             if (chat_id && focus_id && currentChat?.chat_id === chat_id) {
                 console.debug('[ActiveChat] Focus mode activated, updating banner:', focus_id);
+                focusPillSetByEvent = true;
                 activeFocusId = focus_id;
             }
         };
@@ -9847,7 +9984,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { chat_id } = event.detail;
             if (chat_id === currentChat?.chat_id) {
                 currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(chat_id);
-                currentMessages = await chatDB.getMessagesForChat(chat_id);
+                const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+                const messageWindow = await chatDB.getMessageWindowForChat(chat_id, {
+                    direction: 'latest',
+                    compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
+                });
+                currentMessages = messageWindow.messages;
+                currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
                 chatHistoryRef?.updateMessages(currentMessages);
             }
         }) as EventListenerCallback;
@@ -10191,7 +10334,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (currentMessages.some((m: Record<string, unknown>) => m._decryptionPending)) {
                 console.info(`[ActiveChat] Key ready for chat ${readyChatId}, re-decrypting pending messages`);
                 try {
-                    const freshMessages = await chatDB.getMessagesForChat(readyChatId);
+                    const messageWindow = await chatDB.getMessageWindowForChat(readyChatId, { direction: 'latest' });
+                    const freshMessages = messageWindow.messages;
+                    currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
                     if (freshMessages && freshMessages.length > 0) {
                         currentMessages = freshMessages;
                         if (chatHistoryRef) {
@@ -11054,7 +11199,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
                            isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
-                          canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                           canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
                            videoTeaserMp4Url={activeLocaleVideo?.teaser_mp4_url ?? activePublicChatMetadata?.video_teaser_mp4_url ?? null}
@@ -11068,8 +11213,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onSuggestionClick={handleFollowUpSuggestionClick}
                           on:quickTipAction={handleQuickTipAction}
                           on:messagesChange={handleMessagesChange}
-                         on:chatUpdated={handleChatUpdated}
-                         on:scrollPositionUI={handleScrollPositionUI}
+                          on:chatUpdated={handleChatUpdated}
+                          on:loadOlderMessages={handleLoadOlderMessages}
+                          on:scrollPositionUI={handleScrollPositionUI}
                          on:scrollPositionChanged={handleScrollPositionChanged}
                          on:scrolledToBottom={handleScrolledToBottom}
                      />

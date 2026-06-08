@@ -81,6 +81,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
+  import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -1155,7 +1156,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           for (const mark of activeMarks) {
             mark.classList.remove('search-match-active');
           }
-          messageHighlightStore.set(null);
+          const hashStillTargetsMessage = typeof window !== 'undefined'
+            && original_message?.message_id
+            && new URLSearchParams(window.location.hash.replace(/^#/, '')).get('message-id') === original_message.message_id;
+          if (!hashStillTargetsMessage) {
+            messageHighlightStore.set(null);
+          }
         }, 1200);
         return () => clearTimeout(timer);
       });
@@ -1621,6 +1627,19 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       );
     } catch (error) {
       console.error('[ChatMessage] Failed to copy message:', error);
+    }
+  }
+
+  async function handleCopyMessageLink() {
+    if (!original_message?.chat_id || !messageId) return;
+    try {
+      const link = buildChatMessageLink(original_message.chat_id, messageId);
+      const clipResult = await copyToClipboard(link);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy link failed');
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success('Message link copied to clipboard');
+    } catch (error) {
+      console.error('[ChatMessage] Failed to copy message link:', error);
     }
   }
 
@@ -3229,9 +3248,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            x={messageMenuX}
            y={messageMenuY}
            show={showMessageMenu}
-           onClose={() => showMessageMenu = false}
-           onCopy={handleCopyMessage}
-           onSelect={handleSelectMessage}
+            onClose={() => showMessageMenu = false}
+            onCopy={handleCopyMessage}
+            onCopyLink={messageId && original_message?.chat_id && !isSharedReadOnly ? handleCopyMessageLink : undefined}
+            onSelect={handleSelectMessage}
            onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
            disableDelete={isFirstMessage}
            onEdit={role === 'user' && messageId ? handleEdit : undefined}
