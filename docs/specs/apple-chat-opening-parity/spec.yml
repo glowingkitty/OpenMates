@@ -274,8 +274,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: remote-mac-xcodebuild-test-openmatestests-chatwindow-2026-06-08
-        timestamp: "2026-06-08T22:44:34Z"
+        run_id: remote-mac-xcodebuild-test-openmatestests-chatwindow-2026-06-08-post-deploy
+        timestamp: "2026-06-08T23:42:45Z"
 
   - id: T-APPLE-UI-LARGE-CHAT-OPEN
     type: manual
@@ -304,8 +304,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatopening-2026-06-08
-        timestamp: "2026-06-08T22:38:11Z"
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatopening-2026-06-08-post-deploy
+        timestamp: "2026-06-08T23:43:01Z"
 
   - id: T-APPLE-UI-CHAT-FLOW-PARITY
     type: manual
@@ -331,8 +331,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowparity-2026-06-08
-        timestamp: "2026-06-08T22:46:47Z"
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowparity-2026-06-08-post-deploy
+        timestamp: "2026-06-08T23:44:06Z"
 
   - id: T-APPLE-PARITY-AUDIT
     type: lint
