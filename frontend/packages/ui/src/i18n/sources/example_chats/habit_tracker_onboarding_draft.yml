@@ -1,0 +1,373 @@
+title:
+  context: "Title of example chat: Habit Tracker Onboarding Draft"
+  en: "Habit Tracker Onboarding Draft"
+  de: "Habit Tracker Onboarding Draft"
+  zh: "Habit Tracker Onboarding Draft"
+  es: "Habit Tracker Onboarding Draft"
+  fr: "Habit Tracker Onboarding Draft"
+  pt: "Habit Tracker Onboarding Draft"
+  ru: "Habit Tracker Onboarding Draft"
+  ja: "Habit Tracker Onboarding Draft"
+  ko: "Habit Tracker Onboarding Draft"
+  it: "Habit Tracker Onboarding Draft"
+  tr: "Habit Tracker Onboarding Draft"
+  vi: "Habit Tracker Onboarding Draft"
+  id: "Habit Tracker Onboarding Draft"
+  pl: "Habit Tracker Onboarding Draft"
+  nl: "Habit Tracker Onboarding Draft"
+  ar: "Habit Tracker Onboarding Draft"
+  hi: "Habit Tracker Onboarding Draft"
+  th: "Habit Tracker Onboarding Draft"
+  cs: "Habit Tracker Onboarding Draft"
+  sv: "Habit Tracker Onboarding Draft"
+  he: "Habit Tracker Onboarding Draft"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Habit Tracker Onboarding Draft"
+  en: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  de: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  zh: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  es: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  fr: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  pt: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  ru: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  ja: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  ko: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  it: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  tr: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  vi: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  id: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  pl: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  nl: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  ar: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  hi: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  th: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  cs: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  sv: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  he: "A quick draft image-generation example for a mobile habit tracker onboarding screen."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Habit Tracker Onboarding Draft. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  de: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  zh: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  es: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  fr: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  pt: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  ru: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  ja: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  ko: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  it: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  tr: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  vi: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  id: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  pl: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  nl: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  ar: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  hi: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  th: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  cs: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  sv: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  he: "@skill:images:generate_draft Make a quick rough draft image concept for a mobile habit tracker onboarding screen: friendly abstract shapes, progress rings, calm green palette, placeholder UI blocks, no readable text."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Habit Tracker Onboarding Draft. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "79e332e8-5d75-4fd0-9e75-2fe0cb8e209b", "app_id": "images", "skill_id": "generate_draft"}
+    ```
+    
+    I'm generating that image for you now. It'll feature the calm green palette and abstract shapes you described to give you a solid starting point for the onboarding flow.
+    
+    While that's processing, here are a few design principles I'd recommend for a habit tracker's onboarding:
+    
+    *   **Progressive Disclosure:** Instead of showing all the features at once, use the onboarding to walk them through setting up their first habit.
+    *   **Visual Gratification:** The progress rings you mentioned are great. In [UX design](wiki:User_experience_design), providing immediate visual feedback when a task is completed (even a placeholder one in onboarding) helps build [dopamine](wiki:Dopamine) loops that encourage habit formation.
+    *   **Color Psychology:** Green is an excellent choice. In [color theory](wiki:Color_theory), it's associated with growth, health, and tranquility—perfect for a "calm" habit-building experience.
+    
+    Would you like to explore a specific layout for the habit-setting screen next, or perhaps look at some icon styles that would match this aesthetic?
+  verified_by_human: []
+

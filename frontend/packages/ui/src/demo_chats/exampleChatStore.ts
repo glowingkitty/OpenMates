@@ -27,17 +27,32 @@ import { rightToRepairLawsEuUsChat } from "./data/example_chats/right-to-repair-
 import { berlinWeatherBikeCommuteChat } from "./data/example_chats/berlin-weather-bike-commute";
 import { quietCafesTempelhoferFeldChat } from "./data/example_chats/quiet-cafes-tempelhofer-feld";
 import { ragExplainedVideosChat } from "./data/example_chats/rag-explained-videos";
-import { gpt4oAnnouncementSummaryChat } from "./data/example_chats/gpt-4o-announcement-summary";
 import { mortgagePaymentCalculationChat } from "./data/example_chats/mortgage-payment-calculation";
 import { rustVectorDatabaseReposChat } from "./data/example_chats/rust-vector-database-repos";
 import { svelteRunesDocsChat } from "./data/example_chats/svelte-runes-docs";
 import { familyStaysKyotoChat } from "./data/example_chats/family-stays-kyoto";
 import { tedTalkTranscriptSummaryChat } from "./data/example_chats/ted-talk-transcript-summary";
 import { balconyPlantReminderChat } from "./data/example_chats/balcony-plant-reminder";
-import { watercolorRobotBalconyChat } from "./data/example_chats/watercolor-robot-balcony";
 import { buckConverters24v5vChat } from "./data/example_chats/buck-converters-24v-5v";
 import { organicGroceriesBerlinChat } from "./data/example_chats/organic-groceries-berlin";
 import { furnishedApartmentsBerlinChat } from "./data/example_chats/furnished-apartments-berlin";
+import { sqliteStrictTablesSummaryChat } from "./data/example_chats/sqlite-strict-tables-summary";
+import { privacyWebsiteHeroBackgroundChat } from "./data/example_chats/privacy-website-hero-background";
+import { northstarMetricsSvgLogoChat } from "./data/example_chats/northstar-metrics-svg-logo";
+import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
+import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
+import { chickpeaSpinachProteinDinnersChat } from "./data/example_chats/chickpea-spinach-protein-dinners";
+import { openmatesAppSkillsEmbedsDocsChat } from "./data/example_chats/openmates-app-skills-embeds-docs";
+import { openmatesAddAppSkillDocChat } from "./data/example_chats/openmates-add-app-skill-doc";
+import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
+import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
+import { berlinDermatologyAppointmentsChat } from "./data/example_chats/berlin-dermatology-appointments";
+import { productLaunchSynthLoopChat } from "./data/example_chats/product-launch-synth-loop";
+import { privateWorkspaceDemoVideoChat } from "./data/example_chats/private-workspace-demo-video";
+import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminders-list";
+import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
+import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
+import { mastodonAccountRecentPostsChat } from "./data/example_chats/mastodon-account-recent-posts";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -57,17 +72,32 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   berlinWeatherBikeCommuteChat,
   quietCafesTempelhoferFeldChat,
   ragExplainedVideosChat,
-  gpt4oAnnouncementSummaryChat,
   mortgagePaymentCalculationChat,
   rustVectorDatabaseReposChat,
   svelteRunesDocsChat,
   familyStaysKyotoChat,
   tedTalkTranscriptSummaryChat,
   balconyPlantReminderChat,
-  watercolorRobotBalconyChat,
   buckConverters24v5vChat,
   organicGroceriesBerlinChat,
   furnishedApartmentsBerlinChat,
+  sqliteStrictTablesSummaryChat,
+  privacyWebsiteHeroBackgroundChat,
+  northstarMetricsSvgLogoChat,
+  pythonSquaresCodeRunChat,
+  habitTrackerOnboardingDraftChat,
+  chickpeaSpinachProteinDinnersChat,
+  openmatesAppSkillsEmbedsDocsChat,
+  openmatesAddAppSkillDocChat,
+  nonprofitEventPlanningUseCaseChat,
+  lh400FlightStatusCheckChat,
+  berlinDermatologyAppointmentsChat,
+  productLaunchSynthLoopChat,
+  privateWorkspaceDemoVideoChat,
+  upcomingRemindersListChat,
+  cancelTestReminderChat,
+  fediverseActivitypubSocialSearchChat,
+  mastodonAccountRecentPostsChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
@@ -232,6 +262,14 @@ export function getExampleChatEmbed(embedId: string): ExampleChatEmbed | null {
 /** Get all example chats as Chat objects (for sidebar listing) */
 export function getAllExampleChats(): Chat[] {
   return ALL_EXAMPLE_CHATS.map(exampleChatToChat);
+}
+
+/** Get the most recently added example chats for compact sidebar display. */
+export function getRecentExampleChats(limit = FEATURED_LIMIT): Chat[] {
+  return ALL_EXAMPLE_CHATS.slice()
+    .sort((a, b) => b.metadata.order - a.metadata.order)
+    .slice(0, limit)
+    .map(exampleChatToChat);
 }
 
 /** Get example chats explicitly linked to an app-store skill page. */

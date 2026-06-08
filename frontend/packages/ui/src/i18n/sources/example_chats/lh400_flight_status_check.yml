@@ -1,0 +1,289 @@
+title:
+  context: "Title of example chat: LH400 Flight Status Check"
+  en: "LH400 Flight Status Check"
+  de: "LH400 Flight Status Check"
+  zh: "LH400 Flight Status Check"
+  es: "LH400 Flight Status Check"
+  fr: "LH400 Flight Status Check"
+  pt: "LH400 Flight Status Check"
+  ru: "LH400 Flight Status Check"
+  ja: "LH400 Flight Status Check"
+  ko: "LH400 Flight Status Check"
+  it: "LH400 Flight Status Check"
+  tr: "LH400 Flight Status Check"
+  vi: "LH400 Flight Status Check"
+  id: "LH400 Flight Status Check"
+  pl: "LH400 Flight Status Check"
+  nl: "LH400 Flight Status Check"
+  ar: "LH400 Flight Status Check"
+  hi: "LH400 Flight Status Check"
+  th: "LH400 Flight Status Check"
+  cs: "LH400 Flight Status Check"
+  sv: "LH400 Flight Status Check"
+  he: "LH400 Flight Status Check"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: LH400 Flight Status Check"
+  en: "A flight-tracking example showing what live status details travelers should check before leaving."
+  de: "A flight-tracking example showing what live status details travelers should check before leaving."
+  zh: "A flight-tracking example showing what live status details travelers should check before leaving."
+  es: "A flight-tracking example showing what live status details travelers should check before leaving."
+  fr: "A flight-tracking example showing what live status details travelers should check before leaving."
+  pt: "A flight-tracking example showing what live status details travelers should check before leaving."
+  ru: "A flight-tracking example showing what live status details travelers should check before leaving."
+  ja: "A flight-tracking example showing what live status details travelers should check before leaving."
+  ko: "A flight-tracking example showing what live status details travelers should check before leaving."
+  it: "A flight-tracking example showing what live status details travelers should check before leaving."
+  tr: "A flight-tracking example showing what live status details travelers should check before leaving."
+  vi: "A flight-tracking example showing what live status details travelers should check before leaving."
+  id: "A flight-tracking example showing what live status details travelers should check before leaving."
+  pl: "A flight-tracking example showing what live status details travelers should check before leaving."
+  nl: "A flight-tracking example showing what live status details travelers should check before leaving."
+  ar: "A flight-tracking example showing what live status details travelers should check before leaving."
+  hi: "A flight-tracking example showing what live status details travelers should check before leaving."
+  th: "A flight-tracking example showing what live status details travelers should check before leaving."
+  cs: "A flight-tracking example showing what live status details travelers should check before leaving."
+  sv: "A flight-tracking example showing what live status details travelers should check before leaving."
+  he: "A flight-tracking example showing what live status details travelers should check before leaving."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: LH400 Flight Status Check. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  de: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  zh: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  es: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  fr: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  pt: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  ru: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  ja: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  ko: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  it: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  tr: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  vi: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  id: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  pl: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  nl: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  ar: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  hi: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  th: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  cs: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  sv: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  he: "@skill:travel:get_flight Track Lufthansa flight LH400 and summarize the kind of live status details a traveler should check before leaving for the airport."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: LH400 Flight Status Check. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "198325d7-550c-48ad-b7ff-a3f277ec7f28", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "8f9aeb1f-d6d5-4159-89f3-9599aa4ef637", "app_id": "travel", "skill_id": "get_flight"}
+    ```
+    
+    I found relevant information, but I could not complete every requested action automatically. Here is the best answer I can provide from the available results.
+  verified_by_human: []
+

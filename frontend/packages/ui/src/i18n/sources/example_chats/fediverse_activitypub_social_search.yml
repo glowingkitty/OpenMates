@@ -1,0 +1,898 @@
+title:
+  context: "Title of example chat: Fediverse ActivityPub Social Search"
+  en: "Fediverse ActivityPub Social Search"
+  de: "Fediverse ActivityPub Social Search"
+  zh: "Fediverse ActivityPub Social Search"
+  es: "Fediverse ActivityPub Social Search"
+  fr: "Fediverse ActivityPub Social Search"
+  pt: "Fediverse ActivityPub Social Search"
+  ru: "Fediverse ActivityPub Social Search"
+  ja: "Fediverse ActivityPub Social Search"
+  ko: "Fediverse ActivityPub Social Search"
+  it: "Fediverse ActivityPub Social Search"
+  tr: "Fediverse ActivityPub Social Search"
+  vi: "Fediverse ActivityPub Social Search"
+  id: "Fediverse ActivityPub Social Search"
+  pl: "Fediverse ActivityPub Social Search"
+  nl: "Fediverse ActivityPub Social Search"
+  ar: "Fediverse ActivityPub Social Search"
+  hi: "Fediverse ActivityPub Social Search"
+  th: "Fediverse ActivityPub Social Search"
+  cs: "Fediverse ActivityPub Social Search"
+  sv: "Fediverse ActivityPub Social Search"
+  he: "Fediverse ActivityPub Social Search"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Fediverse ActivityPub Social Search"
+  en: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  de: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  zh: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  es: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  fr: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  pt: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  ru: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  ja: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  ko: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  it: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  tr: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  vi: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  id: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  pl: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  nl: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  ar: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  hi: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  th: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  cs: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  sv: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  he: "A social media search example summarizing recent posts about the Fediverse and ActivityPub."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Fediverse ActivityPub Social Search. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  de: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  zh: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  es: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  fr: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  pt: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  ru: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  ja: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  ko: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  it: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  tr: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  vi: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  id: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  pl: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  nl: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  ar: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  hi: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  th: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  cs: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  sv: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  he: "@skill:social_media:search Search social posts about the Fediverse and ActivityPub from the last week, then summarize recurring themes and notable links."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Fediverse ActivityPub Social Search. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b991a34b-9bac-42e0-a39f-00b346c10efe", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f9048332-7b70-4e59-974d-3cdc6fa5f39e", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "20103241-65c5-4867-83ec-8b557d55b730", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9f253e36-f4a4-42c1-a61b-81e2717b7514", "app_id": "social_media", "skill_id": "search", "query": "Fediverse ActivityPub", "provider": "Bluesky"}
+    ```
+    
+    Discussions about the [Fediverse](wiki:Fediverse) and [ActivityPub](wiki:ActivityPub) over the past week (June 1–8, 2026) have focused heavily on infrastructure growth beyond [Mastodon](wiki:Mastodon_(social_network)), the technical nuances of cross-protocol bridging, and server management.
+    
+    ### Recurring Themes
+    
+    *   **The Rise of Non-Microblogging Platforms:** Data from trackers like [VM Crawl](embed:thefulcrum-eurosky-social-DrV) suggests a shift in the landscape. While Mastodon remains the face of the Fediverse, [Ghost](wiki:Ghost_(blogging_platform)) and [WordPress](wiki:WordPress) instances are rapidly increasing, indicating that "long-form" federated content is becoming a primary driver of network growth.
+    *   **Protocol Bridging (ActivityPub ↔ ATproto):** With Bluesky gaining traction, there is a significant push for interoperability. Users are actively sharing guides on using bridges like `brid.gy` to interact across [ActivityPub](wiki:ActivityPub) and [AT Protocol](wiki:AT_Protocol), specifically focusing on maintaining a consistent identity using custom domain handles.
+    *   **Technical Optimization & AI Defense:** Developers are discussing better ways to handle [federation](wiki:Federation_(information_technology)) flow, such as prioritizing HTTP "Accept" headers over User-Agent sniffing. There is also a notable focus on writing [WAF](wiki:Web_application_firewall) rules that allow Fediverse traffic while blocking [AI crawlers](wiki:Web_crawler) from [OpenAI](wiki:OpenAI).
+    *   **Decentralized Activism:** There is ongoing interest in how these technological models can scale grassroots activist organizing, moving beyond corporate-owned platforms to resilient, community-run infrastructure.
+    
+    ### Notable Links and Resources
+    
+    *   **[Bridge Fediverse Accounts to Bluesky](embed:momtchil-momtchev-com-el3):** A detailed blog post by Chris McLeod on setting up custom domain handles for bridged accounts.
+    *   **VM Crawl Dashboard:** An analytics tool showing a heat map of detected ActivityPub platforms and instance comparisons.
+    *   **[GoToSocial Installation Guide](embed:fediverse-activitypub-awakari-PrM):** A "10-minute launch guide" for setting up the lightweight GoToSocial server on a Linux VPS.
+    *   **[Linked Data in HTTP Headers](embed:reiver-mastodon-social-y8F):** A technical breakdown of content negotiation for Fediverse servers.
+    *   **[Decentralized Networks Explained](embed:izby-bsky-social-Qqo):** A Russian-language primer (compatible with browser translators) on how Mastodon and the Fediverse differ from traditional social media.
+    
+    Based on the current date of June 8, 2026, the Fediverse appears to be evolving from a "Mastodon-centric" network into a more diverse ecosystem of blogs and specialized tools, with a high priority on protecting these spaces from automated data scraping.
+    
+    **Next Steps:**
+    *   Would you like a more technical breakdown of how to set up a bridge between [Mastodon](wiki:Mastodon_(social_network)) and Bluesky?
+    *   Should I look for specific discussions regarding [WordPress](wiki:WordPress) and [Ghost](wiki:Ghost_(blogging_platform)) federation settings?
+  verified_by_human: []
+

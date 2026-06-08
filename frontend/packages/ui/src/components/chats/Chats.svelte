@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getRecentExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -309,7 +309,7 @@ let _chatUpdatedFlushPending = false;
 		
 		// 2. Example chats (hardcoded static data)
 		// These are shown for all users (authenticated and non-authenticated)
-		const exampleChats: ChatType[] = getAllExampleChats()
+		const exampleChats: ChatType[] = getRecentExampleChats(10)
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.map(chat => ({
 				...chat,

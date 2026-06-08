@@ -1,0 +1,646 @@
+title:
+  context: "Title of example chat: Berlin Dermatology Appointments"
+  en: "Berlin Dermatology Appointments"
+  de: "Berlin Dermatology Appointments"
+  zh: "Berlin Dermatology Appointments"
+  es: "Berlin Dermatology Appointments"
+  fr: "Berlin Dermatology Appointments"
+  pt: "Berlin Dermatology Appointments"
+  ru: "Berlin Dermatology Appointments"
+  ja: "Berlin Dermatology Appointments"
+  ko: "Berlin Dermatology Appointments"
+  it: "Berlin Dermatology Appointments"
+  tr: "Berlin Dermatology Appointments"
+  vi: "Berlin Dermatology Appointments"
+  id: "Berlin Dermatology Appointments"
+  pl: "Berlin Dermatology Appointments"
+  nl: "Berlin Dermatology Appointments"
+  ar: "Berlin Dermatology Appointments"
+  hi: "Berlin Dermatology Appointments"
+  th: "Berlin Dermatology Appointments"
+  cs: "Berlin Dermatology Appointments"
+  sv: "Berlin Dermatology Appointments"
+  he: "Berlin Dermatology Appointments"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Berlin Dermatology Appointments"
+  en: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  de: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  zh: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  es: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  fr: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  pt: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  ru: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  ja: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  ko: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  it: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  tr: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  vi: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  id: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  pl: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  nl: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  ar: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  hi: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  th: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  cs: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  sv: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  he: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Berlin Dermatology Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  de: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  zh: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  es: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  fr: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  pt: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  ru: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  ja: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  ko: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  it: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  tr: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  vi: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  id: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  pl: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  nl: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  ar: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  hi: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  th: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  cs: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  sv: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  he: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Berlin Dermatology Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
+    ```
+    
+    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    
+    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    
+    ### **Top Recommendations in Berlin Mitte**
+    
+    ```json
+    {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
+    ```
+    
+    
+    ### **Additional Options (Nearby)**
+    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
+    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    
+    **Important Note on Insurance:**
+    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    
+    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  verified_by_human: []
+

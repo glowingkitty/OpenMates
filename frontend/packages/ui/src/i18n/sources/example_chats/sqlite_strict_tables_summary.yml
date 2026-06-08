@@ -1,0 +1,835 @@
+title:
+  context: "Title of example chat: SQLite STRICT Tables for App Developers"
+  en: "SQLite STRICT Tables for App Developers"
+  de: "SQLite STRICT Tables for App Developers"
+  zh: "SQLite STRICT Tables for App Developers"
+  es: "SQLite STRICT Tables for App Developers"
+  fr: "SQLite STRICT Tables for App Developers"
+  pt: "SQLite STRICT Tables for App Developers"
+  ru: "SQLite STRICT Tables for App Developers"
+  ja: "SQLite STRICT Tables for App Developers"
+  ko: "SQLite STRICT Tables for App Developers"
+  it: "SQLite STRICT Tables for App Developers"
+  tr: "SQLite STRICT Tables for App Developers"
+  vi: "SQLite STRICT Tables for App Developers"
+  id: "SQLite STRICT Tables for App Developers"
+  pl: "SQLite STRICT Tables for App Developers"
+  nl: "SQLite STRICT Tables for App Developers"
+  ar: "SQLite STRICT Tables for App Developers"
+  hi: "SQLite STRICT Tables for App Developers"
+  th: "SQLite STRICT Tables for App Developers"
+  cs: "SQLite STRICT Tables for App Developers"
+  sv: "SQLite STRICT Tables for App Developers"
+  he: "SQLite STRICT Tables for App Developers"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: SQLite STRICT Tables for App Developers"
+  en: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  de: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  zh: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  es: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  fr: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  pt: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  ru: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  ja: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  ko: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  it: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  tr: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  vi: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  id: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  pl: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  nl: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  ar: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  hi: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  th: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  cs: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  sv: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  he: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: SQLite STRICT Tables for App Developers. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  de: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  zh: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  es: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  fr: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  pt: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  ru: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  ja: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  ko: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  it: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  tr: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  vi: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  id: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  pl: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  nl: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  ar: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  hi: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  th: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  cs: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  sv: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  he: |
+    @skill:web:read Read ```json
+    {
+      "type": "website",
+      "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
+      "url": "https://www.sqlite.org/stricttables.html"
+    }
+    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: SQLite STRICT Tables for App Developers. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
+    ```
+    
+    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    
+    ### Changes for Application Developers
+    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
+    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
+    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
+    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
+    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
+    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    
+    ### When They Are Useful
+    STRICT tables are particularly beneficial in the following scenarios:
+    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
+    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
+    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    
+    ### Migration Caveat: Restricted Type Names
+    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    
+    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    
+    **Next Steps:**
+    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
+    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+  verified_by_human: []
+
