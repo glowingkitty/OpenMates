@@ -2571,6 +2571,48 @@ async def _create_application_preview_child_code_embeds(
     return "".join(embed_references)
 
 
+async def _create_application_parent_embed_reference(
+    *,
+    generated_code_file_embeds: List[Dict[str, str]],
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    request_data: AskSkillRequest,
+    task_id: str,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> Optional[str]:
+    application_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+    if not application_manifest:
+        logger.info(
+            f"{log_prefix} Generated code file embeds did not form an application manifest "
+            f"(file_count={len(generated_code_file_embeds)})"
+        )
+        return None
+
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    embed_service = EmbedService(cache_service, directus_service, encryption_service)
+    application_embed_data = await embed_service.create_application_embed(
+        name=application_manifest["name"],
+        framework=application_manifest["framework"],
+        runtime=application_manifest["runtime"],
+        file_refs=application_manifest["file_refs"],
+        entrypoints=application_manifest["entrypoints"],
+        chat_id=request_data.chat_id,
+        message_id=request_data.message_id,
+        user_id=request_data.user_id,
+        user_id_hash=request_data.user_id_hash,
+        user_vault_key_id=user_vault_key_id,
+        task_id=task_id,
+        log_prefix=log_prefix,
+    )
+    if not application_embed_data:
+        return None
+
+    return f"```json\n{application_embed_data['embed_reference']}\n```\n\n"
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -2767,6 +2809,7 @@ async def _consume_main_processing_stream(
     current_code_content = ""
     current_code_embed_id: Optional[str] = None
     generated_code_file_embeds: List[Dict[str, str]] = []
+    application_parent_embed_created = False
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
@@ -4996,6 +5039,53 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+
+    # Emit the generated-application parent as soon as all streamed code blocks
+    # are finalized. Later post-processing can be slow; the UI should not wait
+    # for those passes before showing the runnable application card.
+    if (
+        aggregated_response
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+        and not application_parent_embed_created
+        and generated_code_file_embeds
+        and cache_service
+        and directus_service
+        and encryption_service
+        and user_vault_key_id
+    ):
+        try:
+            application_reference = await _create_application_parent_embed_reference(
+                generated_code_file_embeds=generated_code_file_embeds,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                request_data=request_data,
+                task_id=task_id,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            if application_reference:
+                aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
+                final_response_chunks = [aggregated_response]
+                application_parent_embed_created = True
+                app_payload = _create_redis_payload(
+                    task_id,
+                    request_data,
+                    aggregated_response,
+                    stream_chunk_count + 5,
+                    is_final=False,
+                    model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    app_payload,
+                    log_prefix,
+                    "Published early response with generated application embed reference",
+                )
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating early generated application parent embed: {e}", exc_info=True)
 
     # Post-aggregation sweep: strip garbled number sequences from the final response.
     # The per-chunk garbled filter (above) catches large individual chunks, but Gemini
