@@ -321,6 +321,10 @@ async def replay_fixture(
         fixture_data, task_id, request_data, cache_service, preprocessing_result
     )
 
+    initial_delay_ms = fixture_data.get("initial_delay_ms")
+    if isinstance(initial_delay_ms, int) and initial_delay_ms > 0:
+        await asyncio.sleep(initial_delay_ms / 1000.0)
+
     # --- 3. Build skill event schedule ---
     skill_events_by_fraction = _build_skill_event_schedule(fixture_data)
 
