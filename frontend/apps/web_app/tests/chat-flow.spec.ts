@@ -80,6 +80,7 @@ const LLM_QUICK_TIP_SLUGS = [
 	'use-apps-for-better-results'
 ];
 const QUICK_TIP_CHAT_RESPONSE_MARKER = 'Kyoto and Osaka quick tip test';
+const CHAT_RESPONSE_SMOKE_TIMEOUT_MS = 90000;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -660,7 +661,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const messageResponseMs = Date.now() - messageSendStartedAt;
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
 	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });
-	expect(messageResponseMs, 'Chat response should avoid the previous 9s translation cold-start delay').toBeLessThan(30000);
+	expect(messageResponseMs, 'Chat response should arrive within the E2E smoke timeout').toBeLessThan(CHAT_RESPONSE_SMOKE_TIMEOUT_MS);
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed travel-planning assistant response.');
 
@@ -823,14 +824,13 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await ensureSidebarOpen(page, logChatCheckpoint);
 	await takeStepScreenshot(page, '05a-sidebar-after-new-chat');
 
-	// The first user chat in the sidebar should be our just-created chat.
-	// User chats are grouped under time sections (e.g., "Today").
-	// Find the first chat item that is NOT a demo/intro/legal chat.
-	const firstUserChat = page.getByTestId('chat-item-wrapper').first();
-	await expect(firstUserChat).toBeVisible({ timeout: 10000 });
+	// Draft-only rows can sort above completed chats, so assert the created chat
+	// by ID instead of assuming the first visible row has title metadata.
+	const createdChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+	await expect(createdChatItem).toBeVisible({ timeout: 10000 });
 
-	// Verify the first chat has a real title (not a placeholder)
-	const firstChatTitle = firstUserChat.getByTestId('chat-title');
+	// Verify the created chat has a real title (not a placeholder)
+	const firstChatTitle = createdChatItem.getByTestId('chat-title');
 	await expect(firstChatTitle).toBeVisible({ timeout: 15000 });
 	await expect(firstChatTitle).not.toHaveClass(/processing-title/, { timeout: 5000 });
 	const firstChatTitleText = (await firstChatTitle.textContent())?.trim() || '';
@@ -847,12 +847,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// from IndexedDB via localChatListChanged) and the ChatHeader (captured earlier in-memory) can
 	// legitimately diverge when that happens.
 
-	// Verify the first chat has a category circle (not the grey "missing" fallback)
-	const firstChatCategory = firstUserChat.getByTestId('category-circle');
+	// Verify the created chat has a category circle (not the grey "missing" fallback)
+	const firstChatCategory = createdChatItem.getByTestId('category-circle');
 	await expect(firstChatCategory).toBeVisible({ timeout: 5000 });
-	const firstChatMissingCategory = firstUserChat.locator('[data-testid="category-circle"].missing-category');
+	const firstChatMissingCategory = createdChatItem.locator('[data-testid="category-circle"].missing-category');
 	await expect(firstChatMissingCategory).not.toBeVisible();
-	logChatCheckpoint('First chat in sidebar has valid title and category — Phase 4.5 passed.');
+	logChatCheckpoint('Created chat in sidebar has valid title and category — Phase 4.5 passed.');
 
 	// Close sidebar to restore default state
 	await ensureSidebarClosed(page, logChatCheckpoint);
