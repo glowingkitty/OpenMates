@@ -81,7 +81,9 @@ function makeDb(messages: Message[]) {
     ...message,
     content: `decrypted-${message.message_id}`,
   }));
-  const sorted = [...messages].sort((a, b) => a.created_at - b.created_at);
+  const sorted = [...messages].sort((a, b) =>
+    a.created_at - b.created_at || a.message_id.localeCompare(b.message_id),
+  );
   const store = {
     get(messageId: string) {
       const request = new TestRequest<Message | undefined>(
@@ -172,5 +174,25 @@ describe("getMessageWindowForChat", () => {
     expect(result.messages[result.messages.length - 1]?.message_id).toBe("msg-1000");
     expect(result.messages.some((message) => message.created_at <= 950)).toBe(false);
     expect(db.decryptMessageFields).toHaveBeenCalledTimes(20);
+  });
+
+  it("uses message id as a tie breaker when loading older duplicate timestamps", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const messages: Message[] = [
+      { message_id: "msg-a", chat_id: "chat-window", role: "user", created_at: 10, status: "synced", encrypted_content: "a" },
+      { message_id: "msg-b", chat_id: "chat-window", role: "assistant", created_at: 10, status: "synced", encrypted_content: "b" },
+      { message_id: "msg-c", chat_id: "chat-window", role: "user", created_at: 10, status: "synced", encrypted_content: "c" },
+      { message_id: "msg-d", chat_id: "chat-window", role: "assistant", created_at: 11, status: "synced", encrypted_content: "d" },
+    ];
+    const db = makeDb(messages);
+
+    const result = await getMessageWindowForChat(db as never, "chat-window", {
+      direction: "before",
+      beforeTimestamp: 10,
+      beforeMessageId: "msg-c",
+      limit: 10,
+    });
+
+    expect(result.messages.map((message) => message.message_id)).toEqual(["msg-a", "msg-b"]);
   });
 });

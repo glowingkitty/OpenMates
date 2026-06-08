@@ -892,16 +892,36 @@ class ChatMethods:
         self,
         chat_id: str,
         before_timestamp: int,
+        before_message_id: Optional[str] = None,
         limit: int = 100,
     ) -> List[str]:
         """Fetch encrypted old messages for UI-only compressed-history expansion."""
-        params = {
-            'filter': {
+        message_filter: Dict[str, Any]
+        if before_message_id:
+            message_filter = {
+                'chat_id': {'_eq': chat_id},
+                '_or': [
+                    {'created_at': {'_lt': before_timestamp}},
+                    {
+                        'created_at': {'_eq': before_timestamp},
+                        'client_message_id': {'_lt': before_message_id},
+                    },
+                    {
+                        'created_at': {'_eq': before_timestamp},
+                        'client_message_id': {'_null': True},
+                        'id': {'_lt': before_message_id},
+                    },
+                ],
+            }
+        else:
+            message_filter = {
                 'chat_id': {'_eq': chat_id},
                 'created_at': {'_lte': before_timestamp},
-            },
+            }
+        params = {
+            'filter': message_filter,
             'fields': MESSAGE_ALL_FIELDS,
-            'sort': '-created_at',
+            'sort': ['-created_at', '-client_message_id', '-id'],
             'limit': limit,
         }
         try:

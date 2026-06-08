@@ -84,14 +84,30 @@ class FakeChatMethods:
             "share_highlights": True,
         }
 
-    async def get_messages_for_chat_before_timestamp(self, chat_id: str, before_timestamp: int, limit: int):
+    async def get_messages_for_chat_before_timestamp(
+        self,
+        chat_id: str,
+        before_timestamp: int,
+        before_message_id: str | None = None,
+        limit: int = 100,
+    ):
         self.requested_limits.append(limit)
         rows = [
             row
             for row in self.messages
             if row["chat_id"] == chat_id and row["created_at"] <= before_timestamp
         ]
-        rows = sorted(rows, key=lambda row: row["created_at"], reverse=True)[:limit]
+        if before_message_id:
+            rows = [
+                row
+                for row in rows
+                if row["created_at"] < before_timestamp
+                or (
+                    row["created_at"] == before_timestamp
+                    and row["client_message_id"] < before_message_id
+                )
+            ]
+        rows = sorted(rows, key=lambda row: (row["created_at"], row["client_message_id"]), reverse=True)[:limit]
         rows.reverse()
         return [json.dumps({**row, "message_id": row["client_message_id"]}) for row in rows]
 
@@ -154,7 +170,8 @@ async def test_shared_chat_message_window_is_bounded_and_sanitized():
     assert directus.chat.requested_limits == [11]
     assert len(payload["messages"]) == 10
     assert payload["has_more"] is True
-    assert payload["next_before_timestamp"] == 90
+    assert payload["next_before_timestamp"] == 91
+    assert payload["next_before_message_id"] == "msg-91"
     assert "encrypted_pii_mappings" not in payload["messages"][0]
 
 
@@ -173,6 +190,28 @@ async def test_shared_chat_message_window_can_anchor_target_message():
 
     assert payload["target_message_id"] == "msg-42"
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-42"
+
+
+@pytest.mark.asyncio
+async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_timestamps():
+    directus = FakeDirectusService()
+    directus.chat.messages = [
+        {**directus.chat.messages[0], "id": "db-a", "client_message_id": "msg-a", "created_at": 10},
+        {**directus.chat.messages[1], "id": "db-b", "client_message_id": "msg-b", "created_at": 10},
+        {**directus.chat.messages[2], "id": "db-c", "client_message_id": "msg-c", "created_at": 10},
+        {**directus.chat.messages[3], "id": "db-d", "client_message_id": "msg-d", "created_at": 11},
+    ]
+
+    payload = await get_shared_chat_message_window(
+        request=None,
+        chat_id="chat-shared",
+        before_timestamp=10,
+        before_message_id="msg-c",
+        limit=10,
+        directus_service=directus,
+    )
+
+    assert [json.loads(message)["message_id"] for message in payload["messages"]] == ["msg-a", "msg-b"]
 
 
 @pytest.mark.asyncio

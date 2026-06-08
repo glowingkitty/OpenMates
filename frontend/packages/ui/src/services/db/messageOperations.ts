@@ -40,7 +40,9 @@ export interface MessageWindowOptions {
   anchorMessageId?: string;
   anchorCreatedAt?: number;
   beforeTimestamp?: number;
+  beforeMessageId?: string;
   afterTimestamp?: number;
+  afterMessageId?: string;
   compressedUpToTimestamp?: number;
 }
 
@@ -49,7 +51,9 @@ export interface MessageWindowResult {
   hasMoreBefore: boolean;
   hasMoreAfter: boolean;
   startCursor: number | null;
+  startCursorMessageId: string | null;
   endCursor: number | null;
+  endCursorMessageId: string | null;
   anchorFound: boolean;
 }
 
@@ -80,6 +84,7 @@ function readCursorWindow(
   range: IDBKeyRange,
   direction: IDBCursorDirection,
   limit: number,
+  includeRecord: (record: Message) => boolean = () => true,
 ): Promise<{ records: Message[]; hasMore: boolean }> {
   return new Promise((resolve, reject) => {
     const records: Message[] = [];
@@ -95,7 +100,10 @@ function readCursorWindow(
         resolve({ records, hasMore: true });
         return;
       }
-      records.push(cursor.value as Message);
+      const record = cursor.value as Message;
+      if (includeRecord(record)) {
+        records.push(record);
+      }
       cursor.continue();
     };
     request.onerror = () => reject(request.error);
@@ -121,9 +129,19 @@ function windowResult(
     hasMoreBefore,
     hasMoreAfter,
     startCursor: messages[0]?.created_at ?? null,
+    startCursorMessageId: messages[0]?.message_id ?? null,
     endCursor: messages[messages.length - 1]?.created_at ?? null,
+    endCursorMessageId: messages[messages.length - 1]?.message_id ?? null,
     anchorFound,
   };
+}
+
+function compareMessageCursorPosition(message: Message, timestamp: number, messageId?: string): number {
+  if (message.created_at !== timestamp) {
+    return message.created_at < timestamp ? -1 : 1;
+  }
+  if (!messageId) return 0;
+  return message.message_id.localeCompare(messageId);
 }
 
 // ============================================================================
@@ -479,9 +497,10 @@ export async function getMessageWindowForChat(
     const before = beforeLimit > 0
       ? await readCursorWindow(
           index,
-          chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, anchorCreatedAt, !!options.compressedUpToTimestamp, true),
+          chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, anchorCreatedAt, !!options.compressedUpToTimestamp, false),
           "prev",
           beforeLimit,
+          (message) => compareMessageCursorPosition(message, anchorCreatedAt, options.anchorMessageId) < 0,
         )
       : { records: [], hasMore: false };
     const after = afterLimit > 0
@@ -490,6 +509,7 @@ export async function getMessageWindowForChat(
           chatRange(chat_id, anchorCreatedAt, Infinity, true, false),
           "next",
           afterLimit,
+          (message) => compareMessageCursorPosition(message, anchorCreatedAt, options.anchorMessageId) > 0,
         )
       : { records: [], hasMore: false };
     const encryptedMessages = [
@@ -506,9 +526,10 @@ export async function getMessageWindowForChat(
     if (!beforeTimestamp) return windowResult([], false, false, false);
     const { records, hasMore } = await readCursorWindow(
       index,
-      chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, beforeTimestamp, !!options.compressedUpToTimestamp, true),
+      chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, beforeTimestamp, !!options.compressedUpToTimestamp, false),
       "prev",
       limit,
+      (message) => compareMessageCursorPosition(message, beforeTimestamp, options.beforeMessageId) < 0,
     );
     const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
     return windowResult(messages, hasMore, true);
@@ -519,9 +540,10 @@ export async function getMessageWindowForChat(
     if (!afterTimestamp) return windowResult([], false, false, false);
     const { records, hasMore } = await readCursorWindow(
       index,
-      chatRange(chat_id, afterTimestamp, Infinity, true, false),
+      chatRange(chat_id, afterTimestamp, Infinity, false, false),
       "next",
       limit,
+      (message) => compareMessageCursorPosition(message, afterTimestamp, options.afterMessageId) > 0,
     );
     const messages = await decryptWindow(dbInstance, records, chat_id);
     return windowResult(messages, true, hasMore);

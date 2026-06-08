@@ -1787,7 +1787,11 @@
     dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
     if (isAtTopLocal && !olderWindowRequestInFlight && messages.length > 0) {
       olderWindowRequestInFlight = true;
-      dispatch('loadOlderMessages', { beforeTimestamp: messages[0].created_at, firstMessageId: messages[0].message_id });
+      dispatch('loadOlderMessages', {
+        beforeTimestamp: messages[0].created_at,
+        beforeMessageId: messages[0].message_id,
+        firstMessageId: messages[0].message_id,
+      });
       setTimeout(() => {
         olderWindowRequestInFlight = false;
       }, 500);

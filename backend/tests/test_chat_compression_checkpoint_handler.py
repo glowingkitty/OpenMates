@@ -64,14 +64,30 @@ class FakeChatMethods:
     async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
         return chat_id == "chat-123" and user_id == "user-123"
 
-    async def get_messages_for_chat_before_timestamp(self, chat_id: str, before_timestamp: int, limit: int):
+    async def get_messages_for_chat_before_timestamp(
+        self,
+        chat_id: str,
+        before_timestamp: int,
+        before_message_id: str | None = None,
+        limit: int = 100,
+    ):
         self.requested_old_message_limits.append(limit)
         rows = [
             message
             for message in self.messages
             if message["chat_id"] == chat_id and message["created_at"] <= before_timestamp
         ]
-        rows = sorted(rows, key=lambda message: message["created_at"], reverse=True)[:limit]
+        if before_message_id:
+            rows = [
+                message
+                for message in rows
+                if message["created_at"] < before_timestamp
+                or (
+                    message["created_at"] == before_timestamp
+                    and message["client_message_id"] < before_message_id
+                )
+            ]
+        rows = sorted(rows, key=lambda message: (message["created_at"], message["client_message_id"]), reverse=True)[:limit]
         rows.reverse()
         return [json.dumps({**row, "message_id": row["client_message_id"]}) for row in rows]
 
@@ -189,7 +205,8 @@ def test_get_old_messages_returns_bounded_page_with_cursor_metadata():
     assert directus.chat.requested_old_message_limits == [11]
     assert len(payload["messages"]) == 10
     assert payload["has_more"] is True
-    assert payload["next_before_timestamp"] == 90
+    assert payload["next_before_timestamp"] == 91
+    assert payload["next_before_message_id"] == "msg-91"
 
 
 def test_get_old_messages_can_target_a_forgotten_message():
@@ -217,6 +234,38 @@ def test_get_old_messages_can_target_a_forgotten_message():
     payload = manager.messages[0]["payload"]
     assert payload["target_message_id"] == "msg-42"
     assert payload["messages"][-1].find('"message_id": "msg-42"') != -1
+
+
+def test_get_old_messages_compound_cursor_preserves_duplicate_timestamps():
+    directus = FakeDirectusService()
+    directus.chat.messages = [
+        {"id": "db-a", "client_message_id": "msg-a", "chat_id": "chat-123", "created_at": 10},
+        {"id": "db-b", "client_message_id": "msg-b", "chat_id": "chat-123", "created_at": 10},
+        {"id": "db-c", "client_message_id": "msg-c", "chat_id": "chat-123", "created_at": 10},
+        {"id": "db-d", "client_message_id": "msg-d", "chat_id": "chat-123", "created_at": 11},
+    ]
+    manager = FakeManager()
+
+    asyncio.run(
+        handle_get_compressed_chat_old_messages(
+            cache_service=None,
+            directus_service=directus,
+            manager=manager,
+            user_id="user-123",
+            user_id_hash="user-hash",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "checkpoint_id": "compression_ok",
+                "before_timestamp": 10,
+                "before_message_id": "msg-c",
+                "limit": 10,
+            },
+        )
+    )
+
+    payload = manager.messages[0]["payload"]
+    assert [json.loads(message)["message_id"] for message in payload["messages"]] == ["msg-a", "msg-b"]
 
 
 def test_get_old_messages_enforces_checkpoint_ownership():

@@ -359,6 +359,7 @@ export interface Chat {
   is_shared_by_others?: boolean; // Whether this chat was shared with the current user by someone else (user doesn't own this chat). Used for UI grouping.
   shared_message_window_has_more_before?: boolean; // Shared-chat import loaded a bounded window and can fetch older pages from the public share endpoint.
   shared_message_window_next_before_timestamp?: number | null; // Cursor for the next older shared-chat message window.
+  shared_message_window_next_before_message_id?: string | null; // Message-id tie breaker for older shared-chat windows with duplicate timestamps.
 
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)

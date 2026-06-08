@@ -377,12 +377,17 @@ async def get_shared_chat_message_window(
     request: Request,
     chat_id: str,
     before_timestamp: int = Query(default=2147483647),
+    before_message_id: Optional[str] = Query(default=None),
     target_message_id: Optional[str] = Query(default=None),
     limit: int = Query(default=40, ge=1, le=100),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """Get a bounded encrypted shared-chat message window."""
     try:
+        if not isinstance(before_message_id, str):
+            before_message_id = None
+        if not isinstance(target_message_id, str):
+            target_message_id = None
         chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
         if dummy is not None or chat is None:
             return {"chat_id": chat_id, "messages": (dummy or {}).get("messages", []), "has_more": False, "next_before_timestamp": None}
@@ -396,6 +401,7 @@ async def get_shared_chat_message_window(
         messages = await directus_service.chat.get_messages_for_chat_before_timestamp(
             chat_id=chat_id,
             before_timestamp=before_timestamp,
+            before_message_id=before_message_id,
             limit=limit + 1,
         )
         has_more = len(messages) > limit
@@ -403,17 +409,22 @@ async def get_shared_chat_message_window(
             messages = messages[1:]
         messages = sanitize_shared_pii(messages, bool(chat.get("share_pii", False)))
         next_before_timestamp = None
+        next_before_message_id = None
         if has_more and messages:
             import json
             try:
-                next_before_timestamp = int(json.loads(messages[0]).get("created_at")) - 1
+                first_message = json.loads(messages[0])
+                next_before_timestamp = int(first_message.get("created_at"))
+                next_before_message_id = first_message.get("message_id") or first_message.get("client_message_id") or first_message.get("id")
             except Exception:
                 next_before_timestamp = None
+                next_before_message_id = None
         return {
             "chat_id": chat_id,
             "messages": messages,
             "has_more": has_more,
             "next_before_timestamp": next_before_timestamp,
+            "next_before_message_id": next_before_message_id,
             "target_message_id": target_message_id,
         }
     except Exception as e:

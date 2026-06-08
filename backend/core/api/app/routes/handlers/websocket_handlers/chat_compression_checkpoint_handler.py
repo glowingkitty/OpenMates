@@ -198,6 +198,7 @@ async def _handle_get_compressed_chat_old_messages(
     chat_id = payload.get("chat_id")
     checkpoint_id = payload.get("checkpoint_id")
     before_timestamp = payload.get("before_timestamp")
+    before_message_id = payload.get("before_message_id")
     target_message_id = payload.get("target_message_id")
     limit = min(int(payload.get("limit") or DEFAULT_OLD_MESSAGE_LIMIT), MAX_OLD_MESSAGE_LIMIT)
 
@@ -248,18 +249,22 @@ async def _handle_get_compressed_chat_old_messages(
     messages: List[str] = await directus_service.chat.get_messages_for_chat_before_timestamp(
         chat_id=chat_id,
         before_timestamp=int(before_timestamp),
+        before_message_id=before_message_id,
         limit=limit + 1,
     )
     has_more = len(messages) > limit
     if has_more:
         messages = messages[1:]
     next_before_timestamp = None
+    next_before_message_id = None
     if has_more and messages:
         try:
             first_message = json.loads(messages[0])
-            next_before_timestamp = int(first_message.get("created_at")) - 1
+            next_before_timestamp = int(first_message.get("created_at"))
+            next_before_message_id = first_message.get("message_id") or first_message.get("client_message_id") or first_message.get("id")
         except Exception:
             next_before_timestamp = None
+            next_before_message_id = None
     await manager.send_personal_message(
         {
             "type": "compressed_chat_old_messages_response",
@@ -269,6 +274,7 @@ async def _handle_get_compressed_chat_old_messages(
                 "messages": messages,
                 "has_more": has_more,
                 "next_before_timestamp": next_before_timestamp,
+                "next_before_message_id": next_before_message_id,
                 "target_message_id": target_message_id,
             },
         },

@@ -7525,18 +7525,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
-        const { beforeTimestamp, firstMessageId } = event.detail as { beforeTimestamp?: number; firstMessageId?: string };
-        if (!beforeTimestamp) return;
+        const { beforeTimestamp, beforeMessageId, firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
+        if (!beforeTimestamp || !beforeMessageId) return;
 
         olderMessageWindowLoading = true;
         try {
-            if (currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before && currentChat.shared_message_window_next_before_timestamp) {
-                const response = await fetch(getApiEndpoint(`/v1/share/chat/${currentChat.chat_id}/messages?before_timestamp=${currentChat.shared_message_window_next_before_timestamp}&limit=40`));
+            if (currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before && currentChat.shared_message_window_next_before_timestamp && currentChat.shared_message_window_next_before_message_id) {
+                const params = new URLSearchParams({
+                    before_timestamp: String(currentChat.shared_message_window_next_before_timestamp),
+                    before_message_id: currentChat.shared_message_window_next_before_message_id,
+                    limit: '40',
+                });
+                const response = await fetch(getApiEndpoint(`/v1/share/chat/${currentChat.chat_id}/messages?${params.toString()}`));
                 if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
                 const payload = await response.json() as {
                     messages?: Array<string | Record<string, unknown>>;
                     has_more?: boolean;
                     next_before_timestamp?: number | null;
+                    next_before_message_id?: string | null;
                 };
                 const parsedMessages: ChatMessageModel[] = (payload.messages || []).flatMap((raw) => {
                     const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
@@ -7563,6 +7569,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         ...currentChat,
                         shared_message_window_has_more_before: !!payload.has_more,
                         shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? null,
+                        shared_message_window_next_before_message_id: payload.next_before_message_id ?? null,
                     };
                     currentMessageWindowHasMoreBefore = !!payload.has_more;
                     await chatDB.updateChat(currentChat);
@@ -7577,7 +7584,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatHistoryRef?.restoreScrollPosition(firstMessageId);
                     }
                 } else {
-                    currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null };
+                    currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null, shared_message_window_next_before_message_id: null };
                 }
                 return;
             }
@@ -7586,6 +7593,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                 direction: 'before',
                 beforeTimestamp,
+                beforeMessageId,
                 compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
             });
             if (olderWindow.messages.length === 0) {

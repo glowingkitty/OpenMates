@@ -159,7 +159,7 @@
 		message_highlights?: ShareChatHighlight[];
 		share_pii?: boolean;
 		share_highlights?: boolean;
-		message_window?: { has_more?: boolean; next_before_timestamp?: number | null };
+		message_window?: { has_more?: boolean; next_before_timestamp?: number | null; next_before_message_id?: string | null };
 	};
 
 	/**
@@ -240,7 +240,8 @@
 					messages: messageWindowData.messages || [],
 					message_window: {
 						has_more: !!messageWindowData.has_more,
-						next_before_timestamp: messageWindowData.next_before_timestamp ?? null
+						next_before_timestamp: messageWindowData.next_before_timestamp ?? null,
+						next_before_message_id: messageWindowData.next_before_message_id ?? null
 					}
 				};
 			} catch (windowedError) {
@@ -372,6 +373,7 @@
 				share_highlights: data.share_highlights ?? true,
 				shared_message_window_has_more_before: !!data.message_window?.has_more,
 				shared_message_window_next_before_timestamp: data.message_window?.next_before_timestamp ?? null,
+				shared_message_window_next_before_message_id: data.message_window?.next_before_message_id ?? null,
 				group_key: 'shared_by_others'
 			};
 
