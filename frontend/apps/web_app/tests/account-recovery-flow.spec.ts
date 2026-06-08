@@ -42,6 +42,8 @@ const {
 } = require('./signup-flow-helpers');
 const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
+test.describe.configure({ mode: 'serial' });
+
 /**
  * Account recovery flow test against a deployed web app.
  *

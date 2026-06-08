@@ -49,7 +49,7 @@ const {
 
 // This test mutates the account's TFA secret (via "Change App"), so retries would fail
 // because the OTP key in env no longer matches the new server-side secret.
-test.describe.configure({ retries: 0 });
+test.describe.configure({ mode: 'serial', retries: 0 });
 
 test('sets up backup codes in settings and logs in with a backup code', async ({
 	page,

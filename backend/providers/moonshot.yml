@@ -5,7 +5,7 @@
 provider_id: "moonshot"
 name: "Moonshot AI"
 description: "Moonshot AI - Kimi multimodal thinking and agent models"
-logo_svg: "logos/moonshotai.svg"
+logo_svg: "logos/moonshot.svg"
 privacy_policy: "https://platform.kimi.ai/docs/agreement/userprivacy"
 
 models:

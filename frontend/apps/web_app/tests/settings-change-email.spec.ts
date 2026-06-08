@@ -20,6 +20,8 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 );
 const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
 
+test.describe.configure({ mode: 'serial' });
+
 async function openLoginDialog(page: any): Promise<void> {
 	const headerButton = page.getByTestId('header-login-signup-btn');
 	try {

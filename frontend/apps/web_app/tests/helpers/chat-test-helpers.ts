@@ -26,6 +26,16 @@ const noopScreenshot = async (_page: any, _label: string): Promise<void> => {};
 /** No-op log function for when logging isn't needed */
 const noopLog = (_message: string, _metadata?: Record<string, unknown>): void => {};
 
+type LastSendState = {
+	assistantCount: number;
+};
+
+const lastSendStateByPage = new WeakMap<object, LastSendState>();
+
+async function locatorCount(locator: any): Promise<number> {
+	return locator.count().catch(() => 0);
+}
+
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
 	const authDom = authSignal.waitFor({ state: 'visible', timeout })
 		.then(() => true)
@@ -455,6 +465,11 @@ async function sendMessage(
 ): Promise<void> {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
+	const userMessages = page.getByTestId('message-user');
+	const assistantMessages = page.getByTestId('message-assistant');
+	const userCountBeforeSend = await locatorCount(userMessages);
+	const assistantCountBeforeSend = await locatorCount(assistantMessages);
+
 	await messageEditor.click();
 	await page.keyboard.type(message);
 	logCheckpoint(`Typed message: "${message}"`);
@@ -465,6 +480,16 @@ async function sendMessage(
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	await sendButton.click();
 	logCheckpoint('Clicked send button.');
+	await expect
+		.poll(async () => await locatorCount(userMessages), { timeout: 30000 })
+		.toBeGreaterThanOrEqual(userCountBeforeSend + 1);
+	lastSendStateByPage.set(page, {
+		assistantCount: assistantCountBeforeSend
+	});
+	logCheckpoint('User message persisted after send.', {
+		userCount: userCountBeforeSend + 1,
+		assistantCountBeforeSend
+	});
 	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
 }
 
@@ -650,6 +675,20 @@ async function waitForAssistantMessage(
 
 	const start = Date.now();
 	const budget = () => Math.max(1000, timeout - (Date.now() - start));
+	const lastSendState = lastSendStateByPage.get(page);
+	const assistantMessages = page.getByTestId('message-assistant');
+
+	const shouldWaitForNewAssistant = lastSendState && (which !== 'first' || lastSendState.assistantCount === 0);
+	if (shouldWaitForNewAssistant) {
+		const minimumAssistantCount =
+			typeof nth === 'number'
+				? Math.max(nth + 1, lastSendState.assistantCount + 1)
+				: lastSendState.assistantCount + 1;
+		await expect
+			.poll(async () => await locatorCount(assistantMessages), { timeout: budget() })
+			.toBeGreaterThanOrEqual(minimumAssistantCount);
+		logCheckpoint(`New assistant message attached (count>=${minimumAssistantCount}).`);
+	}
 
 	// Stage 1 — stream-started gate.
 	// Wait for any evidence that the AI pipeline has accepted the message.
@@ -669,7 +708,6 @@ async function waitForAssistantMessage(
 	}
 
 	// Stage 2 — target the specific assistant message and wait for it to render.
-	const assistantMessages = page.getByTestId('message-assistant');
 	const target =
 		typeof nth === 'number'
 			? assistantMessages.nth(nth)
@@ -690,37 +728,40 @@ async function waitForAssistantMessage(
 }
 
 /**
- * Returns true if the login/signup interface can be opened (either the banner button
- * or the header button is visible). Use instead of checking `header-login-signup-btn`
- * directly — that button is intentionally hidden while the intro banner is visible.
+ * Returns true if the header login/signup button is visible.
  */
 async function isSignupInterfaceVisible(page: any, timeout = 5000): Promise<boolean> {
-	const bannerBtn = page.getByTestId('banner-signup-button');
 	const headerBtn = page.getByTestId('header-login-signup-btn');
-	const bannerVisible = await bannerBtn.isVisible({ timeout }).catch(() => false);
-	if (bannerVisible) return true;
-	return headerBtn.isVisible({ timeout: 1000 }).catch(() => false);
+	return headerBtn.isVisible({ timeout }).catch(() => false);
 }
 
 /**
  * Open the login/signup dialog.
  *
- * When the intro banner is in the viewport (the app hides the header button to avoid
- * a duplicate CTA), clicks the banner's own signup button instead. Falls back to the
- * header button once the banner has scrolled out of view.
- *
- * Use this instead of `page.getByTestId('header-login-signup-btn')` + `toBeVisible()`
- * directly — the header button is intentionally hidden while the banner is visible.
+ * Clicks the intro banner signup button when present, otherwise the header
+ * login/signup button. Includes a reload-retry on first failure to handle
+ * Svelte hydration or locale-loading races.
  */
 async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
-	const bannerBtn = page.getByTestId('banner-signup-button');
-	const headerBtn = page.getByTestId('header-login-signup-btn');
-	const bannerVisible = await bannerBtn.isVisible({ timeout: 8000 }).catch(() => false);
-	if (bannerVisible) {
-		await bannerBtn.click();
-	} else {
-		await expect(headerBtn).toBeVisible({ timeout });
-		await headerBtn.click();
+	for (let attempt = 0; attempt < 2; attempt++) {
+		const bannerBtn = page.getByTestId('banner-signup-button');
+		const headerBtn = page.getByTestId('header-login-signup-btn');
+		try {
+			if (await bannerBtn.isVisible({ timeout: Math.min(timeout, 8000) }).catch(() => false)) {
+				await bannerBtn.click({ timeout });
+				return;
+			}
+			await headerBtn.waitFor({ state: 'visible', timeout });
+			await headerBtn.click({ timeout });
+			return;
+		} catch (e) {
+			if (attempt === 0) {
+				await page.reload();
+				await page.waitForLoadState('load');
+				continue;
+			}
+			throw e;
+		}
 	}
 }
 

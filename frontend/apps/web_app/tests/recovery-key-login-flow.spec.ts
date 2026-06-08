@@ -62,6 +62,8 @@ const {
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
 } = getIsolatedTestAccount('recovery-key-login-flow.spec.ts');
 
+test.describe.configure({ mode: 'serial' });
+
 test('sets up recovery key in settings and logs in with recovery key', async ({
 	page,
 	context

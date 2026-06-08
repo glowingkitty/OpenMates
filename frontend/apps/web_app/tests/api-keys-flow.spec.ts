@@ -42,6 +42,8 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 );
 const E2E_KEY_NAME_PATTERN = /^(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
 
+test.describe.configure({ mode: 'serial' });
+
 // ─── Shared login helper ─────────────────────────────────────────────────────
 
 // ─── Navigate to API Keys settings page ─────────────────────────────────────

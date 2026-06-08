@@ -16,6 +16,10 @@ import sys
 from pathlib import Path
 
 import audit_embed_structure
+import audit_app_provider_contracts
+import audit_opencode_automation_budget
+import audit_playwright_determinism
+import audit_sensitive_logging
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +29,11 @@ TOUCHED_FILE_WARNING_LIMIT = 2500
 PUBLIC_COMPOSE_PORTS = {"80", "443"}
 EMBED_STRUCTURE_PATH_RE = re.compile(
     r"^(frontend/packages/ui/src/(components/embeds/|data/embedRegistry\.generated\.ts)|scripts/audit_embed_structure\.py)"
+)
+PLAYWRIGHT_SPEC_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.*\.(spec|test)\.ts$")
+APP_PROVIDER_PATH_RE = re.compile(r"^(backend/apps/[^/]+/app\.yml|backend/providers/.*\.ya?ml)$")
+OPENCODE_AUTOMATION_PATH_RE = re.compile(
+    r"^(scripts/.*\.(py|sh|js|mjs)|scripts/prompts/.*\.md|\.agents/skills/.*/SKILL\.md|opencode\.json)$"
 )
 
 BLOCK_PATTERNS = {
@@ -60,6 +69,35 @@ def _added_lines() -> list[tuple[str, str]]:
         if line.startswith("+") and not line.startswith("+++") and current_file:
             added.append((current_file, line[1:]))
     return added
+
+
+def _added_lines_with_numbers() -> list[tuple[str, int, str]]:
+    result = _git(["diff", "--cached", "--unified=0"], check=False)
+    current_file = ""
+    current_line = 0
+    added: list[tuple[str, int, str]] = []
+    hunk_re = re.compile(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+    for line in result.stdout.splitlines():
+        if line.startswith("+++ b/"):
+            current_file = line[6:]
+            current_line = 0
+            continue
+        if line.startswith("@@"):
+            match = hunk_re.search(line)
+            current_line = int(match.group(1)) if match else 0
+            continue
+        if line.startswith("+") and not line.startswith("+++") and current_file:
+            added.append((current_file, current_line, line[1:]))
+            current_line += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            continue
+        elif current_line:
+            current_line += 1
+
+    if added:
+        return added
+
+    return [(path, 0, line) for path, line in _added_lines()]
 
 
 def _is_new_file(path: str) -> bool:
@@ -103,6 +141,10 @@ def _should_run_embed_structure_audit(staged_files: list[str]) -> bool:
     return any(EMBED_STRUCTURE_PATH_RE.search(path) for path in staged_files)
 
 
+def _paths_matching(staged_files: list[str], pattern: re.Pattern[str]) -> list[Path]:
+    return [REPO_ROOT / path for path in staged_files if pattern.search(path)]
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -117,6 +159,20 @@ def main() -> int:
         for warning in audit_result.warnings:
             blocks.append(f"embed structure: {warning}")
 
+    added_lines_with_numbers = _added_lines_with_numbers()
+
+    for issue in audit_playwright_determinism.audit_added_lines(added_lines_with_numbers):
+        blocks.append(f"playwright determinism: {issue.path}:{issue.line}: {issue.message}")
+
+    for issue in audit_playwright_determinism.audit_reserved_account_specs(_paths_matching(staged_files, PLAYWRIGHT_SPEC_PATH_RE)):
+        blocks.append(f"playwright determinism: {issue.path}:{issue.line}: {issue.message}")
+
+    for issue in audit_app_provider_contracts.audit_paths(_paths_matching(staged_files, APP_PROVIDER_PATH_RE)):
+        blocks.append(f"app/provider contract: {issue.path}: {issue.message}")
+
+    for issue in audit_opencode_automation_budget.audit_paths(_paths_matching(staged_files, OPENCODE_AUTOMATION_PATH_RE)):
+        blocks.append(f"opencode automation budget: {issue.path}: {issue.message}")
+
     for path in staged_files:
         suffix = Path(path).suffix
         if re.search(r"frontend/packages/ui/src/i18n/locales/.*\.json$", path):
@@ -130,7 +186,12 @@ def main() -> int:
         elif line_count > TOUCHED_FILE_WARNING_LIMIT:
             warnings.append(f"{path}: touched source file is {line_count} lines; prefer extraction over adding more responsibilities")
 
-    for path, line in _added_lines():
+    for issue in audit_sensitive_logging.audit_added_lines(added_lines_with_numbers):
+        line_label = f":{issue.line}" if issue.line else ""
+        blocks.append(f"sensitive logging: {issue.path}{line_label}: {issue.message}")
+
+    added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
+    for path, line in added_lines:
         if _is_compose_file(path):
             reason = _unsafe_compose_port_publish(line)
             if reason:

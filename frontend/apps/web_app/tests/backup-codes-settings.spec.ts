@@ -65,6 +65,8 @@ const {
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
 } = getIsolatedTestAccount('backup-codes-settings.spec.ts');
 
+test.describe.configure({ mode: 'serial' });
+
 test('resets backup codes via Settings > Security > 2FA', async ({
 	page,
 	context
