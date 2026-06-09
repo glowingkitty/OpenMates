@@ -1484,6 +1484,19 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share';
+            } else if (settingsPath === 'billing/gift-cards') {
+                // Gift cards live under billing in the route tree, but their translations are in settings.gift_cards.*.
+                activeSubMenuTitleKey = 'settings.gift_cards';
+            } else if (settingsPath === 'billing/gift-cards/redeem') {
+                activeSubMenuTitleKey = 'settings.gift_cards.redeem';
+            } else if (settingsPath === 'billing/gift-cards/redeemed') {
+                activeSubMenuTitleKey = 'settings.gift_cards.redeemed';
+            } else if (settingsPath === 'billing/gift-cards/buy') {
+                activeSubMenuTitleKey = 'settings.gift_cards.buy';
+            } else if (settingsPath === 'billing/gift-cards/buy/payment') {
+                activeSubMenuTitleKey = 'settings.gift_cards.buy.payment';
+            } else if (settingsPath === 'billing/gift-cards/buy/confirmation') {
+                activeSubMenuTitleKey = 'settings.gift_cards.buy.confirmation';
             } else if (settingsPath === 'server/software-update') {
                 // Software update page — use the existing root-level key (not settings.server.software_update)
                 activeSubMenuTitleKey = 'settings.software_updates';
