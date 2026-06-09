@@ -22,7 +22,7 @@
   }
 
   interface Props {
-    data: EmbedFullscreenRawData;
+    data?: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -47,7 +47,7 @@
     onShowChat
   }: Props = $props();
 
-  let content = $derived(data.decodedContent ?? {});
+  let content = $derived(data?.decodedContent ?? {});
   let date = $derived(typeof content.date === 'string' ? content.date : '');
   let locationName = $derived(typeof content.location_name === 'string' ? content.location_name : '');
   let provider = $derived(typeof content.provider === 'string' ? content.provider : 'Weather');

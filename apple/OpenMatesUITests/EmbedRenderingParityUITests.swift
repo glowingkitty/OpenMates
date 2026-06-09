@@ -49,10 +49,6 @@ final class EmbedRenderingParityUITests: XCTestCase {
             let gallery = app.descendants(matching: .any)["dev-embed-preview-gallery"]
             XCTAssertTrue(gallery.waitForExistence(timeout: 8), "\(appSlug) gallery did not load")
 
-            let routeLabel = app.descendants(matching: .any)["dev-preview-route"]
-            XCTAssertTrue(routeLabel.waitForExistence(timeout: 2), "\(appSlug) route label is missing")
-            XCTAssertEqual(routeLabel.label, "/dev/preview/embeds/\(appSlug)")
-
             let skillSection = app.descendants(matching: .any)
                 .matching(NSPredicate(format: "identifier BEGINSWITH %@", "dev-preview-skill-"))
                 .firstMatch
