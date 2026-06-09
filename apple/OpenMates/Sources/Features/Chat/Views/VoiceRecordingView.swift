@@ -168,6 +168,7 @@ struct ComposerRecordingOverlay: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient.primary)
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("record-overlay")
     }
 
