@@ -347,6 +347,20 @@ let sendInProgress = false;
 
 const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
 
+function recordSendDebugStep(
+  step: string,
+  details: Record<string, unknown> = {},
+): void {
+  const debugWindow = window as Window & {
+    __openmatesLastSendDebug?: Record<string, unknown>;
+  };
+  debugWindow.__openmatesLastSendDebug = {
+    step,
+    details,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 async function waitForDraftSaveIdle(): Promise<void> {
   if (!get(draftEditorUIState).isSaveInProgress) return;
 
@@ -392,6 +406,13 @@ export async function handleSend(
     textLength: editorTextPreview.length,
     textPreview: editorTextPreview,
   });
+  recordSendDebugStep("send_invoked", {
+    currentChatId,
+    hasEditor: !!editor,
+    editorDestroyed: editor?.isDestroyed ?? null,
+    editorIsEmpty: editor?.isEmpty ?? null,
+    textLength: editorTextPreview.length,
+  });
 
   if (!editor || !hasActualContent(editor)) {
     console.warn("[handleSend] Aborting send because editor has no actual content", {
@@ -419,6 +440,7 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  recordSendDebugStep("send_guard_acquired", { currentChatId });
 
   // OTel instrumentation: root span covering the entire send pipeline
   const tracer = getTracer();
@@ -434,6 +456,11 @@ export async function handleSend(
   console.debug("[handleSend] Preparing draft/deferred checks", { currentChatId });
   saveDraftDebounced.cancel();
   const draftStateBeforeSend = get(draftEditorUIState);
+  recordSendDebugStep("draft_state_read", {
+    currentChatId,
+    draftChatId: draftStateBeforeSend.currentChatId,
+    isSaveInProgress: draftStateBeforeSend.isSaveInProgress,
+  });
   console.debug("[handleSend] Draft state before send", {
     currentChatId,
     draftChatId: draftStateBeforeSend.currentChatId,
@@ -446,6 +473,7 @@ export async function handleSend(
   // OTel: deferred send check span
   console.debug("[handleSend] Starting deferred embed scan", { currentChatId });
   const deferredCheckSpan = tracer.startSpan('message.send.deferred_check');
+  recordSendDebugStep("deferred_scan_started", { currentChatId });
   // DEFERRED SEND: Detect embeds that are still in-flight.
   // Instead of blocking with a warning toast, we:
   //  1. Snapshot the editor state into a PendingSendContext (this function).
@@ -481,6 +509,10 @@ export async function handleSend(
 
   deferredCheckSpan.end();
   console.debug("[handleSend] Deferred embed scan complete", {
+    currentChatId,
+    blockingEmbedCount: blockingEmbeds.length,
+  });
+  recordSendDebugStep("deferred_scan_complete", {
     currentChatId,
     blockingEmbedCount: blockingEmbeds.length,
   });
@@ -929,6 +961,10 @@ export async function handleSend(
 
   // Convert to markdown
   let markdown = tipTapToCanonicalMarkdown(editorContent);
+  recordSendDebugStep("markdown_converted", {
+    currentChatId,
+    markdownLength: markdown.length,
+  });
   console.info("[handleSend] Editor content converted to markdown", {
     currentChatId,
     markdownLength: markdown.length,

@@ -520,6 +520,9 @@ async function sendMessage(
 		logCheckpoint('Send did not persist user message after click; captured composer diagnostics.', {
 			userCountBeforeSend,
 			userCountAfterClick: await locatorCount(userMessages),
+			lastSendDebug: await page.evaluate(() => {
+				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+			}),
 			diagnostics: diagnosticsBeforeSynthetic
 		});
 
@@ -529,7 +532,10 @@ async function sendMessage(
 		await page.waitForTimeout(1000);
 		logCheckpoint('Synthetic custom-send-message diagnostic completed.', {
 			syntheticDispatchResult,
-			userCountAfterSynthetic: await locatorCount(userMessages)
+			userCountAfterSynthetic: await locatorCount(userMessages),
+			lastSendDebug: await page.evaluate(() => {
+				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+			})
 		});
 		throw error;
 	}
