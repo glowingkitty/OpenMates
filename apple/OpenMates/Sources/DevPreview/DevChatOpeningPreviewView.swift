@@ -33,13 +33,15 @@ struct DevChatOpeningPreviewView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
-                header
+                if !isUITestVisualSnapshotEnabled {
+                    header
+                }
 
-                if isUITestResponsiveMetricsEnabled {
+                if isUITestResponsiveMetricsEnabled && !isUITestVisualSnapshotEnabled {
                     responsiveMetricsProbe
                 }
 
-                if isUITestHeaderContractEnabled {
+                if isUITestHeaderContractEnabled && !isUITestVisualSnapshotEnabled {
                     headerContractProbe
                 }
 
@@ -148,6 +150,11 @@ struct DevChatOpeningPreviewView: View {
     private var isUITestHeaderContractEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-header-contract")
             || ProcessInfo.processInfo.environment["UI_TEST_HEADER_CONTRACT"] == "1"
+    }
+
+    private var isUITestVisualSnapshotEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-visual-snapshot")
+            || ProcessInfo.processInfo.environment["UI_TEST_VISUAL_SNAPSHOT"] == "1"
     }
 
     private func responsiveMetricsLabel(width: CGFloat) -> String {
