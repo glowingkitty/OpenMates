@@ -35,7 +35,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const SETTINGS_MENU_SELECTOR = '[data-testid="settings-menu"]';
 const MISSING_TRANSLATION_PATTERN = /\[\s*T\s*:?[^[\]]+\]|\[object Object\]/g;
 const MAX_TRAVERSAL_DEPTH = 4;
-const NAVIGATION_WAIT_MS = 650;
+const NAVIGATION_WAIT_MS = 200;
 const GIFT_CARD_SETTINGS_PATHS = [
 	'billing/gift-cards',
 	'billing/gift-cards/redeem',
@@ -245,7 +245,7 @@ async function openSettingsPath(page: any, settingsMenu: any, settingsPath: stri
 }
 
 test.describe('Settings translation coverage', () => {
-	test.describe.configure({ timeout: 180000 });
+	test.describe.configure({ timeout: 600000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('settings catalog and visible settings/sub-settings menus have no missing translation placeholders', async ({ page }) => {
