@@ -119,6 +119,11 @@ struct MainAppView: View {
         horizontalSizeClass == .compact
     }
 
+    private var isUITestShellMetricsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-shell-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_SHELL_METRICS"] == "1"
+    }
+
     private func isSettingsSideBySide(width: CGFloat) -> Bool {
         width > 1100
     }
@@ -371,8 +376,44 @@ struct MainAppView: View {
             .contentShape(Rectangle())
             .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
             .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
+            .overlay(alignment: .bottomLeading) {
+                shellMetricsProbe(viewportWidth: viewportWidth, compactPanelWidth: compactPanelWidth)
+            }
         }
         .background(Color.grey0)
+    }
+
+    @ViewBuilder
+    private func shellMetricsProbe(viewportWidth: CGFloat, compactPanelWidth: CGFloat) -> some View {
+        if isUITestShellMetricsEnabled {
+            let metrics = shellMetricsLabel(viewportWidth: viewportWidth, compactPanelWidth: compactPanelWidth)
+            Text(metrics)
+                .font(.omMicro)
+                .foregroundStyle(Color.fontTertiary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing1)
+                .background(Color.grey0.opacity(0.86))
+                .accessibilityIdentifier("shell-responsive-metrics")
+                .accessibilityLabel(metrics)
+        }
+    }
+
+    private func shellMetricsLabel(viewportWidth: CGFloat, compactPanelWidth: CGFloat) -> String {
+        let shellMode = isCompactShell ? "compact" : "regular"
+        let panelMode = isCompactShell ? "drawer" : "side-by-side"
+        let activeMainWidth = isCompactShell ? viewportWidth : regularMainWidth(for: viewportWidth)
+        return [
+            "shell-width=\(Int(viewportWidth.rounded()))",
+            "shell-mode=\(shellMode)",
+            "panel-mode=\(panelMode)",
+            "chat-panel-open=\(isChatsPanelOpen)",
+            "chat-panel-visible=\(isChatsPanelOpen)",
+            "active-chat-visible=true",
+            "chat-panel-width=\(Int(compactPanelWidth.rounded()))",
+            "active-main-width=\(Int(activeMainWidth.rounded()))"
+        ].joined(separator: "; ")
     }
 
     private func regularMainWidth(for viewportWidth: CGFloat) -> CGFloat {

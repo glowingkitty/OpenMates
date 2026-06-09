@@ -1,0 +1,240 @@
+id: apple-responsive-shell-parity
+title: Apple Responsive Shell Parity
+status: approved
+
+goal: >
+  Prove and improve Apple app responsiveness against the rendered web app source
+  of truth, starting with simulator-safe shell coverage for compact iPhone drawer
+  behavior and regular iPad side-panel behavior. The first slice adds stable
+  native evidence for the shell breakpoints before extending to macOS window-size
+  checks and deeper web spec reproductions.
+
+scope:
+  in:
+    - Native iOS simulator UI tests for compact and regular app shell responsive states.
+    - Debug-only, non-product metrics or identifiers needed to prove shell state deterministically.
+    - Documentation of next web Playwright specs to reproduce in Apple tests.
+    - Remote Mac verification on iPhone and iPad simulators.
+  out:
+    - Pixel-perfect screenshot gating in this first slice.
+    - Real macOS window resize automation in the first implementation slice.
+    - Physical-device-only behavior such as camera, APNs, or microphone fidelity.
+    - Rewriting the Apple shell or replacing SwiftUI architecture.
+
+context_discovery:
+  github_issues:
+    - "Not searched in this session; user explicitly asked to continue the in-progress Apple parity work."
+  docs:
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+  code_patterns:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+  tests:
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+  parity_expectations:
+    - Compact iPhone shell behaves like web mobile: sidebar/chat history is hidden by default and opens as an overlay/drawer from the sidebar toggle.
+    - Regular iPad shell behaves like web desktop/tablet: opening the chat history keeps the active chat visible side-by-side instead of replacing it.
+    - Debug-only metrics may expose shell state for tests, but must not affect normal product behavior.
+  verification:
+    - Remote Mac iPhone 17 simulator run for compact shell coverage.
+    - Remote Mac iPad Pro 13-inch simulator run for regular shell coverage.
+    - Existing chat responsive breakpoint test remains green.
+  intentional_native_differences:
+    - Native shell may use SwiftUI animations and gestures while preserving the same visible product state.
+    - macOS exact window resizing is documented for the next slice, not implemented in this first iOS simulator slice.
+
+clarification:
+  rounds:
+    - question: Should the next step include defining specs before implementation?
+      answer: The user asked to go ahead with the next steps, define the specs, then implement and test/debug.
+  vision_summary: >
+    The Apple app should continue moving toward web-source-of-truth parity with
+    concrete simulator coverage first. This slice proves the shell responds
+    correctly across small and large iOS viewports, then records the next web
+    specs to reproduce natively.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Compact iPhone opens chat history as drawer
+    given:
+      - The Apple app launches in a compact iPhone simulator without private credentials.
+      - The chat history/sidebar is closed by default.
+    when:
+      - The user taps the sidebar toggle.
+    then:
+      - The chat history panel becomes visible.
+      - The active chat area remains present behind or beside the drawer state.
+      - Shell metrics report compact shell state and chat panel open.
+
+  - id: S-2
+    title: Regular iPad opens chat history side-by-side
+    given:
+      - The Apple app launches in a regular iPad simulator without private credentials.
+      - The chat history/sidebar is closed by default.
+    when:
+      - The user taps the sidebar toggle.
+    then:
+      - The chat history panel becomes visible.
+      - The active chat surface remains visible at the same time.
+      - Shell metrics report regular shell state and chat panel open.
+
+  - id: S-3
+    title: Next web specs are queued for Apple reproduction
+    given:
+      - The shell responsive slice is covered.
+    when:
+      - The work is summarized.
+    then:
+      - The next Apple parity candidates are listed in priority order with web spec sources and native target tests.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: An iPhone simulator test proves compact shell drawer behavior using stable native identifiers or debug-only shell metrics.
+  - id: AC-2
+    scenario: S-2
+    text: An iPad simulator test proves regular side-by-side shell behavior using stable native identifiers or debug-only shell metrics.
+  - id: AC-3
+    scenario: S-3
+    text: The next web specs to reproduce in Apple are documented with native test targets and scope boundaries.
+
+contracts:
+  api:
+    - No product API changes are required.
+  data:
+    - Debug-only shell metrics must include viewport width, compact/regular classification, chat-panel-open state, and panel visibility state.
+    - Metrics must be synthetic and must not contain user content, private chat IDs, credentials, hostnames, or device identifiers.
+  ui_states:
+    - Compact shell with chat history closed.
+    - Compact shell with chat history open.
+    - Regular shell with chat history closed.
+    - Regular shell with chat history open side-by-side with active chat.
+  privacy_security:
+    - Tests use public/demo or debug preview data only.
+    - Debug-only hooks are gated by UI-test launch flags or DEBUG compilation.
+
+tests:
+  - id: T-APPLE-SHELL-RESPONSIVE-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatShellResponsiveParityUITests
+    covers:
+      - AC-1
+    assertions:
+      - compact shell is reported before opening the panel
+      - chat history panel is hidden or closed by default
+      - tapping sidebar-toggle opens the chat history panel
+      - active chat surface remains present
+    red_phase:
+      required: true
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+
+  - id: T-APPLE-SHELL-RESPONSIVE-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/ChatShellResponsiveParityUITests
+    covers:
+      - AC-2
+    assertions:
+      - regular shell is reported before opening the panel
+      - tapping sidebar-toggle opens the chat history panel
+      - active chat surface remains visible while the panel is open
+    red_phase:
+      required: true
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+
+  - id: T-APPLE-NEXT-SPEC-PLAN
+    type: lint
+    file: docs/architecture/apple/responsive-and-next-spec-parity.md
+    command: python3 scripts/spec_validate.py docs/specs/apple-responsive-shell-parity/spec.yml
+    covers:
+      - AC-3
+    assertions:
+      - next web specs are listed with Apple target tests
+      - macOS and physical-device limitations are explicitly separated
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+
+implementation_plan:
+  existing_patterns:
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+  architecture: >
+    Add a DEBUG/UI-test-only metrics label in MainAppView and a simulator UI test
+    that reads shell state before and after tapping the existing sidebar toggle.
+    Avoid changing product layout or behavior.
+  data_flow:
+    - UI test launches the app with a debug metrics flag.
+    - MainAppView emits sanitized shell state metrics.
+    - UI test asserts initial and post-toggle shell state on iPhone and iPad.
+  affected_files:
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Debug-only shell metrics for deterministic UI assertions.
+    - path: apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+      reason: New compact/regular shell parity test.
+    - path: apple/OpenMates.xcodeproj/project.pbxproj
+      reason: Add test file to UI test target.
+    - path: docs/architecture/apple/responsive-and-next-spec-parity.md
+      reason: Record verified shell coverage and remaining responsive gaps.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-responsive-shell-parity/spec.yml
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatShellResponsiveParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/ChatShellResponsiveParityUITests
+  risks:
+    - SwiftUI can flatten accessibility identifiers; tests may need to locate visible synthetic labels instead of identifiers.
+    - Unauthenticated app shell defaults may differ from authenticated shell in later slices.
+    - macOS window responsiveness still needs separate target verification.
+
+tasks:
+  - id: TASK-1
+    title: Add shell responsive metrics and simulator UI test
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+      - apple/OpenMates.xcodeproj/project.pbxproj
+    verification: [T-APPLE-SHELL-RESPONSIVE-IPHONE, T-APPLE-SHELL-RESPONSIVE-IPAD]
+    independently_deployable: true
+  - id: TASK-2
+    title: Record responsive shell coverage and next spec queue
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-3]
+    expected_files:
+      - docs/architecture/apple/responsive-and-next-spec-parity.md
+      - docs/specs/apple-responsive-shell-parity/spec.yml
+    verification: [T-APPLE-NEXT-SPEC-PLAN]
+    independently_deployable: true
