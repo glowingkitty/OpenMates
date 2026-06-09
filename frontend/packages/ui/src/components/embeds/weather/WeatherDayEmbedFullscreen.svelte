@@ -47,10 +47,21 @@
     onShowChat
   }: Props = $props();
 
-  let content = $derived(data?.decodedContent ?? {});
+  let content = $derived.by(() => {
+    const decodedContent = data?.decodedContent;
+    return decodedContent && typeof decodedContent === 'object' ? decodedContent as Record<string, unknown> : {};
+  });
   let date = $derived(typeof content.date === 'string' ? content.date : '');
   let locationName = $derived(typeof content.location_name === 'string' ? content.location_name : '');
   let provider = $derived(typeof content.provider === 'string' ? content.provider : 'Weather');
+  let condition = $derived(typeof content.condition === 'string' ? content.condition : '');
+  let temperatureMinC = $derived(typeof content.temperature_min_c === 'number' ? content.temperature_min_c : undefined);
+  let temperatureMaxC = $derived(typeof content.temperature_max_c === 'number' ? content.temperature_max_c : undefined);
+  let precipitationTotalMm = $derived(typeof content.precipitation_total_mm === 'number' ? content.precipitation_total_mm : 0);
+  let precipitationProbabilityMaxPct = $derived(
+    typeof content.precipitation_probability_max_pct === 'number' ? content.precipitation_probability_max_pct : 0
+  );
+  let rainHours = $derived(typeof content.rain_hours === 'number' ? content.rain_hours : 0);
   let hourly = $derived(Array.isArray(content.hourly) ? content.hourly as HourlyWeatherRow[] : []);
 </script>
 
@@ -74,9 +85,9 @@
   {#snippet content()}
     <div class="weather-day-fullscreen" data-testid="weather-day-fullscreen">
       <section class="summary-card" data-testid="weather-day-fullscreen-summary">
-        <h3>{content.condition || $text('apps.weather.day')}</h3>
-        <p>{content.temperature_min_c ?? '—'}° / {content.temperature_max_c ?? '—'}°</p>
-        <p>{content.precipitation_total_mm ?? 0} mm · {content.precipitation_probability_max_pct ?? 0}% rain · {content.rain_hours ?? 0}h</p>
+        <h3>{condition || $text('apps.weather.day')}</h3>
+        <p>{temperatureMinC ?? '—'}° / {temperatureMaxC ?? '—'}°</p>
+        <p>{precipitationTotalMm} mm · {precipitationProbabilityMaxPct}% rain · {rainHours}h</p>
       </section>
 
       <section class="hourly-table" aria-label="Hourly weather forecast" data-testid="weather-hourly-table">
