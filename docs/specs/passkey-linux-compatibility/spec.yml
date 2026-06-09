@@ -173,9 +173,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "github-actions-27232775475"
+        timestamp: "2026-06-09T20:12:03Z"
+        notes: "Passed against app.dev.openmates.org after Vercel deployed the current dev commit and the api service was rebuilt with commit a9be1ed. Earlier run github-actions-27232386092 failed because the backend container still served stale options with authenticatorAttachment=platform."
 
   - id: T-E2E-002
     type: playwright
@@ -199,9 +200,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "github-actions-27233115881"
+        timestamp: "2026-06-09T20:19:07Z"
+        notes: "Passed against app.dev.openmates.org after Vercel deployment dpl_3sXy7PQdruFPpMWDAeU5eLzNbbRS was Ready."
 
   - id: T-E2E-003
     type: playwright
@@ -223,9 +225,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: "github-actions-27233330601"
+        timestamp: "2026-06-09T20:21:42Z"
+        notes: "Spec did not execute product flow: recovery-key-login-flow.spec.ts is missing isolated credentials for source slot 17 (credential slot 1). Base OPENMATES_TEST_ACCOUNT_* fallback is disabled for this spec."
 
   - id: T-E2E-004
     type: playwright
@@ -247,9 +250,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: "github-actions-27233419627"
+        timestamp: "2026-06-09T20:23:19Z"
+        notes: "Spec did not execute product flow: backup-code-login-flow.spec.ts is missing isolated credentials for source slot 15 (credential slot 1). Base OPENMATES_TEST_ACCOUNT_* fallback is disabled for this spec."
 
 implementation_plan:
   existing_patterns:
