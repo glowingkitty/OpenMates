@@ -384,7 +384,15 @@ focuses:
   - id: check_reputation
     name_translation_key: web.check_reputation
     description_translation_key: web.check_reputation.description
-    stage: planning
+    process_translation_key: focus_modes.web_check_reputation.process
+    systemprompt_translation_key: focus_modes.web_check_reputation.systemprompt
+    stage: development
+    preprocessor_hint: >
+      Select when the user asks whether a business, seller, marketplace listing,
+      website, online shop, or service is legitimate, trustworthy, reliable, or
+      likely to be a scam before buying, signing up, or sharing information.
+      Do not select for general company background research unless the user is
+      explicitly asking about trust, reputation, fraud, or purchase risk.
   - id: analyze_privacy
     name_translation_key: web.analyze_privacy
     description_translation_key: web.analyze_privacy.description
