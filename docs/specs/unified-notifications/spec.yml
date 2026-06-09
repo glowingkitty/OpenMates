@@ -41,6 +41,7 @@ context_discovery:
   tests:
     - backend/tests/test_unified_notifications.py
     - backend/tests/test_notifications_api.py
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
     - frontend/packages/openmates-cli/tests/cli.test.ts
 
 clarification:
@@ -237,6 +238,29 @@ tests:
     green_phase:
       required: false
       expected: pass
+  - id: T-APPLE-002
+    type: unit
+    file: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    command: python3 scripts/apple_background_notification_simulator_test.py --push-delay 75
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - A backgrounded native app can receive a simulator-injected server-shaped APNs payload.
+      - SpringBoard displays only the generic OpenMates title and New message received body.
+      - This simulator test does not prove real APNs delivery from OpenMates servers.
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-xcodebuild-2026-06-09-134205
+        timestamp: "2026-06-09T13:43:11+02:00"
+        commit: 250c2cc
+        notes: "Focused remote Mac run on iPhone 17 simulator: BackgroundChatNotificationUITests/testBackgroundedAppShowsSimulatedServerPushNotification passed, 1 test, 0 failures; simctl push reported Notification sent to org.openmates.app. Real APNs/device delivery remains out of scope for simulator verification."
   - id: T-I18N-001
     type: build
     file: frontend/packages/ui/src/i18n/sources/notifications.yml
@@ -289,6 +313,7 @@ implementation_plan:
     - SSE subscribers receive only safe JSON.
     - APNs sends generic alert text plus optional encrypted custom ciphertext.
     - Apple decrypts locally and falls back to generic safe text on failure.
+    - Simulator UI coverage injects a server-shaped APNs payload with simctl push while the app is backgrounded.
   affected_files:
     - path: backend/core/api/app/services/notification_event_service.py
       reason: Event schema, Redis storage, pub/sub, and safe serialization.
@@ -310,6 +335,10 @@ implementation_plan:
       reason: List and SSE API tests.
     - path: apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
       reason: Key generation and registration.
+    - path: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+      reason: Simulator-backed safe notification display coverage.
+    - path: scripts/apple_background_notification_simulator_test.py
+      reason: Host-side simctl push coordination for the Apple UI test.
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: Notification list/stream client methods.
     - path: frontend/packages/openmates-cli/src/cli.ts
@@ -319,10 +348,12 @@ implementation_plan:
     - python3 -m py_compile backend/core/api/app/services/notification_event_service.py backend/core/api/app/routes/notifications.py backend/core/api/app/services/push_notification_service.py
     - cd frontend/packages/ui && npm run build:translations
     - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/apple_background_notification_simulator_test.py --push-delay 75
   risks:
     - Notification Service Extension setup may require Xcode project changes that are hard to fully verify on Linux.
     - Persisting notification history may require Directus schema work; avoid this in the first slice unless required.
     - Encrypted previews protect against Apple seeing content, but not against the OpenMates backend seeing previews if the backend generates them from plaintext.
+    - Simulator push verification proves client handling/display only; real APNs delivery still requires a physical iOS device and Push Notifications entitlement.
 
 tasks:
   - id: TASK-1
