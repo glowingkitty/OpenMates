@@ -491,9 +491,48 @@ async function sendMessage(
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	await sendButton.click();
 	logCheckpoint('Clicked send button.');
-	await expect
-		.poll(async () => await locatorCount(userMessages), { timeout: 30000 })
-		.toBeGreaterThanOrEqual(userCountBeforeSend + 1);
+	try {
+		await expect
+			.poll(async () => await locatorCount(userMessages), { timeout: 30000 })
+			.toBeGreaterThanOrEqual(userCountBeforeSend + 1);
+	} catch (error) {
+		const diagnosticsBeforeSynthetic = await messageField.evaluate((field: HTMLElement) => {
+			const wrapper = field.closest('[data-action="message-input"]') as HTMLElement | null;
+			const editor = field.querySelector('[data-testid="message-editor"]') as HTMLElement | null;
+			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+			const buttonRect = button?.getBoundingClientRect();
+			const fieldRect = field.getBoundingClientRect();
+
+			return {
+				wrapperChatId: wrapper?.getAttribute('data-current-chat-id') ?? null,
+				editorText: editor?.innerText ?? null,
+				editorHtml: editor?.innerHTML?.slice(0, 500) ?? null,
+				editorConnected: editor?.isConnected ?? false,
+				buttonConnected: button?.isConnected ?? false,
+				buttonDisabled: button?.disabled ?? null,
+				buttonText: button?.textContent?.trim() ?? null,
+				buttonRect: buttonRect
+					? { x: buttonRect.x, y: buttonRect.y, width: buttonRect.width, height: buttonRect.height }
+					: null,
+				fieldRect: { x: fieldRect.x, y: fieldRect.y, width: fieldRect.width, height: fieldRect.height }
+			};
+		});
+		logCheckpoint('Send did not persist user message after click; captured composer diagnostics.', {
+			userCountBeforeSend,
+			userCountAfterClick: await locatorCount(userMessages),
+			diagnostics: diagnosticsBeforeSynthetic
+		});
+
+		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+		});
+		await page.waitForTimeout(1000);
+		logCheckpoint('Synthetic custom-send-message diagnostic completed.', {
+			syntheticDispatchResult,
+			userCountAfterSynthetic: await locatorCount(userMessages)
+		});
+		throw error;
+	}
 	lastSendStateByPage.set(page, {
 		assistantCount: assistantCountBeforeSend
 	});
