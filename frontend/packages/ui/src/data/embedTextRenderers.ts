@@ -78,6 +78,22 @@ type EmbedTextRenderer = (
 	children?: Record<string, unknown>[]
 ) => string;
 
+function renderGenericAppSkill(content: Record<string, unknown>): string {
+	const appId = str(content.app_id) ?? 'app';
+	const skillId = str(content.skill_id) ?? 'skill';
+	const lines = [`**${appId} | ${skillId}**`];
+	const keys = ['query', 'prompt', 'title', 'summary', 'result_count', 'provider', 'status'];
+
+	for (const key of keys) {
+		const value = content[key];
+		if (value !== null && value !== undefined && typeof value !== 'object') {
+			lines.push(`${key}: ${trunc(String(value), 120)}`);
+		}
+	}
+
+	return lines.join('\n');
+}
+
 // ── Registry ─────────────────────────────────────────────────────────────
 
 /**
@@ -99,6 +115,12 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:maps:search': renderMapsSearch,
 	'app:code:search_repos': renderCodeRepoSearch,
 	'app:code:get_docs': renderCodeDocs,
+	'app:code:run': renderGenericAppSkill,
+	'app:code:clean_repo': renderGenericAppSkill,
+	'app:code:get_issues': renderGenericAppSkill,
+	'app:code:add_issue': renderGenericAppSkill,
+	'app:code:remove_secrets': renderGenericAppSkill,
+	'app:code:get_project_overview': renderGenericAppSkill,
 	'app:travel:search_connections': renderTravelConnections,
 	'app:travel:search_stays': renderTravelStays,
 	'app:travel:price_calendar': renderPriceCalendar,
@@ -106,9 +128,20 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:images:generate': renderImageGenerate,
 	'app:images:generate_draft': renderImageGenerate,
 	'app:images:search': renderImagesSearch,
+	'app:images:view': renderImage,
+	'app:images:vectorize': renderGenericAppSkill,
 	'app:music:generate': renderMusicGenerate,
 	'app:health:search_appointments': renderHealthSearch,
+	'app:health:create_report': renderGenericAppSkill,
 	'app:home:search': renderHomeSearch,
+	'app:books:translate': renderGenericAppSkill,
+	'app:fitness:search_locations_and_courses': renderGenericAppSkill,
+	'app:openmates:share-usecase': renderGenericAppSkill,
+	'app:openmates:get-docs': renderGenericAppSkill,
+	'app:openmates:search-docs': renderGenericAppSkill,
+	'app:pdf:read': renderGenericAppSkill,
+	'app:pdf:search': renderGenericAppSkill,
+	'app:pdf:view': renderGenericAppSkill,
 	'app:mail:search': renderMailSearch,
 	'app:math:calculate': renderMathCalculate,
 	'app:reminder:set-reminder': renderReminder,

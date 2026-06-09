@@ -282,6 +282,60 @@ embed_types:
       - name: result_count
         type: number
         required: true
+  - id: run
+    category: app-skill-use
+    skill_id: run
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: coding
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.run
+  - id: clean_repo
+    category: app-skill-use
+    skill_id: clean_repo
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: delete
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.clean_repo
+  - id: get_issues
+    category: app-skill-use
+    skill_id: get_issues
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: task
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.get_issues
+  - id: add_issue
+    category: app-skill-use
+    skill_id: add_issue
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: add
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.add_issue
+  - id: remove_secrets
+    category: app-skill-use
+    skill_id: remove_secrets
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: security
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.remove_secrets
+  - id: get_project_overview
+    category: app-skill-use
+    skill_id: get_project_overview
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: project
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.get_project_overview
   # Code block — direct-type, auto-detected from ``` code blocks by stream_consumer.py
   - id: code
     category: direct

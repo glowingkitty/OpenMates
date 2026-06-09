@@ -645,7 +645,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // Check both 'set_reminder' and 'set-reminder' (hyphen variant)
       if (
         appId === "reminder" &&
-        (skillId === "set_reminder" || skillId === "set-reminder")
+        (skillId === "set_reminder" ||
+          skillId === "set-reminder" ||
+          skillId === "list-reminders" ||
+          skillId === "cancel-reminder")
       ) {
         console.debug(
           "[AppSkillUseRenderer] Rendering reminder set_reminder for",
@@ -4146,6 +4149,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent,
     });
 
+    const previewLines = this.buildGenericPreviewLines(decodedContent);
+    const previewHtml = previewLines.length > 0
+      ? previewLines
+          .map((line) => `<div class="skill-result-preview-line">${this.escapeHtml(line)}</div>`)
+          .join("")
+      : `<div class="skill-result-preview-line">${this.escapeHtml(status === "finished" ? "Finished" : status)}</div>`;
+
     // Render generic skill preview - no need for embed-unified-container wrapper
     // The container is already provided by Embed.ts, just create the content directly
     const html = `
@@ -4159,7 +4169,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         </div>
         <div class="embed-extended-preview">
           <div class="app-skill-preview-content">
-            <div class="skill-result-preview">Skill result preview</div>
+            <div class="skill-result-preview">${previewHtml}</div>
           </div>
         </div>
       </div>
@@ -4174,6 +4184,62 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
     }
+  }
+
+  private buildGenericPreviewLines(decodedContent: Record<string, unknown> | null): string[] {
+    if (!decodedContent || typeof decodedContent !== "object") return [];
+
+    const skipKeys = new Set([
+      "app_id",
+      "skill_id",
+      "embed_id",
+      "embed_ids",
+      "embed_ref",
+      "status",
+      "aes_key",
+      "aes_nonce",
+      "iv",
+      "s3_key",
+      "s3_base_url",
+    ]);
+    const preferredKeys = [
+      "query",
+      "prompt",
+      "title",
+      "summary",
+      "result_count",
+      "error",
+      "provider",
+    ];
+    const lines: string[] = [];
+
+    for (const key of preferredKeys) {
+      const value = decodedContent[key];
+      const line = this.formatGenericPreviewValue(key, value);
+      if (line) lines.push(line);
+    }
+
+    for (const [key, value] of Object.entries(decodedContent)) {
+      if (skipKeys.has(key) || preferredKeys.includes(key)) continue;
+      const line = this.formatGenericPreviewValue(key, value);
+      if (line) lines.push(line);
+      if (lines.length >= 6) break;
+    }
+
+    return lines.slice(0, 6);
+  }
+
+  private formatGenericPreviewValue(key: string, value: unknown): string | null {
+    if (typeof value === "string" && value.trim()) {
+      return `${key}: ${value.trim()}`;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return `${key}: ${value}`;
+    }
+    if (Array.isArray(value)) {
+      return `${key}: ${value.length} item${value.length === 1 ? "" : "s"}`;
+    }
+    return null;
   }
 
   /**

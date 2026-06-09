@@ -25,7 +25,7 @@ export const mastodonAccountRecentPostsChat: ExampleChat = {
     {
         id: "3f437ad6-1206-4a28-9e70-fbde903fae1a",
         role: "assistant",
-        content: "example_chats.mastodon_account_recent_posts.message_2",
+        content: "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"82873936-1703-45f2-97bf-1330316ce50e\",\"app_id\":\"social_media\",\"skill_id\":\"get-posts\",\"query\":\"mastodon: Mastodon@mastodon.social\",\"provider\":\"Mastodon\"}\n```\n\nThe recent posts from the official Mastodon account are mostly about open-source social networking and Fediverse community updates. The strongest theme is European digital sovereignty: Mastodon highlights the European Commission's open-source strategy, support for decentralized social media, and the European Social Stack Open Declaration.\n\nOther posts focus on Mastodon's own community and organization: community spotlight stories, Discovery Week UX feedback, team updates, and links to leadership contacts. Overall, the account is positioning Mastodon as part of a broader people-first social web movement rather than just a social media product.",
         created_at: 1780914918,
         category: "general_knowledge",
         model_name: "Gemini 3 Flash"

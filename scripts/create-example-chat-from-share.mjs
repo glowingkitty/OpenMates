@@ -118,6 +118,8 @@ const CATEGORY_ALIASES = new Map([
   ['cooking food', 'cooking_food'],
   ['activism', 'activism'],
   ['travel', 'general_knowledge'],
+  ['home', 'general_knowledge'],
+  ['housing', 'general_knowledge'],
   ['productivity', 'general_knowledge'],
   ['general', 'general_knowledge'],
   ['general knowledge', 'general_knowledge'],

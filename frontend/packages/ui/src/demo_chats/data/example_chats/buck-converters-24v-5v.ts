@@ -12,7 +12,7 @@ export const buckConverters24v5vChat: ExampleChat = {
   title: "example_chats.buck_converters_24v_5v.title",
   summary: "example_chats.buck_converters_24v_5v.summary",
   icon: "cpu",
-  category: "maker",
+  category: "maker_prototyping",
   keywords: ["electronics", "buck converter", "Texas Instruments", "24V", "5V"],
   follow_up_suggestions: [],
   messages: [

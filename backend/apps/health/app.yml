@@ -22,6 +22,15 @@ embed_types:
     icon: heart
     gradient_var: "--color-app-health"
     i18n_namespace: embeds.health.search_appointments
+  - id: create_report
+    category: app-skill-use
+    skill_id: create_report
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: heart
+    gradient_var: "--color-app-health"
+    i18n_namespace: embeds.health.create_report
 settings_and_memories:
   - id: appointments
     name_translation_key: health.appointments

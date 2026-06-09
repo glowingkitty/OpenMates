@@ -849,8 +849,9 @@ function main() {
   );
 
   // -------------------------------------------------------------------------
-  // Validate AppSkillUseRenderer routing — fail if an app-skill-use embed
-  // type has no routing block in AppSkillUseRenderer.ts.
+  // Validate AppSkillUseRenderer routing. Skills without specialized branches
+  // intentionally use renderGenericSkill(); registry + text-renderer checks below
+  // ensure those are known, exportable skills rather than unknown placeholders.
   // -------------------------------------------------------------------------
   const appSkillRendererPath = resolve(
     __dirname,
@@ -914,17 +915,9 @@ function main() {
     return true;
   });
   if (missingRoutes.length > 0) {
-    // Warn instead of failing — some types use the generic fallback renderer
-    // and don't need explicit routing. Failing here would block builds for
-    // pre-existing gaps that work fine via the fallback.
-    console.warn(
-      `\n[generate-embed-registry] WARNING: AppSkillUseRenderer has no explicit routing for ${missingRoutes.length} type(s) (using generic fallback):`,
+    console.log(
+      `[generate-embed-registry] ✓ ${missingRoutes.length} app-skill-use type(s) use registered generic rendering`,
     );
-    for (const r of missingRoutes) {
-      console.warn(
-        `  - "${r}" (consider adding routing in AppSkillUseRenderer.ts)`,
-      );
-    }
   } else {
     console.log(
       `[generate-embed-registry] ✓ All ${expectedRoutes.length} app-skill-use types have AppSkillUseRenderer routing`,

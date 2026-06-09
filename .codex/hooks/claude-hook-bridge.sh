@@ -163,6 +163,9 @@ case "$EVENT" in
     TOOL=$(tool_name)
     case "$TOOL" in
       apply_patch|Edit|Write)
+        run_for_files "PostToolUse" true \
+          "skill-embed-registry-guard.sh"
+
         run_for_files "PostToolUse" false \
           "auto-track.sh" \
           "auto-rebuild-translations.sh" \

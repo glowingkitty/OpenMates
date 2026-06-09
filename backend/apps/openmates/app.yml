@@ -9,6 +9,35 @@ icon_image: openmates.svg
 category: platform
 last_updated: "2026-02-17"
 
+embed_types:
+  - id: share_usecase
+    category: app-skill-use
+    skill_id: share-usecase
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: share
+    gradient_var: "--color-app-openmates"
+    i18n_namespace: embeds.openmates.share_usecase
+  - id: get_docs
+    category: app-skill-use
+    skill_id: get-docs
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: library
+    gradient_var: "--color-app-openmates"
+    i18n_namespace: embeds.openmates.get_docs
+  - id: search_docs
+    category: app-skill-use
+    skill_id: search-docs
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: search
+    gradient_var: "--color-app-openmates"
+    i18n_namespace: embeds.openmates.search_docs
+
 instructions:
   - instruction: |
       **OpenMates Platform Skills**

@@ -12,7 +12,7 @@ export const furnishedApartmentsBerlinChat: ExampleChat = {
   title: "example_chats.furnished_apartments_berlin.title",
   summary: "example_chats.furnished_apartments_berlin.summary",
   icon: "home",
-  category: "home",
+  category: "general_knowledge",
   keywords: ["housing", "apartments", "Berlin", "furnished", "rent", "listings"],
   follow_up_suggestions: [],
   messages: [
