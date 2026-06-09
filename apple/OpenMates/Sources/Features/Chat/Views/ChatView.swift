@@ -881,7 +881,7 @@ struct ChatView: View {
     }
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
-        let overlayActive = composerOverlay != nil
+        let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
         return VStack(spacing: .spacing2) {
             let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
             PIIWarningBanner(matches: activePIIMatches) {
@@ -1014,8 +1014,7 @@ struct ChatView: View {
 
     private func composerOverlayView() -> AnyView? {
         #if DEBUG
-        if composerOverlay == nil,
-           ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
+        if composerOverlay == nil, isUITestRecordingOverlayForced {
             return recordingOverlayView()
         }
         #endif
@@ -1074,6 +1073,14 @@ struct ChatView: View {
                 }
             )
         )
+    }
+
+    private var isUITestRecordingOverlayForced: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+        #else
+        return false
+        #endif
     }
 
     #if DEBUG
