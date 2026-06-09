@@ -107,6 +107,7 @@
 		C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */; };
 		C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */; };
 		C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */; };
+		C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */; };
 		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
 		30B0859F19D08233DE184B42 /* TravelPriceCalendarEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85945164CEE92FF9FAEA451C /* TravelPriceCalendarEmbedRenderer.swift */; };
@@ -695,6 +696,7 @@
 		C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatNotificationUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAttachmentUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAudioRecordingUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWindowLoadingTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000002003 /* OpenMatesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1214,6 +1216,7 @@
 				C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */,
 				C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */,
 				C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */,
+				C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */,
 				C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */,
 				C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */,
 				C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */,
@@ -2190,6 +2193,7 @@
 				C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */,
 				C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */,
 				C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */,
+				C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */,
 				C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */,
 				C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */,
