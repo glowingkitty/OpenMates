@@ -141,6 +141,75 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
+test('code run output becomes the default code embed preview after reload', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(240000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('FILE_ATTACH_CODE_RUN_OUTPUT_PREVIEW');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-code-run-output' });
+	await archiveExistingScreenshots(log);
+
+	await page.goto(getE2EDebugUrl('/'));
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	await openNewChat(page, log);
+	const editor = page.getByTestId('message-editor');
+	await editor.click();
+	await page.keyboard.type('Please run this Python file and keep the result visible:');
+
+	await attachFiles(page, [SAMPLE_PY], log);
+	await page.waitForTimeout(5000);
+
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
+	await sendButton.click();
+	log('Message with Python file sent for Code Run output preview regression.');
+
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const chatUrl = page.url();
+	const userMessage = page.getByTestId('message-user').last();
+	await expect(userMessage).toBeVisible({ timeout: 20000 });
+	const chatCodeEmbed = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(chatCodeEmbed).toBeVisible({ timeout: 20000 });
+
+	await chatCodeEmbed.click();
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
+	await fullscreenOverlay.getByTestId('embed-run-button').click();
+
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 20000 });
+	await expect(terminal).toContainText('Hello, World!', { timeout: 120000 });
+	await expect(terminal).toContainText('Exited', { timeout: 120000 });
+	await screenshot(page, 'code-run-output-visible-fullscreen');
+
+	await fullscreenOverlay.getByTestId('embed-minimize').click();
+	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 10000 });
+	await expect(chatCodeEmbed).toContainText('Hello, World!', { timeout: 20000 });
+	await expect(chatCodeEmbed).not.toContainText('def greet');
+	log('Code embed preview switched to run output after execution.');
+
+	await page.goto(chatUrl);
+	await page.reload({ waitUntil: 'networkidle' });
+	const reloadedUserMessage = page.getByTestId('message-user').last();
+	await expect(reloadedUserMessage).toBeVisible({ timeout: 30000 });
+	const reloadedCodeEmbed = reloadedUserMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(reloadedCodeEmbed).toBeVisible({ timeout: 30000 });
+	await expect(reloadedCodeEmbed).toContainText('Hello, World!', { timeout: 30000 });
+	await expect(reloadedCodeEmbed).not.toContainText('def greet');
+	await screenshot(page, 'code-run-output-visible-after-reload');
+	log('Code embed preview still shows run output after reload.');
+
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+});
+
 test('uploaded CSV, EML, DOCX, and XLSX files render as redacted embeds', async ({
 	page
 }: {
