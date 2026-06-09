@@ -956,7 +956,8 @@ struct MainAppView: View {
                         in: chat,
                         existingMessages: [],
                         wsManager: wsManager,
-                        chatStore: chatStore
+                        chatStore: chatStore,
+                        waitForRemoteSend: false
                     )
                     return result.chat.id
                 },
@@ -3838,7 +3839,7 @@ private struct WelcomeComposer: View {
                                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityIdentifier("welcome-send-button")
+                        .accessibilityIdentifier("send-button")
                     }
                 }
                 .padding(.horizontal, .spacing5)
@@ -3850,7 +3851,6 @@ private struct WelcomeComposer: View {
                     isExpanded = true
                 }
             }
-            .accessibilityIdentifier("welcome-message-input")
 
             if isOpen {
                 Button {

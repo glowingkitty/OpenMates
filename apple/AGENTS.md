@@ -120,21 +120,31 @@ Remote verification flow:
 2. Locate the Mac checkout without printing private paths. Prefer known local
    configuration; if needed, use a sanitized project lookup for
    `apple/OpenMates.xcodeproj` and report only success or `project_not_found`.
-3. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
-4. Update the Mac checkout with `git pull --ff-only` when the tree is clean, or
-   copy only the files intentionally changed in the current session.
-5. At minimum, run `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build`
+3. Commit and push intended local changes before Mac verification. Do not copy
+   edited source files to the Mac checkout by hand except for throwaway local
+   experiments that will never be committed. Git is the source of truth for
+   getting updated source onto the Mac.
+4. In the Mac checkout, run `git status --short` and avoid overwriting local user changes.
+5. Update the Mac checkout with `git pull --ff-only` when the tree is clean. If
+   the Mac checkout is dirty, stop and resolve the dirty state explicitly before
+   testing committed changes.
+6. Before native end-to-end UI tests that depend on first-run, login, signup,
+   permissions, local storage, Keychain, or notification prompts, uninstall the
+   app from the target simulator so the run starts from a clean app container:
+   `xcrun simctl uninstall booted org.openmates.app`. Ignore the uninstall error
+   only when the app is already absent.
+7. At minimum, run `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build`
    to prove the native project compiles.
-6. For visual or interaction parity, run a simulator build with a concrete
+8. For visual or interaction parity, run a simulator build with a concrete
    destination, install and launch the app with `xcrun simctl`, optionally adjust
    simulator UI state, and capture a screenshot.
-7. After verification, shut down any simulator booted by the session with
+9. After verification, shut down any simulator booted by the session with
    `xcrun simctl shutdown <simulator>` unless the operator explicitly asks to
    keep it running.
-8. Clean up only temporary artifacts created by the current session, such as
+10. Clean up only temporary artifacts created by the current session, such as
    copied screenshots or throwaway build logs. Do not delete unrelated
    DerivedData, caches, or local checkout changes.
-9. Report only generic evidence in committed docs and summaries: build command
+11. Report only generic evidence in committed docs and summaries: build command
    class, scheme, simulator family, result, and sanitized failure classes such as
    `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
    connection details in local shell history or operator notes, not repo files.

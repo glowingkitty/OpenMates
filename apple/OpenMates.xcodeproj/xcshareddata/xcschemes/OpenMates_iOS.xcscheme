@@ -78,16 +78,33 @@
             </BuildableReference>
          </TestableReference>
       </Testables>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "02E5AB06E9CF5357E7F6C413"
-            BuildableName = "OpenMates.app"
-            BlueprintName = "OpenMates_iOS"
-            ReferencedContainer = "container:OpenMates.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
-   </TestAction>
+       <MacroExpansion>
+          <BuildableReference
+             BuildableIdentifier = "primary"
+             BlueprintIdentifier = "02E5AB06E9CF5357E7F6C413"
+             BuildableName = "OpenMates.app"
+             BlueprintName = "OpenMates_iOS"
+             ReferencedContainer = "container:OpenMates.xcodeproj">
+          </BuildableReference>
+       </MacroExpansion>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "OPENMATES_TEST_ACCOUNT_EMAIL"
+            value = "$(OPENMATES_TEST_ACCOUNT_EMAIL)"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "OPENMATES_TEST_ACCOUNT_PASSWORD"
+            value = "$(OPENMATES_TEST_ACCOUNT_PASSWORD)"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "OPENMATES_TEST_ACCOUNT_OTP_KEY"
+            value = "$(OPENMATES_TEST_ACCOUNT_OTP_KEY)"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
+    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"

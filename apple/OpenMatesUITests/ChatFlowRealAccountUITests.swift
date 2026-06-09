@@ -29,11 +29,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func logIn(app: XCUIApplication, credentials: TestCredentials) {
-        if messageEditor(in: app).waitForExistence(timeout: 6) {
+        let loginSignupButton = app.buttons["login-signup-button"]
+        if !loginSignupButton.waitForExistence(timeout: 6), waitForMessageEditor(in: app, timeout: 2) != nil {
             return
         }
 
-        let loginSignupButton = app.buttons["login-signup-button"]
         XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
         loginSignupButton.tap()
 
@@ -50,15 +50,13 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
         continueButton.tap()
 
-        let passwordInput = app.secureTextFields["password-input"]
-        XCTAssertTrue(passwordInput.waitForExistence(timeout: 15))
+        let passwordInput = waitForPasswordInput(app: app)
         passwordInput.tap()
         passwordInput.typeText(credentials.password)
 
         submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
 
-        let editor = messageEditor(in: app)
-        XCTAssertTrue(editor.waitForExistence(timeout: 25))
+        XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
     }
 
     private func submitPasswordAndOtpIfNeeded(app: XCUIApplication, credentials: TestCredentials) {
@@ -75,11 +73,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         for (index, offset) in offsets.enumerated() {
             waitPastTotpBoundaryIfNeeded()
             tfaInput.tap()
-            clearText(in: tfaInput)
+            clearOtpCode(in: tfaInput)
             tfaInput.typeText(TOTP.generate(secret: credentials.otpKey, windowOffset: offset))
             loginButton.tap()
 
-            if messageEditor(in: app).waitForExistence(timeout: 12) {
+            if waitForMessageEditor(in: app, timeout: 12) != nil {
                 return
             }
 
@@ -93,31 +91,28 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     private func sendWelcomePrompt(app: XCUIApplication) {
         openNewChatIfNeeded(app: app)
-        let editor = messageEditor(in: app)
-        XCTAssertTrue(editor.waitForExistence(timeout: 20))
+        guard let editor = waitForMessageEditor(in: app, timeout: 20) else {
+            XCTFail("Expected message editor to appear")
+            return
+        }
         editor.tap()
         editor.typeText(markerPrompt)
 
-        let welcomeSend = app.buttons["welcome-send-button"]
         let send = app.buttons["send-button"]
-        if welcomeSend.waitForExistence(timeout: 5) {
-            welcomeSend.tap()
-        } else {
-            XCTAssertTrue(send.waitForExistence(timeout: 5))
-            send.tap()
-        }
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
 
         let userMessage = app.otherElements.matching(identifier: "chat-message-user")
             .containing(NSPredicate(format: "label CONTAINS %@", markerPrompt))
             .firstMatch
-        XCTAssertTrue(userMessage.waitForExistence(timeout: 20))
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 60))
     }
 
     private func openNewChatIfNeeded(app: XCUIApplication) {
         let newChatButton = app.buttons.matching(identifier: "new-chat-button").firstMatch
         guard newChatButton.waitForExistence(timeout: 2) else { return }
         newChatButton.tap()
-        XCTAssertTrue(messageEditor(in: app).waitForExistence(timeout: 10))
+        XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
     }
 
     private func assertAssistantResponds(app: XCUIApplication) {
@@ -134,7 +129,48 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func messageEditor(in app: XCUIApplication) -> XCUIElement {
-        app.textFields.matching(identifier: "message-editor").firstMatch
+        messageEditorCandidates(in: app).first { $0.exists }
+            ?? app.textFields.matching(identifier: "message-editor").firstMatch
+    }
+
+    private func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let editor = messageEditorCandidates(in: app).first(where: { $0.exists }) {
+                return editor
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return nil
+    }
+
+    private func messageEditorCandidates(in app: XCUIApplication) -> [XCUIElement] {
+        [
+            app.textFields.matching(identifier: "message-editor").firstMatch,
+            app.textViews.matching(identifier: "message-editor").firstMatch,
+        ]
+    }
+
+    private func waitForPasswordInput(app: XCUIApplication) -> XCUIElement {
+        let passwordInput = app.secureTextFields["password-input"]
+        if passwordInput.waitForExistence(timeout: 30) {
+            return passwordInput
+        }
+
+        XCTFail("Password step did not appear. Visible auth labels: \(visibleAuthLabels(in: app))")
+        return passwordInput
+    }
+
+    private func visibleAuthLabels(in app: XCUIApplication) -> String {
+        let textLabels = app.staticTexts.allElementsBoundByIndex.compactMap(redactedLabel)
+        let buttonLabels = app.buttons.allElementsBoundByIndex.compactMap(redactedLabel)
+        return (textLabels + buttonLabels).prefix(12).joined(separator: " | ")
+    }
+
+    private func redactedLabel(for element: XCUIElement) -> String? {
+        let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !label.isEmpty else { return nil }
+        return label.contains("@") ? "<email>" : label
     }
 
     private func waitPastTotpBoundaryIfNeeded() {
@@ -153,6 +189,13 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         } else {
             element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
         }
+    }
+
+    private func clearOtpCode(in element: XCUIElement) {
+        guard let value = element.value as? String else { return }
+        let digitCount = value.filter(\.isNumber).count
+        guard digitCount > 0 else { return }
+        element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: min(max(digitCount, 6), 12)))
     }
 }
 

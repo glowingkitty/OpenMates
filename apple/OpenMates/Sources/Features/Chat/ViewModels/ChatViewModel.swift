@@ -2120,6 +2120,7 @@ final class ChatSendPipeline {
         wsManager: WebSocketManager?,
         chatStore: ChatStore?,
         activateChat: Bool = true,
+        waitForRemoteSend: Bool = true,
         composerEmbeds: [ComposerPendingEmbed] = []
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
@@ -2161,9 +2162,6 @@ final class ChatSendPipeline {
         chatStore?.upsertChat(updatedChat)
         chatStore?.appendMessage(message, to: chat.id)
 
-        if activateChat {
-            try await sendSetActiveChat(chat.id, wsManager: wsManager)
-        }
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",
@@ -2189,12 +2187,44 @@ final class ChatSendPipeline {
             outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
         }
 
+        if waitForRemoteSend {
+            try await sendRemoteUserMessage(
+                chatId: chat.id,
+                activateChat: activateChat,
+                wsManager: wsManager,
+                outboundPayload: outboundPayload
+            )
+        } else {
+            Task { @MainActor in
+                do {
+                    try await self.sendRemoteUserMessage(
+                        chatId: chat.id,
+                        activateChat: activateChat,
+                        wsManager: wsManager,
+                        outboundPayload: outboundPayload
+                    )
+                } catch {
+                    print("[ChatSendPipeline] Background send failed for chat \(chat.id.prefix(8)): \(error)")
+                }
+            }
+        }
+
+        return SendResult(chat: updatedChat, message: message)
+    }
+
+    private func sendRemoteUserMessage(
+        chatId: String,
+        activateChat: Bool,
+        wsManager: WebSocketManager,
+        outboundPayload: [String: Any]
+    ) async throws {
+        if activateChat {
+            try await sendSetActiveChat(chatId, wsManager: wsManager)
+        }
         try await wsManager.send(WSOutboundMessage(
             type: "chat_message_added",
             payload: outboundPayload
         ))
-
-        return SendResult(chat: updatedChat, message: message)
     }
 
     func sendEncryptedUserStoragePackage(

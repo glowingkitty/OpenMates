@@ -489,7 +489,6 @@ struct ChatView: View {
                                         }
                                     )
                                     .id(message.id)
-                                    .accessibilityIdentifier("chat-message-\(message.id)")
                                     .background(
                                         GeometryReader { messageGeo in
                                             Color.clear.preference(
