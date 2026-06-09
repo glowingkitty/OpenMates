@@ -43,8 +43,6 @@ export interface ReportIssueFormDraft {
   shareChatEnabled: boolean;
   chatOrEmbedUrl: string;
   contactEmail: string;
-  /** Admin-only: whether OpenCode should implement, test, and deploy directly. */
-  implementFixDirectly?: boolean;
   /** Admin-only: whether to create a Linear issue for this report. */
   addToLinear?: boolean;
   /** Admin-only: whether to send email notifications for this report. */

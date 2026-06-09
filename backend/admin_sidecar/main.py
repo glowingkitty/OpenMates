@@ -49,12 +49,10 @@ import re
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel
 
 # =============================================================================
 # Configuration
@@ -880,192 +878,29 @@ async def get_version() -> JSONResponse:
 
 
 
-# =============================================================================
-# Admin-triggered OpenCode issue investigation
-# =============================================================================
-
-class _InvestigateRequest(BaseModel):
-    """Payload sent by the API container to trigger an OpenCode investigation."""
-    issue_id: str
-    issue_title: str
-    issue_description: str = ""
-    chat_or_embed_url: str = ""
-    console_logs: str = ""
-    action_history: str = ""
-    screenshot_presigned_url: str = ""
-    environment: str = "development"
-    domain: str = ""
-    agent_action: str = "research"  # 'research' = investigate/recommend only, 'fix' = implement/deploy/verify
-
-
-def _build_investigate_prompt(data: _InvestigateRequest) -> str:
-    """
-    Load the prompt template and substitute all placeholders.
-
-    Template path: scripts/prompts/admin-issue-investigation.md (relative to GIT_WORK_DIR).
-    Falls back to an inline minimal prompt if the file is missing.
-    """
-    template_path = Path(_GIT_WORK_DIR) / "scripts" / "prompts" / "admin-issue-investigation.md"
-
-    if template_path.is_file():
-        template = template_path.read_text()
-    else:
-        logger.warning(
-            "[AdminSidecar/investigate] Prompt template not found at %s — using inline fallback",
-            template_path,
-        )
-        template = (
-            "You are investigating a user-reported issue for the OpenMates project.\n\n"
-            "Environment: {{ENVIRONMENT}}\nDomain: {{DOMAIN}}\n"
-            "Issue ID: {{ISSUE_ID}}\nTitle: {{ISSUE_TITLE}}\n"
-            "Description:\n{{ISSUE_DESCRIPTION}}\n\n"
-            "Console logs:\n{{CONSOLE_LOGS}}\n\n"
-            "Action history:\n{{ACTION_HISTORY}}\n\n"
-            "Screenshot: {{SCREENSHOT_URL}}\n\n"
-            "Diagnose the root cause and propose a concrete fix plus verification plan."
-        )
-
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-
-    prompt = (
-        template
-        .replace("{{ISSUE_ID}}", data.issue_id)
-        .replace("{{ISSUE_TITLE}}", data.issue_title)
-        .replace("{{ISSUE_DESCRIPTION}}", data.issue_description or "(not provided)")
-        .replace("{{CHAT_OR_EMBED_URL}}", data.chat_or_embed_url or "(none)")
-        .replace("{{CONSOLE_LOGS}}", data.console_logs or "(not provided)")
-        .replace("{{ACTION_HISTORY}}", data.action_history or "(not provided)")
-        .replace("{{SCREENSHOT_URL}}", data.screenshot_presigned_url or "(no screenshot)")
-        .replace("{{ENVIRONMENT}}", data.environment)
-        .replace("{{DOMAIN}}", data.domain or "(unknown)")
-        .replace("{{DATE}}", date_str)
-    )
-
-    # Prepend mode-specific instructions based on agent_action
-    if data.agent_action == "research":
-        mode_prefix = (
-            "IMPORTANT: This is an INVESTIGATE-ONLY OpenCode session. "
-            "Do not edit files, commit, deploy, or run destructive actions. "
-            "Research the issue deeply, identify the most likely root cause, and return "
-            "a recommended fix plus the exact test or verification plan for user approval.\n\n"
-        )
-        prompt = mode_prefix + prompt
-    else:
-        mode_prefix = (
-            "IMPORTANT: This is a DIRECT IMPLEMENTATION OpenCode session. "
-            "You have full access to read, edit, and create files. "
-            "Investigate the issue, implement the fix directly, run the relevant tests, "
-            "and use sessions.py deploy to commit and push when done.\n\n"
-        )
-        prompt = mode_prefix + prompt
-
-    return prompt
-
-
-def _write_agent_trigger(data: _InvestigateRequest) -> str:
-    """
-    Write a JSON trigger file to the shared bind-mount so the host-side
-    agent-trigger-watcher.sh can pick it up and run OpenCode on the host.
-
-    The sidecar runs inside Docker and cannot execute host binaries (OpenCode).
-    Instead it writes a trigger file to ``<GIT_WORK_DIR>/scripts/.agent-triggers/``
-    which is on the bind-mounted project root, visible to the host.
-
-    Returns:
-        The path to the written trigger file.
-    """
-    import json as _json
-
-    prompt = _build_investigate_prompt(data)
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-    session_title = f"issue-investigation {data.issue_id[:8]} {date_str}"
-
-    trigger_dir = Path(_GIT_WORK_DIR) / "scripts" / ".agent-triggers"
-    trigger_dir.mkdir(parents=True, exist_ok=True)
-
-    trigger_file = trigger_dir / f"{data.issue_id}.json"
-    payload = {
-        "issue_id": data.issue_id,
-        "prompt": prompt,
-        "session_title": session_title,
-        "environment": data.environment,
-        "domain": data.domain,
-        "agent_action": data.agent_action,
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-    }
-
-    trigger_file.write_text(_json.dumps(payload, indent=2))
-    logger.info(
-        "[AdminSidecar/investigate] Wrote trigger file: %s (issue_id=%s)",
-        trigger_file,
-        data.issue_id,
-    )
-    return str(trigger_file)
-
-
 @app.post(
     "/admin/claude-investigate",
-    summary="Trigger an OpenCode investigation for a reported issue",
+    summary="Deprecated OpenCode trigger endpoint",
     description=(
-        "Called by the API container when an admin submits an issue report. "
-        "Writes a JSON trigger file to the shared "
-        "bind-mount at scripts/.agent-triggers/ for the host-side watcher to "
-        "pick up and run OpenCode. "
-        "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
+        "Deprecated. Automatic OpenCode issue handoff is disabled; copy the issue "
+        "ID into OpenCode manually when investigation is needed."
     ),
     include_in_schema=False,
 )
 async def post_claude_investigate(
-    body: _InvestigateRequest,
     x_admin_log_key: Optional[str] = Header(None),
 ) -> JSONResponse:
     """
-    Write a trigger file for host-side OpenCode investigation.
-
-    Returns 202 immediately. The host-side agent-trigger-watcher.sh service
-    polls for new trigger files and runs OpenCode on the host where the
-    binary is installed.
+    Deprecated: automatic OpenCode issue handoff has been disabled.
     """
     _require_admin_key(x_admin_log_key)
 
-    logger.info(
-        "[AdminSidecar/investigate] Received investigation request "
-        "(issue_id=%s, env=%s, domain=%s)",
-        body.issue_id,
-        body.environment,
-        body.domain,
-    )
-
-    try:
-        trigger_path = _write_agent_trigger(body)
-    except Exception as exc:
-        logger.error(
-            "[AdminSidecar/investigate] Failed to write trigger file "
-            "(issue_id=%s): %s",
-            body.issue_id,
-            exc,
-            exc_info=True,
-        )
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "error",
-                "issue_id": body.issue_id,
-                "message": f"Failed to write trigger file: {exc}",
-            },
-        )
-
-    return JSONResponse(
-        status_code=202,
-        content={
-            "status": "accepted",
-            "issue_id": body.issue_id,
-            "trigger_file": trigger_path,
-            "message": (
-                "Trigger file written. The host-side agent-trigger-watcher "
-                "will pick it up and start an OpenCode investigation."
-            ),
-        },
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "Automatic OpenCode issue handoff is disabled. "
+            "Copy the issue ID into OpenCode manually."
+        ),
     )
 
 

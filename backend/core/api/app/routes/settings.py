@@ -2560,17 +2560,6 @@ class IssueReportRequest(BaseModel):
             "merge OTel trace spans into the log timeline."
         )
     )
-    agent_action: str = Field(
-        "none",
-        description=(
-            "Admin-only field controlling agent behavior on issue submission. "
-            "Values: 'none' (non-admin default), 'research' (investigate and recommend only), "
-            "'fix' (investigate + direct implementation, deploy, and verification). "
-            "Only honoured when the reporter is an authenticated admin user — "
-            "non-admin requests are silently ignored."
-        ),
-        pattern="^(none|research|fix)$",
-    )
     add_to_linear: bool = Field(
         True,
         description=(
@@ -2599,52 +2588,6 @@ class IssueReportResponse(BaseModel):
     # Surfaced synchronously so E2E tests can assert the screenshot path worked
     # without needing an admin API key.
     screenshot_uploaded: bool = False
-
-
-async def _queue_agent_issue_investigation(
-    *,
-    request: Request,
-    issue_id: Optional[str],
-    agent_action: str = "fix",
-) -> None:
-    """
-    Mark an admin issue report as pending for the host-side OpenCode poller.
-
-    Args:
-        agent_action: 'research' for investigate-only instructions, 'fix' for direct implementation.
-
-    Called only when:
-    - The reporter is a verified admin user (``is_from_admin`` is True)
-    - Admin reports always trigger this with 'research' or 'fix'
-
-    The API runs inside Docker and must not execute or trigger host binaries.
-    A host-owned systemd timer polls admin reports with ``agent_status=pending``
-    and starts OpenCode as the host user.
-
-    Architecture reference: docs/architecture/infrastructure/cronjobs.md
-    """
-    if not issue_id:
-        logger.warning("[report_issue/agent] Cannot queue OpenCode investigation without issue_id")
-        return
-
-    directus_service: DirectusService = request.app.state.directus_service
-    session_title = f"issue-investigation {issue_id[:8]} {datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
-    logger.info(
-        f"[report_issue/agent] Queueing OpenCode investigation for host poller "
-        f"(issue_id={issue_id}, action={agent_action})"
-    )
-    await directus_service.update_item(
-        "issues",
-        issue_id,
-        {
-            "agent_action": agent_action,
-            "agent_status": "pending",
-            "agent_session_title": session_title,
-            "agent_error": None,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        },
-        admin_required=True,
-    )
 
 
 @router.post(
@@ -3175,23 +3118,6 @@ async def report_issue(
                 f"Linear issue creation skipped for '{issue_data.title[:50]}...' "
                 f"(admin toggle off)"
             )
-
-        # Admin-only: every verified admin report is queued for the host OpenCode poller.
-        # Direct implementation is opt-in; otherwise the task investigates and recommends only.
-        if is_from_admin:
-            admin_agent_action = "fix" if issue_data.agent_action == "fix" else "research"
-            try:
-                await _queue_agent_issue_investigation(
-                    request=request,
-                    issue_id=issue_id,
-                    agent_action=admin_agent_action,
-                )
-            except Exception as _agent_err:
-                # Never block the issue report response if agent trigger fails
-                logger.error(
-                    f"Failed to trigger agent investigation for issue {issue_id}: {_agent_err}",
-                    exc_info=True
-                )
 
         return IssueReportResponse(
             success=True,

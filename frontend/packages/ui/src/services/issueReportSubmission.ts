@@ -135,7 +135,6 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
       screenshot_png_base64: null,
       picked_element_html: null,
       trace_ids: recentTraceIds,
-      agent_action: "none",
       add_to_linear: true,
       send_email_notification: true,
       ephemeral_session_id: sessionStorage.getItem("ephemeral_session_id") ?? null,

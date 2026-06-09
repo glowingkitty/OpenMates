@@ -51,12 +51,6 @@
     let authenticatedUserEmail = $state('');
 
     /**
-     * Admin-only: when enabled, the OpenCode task may implement, test, and deploy.
-     * When disabled, admin reports still trigger investigation-only instructions.
-     */
-    let implementFixDirectly = $state(false);
-
-    /**
      * Admin-only: whether to create a Linear issue for this report.
      * Defaults to false so admins can be selective about what goes to Linear.
      */
@@ -583,10 +577,6 @@
                     // Recent OTel trace IDs for issue-to-trace correlation.
                     // Empty array if tracing is not active.
                     trace_ids: recentTraceIds,
-                    // Admin-only: every admin report triggers OpenCode.
-                    // Default is investigation-only; the toggle upgrades to direct implementation.
-                    // Only honoured server-side when reporter is a verified admin.
-                    agent_action: isAdminUser ? (implementFixDirectly ? 'fix' : 'research') : 'none',
                     // Admin-only: whether to create a Linear issue (default false for admin).
                     // Non-admin reports always create Linear issues (server-side default).
                     add_to_linear: isAdminUser ? addToLinear : true,
@@ -652,7 +642,6 @@
                 chatOrEmbedUrl = '';
                 contactEmail = '';
                 // Reset admin toggles back to defaults (off)
-                implementFixDirectly = false;
                 addToLinear = false;
                 sendEmailNotification = false;
                 titleError = '';
@@ -1018,7 +1007,6 @@
             shareChatEnabled,
             chatOrEmbedUrl,
             contactEmail,
-            implementFixDirectly,
             addToLinear,
             sendEmailNotification,
             pickedElementHtml,
@@ -1491,7 +1479,6 @@
             shareChatEnabled = draft.shareChatEnabled;
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
-            if (draft.implementFixDirectly !== undefined) implementFixDirectly = draft.implementFixDirectly;
             if (draft.addToLinear !== undefined) addToLinear = draft.addToLinear;
             if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
             pickedElementHtml = draft.pickedElementHtml;
@@ -1646,25 +1633,8 @@
             </div>
         {/if}
 
-        <!-- Admin-only toggles for OpenCode, Linear issue creation, and email notification -->
+        <!-- Admin-only toggles for Linear issue creation and email notification -->
         {#if isAdminUser}
-            <div class="toggle-group" data-testid="admin-implement-fix-directly">
-                <div class="toggle-row">
-                    <label for="implement-fix-directly-toggle">{$text('settings.report_issue.agent_action_fix')}</label>
-                    <Toggle
-                        id="implement-fix-directly-toggle"
-                        bind:checked={implementFixDirectly}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.agent_action_fix')}
-                    />
-                </div>
-                <p class="input-hint">
-                    {implementFixDirectly
-                        ? $text('settings.report_issue.agent_action_hint_fix')
-                        : $text('settings.report_issue.agent_action_hint_research')}
-                </p>
-            </div>
-
             <div class="toggle-group" data-testid="admin-add-to-linear">
                 <div class="toggle-row">
                     <label for="add-to-linear-toggle">{$text('settings.report_issue.add_to_linear_label')}</label>
