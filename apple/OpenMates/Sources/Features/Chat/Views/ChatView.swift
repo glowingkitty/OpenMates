@@ -235,6 +235,9 @@ struct ChatView: View {
             .ignoresSafeArea()
         }
         #endif
+        .onAppear {
+            applyUITestRecordingOverlayIfNeeded()
+        }
         .task(id: chatId) {
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
@@ -1080,6 +1083,15 @@ struct ChatView: View {
         return ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
         #else
         return false
+        #endif
+    }
+
+    private func applyUITestRecordingOverlayIfNeeded() {
+        #if DEBUG
+        guard isUITestRecordingOverlayForced else { return }
+        micPermissionState = .granted
+        composerOverlay = .recording
+        isInputFocused = true
         #endif
     }
 
