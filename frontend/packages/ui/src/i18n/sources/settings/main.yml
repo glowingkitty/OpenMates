@@ -1088,6 +1088,31 @@ developers_devices_text:
   he: מכשירים
   verified_by_human: []
 
+developers.devices:
+  context: Route title for the developer sub-setting that manages API key devices
+  en: Devices
+  de: Geräte
+  zh: 设备
+  es: Dispositivos
+  fr: Appareils
+  pt: Dispositivos
+  ru: Устройства
+  ja: デバイス
+  ko: 기기
+  it: Dispositivi
+  tr: Cihazlar
+  vi: Thiết bị
+  id: Perangkat
+  pl: Urządzenia
+  nl: Apparaten
+  ar: الأجهزة
+  hi: उपकरण
+  th: อุปกรณ์
+  cs: Zařízení
+  sv: Enheter
+  he: מכשירים
+  verified_by_human: []
+
 developers_devices_description:
   context: Devices description
   en: Manage devices that can use your API keys. Approve or revoke device access.
@@ -1590,6 +1615,31 @@ developers_devices_rename_empty_error:
 
 developers_webhooks:
   context: Webhooks menu item in developer settings
+  en: Webhooks
+  de: Webhooks
+  zh: Webhooks
+  es: Webhooks
+  fr: Webhooks
+  pt: Webhooks
+  ru: Webhooks
+  ja: Webhooks
+  ko: Webhooks
+  it: Webhook
+  tr: Webhooks
+  vi: Webhooks
+  id: Webhooks
+  pl: Webhooks
+  nl: Webhooks
+  ar: Webhooks
+  hi: Webhooks
+  th: Webhooks
+  cs: Webhooks
+  sv: Webhooks
+  he: Webhooks
+  verified_by_human: []
+
+developers.webhooks:
+  context: Route title for the developer sub-setting that manages webhooks
   en: Webhooks
   de: Webhooks
   zh: Webhooks
