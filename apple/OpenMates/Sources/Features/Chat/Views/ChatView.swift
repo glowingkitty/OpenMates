@@ -349,6 +349,7 @@ struct ChatView: View {
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
         .background(Color.grey20)
+        .accessibilityIdentifier("active-chat-header")
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.grey20)
@@ -1739,7 +1740,7 @@ struct MessageBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
         .accessibilityHint("Long press for options")
-        .accessibilityIdentifier(isUser ? "chat-message-user" : "chat-message-assistant")
+        .accessibilityIdentifier(isUser ? "message-user" : "message-assistant")
     }
 }
 

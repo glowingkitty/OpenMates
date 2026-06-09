@@ -24,7 +24,18 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(counter.waitForExistence(timeout: 12))
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].exists)
-        XCTAssertTrue(app.staticTexts["Seeded Large Chat"].waitForExistence(timeout: 5))
+        let headerTitle = element(in: app, identifier: "chat-header-title")
+        XCTAssertTrue(headerTitle.waitForExistence(timeout: 5))
+        XCTAssertEqual(headerTitle.label, "Seeded Large Chat")
+        XCTAssertTrue(element(in: app, identifier: "chat-header-icon").exists)
+        XCTAssertTrue(element(in: app, identifier: "active-chat-header").exists)
+
+        let userMessage = element(in: app, identifier: "message-user")
+        let assistantMessage = element(in: app, identifier: "message-assistant")
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(assistantMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(userMessage.label.contains("Seeded user message"))
+        XCTAssertTrue(assistantMessage.label.contains("Seeded assistant message"))
         XCTAssertTrue(app.staticTexts["Latest assistant response visible after bounded open"].exists)
         XCTAssertTrue(app.textViews.firstMatch.exists || app.textFields.firstMatch.exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
@@ -34,5 +45,9 @@ final class ChatFlowParityUITests: XCTestCase {
         attachment.name = "Seeded chat-flow parity hierarchy"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 }

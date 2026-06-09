@@ -80,7 +80,7 @@ enum RealAccountUITestSupport {
 
         let userMessage = accessibilityElement(
             in: app,
-            identifier: "chat-message-user",
+            identifier: "message-user",
             labelContaining: prompt
         )
         XCTAssertTrue(
@@ -93,7 +93,7 @@ enum RealAccountUITestSupport {
         let streamingStarted = app.otherElements["streaming-banner"].waitForExistence(timeout: 30)
             || app.otherElements["streaming-indicator"].waitForExistence(timeout: 2)
 
-        let assistantMessage = accessibilityElement(in: app, identifier: "chat-message-assistant")
+        let assistantMessage = accessibilityElement(in: app, identifier: "message-assistant")
         XCTAssertTrue(
             streamingStarted || assistantMessage.waitForExistence(timeout: 10),
             "Expected assistant streaming or an assistant message to appear"
