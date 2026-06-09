@@ -802,6 +802,7 @@ struct ChatView: View {
         .background(Color.grey0)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(AppStrings.aiResponding)
+        .accessibilityIdentifier("streaming-banner")
     }
 
     // MARK: - New chat CTA (replaces input for demo/intro/legal chats)
@@ -824,6 +825,7 @@ struct ChatView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("new-chat-button")
         .frame(maxWidth: 1000)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
@@ -963,6 +965,7 @@ struct ChatView: View {
                     .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
                     .accessibilityLabel(AppStrings.sendMessage)
                     .accessibilityHint(AppStrings.typeMessage)
+                    .accessibilityIdentifier("send-button")
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
@@ -1059,6 +1062,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(AppStrings.newChat)
+        .accessibilityIdentifier("new-chat-button")
     }
 
     private var useCompactInlineNewChat: Bool {
@@ -1670,6 +1674,7 @@ struct MessageBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
         .accessibilityHint("Long press for options")
+        .accessibilityIdentifier(isUser ? "chat-message-user" : "chat-message-assistant")
     }
 }
 
@@ -1770,5 +1775,6 @@ struct StreamingIndicator: View {
         .onReceive(timer) { _ in
             dotCount = (dotCount + 1) % 3
         }
+        .accessibilityIdentifier("streaming-indicator")
     }
 }

@@ -79,6 +79,7 @@ apple_impact:
     - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
     - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
     - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
     - apple/OpenMatesTests/ChatWindowLoadingTests.swift
   parity_expectations:
     - The visible chat-flow UI in the Apple app must match the rendered web app source of truth for the chat shell, chat header, message bubbles, composer, embed preview cards, loading states, and sidebar-open/closed assumptions that apply on iPhone.
@@ -87,6 +88,7 @@ apple_impact:
   verification:
     - Remote Mac or XcodeBuildMCP build of OpenMates_iOS.
     - Remote Mac or XcodeBuildMCP `xcodebuild test` for the new iOS UI test target against the live dev backend.
+    - Remote Mac credentialed `xcodebuild test` for the real-account Apple chat flow when `OPENMATES_TEST_ACCOUNT_EMAIL`, `OPENMATES_TEST_ACCOUNT_PASSWORD`, and `OPENMATES_TEST_ACCOUNT_OTP_KEY` are available to the test runner.
     - Simulator screenshot evidence of the seeded large chat after initial open.
     - Deterministic parity check output comparing captured web computed values against Apple token/constant mappings where practical.
   intentional_native_differences:
@@ -334,6 +336,34 @@ tests:
         run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowparity-2026-06-08-post-deploy
         timestamp: "2026-06-08T23:44:06Z"
 
+  - id: T-APPLE-UI-REAL-CHAT-FLOW
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py repo env OPENMATES_TEST_ACCOUNT_EMAIL="<secret>" OPENMATES_TEST_ACCOUNT_PASSWORD="<secret>" OPENMATES_TEST_ACCOUNT_OTP_KEY="<secret>" xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/ChatFlowRealAccountUITests
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - test logs into the native iOS app with password plus OTP, using the same reserved real test-account secret names as web chat-flow.spec.ts
+      - test uses a UI-test-only launch argument to prefer password login when the account also advertises passkey, without changing normal user behavior
+      - test starts a new chat from the native welcome/new-chat composer and sends the marker prompt `Kyoto and Osaka quick tip test`
+      - test verifies the user message appears and an assistant streaming state or assistant response appears in the real app
+      - test skips explicitly when credential environment variables are not available, without logging secret values
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run_existing_gap_no_native_real_account_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: false
+      expected: pass_when_credentials_available
+      evidence:
+        status: skipped_missing_credentials_after_compile
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowrealaccount-2026-06-09
+        timestamp: "2026-06-09T08:39:04Z"
+
   - id: T-APPLE-PARITY-AUDIT
     type: lint
     file: scripts/apple_chat_parity_audit.py
@@ -512,11 +542,14 @@ tasks:
     expected_files:
       - scripts/apple_chat_parity_audit.py
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+      - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
       - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
       - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
     verification:
       - T-APPLE-PARITY-AUDIT
       - T-APPLE-UI-CHAT-FLOW-PARITY
+      - T-APPLE-UI-REAL-CHAT-FLOW
     independently_deployable: false
 
 risks:
