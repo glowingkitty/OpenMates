@@ -2174,6 +2174,8 @@ async def handle_main_processing(
             or "web-research" in relevant_focus_modes
         )
     ):
+        if not request_data.active_focus_id:
+            request_data.active_focus_id = "web-research"
         available_tools_for_llm = [start_sub_chats_tool]
         logger.info(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
