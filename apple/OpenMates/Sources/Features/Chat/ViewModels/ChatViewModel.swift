@@ -1225,6 +1225,37 @@ struct ComposerPendingEmbed: Identifiable {
         content != nil
     }
 
+    #if DEBUG
+    static var uiTestFixture: ComposerPendingEmbed {
+        from(
+            upload: UploadFileResponse(
+                embedId: "ui-test-pending-image",
+                filename: "ui-test-image.png",
+                contentType: "image/png",
+                contentHash: nil,
+                files: [
+                    "original": UploadedFileVariant(
+                        s3Key: "ui-test-image.png",
+                        sizeBytes: 128,
+                        width: 32,
+                        height: 32,
+                        format: "png"
+                    )
+                ],
+                s3BaseUrl: "https://example.invalid/ui-test",
+                aesKey: "ui-test-aes-key",
+                aesNonce: "ui-test-aes-nonce",
+                vaultWrappedAesKey: "ui-test-wrapped-key",
+                pageCount: nil,
+                deduplicated: true
+            ),
+            localData: Data(repeating: 0, count: 128),
+            transcript: nil,
+            duration: nil
+        )
+    }
+    #endif
+
     static func from(
         upload: UploadFileResponse,
         localData: Data?,

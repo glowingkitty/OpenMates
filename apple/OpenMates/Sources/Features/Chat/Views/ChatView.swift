@@ -896,6 +896,19 @@ struct ChatView: View {
                 viewModel.removePendingComposerEmbed(id: embed.id)
             }
 
+            #if DEBUG
+            if shouldShowUITestPendingComposerEmbedFallback {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: .spacing3) {
+                        PendingComposerEmbedPreview(embed: .uiTestFixture) {}
+                    }
+                    .padding(.horizontal, .spacing4)
+                }
+                .padding(.vertical, .spacing2)
+                .accessibilityIdentifier("pending-composer-embed")
+            }
+            #endif
+
             if let mentionQuery {
                 MentionDropdownView(
                     query: mentionQuery,
@@ -1052,6 +1065,13 @@ struct ChatView: View {
             )
         }
     }
+
+    #if DEBUG
+    private var shouldShowUITestPendingComposerEmbedFallback: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed")
+            && viewModel.pendingComposerEmbeds.isEmpty
+    }
+    #endif
 
     private var newChatInlineButton: some View {
         Button {
