@@ -55,6 +55,10 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchEnvironment["UI_TEST_VISUAL_SNAPSHOT"] = "1"
         app.launch()
 
+        let scrollToBottom = app.buttons["Scroll to bottom"]
+        XCTAssertTrue(scrollToBottom.waitForExistence(timeout: 12))
+        scrollToBottom.tap()
+
         let latestAssistantMessage = app.staticTexts["Latest assistant response visible after bounded open"]
         XCTAssertTrue(latestAssistantMessage.waitForExistence(timeout: 12))
         XCTAssertFalse(app.staticTexts["Native Chat Opening Preview"].exists)
