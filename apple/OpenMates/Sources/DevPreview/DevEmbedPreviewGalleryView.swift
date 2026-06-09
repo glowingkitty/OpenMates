@@ -68,6 +68,7 @@ struct DevEmbedPreviewGalleryView: View {
                     Text("/dev/preview/embeds/\(selectedApp.rawValue)")
                         .font(.omSmall)
                         .foregroundStyle(Color.fontTertiary)
+                        .accessibilityIdentifier("dev-preview-route")
                 }
                 Spacer(minLength: 0)
             }
