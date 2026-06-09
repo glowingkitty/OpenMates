@@ -13,14 +13,22 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
     func testRecordButtonAndForcedOverlayMatchContractStructure() throws {
         let app = XCUIApplication()
+
+        app.launchArguments = ["--dev-preview", "chat-opening"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        focusComposerInput(in: app)
+        XCTAssertTrue(element(in: app, identifier: "record-audio-button").waitForExistence(timeout: 10))
+
+        app.terminate()
+
         app.launchArguments = ["--dev-preview", "chat-opening-recording"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening-recording"
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        focusComposerInput(in: app)
-        let recordButton = element(in: app, identifier: "record-audio-button")
-        XCTAssertTrue(recordButton.waitForExistence(timeout: 10))
         XCTAssertTrue(element(in: app, identifier: "release-text").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
