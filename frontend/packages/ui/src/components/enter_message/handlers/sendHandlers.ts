@@ -1104,8 +1104,10 @@ export async function handleSend(
     // Check if we're dealing with a temporary chat ID (not a real chat in the database)
     // This happens when a temporaryChatId was set in ActiveChat but the chat doesn't actually exist in DB
     // We need to check the database to determine if this is a real chat or temporary
-    const existingChatCheck = await chatDB.getChat(chatIdToUse);
-    const isTemporaryChat = !existingChatCheck && !isNewChatCreation;
+    const existingChatCheck = isUsingDraftChat
+      ? null
+      : await chatDB.getChat(chatIdToUse);
+    const isTemporaryChat = !isUsingDraftChat && !existingChatCheck && !isNewChatCreation;
     if (isTemporaryChat) {
       // For temporary chats, we need to create a new chat
       isNewChatCreation = true;
