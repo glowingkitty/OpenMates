@@ -18,7 +18,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        let pendingEmbed = element(in: app, identifier: "pending-composer-embed")
+        let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
         XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
         XCTAssertTrue(element(in: app, identifier: "pending-composer-embed-remove").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
@@ -37,6 +37,12 @@ final class MessageInputAttachmentUITests: XCTestCase {
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
+            .firstMatch
+    }
+
+    private func element(in app: XCUIApplication, identifiers: [String]) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier IN %@", identifiers))
             .firstMatch
     }
 
