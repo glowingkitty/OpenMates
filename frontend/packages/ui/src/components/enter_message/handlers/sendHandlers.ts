@@ -354,29 +354,16 @@ async function waitForDraftSaveIdle(): Promise<void> {
     "[handleSend] Draft save already in progress; waiting before sending message",
   );
 
-  await new Promise<void>((resolve) => {
-    let unsubscribe: (() => void) | null = null;
-    let resolvedBeforeSubscribeReturned = false;
-    const timeoutId = window.setTimeout(() => {
-      unsubscribe?.();
-      console.warn(
-        "[handleSend] Timed out waiting for draft save to finish; continuing send",
-      );
-      resolve();
-    }, DRAFT_SAVE_IDLE_TIMEOUT_MS);
+  const deadline = Date.now() + DRAFT_SAVE_IDLE_TIMEOUT_MS;
+  while (get(draftEditorUIState).isSaveInProgress && Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+  }
 
-    unsubscribe = draftEditorUIState.subscribe((state) => {
-      if (state.isSaveInProgress) return;
-      window.clearTimeout(timeoutId);
-      if (unsubscribe) {
-        unsubscribe();
-      } else {
-        resolvedBeforeSubscribeReturned = true;
-      }
-      resolve();
-    });
-    if (resolvedBeforeSubscribeReturned) unsubscribe?.();
-  });
+  if (get(draftEditorUIState).isSaveInProgress) {
+    console.warn(
+      "[handleSend] Timed out waiting for draft save to finish; continuing send",
+    );
+  }
 }
 
 /**
