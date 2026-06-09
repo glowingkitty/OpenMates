@@ -585,6 +585,18 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Function to update breadcrumb label based on navigation path
+    function getGiftCardTitleKeyForPath(settingsPath: string): string | undefined {
+        const giftCardTitleKeys: Record<string, string> = {
+            'billing/gift-cards': 'settings.gift_cards',
+            'billing/gift-cards/redeem': 'settings.gift_cards.redeem',
+            'billing/gift-cards/redeemed': 'settings.gift_cards.redeemed',
+            'billing/gift-cards/buy': 'settings.gift_cards.buy',
+            'billing/gift-cards/buy/payment': 'settings.gift_cards.buy.payment',
+            'billing/gift-cards/buy/confirmation': 'settings.gift_cards.buy.confirmation'
+        };
+        return giftCardTitleKeys[settingsPath];
+    }
+
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
             breadcrumbLabel = $text('common.settings');
@@ -706,8 +718,8 @@ changes to the documentation (to keep the documentation up to date).
                 }
             } else {
                 // For other routes, use translation keys
-                const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
-                const translationKey = `settings.${translationKeyParts.join('.')}`;
+                const translationKey = getGiftCardTitleKeyForPath(pathString) ??
+                    `settings.${pathUpToSegment.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                 pathLabels.push($text(translationKey));
             }
         }
@@ -1470,7 +1482,10 @@ changes to the documentation (to keep the documentation up to date).
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
             // Special handling for security sub-routes - skip "security" segment in translation key
-            if (settingsPath === 'account/security/passkeys') {
+            const giftCardTitleKey = getGiftCardTitleKeyForPath(settingsPath);
+            if (giftCardTitleKey) {
+                activeSubMenuTitleKey = giftCardTitleKey;
+            } else if (settingsPath === 'account/security/passkeys') {
                 activeSubMenuTitleKey = 'settings.account.passkeys';
             } else if (settingsPath === 'account/security/2fa') {
                 // Use security.yml translations for 2FA
@@ -1484,19 +1499,6 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share';
-            } else if (settingsPath === 'billing/gift-cards') {
-                // Gift cards live under billing in the route tree, but their translations are in settings.gift_cards.*.
-                activeSubMenuTitleKey = 'settings.gift_cards';
-            } else if (settingsPath === 'billing/gift-cards/redeem') {
-                activeSubMenuTitleKey = 'settings.gift_cards.redeem';
-            } else if (settingsPath === 'billing/gift-cards/redeemed') {
-                activeSubMenuTitleKey = 'settings.gift_cards.redeemed';
-            } else if (settingsPath === 'billing/gift-cards/buy') {
-                activeSubMenuTitleKey = 'settings.gift_cards.buy';
-            } else if (settingsPath === 'billing/gift-cards/buy/payment') {
-                activeSubMenuTitleKey = 'settings.gift_cards.buy.payment';
-            } else if (settingsPath === 'billing/gift-cards/buy/confirmation') {
-                activeSubMenuTitleKey = 'settings.gift_cards.buy.confirmation';
             } else if (settingsPath === 'server/software-update') {
                 // Software update page — use the existing root-level key (not settings.server.software_update)
                 activeSubMenuTitleKey = 'settings.software_updates';
@@ -1763,9 +1765,7 @@ changes to the documentation (to keep the documentation up to date).
                     icon = 'reload';
                 } else if (previousPath === 'billing/auto-topup/monthly') {
                     icon = 'calendar';
-                } else if (previousPath === 'billing/gift-cards') {
-                    icon = 'icon_gift';
-                } else if (previousPath === 'billing/gift-cards/buy') {
+                } else if (previousPath.startsWith('billing/gift-cards')) {
                     icon = 'icon_gift';
                 } else if (previousPath === 'app_store') {
                     icon = 'app_store';
@@ -1778,8 +1778,8 @@ changes to the documentation (to keep the documentation up to date).
                 
                 if (!title) {
                     // Build the translation key for the previous view's title
-                    const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-                    const titleKey = `settings.${translationKeyParts.join('.')}`;
+                    const titleKey = getGiftCardTitleKeyForPath(previousPath) ??
+                        `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                     const translatedTitle = $text(titleKey);
                     title = translatedTitle;
                 }
