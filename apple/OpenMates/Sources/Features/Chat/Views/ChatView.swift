@@ -203,12 +203,6 @@ struct ChatView: View {
                 if let actionMessage {
                     messageActionsOverlay(for: actionMessage)
                 }
-
-                #if DEBUG
-                if shouldShowUITestResponsiveMetrics {
-                    responsiveMetricsProbe
-                }
-                #endif
             }
             .onAppear {
                 chatViewportHeight = geo.size.height
@@ -1139,37 +1133,6 @@ struct ChatView: View {
         }
         return sizeClass == .compact
     }
-
-    #if DEBUG
-    private var shouldShowUITestResponsiveMetrics: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-test-responsive-metrics")
-            || ProcessInfo.processInfo.environment["UI_TEST_RESPONSIVE_METRICS"] == "1"
-    }
-
-    private var responsiveMetricsProbe: some View {
-        let roundedWidth = Int(chatContainerWidth.rounded())
-        let assistantStacked = chatContainerWidth > 0
-            ? chatContainerWidth <= ChatResponsiveBreakpoint.assistantStacked
-            : sizeClass == .compact
-        let inlineNewChatCompact = chatContainerWidth > 0
-            ? chatContainerWidth <= ChatResponsiveBreakpoint.inlineNewChatCompact
-            : sizeClass == .compact
-        let metrics = "chat-width=\(roundedWidth); assistant-stacked=\(assistantStacked); inline-new-chat-compact=\(inlineNewChatCompact); size-class=\(sizeClass == .compact ? "compact" : "regular")"
-
-        return Text(metrics)
-            .font(.omMicro)
-            .foregroundStyle(Color.fontTertiary)
-            .lineLimit(1)
-            .padding(.spacing1)
-            .background(Color.grey0.opacity(0.85))
-            .clipShape(RoundedRectangle(cornerRadius: .radius4))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityElement(children: .ignore)
-            .accessibilityIdentifier("chat-responsive-metrics")
-            .accessibilityLabel(metrics)
-            .allowsHitTesting(false)
-    }
-    #endif
 
     private func openNewChat() {
         if let onNewChat {

@@ -35,6 +35,10 @@ struct DevChatOpeningPreviewView: View {
             VStack(spacing: 0) {
                 header
 
+                if isUITestResponsiveMetricsEnabled {
+                    responsiveMetricsProbe
+                }
+
                 if seeded {
                     ChatView(
                         chatId: fixture.chat.id,
@@ -88,6 +92,22 @@ struct DevChatOpeningPreviewView: View {
         .background(Color.grey10)
     }
 
+    private var responsiveMetricsProbe: some View {
+        GeometryReader { proxy in
+            let metrics = responsiveMetricsLabel(width: proxy.size.width)
+            Text(metrics)
+                .font(.omMicro)
+                .foregroundStyle(Color.fontTertiary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacing5)
+                .accessibilityIdentifier("chat-responsive-metrics")
+                .accessibilityLabel(metrics)
+        }
+        .frame(height: 18)
+        .background(Color.grey0)
+    }
+
     private func seedIfNeeded() {
         guard !seeded else { return }
         chatStore.performWithoutPersistence {
@@ -101,6 +121,21 @@ struct DevChatOpeningPreviewView: View {
         forceRecordingOverlay
             || ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
             || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
+    }
+
+    private var isUITestResponsiveMetricsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-responsive-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_RESPONSIVE_METRICS"] == "1"
+    }
+
+    private func responsiveMetricsLabel(width: CGFloat) -> String {
+        let assistantStackedBreakpoint: CGFloat = 500
+        let inlineNewChatCompactBreakpoint: CGFloat = 550
+        let roundedWidth = Int(width.rounded())
+        let assistantStacked = width <= assistantStackedBreakpoint
+        let inlineNewChatCompact = width <= inlineNewChatCompactBreakpoint
+        let sizeClass = width <= inlineNewChatCompactBreakpoint ? "compact" : "regular"
+        return "chat-width=\(roundedWidth); assistant-stacked=\(assistantStacked); inline-new-chat-compact=\(inlineNewChatCompact); size-class=\(sizeClass)"
     }
 }
 
