@@ -8,9 +8,10 @@
 # default and removed from the AI inference cache.
 #
 # Architecture context: See docs/architecture/chat-compression.md for design rationale.
-# Tests: None yet
+# Tests: backend/tests/test_chat_compressor.py
 
 import logging
+import os
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel
@@ -52,6 +53,10 @@ COMPRESSION_SUMMARY_CATEGORY = "compression_summary"
 # Compression model: Gemini 3 Flash (fast, cheap, 1M context)
 COMPRESSION_MODEL_ID = "gemini-3-flash-preview"
 COMPRESSION_MODEL_SERVER = "google_ai_studio"  # Default server for Gemini Flash
+CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID = os.getenv(
+    "CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID",
+    "gpt-oss-120b",
+).strip() or "gpt-oss-120b"
 
 
 class CompressionResult(BaseModel):
@@ -395,7 +400,7 @@ async def compress_chat_history(
 
                 response = await invoke_cerebras_chat_completions(
                     task_id=f"{task_id}_compression_fallback",
-                    model_id="qwen-3-235b-a22b-instruct-2507",
+                    model_id=CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID,
                     messages=llm_messages,
                     secrets_manager=secrets_manager,
                     temperature=0.3,

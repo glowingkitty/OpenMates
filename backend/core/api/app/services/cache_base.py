@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import asyncio # Add asyncio for CancelledError
+import time
 import redis.asyncio as redis
 from redis import exceptions as redis_exceptions # Import exceptions from the main redis library
 from typing import Any, Optional, List
@@ -26,6 +27,10 @@ def _safe_cache_payload_summary(payload: object) -> str:
 
 class CacheServiceBase:
     """Base service for caching data using Dragonfly (Redis-compatible)"""
+
+    _CONNECTION_RETRY_COOLDOWN_SECONDS = 30.0
+    _next_connection_retry_at = 0.0
+    _last_connection_warning_at = 0.0
 
     def __init__(self):
         """Initialize the cache service with configuration from environment variables"""
@@ -78,7 +83,11 @@ class CacheServiceBase:
     @property
     async def client(self) -> Optional[redis.Redis]:
         """Get async Redis client, creating it if needed"""
-        if self._client is None and not self._connection_error:
+        if self._client is None:
+            now = time.monotonic()
+            if now < type(self)._next_connection_retry_at:
+                return None
+
             try:
                 self._client = redis.Redis(
                     host=self.host,
@@ -91,6 +100,9 @@ class CacheServiceBase:
                     decode_responses=False
                 )
                 pong = await self._client.ping()
+                self._connection_error = False
+                type(self)._next_connection_retry_at = 0.0
+                type(self)._last_connection_warning_at = 0.0
                 logger.debug(f"Successfully connected to async cache at {self.host}:{self.port} (PING={pong})")
                 try:
                     info = await self._client.info()
@@ -99,7 +111,12 @@ class CacheServiceBase:
                 except Exception:
                     logger.warning("Could not get Redis info")
             except Exception as e:
-                logger.warning(f"Failed to connect to cache at {self.host}:{self.port}: {str(e)}")
+                type(self)._next_connection_retry_at = now + self._CONNECTION_RETRY_COOLDOWN_SECONDS
+                if now - type(self)._last_connection_warning_at >= self._CONNECTION_RETRY_COOLDOWN_SECONDS:
+                    type(self)._last_connection_warning_at = now
+                    logger.warning(f"Failed to connect to cache at {self.host}:{self.port}: {str(e)}")
+                else:
+                    logger.debug(f"Cache connection retry suppressed during cooldown: {str(e)}")
                 self._connection_error = True
                 self._client = None
         return self._client
