@@ -345,6 +345,40 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
  */
 let sendInProgress = false;
 
+const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
+
+async function waitForDraftSaveIdle(): Promise<void> {
+  if (!get(draftEditorUIState).isSaveInProgress) return;
+
+  console.info(
+    "[handleSend] Draft save already in progress; waiting before sending message",
+  );
+
+  await new Promise<void>((resolve) => {
+    let unsubscribe: (() => void) | null = null;
+    let resolvedBeforeSubscribeReturned = false;
+    const timeoutId = window.setTimeout(() => {
+      unsubscribe?.();
+      console.warn(
+        "[handleSend] Timed out waiting for draft save to finish; continuing send",
+      );
+      resolve();
+    }, DRAFT_SAVE_IDLE_TIMEOUT_MS);
+
+    unsubscribe = draftEditorUIState.subscribe((state) => {
+      if (state.isSaveInProgress) return;
+      window.clearTimeout(timeoutId);
+      if (unsubscribe) {
+        unsubscribe();
+      } else {
+        resolvedBeforeSubscribeReturned = true;
+      }
+      resolve();
+    });
+    if (resolvedBeforeSubscribeReturned) unsubscribe?.();
+  });
+}
+
 /**
  * Handles sending a message via the message input
  *
@@ -392,6 +426,7 @@ export async function handleSend(
   // content as a draft. The server also clears drafts on message receipt, but
   // the client's debounced save fires afterwards and re-creates the draft.
   saveDraftDebounced.cancel();
+  await waitForDraftSaveIdle();
 
   // OTel: deferred send check span
   const deferredCheckSpan = tracer.startSpan('message.send.deferred_check');

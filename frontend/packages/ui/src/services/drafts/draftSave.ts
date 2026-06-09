@@ -955,6 +955,30 @@ export const saveDraftDebounced = debounce(
     // Pass contentJSON so unserialized embed nodes (e.g. uploading images) are shown
     const previewText = generateDraftPreview(contentMarkdown, 100, contentJSON);
 
+    // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
+    // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
+    // but for DRAFTS, a mention alone IS valid content that should be saved.
+    if (editor.isEmpty) {
+      console.info(
+        "[DraftService] Editor content is empty. Triggering draft deletion process.",
+      );
+      if (currentChatIdForOperation) {
+        // clearCurrentDraft reads from draftEditorUIState, which we've just updated if necessary.
+        await clearCurrentDraft();
+      } else {
+        clearEditorAndResetDraftState(false);
+      }
+      return;
+    }
+
+    // Acquire the lock before encryption/DB work so send can reliably wait for an
+    // already-started draft save instead of racing the same temporary chat ID.
+    draftEditorUIState.update((s) => ({
+      ...s,
+      hasUnsavedChanges: true,
+      isSaveInProgress: true,
+    }));
+
     // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
     const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
     const encryptedPreview = previewText
@@ -965,7 +989,11 @@ export const saveDraftDebounced = debounce(
       console.error(
         "[DraftService] Failed to encrypt draft content - master key not available",
       );
-      draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+      draftEditorUIState.update((s) => ({
+        ...s,
+        hasUnsavedChanges: true,
+        isSaveInProgress: false,
+      }));
       return;
     }
 
@@ -977,26 +1005,6 @@ export const saveDraftDebounced = debounce(
       encryptedPreviewLength: encryptedPreview?.length || 0,
     });
 
-    // If content is empty, treat as clearing/deleting the draft
-    // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
-    // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
-    // but for DRAFTS, a mention alone IS valid content that should be saved.
-    // The user might be in the middle of composing a message after selecting a model mention.
-    if (editor.isEmpty) {
-      console.info(
-        "[DraftService] Editor content is empty. Triggering draft deletion process.",
-      );
-      if (currentChatIdForOperation) {
-        // Check the resolved ID
-        // clearCurrentDraft reads from draftEditorUIState, which we've just updated if necessary.
-        await clearCurrentDraft(); // This will also handle resetting lastSavedContentJSON
-      } else {
-        // If no chat context, just reset the UI editor and state
-        clearEditorAndResetDraftState(false); // This should also reset lastSavedContentJSON via draftCore
-      }
-      return;
-    }
-
     // Check if content has actually changed compared to the last saved version for this chat
     if (
       currentState.currentChatId === currentChatIdForOperation &&
@@ -1007,18 +1015,19 @@ export const saveDraftDebounced = debounce(
         `[DraftService] Draft content for chat ${currentChatIdForOperation} is unchanged. Skipping save.`,
       );
       // Ensure hasUnsavedChanges is false if content matches last save
-      if (currentState.hasUnsavedChanges) {
-        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: false }));
-      }
+      draftEditorUIState.update((s) => ({
+        ...s,
+        hasUnsavedChanges: false,
+        isSaveInProgress: false,
+      }));
       return;
     }
 
     // Saving non-empty, changed content
-    // CRITICAL: Acquire save lock to prevent race conditions that create duplicate chats
+    // The save lock was acquired before encryption to prevent send/create races.
     draftEditorUIState.update((s) => ({
       ...s,
       hasUnsavedChanges: true,
-      isSaveInProgress: true,
     }));
 
     let userDraft: Chat | null = null;
