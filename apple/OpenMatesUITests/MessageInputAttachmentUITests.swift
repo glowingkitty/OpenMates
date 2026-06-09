@@ -18,7 +18,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        XCTAssertTrue(app.textViews.firstMatch.exists || app.textFields.firstMatch.exists)
+        focusComposerInput(in: app)
         XCTAssertTrue(element(in: app, identifier: "attach-files-button").waitForExistence(timeout: 5))
         XCTAssertTrue(element(in: app, identifier: "take-photo-button").waitForExistence(timeout: 5))
 
@@ -38,5 +38,16 @@ final class MessageInputAttachmentUITests: XCTestCase {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch
+    }
+
+    private func focusComposerInput(in app: XCUIApplication) {
+        let textView = app.textViews.firstMatch
+        let textField = app.textFields.firstMatch
+        XCTAssertTrue(textView.exists || textField.exists)
+        if textView.exists {
+            textView.tap()
+        } else {
+            textField.tap()
+        }
     }
 }

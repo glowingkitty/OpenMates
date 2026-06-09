@@ -18,6 +18,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        focusComposerInput(in: app)
         let recordButton = element(in: app, identifier: "record-audio-button")
         XCTAssertTrue(recordButton.waitForExistence(timeout: 10))
         let overlay = app.otherElements["record-overlay"].firstMatch
@@ -38,5 +39,16 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch
+    }
+
+    private func focusComposerInput(in app: XCUIApplication) {
+        let textView = app.textViews.firstMatch
+        let textField = app.textFields.firstMatch
+        XCTAssertTrue(textView.exists || textField.exists)
+        if textView.exists {
+            textView.tap()
+        } else {
+            textField.tap()
+        }
     }
 }
