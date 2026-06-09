@@ -235,9 +235,18 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Initial Playwright contract run failed before the extractor used the unauthenticated demo/new-chat composer path.
     green_phase:
       required: true
       expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "27210515644"
+        timestamp: "2026-06-09"
+        notes: python3 scripts/run_tests.py --suite playwright --spec apple-ui-contracts.spec.ts passed against deployed dev app.
 
   - id: T-CONTRACT-SCHEMA
     type: lint
@@ -253,9 +262,17 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Validation failed before the promoted message-input fixture satisfied required schema states and elements.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        command: python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
 
   - id: T-APPLE-CONTRACT-AUDIT
     type: lint
@@ -272,9 +289,18 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Audit failed before native message-input identifiers and fixture hooks were added.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        command: python3 scripts/apple_ui_contracts.py audit --surface message-input
+        notes: PASS message-input audit; visual/style checks remain warning-only by spec.
 
   - id: T-APPLE-ATTACHMENT-UI
     type: manual
@@ -291,9 +317,18 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Remote attachment UI test failed until simulator-safe pending composer embed fixture exposure was added.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+        notes: Remote Mac iPhone 17 simulator returned TEST SUCCEEDED.
 
   - id: T-APPLE-AUDIO-UI
     type: manual
@@ -310,9 +345,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Remote audio UI test failed until the recording preview route and overlay accessibility child exposure were added.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        commit: 72e7998
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+        notes: Remote Mac iPhone 17 simulator returned TEST SUCCEEDED.
 
   - id: T-ROLLOUT-PLAN
     type: manual
@@ -329,6 +374,10 @@ tests:
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        notes: Rollout plan is recorded in spec.yml under rollout_plan with next web specs, Apple tests, promotion criteria, and simulator/device split.
 
 implementation_plan:
   existing_patterns:
