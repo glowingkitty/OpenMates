@@ -11,6 +11,38 @@ Detailed test commands, Playwright Docker setup, test runner reference, and sequ
 
 ## Test Commands
 
+### Cross-App Parity Order
+
+For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync,
+or any feature that exists across clients, tests must prove parity in this
+order: OpenMates CLI first, web app second, Apple app third.
+
+1. **CLI contract first:** add or run an OpenMates CLI test that exercises the
+   backend/API/WebSocket contract without browser UI, TipTap, IndexedDB UI
+   state, screenshots, or Svelte rendering. This is the required first proof for
+   chat and app-skill behavior because it isolates backend correctness.
+2. **Web app E2E second:** after the CLI contract is green, add or run the
+   Playwright spec that verifies the browser-specific flow, including composer
+   behavior, draft/autosave state, settings UI, embeds, rendering, and user
+   interactions. If the CLI contract passes but Playwright fails, debug the web
+   app path instead of the backend pipeline first.
+3. **Apple parity third:** when the product surface has an Apple counterpart,
+   run or attempt the relevant iOS/macOS verification after CLI and web evidence
+   are green. Record Mac/Xcode evidence or a sanitized failure class per the
+   Apple App section below.
+
+Do not clone every Playwright spec into a CLI test. Prefer small reusable CLI
+contract tests for shared invariants such as message send, default-model
+routing, mock replay, skill invocation, embed resolution, sub-chat behavior, and
+sync lifecycle. Playwright remains responsible for browser UI and local web
+state; Apple tests remain responsible for native UI parity.
+
+When fixing a failing chat-related Playwright spec, first check whether a
+matching CLI contract exists. If not, write or propose the minimal CLI contract
+before editing the web spec. The exception is a clearly browser-only failure,
+such as a selector, layout, screenshot, pointer-event overlay, or Svelte-only
+rendering regression; document that exception in the test plan or summary.
+
 ### Backend
 
 ```bash

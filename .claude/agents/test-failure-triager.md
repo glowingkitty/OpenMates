@@ -27,7 +27,8 @@ python3 scripts/run_tests.py --only-failed --dry-run
 ## Investigation Protocol
 
 1. **Parse all failures** — extract test name, error message first line, and suite.
-2. **Group by root cause signature** — tests that fail for the same underlying reason belong in one group. Common signatures:
+2. **Mark CLI contract gaps** — for chat, AI pipeline, settings-backed chat behavior, app skill, embed, or sync Playwright failures, note whether an OpenMates CLI contract likely exists. If no matching CLI coverage is obvious and the symptom is not browser-only, recommend adding/running the CLI contract before web-spec edits.
+3. **Group by root cause signature** — tests that fail for the same underlying reason belong in one group. Common signatures:
    - Selector not found → component or selector change
    - `console.error` / `pageerror` surfaced → real app bug
    - `data-status="finished"` not visible → skill embed not completing
@@ -35,8 +36,8 @@ python3 scripts/run_tests.py --only-failed --dry-run
    - `Mailosaur API error (401)` → secret rotation (flag, don't group as code bug)
    - Timeout exceeded → slow operation or broken wait condition
    - `No such container: api` → CI environment mismatch
-3. **Git-blame the suspects** — for each group, run `git log -5 --oneline -- <suspect-file>` to identify the most recent change that could have caused the regression.
-4. **Rank groups by priority tier** (fix in this order):
+4. **Git-blame the suspects** — for each group, run `git log -5 --oneline -- <suspect-file>` to identify the most recent change that could have caused the regression.
+5. **Rank groups by priority tier** (fix in this order):
    - Tier 1: Runtime JS errors (real bugs affecting users)
    - Tier 2: Core flow regressions (auth, encryption, chat sync)
    - Tier 3: UI visibility failures on core elements
@@ -50,6 +51,7 @@ python3 scripts/run_tests.py --only-failed --dry-run
 - **Verify before claiming.** Read the actual failure report before asserting a root cause — never guess from the test name alone.
 - **Never run tests.** You do not invoke `run_tests.py` or any test binary. Triage only.
 - **Never edit files.** Return findings; main Claude will apply fixes.
+- **CLI-first parity:** For shared chat/app behavior, include a CLI contract gap or status in the group so the parent agent can test backend parity before Playwright/web UI behavior.
 - **Keep output compact.** Every token you return lands in the parent context. Stay under 600 tokens total.
 - **2 tries max** per investigation — if a root cause isn't clear after reading the report + blaming suspects, mark `confidence: low` and move on.
 - **Check pattern-consistency.json** — if the nightly scan already flagged a related inconsistency, reference it with its `priority_score`.
@@ -72,6 +74,7 @@ Return a single JSON code block followed by a one-sentence recommendation. Nothi
       "suspect_files": [
         {"path": "path/to/file.svelte", "line": 42, "last_changed": "<sha> <subject>"}
       ],
+      "cli_contract_status": "exists|missing|not_applicable|unknown",
       "suggested_fix_location": "<file:function or file:line>",
       "nightly_report_ref": "<priority_score from pattern-consistency.json if related, else null>"
     }

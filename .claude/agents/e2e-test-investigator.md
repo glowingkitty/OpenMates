@@ -17,6 +17,24 @@ The parent agent passes you:
 
 ## Investigation Protocol
 
+### Step 0: Check CLI Contract Coverage for Chat-Like Specs
+
+For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync,
+or any flow that should work across clients, verify whether an OpenMates CLI
+contract test already covers the same backend/API/WebSocket behavior before
+debugging the browser path.
+
+- If a matching CLI contract exists, inspect its latest result first. If it is
+  failing, classify the Playwright failure as likely backend/contract until the
+  CLI failure is understood.
+- If no matching CLI contract exists and the failure is not clearly browser-only,
+  propose or add the minimal CLI contract before changing the Playwright spec.
+- If the CLI contract passes but Playwright fails, focus investigation on web
+  app state, composer behavior, IndexedDB/draft state, Svelte rendering, or test
+  selectors instead of backend routing first.
+- Browser-only exceptions include selector changes, layout/screenshot diffs,
+  pointer-event overlays, and Svelte-only rendering regressions.
+
 ### Step 1: Read the failure report and screenshots (parallel)
 
 ```bash
@@ -116,6 +134,7 @@ Synthesize all evidence into a root cause. Common E2E failure patterns:
 ## Rules
 
 - **Screenshots are truth.** Error messages in the test report often describe a downstream symptom, not the root cause. Always check what the screenshot actually shows.
+- **CLI before web for shared behavior.** Chat, AI pipeline, settings-backed chat behavior, app skill, embed, and sync investigations must check or propose CLI contract coverage before changing Playwright, unless the failure is clearly browser-only.
 - **Never run tests locally.** Use `python3 scripts/run_tests.py --spec <name>.spec.ts` to dispatch to GitHub Actions CI.
 - **Never run vitest or Playwright directly.** Always dispatch via `run_tests.py`.
 - **Query OpenObserve systematically.** Don't guess — check the logs. The E2E debug log pipeline tags client console logs with the test run ID.

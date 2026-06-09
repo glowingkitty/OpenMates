@@ -67,6 +67,7 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 
 ## Additional Test Rules
 
+- **Cross-app parity order:** For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync, or any feature that exists across clients, test OpenMates CLI first, web app second, and Apple app third. CLI tests prove the backend/API/WebSocket contract before browser UI state is involved; Playwright then proves the Svelte/TipTap/IndexedDB/user-interaction path; Apple verification proves native parity when there is a counterpart. If a chat-related Playwright spec fails and no matching CLI contract exists, write or propose the minimal CLI contract before changing the web spec, unless the failure is clearly browser-only (selector, layout, screenshot, pointer-event overlay, or Svelte-only rendering).
 - When a spec failure points to a repeated flaky pattern, first look for a
   deterministic helper or audit improvement that would prevent the class of
   failure across specs. Prefer shared helpers and `scripts/audit_*` checks over
