@@ -146,7 +146,10 @@ async function goBackTo(page: any, settingsMenu: any, targetView: string): Promi
 		if (currentView === targetView) return;
 
 		const backButton = settingsMenu.getByTestId('banner-back-button').first();
-		if (await backButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		if (
+			(await backButton.isVisible({ timeout: 1000 }).catch(() => false)) &&
+			(await backButton.isEnabled({ timeout: 1000 }).catch(() => false))
+		) {
 			await backButton.click({ timeout: 5000 });
 			await settingsMenu.waitFor({ state: 'visible', timeout: 5000 });
 			await page.waitForTimeout(NAVIGATION_WAIT_MS);
@@ -154,13 +157,20 @@ async function goBackTo(page: any, settingsMenu: any, targetView: string): Promi
 		}
 
 		const legacyBackButton = settingsMenu.locator('#settings-back-button');
-		if (await legacyBackButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		if (
+			(await legacyBackButton.isVisible({ timeout: 1000 }).catch(() => false)) &&
+			(await legacyBackButton.isEnabled({ timeout: 1000 }).catch(() => false))
+		) {
 			await legacyBackButton.click({ timeout: 5000 });
 			await page.waitForTimeout(NAVIGATION_WAIT_MS);
 			continue;
 		}
 
 		break;
+	}
+
+	if ((await currentSettingsView(settingsMenu)) !== targetView) {
+		await openSettingsPath(page, settingsMenu, targetView);
 	}
 
 	await expect(settingsMenu, `Expected to return to ${targetView}`).toHaveAttribute(
