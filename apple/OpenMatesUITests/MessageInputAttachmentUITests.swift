@@ -17,7 +17,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
 
-        XCTAssertTrue(app.otherElements["dev-chat-opening-preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         XCTAssertTrue(app.textFields["message-editor"].waitForExistence(timeout: 10) || app.textViews["message-editor"].waitForExistence(timeout: 1))
         XCTAssertTrue(element(in: app, identifier: "attach-files-button").waitForExistence(timeout: 5))
         XCTAssertTrue(element(in: app, identifier: "take-photo-button").waitForExistence(timeout: 5))

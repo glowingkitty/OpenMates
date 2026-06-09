@@ -17,7 +17,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
 
-        XCTAssertTrue(app.otherElements["dev-chat-opening-preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let recordButton = element(in: app, identifier: "record-audio-button")
         XCTAssertTrue(recordButton.waitForExistence(timeout: 10))
         let overlay = app.otherElements["record-overlay"].firstMatch
