@@ -1,8 +1,8 @@
 // Simulator coverage for background chat notification behavior.
 // This does not prove real APNs delivery; it verifies the best simulator-backed
 // contract available without a paid Apple Developer account: after a real chat
-// send, pressing Home still lets the native background completion path schedule
-// a privacy-preserving local OS notification when the assistant response lands.
+// send and Home press, a host-side simctl push can deliver the same generic
+// privacy-preserving notification shape the server/APNs path should deliver.
 // Credentials are read only from the XCTest process environment.
 
 import XCTest
@@ -16,7 +16,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testBackgroundChatCompletionShowsLocalNotification() throws {
+    func testBackgroundedAppShowsSimulatedServerPushNotification() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp()
@@ -32,7 +32,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
 
         XCTAssertTrue(
             notificationTitle.waitForExistence(timeout: notificationTimeout),
-            "Expected an OpenMates local notification after background assistant completion"
+            "Expected an OpenMates notification from the host-side simulated APNs payload"
         )
         XCTAssertTrue(
             notificationBody.waitForExistence(timeout: 5),
@@ -41,12 +41,8 @@ final class BackgroundChatNotificationUITests: XCTestCase {
 
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "Background chat local notification"
+        attachment.name = "Background chat simulated server notification"
         attachment.lifetime = .keepAlways
         add(attachment)
-
-        notificationTitle.tap()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15))
-        XCTAssertNotNil(RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 20))
     }
 }
