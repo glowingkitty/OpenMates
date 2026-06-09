@@ -1081,6 +1081,7 @@ struct ChatView: View {
     private var isUITestRecordingOverlayForced: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
         #else
         return false
         #endif
