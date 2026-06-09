@@ -94,6 +94,30 @@ completed:
   sv: Slutförd
   he: הושלם
   verified_by_human: []
+stored_encrypted:
+  context: Brief status shown for 2 seconds when an embed finishes and is stored encrypted before showing the click/tap hint
+  en: Stored encrypted
+  de: Verschlüsselt gespeichert
+  zh: 已加密存储
+  es: Guardado cifrado
+  fr: Stocké chiffré
+  pt: Armazenado criptografado
+  ru: Сохранено зашифрованным
+  ja: 暗号化して保存済み
+  ko: 암호화되어 저장됨
+  it: Salvato crittografato
+  tr: Şifreli olarak saklandı
+  vi: Đã lưu mã hóa
+  id: Disimpan terenkripsi
+  pl: Zapisano zaszyfrowane
+  nl: Versleuteld opgeslagen
+  ar: تم التخزين مشفّرًا
+  hi: एन्क्रिप्ट करके संग्रहीत
+  th: จัดเก็บแบบเข้ารหัสแล้ว
+  cs: Uloženo šifrovaně
+  sv: Lagrad krypterat
+  he: נשמר מוצפן
+  verified_by_human: []
 click_to_show_details:
   context: Hint shown briefly on desktop when an embed finishes, prompting the user to click it to open the details/fullscreen view
   en: Click to show details
@@ -310,6 +334,30 @@ application_start_preview:
   cs: Spustit náhled
   sv: Starta förhandsvisning
   he: התחל תצוגה מקדימה
+  verified_by_human: []
+application_resume_preview:
+  context: Button label to resume a generated application live preview after timeout or stop
+  en: Resume preview
+  de: Vorschau fortsetzen
+  zh: 继续预览
+  es: Reanudar vista previa
+  fr: Reprendre l’aperçu
+  pt: Retomar prévia
+  ru: Возобновить предпросмотр
+  ja: プレビューを再開
+  ko: 미리보기 재개
+  it: Riprendi anteprima
+  tr: Önizlemeyi sürdür
+  vi: Tiếp tục xem trước
+  id: Lanjutkan pratinjau
+  pl: Wznów podgląd
+  nl: Voorbeeld hervatten
+  ar: استئناف المعاينة
+  hi: पूर्वावलोकन फिर शुरू करें
+  th: ดูตัวอย่างต่อ
+  cs: Obnovit náhled
+  sv: Återuppta förhandsvisning
+  he: המשך תצוגה מקדימה
   verified_by_human: []
 application_stop_preview:
   context: Button label to stop a generated application live preview

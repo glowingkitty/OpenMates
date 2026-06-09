@@ -156,6 +156,7 @@
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
+    import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -206,6 +207,19 @@
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
+
+    function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
+        if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito) return false;
+        if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
+        return true;
+    }
+
+    function maybeAutoStartCreatedApplicationPreview(message: ChatMessageModel) {
+        if (!shouldAutoStartCreatedApplicationPreview(currentChat)) return;
+        const markdown = typeof message.content === 'string' ? message.content : '';
+        if (!markdown) return;
+        void autoStartCreatedApplicationPreview(message.chat_id, message.message_id, markdown);
+    }
 
     function shouldPreserveLiveEmbedOnlyDraft(chatId: string): boolean {
         const draftState = get(draftEditorUIState);
@@ -5504,7 +5518,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     console.debug('[ActiveChat] Skipping server storage for incognito chat - not persisted on server');
                 }
-                
+
+                maybeAutoStartCreatedApplicationPreview(updatedFinalMessage);
+
                 if (chatHistoryRef) {
                     chatHistoryRef.updateMessages(currentMessages);
                 }

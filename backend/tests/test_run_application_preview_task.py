@@ -82,6 +82,109 @@ async def test_run_application_preview_session_marks_session_running_with_upstre
 
 
 @pytest.mark.anyio
+async def test_explicit_preview_does_not_wait_for_auto_stop_deadline(monkeypatch) -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    sleep_calls: list[float] = []
+
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+
+    async def fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+    async def fake_provider(**_kwargs):
+        return ApplicationPreviewRuntime(
+            sandbox_id="sandbox-1",
+            upstream_base_url="https://sandbox-1-5173.e2b.dev",
+            ports={"frontend": 5173},
+        )
+
+    monkeypatch.setattr(worker.asyncio, "sleep", fake_sleep)
+
+    await worker.run_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        payload={
+            "files": [{"path": "package.json", "content": '{"scripts":{"dev":"vite"}}'}],
+            "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        },
+        provider_start=fake_provider,
+    )
+
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    assert stored["status"] == "running"
+    assert sleep_calls == []
+
+
+@pytest.mark.anyio
+async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    stopped: list[dict[str, str]] = []
+    charges: list[dict[str, object]] = []
+
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1", auto_started=True, source_message_id="assistant-message-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+
+    async def fake_sleep(_seconds: float) -> None:
+        return None
+
+    async def fake_provider(**_kwargs):
+        return ApplicationPreviewRuntime(
+            sandbox_id="sandbox-1",
+            upstream_base_url="https://sandbox-1-5173.e2b.dev",
+            ports={"frontend": 5173},
+        )
+
+    async def fake_provider_stop(**kwargs):
+        stopped.append({"sandbox_id": kwargs["sandbox_id"], "api_key": kwargs["api_key"]})
+        return True
+
+    async def fake_charge_preview_credits(**kwargs):
+        charges.append(kwargs)
+
+    monkeypatch.setattr(worker.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(worker, "_charge_preview_credits", fake_charge_preview_credits)
+
+    await worker.run_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        payload={
+            "api_key": "e2b-key",
+            "files": [{"path": "package.json", "content": '{"scripts":{"dev":"vite"}}'}],
+            "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        },
+        provider_start=fake_provider,
+        provider_stop=fake_provider_stop,
+    )
+
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    assert stored["status"] == "timeout"
+    assert stored["stop_reason"] == "auto_unopened_timeout"
+    assert stored["sandbox_stopped_at"] == stored["sandbox_stop_requested_at"]
+    assert stored["billing_state"]["charged_credits"] == 5
+    assert stopped == [{"sandbox_id": "sandbox-1", "api_key": "e2b-key"}]
+    assert charges and charges[0]["credits"] == 5
+
+
+@pytest.mark.anyio
 async def test_run_application_preview_session_stores_encrypted_screenshot_metadata() -> None:
     worker = _load_worker_module()
     cache = FakeCache()

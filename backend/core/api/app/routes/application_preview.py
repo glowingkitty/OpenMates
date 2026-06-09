@@ -32,6 +32,7 @@ from backend.shared.providers.e2b_application_preview import (
 router = APIRouter(prefix="/v1/applications", tags=["Application Preview"])
 
 APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE = 5
+APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS = 60
 APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS = 5 * 60
 APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS = 30 * 60
 APPLICATION_PREVIEW_SESSION_TTL_SECONDS = APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS + 10 * 60
@@ -48,6 +49,8 @@ class ApplicationPreviewStartRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     shared_context: str | None = None
     requested_runtime: str | None = None
+    auto_started: bool = False
+    source_message_id: str | None = None
 
 
 class ApplicationPreviewStartResponse(BaseModel):
@@ -77,6 +80,8 @@ class ApplicationPreviewStatusResponse(BaseModel):
     charged_credits: int | None = None
     latest_screenshot_url: str | None = None
     latest_screenshot: dict[str, Any] | None = None
+    auto_started: bool = False
+    auto_opened_at: float | None = None
 
 
 def build_application_preview_worker_payload(
@@ -382,7 +387,10 @@ def build_preview_session_record(
     chat_id: str,
     application_embed_id: str,
     now: float,
+    auto_started: bool = False,
+    source_message_id: str | None = None,
 ) -> dict[str, Any]:
+    idle_timeout = APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS if auto_started else APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS
     return {
         "session_id": session_id,
         "viewer_user_id": viewer_user_id,
@@ -394,9 +402,11 @@ def build_preview_session_record(
             "application_embed_id": application_embed_id,
         },
         "status": "queued",
+        "auto_started": auto_started,
+        "source_message_id": source_message_id,
         "created_at": now,
         "updated_at": now,
-        "idle_deadline": now + APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS,
+        "idle_deadline": now + idle_timeout,
         "hard_deadline": now + APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS,
         "billing_state": {
             "credits_per_started_minute": APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
@@ -437,6 +447,8 @@ async def create_application_preview_session(
         chat_id=body.chat_id,
         application_embed_id=application_embed_id,
         now=now,
+        auto_started=body.auto_started,
+        source_message_id=body.source_message_id,
     )
     token = preview_token or generate_preview_gateway_token()
     preview_url = application_preview_url_with_token(preview_origin, session_id, token)
@@ -513,7 +525,31 @@ def build_application_preview_status_response(data: dict[str, Any]) -> Applicati
         charged_credits=charged_credits if isinstance(charged_credits, int) else None,
         latest_screenshot_url=data.get("latest_screenshot_url") if isinstance(data.get("latest_screenshot_url"), str) else None,
         latest_screenshot=_public_latest_screenshot(data.get("latest_screenshot")),
+        auto_started=data.get("auto_started") is True,
+        auto_opened_at=float(data["auto_opened_at"]) if isinstance(data.get("auto_opened_at"), (int, float)) else None,
     )
+
+
+async def promote_application_preview_session(
+    cache_service: Any,
+    session_id: str,
+    current_user: Any,
+    *,
+    now: float,
+) -> ApplicationPreviewStatusResponse:
+    data = await get_application_preview_session(cache_service, session_id, current_user)
+    if data.get("auto_started") is True and data.get("auto_opened_at") is None and data.get("status") in {"queued", "starting", "running"}:
+        data["auto_opened_at"] = now
+        data["idle_deadline"] = now + APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS
+        data["updated_at"] = now
+        data.setdefault("events", []).append({"kind": "status", "text": "Application preview opened; timeout extended.", "timestamp": now})
+        client = await cache_service.client
+        await client.set(
+            application_preview_session_key(session_id),
+            json.dumps(data),
+            ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
+        )
+    return build_application_preview_status_response(data)
 
 
 def _public_latest_screenshot(value: Any) -> dict[str, Any] | None:
@@ -617,6 +653,9 @@ async def start_application_preview(
     directus_service: Any = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> ApplicationPreviewStartResponse:
+    if body.auto_started and body.shared_context:
+        raise HTTPException(status_code=400, detail="Auto-started previews are only available to the creator chat session")
+
     try:
         preview_origin = preview_origin_from_request(request)
     except ApplicationPreviewConfigError as exc:
@@ -653,6 +692,15 @@ async def get_application_preview_status(
 ) -> ApplicationPreviewStatusResponse:
     data = await get_application_preview_session(cache_service, session_id, current_user)
     return build_application_preview_status_response(data)
+
+
+@router.post("/preview/{session_id}/open", response_model=ApplicationPreviewStatusResponse)
+async def open_application_preview(
+    session_id: str,
+    current_user: Any = Depends(get_application_preview_current_user),
+    cache_service: Any = Depends(get_cache_service),
+) -> ApplicationPreviewStatusResponse:
+    return await promote_application_preview_session(cache_service, session_id, current_user, now=time.time())
 
 
 @router.post("/preview/{session_id}/stop", response_model=ApplicationPreviewStopResponse)

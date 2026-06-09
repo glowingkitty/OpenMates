@@ -21,7 +21,8 @@ scope:
     - Support opening live previews in embedded fullscreen and in a separate browser window or Apple WKWebView.
     - Add Apple client application preview support in v1 by rendering authorized preview gateway URLs inside WKWebView with the same isolation, billing, and session lifecycle as web.
     - Store and render a lightweight screenshot thumbnail for the latest successful application preview state.
-    - Show the screenshot thumbnail in the application embed preview and fullscreen with a play button overlay that starts the E2B preview session.
+    - Auto-start a creator-owned one-minute preview immediately after a newly generated application embed is created, capture a lightweight screenshot thumbnail, and stop the sandbox unless the creator opens it.
+    - Show the screenshot thumbnail in the application embed preview and fullscreen with a play/Resume overlay that starts or resumes an E2B preview session.
     - Support iterative corrections by patching child code-code embeds with existing diff-based editing and syncing successful file changes into the active E2B sandbox.
     - Keep parser-based inference from Markdown/code fences as a best-effort fallback when no structured artifact was emitted.
     - Support ephemeral sample data and SQLite-backed previews inside E2B for v1 database demos.
@@ -98,8 +99,8 @@ clarification:
       answer: >
         Use a short-lived signed path token in the preview URL, for example
         /p/<session_id>/<token>/. The token is scoped to one preview session,
-        stored server-side only as a hash, expires with the 5-minute idle timeout
-        or 30-minute hard cap, and is revoked on Stop. It authorizes only
+        stored server-side only as a hash, expires with the active session
+        timeout or 30-minute hard cap, and is revoked on Stop. It authorizes only
         sandbox proxy traffic on the preview gateway; normal start/status/stop
         APIs still require OpenMates authentication.
   vision_summary: >
@@ -130,7 +131,8 @@ scenarios:
       - The application embed has child code-code embeds for package.json, src/App.svelte, src/main.ts, and CSS files.
       - The application embed manifest lists file paths, child embed IDs, framework, runtime, and preview support.
       - The application embed preview shows either the latest screenshot thumbnail or an empty preview placeholder with a play button overlay.
-      - No live E2B sandbox starts until Alice explicitly starts the preview.
+      - Because Alice created the application in this active chat, OpenMates auto-starts one creator-owned preview session after the assistant response completes.
+      - The auto-started session captures and persists the latest screenshot thumbnail, then stops after 1 minute unless Alice opens the preview.
 
   - id: S-10
     title: Fall back from Markdown code fences to an application parent
@@ -142,7 +144,7 @@ scenarios:
     then:
       - The backend creates at most one parent code-application embed referencing those child files.
       - The fallback requires a dependency manifest, at least one recognized source file, and a known entrypoint before creating the parent.
-      - The fallback never starts a preview sandbox automatically.
+      - The fallback never starts a preview sandbox automatically unless it is created in the active authenticated creator chat as part of the just-finished assistant response.
       - If the file set is incomplete, OpenMates leaves the code embeds visible and does not create a misleading application parent.
 
   - id: S-2
@@ -151,13 +153,14 @@ scenarios:
       - Alice has an application embed with E2B preview support.
       - APPLICATION_PREVIEW_ORIGIN is configured as https://openmatesusercontent.org.
     when:
-      - Alice clicks the play button overlay on the screenshot thumbnail in application preview or fullscreen.
+      - Alice opens the generated application preview, or clicks Resume on a stopped or timed-out screenshot thumbnail.
     then:
       - OpenMates shows a credit estimate before or during preview startup.
       - The backend creates an E2B sandbox and writes the selected application files and assets into it.
       - The backend starts the configured frontend or fullstack development server.
       - The fullscreen iframe loads a URL under the configured preview origin.
       - Alice can open the same preview in a new browser window.
+      - Opening the auto-started preview before its one-minute timeout extends the active idle timeout to 5 minutes.
       - The preview URL contains a short-lived signed path token scoped to Alice's preview session.
       - The raw E2B URL and traffic access token are not exposed to the client.
 
@@ -279,12 +282,13 @@ scenarios:
     given:
       - Alice has an active application preview session.
     when:
-      - Alice clicks Stop, closes the fullscreen long enough for the grace period, the preview heartbeat is idle for 5 minutes, or the preview reaches the 30-minute hard duration limit.
+      - Alice never opens the auto-started preview for 1 minute, clicks Stop, closes the fullscreen long enough for the grace period, the opened preview heartbeat is idle for 5 minutes, or the preview reaches the 30-minute hard duration limit.
     then:
       - OpenMates stops or kills the E2B sandbox within configured limits.
       - Billing stops when the sandbox is stopped or killed.
       - Preview logs and a compact status summary remain available for the application session.
       - The latest successful preview screenshot remains visible on the application embed.
+      - The stopped or timed-out embed shows Resume so Alice can explicitly start a new billed session.
       - Ephemeral database state is not treated as durable application storage.
 
 acceptance_criteria:
@@ -293,7 +297,7 @@ acceptance_criteria:
     text: The Code app can create and render an application embed that references child code-code and asset embeds by path through a structured application artifact builder.
   - id: AC-2
     scenario: S-2
-    text: Live preview startup is explicit and never starts an E2B sandbox automatically when an application embed is merely rendered.
+    text: Newly generated application embeds auto-start exactly one creator-owned preview after assistant completion for screenshot capture, while normal rendering, shared chats, example chats, and unauthenticated views never auto-start a sandbox.
   - id: AC-3
     scenario: S-2
     text: Live previews load only through APPLICATION_PREVIEW_ORIGIN using a short-lived signed path token and never expose raw E2B URLs or traffic access tokens to clients.
@@ -314,7 +318,7 @@ acceptance_criteria:
     text: Untrusted application JavaScript runs on a separate user-content origin with iframe sandboxing and no access to OpenMates cookies, storage, parent DOM, vault keys, or browser permissions by default.
   - id: AC-9
     scenario: S-8
-    text: Preview sessions have visible stop controls, a 5-minute idle timeout, a 30-minute hard duration limit, and persistent compact logs/status after stop.
+    text: Auto-started unopened preview sessions stop after 1 minute, opened preview sessions use a 5-minute idle timeout, all sessions keep a 30-minute hard duration limit, and persistent compact logs/status remain after stop.
   - id: AC-10
     scenario: S-8
     text: Full rendered DOM snapshots are not stored in v1; durable state is the encrypted application manifest, child embeds, preview logs, and lightweight screenshot thumbnail only.
@@ -323,10 +327,10 @@ acceptance_criteria:
     text: Application previews can be opened both embedded in fullscreen and in a separate window using the same authorized preview session.
   - id: AC-12
     scenario: S-1
-    text: Privacy policy and provider disclosures explain that E2B receives generated application files and runtime inputs only when a viewer explicitly starts a live preview.
+    text: Privacy policy and provider disclosures explain that E2B receives generated application files and runtime inputs when the creator auto-starts a generated preview or when a viewer explicitly starts or resumes a live preview.
   - id: AC-13
     scenario: S-1
-    text: Application embed preview and fullscreen show a screenshot thumbnail or placeholder with a play button overlay that starts the E2B live preview only on click.
+    text: Application embed preview and fullscreen show a screenshot thumbnail or placeholder with a play/Resume overlay after the auto-start screenshot run stops or times out.
   - id: AC-14
     scenario: S-8
     text: The latest successful preview screenshot is stored as a lightweight encrypted thumbnail and remains available after the E2B session stops.
@@ -401,7 +405,9 @@ contracts:
     - Preview sessions are ephemeral server-side records keyed by session_id and viewer user hash, with application_embed_id, chat_id hash, sandbox_id, E2B exposed ports, status, created_at, updated_at, idle deadline, hard deadline, and billing state.
     - A preview session belongs to exactly one authenticated viewer. Shared recipients get their own session_id, sandbox_id, logs, ephemeral filesystem, and ephemeral database state.
     - Preview gateway tokens are generated per session and stored only as hashes, never in plaintext session records or logs.
-    - The default idle deadline is 5 minutes after the last authenticated viewer heartbeat or foreground preview activity.
+    - Creator auto-start sessions begin with a 1-minute idle deadline for screenshot capture and are marked auto_started=true in server session metadata.
+    - Opening an auto-started session promotes it to an interactive session with a 5-minute idle deadline after the last authenticated viewer heartbeat or foreground preview activity.
+    - Explicit Start/Resume sessions begin with the 5-minute interactive idle deadline.
     - The default hard deadline is 30 minutes after sandbox startup, after which the viewer must explicitly restart a new billed preview session.
     - Preview logs are compact text events capped by size and retained short-term like Code Run outputs.
     - latest_screenshot_ref points to a lightweight encrypted image/file embed or sidecar generated from the latest successful preview state.
@@ -410,8 +416,9 @@ contracts:
   ui_states:
     - Application preview card shows app name, framework/runtime, file count, asset count, preview status, and screenshot thumbnail or placeholder.
     - Application fullscreen has Preview, Files, Logs, Data, and Settings/Info areas where appropriate.
-    - Screenshot thumbnails show a play button overlay when no live preview is running; clicking the overlay starts the preview session.
-    - Start preview, Stop preview, Restart preview, Open in new window, and Copy preview URL actions are visible according to session state and permissions.
+    - Screenshot thumbnails show a play or Resume button overlay when no live preview is running; clicking the overlay starts or resumes a preview session.
+    - The creator's just-generated application may show an auto-starting state while the one-minute screenshot run is queued/starting/running.
+    - Start preview, Resume preview, Stop preview, Restart preview, Open in new window, and Copy preview URL actions are visible according to session state and permissions.
     - Missing preview-origin setup shows an actionable self-host/cloud configuration message.
     - Preview startup shows queued, installing dependencies, starting server, running, failed, stopping, and stopped states.
     - Timed-out preview states distinguish idle timeout from hard duration limit and let the viewer start a new billed session when credits allow.
@@ -422,6 +429,7 @@ contracts:
     - Generated application code must never run on app.openmates.org or any OpenMates origin that holds auth, localStorage, IndexedDB, or service workers.
     - Preview iframes use sandboxing, no-referrer, and a restrictive allow/permissions policy by default.
     - E2B traffic access tokens, raw sandbox URLs, and provider credentials are server-only.
+    - Shared-chat recipients, example/demo chats, unauthenticated users, and users who merely render an existing application embed must never trigger creator auto-start billing.
     - Preview gateway path tokens are scoped to one session, expire with the session idle/hard deadline, are revoked on stop, and authorize only sandbox proxy traffic.
     - Logs and debug output must redact preview gateway tokens from /p/{session_id}/{preview_token}/ URLs.
     - Generated apps receive no OpenMates user secrets, provider API keys, vault keys, production DB credentials, or plaintext chat content beyond the selected generated files/assets needed to run the preview.
@@ -459,6 +467,9 @@ tests:
       - preview status and stop helpers hide sessions from other viewers
       - shared recipients receive a distinct sandbox/session from the creator
       - preview billing uses the configured 5 credits per started minute rate
+      - auto-started unopened preview sessions use a 1-minute screenshot deadline and stop/bill if not opened
+      - opening an auto-started preview promotes it to the 5-minute interactive idle timeout
+      - explicit previews do not wait on the auto-stop deadline
       - stop, 5-minute idle timeout, and 30-minute hard timeout paths release sandbox and billing state
       - the latest available screenshot URL and capture timestamp remain on the preview session after Stop
     red_phase:
@@ -474,9 +485,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "docker:python -m pytest /app/backend/tests/test_application_preview_config.py /app/backend/tests/test_run_application_preview_task.py /app/backend/tests/test_e2b_application_preview.py"
-        timestamp: "2026-06-08T13:29:41Z"
-        notes: "37 focused backend tests passed, including preview-origin validation, manifest payload extraction, queued session creation, route-level worker dispatch, owner-scoped status/stop access, E2B sandbox stop-task dispatch, narrowed encrypted screenshot metadata exposure, screenshot URL preservation after stop, shared-context thumbnail persistence skip, timeout constants, and 5 credits/minute billing."
+        run_id: "docker:python -m pytest /app/backend/tests/test_application_preview_config.py /app/backend/tests/test_run_application_preview_task.py"
+        timestamp: "2026-06-09T08:44:15Z"
+        notes: "36 focused backend tests passed, including preview-origin validation, manifest payload extraction, queued session creation, route-level worker dispatch, owner-scoped status/stop access, auto-start 1-minute screenshot deadline, auto-start open promotion to 5-minute idle timeout, explicit-session no-wait regression coverage, shared-context auto-start rejection, E2B sandbox stop-task dispatch, encrypted screenshot metadata exposure, screenshot URL preservation after stop, shared-context thumbnail persistence skip, timeout constants, and 5 credits/minute billing."
 
   - id: T-PYTEST-APP-MANIFEST-PAYLOAD-001
     type: pytest
@@ -726,8 +737,9 @@ tests:
     assertions:
       - application embed renders project metadata and child file counts
       - application embed renders a screenshot thumbnail or placeholder with a play button overlay
-      - rendering an application embed does not call preview start APIs
-      - clicking the play overlay is the path that calls preview start APIs
+      - rendering an existing, shared, example, or unauthenticated application embed does not call preview start APIs
+      - creator-only auto-start after assistant completion calls the preview start API once for the new application embed
+      - clicking the play or Resume overlay starts a new explicit preview session after the screenshot run stops or times out
       - missing preview origin disables live preview controls
       - application content model omits rendered DOM snapshots
       - provider disclosure text keys exist for E2B application previews
@@ -765,12 +777,14 @@ tests:
     assertions:
       - a generated application appears as one application embed with child files
       - the application embed shows a screenshot thumbnail or preview placeholder with a play overlay
-      - Start preview launches an E2B-backed preview only after user action
+      - creator-owned generated application auto-starts an E2B-backed preview after assistant completion
+      - auto-started preview captures a screenshot and stops after the one-minute unopened timeout
+      - opening the auto-started preview extends the idle timeout to the interactive five-minute window
       - preview iframe URL uses the configured user-content origin
       - React/Svelte frontend preview loads successfully
       - latest screenshot thumbnail remains visible after stopping the preview
       - a follow-up file edit updates the running preview
-      - Stop preview ends the session and leaves compact logs/status
+      - Stop preview ends the session and leaves compact logs/status plus a Resume action
       - Open in new window opens the same authorized preview session
     red_phase:
       required: true

@@ -2,21 +2,25 @@
   frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
 
   Fullscreen workspace for generated application embeds.
-  Uses the application manifest as source of truth and starts a live E2B preview
-  only after the user explicitly clicks Start preview.
+  Uses the application manifest as source of truth and can adopt a creator-owned
+  auto-started E2B preview that was launched after generation.
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { authStore } from '../../../stores/authStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import {
     buildApplicationPreviewSharedContext,
+    getCachedApplicationPreviewSession,
     getApplicationPreviewStatus,
+    openApplicationPreviewSession,
     startApplicationPreview,
     stopApplicationPreview,
+    updateCachedApplicationPreviewSessionStatus,
+    type ApplicationPreviewStatus,
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
@@ -92,6 +96,7 @@
   let canStart = $derived(Boolean(chatId && embedId && !isBusy && previewStatus !== 'running' && previewStatus !== 'starting' && previewStatus !== 'queued'));
   let canStop = $derived(Boolean(sessionId && !isBusy && ['queued', 'starting', 'running'].includes(previewStatus)));
   let canOpenWindow = $derived(Boolean(previewUrl && previewStatus === 'running'));
+  let previewActionLabel = $derived(previewStatus === 'stopped' || previewStatus === 'timeout' ? $text('embeds.application_resume_preview') : $text('embeds.application_start_preview'));
   let previewStatusLabel = $derived.by(() => {
     if (previewStatus === 'idle') return $text('embeds.application_preview_not_started');
     if (previewStatus === 'queued' || previewStatus === 'starting') return $text('common.loading');
@@ -104,6 +109,10 @@
   onDestroy(() => {
     clearStatusPoll();
     if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
+  });
+
+  onMount(() => {
+    void adoptCachedPreviewSession();
   });
 
   function clearStatusPoll() {
@@ -124,15 +133,41 @@
     if (!sessionId || !['queued', 'starting'].includes(previewStatus)) return;
     try {
       const response = await getApplicationPreviewStatus(sessionId);
-      previewStatus = response.status;
-      previewEvents = response.events ?? previewEvents;
-      latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
-      latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
-      void loadEncryptedScreenshot();
+      applyStatusResponse(response);
       if (response.status === 'failed' || response.status === 'timeout') {
         errorMessage = response.error || $text('embeds.application_preview_failed');
         return;
       }
+      if (response.status === 'queued' || response.status === 'starting') {
+        scheduleStatusPoll();
+      }
+    } catch (error) {
+      previewStatus = 'failed';
+      errorMessage = error instanceof Error ? error.message : $text('embeds.application_preview_failed');
+    }
+  }
+
+  function applyStatusResponse(response: ApplicationPreviewStatus) {
+    previewStatus = response.status;
+    previewEvents = response.events ?? previewEvents;
+    latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
+    latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
+    updateCachedApplicationPreviewSessionStatus(chatId, embedId, response.status);
+    void loadEncryptedScreenshot();
+  }
+
+  async function adoptCachedPreviewSession() {
+    const cached = getCachedApplicationPreviewSession(chatId, embedId);
+    if (!cached || sessionId) return;
+    sessionId = cached.session_id;
+    previewUrl = cached.preview_url;
+    previewStatus = cached.status;
+    errorMessage = null;
+    try {
+      const response = cached.auto_started
+        ? await openApplicationPreviewSession(cached.session_id)
+        : await getApplicationPreviewStatus(cached.session_id);
+      applyStatusResponse(response);
       if (response.status === 'queued' || response.status === 'starting') {
         scheduleStatusPoll();
       }
@@ -176,11 +211,9 @@
     try {
       const response = await stopApplicationPreview(sessionId);
       previewStatus = response.status as ApplicationPreviewStatusValue;
+      updateCachedApplicationPreviewSessionStatus(chatId, embedId, previewStatus);
       const status = await getApplicationPreviewStatus(sessionId);
-      previewEvents = status.events ?? previewEvents;
-      latestScreenshotUrl = status.latest_screenshot_url ?? latestScreenshotUrl;
-      latestScreenshotRef = (status.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
-      void loadEncryptedScreenshot();
+      applyStatusResponse(status);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : $text('embeds.application_preview_stop_failed');
     } finally {
@@ -255,7 +288,7 @@
         <button class="secondary-action" data-testid="application-open-preview-window" type="button" onclick={handleOpenPreviewWindow}>{$text('embeds.application_open_preview_window')}</button>
       {/if}
       <button class="primary-action" data-testid="application-start-preview" type="button" onclick={handleStartPreview} disabled={!canStart}>
-        {$text('embeds.application_start_preview')}
+        {previewActionLabel}
       </button>
     </div>
   {/snippet}
@@ -272,9 +305,10 @@
             <p>{$text('embeds.application_ready')}</p>
           </div>
         {:else if screenshotUrl}
-          <button class="screenshot-preview" data-testid="application-fullscreen-screenshot" type="button" onclick={handleStartPreview} disabled={!canStart} aria-label={$text('embeds.application_start_preview')}>
+          <button class="screenshot-preview" data-testid="application-fullscreen-screenshot" type="button" onclick={handleStartPreview} disabled={!canStart} aria-label={previewActionLabel}>
             <img src={screenshotUrl} alt="" />
             <span class="play-overlay" aria-hidden="true">▶</span>
+            {#if previewStatus === 'stopped' || previewStatus === 'timeout'}<span class="resume-label">{previewActionLabel}</span>{/if}
           </button>
         {:else}
           <div class="empty-preview">
@@ -416,6 +450,18 @@
     background: var(--color-app-code);
     box-shadow: 0 4px 14px rgb(0 0 0 / 20%);
     font-size: 18px;
+  }
+
+  .resume-label {
+    position: absolute;
+    inset: calc(50% + 36px) auto auto 50%;
+    transform: translateX(-50%);
+    border-radius: var(--radius-full);
+    padding: var(--spacing-1) var(--spacing-3);
+    color: var(--color-font-button);
+    background: var(--color-app-code);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+    font-weight: 600;
   }
 
   .empty-preview {

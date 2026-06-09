@@ -25,6 +25,7 @@ from toon_format import decode as toon_decode
 from toon_format import encode as toon_encode
 
 from backend.core.api.app.routes.application_preview import (
+    APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS,
     APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
     APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
     application_preview_session_key,
@@ -85,6 +86,7 @@ async def run_application_preview_session(
     session_id: str,
     payload: dict[str, Any],
     provider_start: ProviderStart | None = None,
+    provider_stop: ProviderStop | None = None,
     thumbnail_store: ThumbnailStore | None = None,
     now: float | None = None,
 ) -> None:
@@ -141,6 +143,14 @@ async def run_application_preview_session(
                 "events+": [{"kind": "status", "text": "Application preview is running.", "timestamp": running_at}],
             },
         )
+        if now is None:
+            await _stop_unopened_auto_started_session_after_deadline(
+                cache_service=cache_service,
+                session_id=session_id,
+                sandbox_id=runtime.sandbox_id,
+                api_key=str(payload.get("api_key") or ""),
+                provider_stop=provider_stop,
+            )
     except Exception as exc:
         safe_error = redact_execution_output(str(exc))
         logger.error("Application preview session %s failed: %s", session_id, safe_error, exc_info=True)
@@ -268,6 +278,56 @@ async def _patch_session(cache_service: Any, session_id: str, patch: dict[str, A
     if events:
         data.setdefault("events", []).extend(events)
     await client.set(application_preview_session_key(session_id), json.dumps(data), ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS)
+
+
+async def _stop_unopened_auto_started_session_after_deadline(
+    *,
+    cache_service: Any,
+    session_id: str,
+    sandbox_id: str,
+    api_key: str,
+    provider_stop: ProviderStop | None,
+) -> None:
+    client = await cache_service.client
+    raw = await client.get(application_preview_session_key(session_id))
+    if not raw:
+        return
+
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    if data.get("auto_started") is not True:
+        return
+
+    await asyncio.sleep(APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS)
+    raw = await client.get(application_preview_session_key(session_id))
+    if not raw:
+        return
+
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    if data.get("auto_started") is not True or data.get("auto_opened_at") is not None:
+        return
+    if data.get("status") not in {"queued", "starting", "running"}:
+        return
+
+    stopped_at = time.time()
+    await _patch_session(
+        cache_service,
+        session_id,
+        {
+            "status": "timeout",
+            "stop_reason": "auto_unopened_timeout",
+            "sandbox_stop_requested_at": stopped_at,
+            "updated_at": stopped_at,
+            "events+": [{"kind": "status", "text": "Auto-started preview timed out before it was opened.", "timestamp": stopped_at}],
+        },
+    )
+    await stop_application_preview_sandbox(
+        cache_service=cache_service,
+        session_id=session_id,
+        sandbox_id=sandbox_id,
+        api_key=api_key,
+        provider_stop=provider_stop,
+        now=stopped_at,
+    )
 
 
 async def _charge_preview_if_needed(

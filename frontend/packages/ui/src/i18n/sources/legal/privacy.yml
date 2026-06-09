@@ -5453,7 +5453,8 @@ providers.code_execution.description:
   context: Description of Group F
   en: >-
     These providers are only used when you invoke a code app skill, such as
-    searching public repositories, running code in an isolated sandbox, or
+    searching public repositories, running code in an isolated sandbox, creating
+    a generated application that auto-starts a short screenshot preview, or
     explicitly starting a generated application live preview. If you never use
     the code app, none of your data is shared with them.
   verified_by_human: []
@@ -5489,7 +5490,8 @@ providers.code_execution.e2b.description:
     isolated sandboxes. E2B receives the code or generated application files and
     assets you choose to run, runtime inputs, preview logs, and execution output
     needed to run and display the sandbox result. This sharing only happens when
-    you explicitly run code or start an application live preview.
+    you explicitly run code, create a generated application that auto-starts a
+    short screenshot preview, or start/resume an application live preview.
   verified_by_human: []
 providers.web_and_search.heading:
   context: Subheading for Group F providers (web and search)

@@ -15,6 +15,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.routes.application_preview import (
+    APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS,
     APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
     APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS,
     APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS,
@@ -31,6 +32,7 @@ from backend.core.api.app.routes.application_preview import (
     create_application_preview_session_and_dispatch,
     calculate_preview_charge_credits,
     get_application_preview_session,
+    promote_application_preview_session,
     start_application_preview,
     stop_application_preview_session,
     validate_application_preview_origin,
@@ -159,6 +161,22 @@ def test_preview_session_record_is_viewer_scoped_and_timeout_bounded() -> None:
     assert "creator_user_id" not in record
 
 
+def test_auto_started_preview_session_uses_short_screenshot_deadline() -> None:
+    record = build_preview_session_record(
+        session_id="session-1",
+        viewer_user_id="alice-user",
+        chat_id="chat-1",
+        application_embed_id="app-embed-1",
+        now=1_000.0,
+        auto_started=True,
+        source_message_id="assistant-message-1",
+    )
+
+    assert record["auto_started"] is True
+    assert record["source_message_id"] == "assistant-message-1"
+    assert record["idle_deadline"] == 1_000.0 + APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS
+
+
 def test_preview_billing_reuses_code_run_started_minute_rate() -> None:
     assert APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE == 5
     assert calculate_preview_charge_credits(0) == 0
@@ -168,6 +186,7 @@ def test_preview_billing_reuses_code_run_started_minute_rate() -> None:
 
 
 def test_preview_timeout_policy_matches_spec() -> None:
+    assert APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS == 60
     assert APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS == 5 * 60
     assert APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS == 30 * 60
 
@@ -483,6 +502,24 @@ async def test_start_application_preview_route_resolves_payload_and_dispatches_w
 
 
 @pytest.mark.anyio
+async def test_auto_started_preview_rejects_client_shared_context() -> None:
+    fake_request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await start_application_preview(
+            application_embed_id="app-embed-1",
+            body=ApplicationPreviewStartRequest(chat_id="shared-chat-1", shared_context="{}", auto_started=True),
+            request=fake_request,
+            current_user=_user("bob-user"),
+            cache_service=FakeCache(),
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+        )
+
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.anyio
 async def test_get_preview_session_hides_records_from_other_viewers() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -539,6 +576,32 @@ def test_public_preview_status_excludes_gateway_secrets_and_raw_upstream() -> No
     assert "preview_token_hash" not in public_payload
     assert "upstream_base_url" not in public_payload
     assert "vault_wrapped_aes_key" not in json.dumps(public_payload)
+
+
+@pytest.mark.anyio
+async def test_open_auto_started_preview_promotes_idle_deadline_once() -> None:
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1", auto_started=True, source_message_id="assistant-message-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+    )
+
+    stored = await get_application_preview_session(cache, "session-1", _user("alice-user"))
+    stored["status"] = "running"
+    await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
+
+    response = await promote_application_preview_session(cache, "session-1", _user("alice-user"), now=2_030.0)
+    promoted = await get_application_preview_session(cache, "session-1", _user("alice-user"))
+
+    assert response.auto_started is True
+    assert response.auto_opened_at == 2_030.0
+    assert promoted["auto_opened_at"] == 2_030.0
+    assert promoted["idle_deadline"] == 2_030.0 + APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS
 
 
 @pytest.mark.anyio
