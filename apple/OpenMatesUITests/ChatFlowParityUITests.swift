@@ -48,6 +48,21 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow parity hierarchy")
     }
 
+    func testVisualChatFlowSurfaceUsesProductChromeOnly() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-visual-snapshot"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launchEnvironment["UI_TEST_VISUAL_SNAPSHOT"] = "1"
+        app.launch()
+
+        let latestAssistantMessage = app.staticTexts["Latest assistant response visible after bounded open"]
+        XCTAssertTrue(latestAssistantMessage.waitForExistence(timeout: 12))
+        XCTAssertFalse(app.staticTexts["Native Chat Opening Preview"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+
+        attachScreenshot(name: "Seeded chat-flow visual snapshot")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
