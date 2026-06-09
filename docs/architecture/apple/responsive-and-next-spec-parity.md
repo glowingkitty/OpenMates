@@ -12,12 +12,14 @@ Last updated: 2026-06-09
 - `ChatFlowParityUITests` covers deterministic seeded chat hierarchy and no default table chrome.
 - `MessageInputAttachmentUITests` covers simulator-safe pending attachment structure.
 - `MessageInputAudioRecordingUITests` covers simulator-safe record button and recording overlay structure.
+- `ChatShellResponsiveParityUITests` covers shell-level sidebar responsiveness on the real unauthenticated native shell.
+- Verified on iPhone 17 simulator: compact shell reports drawer panel mode and opens the chat history panel from `sidebar-toggle`.
+- Verified on iPad Pro 13-inch (M5) simulator: regular shell reports side-by-side panel mode and keeps active chat visible after `sidebar-toggle`.
 
 ## Current Responsive Testing Gaps
 
 - No automated Apple test resizes macOS windows from small to fullscreen.
 - No automated Apple test currently runs the macOS target for app shell parity.
-- No automated shell-level responsive test proves compact sidebar drawer behavior versus regular side-by-side panel behavior.
 - No responsive coverage exists yet for settings pages, auth screens, embed fullscreen, search, chat context menus, or public/demo chat cards.
 - Visual/pixel checks are still warning-only; current tests prove structural/testability and breakpoint decisions, not exact screenshot equality.
 
@@ -60,7 +62,7 @@ Last updated: 2026-06-09
 
 ## Responsive Expansion Plan
 
-- Add shell responsive tests for compact iPhone drawer versus regular iPad side panel using the same debug preview approach.
+- Extend shell responsive tests to authenticated chat lists and settings overlays after simulator credential setup is stable.
 - Add a macOS UI test path or remote run command that launches `OpenMates_macOS`, resizes the window to narrow and fullscreen widths, and captures screenshots.
 - Promote one visual check at a time only after two clean simulator runs and screenshot review against rendered web reference captures.
 - Extend `apple-ui-contracts.spec.ts` to capture responsive variants for chat header, transcript, sidebar, composer, and embed fullscreen at mobile/tablet/desktop widths.
