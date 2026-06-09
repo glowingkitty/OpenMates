@@ -218,7 +218,7 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	logCheckpoint('Focus mode settings test completed successfully.');
 });
 
-test('Deep research focus mode does not show placeholder example chats before approval', async ({
+test('Deep research focus mode shows its approved example chat', async ({
 	page
 }: {
 	page: any;
@@ -249,7 +249,12 @@ test('Deep research focus mode does not show placeholder example chats before ap
 	await takeStepScreenshot(page, 'deep-research-detail-opened');
 
 	await expect(page.getByTestId('focus-mode-details')).toBeVisible({ timeout: 8000 });
-	await expect(page.locator(SELECTORS.focusModeExampleChats)).toHaveCount(0);
+	const examplesSection = page.locator(SELECTORS.focusModeExampleChats);
+	await expect(examplesSection).toBeVisible({ timeout: 8000 });
+	await expect(examplesSection.getByTestId('app-store-example-chat-card')).toHaveCount(1);
+	await expect(examplesSection.getByTestId('resume-large-title')).toContainText(
+		'Why US Egg Prices Stayed High'
+	);
 	await assertNoMissingTranslations(page);
-	logCheckpoint('Deep research has no placeholder examples section before approved example metadata exists.');
+	logCheckpoint('Deep research shows the approved example chat without missing translations.');
 });
