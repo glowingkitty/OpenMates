@@ -1,0 +1,479 @@
+id: apple-example-chat-visual-parity
+title: Apple Example Chat Visual Parity Review Pipeline
+status: approved
+
+goal: >
+  Create a repeatable visual parity pipeline for every public example chat so
+  the web app remains the rendered source of truth and Apple screenshots can be
+  reviewed by an agent for visible differences. The first version captures
+  browser-rendered styles, layout bounds, and screenshots for each example chat,
+  renders the matching Apple example-chat state on iPhone and iPad simulators,
+  pairs the artifacts, and produces an agent-readable visual-diff report instead
+  of failing on exact screenshot pixels.
+
+scope:
+  in:
+    - Enumerating all registered hardcoded example chats from `exampleChatStore.ts` or an equivalent exported manifest.
+    - Playwright capture of rendered web screenshots, layout bounds, computed styles, visible text, and embed surface metadata for each example chat.
+    - Apple debug/test rendering of the same example-chat content without private accounts, secrets, or network-only dependencies.
+    - iPhone and iPad simulator screenshot attachment/export for each example-chat visual state.
+    - Artifact pairing by stable chat slug/id, viewport, color scheme, and scroll position.
+    - Agent-reviewed visual comparison that reports differences in layout, spacing, typography, colors, missing content, clipped content, embed rendering, and platform chrome.
+    - Deterministic failure gates only for missing artifacts, malformed contracts, missing required identifiers, forbidden native product controls, and unreviewed critical visual reports.
+  out:
+    - Exact pixel-diff failure gates for all example chats in v1.
+    - Replacing human/agent visual judgment with screenshot hashes.
+    - Rewriting the example-chat data model unless a minimal manifest/export seam is required.
+    - Real physical-device-only verification for camera, microphone, APNs, or OS-owned pickers.
+    - Production API or backend changes.
+    - Committing private user screenshots, credentials, hostnames, IP addresses, device names, or raw logs.
+
+context_discovery:
+  github_issues:
+    - "No specific GitHub issue was provided for this parity spec. Existing context comes from the current Apple parity session and committed specs."
+  docs:
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+  code_patterns:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/styles/chat.css
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    - scripts/apple_ui_contracts.py
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  tests:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/DevPreview/DevExampleChatPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMatesUITests/ExampleChatVisualParityUITests.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json
+  parity_expectations:
+    - Web screenshots and computed styles are captured from the rendered browser state, not inferred from Svelte source alone.
+    - Apple screenshots render the same synthetic example-chat content with product chrome only; debug counters/probes are not included in visual artifacts.
+    - Agent review is the v1 authority for visible screenshot differences; deterministic scripts only enforce artifact completeness, schema validity, and review workflow status.
+  verification:
+    - "`python3 scripts/run_tests.py --spec apple-example-chat-visual-contracts.spec.ts` after deployment to capture web artifacts from `app.dev.openmates.org`."
+    - "`python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json --surface example-chats`."
+    - Remote Mac `xcodebuild test` for `OpenMatesUITests/ExampleChatVisualParityUITests` on iPhone 17 and iPad Pro 13-inch (M5).
+    - Agent visual review over paired web/native screenshots and generated style/layout summaries.
+  intentional_native_differences:
+    - Native status bars, safe areas, text rasterization, and system-owned controls may differ; the agent report must classify these separately from product UI drift.
+    - Pixel-perfect screenshot matching is explicitly warning-only/out of scope for v1.
+    - Dark/light color scheme differences are only acceptable when the paired web artifact uses the same color scheme or the report marks the mismatch as an environment setup issue.
+
+clarification:
+  rounds:
+    - question: For the broader example-chat visual contract spec, should v1 require exact screenshot pixel comparison, or start with rendered-style/layout metrics plus human-reviewed screenshots before promoting pixel thresholds?
+      answer: >
+        The screenshots are supposed to be interpreted by an agent to see visual
+        differences between the web app and app version. Do not make exact pixel
+        comparison the v1 gate.
+  vision_summary: >
+    The user wants a broad visual parity workflow for example chats, but the
+    screenshots should be reviewed semantically by an agent rather than compared
+    as exact pixels. The web app remains the rendered source of truth, Apple must
+    render matching product states, and the pipeline should produce reliable
+    artifact pairs plus clear visual-difference reports.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Web captures every example chat as the visual source of truth
+    given:
+      - The registered example-chat manifest contains all public example chats.
+      - The dev web app can render an example chat route without private credentials.
+    when:
+      - The web visual-contract Playwright spec runs for the configured mobile and tablet/desktop-equivalent viewports.
+    then:
+      - Each example chat has a screenshot artifact at a deterministic scroll position such as latest-turn/bottom.
+      - Each example chat has a JSON contract containing slug/id, viewport, color scheme, visible messages, visible embeds, computed styles, layout bounds, and screenshot path.
+      - Missing routes, missing screenshots, clipped content, or selector failures fail the Playwright run.
+
+  - id: S-2
+    title: Apple renders the same example chats without debug chrome
+    given:
+      - A committed or generated example-chat web contract fixture exists.
+      - The Apple app has a DEBUG-only test route that can load a named example chat from synthetic bundled data.
+    when:
+      - The Apple example-chat visual parity UI test runs on iPhone and iPad simulators.
+    then:
+      - The native app renders product chat chrome only, excluding debug titles, counters, probes, or private account data.
+      - Each configured example chat produces a screenshot attachment paired with the same slug/id and viewport category as the web artifact.
+      - The UI test fails when the chat cannot render, the latest expected content is missing, a required accessibility identifier is absent, or forbidden default native product controls appear.
+
+  - id: S-3
+    title: Artifact validation pairs web and Apple evidence
+    given:
+      - Web contract artifacts and Apple screenshot exports exist for a test run.
+    when:
+      - The contract validation and pairing command runs.
+    then:
+      - Every registered example chat has matching web/native artifacts for required device classes.
+      - Artifacts are named and indexed by chat slug/id, viewport, color scheme, scroll anchor, and run id.
+      - Private values, local Mac paths, hostnames, IP addresses, private emails, and volatile IDs are rejected or redacted.
+      - The output contains a manifest suitable for agent visual review.
+
+  - id: S-4
+    title: Agent reviews screenshots for visible product differences
+    given:
+      - A paired artifact manifest contains web and Apple screenshots plus computed-style/layout summaries.
+    when:
+      - An agent runs the visual review workflow.
+    then:
+      - The report lists material visual differences such as missing messages, wrong bubble alignment, wrong avatar size, clipped embeds, wrong colors, typography drift, spacing drift, missing tails, product chrome leakage, and status/safe-area issues.
+      - Each finding includes severity, affected chat slug/id, device class, screenshot references, and likely source area.
+      - Platform-only differences such as status bar placement and text rasterization are classified separately and do not block unless they obscure product UI.
+
+  - id: S-5
+    title: Review status gates parity completion without pixel thresholds
+    given:
+      - An agent visual review report exists for the current artifacts.
+    when:
+      - The parity verification command runs before deploy or completion.
+    then:
+      - The command fails if any required artifact is missing, any required chat is unreviewed, or any critical/high material product drift remains unresolved or explicitly accepted.
+      - The command does not fail solely because screenshots differ at the pixel level without an agent-classified material issue.
+      - Accepted native differences are recorded with a reason and remain visible in future reports.
+
+  - id: S-6
+    title: New example chats are automatically included
+    given:
+      - A developer adds a new example chat to the registered example-chat store.
+    when:
+      - The web contract and Apple visual parity workflows run.
+    then:
+      - The new chat is discovered automatically from the manifest or fails validation if it cannot be rendered.
+      - The developer does not need to manually edit a hardcoded test list unless the chat needs a documented native exception.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web Playwright captures screenshot and computed-style/layout contracts for every registered example chat at required viewports.
+  - id: AC-2
+    scenario: S-2
+    text: Apple UI tests render the matching example chats on iPhone and iPad simulators with product chrome only and export screenshot attachments.
+  - id: AC-3
+    scenario: S-3
+    text: A validation/pairing command proves every required web/native artifact exists, is sanitized, and is indexed for review.
+  - id: AC-4
+    scenario: S-4
+    text: Agent visual review reports material product UI differences between web and Apple screenshots with severity, references, and likely source areas.
+  - id: AC-5
+    scenario: S-5
+    text: Completion is gated by artifact completeness and reviewed/unresolved material issues, not by exact pixel matching.
+  - id: AC-6
+    scenario: S-6
+    text: Adding a new registered example chat automatically includes it in the visual parity workflow or fails with a clear missing-artifact error.
+
+contracts:
+  api:
+    - No production API changes are required.
+    - Apple DEBUG/test-only launch arguments may select an example chat slug/id and visual snapshot mode.
+    - Test-only launch arguments must not be available as user-facing production navigation.
+  data:
+    - Example-chat manifest fields include `chat_id`, `slug`, `title`, `category`, `icon`, `messageCount`, and optional embed/type summary.
+    - Web contract artifact schema includes `schemaVersion`, `surface: example-chats`, `generatedAt`, `sourceCommit`, `viewport`, `colorScheme`, `chats`, `states`, `elements`, `computedStyle`, `layoutBounds`, `screenshotPath`, and `redactions`.
+    - Apple artifact manifest includes `schemaVersion`, `surface: example-chats`, `sourceCommit`, `simulator`, `viewportClass`, `colorScheme`, `chat_id`, `slug`, `screenshotPath`, `xcresultPath`, and `testIdentifier`.
+    - Pairing manifest includes one web/native artifact pair per `chat_id`, viewport class, color scheme, and scroll anchor.
+    - Agent review report includes `reviewedAt`, `reviewer`, `sourceCommit`, `pairs`, `findings`, `acceptedDifferences`, and `unresolvedBlockingFindings`.
+  ui_states:
+    - Example chat latest-turn/bottom state.
+    - Chat header/banner state when present.
+    - Visible assistant and user message bubbles.
+    - Visible embed previews and generated content cards.
+    - Follow-up/composer row for example chats.
+    - iPhone compact/stacked message layout.
+    - iPad regular side-by-side message layout.
+  privacy_security:
+    - Only public hardcoded example-chat content may be committed in fixtures.
+    - Runtime screenshots from private accounts must not be promoted into committed fixtures.
+    - Artifacts must redact local paths, hostnames, IP addresses, private emails, raw test credentials, and generated private chat IDs.
+    - Agent review prompts must not include secrets or private remote connection details.
+
+tests:
+  - id: T-WEB-EXAMPLE-CONTRACTS
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-example-chat-visual-contracts.spec.ts
+    command: python3 scripts/run_tests.py --spec apple-example-chat-visual-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-6
+    assertions:
+      - all registered example chats are discovered from a manifest/store export
+      - each example chat route renders at required viewport(s)
+      - each chat writes a sanitized screenshot and JSON contract entry
+      - contract entries include visible message/embed summaries and computed style/layout data
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CONTRACT-VALIDATE
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json --surface example-chats
+    covers:
+      - AC-3
+      - AC-6
+    assertions:
+      - fixture schema is valid
+      - every registered example chat has required web artifact metadata
+      - private or volatile values are rejected
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        timestamp: ""
+
+  - id: T-APPLE-EXAMPLE-VISUAL-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/ExampleChatVisualParityUITests.swift
+    command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/ExampleChatVisualParityUITests
+    covers:
+      - AC-2
+      - AC-3
+      - AC-6
+    assertions:
+      - every required example chat renders in visual snapshot mode
+      - screenshots attach for each chat without debug title/counter/probe chrome
+      - latest expected content is visible
+      - no default `Table`/`List` product chrome appears
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        timestamp: ""
+
+  - id: T-APPLE-EXAMPLE-VISUAL-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/ExampleChatVisualParityUITests.swift
+    command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPad Pro 13-inch (M5)" -only-testing OpenMatesUITests/ExampleChatVisualParityUITests
+    covers:
+      - AC-2
+      - AC-3
+      - AC-6
+    assertions:
+      - every required example chat renders in visual snapshot mode
+      - screenshots attach for each chat without debug title/counter/probe chrome
+      - latest expected content is visible
+      - no default `Table`/`List` product chrome appears
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        timestamp: ""
+
+  - id: T-AGENT-VISUAL-REVIEW
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py review-visual --surface example-chats --manifest test-results/apple-ui-contracts/example-chats/pairs.json
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - every artifact pair has been reviewed by an agent or is explicitly marked unavailable with a reason
+      - report lists material differences with severity and screenshot references
+      - unresolved critical/high product UI differences fail verification
+      - exact pixel mismatch alone does not fail without a material finding
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    - scripts/apple_ui_contracts.py
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  architecture: >
+    Extend the existing web-rendered contract pipeline with an `example-chats`
+    surface. Playwright discovers all registered example chats and writes web
+    screenshots plus normalized style/layout contracts. Apple uses a DEBUG-only
+    visual snapshot route to render the same chat data on simulators, exports
+    XCUITest screenshots, and a pairing/review command prepares artifacts for an
+    agent to inspect. Deterministic scripts fail missing or unsafe artifacts and
+    unresolved material review findings, but do not enforce exact screenshot
+    pixels in v1.
+  data_flow:
+    - Export or derive a public example-chat manifest from the existing example-chat store.
+    - Playwright opens each web example chat at required viewport/color-scheme combinations.
+    - Playwright captures screenshots and computed style/layout contracts into `test-results/apple-ui-contracts/example-chats/`.
+    - A promotion/validation path creates `apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json` when artifacts are intentionally accepted.
+    - Apple XCUITest launches visual snapshot mode for each required chat on iPhone and iPad simulators.
+    - XCUITest result attachments are exported and paired with web artifacts.
+    - An agent reviews paired screenshots and writes a visual findings report.
+    - Verification fails only on missing artifacts, unsafe data, unreviewed required pairs, or unresolved material product drift.
+  affected_files:
+    - path: frontend/apps/web_app/tests/apple-example-chat-visual-contracts.spec.ts
+      reason: Capture web source-of-truth screenshots and computed contracts for every example chat.
+    - path: frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+      reason: Reuse/extend capture helpers for full chat transcript/header/embed surfaces.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      reason: Provide a deterministic public manifest export if existing imports are not test-friendly.
+    - path: scripts/apple_ui_contracts.py
+      reason: Validate, pair, promote, and review example-chat artifacts.
+    - path: apple/OpenMates/Sources/DevPreview/DevExampleChatPreviewView.swift
+      reason: Render named example chats in DEBUG visual snapshot mode.
+    - path: apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+      reason: Route UI-test launch arguments to the example-chat preview.
+    - path: apple/OpenMatesUITests/ExampleChatVisualParityUITests.swift
+      reason: Capture native screenshots for required example chats and device classes.
+    - path: apple/OpenMates.xcodeproj/project.pbxproj
+      reason: Add new UI test source if required by the project file.
+    - path: apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json
+      reason: Store promoted web contract fixture for native tests/audits.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-example-chat-visual-parity/spec.yml
+    - python3 scripts/run_tests.py --spec apple-example-chat-visual-contracts.spec.ts
+    - python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json --surface example-chats
+    - Remote Mac iPhone `xcodebuild test` for `ExampleChatVisualParityUITests`.
+    - Remote Mac iPad `xcodebuild test` for `ExampleChatVisualParityUITests`.
+    - python3 scripts/apple_ui_contracts.py review-visual --surface example-chats --manifest test-results/apple-ui-contracts/example-chats/pairs.json
+    - python3 scripts/spec_verify.py docs/specs/apple-example-chat-visual-parity/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Capture web example-chat visual contracts
+    covers:
+      scenarios:
+        - S-1
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+    expected_files:
+      - frontend/apps/web_app/tests/apple-example-chat-visual-contracts.spec.ts
+      - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    verification:
+      - T-WEB-EXAMPLE-CONTRACTS
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add example-chat contract validation and pairing
+    covers:
+      scenarios:
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+        - AC-6
+    expected_files:
+      - scripts/apple_ui_contracts.py
+      - apple/OpenMatesUITests/Fixtures/WebUIContracts/example-chats.json
+    verification:
+      - T-CONTRACT-VALIDATE
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Render Apple example-chat visual snapshots
+    covers:
+      scenarios:
+        - S-2
+        - S-6
+      acceptance_criteria:
+        - AC-2
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/DevPreview/DevExampleChatPreviewView.swift
+      - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+      - apple/OpenMatesUITests/ExampleChatVisualParityUITests.swift
+      - apple/OpenMates.xcodeproj/project.pbxproj
+    verification:
+      - T-APPLE-EXAMPLE-VISUAL-IPHONE
+      - T-APPLE-EXAMPLE-VISUAL-IPAD
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Add agent visual review workflow
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+    expected_files:
+      - scripts/apple_ui_contracts.py
+      - docs/architecture/apple/responsive-and-next-spec-parity.md
+    verification:
+      - T-AGENT-VISUAL-REVIEW
+    independently_deployable: true
+
+risks:
+  - Long all-example-chat screenshot runs may be slow; the implementation should support chunking while preserving an all-chat verification mode.
+  - Screenshots can be noisy across OS versions and color schemes; v1 mitigates this by using agent semantic review rather than pixel gates.
+  - Apple may not yet have native renderers for every web embed type used by example chats; those should become explicit findings rather than hidden failures.
+  - Debug preview routes must not leak into production or user navigation.
+
+open_questions:
+  - Should the first implementation run all 46+ example chats by default, or chunk by category in CI while keeping a full local/nightly command?
+  - Which color scheme should be canonical for v1: light, dark, or both paired explicitly?
+  - Should the agent review report be committed for baseline examples, or stored only as test artifacts until findings stabilize?
