@@ -4722,6 +4722,7 @@
     role="none"
     onmousedown={handleMessageWrapperMouseDown}
     data-action="message-input"
+    data-current-chat-id={currentChatId ?? 'new-chat'}
 >
     <!-- Edit mode banner — shown when user is editing a previous message -->
     {#if $editMessageStore && $editMessageStore.chatId === currentChatId}

@@ -397,6 +397,7 @@ async function startNewChat(
 	await page.waitForTimeout(1000);
 
 	const currentUrl = page.url();
+	const previousChatId = currentUrl.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
 	// If the editor has focus, the adjacent new-chat CTA is intentionally hidden.
@@ -449,6 +450,15 @@ async function startNewChat(
 	}
 
 	const newUrl = page.url();
+	if (clicked && previousChatId) {
+		const messageInput = page.locator('[data-action="message-input"]').last();
+		await expect(async () => {
+			const contextId = await messageInput.getAttribute('data-current-chat-id');
+			expect(contextId).toBeTruthy();
+			expect(contextId).not.toBe(previousChatId);
+		}).toPass({ timeout: 10000 });
+		logCheckpoint('Message input rebound to new chat context.');
+	}
 	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
 }
 
@@ -463,7 +473,8 @@ async function sendMessage(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	stepLabel: string = 'msg'
 ): Promise<void> {
-	const messageEditor = page.getByTestId('message-editor');
+	const messageField = page.getByTestId('message-field').last();
+	const messageEditor = messageField.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	const userMessages = page.getByTestId('message-user');
 	const assistantMessages = page.getByTestId('message-assistant');
@@ -475,7 +486,7 @@ async function sendMessage(
 	logCheckpoint(`Typed message: "${message}"`);
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
-	const sendButton = page.locator('[data-action="send-message"]');
+	const sendButton = messageField.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	await sendButton.click();
