@@ -18,6 +18,7 @@ import SwiftUI
 struct DevChatOpeningPreviewView: View {
     private let fixture = DevChatOpeningFixture.make()
     @StateObject private var chatStore = ChatStore()
+    @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
 
     private var initialWindow: [Message] {
@@ -25,22 +26,37 @@ struct DevChatOpeningPreviewView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                header
 
-            if seeded {
-                ChatView(
-                    chatId: fixture.chat.id,
-                    initialChat: fixture.chat,
-                    initialMessages: initialWindow,
-                    initialEmbeds: [],
-                    chatStore: chatStore
+                if seeded {
+                    ChatView(
+                        chatId: fixture.chat.id,
+                        initialChat: fixture.chat,
+                        initialMessages: initialWindow,
+                        initialEmbeds: [],
+                        chatStore: chatStore
+                    )
+                } else {
+                    ProgressView()
+                        .tint(.fontSecondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.grey20)
+                }
+            }
+
+            if isUITestRecordingOverlayForced {
+                ComposerRecordingOverlay(
+                    recorder: uiTestRecorder,
+                    dragOffsetX: 0,
+                    onStop: { _ in },
+                    onCancel: {}
                 )
-            } else {
-                ProgressView()
-                    .tint(.fontSecondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.grey20)
+                .frame(maxWidth: 1000)
+                .frame(height: 400)
+                .padding(.horizontal, .spacing4)
+                .padding(.bottom, .spacing3)
             }
         }
         .background(Color.grey0.ignoresSafeArea())
@@ -74,6 +90,11 @@ struct DevChatOpeningPreviewView: View {
             chatStore.setMessages(for: fixture.chat.id, messages: fixture.messages)
         }
         seeded = true
+    }
+
+    private var isUITestRecordingOverlayForced: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
     }
 }
 
