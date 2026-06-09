@@ -396,11 +396,20 @@ async def _dispatch_sub_chat_parent_continuation(
 def _build_sub_chat_completion_context(pending_context: dict[str, Any]) -> str:
     completed = pending_context.get("completed") if isinstance(pending_context.get("completed"), dict) else {}
     expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
+    parent_request_data = pending_context.get("parent_request_data") if isinstance(pending_context.get("parent_request_data"), dict) else {}
     lines = [
         "The waited sub-chats have completed. Use the reports below to answer the user's original request.",
         "Do not call start_sub_chats again for these same reports; synthesize the final parent response now.",
         "",
     ]
+    if parent_request_data.get("active_focus_id") == "web-research":
+        lines.extend([
+            "Deep research final response requirements:",
+            "- Synthesize the reports into one final answer; do not copy child report headings, sub-chat IDs, or raw JSON/code/embed blocks.",
+            "- Use exactly these Markdown level-2 headings, in this order: Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, Bottom Line.",
+            "- Explicitly separate confirmed evidence from inference where the user's question asks for that distinction.",
+            "",
+        ])
     for index, chat_id in enumerate(expected_ids, start=1):
         summary = completed.get(chat_id, {}).get("summary") if isinstance(completed.get(chat_id), dict) else None
         lines.append(f"## Sub-chat {index}: {chat_id}")
