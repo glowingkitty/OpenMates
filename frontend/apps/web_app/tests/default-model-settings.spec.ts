@@ -323,18 +323,17 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 		const toggleWrapper2 = autoSelectRow2.locator('[role="button"]').first();
 		await toggleWrapper2.click();
 		logCheckpoint('Toggled auto-select back ON.');
-		await page.waitForTimeout(1000);
+
+		// Assert before taking screenshots so the transient toast cannot expire first.
+		const notification3 = page.getByTestId('notification');
+		await expect(notification3).toBeVisible({ timeout: 5000 });
+		await expect(notification3).toContainText(
+			"Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'"
+		);
+		logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
 	}
 
 	await takeStepScreenshot(page, '04-auto-select-on');
-
-	// Wait for the success notification with descriptive change text
-	const notification3 = page.getByTestId('notification');
-	await expect(notification3).toBeVisible({ timeout: 5000 });
-	await expect(notification3).toContainText(
-		"Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'"
-	);
-	logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
 
 	// Wait for notification to dismiss
 	await page.waitForTimeout(3000);
