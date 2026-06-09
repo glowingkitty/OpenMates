@@ -659,9 +659,6 @@ export async function handleSend(
   // embed reference: ```json\n{"type":"image","embed_id":"..."}\n```
   // =========================================================================
   try {
-    const { encode: toonEncode } = await import("@toon-format/toon");
-    const { embedStore } = await import("../../../services/embedStore");
-
     // Collect nodes that need contentRef set
     interface UploadedImageNode {
       attrs: Record<string, unknown>;
@@ -679,7 +676,11 @@ export async function handleSend(
       return true;
     });
 
-    for (const { attrs } of uploadedImageNodes) {
+    if (uploadedImageNodes.length > 0) {
+      const { encode: toonEncode } = await import("@toon-format/toon");
+      const { embedStore } = await import("../../../services/embedStore");
+
+      for (const { attrs } of uploadedImageNodes) {
       const uploadEmbedId = attrs.uploadEmbedId as string;
 
       // Build TOON content mirroring the images/generate embed structure so that
@@ -764,6 +765,7 @@ export async function handleSend(
         return true;
       });
       dispatch(tr);
+      }
     }
   } catch (embedRegError) {
     console.error(
@@ -785,10 +787,6 @@ export async function handleSend(
   // the backend can inject it as context for the LLM.
   // =========================================================================
   try {
-    const { encode: toonEncodeAudio } = await import("@toon-format/toon");
-    const { embedStore: audioEmbedStore } =
-      await import("../../../services/embedStore");
-
     interface UploadedRecordingNode {
       attrs: Record<string, unknown>;
     }
@@ -805,7 +803,12 @@ export async function handleSend(
       return true;
     });
 
-    for (const { attrs } of uploadedRecordingNodes) {
+    if (uploadedRecordingNodes.length > 0) {
+      const { encode: toonEncodeAudio } = await import("@toon-format/toon");
+      const { embedStore: audioEmbedStore } =
+        await import("../../../services/embedStore");
+
+      for (const { attrs } of uploadedRecordingNodes) {
       const uploadEmbedId = attrs.uploadEmbedId as string;
 
       // Build TOON content for the audio recording embed.
@@ -881,6 +884,7 @@ export async function handleSend(
         return true;
       });
       recDispatch(recTr);
+      }
     }
   } catch (recEmbedRegError) {
     console.error(
