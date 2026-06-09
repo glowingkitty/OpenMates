@@ -26,7 +26,9 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow loaded")
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].exists)
-        let headerContract = element(in: app, identifier: "chat-header-contract")
+        let headerContract = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "chat-header-title="))
+            .firstMatch
         XCTAssertTrue(headerContract.waitForExistence(timeout: 5))
         XCTAssertTrue(headerContract.label.contains("chat-header-title=Seeded Large Chat"))
         XCTAssertTrue(headerContract.label.contains("chat-header-icon=true"))
