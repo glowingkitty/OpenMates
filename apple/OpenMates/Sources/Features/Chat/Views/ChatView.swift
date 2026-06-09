@@ -1069,7 +1069,6 @@ struct ChatView: View {
     #if DEBUG
     private var shouldShowUITestPendingComposerEmbedFallback: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed")
-            && viewModel.pendingComposerEmbeds.isEmpty
     }
     #endif
 
