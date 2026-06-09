@@ -23,7 +23,9 @@ final class ChatResponsiveParityUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
 
-        let metrics = element(in: app, identifier: "chat-responsive-metrics")
+        let metrics = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "chat-width="))
+            .firstMatch
         XCTAssertTrue(metrics.waitForExistence(timeout: 5))
 
         let label = metrics.label
@@ -45,12 +47,6 @@ final class ChatResponsiveParityUITests: XCTestCase {
         attachment.name = "Chat responsive parity metrics \(chatWidth)pt"
         attachment.lifetime = .keepAlways
         add(attachment)
-    }
-
-    private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@", identifier))
-            .firstMatch
     }
 
     private func intMetric(_ key: String, in label: String) throws -> Int {
