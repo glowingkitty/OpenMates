@@ -39,6 +39,7 @@ export {
   getAllExampleChats,
   getRecentExampleChats,
   getExampleChatsForSkill,
+  getExampleChatsForFocusMode,
   getFeaturedExampleChats,
   getExampleChatData,
   getAllExampleChatData,

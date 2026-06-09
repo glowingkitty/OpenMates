@@ -24,8 +24,10 @@ import {
   type DocsFolder,
   type DocsFile,
   type DocsSearchResult,
+  type SubChatApprovalRequest,
 } from "./client.js";
-import type { StreamEvent } from "./ws.js";
+import type { StreamEvent, SubChatEvent } from "./ws.js";
+import { createInterface } from "node:readline/promises";
 
 import {
   parseMentions,
@@ -260,6 +262,7 @@ async function handleChats(
         chatId: undefined,
         incognito: false,
         json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
       },
       redactor,
     );
@@ -350,6 +353,7 @@ async function handleChats(
         chatId,
         incognito: flags.incognito === true,
         json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
       },
       redactor,
     );
@@ -369,6 +373,7 @@ async function handleChats(
         message,
         incognito: true,
         json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
       },
       redactor,
     );
@@ -2619,6 +2624,7 @@ async function sendMessageStreaming(
     chatId?: string;
     incognito?: boolean;
     json?: boolean;
+    autoApproveSubChats?: boolean;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -2628,6 +2634,7 @@ async function sendMessageStreaming(
   modelName: string | null;
   mateName: string | null;
   followUpSuggestions: string[];
+  subChatEvents: SubChatEvent[];
 }> {
   let headerPrinted = false;
   let typingShown = false;
@@ -2713,6 +2720,59 @@ async function sendMessageStreaming(
         offset = segEnd;
       }
       processedRawLength = raw.length;
+    }
+  };
+
+  const onSubChatEvent = (event: SubChatEvent) => {
+    if (params.json) return;
+    clearTyping();
+    const payload = event.payload;
+    if (event.type === "spawn_sub_chats") {
+      const count = Array.isArray(payload.sub_chats) ? payload.sub_chats.length : 0;
+      process.stderr.write(
+        `\x1b[2mStarting ${count} sub-chat${count === 1 ? "" : "s"} for parallel research...\x1b[0m\n`,
+      );
+      return;
+    }
+    if (event.type === "sub_chat_progress") {
+      const completed = typeof payload.completed === "number" ? payload.completed : null;
+      const total = typeof payload.total === "number" ? payload.total : null;
+      const status = typeof payload.status === "string" ? payload.status : "running";
+      const progress = completed !== null && total !== null ? `${completed}/${total}` : status;
+      process.stderr.write(`\x1b[2mSub-chats: ${progress} ${status}\x1b[0m\n`);
+      return;
+    }
+    if (event.type === "sub_chat_confirmation_resolved") {
+      const status = typeof payload.status === "string" ? payload.status : "resolved";
+      process.stderr.write(`\x1b[2mSub-chat approval ${status}.\x1b[0m\n`);
+      return;
+    }
+    if (event.type === "awaiting_user_input") {
+      process.stderr.write(
+        "\x1b[33mA sub-chat needs additional user input. Continue this chat in the web app if the parent cannot finish.\x1b[0m\n",
+      );
+    }
+  };
+
+  const onSubChatApprovalRequest = async (
+    request: SubChatApprovalRequest,
+  ): Promise<boolean> => {
+    if (params.autoApproveSubChats) return true;
+    clearTyping();
+    const count = request.subChats.length;
+    const remaining =
+      request.remainingSubChats === null
+        ? ""
+        : ` (${request.remainingSubChats} remaining for this parent chat)`;
+    process.stderr.write(
+      `\x1b[33mDeep research wants to start ${count} additional sub-chat${count === 1 ? "" : "s"}${remaining}.\x1b[0m\n`,
+    );
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    try {
+      const answer = await rl.question("Approve? [y/N] ");
+      return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes";
+    } finally {
+      rl.close();
     }
   };
 
@@ -2930,6 +2990,9 @@ async function sendMessageStreaming(
     chatId: params.chatId,
     incognito: params.incognito,
     onStream,
+    onSubChatEvent,
+    onSubChatApprovalRequest,
+    autoApproveSubChats: params.autoApproveSubChats,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
   });
 
@@ -4613,9 +4676,9 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json]
-  openmates chats send --chat <id> --followup <n> [--json]
+  openmates chats new <message> [--json] [--auto-approve]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve]
+  openmates chats send --chat <id> --followup <n> [--json] [--auto-approve]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
@@ -4641,6 +4704,10 @@ Options for 'send':
   --followup <n>   Send the nth follow-up suggestion for this chat instead of
                    typing the full message (requires --chat)
   --incognito      Send without saving to chat history
+
+Options for 'new', 'send', and 'incognito':
+  --auto-approve   Automatically approve server-requested sub-chat batches.
+                   Without this, the CLI prompts in the terminal like the web app.
 
 Options for 'download':
   --output <path>  Target directory (default: current directory)

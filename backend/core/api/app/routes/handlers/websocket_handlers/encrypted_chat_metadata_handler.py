@@ -338,6 +338,11 @@ async def handle_encrypted_chat_metadata(
                 except Exception as e:
                     logger.warning(f"[CHAT_KEY_GUARD] Failed to sync-cache encrypted_chat_key for chat {chat_id}: {e}")
 
+            if payload.get("parent_id"):
+                chat_update_fields["parent_id"] = payload.get("parent_id")
+            if payload.get("is_sub_chat") is not None:
+                chat_update_fields["is_sub_chat"] = payload.get("is_sub_chat")
+
             if chat_update_fields:
                 logger.info(f"Storing encrypted chat metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
             

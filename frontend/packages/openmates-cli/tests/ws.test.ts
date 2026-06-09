@@ -254,4 +254,104 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       client.close();
     }
   });
+
+  it("surfaces sub-chat lifecycle frames without resolving the parent response early", async () => {
+    const chatId = "chat-sub-chat-parent";
+    const userMessageId = "user-message-sub-chat-parent";
+    const receivedEvents: Array<{ type: string; payload: Record<string, unknown> }> = [];
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "spawn_sub_chats",
+            payload: {
+              chat_id: chatId,
+              sub_chats: [
+                {
+                  id: "child-chat-1",
+                  user_message_id: "child-user-message-1",
+                  prompt: "Research the surface explanation.",
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "sub_chat_progress",
+            payload: {
+              chat_id: chatId,
+              task_id: "task-parent",
+              status: "running",
+              total: 1,
+              completed: 0,
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "sub_chat_confirmation_required",
+            payload: {
+              chat_id: chatId,
+              task_id: "task-confirm",
+              sub_chats: [
+                {
+                  id: "child-chat-2",
+                  user_message_id: "child-user-message-2",
+                  prompt: "Research the counterargument.",
+                },
+              ],
+              max_auto_sub_chats: 3,
+              max_direct_sub_chats: 10,
+              existing_sub_chats: 0,
+              remaining_sub_chats: 10,
+            },
+          }),
+        );
+      }, 5);
+
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-message-sub-chat-parent",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "## Short Answer\n\nThe child findings are synthesized here.",
+            },
+          }),
+        );
+      }, 40);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-sub-chat-events",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        onSubChatEvent: (event) => receivedEvents.push(event),
+      });
+
+      assert.equal(
+        response.content,
+        "## Short Answer\n\nThe child findings are synthesized here.",
+      );
+      assert.deepEqual(
+        receivedEvents.map((event) => event.type),
+        ["spawn_sub_chats", "sub_chat_progress", "sub_chat_confirmation_required"],
+      );
+      assert.equal(receivedEvents[0]?.payload.chat_id, chatId);
+    } finally {
+      client.close();
+    }
+  });
 });

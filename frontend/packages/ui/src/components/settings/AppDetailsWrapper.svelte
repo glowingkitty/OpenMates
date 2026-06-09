@@ -199,7 +199,13 @@
         on:closeSettings={() => dispatch('closeSettings')}
     />
 {:else if routeInfo.type === 'focus_details'}
-    <FocusModeDetails appId={routeInfo.appId} focusModeId={routeInfo.focusModeId} on:openSettings={handleOpenSettings} />
+    <FocusModeDetails
+        appId={routeInfo.appId}
+        focusModeId={routeInfo.focusModeId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
 {:else if routeInfo.type === 'settings_memories_category'}
     <AppSettingsMemoriesCategory appId={routeInfo.appId} categoryId={routeInfo.categoryId} on:openSettings={handleOpenSettings} />
 {:else if createRouteInfo}

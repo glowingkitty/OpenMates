@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -8,7 +7,6 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 } = require('./signup-flow-helpers');
@@ -57,6 +55,8 @@ const SELECTORS = {
 	focusInstructionsToggle: '[data-testid="focus-instructions-toggle"]',
 	/** Full instructions text container */
 	focusInstructionsText: '[data-testid="focus-instructions-text"]',
+	/** Focus-mode example chat carousel */
+	focusModeExampleChats: '[data-testid="app-store-focus-mode-example-chats"]',
 };
 
 // ---------------------------------------------------------------------------
@@ -216,4 +216,40 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	await assertNoMissingTranslations(page);
 	logCheckpoint('No missing translations detected.');
 	logCheckpoint('Focus mode settings test completed successfully.');
+});
+
+test('Deep research focus mode does not show placeholder example chats before approval', async ({
+	page
+}: {
+	page: any;
+}) => {
+	setupPageListeners(page);
+	test.setTimeout(120000);
+
+	const logCheckpoint = createSignupLogger('FOCUS_EXAMPLES_GATE');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'focus-examples-gate'
+	});
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await archiveExistingScreenshots(logCheckpoint);
+	logCheckpoint('Starting focus-mode examples quality gate test.');
+
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await openSettingsPanel(page, logCheckpoint);
+	await navigateToAppStore(page, logCheckpoint);
+	await navigateToApp(page, 'web', logCheckpoint);
+	await takeStepScreenshot(page, 'web-app-opened');
+
+	const focusCard = page.getByTestId('app-store-card').filter({ hasText: /deep research/i });
+	await expect(focusCard.first()).toBeVisible({ timeout: 10000 });
+	await focusCard.first().click();
+	await page.waitForTimeout(1000);
+	await takeStepScreenshot(page, 'deep-research-detail-opened');
+
+	await expect(page.getByTestId('focus-mode-details')).toBeVisible({ timeout: 8000 });
+	await expect(page.locator(SELECTORS.focusModeExampleChats)).toHaveCount(0);
+	await assertNoMissingTranslations(page);
+	logCheckpoint('Deep research has no placeholder examples section before approved example metadata exists.');
 });

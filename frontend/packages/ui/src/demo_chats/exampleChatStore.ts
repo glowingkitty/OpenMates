@@ -292,6 +292,14 @@ export function getExampleChatsForSkill(appId: string, skillId: string): Chat[] 
   ).map(exampleChatToChat);
 }
 
+/** Get example chats explicitly linked to an app-store focus mode page. */
+export function getExampleChatsForFocusMode(appId: string, focusModeId: string): Chat[] {
+  const key = `${appId}.${focusModeId}`;
+  return ALL_EXAMPLE_CHATS.filter((example) =>
+    example.metadata.app_focus_mode_examples?.includes(key),
+  ).map(exampleChatToChat);
+}
+
 /** Get featured example chats (limited to homepage display count) */
 export function getFeaturedExampleChats(): Chat[] {
   return ALL_EXAMPLE_CHATS.filter((c) => c.metadata.featured)

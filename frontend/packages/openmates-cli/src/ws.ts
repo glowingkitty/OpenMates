@@ -55,6 +55,30 @@ export interface SendEmbedDataFrame {
   updatedAt?: number;
 }
 
+export type SubChatEventType =
+  | "spawn_sub_chats"
+  | "sub_chat_progress"
+  | "sub_chat_confirmation_required"
+  | "sub_chat_confirmation_resolved"
+  | "awaiting_sub_chats_completion"
+  | "sub_chat_completed"
+  | "awaiting_user_input";
+
+export interface SubChatEvent {
+  type: SubChatEventType;
+  payload: Record<string, unknown>;
+}
+
+const SUB_CHAT_EVENT_TYPES = new Set<string>([
+  "spawn_sub_chats",
+  "sub_chat_progress",
+  "sub_chat_confirmation_required",
+  "sub_chat_confirmation_resolved",
+  "awaiting_sub_chats_completion",
+  "sub_chat_completed",
+  "awaiting_user_input",
+]);
+
 export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
 
@@ -263,6 +287,7 @@ export class OpenMatesWsClient {
       timeoutMs?: number;
       asyncEmbedWaitMs?: number;
       onStream?: (event: StreamEvent) => void;
+      onSubChatEvent?: (event: SubChatEvent) => void | Promise<void>;
     },
   ): Promise<{
     messageId: string | null;
@@ -272,6 +297,7 @@ export class OpenMatesWsClient {
     modelName: string | null;
     followUpSuggestions: string[];
     embeds: SendEmbedDataFrame[];
+    subChatEvents: SubChatEvent[];
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
@@ -284,6 +310,8 @@ export class OpenMatesWsClient {
       let category: string | null = null;
       let modelName: string | null = null;
       let followUpSuggestions: string[] = [];
+      const subChatEvents: SubChatEvent[] = [];
+      const pendingSubChatHandlers = new Set<Promise<void>>();
       const embeds = new Map<string, SendEmbedDataFrame>();
       const processingEmbedIds = new Set<string>();
       // Track whether the AI response is done so we can wait for post-processing.
@@ -331,6 +359,7 @@ export class OpenMatesWsClient {
 
       const maybeResolve = () => {
         if (!aiResponseDone || !postProcessingDone) return;
+        if (pendingSubChatHandlers.size > 0) return;
         if (processingEmbedIds.size > 0 && !asyncEmbedTimer) {
           asyncEmbedTimer = setTimeout(() => {
             cleanup();
@@ -342,6 +371,7 @@ export class OpenMatesWsClient {
               modelName,
               followUpSuggestions,
               embeds: [...embeds.values()],
+              subChatEvents,
             });
           }, asyncEmbedWaitMs);
           return;
@@ -356,7 +386,35 @@ export class OpenMatesWsClient {
           modelName,
           followUpSuggestions,
           embeds: [...embeds.values()],
+          subChatEvents,
         });
+      };
+
+      const handleSubChatEvent = (type: string, p: Record<string, unknown>) => {
+        const eventChatId =
+          typeof p.chat_id === "string"
+            ? p.chat_id
+            : typeof p.parent_id === "string"
+              ? p.parent_id
+              : null;
+        if (eventChatId && eventChatId !== chatId) return;
+
+        const event = { type: type as SubChatEventType, payload: p };
+        subChatEvents.push(event);
+        const handler = options?.onSubChatEvent;
+        if (!handler) return;
+
+        const pending = Promise.resolve(handler(event));
+        pendingSubChatHandlers.add(pending);
+        pending
+          .catch((error: unknown) => {
+            cleanup();
+            reject(error instanceof Error ? error : new Error(String(error)));
+          })
+          .finally(() => {
+            pendingSubChatHandlers.delete(pending);
+            maybeResolve();
+          });
       };
 
       // Called once AI response is done. Start a short window to wait for
@@ -386,6 +444,11 @@ export class OpenMatesWsClient {
                   : "Unknown chat error",
               ),
             );
+            return;
+          }
+
+          if (SUB_CHAT_EVENT_TYPES.has(type)) {
+            handleSubChatEvent(type, p);
             return;
           }
 
@@ -528,6 +591,7 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             embeds: [...embeds.values()],
+            subChatEvents,
           });
           return;
         }

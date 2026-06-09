@@ -2036,6 +2036,8 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                 "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
                 "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
+                "parent_id": encrypted_metadata.get("parent_id"),
+                "is_sub_chat": encrypted_metadata.get("is_sub_chat"),
             }
 
             # CRITICAL: Add encrypted_chat_key ONLY if it exists (not None, not empty string)

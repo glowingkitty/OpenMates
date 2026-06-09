@@ -38,7 +38,7 @@ import {
   clearSyncCache,
   isSyncCacheFresh,
 } from "./storage.js";
-import { OpenMatesWsClient, type SendEmbedDataFrame } from "./ws.js";
+import { OpenMatesWsClient, type SendEmbedDataFrame, type SubChatEvent } from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
@@ -57,6 +57,99 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
     return fallback;
   }
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+}
+
+export interface CliSubChatRequest {
+  id?: string;
+  chat_id?: string;
+  user_message_id?: string;
+  message_id?: string;
+  prompt?: string;
+  wait_for_completion?: boolean;
+}
+
+export interface SubChatEncryptedMetadataPayload {
+  chat_id: string;
+  parent_id: string;
+  is_sub_chat: true;
+  message_id: string;
+  encrypted_content: string;
+  encrypted_sender_name: string;
+  encrypted_title: string;
+  created_at: number;
+  encrypted_chat_key?: string | null;
+  versions: {
+    messages_v: number;
+    title_v: number;
+    last_edited_overall_timestamp: number;
+  };
+}
+
+export interface SubChatApprovalRequest {
+  chatId: string;
+  taskId: string;
+  subChats: CliSubChatRequest[];
+  maxAutoSubChats: number | null;
+  maxDirectSubChats: number | null;
+  existingSubChats: number | null;
+  remainingSubChats: number | null;
+}
+
+export function buildSubChatConfirmationPayload(params: {
+  chatId: string;
+  taskId: string;
+  approved: boolean;
+  approveCount?: number;
+}): {
+  chat_id: string;
+  task_id: string;
+  action: "approve" | "cancel";
+  approve_count: number | null;
+} {
+  return {
+    chat_id: params.chatId,
+    task_id: params.taskId,
+    action: params.approved ? "approve" : "cancel",
+    approve_count: params.approved ? params.approveCount ?? null : null,
+  };
+}
+
+export async function buildSubChatEncryptedMetadataPayloads(params: {
+  parentChatId: string;
+  parentChatKey: Uint8Array;
+  encryptedParentChatKey: string | null;
+  subChats: CliSubChatRequest[];
+  createdAt?: number;
+}): Promise<SubChatEncryptedMetadataPayload[]> {
+  const createdAt = params.createdAt ?? Math.floor(Date.now() / 1000);
+  const payloads: SubChatEncryptedMetadataPayload[] = [];
+
+  for (const subChat of params.subChats) {
+    const chatId = subChat.id || subChat.chat_id;
+    const messageId = subChat.user_message_id || subChat.message_id;
+    const prompt = subChat.prompt || "";
+    if (!chatId || !messageId) continue;
+
+    const title = prompt.substring(0, 30);
+    payloads.push({
+      chat_id: chatId,
+      parent_id: params.parentChatId,
+      is_sub_chat: true,
+      message_id: messageId,
+      encrypted_content: await encryptWithAesGcmCombined(prompt, params.parentChatKey),
+      encrypted_sender_name: await encryptWithAesGcmCombined("User", params.parentChatKey),
+      encrypted_title: await encryptWithAesGcmCombined(title, params.parentChatKey),
+      created_at: createdAt,
+      encrypted_chat_key: params.encryptedParentChatKey,
+      versions: {
+        messages_v: 1,
+        title_v: 0,
+        last_edited_overall_timestamp: createdAt,
+      },
+    });
+  }
+
+  return payloads;
 }
 
 // ---------------------------------------------------------------------------
@@ -646,8 +739,13 @@ export class OpenMatesClient {
   private readonly http: OpenMatesHttpClient;
 
   constructor(options: OpenMatesClientOptions = {}) {
-    this.apiUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     const diskSession = options.session ?? this.getValidSessionFromDisk();
+    this.apiUrl = (
+      options.apiUrl ??
+      process.env.OPENMATES_API_URL ??
+      diskSession?.apiUrl ??
+      DEFAULT_API_URL
+    ).replace(/\/$/, "");
     this.session = diskSession;
     this.http = new OpenMatesHttpClient({
       apiUrl: this.apiUrl,
@@ -772,6 +870,7 @@ export class OpenMatesClient {
     const response = await this.http.post<{
       success?: boolean;
       user?: Record<string, unknown>;
+      ws_token?: string;
     }>(
       "/v1/auth/session",
       { session_id: session.sessionId },
@@ -780,6 +879,11 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.success) {
       throw new Error("Session is invalid. Please run `openmates login`.");
     }
+    if (response.data.ws_token) {
+      session.wsToken = response.data.ws_token;
+    }
+    session.cookies = this.http.getCookieMap();
+    saveSession(session);
     return response.data.user ?? {};
   }
 
@@ -1426,6 +1530,14 @@ export class OpenMatesClient {
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
+    /** Sub-chat lifecycle callback for progress/status output. */
+    onSubChatEvent?: (event: SubChatEvent) => void;
+    /** Approval callback used when the server asks before starting a large sub-chat batch. */
+    onSubChatApprovalRequest?: (
+      request: SubChatApprovalRequest,
+    ) => boolean | Promise<boolean>;
+    /** Explicit opt-in for automatic sub-chat approval in non-interactive runs. */
+    autoApproveSubChats?: boolean;
     /** Encrypted file embeds to attach to the message (code, images, PDFs). */
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
@@ -1438,6 +1550,8 @@ export class OpenMatesClient {
     mateName: string | null;
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
+    /** Sub-chat lifecycle frames observed while collecting the parent response. */
+    subChatEvents: SubChatEvent[];
   }> {
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
@@ -1605,7 +1719,99 @@ export class OpenMatesClient {
     let category: string | null = null;
     let modelName: string | null = null;
     let followUpSuggestions: string[] = [];
-    const streamOpts = { onStream: params.onStream };
+    let subChatEvents: SubChatEvent[] = [];
+
+    const numberOrNull = (value: unknown): number | null =>
+      typeof value === "number" && Number.isFinite(value) ? value : null;
+
+    const isApprovalWithinServerLimits = (request: SubChatApprovalRequest): boolean => {
+      const count = request.subChats.length;
+      if (count === 0) return false;
+      if (request.remainingSubChats !== null && count > request.remainingSubChats) {
+        return false;
+      }
+      if (
+        request.maxDirectSubChats !== null &&
+        request.existingSubChats !== null &&
+        request.existingSubChats + count > request.maxDirectSubChats
+      ) {
+        return false;
+      }
+      return true;
+    };
+
+    const isAutoApprovalWithinServerLimits = (
+      request: SubChatApprovalRequest,
+    ): boolean => {
+      if (!isApprovalWithinServerLimits(request)) return false;
+      return (
+        request.maxAutoSubChats === null ||
+        request.subChats.length <= request.maxAutoSubChats
+      );
+    };
+
+    const handleSubChatEvent = async (event: SubChatEvent) => {
+      params.onSubChatEvent?.(event);
+
+      if (event.type === "spawn_sub_chats") {
+        if (params.incognito || !chatKeyBytes) return;
+        const rawSubChats = event.payload.sub_chats;
+        if (!Array.isArray(rawSubChats)) return;
+
+        const metadataPayloads = await buildSubChatEncryptedMetadataPayloads({
+          parentChatId: chatId,
+          parentChatKey: chatKeyBytes,
+          encryptedParentChatKey: encryptedChatKey,
+          subChats: rawSubChats as CliSubChatRequest[],
+        });
+        for (const metadataPayload of metadataPayloads) {
+          await ws.sendAsync("encrypted_chat_metadata", metadataPayload);
+        }
+        return;
+      }
+
+      if (event.type !== "sub_chat_confirmation_required") return;
+
+      const payload = event.payload;
+      const confirmationChatId =
+        typeof payload.chat_id === "string" ? payload.chat_id : chatId;
+      const taskId = typeof payload.task_id === "string" ? payload.task_id : null;
+      const subChats = Array.isArray(payload.sub_chats)
+        ? (payload.sub_chats as CliSubChatRequest[])
+        : [];
+      if (!taskId) return;
+
+      const request: SubChatApprovalRequest = {
+        chatId: confirmationChatId,
+        taskId,
+        subChats,
+        maxAutoSubChats: numberOrNull(payload.max_auto_sub_chats),
+        maxDirectSubChats: numberOrNull(payload.max_direct_sub_chats),
+        existingSubChats: numberOrNull(payload.existing_sub_chats),
+        remainingSubChats: numberOrNull(payload.remaining_sub_chats),
+      };
+      const withinLimits = isApprovalWithinServerLimits(request);
+      const approved = params.autoApproveSubChats
+        ? isAutoApprovalWithinServerLimits(request)
+        : withinLimits && params.onSubChatApprovalRequest
+          ? await params.onSubChatApprovalRequest(request)
+          : false;
+
+      await ws.sendAsync(
+        "sub_chat_confirmation",
+        buildSubChatConfirmationPayload({
+          chatId: request.chatId,
+          taskId: request.taskId,
+          approved,
+          approveCount: approved ? request.subChats.length : undefined,
+        }),
+      );
+    };
+
+    const streamOpts = {
+      onStream: params.onStream,
+      onSubChatEvent: handleSubChatEvent,
+    };
 
     if (params.incognito) {
       try {
@@ -1614,6 +1820,7 @@ export class OpenMatesClient {
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
       } finally {
         ws.close();
@@ -1626,6 +1833,7 @@ export class OpenMatesClient {
         category = resp.category;
         modelName = resp.modelName;
         followUpSuggestions = resp.followUpSuggestions;
+        subChatEvents = resp.subChatEvents;
 
         if (chatKeyBytes && assistant) {
           const completedAt = Math.floor(Date.now() / 1000);
@@ -1690,6 +1898,7 @@ export class OpenMatesClient {
       modelName,
       mateName,
       followUpSuggestions,
+      subChatEvents,
     };
   }
 
