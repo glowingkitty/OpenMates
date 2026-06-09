@@ -798,9 +798,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "python3 scripts/run_tests.py --suite playwright --spec application-preview.spec.ts / github-actions:27142303297"
-        timestamp: "2026-06-08T13:54:14Z"
-        notes: "Playwright-only post-deploy run passed after Vercel Ready gate for commit 534d54a08; summary 1 total, 1 passed, 0 failed. A prior attempt hit transient api.dev.openmates.org connection-refused errors during login setup before app-preview code ran, then passed on rerun after API health recovered."
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec application-preview.spec.ts / github-actions:27196198565"
+        timestamp: "2026-06-09T09:17:24Z"
+        notes: "Playwright-only post-deploy run passed after Vercel Ready gate for commit fb578aee. CI job run-spec completed successfully and uploaded artifact playwright-application-preview.spec.ts."
 
   - id: T-E2E-APP-SHARE-001
     type: playwright
