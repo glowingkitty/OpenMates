@@ -39,6 +39,10 @@ struct DevChatOpeningPreviewView: View {
                     responsiveMetricsProbe
                 }
 
+                if isUITestHeaderContractEnabled {
+                    headerContractProbe
+                }
+
                 if seeded {
                     ChatView(
                         chatId: fixture.chat.id,
@@ -108,6 +112,19 @@ struct DevChatOpeningPreviewView: View {
         .background(Color.grey0)
     }
 
+    private var headerContractProbe: some View {
+        let iconVisible = fixture.chat.category != nil || fixture.chat.appId != nil
+        let contract = "chat-header-title=\(fixture.chat.displayTitle); chat-header-icon=\(iconVisible)"
+        return Text(contract)
+            .font(.omMicro)
+            .foregroundStyle(Color.fontTertiary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, .spacing5)
+            .accessibilityIdentifier("chat-header-contract")
+            .accessibilityLabel(contract)
+    }
+
     private func seedIfNeeded() {
         guard !seeded else { return }
         chatStore.performWithoutPersistence {
@@ -126,6 +143,11 @@ struct DevChatOpeningPreviewView: View {
     private var isUITestResponsiveMetricsEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-responsive-metrics")
             || ProcessInfo.processInfo.environment["UI_TEST_RESPONSIVE_METRICS"] == "1"
+    }
+
+    private var isUITestHeaderContractEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-header-contract")
+            || ProcessInfo.processInfo.environment["UI_TEST_HEADER_CONTRACT"] == "1"
     }
 
     private func responsiveMetricsLabel(width: CGFloat) -> String {

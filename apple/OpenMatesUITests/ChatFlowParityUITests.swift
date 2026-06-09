@@ -14,20 +14,22 @@ final class ChatFlowParityUITests: XCTestCase {
 
     func testVisibleChatFlowElementsMatchWebParitySnapshot() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "chat-opening"]
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-header-contract"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launchEnvironment["UI_TEST_HEADER_CONTRACT"] = "1"
         app.launch()
 
         let counter = app.staticTexts
             .containing(NSPredicate(format: "label CONTAINS %@", "initial-window-count=50"))
             .firstMatch
         XCTAssertTrue(counter.waitForExistence(timeout: 12))
+        attachScreenshot(name: "Seeded chat-flow loaded")
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].exists)
-        let headerTitle = element(in: app, identifier: "chat-header-title")
-        XCTAssertTrue(headerTitle.waitForExistence(timeout: 5))
-        XCTAssertEqual(headerTitle.label, "Seeded Large Chat")
-        XCTAssertTrue(element(in: app, identifier: "chat-header-icon").exists)
+        let headerContract = element(in: app, identifier: "chat-header-contract")
+        XCTAssertTrue(headerContract.waitForExistence(timeout: 5))
+        XCTAssertTrue(headerContract.label.contains("chat-header-title=Seeded Large Chat"))
+        XCTAssertTrue(headerContract.label.contains("chat-header-icon=true"))
         XCTAssertTrue(element(in: app, identifier: "active-chat-header").exists)
 
         let userMessage = element(in: app, identifier: "message-user")
@@ -40,9 +42,12 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.textViews.firstMatch.exists || app.textFields.firstMatch.exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
-        let screenshot = XCUIScreen.main.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "Seeded chat-flow parity hierarchy"
+        attachScreenshot(name: "Seeded chat-flow parity hierarchy")
+    }
+
+    private func attachScreenshot(name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
     }
