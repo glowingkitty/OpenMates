@@ -1490,7 +1490,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
   { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
   { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
-  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-opus-4-7"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506", "openmates settings ai models set-defaults --simple auto"] },
   { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
@@ -1594,6 +1594,14 @@ function parseOnOff(value: string | undefined, label: string): boolean {
   if (value === "on" || value === "true" || value === "1") return true;
   if (value === "off" || value === "false" || value === "0") return false;
   throw new Error(`Invalid ${label} value '${value ?? ""}'. Use on/off or true/false.`);
+}
+
+function parseModelDefaultFlag(value: string | boolean, flag: string): string | null {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Missing value for ${flag}. Use a provider/model-id or auto.`);
+  }
+  if (value === "auto" || value === "null") return null;
+  return value;
 }
 
 function parseRequiredNumber(value: string | boolean | undefined, flag: string): number {
@@ -1961,10 +1969,17 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["ai", "models", "set-defaults"])) {
-    const simple = typeof flags.simple === "string" ? flags.simple : undefined;
-    const complex = typeof flags.complex === "string" ? flags.complex : undefined;
-    if (!simple && !complex) throw new Error("Provide --simple <model-id> and/or --complex <model-id>.");
-    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", { simple, complex }), flags);
+    const body: Record<string, string | null> = {};
+    if (flags.simple !== undefined) {
+      body.default_ai_model_simple = parseModelDefaultFlag(flags.simple, "--simple");
+    }
+    if (flags.complex !== undefined) {
+      body.default_ai_model_complex = parseModelDefaultFlag(flags.complex, "--complex");
+    }
+    if (Object.keys(body).length === 0) {
+      throw new Error("Provide --simple <model-id|auto> and/or --complex <model-id|auto>.");
+    }
+    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body), flags);
     return;
   }
 

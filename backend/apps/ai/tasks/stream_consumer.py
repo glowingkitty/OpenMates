@@ -397,16 +397,33 @@ def _build_sub_chat_completion_context(pending_context: dict[str, Any]) -> str:
     completed = pending_context.get("completed") if isinstance(pending_context.get("completed"), dict) else {}
     expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
     parent_request_data = pending_context.get("parent_request_data") if isinstance(pending_context.get("parent_request_data"), dict) else {}
+    original_user_request = ""
+    message_history = parent_request_data.get("message_history")
+    if isinstance(message_history, list):
+        for message in reversed(message_history):
+            if isinstance(message, dict) and message.get("role") == "user":
+                content = message.get("content")
+                if isinstance(content, str):
+                    original_user_request = content
+                    break
     lines = [
-        "The waited sub-chats have completed. Use the reports below to answer the user's original request.",
-        "Do not call start_sub_chats again for these same reports; synthesize the final parent response now.",
+        "FINAL ANSWER TASK: The waited sub-chats have completed. Use the reports below to answer the user's original request now.",
+        "Do not call start_sub_chats again. Do not ask follow-up questions. Do not describe your plan. Do not output meta commentary.",
+        "Return the final answer only.",
         "",
     ]
+    if original_user_request:
+        lines.extend([
+            "Original user request:",
+            original_user_request,
+            "",
+        ])
     if parent_request_data.get("active_focus_id") == "web-research":
         lines.extend([
             "Deep research final response requirements:",
             "- Synthesize the reports into one final answer; do not copy child report headings, sub-chat IDs, or raw JSON/code/embed blocks.",
             "- Use exactly these Markdown level-2 headings, in this order: Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, Bottom Line.",
+            "- Your entire response MUST begin with `## Short Answer`. No text may appear before that heading.",
             "- Explicitly separate confirmed evidence from inference where the user's question asks for that distinction.",
             "",
         ])
