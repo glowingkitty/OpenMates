@@ -400,6 +400,8 @@ implementation_plan:
       reason: Pass CLI sub-chat relationship fields from WebSocket encrypted metadata into persistence.
     - path: backend/apps/web/focus_modes/research/SKILL.md
       reason: Require sub-chat orchestration for complex Deep research and reinforce report structure.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Force the first Deep research tool step to use start_sub_chats when the preprocessor enabled sub-chats.
     - path: frontend/packages/ui/src/demo_chats/types.ts
       reason: Add optional focus-mode example-chat metadata.
     - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
@@ -464,6 +466,7 @@ tasks:
         - AC-6
     expected_files:
       - frontend/packages/openmates-cli/src/cli.ts
+      - backend/apps/ai/processing/main_processor.py
       - backend/apps/web/focus_modes/research/SKILL.md
     verification:
       - T-CLI-BUILD-001

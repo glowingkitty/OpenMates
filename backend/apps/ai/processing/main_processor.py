@@ -2165,6 +2165,16 @@ async def handle_main_processing(
     if chat_depth < 2 and enable_subchats_results:
         available_tools_for_llm.append(start_sub_chats_tool)
         logger.info(f"{log_prefix} Added start_sub_chats tool to main LLM tools.")
+
+    if (
+        chat_depth == 0
+        and enable_subchats_results
+        and request_data.active_focus_id == "web-research"
+    ):
+        available_tools_for_llm = [start_sub_chats_tool]
+        logger.info(
+            f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
+        )
     
     if chat_depth > 0:
         available_tools_for_llm.append(ask_user_input_tool)
