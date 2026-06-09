@@ -1013,6 +1013,12 @@ struct ChatView: View {
     }
 
     private func composerOverlayView() -> AnyView? {
+        #if DEBUG
+        if composerOverlay == nil,
+           ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
+            return recordingOverlayView()
+        }
+        #endif
         guard let composerOverlay else { return nil }
         switch composerOverlay {
         case .location:
@@ -1041,29 +1047,33 @@ struct ChatView: View {
             return nil
             #endif
         case .recording:
-            return AnyView(
-                ComposerRecordingOverlay(
-                    recorder: composerRecorder,
-                    dragOffsetX: recordDragOffsetX,
-                    onStop: { url in
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordDragOffsetX = 0
-                        Task {
-                            if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
-                                appendRecordingTranscript(transcript)
-                            }
-                        }
-                    },
-                    onCancel: {
-                        composerRecorder.cancelRecording()
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordDragOffsetX = 0
-                    }
-                )
-            )
+            return recordingOverlayView()
         }
+    }
+
+    private func recordingOverlayView() -> AnyView {
+        AnyView(
+            ComposerRecordingOverlay(
+                recorder: composerRecorder,
+                dragOffsetX: recordDragOffsetX,
+                onStop: { url in
+                    self.composerOverlay = nil
+                    self.recordAttemptActive = false
+                    self.recordDragOffsetX = 0
+                    Task {
+                        if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
+                            appendRecordingTranscript(transcript)
+                        }
+                    }
+                },
+                onCancel: {
+                    composerRecorder.cancelRecording()
+                    self.composerOverlay = nil
+                    self.recordAttemptActive = false
+                    self.recordDragOffsetX = 0
+                }
+            )
+        )
     }
 
     #if DEBUG
