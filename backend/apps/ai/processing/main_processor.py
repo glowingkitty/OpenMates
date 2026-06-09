@@ -3797,6 +3797,16 @@ async def handle_main_processing(
                             sub_chats_args,
                             max_template_items=MAX_DIRECT_SUB_CHATS_PER_PARENT if execution_mode != "sequential" else None,
                         )
+                        if (
+                            request_data.active_focus_id == "web-research"
+                            and execution_mode != "sequential"
+                            and len(spawned_sub_chats) > MAX_AUTO_SUB_CHATS_PER_TURN
+                        ):
+                            logger.info(
+                                f"{log_prefix} [SUB_CHAT] Deep research requested {len(spawned_sub_chats)} sub-chats; "
+                                f"capping to {MAX_AUTO_SUB_CHATS_PER_TURN} to stay within automatic approval limits."
+                            )
+                            spawned_sub_chats = spawned_sub_chats[:MAX_AUTO_SUB_CHATS_PER_TURN]
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
                         capacity_result = (
                             {"allowed": True, "remaining": None, "message": ""}
