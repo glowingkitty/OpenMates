@@ -431,13 +431,20 @@ export async function handleSend(
   // debounced save to fire AFTER the message is sent, re-saving the already-sent
   // content as a draft. The server also clears drafts on message receipt, but
   // the client's debounced save fires afterwards and re-creates the draft.
+  console.debug("[handleSend] Preparing draft/deferred checks", { currentChatId });
   saveDraftDebounced.cancel();
   const draftStateBeforeSend = get(draftEditorUIState);
+  console.debug("[handleSend] Draft state before send", {
+    currentChatId,
+    draftChatId: draftStateBeforeSend.currentChatId,
+    isSaveInProgress: draftStateBeforeSend.isSaveInProgress,
+  });
   if (!currentChatId && !draftStateBeforeSend.currentChatId) {
     await waitForDraftSaveIdle();
   }
 
   // OTel: deferred send check span
+  console.debug("[handleSend] Starting deferred embed scan", { currentChatId });
   const deferredCheckSpan = tracer.startSpan('message.send.deferred_check');
   // DEFERRED SEND: Detect embeds that are still in-flight.
   // Instead of blocking with a warning toast, we:
@@ -473,6 +480,10 @@ export async function handleSend(
   });
 
   deferredCheckSpan.end();
+  console.debug("[handleSend] Deferred embed scan complete", {
+    currentChatId,
+    blockingEmbedCount: blockingEmbeds.length,
+  });
 
   if (blockingEmbeds.length > 0) {
     // -----------------------------------------------------------------------
