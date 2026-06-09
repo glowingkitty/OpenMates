@@ -18,14 +18,14 @@ final class MessageInputAttachmentUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        focusComposerInput(in: app)
-        XCTAssertTrue(element(in: app, identifier: "attach-files-button").waitForExistence(timeout: 5))
-        XCTAssertTrue(element(in: app, identifier: "take-photo-button").waitForExistence(timeout: 5))
-
         let pendingEmbed = element(in: app, identifier: "pending-composer-embed")
         XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
         XCTAssertTrue(element(in: app, identifier: "pending-composer-embed-remove").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
+
+        focusComposerInput(in: app)
+        XCTAssertTrue(element(in: app, identifier: "attach-files-button").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(in: app, identifier: "take-photo-button").waitForExistence(timeout: 5))
 
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
