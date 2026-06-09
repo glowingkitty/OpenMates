@@ -413,7 +413,10 @@ export async function handleSend(
   // content as a draft. The server also clears drafts on message receipt, but
   // the client's debounced save fires afterwards and re-creates the draft.
   saveDraftDebounced.cancel();
-  await waitForDraftSaveIdle();
+  const draftStateBeforeSend = get(draftEditorUIState);
+  if (!currentChatId && !draftStateBeforeSend.currentChatId) {
+    await waitForDraftSaveIdle();
+  }
 
   // OTel: deferred send check span
   const deferredCheckSpan = tracer.startSpan('message.send.deferred_check');
