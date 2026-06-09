@@ -346,6 +346,7 @@ export interface Chat {
   icon?: string | null; // Cleartext icon name for demo chats
   category?: string | null; // Cleartext category for demo chats
   demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
+  active_focus_id?: string | null; // Cleartext active focus mode for public demo/example chats only
 
   // Local UI metadata derived from image-search embeds. Stored only in IndexedDB so
   // resume/recent chat cards can render decorative thumbnails without re-parsing messages.

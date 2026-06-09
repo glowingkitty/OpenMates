@@ -4685,6 +4685,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             lastLoadedChatId = null;
             return;
         }
+        if (currentChat?.active_focus_id) {
+            activeFocusId = currentChat.active_focus_id;
+            lastLoadedChatId = chatId;
+            return;
+        }
         const loadedChatId = chatId;
         lastLoadedChatId = chatId;
         // Read asynchronously — use the cached value if available

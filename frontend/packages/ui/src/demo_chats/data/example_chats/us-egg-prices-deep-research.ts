@@ -36,5 +36,6 @@ export const usEggPricesDeepResearchChat: ExampleChat = {
     featured: true,
     order: 47,
     app_focus_mode_examples: ["web.research"],
+    active_focus_id: "web-research",
   },
 };

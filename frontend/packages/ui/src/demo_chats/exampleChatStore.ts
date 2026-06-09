@@ -60,6 +60,7 @@ import { pdfSearchEncryptionChat } from "./data/example_chats/pdf-search-encrypt
 import { imageVectorizeOpenmatesHeaderChat } from "./data/example_chats/image-vectorize-openmates-header";
 import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcribe-voice-note";
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
+import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -112,6 +113,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   imageVectorizeOpenmatesHeaderChat,
   audioTranscribeVoiceNoteChat,
   usEggPricesDeepResearchChat,
+  frameworkStoreReputationCheckChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
@@ -157,6 +159,7 @@ function exampleChatToChat(example: ExampleChat): Chat {
     follow_up_request_suggestions: JSON.stringify(
       example.follow_up_suggestions.map(translate),
     ),
+    active_focus_id: example.metadata.active_focus_id ?? null,
     demo_chat_category: "for_everyone",
     messages_v: example.messages.length,
     title_v: 1,
