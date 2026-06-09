@@ -3984,7 +3984,8 @@
     function handleSendMessage() {
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
-        if (!hasContent) return;
+        const editorHasContent = !!editor && !editor.isDestroyed && !editor.isEmpty;
+        if (!hasContent && !editorHasContent) return;
 
         if ($demoMode && !$authStore.isAuthenticated) {
             console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
