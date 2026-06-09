@@ -475,8 +475,11 @@ private extension EmbedData {
 enum EmbedType: String, CaseIterable {
     // Direct embeds
     case recording
+    case codeRepo = "code-repo"
     case codeCode = "code-code"
+    case codeApplication = "code-application"
     case docsDoc = "docs-doc"
+    case electronicsComponent = "electronics-component"
     case image
     case mailEmail = "mail-email"
     case maps
@@ -484,8 +487,12 @@ enum EmbedType: String, CaseIterable {
     case pdf
     case sheetsSheet = "sheets-sheet"
     case focusModeActivation = "focus-mode-activation"
+    case socialMediaPost = "social-media-post"
+    case weatherDay = "weather-day"
 
     // Composite search embeds
+    case codeRepoSearch = "app:code:search_repos"
+    case electronicsSearch = "app:electronics:search_components"
     case eventsSearch = "app:events:search"
     case eventsEvent = "events-event"
     case healthSearch = "app:health:search_appointments"
@@ -497,6 +504,7 @@ enum EmbedType: String, CaseIterable {
     case mailSearch = "app:mail:search"
     case mapsSearch = "app:maps:search"
     case mapsPlace = "maps-place"
+    case musicGenerate = "app:music:generate"
     case newsSearch = "app:news:search"
     case nutritionSearch = "app:nutrition:search_recipes"
     case nutritionRecipe = "nutrition-recipe"
@@ -511,10 +519,12 @@ enum EmbedType: String, CaseIterable {
     case videosSearch = "app:videos:search"
     case videosVideo = "videos-video"
     case videosTranscript = "app:videos:get_transcript"
+    case videosGenerate = "app:videos:generate"
     case webSearch = "app:web:search"
     case webWebsite = "web-website"
     case webRead = "app:web:read"
     case wiki
+    case weatherForecast = "app:weather:forecast"
 
     // App skill use embeds
     case codeGetDocs = "app:code:get_docs"
@@ -522,13 +532,19 @@ enum EmbedType: String, CaseIterable {
     case imagesGenerateDraft = "app:images:generate_draft"
     case mathCalculate = "app:math:calculate"
     case reminderSet = "app:reminder:set-reminder"
+    case reminderList = "app:reminder:list-reminders"
+    case reminderCancel = "app:reminder:cancel-reminder"
+    case socialMediaGetPosts = "app:social_media:get-posts"
+    case socialMediaSearch = "app:social_media:search"
 
     var isComposite: Bool {
         switch self {
-        case .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+        case .codeRepoSearch, .electronicsSearch,
+             .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
              .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
-             .shoppingSearch, .travelConnections, .travelStays,
-             .videosSearch, .webSearch:
+             .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
+             .travelConnections, .travelStays, .videosSearch, .weatherForecast,
+             .webSearch:
             return true
         default:
             return false
@@ -537,6 +553,8 @@ enum EmbedType: String, CaseIterable {
 
     var childType: EmbedType? {
         switch self {
+        case .codeRepoSearch: return .codeRepo
+        case .electronicsSearch: return .electronicsComponent
         case .eventsSearch: return .eventsEvent
         case .healthSearch: return .healthAppointment
         case .homeSearch: return .homeListing
@@ -545,9 +563,11 @@ enum EmbedType: String, CaseIterable {
         case .newsSearch: return .webWebsite
         case .nutritionSearch: return .nutritionRecipe
         case .shoppingSearch: return .shoppingProduct
+        case .socialMediaGetPosts, .socialMediaSearch: return .socialMediaPost
         case .travelConnections: return .travelConnection
         case .travelStays: return .travelStay
         case .videosSearch: return .videosVideo
+        case .weatherForecast: return .weatherDay
         case .webSearch: return .webWebsite
         default: return nil
         }
@@ -557,10 +577,11 @@ enum EmbedType: String, CaseIterable {
         let raw = rawValue
         guard raw.hasPrefix("app:") else {
             switch self {
-            case .codeCode: return "code"
+            case .codeRepo, .codeCode, .codeApplication: return "code"
             case .docsDoc: return "docs"
+            case .electronicsComponent: return "electronics"
             case .recording: return "audio"
-            case .image, .imagesImageResult: return "photos"
+            case .image, .imagesImageResult: return "images"
             case .maps, .mapsPlace: return "maps"
             case .mailEmail: return "mail"
             case .mathPlot: return "math"
@@ -574,7 +595,9 @@ enum EmbedType: String, CaseIterable {
             case .homeListing: return "home"
             case .nutritionRecipe: return "nutrition"
             case .shoppingProduct: return "shopping"
+            case .socialMediaPost: return "social_media"
             case .travelConnection, .travelStay: return "travel"
+            case .weatherDay: return "weather"
             default: return nil
             }
         }
@@ -588,9 +611,14 @@ enum EmbedType: String, CaseIterable {
         case .webRead: return "Read"
         case .webWebsite: return "Website"
         case .wiki: return "Wikipedia"
+        case .codeRepoSearch: return "Repository Search"
+        case .codeRepo: return "Repository"
         case .codeCode: return "Code"
+        case .codeApplication: return "Application"
         case .codeGetDocs: return "Docs"
         case .docsDoc: return "Document"
+        case .electronicsSearch: return "Component Search"
+        case .electronicsComponent: return "Component"
         case .image: return "Image"
         case .imagesSearch: return "Image Search"
         case .imagesGenerate, .imagesGenerateDraft: return "Generated Image"
@@ -600,12 +628,14 @@ enum EmbedType: String, CaseIterable {
         case .mailEmail, .mailSearch: return "Email"
         case .mathPlot: return "Plot"
         case .mathCalculate: return "Calculate"
+        case .musicGenerate: return "Music"
         case .pdf: return "PDF"
         case .sheetsSheet: return "Sheet"
         case .recording: return "Recording"
         case .videosSearch: return "Video Search"
         case .videosVideo: return "Video"
         case .videosTranscript: return "Transcript"
+        case .videosGenerate: return "Generated Video"
         case .eventsSearch: return "Events"
         case .eventsEvent: return "Event"
         case .healthSearch: return "Appointments"
@@ -616,6 +646,9 @@ enum EmbedType: String, CaseIterable {
         case .nutritionRecipe: return "Recipe"
         case .shoppingSearch: return "Products"
         case .shoppingProduct: return "Product"
+        case .socialMediaGetPosts: return "Posts"
+        case .socialMediaSearch: return "Social Search"
+        case .socialMediaPost: return "Post"
         case .travelConnections: return "Connections"
         case .travelConnection: return "Connection"
         case .travelStays: return "Stays"
@@ -623,7 +656,9 @@ enum EmbedType: String, CaseIterable {
         case .travelPriceCalendar: return "Price Calendar"
         case .travelFlight: return "Flight"
         case .focusModeActivation: return "Focus Mode"
-        case .reminderSet: return "Reminder"
+        case .reminderSet, .reminderList, .reminderCancel: return "Reminder"
+        case .weatherForecast: return "Forecast"
+        case .weatherDay: return "Weather"
         }
     }
 }

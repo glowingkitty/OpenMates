@@ -75,6 +75,10 @@ struct EmbedContentView: View {
                 WikiRenderer(data: rawData, mode: mode)
 
             // Code
+            case .codeRepoSearch:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "repositories")
+            case .codeRepo, .codeApplication:
+                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,
@@ -94,6 +98,12 @@ struct EmbedContentView: View {
             case .sheetsSheet:
                 SheetRenderer(data: rawData, mode: mode)
 
+            // Electronics
+            case .electronicsSearch:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "components")
+            case .electronicsComponent:
+                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+
             // Videos
             case .videosSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "videos")
@@ -101,6 +111,8 @@ struct EmbedContentView: View {
                 VideoRenderer(data: rawData, mode: mode)
             case .videosTranscript:
                 TranscriptRenderer(data: rawData, mode: mode)
+            case .videosGenerate:
+                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
 
             // Images
             case .imagesSearch:
@@ -188,6 +200,22 @@ struct EmbedContentView: View {
             case .mathCalculate:
                 MathCalculateRenderer(data: rawData, mode: mode)
 
+            // Music
+            case .musicGenerate:
+                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+
+            // Social media
+            case .socialMediaGetPosts, .socialMediaSearch:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "posts")
+            case .socialMediaPost:
+                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+
+            // Weather
+            case .weatherForecast:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "days")
+            case .weatherDay:
+                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+
             // Audio
             case .recording:
                 RecordingRenderer(data: rawData, mode: mode)
@@ -200,6 +228,8 @@ struct EmbedContentView: View {
             case .focusModeActivation:
                 FocusModeRenderer(data: rawData, mode: mode)
             case .reminderSet:
+                ReminderRenderer(data: rawData, mode: mode)
+            case .reminderList, .reminderCancel:
                 ReminderRenderer(data: rawData, mode: mode)
 
             default:

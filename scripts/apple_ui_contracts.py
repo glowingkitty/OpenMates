@@ -21,6 +21,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = REPO_ROOT / "apple" / "OpenMatesUITests" / "Fixtures" / "WebUIContracts"
 MESSAGE_INPUT_FIXTURE = FIXTURE_DIR / "message-input.json"
+EMBEDS_FIXTURE = FIXTURE_DIR / "embeds.json"
 
 REQUIRED_MESSAGE_INPUT_STATES = {
     "default",
@@ -43,6 +44,31 @@ REQUIRED_MESSAGE_INPUT_IDENTIFIERS = {
     "embed-full-width-wrapper",
     "pending-composer-embed",
     "pending-composer-embed-remove",
+}
+REQUIRED_EMBED_SHOWCASE_APPS = {
+    "audio",
+    "code",
+    "docs",
+    "electronics",
+    "events",
+    "health",
+    "home",
+    "images",
+    "mail",
+    "maps",
+    "math",
+    "music",
+    "news",
+    "nutrition",
+    "pdf",
+    "reminder",
+    "sheets",
+    "shopping",
+    "social_media",
+    "travel",
+    "videos",
+    "weather",
+    "web",
 }
 ALLOWED_SEVERITIES = {"fail", "warn"}
 PRIVATE_VALUE_PATTERNS = [
@@ -145,6 +171,142 @@ def validate_contract(path: Path, *, surface: str | None = None) -> list[str]:
     return errors
 
 
+def _read_repo_file(relative_path: str) -> str:
+    return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _extract_ts_object_keys(source: str, const_name: str) -> set[str]:
+    match = re.search(
+        rf"export const {re.escape(const_name)}:[^=]+=\s*{{(?P<body>.*?)^}};",
+        source,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    if not match:
+        return set()
+    return set(re.findall(r'^[ \t]*"([^"]+)"[ \t]*:', match.group("body"), flags=re.MULTILINE))
+
+
+def _extract_showcase_apps(source: str) -> set[str]:
+    match = re.search(r"const ALL_APPS = \[(?P<body>.*?)\];", source, flags=re.DOTALL)
+    if not match:
+        return set()
+    return set(re.findall(r"'([^']+)'", match.group("body")))
+
+
+def _extract_swift_enum_raw_values(source: str, enum_name: str) -> set[str]:
+    match = re.search(rf"enum {re.escape(enum_name)}[^{{]*{{(?P<body>.*?)^}}", source, flags=re.DOTALL | re.MULTILINE)
+    if not match:
+        return set()
+    values: set[str] = set()
+    for line in match.group("body").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("case "):
+            continue
+        if "=" in stripped:
+            raw_match = re.search(r'=\s*"([^"]+)"', stripped)
+            if raw_match:
+                values.add(raw_match.group(1))
+        else:
+            for name in stripped.removeprefix("case ").split(","):
+                name = name.strip()
+                if not name:
+                    continue
+                case_name = name.split()[0]
+                if case_name:
+                    values.add(case_name)
+    return values
+
+
+def _extract_swift_enum_cases(source: str, enum_name: str) -> set[str]:
+    match = re.search(rf"enum {re.escape(enum_name)}[^{{]*{{(?P<body>.*?)^}}", source, flags=re.DOTALL | re.MULTILINE)
+    if not match:
+        return set()
+    cases: set[str] = set()
+    for line in match.group("body").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("case "):
+            continue
+        for name in stripped.removeprefix("case ").split(","):
+            case_name = name.strip().split("=")[0].strip().split()[0]
+            if case_name:
+                cases.add(case_name)
+    return cases
+
+
+def _extract_apple_fixture_skill_ids(source: str) -> set[str]:
+    return set(re.findall(r"return skill\(id:\s*\"([^\"]+)\"", source))
+
+
+def audit_embeds() -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    registry_source = _read_repo_file("frontend/packages/ui/src/data/embedRegistry.generated.ts")
+    showcase_source = _read_repo_file("frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte")
+    embed_models_source = _read_repo_file("apple/OpenMates/Sources/Core/Models/EmbedModels.swift")
+    fixtures_source = _read_repo_file("apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift")
+    content_view_source = _read_repo_file("apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift")
+
+    preview_keys = _extract_ts_object_keys(registry_source, "EMBED_PREVIEW_COMPONENTS")
+    fullscreen_keys = _extract_ts_object_keys(registry_source, "EMBED_FULLSCREEN_COMPONENTS")
+    registry_keys = preview_keys | fullscreen_keys
+    apple_types = _extract_swift_enum_raw_values(embed_models_source, "EmbedType")
+    showcase_apps = _extract_showcase_apps(showcase_source)
+    apple_apps = _extract_swift_enum_raw_values(fixtures_source, "DevEmbedPreviewApp")
+    apple_fixture_skill_ids = _extract_apple_fixture_skill_ids(fixtures_source)
+
+    if not registry_keys:
+        errors.append("could not extract web embed registry keys")
+    if not showcase_apps:
+        errors.append("could not extract web embed showcase ALL_APPS")
+    if not apple_types:
+        errors.append("could not extract Apple EmbedType cases")
+    if not apple_apps:
+        errors.append("could not extract Apple DevEmbedPreviewApp cases")
+
+    missing_showcase_apps = REQUIRED_EMBED_SHOWCASE_APPS - showcase_apps
+    extra_missing_from_apple_gallery = REQUIRED_EMBED_SHOWCASE_APPS - apple_apps
+    missing_apple_types = registry_keys - apple_types
+
+    if missing_showcase_apps:
+        errors.append(f"web embed showcase missing apps: {', '.join(sorted(missing_showcase_apps))}")
+    if extra_missing_from_apple_gallery:
+        errors.append(f"Apple embed preview gallery missing apps: {', '.join(sorted(extra_missing_from_apple_gallery))}")
+    if missing_apple_types:
+        errors.append(f"Apple EmbedType missing registry keys: {', '.join(sorted(missing_apple_types))}")
+
+    for app in sorted(REQUIRED_EMBED_SHOWCASE_APPS):
+        if f"case .{_swift_case_name_for_app(app)}" not in fixtures_source:
+            errors.append(f"Apple DevEmbedPreviewFixtures.skills missing switch coverage for app: {app}")
+
+    for registry_key in sorted(registry_keys):
+        fixture_hint = registry_key.replace("app:", "").replace(":", "-").replace("_", "-")
+        if fixture_hint not in apple_fixture_skill_ids and registry_key not in content_view_source:
+            warnings.append(f"no direct Apple debug fixture id found for registry key: {registry_key}")
+
+    forbidden_controls = ["Form {", "List {", "NavigationLink {", ".navigationTitle(", ".toolbar {"]
+    embed_source_root = REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Embeds"
+    parity_paths = [
+        path
+        for path in embed_source_root.rglob("*.swift")
+        if path.name != "ShareEmbedView.swift"
+    ]
+    embed_source = "\n".join(path.read_text(encoding="utf-8") for path in parity_paths)
+    for forbidden in forbidden_controls:
+        if forbidden in embed_source:
+            errors.append(f"forbidden native product control in embed source: {forbidden}")
+
+    warnings.append("visual/style contract checks are agent-reviewed for embeds until specific surfaces are promoted")
+    return errors, warnings
+
+
+def _swift_case_name_for_app(app_id: str) -> str:
+    if "_" not in app_id:
+        return app_id
+    head, *tail = app_id.split("_")
+    return head + "".join(part[:1].upper() + part[1:] for part in tail)
+
+
 def promote_contract(source: Path, destination: Path) -> None:
     errors = validate_contract(source)
     if errors:
@@ -180,6 +342,14 @@ def audit_message_input() -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+def audit_surface(surface: str) -> tuple[list[str], list[str]]:
+    if surface == "message-input":
+        return audit_message_input()
+    if surface == "embeds":
+        return audit_embeds()
+    raise ContractError(f"unsupported audit surface: {surface}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -193,7 +363,7 @@ def main() -> int:
     promote_parser.add_argument("--destination", type=Path, default=MESSAGE_INPUT_FIXTURE)
 
     audit_parser = subparsers.add_parser("audit")
-    audit_parser.add_argument("--surface", required=True, choices=["message-input"])
+    audit_parser.add_argument("--surface", required=True, choices=["message-input", "embeds"])
 
     args = parser.parse_args()
     try:
@@ -212,14 +382,14 @@ def main() -> int:
             return 0
 
         if args.command == "audit":
-            errors, warnings = audit_message_input()
+            errors, warnings = audit_surface(args.surface)
             for warning in warnings:
                 print(f"WARNING: {warning}")
             if errors:
                 for error in errors:
                     print(f"ERROR: {error}", file=sys.stderr)
                 return 1
-            print("PASS message-input audit")
+            print(f"PASS {args.surface} audit")
             return 0
     except ContractError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

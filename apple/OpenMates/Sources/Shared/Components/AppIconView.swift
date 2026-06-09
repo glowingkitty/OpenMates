@@ -77,6 +77,8 @@ struct AppIconView: View {
         case "contacts": return IconAlias.contacts
         case "openmates": return "ai"
         case "images": return "image"
+        case "social_media": return "socialmedia"
+        case "electronics": return "pcbdesign"
         default: return appId
         }
     }
