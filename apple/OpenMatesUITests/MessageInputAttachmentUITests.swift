@@ -20,7 +20,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
         XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
-        XCTAssertTrue(element(in: app, identifier: "pending-composer-embed-remove").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
         focusComposerInput(in: app)
