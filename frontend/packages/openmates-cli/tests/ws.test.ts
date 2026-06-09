@@ -309,6 +309,15 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             },
           }),
         );
+        socket.send(
+          JSON.stringify({
+            type: "awaiting_sub_chats_completion",
+            payload: {
+              chat_id: chatId,
+              task_id: "task-parent",
+            },
+          }),
+        );
       }, 5);
 
       setTimeout(() => {
@@ -317,14 +326,41 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             type: "ai_message_update",
             payload: {
               user_message_id: userMessageId,
-              message_id: "assistant-message-sub-chat-parent",
+              message_id: "assistant-message-sub-chat-status",
               chat_id: chatId,
               is_final_chunk: true,
-              full_content_so_far: "## Short Answer\n\nThe child findings are synthesized here.",
+              full_content_so_far:
+                "I've started the sub-chats and will continue once they finish.",
             },
           }),
         );
       }, 40);
+
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_background_response_completed",
+            payload: {
+              user_message_id: "server-side-continuation-message",
+              message_id: "assistant-message-sub-chat-parent",
+              chat_id: chatId,
+              full_content: "## Short Answer\n\nThe child findings are synthesized here.",
+            },
+          }),
+        );
+      }, 80);
+
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: {
+              chat_id: chatId,
+              follow_up_request_suggestions: ["Show the child evidence"],
+            },
+          }),
+        );
+      }, 90);
     });
 
     const client = new OpenMatesWsClient({
@@ -347,7 +383,12 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       );
       assert.deepEqual(
         receivedEvents.map((event) => event.type),
-        ["spawn_sub_chats", "sub_chat_progress", "sub_chat_confirmation_required"],
+        [
+          "spawn_sub_chats",
+          "sub_chat_progress",
+          "sub_chat_confirmation_required",
+          "awaiting_sub_chats_completion",
+        ],
       );
       assert.equal(receivedEvents[0]?.payload.chat_id, chatId);
     } finally {

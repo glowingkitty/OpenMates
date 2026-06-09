@@ -79,6 +79,10 @@ const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "awaiting_user_input",
 ]);
 
+const SUB_CHAT_PARENT_STATUS_MESSAGE =
+  "I've started the sub-chats and will continue once they finish.";
+const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
+
 export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
 
@@ -323,10 +327,18 @@ export class OpenMatesWsClient {
       let postProcessingTimer: ReturnType<typeof setTimeout> | null = null;
       let asyncEmbedTimer: ReturnType<typeof setTimeout> | null = null;
 
-      const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error("Timed out waiting for AI response"));
-      }, timeoutMs);
+      const startTimeout = (ms: number) =>
+        setTimeout(() => {
+          cleanup();
+          reject(new Error("Timed out waiting for AI response"));
+        }, ms);
+      let timeout = startTimeout(timeoutMs);
+      let awaitingSubChatsCompletion = false;
+
+      const resetTimeout = (ms: number) => {
+        clearTimeout(timeout);
+        timeout = startTimeout(ms);
+      };
 
       const capture = (p: Record<string, unknown>) => {
         if (typeof p.message_id === "string" && p.message_id)
@@ -401,6 +413,10 @@ export class OpenMatesWsClient {
 
         const event = { type: type as SubChatEventType, payload: p };
         subChatEvents.push(event);
+        if (type === "awaiting_sub_chats_completion") {
+          awaitingSubChatsCompletion = true;
+          resetTimeout(SUB_CHAT_COMPLETION_TIMEOUT_MS);
+        }
         const handler = options?.onSubChatEvent;
         if (!handler) return;
 
@@ -420,6 +436,13 @@ export class OpenMatesWsClient {
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
       const scheduleResolve = (content: string) => {
+        if (
+          awaitingSubChatsCompletion &&
+          content.trim() === SUB_CHAT_PARENT_STATUS_MESSAGE
+        ) {
+          latestContent = "";
+          return;
+        }
         aiResponseDone = true;
         latestContent = content;
         clearTimeout(timeout);
