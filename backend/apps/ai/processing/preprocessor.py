@@ -2861,11 +2861,17 @@ async def handle_preprocessing(
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
 
-    if "web-research" in validated_relevant_focus_modes and not enable_subchats_val:
+    if (
+        (
+            "web-research" in validated_relevant_focus_modes
+            or request_data.active_focus_id == "web-research"
+        )
+        and not enable_subchats_val
+    ):
         enable_subchats_val = True
         llm_analysis_args["enable_subchats"] = True
         logger.info(
-            f"{log_prefix} Deep research focus mode selected; enabling sub-chats deterministically."
+            f"{log_prefix} Deep research focus mode active or selected; enabling sub-chats deterministically."
         )
     
     # --- Rule-based skill forcing based on embed type in message history ---
