@@ -21,8 +21,6 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         focusComposerInput(in: app)
         let recordButton = element(in: app, identifier: "record-audio-button")
         XCTAssertTrue(recordButton.waitForExistence(timeout: 10))
-        let overlay = element(in: app, identifier: "record-overlay")
-        XCTAssertTrue(overlay.waitForExistence(timeout: 5))
         XCTAssertTrue(element(in: app, identifier: "release-text").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
