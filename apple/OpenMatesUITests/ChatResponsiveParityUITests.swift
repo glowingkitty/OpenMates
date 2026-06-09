@@ -18,6 +18,7 @@ final class ChatResponsiveParityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-responsive-metrics"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launchEnvironment["UI_TEST_RESPONSIVE_METRICS"] = "1"
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))

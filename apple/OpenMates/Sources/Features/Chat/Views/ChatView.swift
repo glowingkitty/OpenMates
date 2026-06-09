@@ -1143,6 +1143,7 @@ struct ChatView: View {
     #if DEBUG
     private var shouldShowUITestResponsiveMetrics: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-responsive-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_RESPONSIVE_METRICS"] == "1"
     }
 
     private var responsiveMetricsProbe: some View {
@@ -1157,8 +1158,13 @@ struct ChatView: View {
 
         return Text(metrics)
             .font(.omMicro)
-            .foregroundStyle(Color.fontTertiary.opacity(0.01))
-            .frame(width: 1, height: 1)
+            .foregroundStyle(Color.fontTertiary)
+            .lineLimit(1)
+            .padding(.spacing1)
+            .background(Color.grey0.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityElement(children: .ignore)
             .accessibilityIdentifier("chat-responsive-metrics")
             .accessibilityLabel(metrics)
             .allowsHitTesting(false)
