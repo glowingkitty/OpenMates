@@ -78,6 +78,19 @@ private enum ChatResponsiveBreakpoint {
     static let inlineNewChatCompact: CGFloat = 550
 }
 
+private enum ChatMessageLayoutMetric {
+    /// Web `chat.css`: `.chat-message { gap: 6px; }`.
+    static let rowGap: CGFloat = 6
+    /// Web `chat.css`: `.mobile-stacked .mate-profile { margin-bottom: 8px; }`.
+    static let stackedAvatarGap: CGFloat = 8
+    /// Web `chat.css`: `.message-align-right { max-width: calc(100% - 100px); }`.
+    static let userDesktopReserve: CGFloat = 100
+    /// Web `chat.css`: `.message-align-right.mobile-compact { max-width: calc(100% - 20px); }`.
+    static let userCompactReserve: CGFloat = 20
+    /// Web `chat.css`: `.message-align-left { max-width: calc(100% - 70px); }`.
+    static let assistantDesktopReserve: CGFloat = 70
+}
+
 struct ChatView: View {
     let chatId: String
     /// Optional gradient banner state. Provide `.loaded` for demo/example chats;
@@ -1706,22 +1719,26 @@ struct MessageBubble: View {
         Group {
             if isUser {
                 // User message: right-aligned, spacer on left
-                HStack(alignment: .top, spacing: .spacing3) {
-                    Spacer(minLength: useStackedLayout ? 20 : 100)
+                HStack(alignment: .top, spacing: ChatMessageLayoutMetric.rowGap) {
+                    Spacer(
+                        minLength: useStackedLayout
+                            ? ChatMessageLayoutMetric.userCompactReserve
+                            : ChatMessageLayoutMetric.userDesktopReserve
+                    )
                     userBubble
                 }
             } else if useStackedLayout {
                 // Web ≤500px: assistant avatar stacked above message
-                VStack(alignment: .leading, spacing: .spacing2) {
+                VStack(alignment: .leading, spacing: ChatMessageLayoutMetric.stackedAvatarGap) {
                     assistantAvatar
                     assistantContent
                 }
             } else {
                 // Desktop: assistant avatar left of message
-                HStack(alignment: .top, spacing: .spacing3) {
+                HStack(alignment: .top, spacing: ChatMessageLayoutMetric.rowGap) {
                     assistantAvatar
                     assistantContent
-                    Spacer(minLength: 70)
+                    Spacer(minLength: ChatMessageLayoutMetric.assistantDesktopReserve)
                 }
             }
         }
