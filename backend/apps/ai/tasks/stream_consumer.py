@@ -5461,6 +5461,17 @@ async def _consume_main_processing_stream(
                     f"response reduced from {len(cleaned) + total_stripped} to {len(aggregated_response)} chars"
                 )
 
+    if request_data.active_focus_id == "web-research" and aggregated_response:
+        short_answer_index = aggregated_response.find("## Short Answer")
+        if short_answer_index > 0:
+            original_length = len(aggregated_response)
+            aggregated_response = aggregated_response[short_answer_index:].lstrip()
+            final_response_chunks = [aggregated_response]
+            logger.info(
+                f"{log_prefix} Deep research synthesis cleanup: stripped "
+                f"{original_length - len(aggregated_response)} prelude chars before ## Short Answer."
+            )
+
     # Ensure we never complete with an empty assistant message on server-side failures.
     # This avoids clients sending an "ai_response_completed" payload without encrypted_content,
     # and ensures the user always sees a retryable error message when all providers fail.
