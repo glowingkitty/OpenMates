@@ -23,6 +23,8 @@ struct DevPreviewRootView: View {
         switch configuration.surface {
         case .chatOpening:
             DevChatOpeningPreviewView()
+        case .chatOpeningRecording:
+            DevChatOpeningPreviewView(forceRecordingOverlay: true)
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
