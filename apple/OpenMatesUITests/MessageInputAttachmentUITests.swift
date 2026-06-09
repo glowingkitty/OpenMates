@@ -22,7 +22,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "attach-files-button").waitForExistence(timeout: 5))
         XCTAssertTrue(element(in: app, identifier: "take-photo-button").waitForExistence(timeout: 5))
 
-        let pendingEmbed = app.otherElements["pending-composer-embed"].firstMatch
+        let pendingEmbed = element(in: app, identifier: "pending-composer-embed")
         XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
         XCTAssertTrue(element(in: app, identifier: "pending-composer-embed-remove").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
