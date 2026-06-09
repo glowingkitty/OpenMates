@@ -203,6 +203,12 @@ struct ChatView: View {
                 if let actionMessage {
                     messageActionsOverlay(for: actionMessage)
                 }
+
+                #if DEBUG
+                if shouldShowUITestResponsiveMetrics {
+                    responsiveMetricsProbe
+                }
+                #endif
             }
             .onAppear {
                 chatViewportHeight = geo.size.height
@@ -1133,6 +1139,31 @@ struct ChatView: View {
         }
         return sizeClass == .compact
     }
+
+    #if DEBUG
+    private var shouldShowUITestResponsiveMetrics: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-responsive-metrics")
+    }
+
+    private var responsiveMetricsProbe: some View {
+        let roundedWidth = Int(chatContainerWidth.rounded())
+        let assistantStacked = chatContainerWidth > 0
+            ? chatContainerWidth <= ChatResponsiveBreakpoint.assistantStacked
+            : sizeClass == .compact
+        let inlineNewChatCompact = chatContainerWidth > 0
+            ? chatContainerWidth <= ChatResponsiveBreakpoint.inlineNewChatCompact
+            : sizeClass == .compact
+        let metrics = "chat-width=\(roundedWidth); assistant-stacked=\(assistantStacked); inline-new-chat-compact=\(inlineNewChatCompact); size-class=\(sizeClass == .compact ? "compact" : "regular")"
+
+        return Text(metrics)
+            .font(.omMicro)
+            .foregroundStyle(Color.fontTertiary.opacity(0.01))
+            .frame(width: 1, height: 1)
+            .accessibilityIdentifier("chat-responsive-metrics")
+            .accessibilityLabel(metrics)
+            .allowsHitTesting(false)
+    }
+    #endif
 
     private func openNewChat() {
         if let onNewChat {
