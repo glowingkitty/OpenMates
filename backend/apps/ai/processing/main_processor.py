@@ -2169,7 +2169,10 @@ async def handle_main_processing(
     if (
         chat_depth == 0
         and enable_subchats_results
-        and request_data.active_focus_id == "web-research"
+        and (
+            request_data.active_focus_id == "web-research"
+            or "web-research" in relevant_focus_modes
+        )
     ):
         available_tools_for_llm = [start_sub_chats_tool]
         logger.info(
