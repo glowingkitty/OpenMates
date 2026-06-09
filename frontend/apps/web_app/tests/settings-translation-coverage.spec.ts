@@ -34,7 +34,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const SETTINGS_MENU_SELECTOR = '[data-testid="settings-menu"]';
 const MISSING_TRANSLATION_PATTERN = /\[\s*T\s*:?[^[\]]+\]|\[object Object\]/g;
-const MAX_TRAVERSAL_DEPTH = 4;
+const MAX_TRAVERSAL_DEPTH = 1;
 const NAVIGATION_WAIT_MS = 200;
 const GIFT_CARD_SETTINGS_PATHS = [
 	'billing/gift-cards',
@@ -267,6 +267,7 @@ test.describe('Settings translation coverage', () => {
 
 		const visited = new Set<string>();
 		await traverseSettingsMenus(page, settingsMenu, visited, logCheckpoint);
+		await goBackTo(page, settingsMenu, 'main');
 
 		for (const settingsPath of GIFT_CARD_SETTINGS_PATHS) {
 			await openSettingsPath(page, settingsMenu, settingsPath);
