@@ -352,7 +352,7 @@ async def _dispatch_sub_chat_parent_continuation(
     ]
     continuation_history.append(
         AIHistoryMessage(
-            role="system",
+            role="user",
             content=_build_sub_chat_completion_context(pending_context),
             created_at=int(time.time()),
         )
