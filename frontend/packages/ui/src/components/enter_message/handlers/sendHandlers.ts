@@ -984,11 +984,20 @@ export async function handleSend(
   // 2. Sent with the message to the server
   // 3. Cached server-side for LLM inference (so LLM gets the URL metadata)
   const urlSpan = tracer.startSpan('message.send.url_processing');
+  recordSendDebugStep("url_processing_started", { currentChatId });
   try {
     markdown = await processUrlsBeforeSend(markdown);
+    recordSendDebugStep("url_processing_complete", {
+      currentChatId,
+      markdownLength: markdown.length,
+    });
   } catch (error) {
     console.error("[handleSend] Error processing URLs before send:", error);
     // Continue with original markdown if URL processing fails
+    recordSendDebugStep("url_processing_failed", {
+      currentChatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
     urlSpan.end();
   }
@@ -1006,6 +1015,7 @@ export async function handleSend(
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
   let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
     // Read current privacy settings from the store
     const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
@@ -1096,14 +1106,28 @@ export async function handleSend(
     console.error("[handleSend] Error in PII anonymization:", error);
     // Continue with original markdown if PII detection fails - user privacy is important
     // but we shouldn't block sending messages entirely
+    recordSendDebugStep("pii_detection_failed", {
+      currentChatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
     piiSpan.end();
   }
+  recordSendDebugStep("pii_detection_complete", {
+    currentChatId,
+    piiMappingCount: piiMappingsForStorage.length,
+  });
 
   // Check if a new chat suggestion was clicked - if so, track it for deletion
+  recordSendDebugStep("suggestion_tracker_import_started", { currentChatId });
   const { consumeClickedSuggestion } =
     await import("../../../stores/suggestionTracker");
+  recordSendDebugStep("suggestion_tracker_import_complete", { currentChatId });
   const encryptedSuggestionToDelete = consumeClickedSuggestion();
+  recordSendDebugStep("suggestion_consumed", {
+    currentChatId,
+    hasSuggestionToDelete: !!encryptedSuggestionToDelete,
+  });
 
   if (encryptedSuggestionToDelete) {
     // Delete from local IndexedDB immediately
