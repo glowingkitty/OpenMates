@@ -32,7 +32,6 @@ from webauthn.helpers.options_to_json_dict import options_to_json_dict
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from webauthn.helpers.structs import (
     AttestationConveyancePreference,
-    AuthenticatorAttachment,
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
@@ -773,9 +772,8 @@ async def passkey_registration_initiate(
             timeout=60000,
             attestation=AttestationConveyancePreference.DIRECT,
             authenticator_selection=AuthenticatorSelectionCriteria(
-                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
                 resident_key=ResidentKeyRequirement.REQUIRED,
-                user_verification=UserVerificationRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.REQUIRED,
             ),
             supported_pub_key_algs=[
                 COSEAlgorithmIdentifier.ECDSA_SHA_256,  # ES256
@@ -1571,7 +1569,7 @@ async def passkey_assertion_initiate(
             challenge=challenge_bytes,
             timeout=60000,
             allow_credentials=allow_credentials_descriptors,
-            user_verification=UserVerificationRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
         )
         
         # Convert to dict using py_webauthn's helper (properly handles base64url encoding)
@@ -1614,7 +1612,7 @@ async def passkey_assertion_initiate(
             rp={"id": "", "name": ""},
             timeout=60000,
             allowCredentials=[],
-            userVerification="preferred",
+            userVerification="required",
             message=f"Failed to initiate passkey assertion: {str(e)}"
         )
 

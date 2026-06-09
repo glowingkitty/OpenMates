@@ -106,7 +106,7 @@ graph TB
 
 **Passkey path:**
 1. Server generates WebAuthn registration options with PRF extension
-2. Browser creates credential; client verifies PRF support (required for client-side key wrapping)
+2. Browser creates credential; client verifies PRF support and derives PRF output from creation or an immediate scoped assertion
 3. Client generates master key, wraps it with `deriveWrappingKeyFromPRF()` (HKDF from PRF signature + user salt)
 4. Wrapped master key uploaded to server
 

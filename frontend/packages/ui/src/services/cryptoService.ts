@@ -68,7 +68,7 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 /**
  * Converts Uint8Array to URL-safe Base64 string (no padding)
  */
-function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
+function _uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
   const base64 = uint8ArrayToBase64(bytes);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -122,7 +122,7 @@ export function generateSalt(length = 16): Uint8Array {
  * This key is used for all user data encryption and is stored in IndexedDB
  * @returns Promise<CryptoKey> - Non-extractable AES-GCM key
  */
-async function generateUserMasterKey(): Promise<CryptoKey> {
+async function _generateUserMasterKey(): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
     { name: "AES-GCM", length: AES_KEY_LENGTH },
     false, // non-extractable - cannot be exported as raw bytes
@@ -340,7 +340,7 @@ export async function clearKeyFromStorage(): Promise<void> {
 /**
  * Deletes the entire crypto database (used during logout)
  */
-async function deleteCryptoStorage(): Promise<void> {
+async function _deleteCryptoStorage(): Promise<void> {
   await deleteCryptoDatabase();
 }
 
@@ -596,7 +596,7 @@ export async function encryptEmail(
  * @param key - The decryption key (32 bytes for XSalsa20)
  * @returns Promise<string | null> - Decrypted email or null if decryption fails
  */
-async function decryptEmail(
+async function _decryptEmail(
   encryptedEmailWithNonce: string,
   key: Uint8Array,
 ): Promise<string | null> {
@@ -991,6 +991,123 @@ export async function hashKey(
 // PASSKEY PRF AND HKDF FUNCTIONS
 // ============================================================================
 
+type PRFSignatureBuffer = ArrayBuffer | ArrayBufferView | string;
+
+interface PRFExtensionResults {
+  enabled?: boolean;
+  results?: { first?: PRFSignatureBuffer };
+}
+
+interface PasskeyPRFFallbackOptions {
+  credential: PublicKeyCredential;
+  challenge: ArrayBuffer;
+  rpId: string;
+  timeout?: number;
+  userVerification?: UserVerificationRequirement;
+  prfEvalFirst: ArrayBuffer;
+}
+
+function prfSignatureToUint8Array(signature: PRFSignatureBuffer): Uint8Array {
+  if (typeof signature === "string") {
+    const bytes = signature.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16));
+    if (!bytes || bytes.some((byte) => Number.isNaN(byte))) {
+      throw new Error("PRF signature hex string is invalid");
+    }
+    return new Uint8Array(bytes);
+  }
+
+  if (signature instanceof ArrayBuffer) {
+    return new Uint8Array(signature);
+  }
+
+  if (ArrayBuffer.isView(signature)) {
+    return new Uint8Array(signature.buffer, signature.byteOffset, signature.byteLength);
+  }
+
+  throw new Error("PRF signature is in an unknown format");
+}
+
+function getPRFSignatureFromCredential(credential: PublicKeyCredential, context: string): Uint8Array | null {
+  const clientExtensionResults = credential.getClientExtensionResults();
+  console.log(`[${context}] Client extension results:`, clientExtensionResults);
+  const prfResults = (clientExtensionResults as { prf?: PRFExtensionResults } | undefined)?.prf;
+  console.log(`[${context}] PRF results:`, prfResults);
+
+  if (!prfResults) {
+    throw new Error("PRF extension not found in client extension results");
+  }
+
+  if (prfResults.enabled === false) {
+    throw new Error("PRF extension explicitly disabled");
+  }
+
+  const signature = prfResults.results?.first;
+  if (!signature) {
+    return null;
+  }
+
+  const prfSignature = prfSignatureToUint8Array(signature);
+  if (prfSignature.length < 16 || prfSignature.length > 64) {
+    throw new Error(`PRF signature has invalid length: ${prfSignature.length}`);
+  }
+
+  console.log(`[${context}] PRF signature extracted successfully`, {
+    length: prfSignature.length,
+    firstBytes: Array.from(prfSignature.slice(0, 4)),
+  });
+  return prfSignature;
+}
+
+/**
+ * Returns PRF output for a newly-created credential.
+ *
+ * Some authenticators enable PRF during create() but only return evaluated PRF
+ * output during get(). The fallback keeps PRF mandatory while accepting those
+ * otherwise-compatible authenticators.
+ */
+export async function getPRFSignatureForPasskeyRegistration(
+  options: PasskeyPRFFallbackOptions,
+  context: string = "PasskeyRegistration",
+): Promise<Uint8Array> {
+  const createSignature = getPRFSignatureFromCredential(options.credential, context);
+  if (createSignature) {
+    return createSignature;
+  }
+
+  console.log(`[${context}] PRF output missing from create(); requesting scoped assertion fallback`);
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: options.challenge,
+      rpId: options.rpId,
+      timeout: options.timeout,
+      userVerification: options.userVerification ?? "required",
+      allowCredentials: [
+        {
+          type: "public-key",
+          id: options.credential.rawId,
+        },
+      ],
+      extensions: {
+        prf: {
+          eval: {
+            first: options.prfEvalFirst,
+          },
+        },
+      } as AuthenticationExtensionsClientInputs,
+    },
+  }) as PublicKeyCredential | null;
+
+  if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+    throw new Error("PRF fallback assertion did not return a valid credential");
+  }
+
+  const fallbackSignature = getPRFSignatureFromCredential(assertion, `${context}Fallback`);
+  if (!fallbackSignature) {
+    throw new Error("PRF signature not found in fallback assertion results");
+  }
+  return fallbackSignature;
+}
+
 /**
  * HMAC-based Key Derivation Function (HKDF) as specified in RFC 5869
  * Used to derive wrapping keys from PRF signatures for passkey authentication
@@ -1133,7 +1250,7 @@ export async function hashKeyFromPRF(
  *
  * @returns boolean - True if WebAuthn and PRF extension might be supported
  */
-function checkPRFSupport(): boolean {
+function _checkPRFSupport(): boolean {
   if (typeof window === "undefined" || !navigator.credentials) {
     return false;
   }
@@ -1148,4 +1265,3 @@ function checkPRFSupport(): boolean {
   // Actual PRF support is checked via getClientExtensionResults() after creation
   return true;
 }
-

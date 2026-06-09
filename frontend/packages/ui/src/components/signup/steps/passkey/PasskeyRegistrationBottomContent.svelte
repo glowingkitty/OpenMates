@@ -146,17 +146,18 @@
                 credential = await navigator.credentials.create({
                     publicKey: publicKeyCredentialCreationOptions
                 }) as PublicKeyCredential;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('[Signup] WebAuthn credential creation failed:', error);
+                const webauthnError = error as Error & { name?: string };
                 // Check if it's a PRF-related error or user cancellation
-                if (error.name === 'NotSupportedError' || 
-                    error.message?.includes('PRF') || 
-                    error.message?.includes('prf') ||
-                    error.message?.toLowerCase().includes('extension')) {
+                if (webauthnError.name === 'NotSupportedError' || 
+                    webauthnError.message?.includes('PRF') || 
+                    webauthnError.message?.includes('prf') ||
+                    webauthnError.message?.toLowerCase().includes('extension')) {
                     // PRF not supported - show error screen
                     console.error('[Signup] PRF-related error during credential creation:', {
-                        name: error.name,
-                        message: error.message
+                        name: webauthnError.name,
+                        message: webauthnError.message
                     });
                     dispatch('step', { step: 'passkey_prf_error' });
                     isLoading = false;
@@ -174,89 +175,23 @@
             
             const response = credential.response as AuthenticatorAttestationResponse;
             
-            // Step 4: Check PRF extension support (CRITICAL for zero-knowledge encryption)
-            const clientExtensionResults = credential.getClientExtensionResults();
-            console.log('[Signup] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf as any;
-            console.log('[Signup] PRF results:', prfResults);
-            
-            // CRITICAL: PRF must be enabled for zero-knowledge encryption
-            if (!prfResults) {
-                console.error('[Signup] PRF extension not found in client extension results', {
-                    clientExtensionResults,
-                    hasPrf: !!clientExtensionResults?.prf
-                });
-                dispatch('step', { step: 'passkey_prf_error' });
-                isLoading = false;
-                return;
-            }
-            
-            // Check if PRF is explicitly disabled
-            if (prfResults.enabled === false) {
-                console.error('[Signup] PRF extension explicitly disabled', {
-                    prfResults,
-                    enabled: prfResults.enabled
-                });
-                dispatch('step', { step: 'passkey_prf_error' });
-                isLoading = false;
-                return;
-            }
-            
-            // Extract PRF signature (first result) - handle both ArrayBuffer and hex string formats
-            const prfSignatureBuffer = prfResults.results?.first;
-            if (!prfSignatureBuffer) {
-                console.error('[Signup] PRF signature not found in results', {
-                    prfResults,
-                    hasResults: !!prfResults.results,
-                    resultsKeys: prfResults.results ? Object.keys(prfResults.results) : []
-                });
-                dispatch('step', { step: 'passkey_prf_error' });
-                isLoading = false;
-                return;
-            }
-            
-            // Convert PRF signature to Uint8Array - handle both formats
+            // Step 4: Get PRF output (CRITICAL for zero-knowledge encryption).
             let prfSignature: Uint8Array;
-            if (typeof prfSignatureBuffer === 'string') {
-                // Hex string format
-                console.log('[Signup] PRF signature is hex string, converting to Uint8Array');
-                const hexString = prfSignatureBuffer;
-                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
-                // ArrayBuffer format
-                console.log('[Signup] PRF signature is ArrayBuffer, converting to Uint8Array');
-                prfSignature = new Uint8Array(prfSignatureBuffer);
-            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
-                // TypedArray format
-                console.log('[Signup] PRF signature is TypedArray, converting to Uint8Array');
-                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
-            } else {
-                console.error('[Signup] PRF signature is in unknown format', {
-                    type: typeof prfSignatureBuffer,
-                    constructor: prfSignatureBuffer?.constructor?.name,
-                    value: prfSignatureBuffer
-                });
+            try {
+                prfSignature = await cryptoService.getPRFSignatureForPasskeyRegistration({
+                    credential,
+                    challenge,
+                    rpId: initiateData.rp.id,
+                    timeout: initiateData.timeout,
+                    userVerification: publicKeyCredentialCreationOptions.authenticatorSelection?.userVerification as UserVerificationRequirement | undefined,
+                    prfEvalFirst: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+                }, 'SignupLegacy');
+            } catch (error) {
+                console.error('[Signup] Failed to obtain PRF signature:', error);
                 dispatch('step', { step: 'passkey_prf_error' });
                 isLoading = false;
                 return;
             }
-            
-            // Validate PRF signature length (should be 32 bytes for SHA-256)
-            if (prfSignature.length < 16 || prfSignature.length > 64) {
-                console.error('[Signup] PRF signature has invalid length', {
-                    length: prfSignature.length,
-                    expected: '16-64 bytes'
-                });
-                dispatch('step', { step: 'passkey_prf_error' });
-                isLoading = false;
-                return;
-            }
-            
-            console.log('[Signup] PRF signature validated successfully', {
-                length: prfSignature.length,
-                enabled: prfResults.enabled,
-                firstBytes: Array.from(prfSignature.slice(0, 4))
-            });
             
             // Step 5: Generate master key and email salt (same as password flow)
             const masterKey = await cryptoService.generateExtractableMasterKey();
@@ -416,7 +351,7 @@
     
     <div class="passkey-info">
         <p class="passkey-text">
-            {@html $text('signup.passkey_info')}
+            {$text('signup.passkey_info')}
         </p>
     </div>
 </div>

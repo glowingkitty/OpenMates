@@ -46,6 +46,8 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  * ARCHITECTURE NOTES:
  * - Passkeys require WebAuthn PRF extension support for zero-knowledge encryption.
  * - We rely on Playwright's virtual authenticator via CDP to avoid manual prompts.
+ * - The virtual authenticator uses USB transport so the flow covers roaming/security-key
+ *   registration, which is the most relevant Linux compatibility path.
  * - The virtual authenticator automatically handles PRF extension requests during credential creation.
  * - If PRF is not supported, the app will detect this and show the PRF error screen.
  *
@@ -73,7 +75,7 @@ async function setupVirtualPasskeyAuthenticator(
 	const { authenticatorId } = await client.send('WebAuthn.addVirtualAuthenticator', {
 		options: {
 			protocol: 'ctap2',
-			transport: 'internal',
+			transport: 'usb',
 			hasResidentKey: true,
 			hasUserVerification: true,
 			isUserVerified: true,
@@ -255,7 +257,16 @@ test('completes passkey signup flow with email', async ({
 		const passkeyOption = page.locator('#signup-passkey-option');
 		await expect(passkeyOption).toBeVisible({ timeout: 10000 });
 		await takeStepScreenshot(page, 'secure-account');
+		const passkeyInitiateResponsePromise = page.waitForResponse(
+			(response: any) =>
+				response.url().includes('/auth/passkey/registration/initiate') &&
+				response.request().method() === 'POST'
+		);
 		await passkeyOption.click();
+		const passkeyInitiateResponse = await passkeyInitiateResponsePromise;
+		const passkeyInitiateOptions = await passkeyInitiateResponse.json();
+		expect(passkeyInitiateOptions.authenticatorSelection?.authenticatorAttachment).toBeFalsy();
+		expect(passkeyInitiateOptions.authenticatorSelection?.userVerification).toBe('required');
 		logSignupCheckpoint('Selected passkey signup path.');
 
 		// Signup now finishes immediately after account creation; security and billing setup live in Settings.

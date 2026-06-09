@@ -32,7 +32,9 @@ sequenceDiagram
     C->>S: POST /auth/passkey/registration/initiate
     S-->>C: CreationOptions + PRF extension
     C->>B: navigator.credentials.create()
-    B-->>C: credential + PRF signature
+    B-->>C: credential + PRF signature, or PRF enabled without output
+    C->>B: navigator.credentials.get() for new credential if PRF output missing
+    B-->>C: PRF signature
     C->>C: HKDF(PRF_sig, user_salt) → wrapping key
     C->>C: Wrap master key with wrapping key
     C->>S: POST /auth/passkey/registration/complete
@@ -62,7 +64,7 @@ The global salt approach solves the chicken-and-egg problem: the server can send
 ### Registration Flow
 
 1. `POST /auth/passkey/registration/initiate` generates WebAuthn `PublicKeyCredentialCreationOptions` with PRF extension
-2. Browser creates credential; frontend checks PRF support. If unsupported: registration blocked, user offered password+2FA
+2. Browser creates credential; frontend checks PRF support and output. If creation enabled PRF but did not return output, the frontend immediately requests a scoped assertion for the new credential to derive PRF output. If PRF remains unavailable: registration is blocked and the user is offered password+2FA.
 3. `POST /auth/passkey/registration/complete` verifies attestation via `py_webauthn`, stores passkey in `user_passkeys` table
 4. Client wraps master key with PRF-derived key, uploads wrapped key
 
@@ -112,14 +114,14 @@ Schema: [user_passkeys.yml](../../backend/core/directus/schemas/user_passkeys.ym
 
 ## Security Considerations
 
-- **PRF mandatory:** non-PRF passkey registration is never allowed. Detected via `navigator.credentials.create()` with PRF extension
+- **PRF mandatory:** non-PRF passkey registration is never allowed. Detected via `navigator.credentials.create()` with PRF extension and, when needed, an immediate scoped `navigator.credentials.get()` fallback for the new credential.
 - **Sign count validation:** if `sign_count` does not increase, the authenticator may be cloned; flagged as suspicious
 - **Challenge freshness:** new challenge per registration/assertion, expires after 5 minutes. See challenge caching in [auth_passkey.py](../../backend/core/api/app/routes/auth_routes/auth_passkey.py)
 - **Cache warming:** starts immediately after passkey verification (async), ensuring instant sync when authentication completes
 
 ### Device Support
 
-PRF is supported on: macOS (platform passkeys and security keys), iOS (Face ID/Touch ID), Android (Google Password Manager), Windows (Windows Hello). Not supported on some older devices and security keys.
+PRF support depends on the whole browser + OS + authenticator chain. Chrome on Linux supports passkeys through Google Password Manager, while Linux users may also rely on PRF-capable USB security keys because Linux does not have a universal native platform passkey provider. Non-PRF authenticators and browsers remain unsupported for passkey-based encryption.
 
 ## Edge Cases
 

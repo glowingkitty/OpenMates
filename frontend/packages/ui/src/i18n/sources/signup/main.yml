@@ -2001,7 +2001,7 @@ passkey_prf_error_title:
   verified_by_human: []
 passkey_prf_error_message:
   context: PRF error message
-  en: "Your password manager doesn't support the PRF standard. Try another password manager or use password as a signup option instead."
+  en: "Your browser, device, or password manager doesn't support passkey encryption. Try another supported passkey setup or use password as a signup option instead."
   de: "Ihr Passwort-Manager unterstützt den PRF-Standard nicht. Versuchen Sie einen anderen Passwort-Manager oder verwenden Sie stattdessen ein Passwort als Anmeldeoption."
   zh: "您的密码管理器不支持 PRF 标准。请尝试另一个密码管理器，或改用密码作为注册选项。"
   es: "Su administrador de contraseñas no admite el estándar PRF. Pruebe con otro administrador de contraseñas o use una contraseña como opción de registro en su lugar."
