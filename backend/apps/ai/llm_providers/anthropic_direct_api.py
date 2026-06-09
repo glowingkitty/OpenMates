@@ -53,10 +53,14 @@ async def invoke_direct_api(
             "max_tokens": max_tokens or 16384
         }
 
-        # Opus 4.7+ uses adaptive thinking and does not accept `temperature`.
+        # Adaptive-thinking Claude models do not accept `temperature`.
         # Strip the model ID prefix (e.g. "eu.anthropic.") to normalise Bedrock IDs.
         bare_model = model_id.rsplit(".", 1)[-1] if model_id.startswith("eu.") else model_id
-        temperature_unsupported = bare_model.startswith(("claude-opus-4-7", "claude-opus-4-8"))
+        temperature_unsupported = bare_model.startswith((
+            "claude-opus-4-7",
+            "claude-opus-4-8",
+            "claude-fable-5",
+        ))
         if not temperature_unsupported:
             request_kwargs["temperature"] = temperature
         
