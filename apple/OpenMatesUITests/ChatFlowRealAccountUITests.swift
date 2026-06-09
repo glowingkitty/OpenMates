@@ -105,7 +105,10 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let userMessage = app.otherElements.matching(identifier: "chat-message-user")
             .containing(NSPredicate(format: "label CONTAINS %@", markerPrompt))
             .firstMatch
-        XCTAssertTrue(userMessage.waitForExistence(timeout: 60))
+        XCTAssertTrue(
+            userMessage.waitForExistence(timeout: 60),
+            "Expected sent user message after tapping send. Visible UI: \(visibleStateLabels(in: app))"
+        )
     }
 
     private func openNewChatIfNeeded(app: XCUIApplication) {
@@ -165,6 +168,24 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let textLabels = app.staticTexts.allElementsBoundByIndex.compactMap(redactedLabel)
         let buttonLabels = app.buttons.allElementsBoundByIndex.compactMap(redactedLabel)
         return (textLabels + buttonLabels).prefix(12).joined(separator: " | ")
+    }
+
+    private func visibleStateLabels(in app: XCUIApplication) -> String {
+        let buttons = elementSummaries(app.buttons.allElementsBoundByIndex, prefix: "button")
+        let textFields = elementSummaries(app.textFields.allElementsBoundByIndex, prefix: "textField")
+        let staticTexts = elementSummaries(app.staticTexts.allElementsBoundByIndex, prefix: "text")
+        return (buttons + textFields + staticTexts).prefix(30).joined(separator: " | ")
+    }
+
+    private func elementSummaries(_ elements: [XCUIElement], prefix: String) -> [String] {
+        elements.compactMap { element in
+            let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            let label = redactedLabel(for: element) ?? ""
+            guard !identifier.isEmpty || !label.isEmpty else { return nil }
+            if identifier.isEmpty { return "\(prefix):\(label)" }
+            if label.isEmpty || label == identifier { return "\(prefix)#\(identifier)" }
+            return "\(prefix)#\(identifier)=\(label)"
+        }
     }
 
     private func redactedLabel(for element: XCUIElement) -> String? {
