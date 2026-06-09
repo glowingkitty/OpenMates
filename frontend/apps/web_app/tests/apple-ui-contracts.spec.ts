@@ -10,9 +10,7 @@ export {};
 
 const path = require('path');
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const {
 	captureContractState,
 	createContract,
@@ -29,7 +27,6 @@ test.use({
 
 const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const DEFAULT_ELEMENTS = [
 	{ testId: 'message-field', semanticId: 'message-field' },
@@ -41,7 +38,13 @@ const DEFAULT_ELEMENTS = [
 async function openUsableComposer(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
-	await loginToTestAccount(page, undefined, undefined, { waitForEditor: true });
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 15000
+	});
+	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
+		await newChatButton.click();
+	}
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 20000 });
 	await editor.click();
@@ -58,7 +61,6 @@ async function attachFiles(page: any, filePaths: string[]): Promise<void> {
 
 test('captures message input web UI contract for Apple parity', async ({ page }) => {
 	test.setTimeout(120000);
-	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await openUsableComposer(page);
 
