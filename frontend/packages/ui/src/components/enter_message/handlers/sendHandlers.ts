@@ -1124,10 +1124,9 @@ export async function handleSend(
     }
 
     // Check if we're using an existing draft chat
-    const isUsingDraftChat =
-      !currentChatId &&
-      draftState.currentChatId &&
-      chatIdToUse === draftState.currentChatId;
+    const isUsingDraftChat = Boolean(
+      draftState.currentChatId && chatIdToUse === draftState.currentChatId,
+    );
 
     // Check if we're dealing with a temporary chat ID (not a real chat in the database)
     // This happens when a temporaryChatId was set in ActiveChat but the chat doesn't actually exist in DB
