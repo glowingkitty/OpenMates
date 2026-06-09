@@ -102,9 +102,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         XCTAssertTrue(send.waitForExistence(timeout: 5))
         send.tap()
 
-        let userMessage = app.otherElements.matching(identifier: "chat-message-user")
-            .containing(NSPredicate(format: "label CONTAINS %@", markerPrompt))
-            .firstMatch
+        let userMessage = accessibilityElement(
+            in: app,
+            identifier: "chat-message-user",
+            labelContaining: markerPrompt
+        )
         XCTAssertTrue(
             userMessage.waitForExistence(timeout: 60),
             "Expected sent user message after tapping send. Visible UI: \(visibleStateLabels(in: app))"
@@ -122,7 +124,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let streamingStarted = app.otherElements["streaming-banner"].waitForExistence(timeout: 30)
             || app.otherElements["streaming-indicator"].waitForExistence(timeout: 2)
 
-        let assistantMessage = app.otherElements.matching(identifier: "chat-message-assistant").firstMatch
+        let assistantMessage = accessibilityElement(in: app, identifier: "chat-message-assistant")
         XCTAssertTrue(
             streamingStarted || assistantMessage.waitForExistence(timeout: 10),
             "Expected assistant streaming or an assistant message to appear"
@@ -134,6 +136,22 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     private func messageEditor(in app: XCUIApplication) -> XCUIElement {
         messageEditorCandidates(in: app).first { $0.exists }
             ?? app.textFields.matching(identifier: "message-editor").firstMatch
+    }
+
+    private func accessibilityElement(in app: XCUIApplication, identifier: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .firstMatch
+    }
+
+    private func accessibilityElement(
+        in app: XCUIApplication,
+        identifier: String,
+        labelContaining label: String
+    ) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", identifier, label))
+            .firstMatch
     }
 
     private func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
