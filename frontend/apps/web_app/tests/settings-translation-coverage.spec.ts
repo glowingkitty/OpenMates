@@ -99,7 +99,7 @@ function validateSettingsCatalogTranslations(): void {
 }
 
 async function collectMissingTranslationMarkers(page: any): Promise<string[]> {
-	return page.evaluate((selector: string, patternSource: string) => {
+	return page.evaluate(({ selector, patternSource }: { selector: string; patternSource: string }) => {
 		const root = document.querySelector(selector);
 		if (!root) return ['settings menu not mounted'];
 
@@ -115,7 +115,10 @@ async function collectMissingTranslationMarkers(page: any): Promise<string[]> {
 
 		const matches = values.flatMap((value) => value.match(pattern) || []);
 		return [...new Set(matches)];
-	}, SETTINGS_MENU_SELECTOR, MISSING_TRANSLATION_PATTERN.source);
+	}, {
+		selector: SETTINGS_MENU_SELECTOR,
+		patternSource: MISSING_TRANSLATION_PATTERN.source
+	});
 }
 
 async function expectNoMissingTranslationMarkers(page: any, context: string): Promise<void> {
