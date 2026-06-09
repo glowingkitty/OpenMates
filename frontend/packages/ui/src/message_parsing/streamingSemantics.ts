@@ -5,6 +5,25 @@
 import { EmbedNodeAttributes, EmbedStoreLike } from './types';
 import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from './utils';
 
+type UnclosedBlock = { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number };
+type ProtectedRange = { start: number; end: number };
+
+const E2E_TEST_MARKER_REGEX = /<<<TEST_(?:MOCK|RECORD|LIVE_MOCK|LIVE_RECORD):[^>\n]+>>>/g;
+
+function getE2ETestMarkerRanges(line: string): ProtectedRange[] {
+  const ranges: ProtectedRange[] = [];
+  let match: RegExpExecArray | null;
+  E2E_TEST_MARKER_REGEX.lastIndex = 0;
+  while ((match = E2E_TEST_MARKER_REGEX.exec(line)) !== null) {
+    ranges.push({ start: match.index, end: match.index + match[0].length });
+  }
+  return ranges;
+}
+
+function intersectsProtectedRange(start: number, end: number, ranges: ProtectedRange[]): boolean {
+  return ranges.some((range) => start < range.end && end > range.start);
+}
+
 /**
  * Handle streaming semantics for partial/unclosed blocks
  * In write mode, emit highlighted-but-unclosed nodes for visual feedback
@@ -12,11 +31,11 @@ import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from './utils';
  */
 export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read'): {
   partialEmbeds: EmbedNodeAttributes[];
-  unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[];
+  unclosedBlocks: UnclosedBlock[];
 } {
   const lines = markdown.split('\n');
   const partialEmbeds: EmbedNodeAttributes[] = [];
-  const unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[] = [];
+  const unclosedBlocks: UnclosedBlock[] = [];
   
   // Use the shared state machine for reliable code block detection
   const stateMachine = new CodeBlockStateMachine();
@@ -82,7 +101,7 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
 function detectNonCodeBlockElements(
   lines: string[],
   partialEmbeds: EmbedNodeAttributes[],
-  unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[]
+  unclosedBlocks: UnclosedBlock[]
 ): void {
   // Use a fresh state machine to track code blocks
   const stateMachine = new CodeBlockStateMachine();
@@ -91,6 +110,7 @@ function detectNonCodeBlockElements(
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+    const e2eMarkerRanges = getE2ETestMarkerRanges(line);
     const event = stateMachine.processLine(line, i);
     
     // Skip lines inside code blocks
@@ -188,7 +208,7 @@ function detectNonCodeBlockElements(
     
     // Detect markdown syntax (headings, bold, italic, etc.)
     if (event.event === 'outside_block' && !inTableBlock && !isAnyFenceLine) {
-      detectMarkdownSyntax(line, i, partialEmbeds, unclosedBlocks);
+      detectMarkdownSyntax(line, i, partialEmbeds, unclosedBlocks, e2eMarkerRanges);
     }
   }
 }
@@ -200,11 +220,13 @@ function detectMarkdownSyntax(
   line: string,
   lineIndex: number,
   partialEmbeds: EmbedNodeAttributes[],
-  unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[]
+  unclosedBlocks: UnclosedBlock[],
+  protectedRanges: ProtectedRange[] = []
 ): void {
   // Helper to push an exact token range for markdown syntax
   const pushToken = (start: number, end: number) => {
     if (start == null || end == null || end <= start) return;
+    if (intersectsProtectedRange(start, end, protectedRanges)) return;
     const id = generateUUID();
     partialEmbeds.push({ id, type: 'markdown', status: 'processing', contentRef: `stream:${id}` });
     unclosedBlocks.push({ type: 'markdown', startLine: lineIndex, content: line.slice(start, end), tokenStartCol: start, tokenEndCol: end });
