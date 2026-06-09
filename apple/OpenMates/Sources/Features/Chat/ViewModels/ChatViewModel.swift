@@ -1113,6 +1113,34 @@ final class ChatViewModel: ObservableObject {
         pendingComposerEmbeds.removeAll { $0.id == id }
     }
 
+    #if DEBUG
+    func seedUITestPendingComposerEmbed() {
+        guard pendingComposerEmbeds.isEmpty else { return }
+        let upload = UploadFileResponse(
+            embedId: "ui-test-pending-image",
+            filename: "ui-test-image.png",
+            contentType: "image/png",
+            contentHash: nil,
+            files: [
+                "original": UploadedFileVariant(
+                    s3Key: "ui-test-image.png",
+                    sizeBytes: 128,
+                    width: 32,
+                    height: 32,
+                    format: "png"
+                )
+            ],
+            s3BaseUrl: "https://example.invalid/ui-test",
+            aesKey: "ui-test-aes-key",
+            aesNonce: "ui-test-aes-nonce",
+            vaultWrappedAesKey: "ui-test-wrapped-key",
+            pageCount: nil,
+            deduplicated: true
+        )
+        registerPendingComposerEmbed(upload, localData: Data(repeating: 0, count: 128), transcript: nil, duration: nil)
+    }
+    #endif
+
     private func registerPendingComposerEmbed(
         _ upload: UploadFileResponse,
         localData: Data?,

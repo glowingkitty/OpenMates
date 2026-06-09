@@ -42,6 +42,7 @@ struct PendingComposerEmbedPreview: View {
             }
             .frame(height: 60)
             .padding(.horizontal, .spacing6)
+            .accessibilityIdentifier("pending-composer-embed")
 
             Spacer(minLength: .spacing2)
 
@@ -54,6 +55,7 @@ struct PendingComposerEmbedPreview: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(AppStrings.delete)
+            .accessibilityIdentifier("pending-composer-embed-remove")
             .padding(.trailing, .spacing4)
         }
         .frame(width: 300, height: 60)
@@ -61,6 +63,7 @@ struct PendingComposerEmbedPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: 30))
         .shadow(color: .black.opacity(0.10), radius: 8, x: 0, y: 4)
         .accessibilityIdentifier("embed-full-width-wrapper")
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder

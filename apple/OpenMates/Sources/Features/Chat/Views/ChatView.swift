@@ -238,6 +238,16 @@ struct ChatView: View {
         .task(id: chatId) {
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
+                viewModel.seedUITestPendingComposerEmbed()
+            }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
+                micPermissionState = .granted
+                composerOverlay = .recording
+                isInputFocused = true
+            }
+            #endif
             // Advertise this chat for Handoff to other Apple devices
             handoffManager.advertiseChatViewing(
                 chatId: chatId,
@@ -918,6 +928,7 @@ struct ChatView: View {
                     }
                 )
                 .accessibilityLabel(AppStrings.attachFiles)
+                .accessibilityIdentifier("attach-files-button")
 
                 inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -943,6 +954,7 @@ struct ChatView: View {
                 inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
                     showCameraCapture = true
                 }
+                .accessibilityIdentifier("take-photo-button")
                 #endif
 
                 if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
@@ -972,6 +984,8 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing6)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("action-buttons")
             }
 
             if let recordPermissionHintText {
@@ -1119,6 +1133,7 @@ struct ChatView: View {
                     .foregroundStyle(Color.fontTertiary)
                     .lineLimit(1)
                     .transition(.opacity)
+                    .accessibilityIdentifier("press-hold-label")
             }
 
             recordGestureButton
@@ -1140,6 +1155,8 @@ struct ChatView: View {
                     }
             )
             .accessibilityLabel(AppStrings.recordAudio)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("record-audio-button")
     }
 
     private var recordPermissionHintText: String? {
