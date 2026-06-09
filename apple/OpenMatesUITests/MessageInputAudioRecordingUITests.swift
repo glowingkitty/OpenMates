@@ -13,9 +13,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
     func testRecordButtonAndForcedOverlayMatchContractStructure() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-force-recording-overlay"]
-        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
-        app.launchEnvironment["UI_TEST_FORCE_RECORDING_OVERLAY"] = "1"
+        app.launchArguments = ["--dev-preview", "chat-opening-recording"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening-recording"
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))

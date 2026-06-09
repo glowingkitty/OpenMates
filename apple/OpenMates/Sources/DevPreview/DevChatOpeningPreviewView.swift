@@ -17,9 +17,14 @@ import SwiftUI
 
 struct DevChatOpeningPreviewView: View {
     private let fixture = DevChatOpeningFixture.make()
+    private let forceRecordingOverlay: Bool
     @StateObject private var chatStore = ChatStore()
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
+
+    init(forceRecordingOverlay: Bool = false) {
+        self.forceRecordingOverlay = forceRecordingOverlay
+    }
 
     private var initialWindow: [Message] {
         chatStore.initialMessageWindow(for: fixture.chat.id)
@@ -93,7 +98,8 @@ struct DevChatOpeningPreviewView: View {
     }
 
     private var isUITestRecordingOverlayForced: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+        forceRecordingOverlay
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
             || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
     }
 }
