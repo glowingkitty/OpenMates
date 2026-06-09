@@ -44,6 +44,9 @@ const GIFT_CARD_SETTINGS_PATHS = [
 	'billing/gift-cards/buy/payment',
 	'billing/gift-cards/buy/confirmation'
 ];
+const REQUIRED_NON_EMPTY_TRANSLATION_KEYS = [
+	'app_settings_memories.mail.writing_styles.example_2.footer'
+];
 
 function repoPath(...segments: string[]): string {
 	return path.resolve(process.cwd(), ...segments);
@@ -95,6 +98,19 @@ function validateSettingsCatalogTranslations(): void {
 		throw new Error(
 			`Settings search catalog translation keys must resolve to strings:\n${failures.join('\n')}`
 		);
+	}
+}
+
+function validateRequiredNonEmptyTranslations(): void {
+	const localePath = repoPath('../../packages/ui/src/i18n/locales/en.json');
+	const locale = JSON.parse(fs.readFileSync(localePath, 'utf8'));
+	const failures = REQUIRED_NON_EMPTY_TRANSLATION_KEYS.filter((key) => {
+		const value = getValueByDottedPath(locale, key);
+		return !isTranslationLeaf(value);
+	});
+
+	if (failures.length > 0) {
+		throw new Error(`Required runtime translation keys must be non-empty strings:\n${failures.join('\n')}`);
 	}
 }
 
@@ -234,6 +250,7 @@ test.describe('Settings translation coverage', () => {
 
 	test('settings catalog and visible settings/sub-settings menus have no missing translation placeholders', async ({ page }) => {
 		validateSettingsCatalogTranslations();
+		validateRequiredNonEmptyTranslations();
 
 		const logCheckpoint = createSignupLogger('SETTINGS_TRANSLATION_COVERAGE');
 		const screenshot = createStepScreenshotter(logCheckpoint, {
