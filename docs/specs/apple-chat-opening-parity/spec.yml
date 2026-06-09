@@ -360,9 +360,9 @@ tests:
       required: false
       expected: pass_when_credentials_available
       evidence:
-        status: skipped_missing_credentials_after_compile
-        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowrealaccount-2026-06-09
-        timestamp: "2026-06-09T08:39:04Z"
+        status: passed
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowrealaccount-clean-install-67ed60b-2026-06-09
+        timestamp: "2026-06-09T09:14:00Z"
 
   - id: T-APPLE-PARITY-AUDIT
     type: lint
