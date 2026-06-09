@@ -40,13 +40,17 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	sendMessage,
+	deleteActiveChat,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -123,21 +127,13 @@ async function sendMessageAndGetModel(
 	stepLabel: string,
 	fixtureId: string
 ): Promise<string> {
-	// Type the question
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker(question, fixtureId));
-	logCheckpoint(`Typed question: "${question}"`);
-	await takeStepScreenshot(page, `${stepLabel}-question-typed`);
-
-	// Click send button
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 15000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-	logCheckpoint('Clicked send button.');
-	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
+	await sendMessage(
+		page,
+		withMockMarker(question, fixtureId),
+		logCheckpoint,
+		takeStepScreenshot,
+		stepLabel
+	);
 
 	// Wait for URL to update to new chat ID
 	logCheckpoint('Waiting for URL to update to new chat ID...');
