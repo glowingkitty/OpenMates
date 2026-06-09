@@ -104,7 +104,7 @@ analyze_privacy.description:
     - de
 research:
   context: Focus mode name for research
-  en: Research
+  en: Deep research
   de: Recherche
   zh: 研究
   es: Investigación
@@ -127,10 +127,9 @@ research:
   he: מחקר
   verified_by_human:
     - en
-    - de
 research.description:
   context: Description for research focus mode (max 55 chars for 2-line card display)
-  en: Research a topic from multiple angles.
+  en: Investigate evidence, incentives, and competing narratives.
   de: Ein Thema aus mehreren Blickwinkeln recherchieren.
   zh: 从多个角度研究一个主题。
   es: Investiga un tema desde múltiples ángulos.
@@ -153,10 +152,9 @@ research.description:
   he: חקור נושא ממספר זוויות.
   verified_by_human:
     - en
-    - de
 research.how_to_use.1:
   context: "How-to-use example 1 for the Web Research focus mode. Use **word** to highlight key trigger words."
-  en: "Research **climate change** and its economic impact on coastal cities by 2050"
+  en: "Why did **egg prices** rise so much recently? Look beyond the simple explanation"
   de: "Recherchiere **Klimawandel** und seine wirtschaftlichen Folgen für Küstenstädte bis 2050"
   zh: "研究**气候变化**及其到2050年对沿海城市的经济影响"
   es: "Investiga el **cambio climático** y su impacto económico en ciudades costeras para 2050"
@@ -180,7 +178,7 @@ research.how_to_use.1:
   verified_by_human: []
 research.how_to_use.2:
   context: "How-to-use example 2 for the Web Research focus mode. Use **word** to highlight key trigger words."
-  en: "What are the **pros and cons** of universal basic income? Show me different perspectives"
+  en: "Deeply research the **economic incentives** behind this new climate policy debate"
   de: "Was sind die **Vor- und Nachteile** des bedingungslosen Grundeinkommens? Zeig mir verschiedene Perspektiven"
   zh: "全民基本收入的**优缺点**是什么？给我展示不同角度"
   es: "¿Cuáles son los **pros y contras** del ingreso básico universal? Muéstrame diferentes perspectivas"
@@ -204,7 +202,7 @@ research.how_to_use.2:
   verified_by_human: []
 research.how_to_use.3:
   context: "How-to-use example 3 for the Web Research focus mode. Use **word** to highlight key trigger words."
-  en: "Investigate the **causes** behind the rise of fast fashion and its environmental consequences"
+  en: "Investigate the **competing narratives** around this geopolitical news story"
   de: "Untersuche die **Ursachen** des Aufstiegs der Fast Fashion und deren Umweltfolgen"
   zh: "调查快时尚兴起的**原因**及其对环境的影响"
   es: "Investiga las **causas** detrás del auge de la moda rápida y sus consecuencias ambientales"
@@ -226,55 +224,3 @@ research.how_to_use.3:
   sv: "Undersök **orsakerna** till snabbmodets framväxt och dess miljökonsekvenser"
   he: "בדוק את **הסיבות** לעלייתה של מהר-אופנה ואת ההשלכות הסביבתיות שלה"
   verified_by_human: []
-deep_web_research:
-  context: Focus mode name for deep web research
-  en: Deep web research
-  de: Tiefe Web-Recherche
-  zh: 深度网络研究
-  es: Investigación web profunda
-  fr: Recherche web approfondie
-  pt: Pesquisa web profunda
-  ru: Глубокое веб-исследование
-  ja: 深いウェブリサーチ
-  ko: 심층 웹 연구
-  it: Ricerca web approfondita
-  tr: Derin web araştırması
-  vi: Nghiên cứu web sâu
-  id: Penelitian web mendalam
-  pl: Głębokie badania internetowe
-  nl: Diepgaand webonderzoek
-  ar: بحث ويب عميق
-  hi: गहरी वेब अनुसंधान
-  th: การวิจัยเว็บเชิงลึก
-  cs: Hluboký webový výzkum
-  sv: Djup webbforskning
-  he: מחקר ברשת העמוקה
-  verified_by_human:
-    - en
-    - de
-deep_web_research.description:
-  context: Description for deep web research focus mode
-  en: Plan and conduct deep web research for a report.
-  de: Tiefe Web-Recherche planen und durchführen.
-  zh: 规划并进行深度网络研究以生成报告。
-  es: Investiga a fondo en la web para un informe.
-  fr: Planifiez et menez une recherche web approfondie.
-  pt: Pesquisa web profunda para gerar um relatório.
-  ru: Спланируйте и проведите глубокое веб-исследование.
-  ja: 計画を立て、深いウェブ調査を行いレポートを作成。
-  ko: 심층 웹 조사를 계획하고 보고서를 작성하세요.
-  it: Pianifica e conduci una ricerca web approfondita.
-  tr: Rapor için derin web araştırması planlayın ve yapın.
-  vi: Lập kế hoạch và nghiên cứu web sâu cho báo cáo.
-  id: Rencanakan dan lakukan riset web mendalam.
-  pl: Zaplanuj i przeprowadź głębokie badanie web.
-  nl: Plan en voer diepgaand webonderzoek uit.
-  ar: خطط وأجرِ بحثًا عميقًا على الويب لتقرير.
-  hi: रिपोर्ट के लिए गहन वेब शोध की योजना बनाएं।
-  th: วางแผนและวิจัยเว็บเชิงลึกเพื่อสร้างรายงาน
-  cs: Naplánujte a proveďte hloubkový webový výzkum.
-  sv: Planera och genomför djup webbforskning.
-  he: תכנן ובצע מחקר ברשת העמוקה עבור דוח.
-  verified_by_human:
-    - en
-    - de
