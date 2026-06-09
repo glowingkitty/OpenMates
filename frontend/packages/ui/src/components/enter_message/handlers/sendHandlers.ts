@@ -383,7 +383,25 @@ export async function handleSend(
   activePIIExclusions: Set<string> = new Set(),
   broadcastToSiblings: boolean = false,
 ) {
+  const editorTextPreview = editor && !editor.isDestroyed ? editor.getText().slice(0, 120) : "";
+  console.info("[handleSend] Send invoked", {
+    currentChatId,
+    hasEditor: !!editor,
+    editorDestroyed: editor?.isDestroyed ?? null,
+    editorIsEmpty: editor?.isEmpty ?? null,
+    textLength: editorTextPreview.length,
+    textPreview: editorTextPreview,
+  });
+
   if (!editor || !hasActualContent(editor)) {
+    console.warn("[handleSend] Aborting send because editor has no actual content", {
+      currentChatId,
+      hasEditor: !!editor,
+      editorDestroyed: editor?.isDestroyed ?? null,
+      editorIsEmpty: editor?.isEmpty ?? null,
+      textLength: editorTextPreview.length,
+      textPreview: editorTextPreview,
+    });
     vibrateMessageField();
     return;
   }
@@ -396,6 +414,7 @@ export async function handleSend(
   if (sendInProgress) {
     console.warn(
       "[handleSend] Send already in progress, ignoring duplicate call",
+      { currentChatId, textPreview: editorTextPreview },
     );
     return;
   }
@@ -884,13 +903,22 @@ export async function handleSend(
     !editorContent.content ||
     editorContent.content.length === 0
   ) {
-    console.warn("[handleSend] No editor content available");
+    console.warn("[handleSend] No editor content available", {
+      currentChatId,
+      textPreview: editorTextPreview,
+      editorContent,
+    });
     vibrateMessageField();
     return;
   }
 
   // Convert to markdown
   let markdown = tipTapToCanonicalMarkdown(editorContent);
+  console.info("[handleSend] Editor content converted to markdown", {
+    currentChatId,
+    markdownLength: markdown.length,
+    markdownPreview: markdown.slice(0, 160),
+  });
 
   // Strip leading empty lines that were auto-prepended to allow cursor placement
   // before the first embed node (see ensureLeadingParagraph in embedHandlers.ts).
@@ -1526,6 +1554,13 @@ export async function handleSend(
       newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
       isEditSend,
       editCreatedAt,
+    });
+    console.info("[handleSend] Dispatched local user message", {
+      chatId: messagePayload.chat_id,
+      messageId: messagePayload.message_id,
+      isNewChatCreation,
+      isUsingDraftChat,
+      contentLength: messagePayload.content.length,
     });
 
     // chatToUpdate should be the definitive version of the chat from the DB
