@@ -17,7 +17,8 @@ const {
 	test,
 	expect,
 	attachConsoleListeners,
-	attachNetworkListeners
+	attachNetworkListeners,
+	allowConsoleErrorPatterns
 } = require('./console-monitor');
 
 const {
@@ -34,6 +35,8 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const SETTINGS_MENU_SELECTOR = '[data-testid="settings-menu"]';
 const MISSING_TRANSLATION_PATTERN = /\[\s*T\s*:?[^[\]]+\]|\[object Object\]/g;
+const BENIGN_STALE_WEBSOCKET_ERROR =
+	/\[WebSocketService\] Pong not received within timeout after ping\. Connection is likely stale\./;
 const MAX_TRAVERSAL_DEPTH = 1;
 const NAVIGATION_WAIT_MS = 200;
 const GIFT_CARD_SETTINGS_PATHS = [
@@ -251,6 +254,7 @@ test.describe('Settings translation coverage', () => {
 	test('settings catalog and visible settings/sub-settings menus have no missing translation placeholders', async ({ page }) => {
 		validateSettingsCatalogTranslations();
 		validateRequiredNonEmptyTranslations();
+		allowConsoleErrorPatterns([BENIGN_STALE_WEBSOCKET_ERROR]);
 
 		const logCheckpoint = createSignupLogger('SETTINGS_TRANSLATION_COVERAGE');
 		const screenshot = createStepScreenshotter(logCheckpoint, {
