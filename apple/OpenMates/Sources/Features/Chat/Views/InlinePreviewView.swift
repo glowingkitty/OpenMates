@@ -154,6 +154,7 @@ struct PendingComposerEmbedsList: View {
                 .padding(.horizontal, .spacing4)
             }
             .padding(.vertical, .spacing2)
+            .accessibilityIdentifier("pending-composer-embed")
         }
     }
 }
