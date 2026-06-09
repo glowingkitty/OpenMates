@@ -937,6 +937,31 @@ developers:
   he: מפתחים
   verified_by_human: []
 
+logs:
+  context: Route title for the settings sub-view that shows browser debug logs
+  en: Logs
+  de: Logs
+  zh: 日志
+  es: Registros
+  fr: Journaux
+  pt: Logs
+  ru: Журналы
+  ja: ログ
+  ko: 로그
+  it: Log
+  tr: Günlükler
+  vi: Nhật ký
+  id: Log
+  pl: Logi
+  nl: Logboeken
+  ar: السجلات
+  hi: लॉग
+  th: บันทึก
+  cs: Protokoly
+  sv: Loggar
+  he: יומנים
+  verified_by_human: []
+
 # Developer settings translations
 developers_title:
   context: Developers settings section title

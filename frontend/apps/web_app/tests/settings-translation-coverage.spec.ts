@@ -220,7 +220,7 @@ async function traverseSettingsMenus(
 		const label = ((await item.innerText().catch(() => '')) || '').trim().replace(/\s+/g, ' ');
 		if (!label || /^(logout|log out)$/i.test(label)) continue;
 
-		await item.click({ timeout: 5000 });
+		await item.click({ timeout: 15000 });
 		await page.waitForTimeout(NAVIGATION_WAIT_MS);
 
 		const childView = await currentSettingsView(settingsMenu);
