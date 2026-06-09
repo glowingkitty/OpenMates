@@ -1,0 +1,982 @@
+title:
+  context: "Title of example chat: Why US Egg Prices Stayed High"
+  en: "Why US Egg Prices Stayed High"
+  de: "Why US Egg Prices Stayed High"
+  zh: "Why US Egg Prices Stayed High"
+  es: "Why US Egg Prices Stayed High"
+  fr: "Why US Egg Prices Stayed High"
+  pt: "Why US Egg Prices Stayed High"
+  ru: "Why US Egg Prices Stayed High"
+  ja: "Why US Egg Prices Stayed High"
+  ko: "Why US Egg Prices Stayed High"
+  it: "Why US Egg Prices Stayed High"
+  tr: "Why US Egg Prices Stayed High"
+  vi: "Why US Egg Prices Stayed High"
+  id: "Why US Egg Prices Stayed High"
+  pl: "Why US Egg Prices Stayed High"
+  nl: "Why US Egg Prices Stayed High"
+  ar: "Why US Egg Prices Stayed High"
+  hi: "Why US Egg Prices Stayed High"
+  th: "Why US Egg Prices Stayed High"
+  cs: "Why US Egg Prices Stayed High"
+  sv: "Why US Egg Prices Stayed High"
+  he: "Why US Egg Prices Stayed High"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Why US Egg Prices Stayed High"
+  en: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  de: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  zh: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  es: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  fr: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  pt: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  ru: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  ja: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  ko: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  it: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  tr: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  vi: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  id: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  pl: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  nl: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  ar: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  hi: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  th: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  cs: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  sv: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  he: "A Deep research comparison of official supply explanations, market concentration, retailer margins, regulation, and confirmed versus inferred evidence behind elevated US egg prices."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  de: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  zh: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  es: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  fr: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  pt: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  ru: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  ja: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  ko: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  it: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  tr: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  vi: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  id: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  pl: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  nl: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  ar: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  hi: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  th: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  cs: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  sv: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  he: "Why have egg prices stayed high in the US even after avian flu outbreaks eased? Compare the official supply explanation with market concentration, retailer margins, regulation, and counterarguments, and be explicit about what evidence is confirmed versus inferred."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  de: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  zh: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  es: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  fr: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  pt: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ru: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ja: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ko: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  it: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  tr: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  vi: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  id: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  pl: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  nl: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ar: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  hi: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  th: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  cs: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  sv: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  he: |
+    ## Short Answer
+    Egg prices have remained elevated even after the primary waves of Highly Pathogenic Avian Influenza (HPAI) subsided due to a compounding mix of biological lag times, highly inelastic consumer demand, and retail pricing strategies. While the official explanation points to a five-to-six-month delay in repopulating flocks and passing regulatory checks, economic analysts and federal investigators are heavily scrutinizing the highly concentrated egg production market. Dominant producers have reaped record "windfall" profits, raising questions about whether supply shocks are being leveraged to artificially coordinate and inflate prices, while supermarkets use a "rockets and feathers" pricing model—delaying price drops to recoup earlier losses. 
+    
+    ## Surface Explanation
+    The official, supply-side explanation centers on a severe biological disruption and the logistical realities of agricultural recovery. 
+    
+    Between late 2024 and early 2025, a brutal wave of HPAI forced the depopulation of approximately 50.7 million egg-laying hens in the U.S. Even when an outbreak officially "eases," the supply chain cannot instantly recover due to a hard biological lag. It takes about 20 weeks to hatch chicks and raise them to egg-laying maturity. Furthermore, infected farms must undergo complete depopulation, deep cleaning, and strict USDA biosecurity audits before restocking, which adds another two to three months of downtime. This creates a nearly half-year gap where supply remains constrained.
+    
+    Simultaneously, fundamental production costs surged. Feed (primarily corn and soybean meal), fuel for temperature-controlled barns, and transportation costs all spiked through 2024 and 2025. Additionally, the increasing implementation of state-level cage-free mandates created regional bottlenecks, as cage-free facilities were also devastated by the virus, limiting compliant inventory for states like California and Massachusetts.
+    
+    ## What Else May Be Going On
+    Beyond the farm-level supply shock, the economic structure of the egg industry and grocery retail significantly influences the price you see at the register.
+    
+    First, the egg industry is highly consolidated. The largest producers, such as Cal-Maine Foods, largely avoided the early waves of HPAI. Because eggs are traded on a commodity market, these producers were able to sell their uninterrupted supply of eggs at massively inflated wholesale prices, expanding their gross margins from roughly 19% to nearly 40% and multiplying net incomes up to 13-fold during peak crisis months. 
+    
+    Second, at the consumer level, supermarkets employ a pricing phenomenon known as "rockets and feathers." When wholesale egg prices skyrocket, grocery stores often shrink their own retail margins—sometimes selling eggs at cost—to avoid scaring away foot traffic. However, when wholesale prices finally crash (like they did by roughly 50% in the spring of 2026 due to oversupply), supermarkets bring retail prices down very slowly (like falling feathers). This allows the retailers to recoup the profit margins they sacrificed during the crisis.
+    
+    ## Evidence
+    To accurately assess the situation, economists and regulators strictly separate hard data from market inferences.
+    
+    **Confirmed Evidence:**
+    * **Supply Shock & Price Data:** Retail prices reached a record $6.23 per dozen in March 2025. As flocks repopulated, prices cooled significantly, dropping 39.2% year-over-year by April 2026. 
+    * **Producer Profit Expansion:** Financial filings confirm that dominant agricultural producers realized billions in increased gross profits, despite their own input costs not rising proportionately to their price hikes.
+    * **Inelastic Demand:** Economic metrics confirm egg demand elasticity is roughly -0.15. This means consumers consider eggs an essential staple; a mere 1% drop in national supply forces market prices to rise by about 6.67% to balance demand.
+    * **Historical Collusion:** It is a legal fact that major egg producers have manipulated markets before. In late 2023, a federal jury found Cal-Maine and others liable for an antitrust conspiracy to artificially restrict egg supplies between 1998 and 2008.
+    
+    **Inferred Evidence:**
+    * **Current Price Fixing:** While record profits are confirmed, the idea that the 2024–2026 price spikes were driven by *illegal collusion* remains inferred. The DOJ opened an investigation in April 2026, and class-action lawsuits allege producers used industry benchmarking software to coordinate prices, but definitive legal proof for this recent period is still pending.
+    * **"Greedflation" vs. Windfall:** Policymakers infer that the narrative of "bird flu" is being used as a smokescreen to artificially inflate profit margins. 
+    * **Retailer Gouging:** Consumers widely infer that local grocery stores are price-gouging them. However, industry data suggests this is largely false; standard retail margins on eggs remain a modest 10% to 15%, with the massive margin expansions happening entirely at the producer level.
+    
+    ## Counterarguments
+    Mainstream agricultural economists push back against the narrative that recent high prices are primarily the result of active price gouging or corporate conspiracy. 
+    
+    They argue that the extreme profits seen by companies like Cal-Maine are textbook "windfall profits," an expected mechanical outcome of commodity markets, rather than proof of collusion. Because eggs are traded based on overall national supply, an algorithmic market rate dictates the price. When HPAI wipes out competitors, a surviving producer's eggs automatically become more valuable. They sell at the new, high market rate while their operational costs remain identical, guaranteeing massive profits without requiring any illegal coordination.
+    
+    Furthermore, retailers argue that their "sticky" high prices are a necessary survival mechanism. Because grocery store overhead is incredibly thin, absorbing the initial wholesale shock requires them to hold prices higher during the recovery phase to balance their quarterly books, rather than a malicious attempt to squeeze consumers.
+    
+    ## Bottom Line
+    The initial explosion in egg prices was unequivocally caused by the biological devastation of avian flu. However, the reason prices stayed agonizingly high—and fell so slowly—is rooted in economics. A six-month biological lag in replacing hens kept supply tight, highly inelastic consumer demand sent algorithmic market prices soaring, and retailers kept prices "sticky" on the way down to recover their own lost margins. While it remains to be legally proven if recent producer profits were the result of illegal price-fixing, the structural reality of the highly concentrated egg market guarantees that dominant agricultural corporations will reliably turn biological crises into billions in windfall profits.
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  verified_by_human: []
+

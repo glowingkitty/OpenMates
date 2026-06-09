@@ -59,6 +59,7 @@ import { pdfViewPageLayoutChat } from "./data/example_chats/pdf-view-page-layout
 import { pdfSearchEncryptionChat } from "./data/example_chats/pdf-search-encryption";
 import { imageVectorizeOpenmatesHeaderChat } from "./data/example_chats/image-vectorize-openmates-header";
 import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcribe-voice-note";
+import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -110,6 +111,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   pdfSearchEncryptionChat,
   imageVectorizeOpenmatesHeaderChat,
   audioTranscribeVoiceNoteChat,
+  usEggPricesDeepResearchChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
