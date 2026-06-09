@@ -248,7 +248,16 @@ private struct DevEmbedInlineLinkBlock: View {
     }
 
     private var embedTitle: String {
-        embed.title ?? EmbedType(rawValue: embed.type)?.displayName ?? embed.type
+        firstString(keys: ["title", "name", "query", "site_name"]) ?? EmbedType(rawValue: embed.type)?.displayName ?? embed.type
+    }
+
+    private func firstString(keys: [String]) -> String? {
+        for key in keys {
+            if let value = embed.rawData?[key]?.value as? String, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
     }
 }
 
@@ -285,13 +294,16 @@ private struct DevEmbedQuoteBlock: View {
     }
 
     private var quoteText: String {
-        if let description = embed.description, !description.isEmpty {
-            return description
+        firstString(keys: ["description", "summary", "title", "name", "query"]) ?? EmbedType(rawValue: embed.type)?.displayName ?? embed.type
+    }
+
+    private func firstString(keys: [String]) -> String? {
+        for key in keys {
+            if let value = embed.rawData?[key]?.value as? String, !value.isEmpty {
+                return value
+            }
         }
-        if let title = embed.title, !title.isEmpty {
-            return title
-        }
-        return EmbedType(rawValue: embed.type)?.displayName ?? embed.type
+        return nil
     }
 }
 
