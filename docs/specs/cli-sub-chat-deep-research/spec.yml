@@ -1,6 +1,6 @@
 id: cli-sub-chat-deep-research
 title: CLI Sub-Chat Parity And Deep Research Focus Mode
-status: implementing
+status: verified
 
 goal: >
   Make the OpenMates CLI support the same zero-knowledge sub-chat orchestration
@@ -333,9 +333,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: run-20260609T153649Z / GitHub Actions 27217714951 / Vercel dpl_A5kmUXYbdZkoVRjNpmRTu6xM1mog READY
+        timestamp: "2026-06-09T15:36:49Z"
+        notes: "python3 scripts/run_tests.py --spec focus-mode-settings.spec.ts; focus-mode settings spec passed on deployed dev. Orchestrator also reported unrelated pytest-unit summary failures outside this spec."
 
   - id: T-CLI-QUALITY-001
     type: manual
@@ -361,9 +362,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: cli-dev-chat-894f1b97-874c-4eb4-9f44-941db4c5169c / commit 6c48d11
+        timestamp: "2026-06-09T16:41:45Z"
+        notes: "Logged into dev CLI test slot 4 and ran node dist/cli.js --api-url https://api.dev.openmates.org chats new <egg-prices research prompt> --json --auto-approve. Output included spawn_sub_chats with 3 child chats, awaiting_sub_chats_completion, and a final report beginning with ## Short Answer followed by Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line."
 
 implementation_plan:
   existing_patterns:
