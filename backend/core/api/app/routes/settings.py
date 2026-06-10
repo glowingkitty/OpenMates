@@ -1038,13 +1038,13 @@ class ApiKeyCreateRequest(BaseModel):
     expires_at: Optional[str] = None  # Optional expiration timestamp (ISO format)
 
 class ApiKeyResponse(BaseModel):
-    """Response model for API key information (encrypted fields excluded for REST API)"""
+    """Response model for API key information."""
     id: str
     created_at: Optional[str] = None  # Optional: Directus may return null on newly-created keys
     expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
-    # Note: encrypted_name and encrypted_key_prefix are excluded from REST API responses
-    # These fields are only available via CLI tools that have decryption keys
+    encrypted_name: Optional[str] = None
+    encrypted_key_prefix: Optional[str] = None
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -1103,12 +1103,13 @@ async def get_api_keys(
                         else:
                             last_used_at = str(last_used_at)
                     
-                    # Exclude encrypted fields from REST API response (only available via CLI)
                     api_key_response = ApiKeyResponse(
                         id=key.get('id'),
                         created_at=created_at,
                         expires_at=expires_at,
-                        last_used_at=last_used_at
+                        last_used_at=last_used_at,
+                        encrypted_name=key.get('encrypted_name'),
+                        encrypted_key_prefix=key.get('encrypted_key_prefix')
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1218,12 +1219,13 @@ async def create_api_key(
             else:
                 last_used_at = str(last_used_at)
         
-        # Exclude encrypted fields from REST API response (only available via CLI)
         return ApiKeyResponse(
             id=created_key.get('id', ''),
             created_at=created_at,
             expires_at=expires_at,
-            last_used_at=last_used_at
+            last_used_at=last_used_at,
+            encrypted_name=created_key.get('encrypted_name'),
+            encrypted_key_prefix=created_key.get('encrypted_key_prefix')
         )
 
     except HTTPException as e:
