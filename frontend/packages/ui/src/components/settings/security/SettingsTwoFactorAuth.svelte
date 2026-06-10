@@ -604,7 +604,7 @@ Props:
             </div>
             
             {#if successMessage}
-                <div class="success-message">{successMessage}</div>
+                <div class="success-message" data-testid="success-message">{successMessage}</div>
             {/if}
             
             <p class="tfa-info">{$text('settings.security.tfa_cannot_disable')}</p>
