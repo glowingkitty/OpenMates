@@ -10,7 +10,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 
-def _install_settings_route_dependency_stubs() -> None:
+def _install_settings_route_dependency_stubs() -> dict[str, ModuleType | None]:
     class _StubLimiter:
         def limit(self, _rate: str):
             def decorator(func):
@@ -18,7 +18,10 @@ def _install_settings_route_dependency_stubs() -> None:
 
             return decorator
 
+    previous_modules: dict[str, ModuleType | None] = {}
+
     def _stub_module(name: str, **attrs) -> None:
+        previous_modules[name] = sys.modules.get(name)
         module = ModuleType(name)
         for key, value in attrs.items():
             setattr(module, key, value)
@@ -79,6 +82,7 @@ def _install_settings_route_dependency_stubs() -> None:
     _stub_module(
         "backend.core.api.app.utils.config_manager",
         config_manager=SimpleNamespace(),
+        ConfigManager=type("ConfigManager", (), {}),
     )
     _stub_module(
         "backend.apps.reminder.utils",
@@ -88,17 +92,30 @@ def _install_settings_route_dependency_stubs() -> None:
         "backend.core.api.app.routes.websockets",
         manager=SimpleNamespace(),
     )
+    return previous_modules
 
 
-def _settings_route():
-    _install_settings_route_dependency_stubs()
-    return importlib.import_module("backend.core.api.app.routes.settings")
+def _restore_modules(previous_modules: dict[str, ModuleType | None]) -> None:
+    sys.modules.pop("backend.core.api.app.routes.settings", None)
+    for name, previous_module in previous_modules.items():
+        if previous_module is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous_module
+
+
+def _server_status_response_model():
+    previous_modules = _install_settings_route_dependency_stubs()
+    try:
+        return importlib.import_module("backend.core.api.app.routes.settings").ServerStatusResponse
+    finally:
+        _restore_modules(previous_modules)
 
 
 def test_self_host_server_status_omits_payment_enabled():
-    route = _settings_route()
+    response_model = _server_status_response_model()
 
-    response = route.ServerStatusResponse(
+    response = response_model(
         is_self_hosted=True,
         is_development=False,
         server_edition="self_hosted",
@@ -110,9 +127,9 @@ def test_self_host_server_status_omits_payment_enabled():
 
 
 def test_cloud_server_status_can_include_payment_enabled():
-    route = _settings_route()
+    response_model = _server_status_response_model()
 
-    response = route.ServerStatusResponse(
+    response = response_model(
         payment_enabled=True,
         is_self_hosted=False,
         is_development=False,

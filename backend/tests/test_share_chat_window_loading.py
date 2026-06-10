@@ -30,19 +30,45 @@ limiter_stub = types.ModuleType("backend.core.api.app.services.limiter")
 limiter_stub.limiter = _StubLimiter()
 auth_deps_stub = types.ModuleType("backend.core.api.app.routes.auth_routes.auth_dependencies")
 auth_deps_stub.get_current_user = lambda: None
+auth_deps_stub.get_current_user_optional = lambda: None
+auth_deps_stub.get_current_user_or_api_key = lambda: None
+auth_deps_stub.get_directus_service = lambda: None
+auth_deps_stub.get_cache_service = lambda: None
+auth_deps_stub.get_compliance_service = lambda: None
+auth_deps_stub.get_encryption_service = lambda: None
 user_stub = types.ModuleType("backend.core.api.app.models.user")
 user_stub.User = object
 
-sys.modules.setdefault("backend.core.api.app.services.directus", directus_stub)
-sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
-sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
-sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
-sys.modules.setdefault("backend.core.api.app.routes.auth_routes.auth_dependencies", auth_deps_stub)
-sys.modules.setdefault("backend.core.api.app.models.user", user_stub)
+_STUB_MODULES = {
+    "backend.core.api.app.services.directus": directus_stub,
+    "backend.core.api.app.utils.encryption": encryption_stub,
+    "backend.core.api.app.services.cache": cache_stub,
+    "backend.core.api.app.services.limiter": limiter_stub,
+    "backend.core.api.app.routes.auth_routes.auth_dependencies": auth_deps_stub,
+    "backend.core.api.app.models.user": user_stub,
+}
+_previous_modules = {name: sys.modules.get(name) for name in _STUB_MODULES}
+try:
+    sys.modules.update(_STUB_MODULES)
+    share_routes = importlib.import_module("backend.core.api.app.routes.share")
+finally:
+    sys.modules.pop("backend.core.api.app.routes.share", None)
+    for name, previous_module in _previous_modules.items():
+        if previous_module is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous_module
 
-share_routes = importlib.import_module("backend.core.api.app.routes.share")
-get_shared_chat_manifest = share_routes.get_shared_chat_manifest
-get_shared_chat_message_window = share_routes.get_shared_chat_message_window
+get_shared_chat_manifest = getattr(
+    share_routes.get_shared_chat_manifest,
+    "__wrapped__",
+    share_routes.get_shared_chat_manifest,
+)
+get_shared_chat_message_window = getattr(
+    share_routes.get_shared_chat_message_window,
+    "__wrapped__",
+    share_routes.get_shared_chat_message_window,
+)
 
 
 class FakeEmbedMethods:

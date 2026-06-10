@@ -104,6 +104,10 @@ except ImportError as _exc:
     WEBHOOK_TASK_TEMPLATE = ""
 
 
+def _webhook_incoming_handler():
+    return getattr(webhook_incoming, "__wrapped__", webhook_incoming)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -224,7 +228,7 @@ async def test_webhook_incoming_default_template_dumps_full_json_body():
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
     ):
-        response = await webhook_incoming.__wrapped__(
+        response = await _webhook_incoming_handler()(
             request=request,
             payload=payload,
             webhook_info=webhook_info,
@@ -297,7 +301,7 @@ async def test_webhook_incoming_custom_template_extracts_fields_via_dotted_path(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
     ):
-        response = await webhook_incoming.__wrapped__(
+        response = await _webhook_incoming_handler()(
             request=request,
             payload=payload,
             webhook_info=webhook_info,
@@ -335,7 +339,7 @@ async def test_webhook_incoming_template_missing_field_renders_empty_not_crash()
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
     ):
-        await webhook_incoming.__wrapped__(
+        await _webhook_incoming_handler()(
             request=request,
             payload=payload,
             webhook_info=webhook_info,
@@ -390,7 +394,7 @@ async def test_webhook_incoming_offline_user_queues_email_and_still_dispatches_a
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
     ):
-        response = await webhook_incoming.__wrapped__(
+        response = await _webhook_incoming_handler()(
             request=request,
             payload=payload,
             webhook_info=webhook_info,
@@ -434,7 +438,7 @@ async def test_webhook_incoming_require_confirmation_skips_ai_dispatch():
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
     ):
-        response = await webhook_incoming.__wrapped__(
+        response = await _webhook_incoming_handler()(
             request=request,
             payload=payload,
             webhook_info=webhook_info,
@@ -467,7 +471,7 @@ async def test_webhook_incoming_vault_encryption_failure_returns_500():
     webhook_info = _make_webhook_info()
 
     with pytest.raises(HTTPException) as exc_info:
-        await webhook_incoming.__wrapped__(
+        await _webhook_incoming_handler()(
             request=request,
             payload=payload,
             webhook_info=webhook_info,
