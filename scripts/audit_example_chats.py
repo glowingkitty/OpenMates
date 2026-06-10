@@ -37,6 +37,7 @@ RAW_PAYLOAD_PATTERNS = [
     re.compile(r"^\s*comments\[\d+\]", re.MULTILINE),
     re.compile(r"^\s*embed_ref:\s*", re.MULTILINE),
 ]
+FOCUS_MODES_REQUIRING_SUB_CHATS = {"web-research"}
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,13 @@ def parse_ts_string_field(source: str, field: str) -> str | None:
 def parse_ts_template_field(source: str, field: str) -> str | None:
     match = re.search(rf"\b{re.escape(field)}:\s*`(?P<value>[\s\S]*?)`", source)
     return match.group("value") if match else None
+
+
+def parse_ts_string_array_field(source: str, field: str) -> list[str]:
+    match = re.search(rf"\b{re.escape(field)}:\s*\[(?P<body>[^\]]*)\]", source)
+    if not match:
+        return []
+    return [unescape_ts_string(value) for value in re.findall(r'"((?:\\.|[^"])*)"', match.group("body"))]
 
 
 def parse_messages(source: str) -> list[ExampleMessage]:
@@ -162,6 +170,13 @@ def audit() -> list[str]:
 
         if category not in valid_categories:
             issues.append(f"{chat_id}: invalid chat category {category!r}")
+
+        active_focus_id = parse_ts_string_field(source, "active_focus_id")
+        if active_focus_id in FOCUS_MODES_REQUIRING_SUB_CHATS and "sub_chats:" not in source:
+            focus_examples = parse_ts_string_array_field(source, "app_focus_mode_examples")
+            issues.append(
+                f"{chat_id}: focus-mode example {focus_examples or [active_focus_id]} is missing sub_chats"
+            )
 
         for index, message in enumerate(parse_messages(source), start=1):
             resolved, missing_key = resolve_message_content(message.content)

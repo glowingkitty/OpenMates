@@ -139,6 +139,8 @@ Options:
   --icon <icon>            Override extracted icon
   --category <category>    Override extracted category
   --keywords <csv>         Comma-separated SEO keywords
+  --app-focus-mode-example <app.focus>  App-store focus mode example key; repeat or comma-separate
+  --active-focus-id <id>   Cleartext active focus id for public example chats
   --featured <true|false>  Whether the example is featured (default: true)
   --dry-run                Print planned changes without writing files
   --force                  Overwrite existing generated files
@@ -156,6 +158,8 @@ function parseArgs(argv) {
     icon: null,
     category: null,
     keywords: [],
+    appFocusModeExamples: [],
+    activeFocusId: null,
     featured: true,
     dryRun: false,
     force: false,
@@ -191,6 +195,17 @@ function parseArgs(argv) {
           .split(',')
           .map((value) => value.trim())
           .filter(Boolean);
+        break;
+      case '--app-focus-mode-example':
+        args.appFocusModeExamples.push(
+          ...(argv[++i] || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+        );
+        break;
+      case '--active-focus-id':
+        args.activeFocusId = argv[++i] || null;
         break;
       case '--featured': {
         const value = argv[++i];
@@ -323,14 +338,36 @@ function validateExtractedChat(chat) {
       `Message content references embed refs not present in extracted embeds: ${missingRefs.join(', ')}`,
     );
   }
+
+  for (const [index, subChat] of (chat.sub_chats || []).entries()) {
+    validateExtractedChat({
+      chat_id: subChat.chat_id || `sub-chat-${index + 1}`,
+      messages: subChat.messages || [],
+      embeds: subChat.embeds || [],
+    });
+  }
 }
 
-function readExistingOrder(slug) {
+function readExistingMetadata(slug) {
   const filePath = path.join(EXAMPLE_DATA_DIR, `${slug}.ts`);
-  if (!existsSync(filePath)) return null;
+  if (!existsSync(filePath)) return { order: null, appFocusModeExamples: [], activeFocusId: null };
   const source = readFileSync(filePath, 'utf8');
-  const match = source.match(/order:\s*(\d+)/);
-  return match ? Number(match[1]) : null;
+  const orderMatch = source.match(/order:\s*(\d+)/);
+  const appFocusMatch = source.match(/app_focus_mode_examples:\s*(\[[^\]]*\])/);
+  const activeFocusMatch = source.match(/active_focus_id:\s*"((?:\\.|[^"])*)"/);
+  let appFocusModeExamples = [];
+  if (appFocusMatch) {
+    try {
+      appFocusModeExamples = JSON.parse(appFocusMatch[1]);
+    } catch {
+      appFocusModeExamples = [];
+    }
+  }
+  return {
+    order: orderMatch ? Number(orderMatch[1]) : null,
+    appFocusModeExamples,
+    activeFocusId: activeFocusMatch ? JSON.parse(`"${activeFocusMatch[1]}"`) : null,
+  };
 }
 
 function nextOrder(excludeSlug = null) {
@@ -370,24 +407,58 @@ function normalizeCategory(value) {
   );
 }
 
-function formatTs(chat, metadata) {
-  const varName = `${toCamel(metadata.slug)}Chat`;
-  const messages = chat.messages.map((message, index) => ({
-    id: message.message_id || message.id || `${metadata.chatId}-message-${index + 1}`,
+function formatMessages(messages, metadata, keyPrefix) {
+  return messages.map((message, index) => ({
+    id: message.message_id || message.id || `${metadata.chatId}-${keyPrefix}-${index + 1}`,
     role: message.role,
-    content: `example_chats.${metadata.snake}.message_${index + 1}`,
+    content: `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${index + 1}` : `${keyPrefix}_message_${index + 1}`}`,
     created_at: normalizeTimestamp(message.created_at),
     category: message.category || undefined,
     model_name: message.model_name || undefined,
     pii_mappings: message.pii_mappings || undefined,
   }));
-  const embeds = chat.embeds.map((embed) => ({
+}
+
+function formatEmbeds(embeds) {
+  return embeds.map((embed) => ({
     embed_id: embed.embed_id,
     type: embed.type,
     content: sanitizeEmbedContent(embed.content),
     parent_embed_id: embed.parent_embed_id ?? null,
     embed_ids: embed.embed_ids ?? null,
   }));
+}
+
+function formatTs(chat, metadata) {
+  const varName = `${toCamel(metadata.slug)}Chat`;
+  const messages = formatMessages(chat.messages, metadata, 'message');
+  const embeds = formatEmbeds(chat.embeds);
+  const subChats = (chat.sub_chats || []).map((subChat, index) => {
+    const keyPrefix = `sub_chat_${index + 1}`;
+    return {
+      chat_id: `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`,
+      title: `example_chats.${metadata.snake}.${keyPrefix}_title`,
+      summary: `example_chats.${metadata.snake}.${keyPrefix}_summary`,
+      icon: subChat.icon || metadata.icon,
+      category: normalizeCategory(subChat.category || metadata.category),
+      follow_up_suggestions: (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).map(
+        (_, followUpIndex) => `example_chats.${metadata.snake}.${keyPrefix}_follow_up_${followUpIndex + 1}`,
+      ),
+      messages: formatMessages(subChat.messages || [], metadata, keyPrefix),
+      embeds: formatEmbeds(subChat.embeds || []),
+      parent_id: metadata.chatId,
+      is_sub_chat: true,
+      budget_limit: subChat.budget_limit ?? null,
+      budget_spent: subChat.budget_spent ?? 0,
+    };
+  });
+  const subChatsLine = subChats.length > 0 ? `\n  sub_chats: ${JSON.stringify(subChats, null, 4)},` : '';
+  const appFocusLine = metadata.appFocusModeExamples.length > 0
+    ? `\n    app_focus_mode_examples: ${tsArray(metadata.appFocusModeExamples)},`
+    : '';
+  const activeFocusLine = metadata.activeFocusId
+    ? `\n    active_focus_id: ${tsString(metadata.activeFocusId)},`
+    : '';
 
   return `// frontend/packages/ui/src/demo_chats/data/example_chats/${metadata.slug}.ts
 //
@@ -407,10 +478,10 @@ export const ${varName}: ExampleChat = {
   keywords: ${tsArray(metadata.keywords)},
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
   messages: ${JSON.stringify(messages, null, 4)},
-  embeds: ${JSON.stringify(embeds, null, 4)},
+  embeds: ${JSON.stringify(embeds, null, 4)},${subChatsLine}
   metadata: {
     featured: ${metadata.featured},
-    order: ${metadata.order},
+    order: ${metadata.order},${appFocusLine}${activeFocusLine}
   },
 };
 `;
@@ -454,6 +525,24 @@ function formatYaml(chat, metadata) {
   metadata.followUps.forEach((followUp, index) => {
     entries.push(yamlEntry(`follow_up_${index + 1}`, `Follow-up suggestion ${index + 1}`, followUp));
   });
+  (chat.sub_chats || []).forEach((subChat, subChatIndex) => {
+    const keyPrefix = `sub_chat_${subChatIndex + 1}`;
+    const subTitle = subChat.title || `Sub-chat ${subChatIndex + 1}`;
+    entries.push(yamlEntry(`${keyPrefix}_title`, `Title of sub-chat ${subChatIndex + 1} in example chat: ${metadata.title}`, subTitle));
+    entries.push(yamlEntry(`${keyPrefix}_summary`, `Summary of sub-chat ${subChatIndex + 1} in example chat: ${metadata.title}`, subChat.summary || ''));
+    (subChat.messages || []).forEach((message, messageIndex) => {
+      entries.push(
+        yamlEntry(
+          `${keyPrefix}_message_${messageIndex + 1}`,
+          `${message.role} message ${messageIndex + 1} in sub-chat ${subChatIndex + 1} of example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
+          message.content || '',
+        ),
+      );
+    });
+    (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).forEach((followUp, followUpIndex) => {
+      entries.push(yamlEntry(`${keyPrefix}_follow_up_${followUpIndex + 1}`, `Follow-up suggestion ${followUpIndex + 1} for sub-chat ${subChatIndex + 1}`, followUp));
+    });
+  });
   return `${entries.join('\n')}\n`;
 }
 
@@ -493,6 +582,7 @@ function main() {
   validateExtractedChat(chat);
 
   const slug = args.slug;
+  const existingMetadata = readExistingMetadata(slug);
   const metadata = {
     slug,
     snake: toSnake(slug),
@@ -503,7 +593,11 @@ function main() {
     keywords: args.keywords,
     featured: args.featured,
     followUps: Array.isArray(chat.follow_up_suggestions) ? chat.follow_up_suggestions : [],
-    order: readExistingOrder(slug) ?? nextOrder(slug),
+    appFocusModeExamples: args.appFocusModeExamples.length > 0
+      ? args.appFocusModeExamples
+      : existingMetadata.appFocusModeExamples,
+    activeFocusId: args.activeFocusId || existingMetadata.activeFocusId,
+    order: existingMetadata.order ?? nextOrder(slug),
     chatId: `example-${shortChatId(slug)}`,
   };
 
@@ -520,6 +614,7 @@ function main() {
   console.log(`  category: ${metadata.category}`);
   console.log(`  messages: ${chat.messages.length}`);
   console.log(`  embeds: ${chat.embeds.length}`);
+  console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
   console.log(`  order: ${metadata.order}`);
   console.log(`  data: ${path.relative(REPO_ROOT, dataPath)}`);
   console.log(`  i18n: ${path.relative(REPO_ROOT, yamlPath)}`);

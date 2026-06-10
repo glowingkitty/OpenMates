@@ -189,6 +189,31 @@ the repo test runner after deploy when running Playwright:
 
 Do not run Playwright locally.
 
+### Step 11: Add or Verify an Example Chat
+
+Every production or development focus mode must have at least one permanent
+example chat linked from its focus-mode details page. This applies to both new
+focus modes and prompt/routing improvements to existing focus modes.
+
+Before finishing:
+- Search `frontend/packages/ui/src/demo_chats/data/example_chats/` for an
+  existing example with `metadata.app_focus_mode_examples` containing
+  `"{appId}.{focusId}"`.
+- If none exists, create a real OpenMates chat through the CLI or app, share it,
+  and scaffold it with `scripts/create-example-chat-from-share.mjs`.
+- Prefer a real CLI chat for reproducibility. If the focus mode needs explicit
+  activation, use the CLI focus mention while creating the chat, but remove the
+  internal `@focus:...` wire prefix from public example-chat user text after
+  scaffolding.
+- Set `metadata.app_focus_mode_examples: ["{appId}.{focusId}"]` and
+  `metadata.active_focus_id: "{appId}-{focusId}"` on the example chat so the
+  focus-mode page can surface it and the demo chat opens with the active focus
+  state visible.
+- Translate the new example-chat YAML, build translations, validate locales, and
+  run `scripts/audit_example_chats.py` before deploying.
+- If a real example chat cannot be created, document the blocker explicitly; do
+  not silently finish a focus-mode improvement without an example-chat plan.
+
 ## Draft Template
 
 Use this structure for Step 6 and Step 8.
@@ -238,6 +263,8 @@ Before finishing, verify:
 - generated translations/metadata were rebuilt if source files changed
 - real OpenMates CLI chat requests covered the intended activation behavior and
   output-quality contract for behavior changes
+- at least one permanent example chat is linked via
+  `metadata.app_focus_mode_examples` for the focus mode
 - relevant docs/tests were updated or explicitly deferred
 
 ## When to Escalate to a Full Spec

@@ -70,6 +70,25 @@ export interface ExampleChatEmbed {
 }
 
 /**
+ * A child chat spawned by a parent example chat.
+ * Deep-research focus examples use these to reproduce the real sub-chat tree.
+ */
+export interface ExampleSubChat {
+  chat_id: string;
+  title: string;
+  summary: string;
+  icon: string;
+  category: string;
+  follow_up_suggestions: string[];
+  messages: ExampleChatMessage[];
+  embeds: ExampleChatEmbed[];
+  parent_id: string;
+  is_sub_chat: true;
+  budget_limit?: number | null;
+  budget_spent?: number;
+}
+
+/**
  * A message in an example chat.
  * Uses actual content strings (not i18n keys), since example chats
  * are reproduced 1:1 from real shared conversations.
@@ -103,6 +122,7 @@ export interface ExampleChat {
   follow_up_suggestions: string[];
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
+  sub_chats?: ExampleSubChat[];
   metadata: {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order

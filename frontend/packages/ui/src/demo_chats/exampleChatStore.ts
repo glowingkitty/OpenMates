@@ -8,7 +8,7 @@
 // Each chat has a natural-language slug for SEO-friendly URLs.
 
 import type { Chat, Message } from "../types/chat";
-import type { ExampleChat, ExampleChatEmbed } from "./types";
+import type { ExampleChat, ExampleChatEmbed, ExampleSubChat } from "./types";
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
 import { embedStore } from "../services/embedStore";
@@ -61,6 +61,7 @@ import { imageVectorizeOpenmatesHeaderChat } from "./data/example_chats/image-ve
 import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcribe-voice-note";
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
+import { frontendDeveloperCareerPivotChat } from "./data/example_chats/frontend-developer-career-pivot";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -114,6 +115,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   audioTranscribeVoiceNoteChat,
   usEggPricesDeepResearchChat,
   frameworkStoreReputationCheckChat,
+  frontendDeveloperCareerPivotChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
@@ -144,10 +146,21 @@ function translate(value: string): string {
 // CONVERSION — ExampleChat → Chat/Message format used by the app
 // ============================================================================
 
-function exampleChatToChat(example: ExampleChat): Chat {
+type ExampleChatRecord = ExampleChat | ExampleSubChat;
+
+function isExampleSubChatRecord(example: ExampleChatRecord): example is ExampleSubChat {
+  return "parent_id" in example && example.is_sub_chat === true;
+}
+
+function exampleChatToChat(example: ExampleChatRecord, rootOrder = 0): Chat {
   // Place example chats 7 days ago to appear in "Last 7 days" sidebar group
   const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const timestamp = sevenDaysAgo - example.metadata.order * 1000;
+  const messageTimestamps = example.messages
+    .map((message) => message.created_at)
+    .filter((value) => Number.isFinite(value));
+  const timestamp = isExampleSubChatRecord(example)
+    ? (messageTimestamps.length > 0 ? Math.max(...messageTimestamps) * 1000 : sevenDaysAgo - rootOrder * 1000)
+    : sevenDaysAgo - example.metadata.order * 1000;
 
   return {
     chat_id: example.chat_id,
@@ -159,7 +172,7 @@ function exampleChatToChat(example: ExampleChat): Chat {
     follow_up_request_suggestions: JSON.stringify(
       example.follow_up_suggestions.map(translate),
     ),
-    active_focus_id: example.metadata.active_focus_id ?? null,
+    active_focus_id: isExampleSubChatRecord(example) ? null : example.metadata.active_focus_id ?? null,
     demo_chat_category: "for_everyone",
     messages_v: example.messages.length,
     title_v: 1,
@@ -167,10 +180,14 @@ function exampleChatToChat(example: ExampleChat): Chat {
     unread_count: 0,
     created_at: timestamp,
     updated_at: timestamp,
+    parent_id: isExampleSubChatRecord(example) ? example.parent_id : null,
+    is_sub_chat: isExampleSubChatRecord(example) ? true : false,
+    budget_limit: isExampleSubChatRecord(example) ? example.budget_limit ?? null : null,
+    budget_spent: isExampleSubChatRecord(example) ? example.budget_spent ?? 0 : undefined,
   };
 }
 
-function exampleMessagesToMessages(example: ExampleChat): Message[] {
+function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
   return example.messages.map((msg) => ({
     message_id: msg.id,
     chat_id: example.chat_id,
@@ -190,6 +207,7 @@ function exampleMessagesToMessages(example: ExampleChat): Message[] {
 
 const chatById = new Map<string, ExampleChat>();
 const chatBySlug = new Map<string, ExampleChat>();
+const chatRecordById = new Map<string, { example: ExampleChatRecord; rootOrder: number }>();
 const embedById = new Map<
   string,
   { embed: ExampleChatEmbed; chatId: string }
@@ -198,8 +216,15 @@ const embedById = new Map<
 for (const example of ALL_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
   chatBySlug.set(example.slug, example);
+  chatRecordById.set(example.chat_id, { example, rootOrder: example.metadata.order });
   for (const embed of example.embeds) {
     embedById.set(embed.embed_id, { embed, chatId: example.chat_id });
+  }
+  for (const subChat of example.sub_chats ?? []) {
+    chatRecordById.set(subChat.chat_id, { example: subChat, rootOrder: example.metadata.order });
+    for (const embed of subChat.embeds) {
+      embedById.set(embed.embed_id, { embed, chatId: subChat.chat_id });
+    }
   }
 }
 
@@ -219,7 +244,11 @@ const APP_ID_RE = /^app_id:\s*"?([^\n"]+)"?\s*$/m;
 export function registerExampleChatEmbedRefs(): void {
   let registered = 0;
   for (const example of ALL_EXAMPLE_CHATS) {
-    for (const embed of example.embeds) {
+    const embeds = [
+      ...example.embeds,
+      ...(example.sub_chats ?? []).flatMap((subChat) => subChat.embeds),
+    ];
+    for (const embed of embeds) {
       if (!embed.content || !embed.embed_id) continue;
       const refMatch = embed.content.match(EMBED_REF_RE);
       if (!refMatch) continue;
@@ -245,13 +274,13 @@ export function registerExampleChatEmbedRefs(): void {
 
 /** Check if a chat ID belongs to an example chat */
 export function isExampleChat(chatId: string): boolean {
-  return chatById.has(chatId);
+  return chatRecordById.has(chatId);
 }
 
 /** Get an example chat by ID */
 export function getExampleChat(chatId: string): Chat | null {
-  const example = chatById.get(chatId);
-  return example ? exampleChatToChat(example) : null;
+  const record = chatRecordById.get(chatId);
+  return record ? exampleChatToChat(record.example, record.rootOrder) : null;
 }
 
 /** Get an example chat by slug */
@@ -261,14 +290,21 @@ export function getExampleChatBySlug(slug: string): ExampleChat | undefined {
 
 /** Get messages for an example chat */
 export function getExampleChatMessages(chatId: string): Message[] {
-  const example = chatById.get(chatId);
-  return example ? exampleMessagesToMessages(example) : [];
+  const record = chatRecordById.get(chatId);
+  return record ? exampleMessagesToMessages(record.example) : [];
 }
 
 /** Get embeds for an example chat */
 export function getExampleChatEmbeds(chatId: string): ExampleChatEmbed[] {
-  const example = chatById.get(chatId);
-  return example?.embeds ?? [];
+  const record = chatRecordById.get(chatId);
+  return record?.example.embeds ?? [];
+}
+
+/** Get static sub-chats for an example chat parent. */
+export function getExampleSubChats(parentChatId: string): Chat[] {
+  const parent = chatById.get(parentChatId);
+  if (!parent?.sub_chats?.length) return [];
+  return parent.sub_chats.map((subChat) => exampleChatToChat(subChat, parent.metadata.order));
 }
 
 /** Get a specific embed by ID from any example chat */
