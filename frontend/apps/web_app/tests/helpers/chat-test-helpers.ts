@@ -120,6 +120,28 @@ async function waitForUserMessageAcceptedByServer(
 	}
 }
 
+async function waitForNewChatSendContext(
+	page: any,
+	startedFromNewChat: boolean,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	if (!startedFromNewChat) {
+		return;
+	}
+
+	await expect(async () => {
+		const chatIdFromUrl = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+		const messageInput = page.locator('[data-action="message-input"]').last();
+		const inputChatId = await messageInput.getAttribute('data-current-chat-id').catch(() => null);
+		expect(chatIdFromUrl ?? inputChatId).toBeTruthy();
+		expect(chatIdFromUrl ?? inputChatId).not.toBe('new-chat');
+	}).toPass({ timeout: 30_000 });
+
+	logCheckpoint('New-chat send rebound to created chat context.', {
+		url: page.url()
+	});
+}
+
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
 	const authDom = authSignal.waitFor({ state: 'visible', timeout })
 		.then(() => true)
@@ -593,6 +615,7 @@ async function sendMessage(
 	stepLabel: string = 'msg'
 ): Promise<void> {
 	const currentChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+	const startedFromNewChat = !currentChatId;
 	const currentChatInput = currentChatId
 		? page.locator(`[data-action="message-input"][data-current-chat-id="${currentChatId}"]`).last()
 		: null;
@@ -765,6 +788,7 @@ async function sendMessage(
 				assistantCountBeforeSend,
 				logCheckpoint
 			);
+			await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend,
 				assistantLastText: assistantLastTextBeforeSend
@@ -786,6 +810,7 @@ async function sendMessage(
 		assistantCountBeforeSend,
 		logCheckpoint
 	);
+	await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
 	lastSendStateByPage.set(page, {
 		assistantCount: assistantCountBeforeSend,
 		assistantLastText: assistantLastTextBeforeSend
