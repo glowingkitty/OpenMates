@@ -5859,6 +5859,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatListCache.upsertChat(currentChat);
             updateNavFromCache(currentChat.chat_id);
 
+            const createdChatId = currentChat.chat_id;
+            if (!currentChat.is_incognito) {
+                void import('../services/chatSyncServiceHandlersAI')
+                    .then(({ flushPendingFinalizedEmbedsForChat }) =>
+                        flushPendingFinalizedEmbedsForChat(chatSyncService, createdChatId)
+                    )
+                    .catch(err => {
+                        console.warn('[ActiveChat] Failed to flush queued finalized embeds after new-chat send:', err);
+                    });
+            }
+
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
