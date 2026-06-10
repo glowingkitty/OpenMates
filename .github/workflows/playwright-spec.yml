@@ -85,10 +85,10 @@ jobs:
           }
           trap cleanup_heartbeat EXIT
 
+          PLAYWRIGHT_JSON_OUTPUT_NAME=$GITHUB_WORKSPACE/test-results/playwright.json \
           timeout --kill-after=30s 390s \
             npx playwright test "tests/${{ github.event.inputs.spec }}" \
-            --reporter=json \
-            > $GITHUB_WORKSPACE/test-results/playwright.json
+            --reporter=line,json
           pw_status=$?
 
           cleanup_heartbeat
