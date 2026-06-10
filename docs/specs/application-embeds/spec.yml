@@ -20,8 +20,9 @@ scope:
     - Keep application source, manifests, and assets encrypted as normal embeds at rest.
     - Support opening live previews in embedded fullscreen and in a separate browser window or Apple WKWebView.
     - Add Apple client application preview support in v1 by rendering authorized preview gateway URLs inside WKWebView with the same isolation, billing, and session lifecycle as web.
-    - Store and render a lightweight screenshot thumbnail for the latest successful application preview state.
-    - Auto-start a creator-owned one-minute preview immediately after a newly generated application embed is created, capture a lightweight screenshot thumbnail, and stop the sandbox unless the creator opens it.
+    - Store and render a lightweight real screenshot thumbnail for the latest successful application preview state.
+    - Auto-start a creator-owned one-minute preview immediately after a newly generated application embed is created, capture a real screenshot thumbnail, and stop the sandbox unless the creator opens it.
+    - Do not charge the creator for the first minute of the initial auto-start screenshot run; bill only runtime after that first minute or later explicit starts/resumes/restarts.
     - Show the screenshot thumbnail in the application embed preview and fullscreen with a play/Resume overlay that starts or resumes an E2B preview session.
     - Support iterative corrections by patching child code-code embeds with existing diff-based editing and syncing successful file changes into the active E2B sandbox.
     - Keep parser-based inference from Markdown/code fences as a best-effort fallback when no structured artifact was emitted.
@@ -34,6 +35,7 @@ scope:
     - Running untrusted generated JavaScript on app.openmates.org or any OpenMates auth-bearing origin.
     - Sharing OpenMates auth cookies, API tokens, user vault keys, or provider API keys with generated applications.
     - Full rendered DOM snapshot storage for every preview state in v1.
+    - Synthetic generated thumbnails that pretend to be screenshots of the app; when real screenshot capture fails, show the explicit placeholder UI instead of storing a fake thumbnail.
     - Real production databases, payment providers, email providers, or third-party API secrets inside generated apps.
 
 context_discovery:
@@ -103,6 +105,24 @@ clarification:
         timeout or 30-minute hard cap, and is revoked on Stop. It authorizes only
         sandbox proxy traffic on the preview gateway; normal start/status/stop
         APIs still require OpenMates authentication.
+    - question: How should the initial generated-app screenshot run be billed, and what artifact shape should the assistant emit?
+      answer: >
+        The first minute of the initial creator auto-start screenshot run is free,
+        even if the creator opens the preview during that minute. Billing begins
+        only after that first minute, or immediately for later explicit
+        start/resume/restart sessions. The assistant must emit a minimal
+        structured application artifact: metadata includes only title, summary,
+        and a Lucide icon; file_count, file role, and file language are derived
+        by OpenMates from the files array and paths rather than supplied by the
+        model.
+    - question: What counts as a valid application screenshot thumbnail?
+      answer: >
+        The thumbnail must be a real screenshot of the running generated web app,
+        ideally captured through E2B's screenshot/browser capabilities after the
+        preview URL is reachable. Synthetic Pillow or template-generated images
+        are not acceptable screenshots. If real screenshot capture fails,
+        OpenMates must persist no screenshot for that run and show the explicit
+        placeholder/start-server UI instead.
   vision_summary: >
     Application embeds are project containers. They reference encrypted child
     code and asset embeds, and a viewer can explicitly start an E2B preview
@@ -124,15 +144,16 @@ scenarios:
     when:
       - The assistant chooses the generated-application artifact path.
     then:
-      - The backend receives one structured application artifact payload with manifest metadata and files.
-      - The backend validates file paths, entrypoints, runtime metadata, and secret-like content before creating embeds.
+      - The backend receives one structured application artifact payload with minimal metadata, preview entrypoints, and files.
+      - The backend validates file paths, entrypoints, derived runtime metadata, and secret-like content before creating embeds.
       - The backend atomically creates child code-code embeds and one parent code-application embed for the same message.
       - The assistant message shows one application embed, not a loose stack of unrelated code embeds.
       - The application embed has child code-code embeds for package.json, src/App.svelte, src/main.ts, and CSS files.
       - The application embed manifest lists file paths, child embed IDs, framework, runtime, and preview support.
       - The application embed preview shows either the latest screenshot thumbnail or an empty preview placeholder with a play button overlay.
       - Because Alice created the application in this active chat, OpenMates auto-starts one creator-owned preview session after the assistant response completes.
-      - The auto-started session captures and persists the latest screenshot thumbnail, then stops after 1 minute unless Alice opens the preview.
+      - The auto-started session captures and persists a real screenshot thumbnail of the running app, then stops after 1 minute unless Alice opens the preview.
+      - The first minute of that initial creator auto-start screenshot run is free, including when Alice opens during that first minute.
 
   - id: S-10
     title: Fall back from Markdown code fences to an application parent
@@ -160,7 +181,7 @@ scenarios:
       - The backend starts the configured frontend or fullstack development server.
       - The fullscreen iframe loads a URL under the configured preview origin.
       - Alice can open the same preview in a new browser window.
-      - Opening the auto-started preview before its one-minute timeout extends the active idle timeout to 5 minutes.
+      - Opening the auto-started preview before its one-minute timeout extends the active idle timeout to 5 minutes, but does not make the first minute billable.
       - The preview URL contains a short-lived signed path token scoped to Alice's preview session.
       - The raw E2B URL and traffic access token are not exposed to the client.
 
@@ -188,7 +209,7 @@ scenarios:
       - Successful diffs update the encrypted child embeds and application version metadata.
       - If the preview session is still active, OpenMates writes the changed files into E2B.
       - The running dev server hot reloads or restarts without creating a new application embed.
-      - After the preview stabilizes, OpenMates can refresh the screenshot thumbnail for the latest successful preview state.
+      - After the preview stabilizes, OpenMates can refresh the real screenshot thumbnail for the latest successful preview state.
 
   - id: S-5
     title: Shared recipient runs a preview and pays for runtime
@@ -299,7 +320,7 @@ acceptance_criteria:
     text: The Code app can create and render an application embed that references child code-code and asset embeds by path through a structured application artifact builder.
   - id: AC-2
     scenario: S-2
-    text: Newly generated application embeds auto-start exactly one creator-owned preview after assistant completion for screenshot capture, while normal rendering, shared chats, example chats, and unauthenticated views never auto-start a sandbox.
+    text: Newly generated application embeds auto-start exactly one creator-owned preview after assistant completion for real screenshot capture, while normal rendering, shared chats, example chats, and unauthenticated views never auto-start a sandbox.
   - id: AC-3
     scenario: S-2
     text: Live previews load only through APPLICATION_PREVIEW_ORIGIN using a short-lived signed path token and never expose raw E2B URLs or traffic access tokens to clients.
@@ -329,13 +350,13 @@ acceptance_criteria:
     text: Application previews can be opened both embedded in fullscreen and in a separate window using the same authorized preview session.
   - id: AC-12
     scenario: S-1
-    text: Privacy policy and provider disclosures explain that E2B receives generated application files and runtime inputs when the creator auto-starts a generated preview or when a viewer explicitly starts or resumes a live preview.
+    text: Privacy policy and provider disclosures explain that E2B receives generated application files and runtime inputs when the creator auto-starts a free first-minute screenshot preview or when a viewer explicitly starts or resumes a live preview.
   - id: AC-13
     scenario: S-1
     text: Application embed preview and fullscreen show a screenshot thumbnail or placeholder with a play/Resume overlay after the auto-start screenshot run stops or times out.
   - id: AC-14
     scenario: S-8
-    text: The latest successful preview screenshot is stored as a lightweight encrypted thumbnail and remains available after the E2B session stops.
+    text: The latest successful real preview screenshot is stored as a lightweight encrypted thumbnail and remains available after the E2B session stops; synthetic placeholder thumbnails are never persisted as screenshots.
   - id: AC-15
     scenario: S-9
     text: Apple clients can start and view application previews through WKWebView without executing generated code inside the native app process.
@@ -344,10 +365,10 @@ acceptance_criteria:
     text: Every viewer starts an isolated E2B preview sandbox; shared recipients never reuse or attach to the creator's sandbox runtime state.
   - id: AC-17
     scenario: S-2
-    text: Application previews use the existing Code Run price of 5 credits per started minute unless a later pricing migration changes the configured rate.
+    text: Application previews use the existing Code Run price of 5 credits per started minute unless a later pricing migration changes the configured rate, with the first minute of the initial creator auto-start screenshot run free.
   - id: AC-18
     scenario: S-1
-    text: Structured application artifact creation validates the manifest and creates child file embeds plus exactly one parent application embed in one backend-owned operation.
+    text: Structured application artifact creation accepts a minimal metadata-first YAML artifact, derives file count/language/role server-side, validates the manifest, and creates child file embeds plus exactly one parent application embed in one backend-owned operation.
   - id: AC-19
     scenario: S-10
     text: Parser-based Markdown/code-fence inference remains a fallback only and creates at most one parent application embed after a runnable manifest is detected.
@@ -533,6 +554,7 @@ tests:
       - preview gateway rejects stopped, expired, missing, and wrong-token sessions
       - preview gateway token redaction removes path secrets from logs and debug output
       - preview gateway preserves Vite virtual module paths such as /@vite/client when forwarding to the sandbox
+      - preview gateway strips Vite's injected HMR client from proxied HTML while preserving the generated app entrypoint
       - raw E2B URLs and traffic tokens are never returned in client payloads
     red_phase:
       required: true
@@ -548,8 +570,8 @@ tests:
       evidence:
         status: passed
         run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway.py"
-        timestamp: "2026-06-10T10:09:00Z"
-        notes: "7 tests passed for hashed path token URLs, gateway session/token validation, stopped/expired rejection, token redaction, root-relative asset rewrites, module import rewrites, and preserving Vite /@vite/client virtual module paths."
+        timestamp: "2026-06-10T10:26:00Z"
+        notes: "8 tests passed for hashed path token URLs, gateway session/token validation, stopped/expired rejection, token redaction, root-relative asset rewrites, stripping Vite HMR client HTML, module import rewrites, and preserving Vite /@vite/client virtual module paths."
 
   - id: T-PYTEST-APP-GATEWAY-SKELETON-001
     type: pytest

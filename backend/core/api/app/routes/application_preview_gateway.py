@@ -49,6 +49,10 @@ HTML_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>\b(?:src|href|action)\s*=\s*[\"
 QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"']+)")
 CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
 UPSTREAM_PATH_SEGMENT_SAFE_CHARS = "@"
+VITE_HMR_CLIENT_SCRIPT_PATTERN = re.compile(
+    r"\s*<script\b(?=[^>]*\bsrc=[\"']/@vite/client[\"'])[^>]*>\s*</script>",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -217,6 +221,7 @@ def _rewrite_root_relative_preview_references(
         return f"{match.group('prefix')}{signed_prefix}/{match.group('path')}"
 
     if content_type == "text/html":
+        text = VITE_HMR_CLIENT_SCRIPT_PATTERN.sub("", text)
         text = HTML_ROOT_PATH_PATTERN.sub(rewrite_match, text)
     elif content_type == "text/css":
         text = CSS_URL_ROOT_PATH_PATTERN.sub(rewrite_match, text)
