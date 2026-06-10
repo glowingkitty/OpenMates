@@ -303,10 +303,12 @@
                     // Reset the share state (this sets isLinkGenerated to false)
                     resetGeneratedState();
                     // Update currentChatId to the new chat
+                    prepareChatOwnershipState(newChatId);
                     currentChatId = newChatId;
                 } else if (!isLinkGenerated || !sharedChatId) {
                     // Update currentChatId if no link is generated, or if we're starting fresh
                     if (newChatId !== currentChatId) {
+                        prepareChatOwnershipState(newChatId);
                         currentChatId = newChatId;
                         console.debug('[SettingsShare] Share button clicked, currentChatId updated:', currentChatId);
                     }
@@ -356,7 +358,14 @@
         })();
     });
     let isPublicChatType = $derived(currentChatId ? isPublicChat(currentChatId) : false);
-    let isOwnedByUser = $state(true); // Default to true, will be checked asynchronously
+    let isOwnedByUser = $state(true); // Default for public/anonymous chats; authenticated chats are checked.
+    let isCheckingChatOwnership = $state(false);
+
+    function prepareChatOwnershipState(chatId: string | null) {
+        const requiresOwnershipCheck = Boolean(chatId && $authStore.isAuthenticated && !isPublicChat(chatId));
+        isCheckingChatOwnership = requiresOwnershipCheck;
+        isOwnedByUser = !requiresOwnershipCheck;
+    }
     
     // ===============================
     // Duration Options
@@ -385,7 +394,7 @@
     // CRITICAL: Check isPublicChat() directly to ensure demo chats are detected correctly
     let isConfigurationStep = $derived(
         isEmbedSharing ? true : // Allow configuration for embeds (password/expiration)
-        (currentChatId && $authStore.isAuthenticated && !isPublicChat(currentChatId) && isOwnedByUser ? true : false)
+        (currentChatId && $authStore.isAuthenticated && !isPublicChat(currentChatId) && isOwnedByUser && !isCheckingChatOwnership ? true : false)
     );
     
     // ===============================
@@ -693,6 +702,7 @@
         if (!currentChatId || !$authStore.isAuthenticated || isPublic) {
             // For non-authenticated users or public chats, assume owned (or not applicable)
             isOwnedByUser = true;
+            isCheckingChatOwnership = false;
             console.debug('[SettingsShare] Skipping ownership check for public chat or non-authenticated user:', {
                 currentChatId,
                 isAuthenticated: $authStore.isAuthenticated,
@@ -707,8 +717,11 @@
             const chat = await chatDB.getChat(currentChatId);
             
             if (!chat) {
-                // Chat not found, assume owned (fail open for UX)
-                isOwnedByUser = true;
+                // Shared-chat URLs may not have a local chat row yet. Treat them as
+                // not-owned so we reconstruct the existing share URL instead of
+                // calling the owner-only short-link API.
+                isOwnedByUser = false;
+                isCheckingChatOwnership = false;
                 return;
             }
             
@@ -717,6 +730,7 @@
             // If chat has no user_id, assume it's owned (backwards compatibility)
             if (!chat.user_id) {
                 isOwnedByUser = true;
+                isCheckingChatOwnership = false;
                 return;
             }
             
@@ -727,16 +741,19 @@
             if (!currentUserId) {
                 // Can't determine ownership, default to owned (fail open for UX)
                 isOwnedByUser = true;
+                isCheckingChatOwnership = false;
                 return;
             }
             
             // Compare chat's user_id with current user's user_id
             isOwnedByUser = chat.user_id === currentUserId;
+            isCheckingChatOwnership = false;
             console.debug(`[SettingsShare] Chat ownership check: ${isOwnedByUser} for chat ${currentChatId} (chat.user_id: ${chat.user_id}, currentUserId: ${currentUserId})`);
         } catch (error) {
             console.error('[SettingsShare] Error checking chat ownership:', error);
             // On error, assume owned (fail open for UX)
             isOwnedByUser = true;
+            isCheckingChatOwnership = false;
         }
     }
     
@@ -778,12 +795,14 @@
         } else if (isAuth && !isPublic) {
             // For authenticated users with non-public chats, check ownership first
             try {
+                isCheckingChatOwnership = true;
                 await checkChatOwnership();
                 if (!isOwnedByUser && !isLinkGenerated && chatId) {
                     console.debug('[SettingsShare] Auto-generating link for shared chat (not owned):', chatId);
                     await generateLink();
                 }
             } catch (error) {
+                isCheckingChatOwnership = false;
                 console.error('[SettingsShare] Error checking ownership or generating link:', error);
             }
         }
@@ -833,6 +852,7 @@
         if (!sharedChatId && !isLinkGenerated && !embedContext) {
             const storeValue = $activeChatStore;
             if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
+                prepareChatOwnershipState(storeValue);
                 currentChatId = storeValue;
                 console.debug('[SettingsShare] Synced currentChatId from store on mount:', currentChatId);
             }
@@ -1475,7 +1495,7 @@
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
     
     // Can generate link if we have either a chat ID or an embed context
-    let canGenerateLink = $derived((currentChatId || (isEmbedSharing && embedContext)) && isPasswordValid);
+    let canGenerateLink = $derived((currentChatId || (isEmbedSharing && embedContext)) && isPasswordValid && !isCheckingChatOwnership);
     
     // Display chat ID: use sharedChatId if link is generated (to keep it stable), otherwise use currentChatId
     // This ensures the displayed chat and QR code remain unchanged when user switches chats
