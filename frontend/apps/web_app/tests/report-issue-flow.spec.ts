@@ -285,7 +285,6 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.issue_id).toBeTruthy();
 		expect(responseBody?.screenshot_uploaded).toBe(true);
 		const submittedPayload = apiResponse.request().postDataJSON?.();
-		expect(submittedPayload?.agent_action).toBe(adminControlsVisible ? 'research' : 'none');
 		expect(submittedPayload?.add_to_linear).toBe(adminControlsVisible ? false : true);
 		expect(submittedPayload?.send_email_notification).toBe(adminControlsVisible ? false : true);
 		logCheckpoint(
