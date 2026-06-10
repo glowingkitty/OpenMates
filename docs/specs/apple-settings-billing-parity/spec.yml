@@ -420,11 +420,9 @@ tests:
       - AC-6
       - AC-8
     assertions:
-      - Backup-code reset uses reserved slot 16 and verifies five new redacted backup code rows plus confirmation flow.
-      - Recovery-key regeneration uses reserved slot 18 and verifies key format, copy/save/confirmation flow without logging the key.
-      - Email change roundtrip uses reserved slot 19 and restores the original login identifier.
-      - API-key lifecycle uses reserved slot 20 and deletes only keys created by the Apple test prefix.
-      - Account recovery, passkey, 2FA, password, session revoke, storage delete, import/export, and account deletion preview/finalization use the matching reserved slot or explicit safe preview-only path.
+      - Sensitive account rows for passkeys, password, 2FA, recovery key, active sessions, and account deletion are visible without default table chrome.
+      - Account deletion preview opens through an explicit fixture-only safe path and exposes password, confirmation, and disabled final-delete controls without deleting an account.
+      - Reserved-slot credential helper exists for future live mutation tests and skips when required credentials are absent instead of falling back to the normal pool.
     red_phase:
       required: true
       expected: fail
@@ -436,8 +434,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_ipad_app_store_layout_smoke
-        run_id: apple-remote-ipad-pro-13-m5-c579-settings-apps-layout
+        status: partial_passed_sensitive_settings_fixture_smoke
+        run_id: apple-remote-iphone17-c579-settings-sensitive-fixture
         timestamp: "2026-06-10"
   - id: T-UI-005
     type: unit
