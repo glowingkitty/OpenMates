@@ -269,7 +269,8 @@ async function waitForAssistantTurnSettled(page: any, log: any): Promise<void> {
 		)
 		.toBeTruthy();
 	await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 60000 });
-	log('Assistant turn metadata settled: generated title and summary are visible.');
+	await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 60000 });
+	log('Assistant turn metadata settled: generated title, summary, and follow-up suggestions are visible.');
 
 	const processingEmbeds = page.locator(
 		'[data-testid="message-assistant"] [data-testid="embed-preview"][data-status="processing"]'
