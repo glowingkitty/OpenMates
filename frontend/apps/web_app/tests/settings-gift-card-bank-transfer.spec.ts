@@ -124,12 +124,11 @@ test('settings gift cards: bank transfer order is created as gift-card purchase'
 	await page.getByTestId('menu-item').filter({ hasText: '21.000' }).click();
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'billing/gift-cards/buy/payment', { timeout: 10000 });
 
-	const limitedRefundHeading = page.getByText(/Limited refund/i);
-	if (await limitedRefundHeading.isVisible({ timeout: 5000 }).catch(() => false)) {
-		const consentToggle = page.locator('#limited-refund-consent-toggle');
-		await setToggleChecked(consentToggle, true);
-		await expect(limitedRefundHeading).toBeHidden({ timeout: 5000 });
-	}
+	const limitedRefundHeading = page.getByRole('heading', { name: /Limited refund/i });
+	await expect(limitedRefundHeading).toBeVisible({ timeout: 15000 });
+	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	await setToggleChecked(consentToggle, true);
+	await expect(limitedRefundHeading).toBeHidden({ timeout: 10000 });
 
 	const bankTransferButton = page.getByTestId('switch-to-bank-transfer');
 	await expect(bankTransferButton).toBeVisible({ timeout: 15000 });
