@@ -216,6 +216,8 @@ scenarios:
       - The API starts a viewer-owned application preview session using the dev user-content origin.
       - E2B starts the generated Vite application with server.allowedHosts covering the exact E2B sandbox host.
       - The iframe loads Habit Garden application content through the preview gateway without showing Vite's Blocked request page.
+      - The iframe preserves same-origin semantics for the user-content origin so Vite module scripts and generated app JavaScript do not execute from origin null.
+      - Generated app JavaScript responds to user interaction inside the iframe.
       - The preview URL does not expose the raw E2B host to the client.
 
   - id: S-12
@@ -847,6 +849,8 @@ tests:
       - authenticated user opening the Habit Garden example can start a live E2B preview
       - preview iframe URL uses https://dev.openmatesusercontent.org and never exposes e2b.app
       - iframe content does not show Vite's Blocked request page and renders Habit Garden content
+      - preview iframe sandbox includes allow-same-origin so module scripts do not execute from origin null
+      - Habit Garden's Plant Habit button runs generated JavaScript and renders the new habit
       - billing usage entries show an application preview charge linked to the example chat after stop
     red_phase:
       required: true

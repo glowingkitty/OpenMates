@@ -297,7 +297,7 @@
     <div class="application-fullscreen">
       <section class="preview-panel" data-testid="application-preview-panel" aria-label={$text('embeds.application_live_preview')}>
         {#if previewUrl && previewStatus === 'running'}
-          <iframe data-testid="application-preview-iframe" title={appName} src={previewUrl} sandbox="allow-scripts allow-forms allow-modals allow-popups" referrerpolicy="no-referrer"></iframe>
+          <iframe data-testid="application-preview-iframe" title={appName} src={previewUrl} sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin" referrerpolicy="no-referrer"></iframe>
         {:else if previewStatus === 'queued' || previewStatus === 'starting'}
           <div class="empty-preview">
             <div class="empty-window" aria-hidden="true"></div>

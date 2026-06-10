@@ -19,6 +19,8 @@ const {
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const fs = require('fs');
+const path = require('path');
 
 const HABIT_GARDEN_CHAT_ID = 'example-habit-garden-vite-app';
 const HABIT_GARDEN_URL = `/#chat-id=${HABIT_GARDEN_CHAT_ID}`;
@@ -41,6 +43,15 @@ async function openHabitGardenApplication(page: any): Promise<any> {
 }
 
 test.describe('Habit Garden example application preview', () => {
+	test('application preview iframe preserves same-origin semantics for module scripts', async () => {
+		const componentPath = path.resolve(
+			__dirname,
+			'../../../packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte'
+		);
+		const source = fs.readFileSync(componentPath, 'utf8');
+		expect(source).toContain('sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"');
+	});
+
 	test('unauthenticated Start preview opens signup without starting a preview', async ({ page }: { page: any }) => {
 		test.setTimeout(90_000);
 
@@ -98,10 +109,16 @@ test.describe('Habit Garden example application preview', () => {
 		const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
 		await expect(iframe).toBeVisible({ timeout: 180_000 });
 		await expect(iframe).toHaveAttribute('src', /https:\/\/dev\.openmatesusercontent\.org\/p\//, { timeout: 10_000 });
+		await expect(iframe).toHaveAttribute('sandbox', /allow-same-origin/, { timeout: 10_000 });
 		const frame = await iframe.contentFrame();
 		expect(frame, 'application preview iframe should have a frame context').toBeTruthy();
 		await expect(frame.locator('body')).not.toContainText(/Blocked request|not allowed/i, { timeout: 30_000 });
 		await expect(frame.locator('body')).toContainText(/Habit Garden|Plant Habit/i, { timeout: 180_000 });
+
+		const testHabitName = `Read OpenMates docs ${Date.now()}`;
+		await frame.locator('#new-habit-input').fill(testHabitName);
+		await frame.locator('#add-habit-btn').click();
+		await expect(frame.locator('body')).toContainText(testHabitName, { timeout: 10_000 });
 
 		await expect(fullscreenOverlay.getByTestId('application-stop-preview')).toBeVisible({ timeout: 10_000 });
 		await fullscreenOverlay.getByTestId('application-stop-preview').click();
