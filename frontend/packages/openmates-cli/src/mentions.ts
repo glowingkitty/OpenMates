@@ -77,6 +77,7 @@ export interface MentionParseResult {
 export interface ModelInfo {
   id: string;
   name: string;
+  providerId?: string;
 }
 
 /** Minimal app info from /v1/apps */
@@ -130,6 +131,7 @@ export const MODEL_ALIASES: Record<string, string> = {
  * NOTE: When modelsMetadata.ts changes, update this list.
  */
 export const CHAT_MODELS: ModelInfo[] = [
+  { id: "claude-fable-5", name: "Claude Fable 5", providerId: "anthropic" },
   { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
   { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
   { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
@@ -252,7 +254,7 @@ function resolveToken(
       return {
         original: `@${token}`,
         type: "model",
-        wireSyntax: `@ai-model:${model.id}`,
+        wireSyntax: `@ai-model:${model.id}${model.providerId ? `:${model.providerId}` : ""}`,
         displayName: `@${model.name.replace(/\s+/g, "-")}`,
       };
     }

@@ -140,6 +140,31 @@ describe("parseMentions", () => {
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-5.4");
     });
+
+    it("resolves Claude Fable 5 with explicit provider", () => {
+      const result = parseMentions(
+        "@Claude-Fable-5 explain this issue",
+        testContext,
+      );
+      assert.equal(result.resolved.length, 1);
+      assert.equal(result.resolved[0].type, "model");
+      assert.equal(
+        result.resolved[0].wireSyntax,
+        "@ai-model:claude-fable-5:anthropic",
+      );
+    });
+
+    it("resolves Claude Fable 5 model id with explicit provider", () => {
+      const result = parseMentions(
+        "@claude-fable-5 explain this issue",
+        testContext,
+      );
+      assert.equal(result.resolved.length, 1);
+      assert.equal(
+        result.resolved[0].wireSyntax,
+        "@ai-model:claude-fable-5:anthropic",
+      );
+    });
   });
 
   describe("mates", () => {
