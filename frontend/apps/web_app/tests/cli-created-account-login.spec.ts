@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// @privacy-promise: cli-provisioned-account-web-login
 export {};
 
 /**
