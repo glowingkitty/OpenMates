@@ -1158,26 +1158,46 @@ struct SettingsAccountSubPage: View {
                     }
 
                     OMSettingsSection(AppStrings.settingsSecurity) {
-                        OMSettingsRow(title: AppStrings.passkeys, icon: "passkey", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.passkeys,
+                            icon: "passkey",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-passkeys-row"
+                        ) {
                             destination = .passkeys
                         }
-                        .accessibilityIdentifier("settings-account-passkeys-row")
-                        OMSettingsRow(title: AppStrings.password, icon: "lock", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.password,
+                            icon: "lock",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-password-row"
+                        ) {
                             destination = .password
                         }
-                        .accessibilityIdentifier("settings-account-password-row")
-                        OMSettingsRow(title: AppStrings.twoFactorAuth, icon: "tfas", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.twoFactorAuth,
+                            icon: "tfas",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-2fa-row"
+                        ) {
                             destination = .twoFactor
                         }
-                        .accessibilityIdentifier("settings-account-2fa-row")
-                        OMSettingsRow(title: AppStrings.recoveryKey, icon: "secret", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.recoveryKey,
+                            icon: "secret",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-recovery-key-row"
+                        ) {
                             destination = .recoveryKey
                         }
-                        .accessibilityIdentifier("settings-account-recovery-key-row")
-                        OMSettingsRow(title: AppStrings.activeSessions, icon: "desktop", iconGradient: .appCode) {
+                        OMSettingsRow(
+                            title: AppStrings.activeSessions,
+                            icon: "desktop",
+                            iconGradient: .appCode,
+                            accessibilityIdentifier: "settings-account-sessions-row"
+                        ) {
                             destination = .sessions
                         }
-                        .accessibilityIdentifier("settings-account-sessions-row")
                         OMSettingsRow(title: AppStrings.pairNewDevice, icon: "dummyqr", iconGradient: .primary) {
                             destination = .pairDevice
                         }
@@ -1188,9 +1208,9 @@ struct SettingsAccountSubPage: View {
                         OMSettingsRow(
                             title: AppStrings.deleteAccount,
                             icon: "delete",
-                            isDestructive: true
+                            isDestructive: true,
+                            accessibilityIdentifier: "settings-account-delete-row"
                         ) { destination = .deleteAccount }
-                        .accessibilityIdentifier("settings-account-delete-row")
                     }
                 }
                 .padding(.horizontal, .spacing8)

@@ -816,59 +816,74 @@ struct OMSettingsRow: View {
     var value: String?
     var isDestructive = false
     var showsChevron = true
+    var accessibilityIdentifier: String?
     var action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 0) {
-                if let icon {
-                    // .icon-container: 44x44, margin-inline-end 12px, flex-shrink 0
-                    // .settings-icon: 44x44, radius-4 (10pt)
-                    // Mode B (.has-bg): gradient bg, white icon at 50% (22pt)
-                    // Mode A (no .has-bg): grey-20→grey-30 gradient bg, colored icon at 50% (22pt)
-                    Icon(icon, size: 22)
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(isDestructive ? LinearGradient.appNews : LinearGradient.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                        .padding(.trailing, .spacing6) // margin-inline-end: 12px
-                }
-
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(title)
-                        .font(.omP.weight(.medium))
-                        .foregroundStyle(isDestructive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.omXs)
-                            .foregroundStyle(Color.fontSecondary)
-                            .lineLimit(2)
-                    }
-                }
-
-                Spacer(minLength: .spacing4)
-
-                if let value {
-                    Text(value)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(1)
-                }
-
-                if showsChevron {
-                    Icon("chevron-right", size: 16)
-                        .foregroundStyle(Color.fontTertiary)
-                }
+        Group {
+            if let accessibilityIdentifier {
+                rowButton.accessibilityIdentifier(accessibilityIdentifier)
+            } else {
+                rowButton
             }
-            // padding: 5px 10px (top/bottom 5pt, left/right 10pt)
-            .padding(.horizontal, .spacing5) // 10px
-            .padding(.vertical, .spacing2)   // web: 5px, closest token: spacing2 (4pt)
-            .frame(minHeight: 40)            // min-height: 40px
-            .contentShape(Rectangle())
+        }
+    }
+
+    private var rowButton: some View {
+        Button(action: action) {
+            rowContent
         }
         .buttonStyle(.plain)
         .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
         .accessibilityLabel(title)
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: 0) {
+            if let icon {
+                // .icon-container: 44x44, margin-inline-end 12px, flex-shrink 0
+                // .settings-icon: 44x44, radius-4 (10pt)
+                // Mode B (.has-bg): gradient bg, white icon at 50% (22pt)
+                // Mode A (no .has-bg): grey-20→grey-30 gradient bg, colored icon at 50% (22pt)
+                Icon(icon, size: 22)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(isDestructive ? LinearGradient.appNews : LinearGradient.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .padding(.trailing, .spacing6) // margin-inline-end: 12px
+            }
+
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(title)
+                    .font(.omP.weight(.medium))
+                    .foregroundStyle(isDestructive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: .spacing4)
+
+            if let value {
+                Text(value)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+
+            if showsChevron {
+                Icon("chevron-right", size: 16)
+                    .foregroundStyle(Color.fontTertiary)
+            }
+        }
+        // padding: 5px 10px (top/bottom 5pt, left/right 10pt)
+        .padding(.horizontal, .spacing5) // 10px
+        .padding(.vertical, .spacing2)   // web: 5px, closest token: spacing2 (4pt)
+        .frame(minHeight: 40)            // min-height: 40px
+        .contentShape(Rectangle())
     }
 }
 
