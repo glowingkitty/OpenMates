@@ -3,7 +3,7 @@
  * Provision isolated E2E auth accounts through the OpenMates CLI signup path.
  *
  * This utility spec runs only via manual GitHub Actions dispatch with
- * CREATE_ACCOUNT_SLOT set to 15 or 17. It uses the workflow's existing email
+ * CREATE_ACCOUNT_SLOT set to a reserved auth-test slot. It uses the workflow's existing email
  * polling secrets, writes credential artifacts to the uploaded artifacts
  * directory, and never commits generated credentials to the repository.
  */
@@ -22,11 +22,15 @@ const {
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const CREATE_ACCOUNT_SLOT = process.env.CREATE_ACCOUNT_SLOT;
 const DEV_API_URL = 'https://api.dev.openmates.org';
+const RESERVED_AUTH_ACCOUNT_SLOTS = new Set([15, 16, 17, 18, 19, 20]);
 
 test.describe('CLI E2E auth account provisioning', () => {
 	test('creates a reserved account artifact through CLI signup', async () => {
 		const slot = parseInt(CREATE_ACCOUNT_SLOT || '', 10);
-		test.skip(!CREATE_ACCOUNT_SLOT || ![15, 17].includes(slot), 'CREATE_ACCOUNT_SLOT must be 15 or 17.');
+		test.skip(
+			!CREATE_ACCOUNT_SLOT || !RESERVED_AUTH_ACCOUNT_SLOTS.has(slot),
+			'CREATE_ACCOUNT_SLOT must be a reserved auth-test slot.'
+		);
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 
 		const emailClient = createEmailClient();
