@@ -3452,6 +3452,7 @@ class DeleteAccountRequest(BaseModel):
     auth_method: str  # "passkey", "2fa_otp", or "email_otp"
     auth_code: Optional[str] = None  # OTP code for 2FA/email, or credential_id for passkey
     email_encryption_key: Optional[str] = None  # Client-side email encryption key for sending refund emails during deletion
+    require_email_verification: bool = False  # CLI-only hardening: require recent email OTP in addition to auth_method
 
 
 async def _calculate_delete_account_preview(
@@ -3998,6 +3999,14 @@ async def delete_account(
         # Credits are automatically refunded (except gift card credits), so no separate confirmation needed
         if not delete_request.confirm_data_deletion:
             raise HTTPException(status_code=400, detail="Data deletion confirmation is required")
+
+        if delete_request.require_email_verification:
+            verified_key = f"action_verified:{user_id}:delete_account"
+            verified_status = await cache_service.get(verified_key)
+            if verified_status != "verified":
+                logger.warning(f"Required email OTP not verified for CLI account deletion: user {user_id}")
+                raise HTTPException(status_code=401, detail="Email verification required")
+            await cache_service.delete(verified_key)
         
         # Validate authentication
         if delete_request.auth_method == "passkey":
@@ -4040,13 +4049,14 @@ async def delete_account(
             # The /verify-action-code endpoint stores a short-lived token in cache
             # when the code is successfully verified.
             verified_key = f"action_verified:{user_id}:delete_account"
-            verified_status = await cache_service.get(verified_key)
+            verified_status = "verified" if delete_request.require_email_verification else await cache_service.get(verified_key)
             if verified_status != "verified":
                 logger.warning(f"Email OTP not verified for account deletion: user {user_id}")
                 raise HTTPException(status_code=401, detail="Email verification required")
 
             # Delete the verified token so it can't be reused
-            await cache_service.delete(verified_key)
+            if not delete_request.require_email_verification:
+                await cache_service.delete(verified_key)
             logger.info(f"Email OTP authentication verified for account deletion: user {user_id}")
         else:
             raise HTTPException(status_code=400, detail="Invalid authentication method")

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-04
+last_verified: 2026-06-10
 key_files:
   - frontend/packages/openmates-cli/src/cli.ts
   - frontend/packages/openmates-cli/src/client.ts
@@ -14,7 +14,7 @@ key_files:
 
 The OpenMates CLI should let users do nearly everything from the web app that is safe and useful in a terminal. The CLI is not a second-class API client: it mirrors the browser's zero-knowledge crypto, chat sync, mentions, embeds, memories, and app-skill execution so terminal users can work with the same encrypted account data.
 
-The main exceptions are browser-bound or high-risk account operations: passkeys, password setup or changes, two-factor authentication setup, recovery keys, active session approval/management, payment checkout, and account deletion. Those remain web-app-only because they require stronger human verification, browser platform APIs, or payment-provider UI.
+The main exceptions are browser-bound or high-risk account operations that cannot be safely reproduced in a terminal: passkeys, password changes, modifying or disabling existing 2FA/recovery methods, active session approval/management, and card checkout. The CLI has dedicated guided flows for initial password signup, missing 2FA/recovery setup, bank-transfer purchases, and account deletion; those flows stay outside raw settings passthrough and require explicit confirmations.
 
 ## Parity Levels
 
@@ -29,7 +29,8 @@ The main exceptions are browser-bound or high-risk account operations: passkeys,
 
 | Web app capability | CLI status | Notes |
 | --- | --- | --- |
-| Pair/login session | Full | `openmates login`, `logout`, `whoami`. CLI uses pair auth only and never asks for account credentials. |
+| Pair/login session | Full | `openmates login`, `logout`, `whoami`. Pair auth remains the default login path. |
+| Password signup | Full | `openmates signup` uses hidden terminal password prompts and web-compatible client-side encrypted signup crypto. `--password` is rejected. |
 | Chat list/search/open | Full | `chats list`, `search`, `open`. |
 | New chat and continue chat | Full | `chats new`, `chats send`, streaming via WebSocket. |
 | Follow-up suggestions | Full | `chats show` displays stored suggestions; `chats send --followup <n>` reuses them. |
@@ -54,20 +55,20 @@ The main exceptions are browser-bound or high-risk account operations: passkeys,
 | Account export/import | Partial | CLI can fetch export manifest/data and import individual chat exports; no guided full-account export/import command. |
 | Account storage overview | Full | `settings account storage overview/files/delete ...` wraps supported storage endpoints with confirmation for deletion. |
 | Account chat stats and bulk deletion | Partial | `settings account chats stats`; old-chat bulk deletion still needs a safe CLI UX. |
-| Account deletion preview | Full | `settings account delete preview`; final deletion remains web-only. |
-| Account deletion | Web-only | Should be blocked in CLI client even though backend requires auth verification. |
+| Account deletion preview | Full | `settings account delete preview`. |
+| Account deletion | Full | `settings account delete --yes` uses a dedicated stricter CLI flow: email code is always required, and TOTP is required when 2FA is configured. Raw settings passthrough remains blocked. |
 | Passkeys | Web-only | Requires WebAuthn/browser APIs. |
-| Password setup/change | Web-only | Blocked by `BLOCKED_SETTINGS_MUTATE_PATHS`. |
-| 2FA setup/change | Web-only | Blocked for setup paths; disabling 2FA should also remain browser-only unless a full reauth model is designed. |
-| Recovery key | Web-only | High-risk account recovery surface. |
+| Password change | Web-only | Password changes remain browser-only. Public CLI signup is a dedicated guided command, not raw settings passthrough. |
+| 2FA setup/change | Partial | Initial signup/missing-method setup is supported through guided CLI commands. Rotation, modification, and disablement remain browser-only. |
+| Recovery key | Partial | Initial signup/missing recovery-key setup is supported. Regeneration/rotation remains browser-only. |
 | Active sessions and pair-session approval | Web-only | CLI is itself a paired/restricted session; approval and session controls stay in browser. |
 | Billing overview | Full | `settings billing overview`. |
 | Usage history/export | Full | `settings billing usage`, `usage summaries`, `usage daily`, and `usage export`. |
-| Buy credits/payment checkout | Web-only | Payment-provider checkout must remain browser-bound. |
+| Buy credits/payment checkout | Partial | Bank-transfer credit purchase is supported with `settings billing buy-credits bank-transfer`; card checkout remains browser-bound. |
 | Invoices | Full | `settings billing invoices list/download/credit-note/refund`; refund uses the locally stored email encryption key from CLI login. |
 | Auto top-up | Partial | Low-balance command is implemented; monthly auto-topup remains web-only until policy is decided. |
-| Gift card redeem/list | Full | `settings gift-card redeem/list`. |
-| Gift card buy/manage | Web-only | Payment/purchase flow. |
+| Gift card redeem/list | Full | `settings billing gift-card redeem/list`. |
+| Gift card buy/manage | Partial | Bank-transfer gift-card purchase and status are supported; card checkout remains browser-only. |
 | Hidden personal data/anonymization | Partial | Memories and raw settings can cover pieces, but no first-class guided CLI flow exists. |
 | Auto-delete chats/files | Partial | Chat auto-delete command is implemented; file auto-delete route should be checked before exposing. |
 | Share debug logs | Full | `settings privacy debug-logs share` prompts for consent unless `--confirm`/`--yes`. |
@@ -91,12 +92,12 @@ The CLI no longer exposes raw `settings get/post/patch/delete` passthrough comma
 The blocklist should include every path that must not be reachable through raw CLI settings commands, not only paths that have first-class CLI help text. At minimum, keep or add blocks for:
 
 - API key creation: `/v1/settings/api-keys` for POST.
-- Password setup and changes: `/v1/settings/update-password`, `/v1/auth/setup_password`.
-- 2FA setup flows: `/v1/auth/2fa/setup/*`.
-- Account deletion finalization: `/v1/settings/delete-account`.
-- Sensitive action OTP bootstrap/verification when it only exists to authorize a web-only action: `/v1/settings/request-action-verification`, `/v1/settings/verify-action-code`.
+- Password changes: `/v1/settings/update-password`. `openmates signup` is the only supported CLI password setup path.
+- Raw 2FA setup paths: `/v1/auth/2fa/setup/*`. Guided CLI setup calls these internally only for missing initial methods.
+- Raw account deletion finalization: `/v1/settings/delete-account`. Guided CLI deletion calls it with `require_email_verification: true`.
+- Sensitive action OTP bootstrap/verification through raw passthrough: `/v1/settings/request-action-verification`, `/v1/settings/verify-action-code`.
 
-Deletion preview can remain readable because it is informational and helps exports/offboarding, but final deletion must stay web-only unless a new CLI-specific reauthentication design is approved.
+Deletion preview can remain readable because it is informational and helps exports/offboarding. Final deletion is available only through the dedicated `settings account delete` command; raw settings passthrough stays blocked.
 
 ## Next Implementation Tasks
 

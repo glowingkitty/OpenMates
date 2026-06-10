@@ -1345,6 +1345,7 @@ const ISOLATED_TEST_ACCOUNT_SLOTS: Record<string, number> = {
 	'account-recovery-flow.spec.ts': 14,
 	'backup-code-login-flow.spec.ts': 15,
 	'backup-codes-settings.spec.ts': 16,
+	'cli-created-account-login.spec.ts': 17,
 	'recovery-key-login-flow.spec.ts': 17,
 	'recovery-key-settings.spec.ts': 18,
 	'settings-change-email.spec.ts': 19,

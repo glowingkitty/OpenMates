@@ -192,6 +192,7 @@ Most specs use the normal account pool. Specs that rotate, reset, or delete pers
 | 15 | `backup-code-login-flow.spec.ts` | The Change App flow rotates the TOTP secret. |
 | 16 | `backup-codes-settings.spec.ts` | Backup code reset mutates login recovery material. |
 | 17 | `recovery-key-login-flow.spec.ts` | Recovery key regeneration mutates login recovery material. |
+| 17 | `cli-created-account-login.spec.ts` | Verifies the CLI-provisioned password/TOTP account can log in through the web app without mutating recovery material. |
 | 18 | `recovery-key-settings.spec.ts` | Recovery key regeneration mutates login recovery material. |
 | 19 | `settings-change-email.spec.ts` | Email roundtrip mutates the account login identifier. |
 | 20 | `api-keys-flow.spec.ts` | API-key lifecycle tests create/delete developer credentials. |

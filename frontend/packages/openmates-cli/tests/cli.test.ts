@@ -792,7 +792,9 @@ describe("settings command surface", () => {
     const output = runCli(["settings", "billing", "--help"]);
     assert.ok(output.includes("openmates settings billing overview"));
     assert.ok(output.includes("e.g. openmates settings billing usage"));
+    assert.ok(output.includes("buy-credits bank-transfer"));
     assert.ok(output.includes("gift-card redeem"));
+    assert.ok(output.includes("gift-card buy bank-transfer"));
     assert.ok(output.includes("invoices download"));
   });
 
@@ -812,10 +814,11 @@ describe("settings command surface", () => {
     );
   });
 
-  it("prints web-only help for account deletion", () => {
-    const output = runCli(["settings", "account", "delete"]);
-    assert.ok(output.includes("Account deletion is web-only"));
-    assert.ok(output.includes("#settings/account/delete"));
+  it("rejects account deletion verification codes passed as flags", () => {
+    assert.throws(
+      () => runCli(["settings", "account", "delete", "--email-code", "123456"]),
+      /verification codes must be entered through interactive prompts/,
+    );
   });
 
   it("prints web-only help for security sessions", () => {

@@ -25,6 +25,9 @@ import {
   type DocsFile,
   type DocsSearchResult,
   type SubChatApprovalRequest,
+  type BankTransferOrderDetails,
+  type BankTransferStatus,
+  type GiftCardBankTransferStatus,
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
@@ -90,6 +93,14 @@ async function main(): Promise<void> {
       printSettingsHelp(client);
       return;
     }
+    if (command === "signup") {
+      printSignupHelp();
+      return;
+    }
+    if (command === "e2e") {
+      printE2EHelp();
+      return;
+    }
     if (command === "mentions") {
       printMentionsHelp();
       return;
@@ -132,6 +143,16 @@ async function main(): Promise<void> {
   if (command === "login") {
     await client.loginWithPairAuth();
     console.log("Login successful.");
+    return;
+  }
+
+  if (command === "signup") {
+    await handleSignup(client, parsed.flags);
+    return;
+  }
+
+  if (command === "e2e") {
+    await handleE2E(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -1484,6 +1505,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
   { path: ["account", "chats", "stats"], description: "Show chat statistics", examples: ["openmates settings account chats stats"] },
   { path: ["account", "delete", "preview"], description: "Preview account deletion impact", examples: ["openmates settings account delete preview"] },
+  { path: ["account", "delete"], description: "Delete your account with email code plus 2FA when configured", examples: ["openmates settings account delete --yes"] },
   { path: ["account", "storage", "overview"], description: "Show storage overview", examples: ["openmates settings account storage overview"] },
   { path: ["account", "storage", "files"], description: "List stored files", examples: ["openmates settings account storage files --category images"] },
   { path: ["account", "storage", "delete"], description: "Delete one stored file by file ID", examples: ["openmates settings account storage delete <file-id> --yes"] },
@@ -1498,12 +1520,18 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
+  { path: ["billing", "buy-credits", "bank-transfer"], description: "Buy credits by SEPA bank transfer", examples: ["openmates settings billing buy-credits bank-transfer --credits 110000"] },
+  { path: ["billing", "bank-transfer", "status"], description: "Show bank-transfer order status", examples: ["openmates settings billing bank-transfer status <order-id>"] },
+  { path: ["billing", "bank-transfer", "list"], description: "List pending bank-transfer orders", examples: ["openmates settings billing bank-transfer list"] },
   { path: ["billing", "invoices", "list"], description: "List invoices", examples: ["openmates settings billing invoices list --json"] },
   { path: ["billing", "invoices", "download"], description: "Download an invoice PDF", examples: ["openmates settings billing invoices download <invoice-id> --output ./invoices"] },
   { path: ["billing", "invoices", "credit-note"], description: "Download a credit note PDF", examples: ["openmates settings billing invoices credit-note <invoice-id> --output ./invoices"] },
   { path: ["billing", "invoices", "refund"], description: "Request a refund for an invoice", examples: ["openmates settings billing invoices refund <invoice-id> --yes"] },
   { path: ["billing", "gift-card", "redeem"], description: "Redeem a gift card", examples: ["openmates settings billing gift-card redeem ABCD-1234"] },
   { path: ["billing", "gift-card", "list"], description: "List redeemed gift cards", examples: ["openmates settings billing gift-card list"] },
+  { path: ["billing", "gift-card", "buy", "bank-transfer"], description: "Buy a gift card by SEPA bank transfer", examples: ["openmates settings billing gift-card buy bank-transfer --credits 21000"] },
+  { path: ["billing", "gift-card", "purchase-status"], description: "Show gift-card bank-transfer purchase status", examples: ["openmates settings billing gift-card purchase-status <order-id>"] },
+  { path: ["billing", "gift-card", "purchased"], description: "List purchased unused gift cards", examples: ["openmates settings billing gift-card purchased"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
   { path: ["notifications", "status"], description: "Show notification settings", examples: ["openmates settings notifications status --json"] },
   { path: ["notifications", "list"], description: "List recent notification events", examples: ["openmates settings notifications list --limit 20 --json"] },
@@ -1530,7 +1558,6 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
 
 const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "email"], description: "Email changes are web-only", webPath: "account/email", reason: "Email changes require a guided identity verification flow.", examples: ["openmates settings account email"] },
-  { path: ["account", "delete"], description: "Account deletion is web-only", webPath: "account/delete", reason: "Account deletion requires browser-based reauthentication and explicit confirmation.", examples: ["openmates settings account delete"] },
   { path: ["security"], description: "Security settings are web-only", webPath: "account/security", reason: "Security settings require browser APIs or high-risk reauthentication.", examples: ["openmates settings security"] },
   { path: ["security", "passkeys"], description: "Passkeys are web-only", webPath: "account/security/passkeys", reason: "Passkeys require WebAuthn browser APIs.", examples: ["openmates settings security passkeys"] },
   { path: ["security", "password"], description: "Password changes are web-only", webPath: "account/security/password", reason: "The CLI never asks for account credentials.", examples: ["openmates settings security password"] },
@@ -1808,6 +1835,316 @@ async function confirmOrExit(question: string): Promise<void> {
   }
 }
 
+async function promptLine(question: string): Promise<string> {
+  const rl = await import("node:readline");
+  const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise<string>((resolve) => iface.question(question, resolve));
+  iface.close();
+  return answer.trim();
+}
+
+async function promptSecret(question: string): Promise<string> {
+  if (!process.stdin.isTTY) {
+    return promptLine(question);
+  }
+  return new Promise<string>((resolve) => {
+    const stdin = process.stdin;
+    const wasRaw = stdin.isRaw;
+    let value = "";
+    process.stdout.write(question);
+    stdin.setRawMode(true);
+    stdin.resume();
+    const onData = (chunk: Buffer) => {
+      const char = chunk.toString("utf8");
+      if (char === "\r" || char === "\n") {
+        stdin.off("data", onData);
+        stdin.setRawMode(wasRaw);
+        process.stdout.write("\n");
+        resolve(value);
+        return;
+      }
+      if (char === "\u0003") {
+        stdin.off("data", onData);
+        stdin.setRawMode(wasRaw);
+        process.stdout.write("\n");
+        process.exit(130);
+      }
+      if (char === "\u007f" || char === "\b") {
+        value = value.slice(0, -1);
+        return;
+      }
+      value += char;
+    };
+    stdin.on("data", onData);
+  });
+}
+
+async function writeSecretFile(filePath: string, content: string, force = false): Promise<string> {
+  const { mkdir, writeFile, stat } = await import("node:fs/promises");
+  const { dirname } = await import("node:path");
+  try {
+    await stat(filePath);
+    if (!force) throw new Error(`${filePath} already exists. Use --force to overwrite.`);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    if (error instanceof Error && !("code" in error)) throw error;
+  }
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, { mode: 0o600 });
+  return filePath;
+}
+
+async function generateProvisioningPassword(): Promise<string> {
+  const { randomBytes } = await import("node:crypto");
+  return `OM-${randomBytes(18).toString("base64url")}-aA2#`;
+}
+
+function decodeBase32(input: string): Buffer {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const cleaned = input.toUpperCase().replace(/[^A-Z2-7]/g, "");
+  let bits = "";
+  for (const char of cleaned) {
+    const value = alphabet.indexOf(char);
+    if (value >= 0) bits += value.toString(2).padStart(5, "0");
+  }
+  const bytes: number[] = [];
+  for (let index = 0; index + 8 <= bits.length; index += 8) {
+    bytes.push(Number.parseInt(bits.slice(index, index + 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+async function generateTotpCode(secret: string): Promise<string> {
+  const { createHmac } = await import("node:crypto");
+  const counter = Math.floor(Date.now() / 1000 / 30);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+  const hmac = createHmac("sha1", decodeBase32(secret)).update(counterBuffer).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return String(code).padStart(6, "0");
+}
+
+async function runSecuritySetup(client: OpenMatesClient, flags: Record<string, string | boolean>, options: { autoGenerateTotp?: boolean } = {}): Promise<{
+  otpSecret?: string | null;
+  backupCodes?: string[];
+  recoveryKey?: string;
+  backupCodesPath?: string;
+  recoveryKeyPath?: string;
+}> {
+  const result: {
+    otpSecret?: string | null;
+    backupCodes?: string[];
+    recoveryKey?: string;
+    backupCodesPath?: string;
+    recoveryKeyPath?: string;
+  } = {};
+
+  if (flags["skip-2fa"] === true) {
+    if (flags.yes !== true) await confirmOrExit("Skip 2FA setup? This weakens account protection. [y/N] ");
+  } else {
+    const setup = await client.startTotpSetup();
+    result.otpSecret = setup.secret ?? null;
+    if (setup.otpauth_url) client.renderTotpQrCode(setup.otpauth_url);
+    if (setup.secret) console.log(`Manual TOTP secret: ${setup.secret}`);
+    const code = typeof process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE === "string"
+      ? process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE
+      : options.autoGenerateTotp && setup.secret
+        ? await generateTotpCode(setup.secret)
+        : await promptLine("Enter current 2FA code: ");
+    await client.verifyTotpSetup(code);
+    const provider = typeof flags.provider === "string" ? flags.provider : "Authenticator app";
+    await client.setTotpProvider(provider);
+    const backup = await client.requestBackupCodes();
+    result.backupCodes = backup.backup_codes;
+    const backupOutput = typeof flags["backup-codes-output"] === "string" ? flags["backup-codes-output"] : undefined;
+    if (backupOutput) {
+      result.backupCodesPath = await writeSecretFile(backupOutput, `${backup.backup_codes.join("\n")}\n`, flags.force === true);
+      await client.confirmBackupCodesStored();
+    } else if (flags.yes === true) {
+      await client.confirmBackupCodesStored();
+    } else {
+      console.log("Backup codes:");
+      for (const backupCode of backup.backup_codes) console.log(`  ${backupCode}`);
+      await confirmOrExit("I stored these backup codes safely. Continue? [y/N] ");
+      await client.confirmBackupCodesStored();
+    }
+  }
+
+  if (flags["skip-recovery-key"] === true) {
+    if (flags.yes !== true) await confirmOrExit("Skip recovery-key setup? You may lose access to encrypted data. [y/N] ");
+  } else {
+    const recovery = await client.createAndConfirmRecoveryKey();
+    result.recoveryKey = recovery.recoveryKey;
+    const recoveryOutput = typeof flags["recovery-key-output"] === "string" ? flags["recovery-key-output"] : undefined;
+    if (recoveryOutput) {
+      result.recoveryKeyPath = await writeSecretFile(recoveryOutput, `${recovery.recoveryKey}\n`, flags.force === true);
+    } else {
+      console.log(`Recovery key: ${recovery.recoveryKey}`);
+      if (flags.yes !== true) await confirmOrExit("I stored this recovery key safely. Continue? [y/N] ");
+    }
+  }
+
+  return result;
+}
+
+type SignupCommandResult = {
+  user: unknown;
+  backupCodesPath?: string;
+  recoveryKeyPath?: string;
+  security: Awaited<ReturnType<typeof runSecuritySetup>>;
+  giftCard: unknown;
+};
+
+async function handleSignup(client: OpenMatesClient, flags: Record<string, string | boolean>, options: { autoGenerateTotp?: boolean } = {}): Promise<SignupCommandResult> {
+  if (flags.password !== undefined) {
+    throw new Error("Passwords must be entered through hidden prompts, not command-line flags.");
+  }
+  const email = typeof flags.email === "string" ? flags.email : await promptLine("Email: ");
+  const username = typeof flags.username === "string" ? flags.username : await promptLine("Username: ");
+  const inviteCode = typeof flags["invite-code"] === "string" ? flags["invite-code"] : "";
+  const language = typeof flags.language === "string" ? flags.language : "en";
+  const password = process.env.OPENMATES_CLI_SIGNUP_PASSWORD ?? await promptSecret("Password: ");
+  if (!process.env.OPENMATES_CLI_SIGNUP_PASSWORD) {
+    const confirmPassword = await promptSecret("Confirm password: ");
+    if (password !== confirmPassword) throw new Error("Passwords do not match.");
+  }
+
+  await client.requestSignupEmailCode({ email, inviteCode, language });
+  const emailCode = process.env.OPENMATES_CLI_SIGNUP_EMAIL_CODE ?? await promptLine("Email verification code: ");
+  await client.verifySignupEmailCode({ email, username, inviteCode, code: emailCode, language });
+  const signup = await client.setupPasswordAccount({ email, username, password, inviteCode, language });
+  const security = await runSecuritySetup(client, flags, options);
+
+  let giftCardResult: unknown = null;
+  if (typeof flags["gift-card-code"] === "string") {
+    giftCardResult = await client.redeemGiftCard(flags["gift-card-code"]);
+  }
+
+  const response = {
+    success: true,
+    user: signup.user ?? null,
+    backup_codes_path: security.backupCodesPath ?? null,
+    recovery_key_path: security.recoveryKeyPath ?? null,
+    gift_card: giftCardResult,
+  };
+  if (flags.json === true) {
+    printJson(response);
+  } else {
+    console.log("\x1b[32m✓\x1b[0m Account created and CLI session saved.");
+    if (security.backupCodesPath) console.log(`Backup codes saved to ${security.backupCodesPath}`);
+    if (security.recoveryKeyPath) console.log(`Recovery key saved to ${security.recoveryKeyPath}`);
+    console.log("Buy credits or redeem a gift card:");
+    console.log("  openmates settings billing buy-credits bank-transfer --credits 110000");
+    console.log("  openmates settings billing gift-card redeem <CODE>");
+  }
+
+  return {
+    user: signup.user ?? null,
+    backupCodesPath: security.backupCodesPath,
+    recoveryKeyPath: security.recoveryKeyPath,
+    security,
+    giftCard: giftCardResult,
+  };
+}
+
+async function handleE2E(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (subcommand !== "provision-auth-accounts") {
+    printE2EHelp();
+    return;
+  }
+  if (client.apiUrl.includes("api.openmates.org") && !client.apiUrl.includes("api.dev.openmates.org")) {
+    throw new Error("E2E provisioning refuses production API URLs.");
+  }
+  if (flags.password !== undefined) throw new Error("Use generated passwords or OPENMATES_CLI_SIGNUP_PASSWORD, not --password.");
+  const slot = parseRequiredNumber(flags.slot, "--slot");
+  if (![15, 17].includes(slot)) throw new Error("Only reserved slots 15 and 17 are supported.");
+  const artifact = typeof flags.artifact === "string" ? flags.artifact : `test-results/credential-updates/slot-${slot}.env`;
+  const domain = typeof flags.domain === "string" ? flags.domain : process.env.OPENMATES_CLI_E2E_EMAIL_DOMAIN;
+  const email = typeof flags.email === "string"
+    ? flags.email
+    : domain
+      ? `cli-e2e-slot-${slot}-${Date.now()}@${domain}`
+      : await promptLine("E2E account email: ");
+  const username = typeof flags.username === "string" ? flags.username : `cli_e2e_slot_${slot}_${Date.now()}`;
+  const generatedPassword = process.env.OPENMATES_CLI_SIGNUP_PASSWORD ?? await generateProvisioningPassword();
+  const originalSignupPassword = process.env.OPENMATES_CLI_SIGNUP_PASSWORD;
+  process.env.OPENMATES_CLI_SIGNUP_PASSWORD = generatedPassword;
+  let signup: SignupCommandResult | null = null;
+  try {
+    signup = await handleSignup(client, {
+      ...flags,
+      email,
+      username,
+      yes: true,
+      json: false,
+      "backup-codes-output": typeof flags["backup-codes-output"] === "string" ? flags["backup-codes-output"] : `${artifact}.backup-codes`,
+      "recovery-key-output": typeof flags["recovery-key-output"] === "string" ? flags["recovery-key-output"] : `${artifact}.recovery-key`,
+    }, { autoGenerateTotp: true });
+  } finally {
+    if (originalSignupPassword === undefined) delete process.env.OPENMATES_CLI_SIGNUP_PASSWORD;
+    else process.env.OPENMATES_CLI_SIGNUP_PASSWORD = originalSignupPassword;
+  }
+  if (!signup.security.otpSecret) throw new Error("Provisioning did not create a TOTP secret.");
+  const artifactBody = [
+    `OPENMATES_TEST_ACCOUNT_${slot}_EMAIL=${email}`,
+    `OPENMATES_TEST_ACCOUNT_${slot}_PASSWORD=${generatedPassword}`,
+    `OPENMATES_TEST_ACCOUNT_${slot}_OTP_KEY=${signup.security.otpSecret}`,
+    `# Backup codes: ${artifact}.backup-codes`,
+    `# Recovery key: ${artifact}.recovery-key`,
+    "",
+  ].join("\n");
+  const path = await writeSecretFile(artifact, artifactBody, flags.force === true);
+  if (flags.json === true) printJson({ success: true, artifact: path, slot, email });
+  else console.log(`Provisioning artifact written to ${path}. Upload secrets through the trusted manual process.`);
+}
+
+function printBankTransferOrder(order: BankTransferOrderDetails, giftCard: boolean): void {
+  header(giftCard ? "Gift Card Bank Transfer" : "Bank Transfer");
+  console.log(`Order ID: ${order.order_id}`);
+  console.log(`Credits: ${order.credits_amount}`);
+  console.log(`Amount: EUR ${order.amount_eur}`);
+  console.log(`Reference: ${order.reference}`);
+  console.log(`IBAN: ${order.iban}`);
+  console.log(`BIC: ${order.bic}`);
+  console.log(`Bank: ${order.bank_name}`);
+  console.log(`Account holder: ${order.account_holder_name}`);
+  if (order.account_holder_address_line1) console.log(`Address: ${order.account_holder_address_line1}`);
+  if (order.account_holder_address_line2) console.log(`         ${order.account_holder_address_line2}`);
+  if (order.account_holder_postal_code || order.account_holder_city) {
+    console.log(`         ${[order.account_holder_postal_code, order.account_holder_city].filter(Boolean).join(" ")}`);
+  }
+  if (order.account_holder_country) console.log(`         ${order.account_holder_country}`);
+  console.log(`Expires: ${order.expires_at}`);
+  console.log("\nInclude the exact reference in your bank transfer. Missing or changed references require manual review.");
+  if (giftCard) {
+    console.log(`Gift-card code appears after payment is matched: openmates settings billing gift-card purchase-status ${order.order_id}`);
+  } else {
+    console.log(`Check status: openmates settings billing bank-transfer status ${order.order_id}`);
+  }
+}
+
+function printBankTransferStatus(status: BankTransferStatus | GiftCardBankTransferStatus, giftCard: boolean): void {
+  header(giftCard ? "Gift Card Purchase Status" : "Bank Transfer Status");
+  console.log(`Order ID: ${status.order_id}`);
+  console.log(`Status: ${status.status}`);
+  console.log(`Credits: ${status.credits_amount}`);
+  console.log(`Amount: EUR ${status.amount_eur}`);
+  console.log(`Reference: ${status.reference}`);
+  console.log(`Expires: ${status.expires_at}`);
+  if (giftCard) {
+    const code = (status as GiftCardBankTransferStatus).gift_card_code;
+    console.log(`Gift-card code: ${code || "available after payment is matched"}`);
+  }
+}
+
 function printSettingsInfoCommand(
   client: OpenMatesClient,
   command: SettingsInfoCommand,
@@ -1922,6 +2259,31 @@ async function handleSettings(
     return;
   }
 
+  if (matches(tokens, ["account", "delete"])) {
+    if (flags["email-code"] !== undefined || flags["totp-code"] !== undefined) {
+      throw new Error("Deletion verification codes must be entered through interactive prompts, not command-line flags.");
+    }
+    const preview = await client.settingsGet("delete-account-preview");
+    if (flags.json !== true) {
+      header("Delete Account Preview");
+      printGenericObject(preview);
+    }
+    if (flags.yes !== true) {
+      await confirmOrExit("Delete this account and all associated data? [y/N] ");
+    }
+    await client.requestDeleteAccountEmailCode();
+    const emailCode = await promptLine("Enter email verification code: ");
+    await client.verifyDeleteAccountEmailCode(emailCode);
+    const authMethods = await client.getAuthMethodsStatus();
+    const totpCode = authMethods.has_2fa
+      ? await promptLine("Enter 2FA code: ")
+      : undefined;
+    const result = await client.deleteAccountWithCliVerification(totpCode);
+    if (flags.json === true) printJson(result);
+    else console.log("\x1b[32m✓\x1b[0m Account deletion requested and local CLI session cleared");
+    return;
+  }
+
   if (matches(tokens, ["account", "storage", "overview"])) {
     await printSettingsResult(client.settingsGet("storage"), flags);
     return;
@@ -2024,6 +2386,26 @@ async function handleSettings(
     return;
   }
 
+  if (matches(tokens, ["billing", "buy-credits", "bank-transfer"])) {
+    const credits = parseRequiredNumber(flags.credits, "--credits");
+    const order = await client.createBankTransferOrder(credits);
+    flags.json === true ? printJson(order) : printBankTransferOrder(order, false);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "bank-transfer", "status"])) {
+    const orderId = rest[2];
+    if (!orderId) throw new Error("Missing order ID.");
+    const status = await client.getBankTransferStatus(orderId);
+    flags.json === true ? printJson(status) : printBankTransferStatus(status, false);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "bank-transfer", "list"])) {
+    await printSettingsResult(client.listBankTransferOrders(), flags);
+    return;
+  }
+
   if (matches(tokens, ["billing", "invoices", "list"])) {
     await printSettingsResult(client.listInvoices(), flags);
     return;
@@ -2074,6 +2456,26 @@ async function handleSettings(
 
   if (matches(tokens, ["billing", "gift-card", "list"]) || (subcommand === "gift-card" && rest[0] === "list")) {
     await printSettingsResult(client.listRedeemedGiftCards(), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "gift-card", "buy", "bank-transfer"])) {
+    const credits = parseRequiredNumber(flags.credits, "--credits");
+    const order = await client.createGiftCardBankTransferOrder(credits);
+    flags.json === true ? printJson(order) : printBankTransferOrder(order, true);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "gift-card", "purchase-status"])) {
+    const orderId = rest[3];
+    if (!orderId) throw new Error("Missing order ID.");
+    const status = await client.getGiftCardPurchaseStatus(orderId);
+    flags.json === true ? printJson(status) : printBankTransferStatus(status, true);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "gift-card", "purchased"])) {
+    await printSettingsResult(client.listPurchasedGiftCards(), flags);
     return;
   }
 
@@ -4666,6 +5068,7 @@ function printHelp(): void {
 
 Commands:
   openmates login                            Pair-auth login
+  openmates signup                           Create an account from the terminal
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
@@ -4677,12 +5080,49 @@ Commands:
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
+  openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
 
 Flags:
   --json          Output raw JSON instead of formatted output
   --api-url <url> Override API base URL (default: https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printSignupHelp(): void {
+  console.log(`Signup command:
+  openmates signup --email <email> --username <name> --invite-code <code>
+
+Creates a password account using client-side encrypted signup crypto. Passwords
+are entered through hidden prompts and cannot be passed with --password.
+
+Options:
+  --email <email>                    Email address; prompted when omitted
+  --username <name>                  Username; prompted when omitted
+  --invite-code <code>               Invite code when required
+  --gift-card-code <code>            Redeem after account creation
+  --backup-codes-output <path>       Save backup codes to a 0600 file
+  --recovery-key-output <path>       Save recovery key to a 0600 file
+  --skip-2fa                         Explicitly skip 2FA setup after warning
+  --skip-recovery-key                Explicitly skip recovery key after warning
+  --yes                              Confirm warning prompts
+  --json                             Output non-secret JSON summary`);
+}
+
+function printE2EHelp(): void {
+  console.log(`E2E provisioning command:
+  openmates e2e provision-auth-accounts --slot 15 --artifact ./test-results/credential-updates/slot-15.env --api-url https://api.dev.openmates.org
+
+Creates local ignored credential artifacts for reserved E2E auth accounts. The
+command refuses production API URLs and does not upload GitHub secrets.
+
+Options:
+  --slot <15|17>                     Reserved auth-account slot
+  --artifact <path>                  Output .env artifact path
+  --email <email>                    Test email; prompted/generated when omitted
+  --domain <mail-domain>             Generate email at this domain
+  --force                            Overwrite local artifact files
+  --yes                              Confirm prompts where possible`);
 }
 
 function printChatsHelp(): void {

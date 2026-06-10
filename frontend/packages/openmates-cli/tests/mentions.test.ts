@@ -32,7 +32,10 @@ const testContext: MentionContext = {
         { id: "search", name: "Search" },
         { id: "read", name: "Read" },
       ],
-      focus_modes: [{ id: "research", name: "Research" }],
+      focus_modes: [
+        { id: "research", name: "Research" },
+        { id: "deep_web_research", name: "Deep Research" },
+      ],
       settings_and_memories: [],
     },
     {
@@ -209,6 +212,18 @@ describe("parseMentions", () => {
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "focus_mode");
       assert.equal(result.resolved[0].wireSyntax, "@focus:web:research");
+    });
+
+    it("accepts backend focus wire syntax unchanged", () => {
+      const result = parseMentions(
+        "@focus:web:deep_web_research investigate egg prices",
+        testContext,
+      );
+      assert.equal(result.unresolved.length, 0);
+      assert.equal(result.resolved.length, 1);
+      assert.equal(result.resolved[0].type, "focus_mode");
+      assert.equal(result.resolved[0].wireSyntax, "@focus:web:deep_web_research");
+      assert.ok(result.processedMessage.startsWith("@focus:web:deep_web_research"));
     });
   });
 

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-10
 ---
 
 # Settings Commands
@@ -28,15 +28,12 @@ openmates settings account username set alice_123
 openmates settings account profile-picture set ./avatar.jpg
 openmates settings account chats stats
 openmates settings account delete preview
+openmates settings account delete --yes
 ```
 
 Profile pictures must be JPEG or PNG files no larger than 300 KB. Resize/compress images before upload; the web app still provides the richer crop/preview flow.
 
-Account deletion itself is web-only:
-
-```
-openmates settings account delete
-```
+Account deletion uses a stricter CLI-only verification flow. It always sends an email verification code and prompts for that code interactively. If 2FA is configured, it also prompts for a current TOTP code. Verification codes cannot be passed as flags.
 
 ## Storage
 
@@ -77,6 +74,9 @@ openmates settings billing usage
 openmates settings billing usage summaries
 openmates settings billing usage daily
 openmates settings billing usage export --json
+openmates settings billing buy-credits bank-transfer --credits 110000
+openmates settings billing bank-transfer status <order-id>
+openmates settings billing bank-transfer list
 openmates settings billing invoices list
 openmates settings billing invoices download <invoice-id> --output ./invoices
 openmates settings billing invoices credit-note <invoice-id> --output ./invoices
@@ -84,13 +84,16 @@ openmates settings billing invoices refund <invoice-id> --yes
 openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com
 openmates settings billing gift-card redeem <CODE>
 openmates settings billing gift-card list
+openmates settings billing gift-card buy bank-transfer --credits 21000
+openmates settings billing gift-card purchase-status <order-id>
+openmates settings billing gift-card purchased
 ```
 
 Redemption shows the credits added and your updated balance.
 
 Invoice downloads write PDFs to the current directory by default, or to `--output <dir-or-file.pdf>`. Refund requests use the email encryption key stored during CLI login; if you logged in with an older CLI version, run `openmates login` again to refresh local encryption keys.
 
-Buy credits, gift card purchases, support payments, and recurring payment setup remain web-only because payment checkout must use browser/payment-provider UI.
+Bank-transfer credit and gift-card purchases are supported in the CLI. The gift-card code is not available until the transfer is matched. Card checkout, support payments, and recurring payment setup remain web-only because payment checkout must use browser/payment-provider UI.
 
 ## Notifications
 
@@ -152,13 +155,13 @@ Category keys map to the web newsletter preferences: updates and announcements, 
 
 The following operations are blocked in the CLI for security reasons and must be performed in the web app:
 
-- Password setup and updates (`/v1/settings/update-password`, `/v1/auth/setup_password`)
-- Two-factor authentication setup (`/v1/auth/2fa/setup/*`)
+- Password updates (`/v1/settings/update-password`; `openmates signup` is the guided CLI password setup path)
+- Raw two-factor setup paths (`/v1/auth/2fa/setup/*`; guided CLI setup calls these internally for initial/missing setup only)
 - API key creation (`/v1/settings/api-keys` POST is blocked; listing and deletion are allowed)
-- Account deletion finalization (`/v1/settings/delete-account`)
-- Sensitive action verification endpoints used for web-only actions (`/v1/settings/request-action-verification`, `/v1/settings/verify-action-code`)
+- Raw account deletion finalization (`/v1/settings/delete-account`; guided CLI deletion sends `require_email_verification: true`)
+- Raw sensitive action verification endpoints (`/v1/settings/request-action-verification`, `/v1/settings/verify-action-code`)
 
-These paths are enforced by `BLOCKED_SETTINGS_MUTATE_PATHS` in the client. Additionally, passkey management, recovery keys, and device session management are exposed only as informational commands that point to the web app.
+These paths are enforced by `BLOCKED_SETTINGS_MUTATE_PATHS` in the client. Additionally, passkey management and device session management are exposed only as informational commands that point to the web app. Recovery-key creation is supported during guided signup/setup; regeneration remains web-only.
 
 ## Memories
 

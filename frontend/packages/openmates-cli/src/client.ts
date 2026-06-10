@@ -24,6 +24,11 @@ import {
   base64ToBytes,
   bytesToBase64,
   hashItemKey,
+  createRecoveryKeyMaterial,
+  createSignupCryptoMaterial,
+  hashEmail,
+  type RecoveryKeyMaterial,
+  type SignupCryptoMaterial,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
 import {
@@ -675,6 +680,64 @@ export interface DownloadedDocument {
   data: Uint8Array;
 }
 
+export interface BankTransferOrderDetails {
+  order_id: string;
+  reference: string;
+  iban: string;
+  bic: string;
+  bank_name: string;
+  account_holder_name: string;
+  account_holder_address_line1?: string;
+  account_holder_address_line2?: string;
+  account_holder_postal_code?: string;
+  account_holder_city?: string;
+  account_holder_country?: string;
+  amount_eur: string;
+  credits_amount: number;
+  expires_at: string;
+}
+
+export interface BankTransferStatus {
+  order_id: string;
+  status: string;
+  credits_amount: number;
+  amount_eur: string;
+  reference: string;
+  expires_at: string;
+  created_at?: string;
+}
+
+export interface GiftCardBankTransferStatus extends BankTransferStatus {
+  gift_card_code?: string | null;
+}
+
+export interface AuthMethodsStatus {
+  has_passkey?: boolean;
+  has_2fa?: boolean;
+  has_password?: boolean;
+  has_recovery_key?: boolean;
+}
+
+export interface CliSignupResult {
+  success: boolean;
+  message: string;
+  user?: Record<string, unknown>;
+  crypto: SignupCryptoMaterial;
+}
+
+export interface TotpSetupStartResult {
+  success: boolean;
+  message: string;
+  secret?: string | null;
+  otpauth_url?: string | null;
+}
+
+export interface BackupCodesResult {
+  success: boolean;
+  message: string;
+  backup_codes: string[];
+}
+
 interface TaskStatusResponse {
   task_id: string;
   status: "pending" | "processing" | "completed" | "failed" | string;
@@ -735,7 +798,7 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
 
 export class OpenMatesClient {
   readonly apiUrl: string;
-  private readonly session: OpenMatesSession | null;
+  private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
 
   constructor(options: OpenMatesClientOptions = {}) {
@@ -894,6 +957,198 @@ export class OpenMatesClient {
         .catch(() => undefined);
     }
     clearSession();
+  }
+
+  async requestSignupEmailCode(params: {
+    email: string;
+    inviteCode?: string;
+    language?: string;
+    darkmode?: boolean;
+  }): Promise<unknown> {
+    const hashedEmail = await hashEmail(params.email.trim().toLowerCase());
+    const response = await this.http.post(
+      "/v1/auth/request_confirm_email_code",
+      {
+        email: params.email.trim().toLowerCase(),
+        hashed_email: hashedEmail,
+        invite_code: params.inviteCode ?? "",
+        language: params.language ?? "en",
+        darkmode: params.darkmode ?? false,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Email code request failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async verifySignupEmailCode(params: {
+    email: string;
+    username: string;
+    inviteCode?: string;
+    code: string;
+    language?: string;
+    darkmode?: boolean;
+  }): Promise<unknown> {
+    const response = await this.http.post(
+      "/v1/auth/check_confirm_email_code",
+      {
+        code: params.code,
+        email: params.email.trim().toLowerCase(),
+        username: params.username,
+        invite_code: params.inviteCode ?? "",
+        language: params.language ?? "en",
+        darkmode: params.darkmode ?? false,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Email code verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async setupPasswordAccount(params: {
+    email: string;
+    username: string;
+    password: string;
+    inviteCode?: string;
+    language?: string;
+    darkmode?: boolean;
+  }): Promise<CliSignupResult> {
+    const material = await createSignupCryptoMaterial(params.email, params.password);
+    const response = await this.http.post<{ success?: boolean; message?: string; user?: Record<string, unknown> }>(
+      "/v1/auth/setup_password",
+      {
+        hashed_email: material.hashedEmail,
+        encrypted_email: material.encryptedEmail,
+        user_email_salt: material.userEmailSaltB64,
+        username: params.username,
+        invite_code: params.inviteCode ?? "",
+        encrypted_master_key: material.encryptedMasterKey,
+        key_iv: material.keyIv,
+        salt: material.saltB64,
+        lookup_hash: material.lookupHash,
+        language: params.language ?? "en",
+        darkmode: params.darkmode ?? false,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.success) {
+      throw new Error(response.data.message ?? `Password signup failed (HTTP ${response.status})`);
+    }
+
+    const session: OpenMatesSession = {
+      apiUrl: this.apiUrl,
+      sessionId: randomUUID(),
+      wsToken: null,
+      cookies: this.http.getCookieMap(),
+      masterKeyExportedB64: material.masterKeyB64,
+      emailEncryptionKeyB64: material.emailEncryptionKeyB64,
+      hashedEmail: material.hashedEmail,
+      userEmailSalt: material.userEmailSaltB64,
+      createdAt: Date.now(),
+      authorizerDeviceName: null,
+      autoLogoutMinutes: null,
+    };
+    saveSession(session);
+    this.session = session;
+    return {
+      success: true,
+      message: response.data.message ?? "Account created.",
+      user: response.data.user,
+      crypto: material,
+    };
+  }
+
+  async startTotpSetup(): Promise<TotpSetupStartResult> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<TotpSetupStartResult>(
+      "/v1/auth/2fa/setup/initiate",
+      { email_encryption_key: emailEncryptionKey },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.success) {
+      throw new Error(response.data.message ?? `2FA setup failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  renderTotpQrCode(otpauthUrl: string): void {
+    qrcode.generate(otpauthUrl, { small: true });
+  }
+
+  async verifyTotpSetup(code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/setup/verify-signup",
+      { code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `2FA verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async setTotpProvider(provider: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/setup/provider",
+      { provider },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `2FA provider save failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async requestBackupCodes(): Promise<BackupCodesResult> {
+    this.requireSession();
+    const response = await this.http.get<BackupCodesResult>(
+      "/v1/auth/2fa/setup/request-backup-codes",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.success) {
+      throw new Error(response.data.message ?? `Backup-code request failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async confirmBackupCodesStored(): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/setup/confirm-codes-stored",
+      { confirmed: true },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Backup-code confirmation failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async createAndConfirmRecoveryKey(): Promise<RecoveryKeyMaterial> {
+    const session = this.requireSession();
+    const material = await createRecoveryKeyMaterial(session.masterKeyExportedB64, session.userEmailSalt);
+    const response = await this.http.post(
+      "/v1/auth/recovery-key/confirm-stored",
+      {
+        confirmed: true,
+        lookup_hash: material.lookupHash,
+        wrapped_master_key: material.wrappedMasterKey,
+        key_iv: material.keyIv,
+        salt: material.saltB64,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Recovery-key confirmation failed (HTTP ${response.status})`);
+    }
+    return material;
   }
 
   // -------------------------------------------------------------------------
@@ -2525,10 +2780,11 @@ export class OpenMatesClient {
     current_credits: number;
     message: string;
   }> {
-    this.requireSession();
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post(
       "/v1/payments/redeem-gift-card",
-      { code },
+      { code, email_encryption_key: emailEncryptionKey },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
@@ -2552,6 +2808,92 @@ export class OpenMatesClient {
       throw new Error(
         `Failed to fetch redeemed gift cards (HTTP ${response.status})`,
       );
+    }
+    return response.data;
+  }
+
+  async listPurchasedGiftCards(): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(
+      "/v1/payments/purchased-gift-cards",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch purchased gift cards (HTTP ${response.status})`,
+      );
+    }
+    return response.data;
+  }
+
+  async createBankTransferOrder(creditsAmount: number): Promise<BankTransferOrderDetails> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<BankTransferOrderDetails>(
+      "/v1/payments/create-bank-transfer-order",
+      {
+        credits_amount: creditsAmount,
+        currency: "eur",
+        email_encryption_key: emailEncryptionKey,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Bank transfer order failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async createGiftCardBankTransferOrder(creditsAmount: number): Promise<BankTransferOrderDetails> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<BankTransferOrderDetails>(
+      "/v1/payments/create-gift-card-bank-transfer-order",
+      {
+        credits_amount: creditsAmount,
+        currency: "eur",
+        email_encryption_key: emailEncryptionKey,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Gift card bank transfer order failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async getBankTransferStatus(orderId: string): Promise<BankTransferStatus> {
+    this.requireSession();
+    const response = await this.http.get<BankTransferStatus>(
+      `/v1/payments/bank-transfer-status/${encodeURIComponent(orderId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bank transfer status (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async listBankTransferOrders(): Promise<BankTransferStatus[]> {
+    this.requireSession();
+    const response = await this.http.get<BankTransferStatus[]>(
+      "/v1/payments/bank-transfer-pending",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bank transfer orders (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async getGiftCardPurchaseStatus(orderId: string): Promise<GiftCardBankTransferStatus> {
+    this.requireSession();
+    const response = await this.http.get<GiftCardBankTransferStatus>(
+      `/v1/payments/gift-card-purchase-status/${encodeURIComponent(orderId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch gift card purchase status (HTTP ${response.status})`);
     }
     return response.data;
   }
@@ -2593,6 +2935,67 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`Refund request failed (HTTP ${response.status})`);
     }
+    return response.data;
+  }
+
+  async getAuthMethodsStatus(): Promise<AuthMethodsStatus> {
+    this.requireSession();
+    const response = await this.http.get<AuthMethodsStatus>(
+      "/v1/payments/user-auth-methods",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch auth methods (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async requestDeleteAccountEmailCode(): Promise<unknown> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post(
+      "/v1/settings/request-action-verification",
+      { action: "delete_account", email_encryption_key: emailEncryptionKey },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to request account deletion email code (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async verifyDeleteAccountEmailCode(code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/settings/verify-action-code",
+      { action: "delete_account", code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Account deletion email code verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async deleteAccountWithCliVerification(totpCode?: string): Promise<unknown> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post(
+      "/v1/settings/delete-account",
+      {
+        confirm_data_deletion: true,
+        auth_method: totpCode ? "2fa_otp" : "email_otp",
+        auth_code: totpCode,
+        email_encryption_key: emailEncryptionKey,
+        require_email_verification: true,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Account deletion failed (HTTP ${response.status})`);
+    }
+    clearSession();
+    clearSyncCache();
     return response.data;
   }
 

@@ -236,6 +236,21 @@ function resolveToken(
   token: string,
   context: MentionContext,
 ): ResolvedMention | null {
+  const wireFocusMatch = token.match(/^focus:([a-z0-9_-]+):([a-z0-9_-]+)$/i);
+  if (wireFocusMatch) {
+    const [, appId, focusModeId] = wireFocusMatch;
+    const app = context.apps.find((candidate) => candidate.id === appId);
+    const focusMode = app?.focus_modes?.find((candidate) => candidate.id === focusModeId);
+    if (app && focusMode) {
+      return {
+        original: `@${token}`,
+        type: "focus_mode",
+        wireSyntax: `@focus:${app.id}:${focusMode.id}`,
+        displayName: `@${capitalize(app.name)}-${capitalize(focusMode.name).replace(/\s+/g, "-")}`,
+      };
+    }
+  }
+
   const normalized = normalize(token);
 
   // 1. Model alias (@best, @fast)
