@@ -336,8 +336,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17"
-        timestamp: "2026-06-10T00:18:02Z"
+        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17 + iPad Pro 13-inch (M5)"
+        timestamp: "2026-06-10T00:25:37Z"
 
   - id: T-BUILD-APPLE-EMBEDS
     type: build
@@ -361,8 +361,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17 attachments /tmp/opencode/native-embed-parity-attachments-20260610021445"
-        timestamp: "2026-06-10T00:18:02Z"
+        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17 attachments /tmp/opencode/native-embed-parity-attachments-20260610021445; iPad Pro 13-inch (M5) pass"
+        timestamp: "2026-06-10T00:25:37Z"
 
   - id: T-APPLE-EMBED-UITESTS
     type: manual
