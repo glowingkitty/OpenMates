@@ -41,6 +41,11 @@ struct SettingsAppsFullView: View {
         let description: String?
         let pricing: [String: AnyCodable]?
         let providers: [String]?
+        let howToUseExamples: [String]?
+        let exampleTitles: [String]?
+        let processBullets: [String]?
+        let systemPrompt: String?
+        let modelNames: [String]?
 
         enum CodingKeys: String, CodingKey {
             case id
@@ -48,6 +53,11 @@ struct SettingsAppsFullView: View {
             case description
             case pricing
             case providers
+            case howToUseExamples = "how_to_use_examples"
+            case exampleTitles = "example_titles"
+            case processBullets = "process_bullets"
+            case systemPrompt = "system_prompt"
+            case modelNames = "model_names"
         }
 
         init(
@@ -55,13 +65,23 @@ struct SettingsAppsFullView: View {
             name: String,
             description: String?,
             pricing: [String: AnyCodable]? = nil,
-            providers: [String]? = nil
+            providers: [String]? = nil,
+            howToUseExamples: [String]? = nil,
+            exampleTitles: [String]? = nil,
+            processBullets: [String]? = nil,
+            systemPrompt: String? = nil,
+            modelNames: [String]? = nil
         ) {
             self.id = id
             self.name = name
             self.description = description
             self.pricing = pricing
             self.providers = providers
+            self.howToUseExamples = howToUseExamples
+            self.exampleTitles = exampleTitles
+            self.processBullets = processBullets
+            self.systemPrompt = systemPrompt
+            self.modelNames = modelNames
         }
     }
 
@@ -256,8 +276,25 @@ struct SettingsAppsFullView: View {
             category: "personal",
             providers: ["OpenWeather"],
             lastUpdated: "2026-05-01",
-            skills: [AppSkill(id: "forecast", name: "Weather Forecast", description: "Get a forecast")],
-            focusModes: [AppSkill(id: "travel_weather", name: "Travel Weather", description: "Plan around weather")],
+            skills: [AppSkill(
+                id: "forecast",
+                name: "Weather Forecast",
+                description: "Get a forecast",
+                pricing: ["fixed": AnyCodable(2)],
+                providers: ["OpenWeather"],
+                howToUseExamples: ["Will it rain in Berlin tomorrow?"],
+                exampleTitles: ["Berlin forecast"],
+                modelNames: ["OpenWeather Forecast"]
+            )],
+            focusModes: [AppSkill(
+                id: "travel_weather",
+                name: "Travel Weather",
+                description: "Plan around weather",
+                howToUseExamples: ["Plan a weekend trip around sunny weather"],
+                exampleTitles: ["Weekend trip forecast"],
+                processBullets: ["Check the forecast", "Recommend timing around bad weather"],
+                systemPrompt: "Prioritize weather-aware travel planning."
+            )],
             settingsAndMemories: [AppSkill(id: "home_location", name: "Home Location", description: "Remember a location")]
         )),
         appInfo(from: AppMetadataItem(
@@ -579,7 +616,28 @@ struct AppDetailView: View {
     let onToggle: () -> Void
     let onBack: () -> Void
 
+    @State private var selectedSkill: SettingsAppsFullView.AppSkill?
+    @State private var selectedFocusMode: SettingsAppsFullView.AppSkill?
+
     var body: some View {
+        if let selectedSkill {
+            AppSkillDetailNativeView(app: app, skill: selectedSkill) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    self.selectedSkill = nil
+                }
+            }
+        } else if let selectedFocusMode {
+            AppFocusModeDetailNativeView(app: app, focusMode: selectedFocusMode) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    self.selectedFocusMode = nil
+                }
+            }
+        } else {
+            appDetailBody
+        }
+    }
+
+    private var appDetailBody: some View {
         OMSettingsPage(title: app.name, showsHeader: false) {
             Color.clear
                 .frame(height: 0)
@@ -619,7 +677,19 @@ struct AppDetailView: View {
             if let skills = app.skills, !skills.isEmpty {
                 OMSettingsSection(AppStrings.appStoreSkills, icon: "skill") {
                     ForEach(skills) { skill in
-                        skillRow(skill)
+                        detailRow(skill, identifier: "settings-app-skill-row-\(skill.id)") {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                selectedSkill = skill
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let memories = app.settingsAndMemories, !memories.isEmpty {
+                OMSettingsSection(AppStrings.appStoreMemories, icon: "settings") {
+                    ForEach(memories) { memory in
+                        detailRow(memory, identifier: "settings-app-memory-row-\(memory.id)") {}
                     }
                 }
             }
@@ -627,25 +697,305 @@ struct AppDetailView: View {
             if let focusModes = app.focusModes, !focusModes.isEmpty {
                 OMSettingsSection(AppStrings.appStoreFocusModes, icon: "focus") {
                     ForEach(focusModes) { focus in
-                        skillRow(focus)
+                        detailRow(focus, identifier: "settings-app-focus-row-\(focus.id)") {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                selectedFocusMode = focus
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    private func skillRow(_ item: SettingsAppsFullView.AppSkill) -> some View {
-        VStack(alignment: .leading, spacing: .spacing1) {
-            Text(item.name)
+    private func detailRow(
+        _ item: SettingsAppsFullView.AppSkill,
+        identifier: String,
+        onTap: @escaping () -> Void
+    ) -> some View {
+        Button(action: onTap) {
+            HStack(spacing: .spacing4) {
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(item.name)
+                        .font(.omP.weight(.medium))
+                        .foregroundStyle(Color.fontPrimary)
+                    if let desc = item.description {
+                        Text(desc)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+private struct AppSkillDetailNativeView: View {
+    let app: SettingsAppsFullView.AppInfo
+    let skill: SettingsAppsFullView.AppSkill
+    let onBack: () -> Void
+
+    @State private var mentionInserted = false
+
+    var body: some View {
+        OMSettingsPage(title: skill.name, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-skill-detail-page")
+
+            backButton
+
+            OMSettingsSection(AppStrings.pricing, icon: "coins") {
+                Color.clear
+                    .frame(height: 0)
+                    .accessibilityIdentifier("settings-skill-pricing-section")
+
+                Text(pricingText)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
+                    .accessibilityIdentifier("settings-skill-pricing-value")
+            }
+
+            if let examples = skill.exampleTitles, !examples.isEmpty {
+                OMSettingsSection(AppStrings.appStoreExamples, icon: "skill") {
+                    horizontalTextCards(examples, identifierPrefix: "settings-skill-example-card")
+                }
+            }
+
+            if let howToUse = skill.howToUseExamples, !howToUse.isEmpty {
+                OMSettingsSection(AppStrings.appStoreHowToUse, icon: "skill") {
+                    horizontalTextCards(howToUse, identifierPrefix: "settings-skill-how-to-use-card")
+                    mentionButton(title: "@\(mentionDisplayName)", identifier: "settings-skill-mention-button") {
+                        mentionInserted = true
+                    }
+                }
+            }
+
+            if let providers = skill.providers, !providers.isEmpty {
+                OMSettingsSection(AppStrings.appStoreProviders, icon: "provider") {
+                    ForEach(providers, id: \.self) { provider in
+                        providerRow(provider)
+                    }
+                }
+            }
+
+            if let modelNames = skill.modelNames, !modelNames.isEmpty {
+                OMSettingsSection(AppStrings.appStoreModels, icon: "skill") {
+                    ForEach(modelNames, id: \.self) { model in
+                        Text(model)
+                            .font(.omP.weight(.medium))
+                            .foregroundStyle(Color.fontPrimary)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing3)
+                            .accessibilityIdentifier("settings-skill-model-item")
+                    }
+                }
+            }
+
+            if mentionInserted {
+                Text("@\(mentionDisplayName)")
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.buttonPrimary)
+                    .padding(.horizontal, .spacing5)
+                    .accessibilityIdentifier("settings-skill-mention-inserted")
+            }
+        }
+    }
+
+    private var backButton: some View {
+        Button(action: onBack) {
+            HStack(spacing: .spacing3) {
+                Icon("back", size: 20)
+                Text(app.name)
+                    .font(.omSmall.weight(.semibold))
+            }
+            .foregroundStyle(Color.buttonPrimary)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings-skill-detail-back")
+    }
+
+    private var pricingText: String {
+        guard let pricing = skill.pricing else { return "1 \(AppStrings.credits)" }
+        if let fixed = pricing["fixed"]?.value as? Int {
+            return "\(fixed) \(AppStrings.credits)"
+        }
+        if let fixed = pricing["fixed"]?.value as? Double {
+            return "\(fixed.formatted()) \(AppStrings.credits)"
+        }
+        return "1 \(AppStrings.credits)"
+    }
+
+    private var mentionDisplayName: String {
+        "\(titleCase(app.id))-\(titleCase(skill.id.replacingOccurrences(of: "_", with: "-")))"
+    }
+
+    private func providerRow(_ provider: String) -> some View {
+        HStack(spacing: .spacing4) {
+            Circle()
+                .fill(Color.grey20)
+                .frame(width: 28, height: 28)
+                .overlay(Icon("provider", size: 16).foregroundStyle(Color.fontSecondary))
+                .accessibilityHidden(true)
+            Text(provider)
                 .font(.omP.weight(.medium))
                 .foregroundStyle(Color.fontPrimary)
-            if let desc = item.description {
-                Text(desc)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-            }
+            Spacer()
         }
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing3)
+        .accessibilityIdentifier("settings-skill-provider-item")
     }
+}
+
+private struct AppFocusModeDetailNativeView: View {
+    let app: SettingsAppsFullView.AppInfo
+    let focusMode: SettingsAppsFullView.AppSkill
+    let onBack: () -> Void
+
+    @State private var showFullPrompt = false
+    @State private var mentionInserted = false
+
+    var body: some View {
+        OMSettingsPage(title: focusMode.name, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-focus-detail-page")
+
+            backButton
+
+            if let examples = focusMode.exampleTitles, !examples.isEmpty {
+                OMSettingsSection(AppStrings.appStoreExamples, icon: "skill") {
+                    horizontalTextCards(examples, identifierPrefix: "settings-focus-example-card")
+                }
+            }
+
+            if let howToUse = focusMode.howToUseExamples, !howToUse.isEmpty {
+                OMSettingsSection(AppStrings.appStoreHowToUse, icon: "skill") {
+                    horizontalTextCards(howToUse, identifierPrefix: "settings-focus-how-to-use-card")
+                    mentionButton(title: "@\(mentionDisplayName)", identifier: "settings-focus-mention-button") {
+                        mentionInserted = true
+                    }
+                }
+            }
+
+            OMSettingsSection(AppStrings.appStoreSystemPrompt, icon: "systemprompt") {
+                if let bullets = focusMode.processBullets, !bullets.isEmpty {
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        ForEach(bullets, id: \.self) { bullet in
+                            Text("- \(bullet)")
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontPrimary)
+                                .accessibilityIdentifier("settings-focus-process-bullet")
+                        }
+                    }
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
+                }
+
+                if focusMode.systemPrompt?.isEmpty == false {
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            showFullPrompt.toggle()
+                        }
+                    } label: {
+                        Text(showFullPrompt ? AppStrings.showLess : AppStrings.appStoreShowFullInstruction)
+                            .font(.omSmall.weight(.semibold))
+                            .foregroundStyle(Color.buttonPrimary)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings-focus-instructions-toggle")
+
+                    if showFullPrompt, let prompt = focusMode.systemPrompt {
+                        Text(prompt)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontPrimary)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.bottom, .spacing3)
+                            .accessibilityIdentifier("settings-focus-instructions-text")
+                    }
+                }
+            }
+
+            if mentionInserted {
+                Text("@\(mentionDisplayName)")
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.buttonPrimary)
+                    .padding(.horizontal, .spacing5)
+                    .accessibilityIdentifier("settings-focus-mention-inserted")
+            }
+        }
+    }
+
+    private var backButton: some View {
+        Button(action: onBack) {
+            HStack(spacing: .spacing3) {
+                Icon("back", size: 20)
+                Text(app.name)
+                    .font(.omSmall.weight(.semibold))
+            }
+            .foregroundStyle(Color.buttonPrimary)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings-focus-detail-back")
+    }
+
+    private var mentionDisplayName: String {
+        "\(titleCase(app.id))-\(titleCase(focusMode.id.replacingOccurrences(of: "_", with: "-")))"
+    }
+}
+
+@MainActor
+private func horizontalTextCards(_ values: [String], identifierPrefix: String) -> some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: .spacing4) {
+            ForEach(Array(values.enumerated()), id: \.offset) { index, value in
+                Text(value)
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .frame(width: 230, alignment: .leading)
+                    .padding(.spacing5)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .accessibilityIdentifier("\(identifierPrefix)-\(index)")
+            }
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.bottom, .spacing3)
+    }
+}
+
+@MainActor
+private func mentionButton(title: String, identifier: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Text(title)
+            .font(.omSmall.weight(.semibold))
+            .foregroundStyle(Color.buttonPrimary)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier(identifier)
+}
+
+private func titleCase(_ value: String) -> String {
+    value.split(separator: "-")
+        .map { part in
+            guard let first = part.first else { return String(part) }
+            return first.uppercased() + String(part.dropFirst())
+        }
+        .joined(separator: "-")
 }

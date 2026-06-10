@@ -19,7 +19,9 @@ enum AppStrings {
     static var error: String { L("common.error") }
     static var success: String { L("common.success") }
     static var credits: String { L("common.credits") }
+    static var pricing: String { L("common.pricing") }
     static var back: String { L("common.back") }
+    static var showLess: String { L("common.show_less") }
     static var next: String { L("common.next") }
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
@@ -158,6 +160,13 @@ enum AppStrings {
     static var allAppsSortName: String { L("settings.app_store.all_apps.sort_by_name_asc") }
     static var appStoreSkills: String { L("settings.app_store.skills.title") }
     static var appStoreFocusModes: String { L("settings.app_store.focus_modes.title") }
+    static var appStoreMemories: String { L("settings.app_store.settings_memories.title") }
+    static var appStoreExamples: String { L("settings.app_store.skills.examples") }
+    static var appStoreHowToUse: String { L("settings.app_store.skills.how_to_use") }
+    static var appStoreProviders: String { L("settings.app_store.skills.providers") }
+    static var appStoreModels: String { L("settings.app_store.skills.models") }
+    static var appStoreSystemPrompt: String { L("settings.app_store.focus_modes.system_prompt") }
+    static var appStoreShowFullInstruction: String { L("settings.app_store.focus_modes.show_full_instruction") }
 
     // MARK: - Settings - Security
     static var passkeys: String { L("settings.passkeys") }
