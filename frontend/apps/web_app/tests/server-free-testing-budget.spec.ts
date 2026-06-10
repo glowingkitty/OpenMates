@@ -132,7 +132,7 @@ test('admin can open and save Free testing credits budget settings', async ({ pa
 	await expect(page.getByTestId('free-testing-budget-settings')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('Free testing credits are currently inactive.')).toBeVisible();
 
-	const enableToggle = page.getByRole('checkbox', { name: /enable free testing credits/i });
+	const enableToggle = page.getByRole('checkbox', { name: /enable free testing credits/i }).first();
 	await enableToggle.click();
 	await page.getByTestId('free-testing-total-budget-input').fill('50000');
 	await page.getByTestId('free-testing-per-user-grant-input').fill('1000');
