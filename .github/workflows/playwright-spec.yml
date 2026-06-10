@@ -72,9 +72,23 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
+          set +e
           npx playwright test "tests/${{ github.event.inputs.spec }}" \
             --reporter=json \
-            > $GITHUB_WORKSPACE/test-results/playwright.json
+            > $GITHUB_WORKSPACE/test-results/playwright.json &
+          pw_pid=$!
+
+          while kill -0 "$pw_pid" 2>/dev/null; do
+            echo "[playwright heartbeat] still running ${{ github.event.inputs.spec }}"
+            sleep 30
+          done &
+          heartbeat_pid=$!
+
+          wait "$pw_pid"
+          pw_status=$?
+          kill "$heartbeat_pid" 2>/dev/null || true
+          wait "$heartbeat_pid" 2>/dev/null || true
+          exit "$pw_status"
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
