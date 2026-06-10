@@ -617,6 +617,7 @@ _SKIP_EXTERNAL_SCAN = (
     "/legal/",
     "/config/links.ts",
     "/config/api.ts",
+    "/demo_chats/data/example_chats/",
     "/i18n/",
     "/dev/preview/",
     "ExternalLink",
