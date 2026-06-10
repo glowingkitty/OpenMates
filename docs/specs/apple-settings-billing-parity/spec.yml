@@ -354,8 +354,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_app_store_root_all_apps_detail_smoke
-        run_id: apple-remote-iphone17-c579-settings-apps-smoke
+        status: partial_passed_guest_public_settings_submenus_smoke
+        run_id: apple-remote-iphone17-c579-settings-full-guest-submenus
         timestamp: "2026-06-10"
   - id: T-UI-002
     type: unit
