@@ -390,11 +390,13 @@ struct AppStoreCardNative: View {
     }
 }
 
+@MainActor
 private protocol TitledChoice {
     var title: String { get }
     var accessibilityIdentifier: String { get }
 }
 
+@MainActor
 private enum SettingsAllAppsFilter: String, CaseIterable, Identifiable, TitledChoice {
     case all
     case settingsMemories
@@ -431,6 +433,7 @@ private enum SettingsAllAppsFilter: String, CaseIterable, Identifiable, TitledCh
     }
 }
 
+@MainActor
 private enum SettingsAllAppsSortMode: String, CaseIterable, Identifiable, TitledChoice {
     case newest
     case name
@@ -452,6 +455,7 @@ private enum SettingsAllAppsSortMode: String, CaseIterable, Identifiable, Titled
     }
 }
 
+@MainActor
 private struct SettingsAllAppsNativeView: View {
     let apps: [SettingsAppsFullView.AppInfo]
     let onSelect: (SettingsAppsFullView.AppInfo) -> Void
