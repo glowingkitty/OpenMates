@@ -99,6 +99,7 @@ struct SettingsView: View {
                         ) {
                             showIncognitoInfo = true
                         }
+                        .accessibilityIdentifier("settings-incognito-row")
                     }
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
@@ -143,12 +144,14 @@ struct SettingsView: View {
                         ) {
                             Task { await authManager.logout() }
                         }
+                        .accessibilityIdentifier("settings-logout-row")
                     }
 
                     // Footer — web: SettingsFooter.svelte, margin-top 100px
                     settingsFooter
                 }
             }
+            .accessibilityIdentifier("settings-menu")
         }
         .onPreferenceChange(SettingsHomeScrollOffsetPreferenceKey.self) { offset in
             homeScrollTop = offset
@@ -242,6 +245,7 @@ struct SettingsView: View {
         OMSettingsRow(title: title, icon: icon, iconGradient: gradient, isDestructive: isDestructive) {
             navigateTo(destination)
         }
+        .accessibilityIdentifier(destination.rowAccessibilityIdentifier)
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
@@ -306,6 +310,7 @@ struct SettingsView: View {
     private func settingsDestinationContent(_ destination: SettingsDestination) -> some View {
         destinationContent(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier(destination.pageAccessibilityIdentifier)
             .environment(\.omSettingsScrollOffsetHandler, OMSettingsScrollOffsetHandler { offset in
                 destinationScrollTop = offset
             })
@@ -481,6 +486,40 @@ struct SettingsView: View {
             case .server: return "server"
             case .logs: return "log"
             case .privacyPolicy, .terms, .imprint: return "document"
+            }
+        }
+
+        var rowAccessibilityIdentifier: String {
+            "settings-\(identifier)-row"
+        }
+
+        var pageAccessibilityIdentifier: String {
+            "settings-\(identifier)-page"
+        }
+
+        private var identifier: String {
+            switch self {
+            case .pricing: return "pricing"
+            case .ai: return "ai"
+            case .memories: return "memories"
+            case .apps: return "apps"
+            case .privacy: return "privacy"
+            case .mates: return "mates"
+            case .billing: return "billing"
+            case .notifications: return "notifications"
+            case .shared: return "shared"
+            case .interface: return "interface"
+            case .account: return "account"
+            case .developers: return "developers"
+            case .newsletter: return "newsletter"
+            case .support: return "support"
+            case .reportIssue: return "report-issue"
+            case .serverConnection: return "server-connection"
+            case .server: return "server"
+            case .logs: return "logs"
+            case .privacyPolicy: return "privacy-policy"
+            case .terms: return "terms"
+            case .imprint: return "imprint"
             }
         }
 
