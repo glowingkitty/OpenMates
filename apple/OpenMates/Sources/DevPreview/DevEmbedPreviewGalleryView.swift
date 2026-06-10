@@ -53,6 +53,7 @@ struct DevEmbedPreviewGalleryView: View {
             .background(Color.grey0)
         }
         .background(Color.grey0.ignoresSafeArea())
+        .environment(\.colorScheme, .light)
         .preferredColorScheme(.light)
         .accessibilityIdentifier("dev-embed-preview-gallery")
     }
