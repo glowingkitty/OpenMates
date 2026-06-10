@@ -14,7 +14,7 @@ from types import ModuleType, SimpleNamespace
 from backend.shared.python_schemas.software_update import DeploymentMode
 
 
-def _install_route_dependency_stubs() -> None:
+def _install_route_dependency_stubs() -> dict[str, ModuleType | None]:
     class _StubLimiter:
         def limit(self, _rate: str):
             def decorator(func):
@@ -22,7 +22,10 @@ def _install_route_dependency_stubs() -> None:
 
             return decorator
 
+    previous_modules: dict[str, ModuleType | None] = {}
+
     def _stub_module(name: str, **attrs) -> None:
+        previous_modules[name] = sys.modules.get(name)
         module = ModuleType(name)
         for key, value in attrs.items():
             setattr(module, key, value)
@@ -39,16 +42,33 @@ def _install_route_dependency_stubs() -> None:
     _stub_module("backend.core.api.app.services.limiter", limiter=_StubLimiter())
     _stub_module(
         "backend.core.api.app.routes.auth_routes.auth_dependencies",
+        get_directus_service=lambda: None,
+        get_cache_service=lambda: None,
+        get_compliance_service=lambda: None,
         get_current_user=lambda: None,
+        get_encryption_service=lambda: None,
+        get_current_user_or_api_key=lambda: None,
+        get_current_user_optional=lambda: None,
     )
     _stub_module("backend.core.api.app.models.user", User=SimpleNamespace)
+    return previous_modules
 
 
-_install_route_dependency_stubs()
+def _restore_modules(previous_modules: dict[str, ModuleType | None]) -> None:
+    sys.modules.pop("backend.core.api.app.routes.settings_software_update", None)
+    for name, previous_module in previous_modules.items():
+        if previous_module is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous_module
 
 
 def _update_route():
-    return importlib.import_module("backend.core.api.app.routes.settings_software_update")
+    previous_modules = _install_route_dependency_stubs()
+    try:
+        return importlib.import_module("backend.core.api.app.routes.settings_software_update")
+    finally:
+        _restore_modules(previous_modules)
 
 
 def test_detect_deployment_mode_returns_docker_without_git(monkeypatch):
