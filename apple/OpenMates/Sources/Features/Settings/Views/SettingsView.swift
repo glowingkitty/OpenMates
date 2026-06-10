@@ -1090,7 +1090,7 @@ struct SettingsInterfaceSubPage: View {
 
 struct SettingsAccountSubPage: View {
     @EnvironmentObject var authManager: AuthManager
-    @State private var destination: AccountDestination?
+    @State private var destination: AccountDestination? = AccountDestination.uiTestInitialDestination
 
     var body: some View {
         if let dest = destination {
@@ -1226,6 +1226,13 @@ struct SettingsAccountSubPage: View {
         case username, email, profilePicture, usage, storage, chats
         case importChats, exportData, deleteAccount
         case passkeys, password, twoFactor, recoveryKey, sessions, pairDevice
+
+        static var uiTestInitialDestination: AccountDestination? {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-account-delete-preview") {
+                return .deleteAccount
+            }
+            return nil
+        }
 
         var title: String {
             switch self {

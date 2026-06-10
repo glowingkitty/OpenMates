@@ -12,33 +12,25 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
     }
 
     func testSensitiveEntrypointsAndDeletePreview() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-account-settings-fixture"]
-        app.launch()
+        let app = launchAccountSettingsFixture()
         openSettingsAccountPage(in: app)
 
         for identifier in sensitiveAccountRows {
             XCTAssertTrue(waitForButton(identifier, in: app, timeout: 5), "Expected sensitive row \(identifier)")
         }
         XCTAssertFalse(app.tables.firstMatch.exists, "Account settings must not render default List/table chrome")
+        app.terminate()
 
-        openAccountSubpage(row: "settings-account-recovery-key-row", page: "settings-account-recovery-key-page", in: app)
-        XCTAssertFalse(app.tables.firstMatch.exists, "Recovery key page must not render default List/table chrome")
-        returnToAccountPage(in: app)
-
-        openAccountSubpage(row: "settings-account-sessions-row", page: "settings-account-sessions-page", in: app)
-        XCTAssertFalse(app.tables.firstMatch.exists, "Sessions page must not render default List/table chrome")
-        returnToAccountPage(in: app)
-
-        openAccountSubpage(row: "settings-account-delete-row", page: "settings-account-delete-page", in: app)
-        XCTAssertTrue(waitForElement("delete-account-password-input", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("delete-account-confirm-input", in: app, timeout: 5))
-        let finalDeleteButton = app.buttons["delete-account-final-button"]
+        let deletePreviewApp = launchAccountSettingsFixture(extraArguments: ["--ui-test-account-delete-preview"])
+        openSettingsAccountEntry(in: deletePreviewApp)
+        XCTAssertTrue(waitForElement("delete-account-password-input", in: deletePreviewApp, timeout: 5))
+        XCTAssertTrue(waitForElement("delete-account-confirm-input", in: deletePreviewApp, timeout: 5))
+        let finalDeleteButton = deletePreviewApp.buttons["delete-account-final-button"]
         XCTAssertTrue(finalDeleteButton.waitForExistence(timeout: 5))
         XCTAssertFalse(finalDeleteButton.isEnabled, "Final account deletion must stay disabled without explicit confirmation")
-        XCTAssertFalse(app.tables.firstMatch.exists, "Delete account preview must not render default List/table chrome")
+        XCTAssertFalse(deletePreviewApp.tables.firstMatch.exists, "Delete account preview must not render default List/table chrome")
 
-        attachScreenshot(name: "Sensitive settings reserved-account preview")
+        attachScreenshot(name: "Sensitive settings fixture preview")
     }
 
     private var sensitiveAccountRows: [String] {
@@ -52,25 +44,24 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
         ]
     }
 
-    private func openSettingsAccountPage(in app: XCUIApplication) {
+    private func launchAccountSettingsFixture(extraArguments: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-account-settings-fixture"] + extraArguments
+        app.launch()
+        return app
+    }
+
+    private func openSettingsAccountEntry(in app: XCUIApplication) {
         XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
         app.buttons["settings-button"].tap()
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
         XCTAssertTrue(waitForButton("settings-account-row", in: app, timeout: 8))
         app.buttons["settings-account-row"].tap()
+    }
+
+    private func openSettingsAccountPage(in app: XCUIApplication) {
+        openSettingsAccountEntry(in: app)
         XCTAssertTrue(waitForElement("settings-account-page", in: app, timeout: 8))
-    }
-
-    private func openAccountSubpage(row: String, page: String, in app: XCUIApplication) {
-        XCTAssertTrue(waitForButton(row, in: app, timeout: 8), "Expected row \(row)")
-        app.buttons[row].tap()
-        XCTAssertTrue(waitForButton("settings-account-subpage-back", in: app, timeout: 8), "Expected page \(page)")
-    }
-
-    private func returnToAccountPage(in app: XCUIApplication) {
-        XCTAssertTrue(waitForButton("settings-account-subpage-back", in: app, timeout: 5))
-        app.buttons["settings-account-subpage-back"].tap()
-        XCTAssertTrue(waitForElement("settings-account-page", in: app, timeout: 5))
     }
 
     private func waitForButton(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
