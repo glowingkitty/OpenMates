@@ -7,7 +7,7 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
-import type { Message } from "../../../types/chat"; // Import Message type
+import type { Chat, Message } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
 import {
   clearCurrentDraft,
@@ -378,6 +378,21 @@ async function waitForDraftSaveIdle(): Promise<void> {
       "[handleSend] Timed out waiting for draft save to finish; continuing send",
     );
   }
+}
+
+async function getRawChatForSendClassification(chatId: string): Promise<Chat | null> {
+  const transaction = await chatDB.getTransaction(chatDB.CHATS_STORE_NAME, "readonly");
+  const store = transaction.objectStore(chatDB.CHATS_STORE_NAME);
+
+  return new Promise((resolve, reject) => {
+    const request = store.get(chatId);
+    request.onsuccess = () => {
+      const rawChat = request.result as Chat | undefined;
+      if (rawChat) delete rawChat.messages;
+      resolve(rawChat ? { ...rawChat } : null);
+    };
+    request.onerror = () => reject(request.error);
+  });
 }
 
 /**
@@ -1207,7 +1222,7 @@ export async function handleSend(
     // temporary new-chat ID in draft state before the chat/key exists; that must
     // not be treated as an existing draft chat.
     let existingChatCheck: import("../../../types/chat").Chat | null =
-      await chatDB.getChat(chatIdToUse);
+      await getRawChatForSendClassification(chatIdToUse);
     if (!existingChatCheck) {
       try {
         const { incognitoChatService } =
