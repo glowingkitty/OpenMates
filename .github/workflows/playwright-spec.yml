@@ -73,24 +73,25 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/apps/web_app
           set +e
-          npx playwright test "tests/${{ github.event.inputs.spec }}" \
-            --reporter=json \
-            > $GITHUB_WORKSPACE/test-results/playwright.json &
-          pw_pid=$!
-
-          while kill -0 "$pw_pid" 2>/dev/null; do
+          while true; do
             echo "[playwright heartbeat] still running ${{ github.event.inputs.spec }}"
             sleep 30
           done &
           heartbeat_pid=$!
 
-          if wait "$pw_pid"; then
-            pw_status=0
-          else
-            pw_status=$?
-          fi
-          kill "$heartbeat_pid" 2>/dev/null || true
-          wait "$heartbeat_pid" 2>/dev/null || true
+          cleanup_heartbeat() {
+            kill "$heartbeat_pid" 2>/dev/null || true
+            wait "$heartbeat_pid" 2>/dev/null || true
+          }
+          trap cleanup_heartbeat EXIT
+
+          npx playwright test "tests/${{ github.event.inputs.spec }}" \
+            --reporter=json \
+            > $GITHUB_WORKSPACE/test-results/playwright.json
+          pw_status=$?
+
+          cleanup_heartbeat
+          trap - EXIT
           if [ "$pw_status" -ge 128 ]; then
             echo "Playwright exited with signal-style status ${pw_status}; preserving artifacts and reporting as failure."
             exit 1
