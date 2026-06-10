@@ -20,6 +20,28 @@ import {
   signupFreeTestingCreditsPromotion,
 } from "../serverStatusStore";
 
+function installLocalStorageMock() {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value);
+    }),
+    removeItem: vi.fn((key: string) => {
+      values.delete(key);
+    }),
+    clear: vi.fn(() => {
+      values.clear();
+    }),
+  } as unknown as Storage;
+
+  Object.defineProperty(globalThis, "localStorage", {
+    value: storage,
+    configurable: true,
+  });
+  return storage;
+}
+
 function setActivePromotion(): void {
   serverStatusStore.set({
     status: {
@@ -40,9 +62,11 @@ function setActivePromotion(): void {
 }
 
 describe("serverStatusStore Free testing promotion", () => {
+  let storage: Storage;
+
   beforeEach(() => {
     vi.restoreAllMocks();
-    localStorage.clear();
+    storage = installLocalStorageMock();
     freeTestingCreditsDeviceGrantReceived.set(false);
     serverStatusStore.set({
       status: null,
@@ -70,7 +94,7 @@ describe("serverStatusStore Free testing promotion", () => {
 
     markDeviceReceivedFreeTestingCredits();
 
-    expect(localStorage.getItem(FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY)).toBe("true");
+    expect(storage.getItem(FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY)).toBe("true");
     expect(hasDeviceReceivedFreeTestingCredits()).toBe(true);
     expect(get(freeTestingCreditsPromotion)).toEqual({
       active: true,
@@ -90,7 +114,7 @@ describe("serverStatusStore Free testing promotion", () => {
 
   it("fails closed when localStorage reads throw", () => {
     setActivePromotion();
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    vi.mocked(storage.getItem).mockImplementation(() => {
       throw new Error("blocked storage");
     });
 
