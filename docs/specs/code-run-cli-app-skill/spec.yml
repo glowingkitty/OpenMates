@@ -1,6 +1,6 @@
 id: code-run-cli-app-skill
 title: Code Run CLI App Skill
-status: implementing
+status: verified
 
 goal: >
   Let terminal users execute inline code, local files, and client-downloaded
@@ -462,9 +462,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27267890930"
+        timestamp: "2026-06-10T09:51:19Z"
 
 implementation_plan:
   existing_patterns:
