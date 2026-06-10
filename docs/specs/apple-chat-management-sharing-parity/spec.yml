@@ -1,6 +1,6 @@
 id: apple-chat-management-sharing-parity
 title: Apple Chat Management Sharing And Interaction Web Spec Parity
-status: draft
+status: implementing
 
 goal: >
   Recreate the web app's chat management, sharing, import/export, highlighting,
@@ -142,21 +142,19 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: e282-local
+        timestamp: "2026-06-10"
   - id: T-UNIT-002
     type: unit
     file: apple/OpenMatesTests/ChatManagementSharingParityTests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatManagementSharingParityTests
     covers:
       - AC-1
-      - AC-2
-      - AC-3
     assertions:
-      - Chat action, privacy, share, import, export, and deeplink payloads match web contracts.
-      - Share URLs and encryption keys are redacted from logs and fixtures.
-      - Unsupported or web-only surfaces are explicitly classified.
+      - Pinned chats and archived chats are separated into the same local buckets used by the native sidebar.
+      - Sync patches that omit local management flags preserve pinned and archived state.
+      - The test uses synthetic chat records only and no share URLs, encryption keys, or private chat content.
     red_phase:
       required: true
       expected: fail
@@ -168,21 +166,42 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
   - id: T-UNIT-003
     type: unit
     file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatManagementSharingParityUITests
     covers:
       - AC-1
+    assertions:
+      - The public unauthenticated chat list exposes a `chat-item-wrapper` identifier matching the web concept.
+      - The chat-list surface renders without default `List` or table chrome.
+      - Screenshots and attachments use public chat content only.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
+  - id: T-MANUAL-004
+    type: manual
+    covers:
       - AC-2
       - AC-3
     assertions:
-      - Chat management, message action, and share/import/export flows are reachable and visible in native UI.
-      - OS-owned share/file panels are used only at OS-owned boundaries.
-      - Screenshots and attachments are synthetic or sanitized.
+      - Message interaction parity still needs dedicated Apple tests for copy, highlights, follow-up, PII, incognito, and paste-classification flows.
+      - Share/import/export/deeplink parity still needs dedicated Apple tests with sanitized fixtures and OS-owned share/file boundaries.
+      - Projects must be classified as native-required or web-only before this spec can be verified.
     red_phase:
       required: true
       expected: fail
