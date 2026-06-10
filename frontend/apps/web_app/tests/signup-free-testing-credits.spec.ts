@@ -50,7 +50,7 @@ async function openSignupBasics(page: any) {
 
 	await expect(page.getByText('OpenMates is currently an alpha release for early testers.')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByRole('link', { name: /view openmates on github/i })).toBeVisible();
-	await expect(page.getByRole('link', { name: /follow openmates on instagram/i })).toBeVisible();
+	await expect(page.getByRole('link', { name: /view openmates on instagram/i })).toBeVisible();
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await expect(page.getByRole('heading', { name: /sign up/i })).toBeVisible({ timeout: 10000 });
