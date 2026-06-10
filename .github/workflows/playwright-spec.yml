@@ -88,6 +88,10 @@ jobs:
           pw_status=$?
           kill "$heartbeat_pid" 2>/dev/null || true
           wait "$heartbeat_pid" 2>/dev/null || true
+          if [ "$pw_status" -eq 130 ]; then
+            echo "Playwright exited with 130; preserving artifacts and reporting as failure."
+            exit 1
+          fi
           exit "$pw_status"
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
