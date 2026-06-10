@@ -88,8 +88,8 @@ jobs:
           pw_status=$?
           kill "$heartbeat_pid" 2>/dev/null || true
           wait "$heartbeat_pid" 2>/dev/null || true
-          if [ "$pw_status" -eq 130 ]; then
-            echo "Playwright exited with 130; preserving artifacts and reporting as failure."
+          if [ "$pw_status" -ge 128 ]; then
+            echo "Playwright exited with signal-style status ${pw_status}; preserving artifacts and reporting as failure."
             exit 1
           fi
           exit "$pw_status"
