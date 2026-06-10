@@ -9,8 +9,13 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { promisify } from "node:util";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -22,12 +27,92 @@ import {
   defaultCloneBranchForVersion,
 } from "../dist/index.js";
 
-function runCli(args: string[]): string {
+const execFileAsync = promisify(execFile);
+
+function runCli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync("node", ["dist/cli.js", ...args], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),
     encoding: "utf-8",
-    env: { ...process.env, TERM: "dumb" },
+    env: { ...process.env, TERM: "dumb", ...env },
+    timeout: 15_000,
   });
+}
+
+async function runCliAsync(args: string[], env: Record<string, string> = {}): Promise<string> {
+  const { stdout } = await execFileAsync("node", ["dist/cli.js", ...args], {
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    encoding: "utf-8",
+    env: { ...process.env, TERM: "dumb", ...env },
+    timeout: 15_000,
+  });
+  return stdout;
+}
+
+async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+}
+
+function writeJson(response: ServerResponse, value: unknown): void {
+  response.writeHead(200, { "Content-Type": "application/json" });
+  response.end(JSON.stringify(value));
+}
+
+async function withCodeRunMockApi<T>(
+  run: (params: { apiUrl: string; requests: Record<string, unknown>[]; getHeaders: () => Record<string, string | string[] | undefined> }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Record<string, unknown>[] = [];
+  let lastHeaders: Record<string, string | string[] | undefined> = {};
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/raw/main.py") {
+        response.writeHead(200, { "Content-Type": "text/plain" });
+        response.end("print('url')\n");
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/run") {
+        lastHeaders = request.headers;
+        const body = await readJsonBody(request);
+        requests.push(body);
+        const firstRequest = (body.requests as Array<{ files?: Array<{ path?: string }> }>)[0];
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              execution_id: "exec-1",
+              status: "queued",
+              target_filename: "main.py",
+              files: (firstRequest.files ?? []).map((file) => file.path),
+              status_path: "/v1/code/run/exec-1",
+              stream_path: "/v1/code/run/exec-1/stream",
+              credits_per_minute: 5,
+            }],
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/code/run/exec-1") {
+        lastHeaders = request.headers;
+        writeJson(response, { status: "finished", exit_code: 0, output: "ok\n" });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests, getHeaders: () => lastHeaders });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +196,118 @@ describe("defaultCloneBranchForVersion", () => {
   it("uses the repository default branch for stable CLI versions", () => {
     assert.strictEqual(defaultCloneBranchForVersion("0.11.1"), null);
     assert.strictEqual(defaultCloneBranchForVersion("1.0.0"), null);
+  });
+});
+
+describe("apps code run command variants", () => {
+  it("runs inline code through the canonical app-skill endpoint", async () => {
+    await withCodeRunMockApi(async ({ apiUrl, requests, getHeaders }) => {
+      const output = await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--json",
+        "--language", "python",
+        "--filename", "hello.py",
+        "--code", "print('hello')\n",
+        "--no-internet",
+      ]);
+      const result = JSON.parse(output) as { execution_id: string; final: { status: string } };
+      assert.equal(result.execution_id, "exec-1");
+      assert.equal(result.final.status, "finished");
+      assert.equal(getHeaders().authorization, "Bearer test-key");
+      const body = requests[0] as { requests: Array<{ entry_path: string; enable_internet: boolean; files: Array<{ path: string; language: string; is_target: boolean }> }> };
+      assert.equal(body.requests[0].entry_path, "hello.py");
+      assert.equal(body.requests[0].enable_internet, false);
+      assert.deepEqual(body.requests[0].files.map((file) => [file.path, file.language, file.is_target]), [["hello.py", "python", true]]);
+    });
+  });
+
+  it("runs repeated --file inputs with an explicit entry", async () => {
+    const dir = join(tmpdir(), `openmates-cli-file-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    try {
+      const appFile = join(dir, "app.py");
+      const requirementsFile = join(dir, "requirements.txt");
+      writeFileSync(appFile, "print('file')\n");
+      writeFileSync(requirementsFile, "requests==2.32.3\n");
+      await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+        await runCliAsync([
+          "apps", "code", "run",
+          "--api-url", apiUrl,
+          "--api-key", "test-key",
+          "--json",
+          "--entry", "app.py",
+          "--file", appFile,
+          "--file", requirementsFile,
+        ]);
+        const body = requests[0] as { requests: Array<{ entry_path: string; files: Array<{ path: string; is_target: boolean }> }> };
+        assert.equal(body.requests[0].entry_path, "app.py");
+        assert.deepEqual(body.requests[0].files.map((file) => file.path).sort(), ["app.py", "requirements.txt"]);
+        assert.equal(body.requests[0].files.find((file) => file.path === "app.py")?.is_target, true);
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("runs --dir inputs with excludes", async () => {
+    const dir = join(tmpdir(), `openmates-cli-dir-${Date.now()}`);
+    mkdirSync(join(dir, "src"), { recursive: true });
+    try {
+      writeFileSync(join(dir, "main.py"), "print('dir')\n");
+      writeFileSync(join(dir, "src", "helper.py"), "VALUE = 1\n");
+      writeFileSync(join(dir, "debug.log"), "ignored\n");
+      await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+        await runCliAsync([
+          "apps", "code", "run",
+          "--api-url", apiUrl,
+          "--api-key", "test-key",
+          "--json",
+          "--entry", "main.py",
+          "--dir", dir,
+          "--exclude", "*.log",
+        ]);
+        const body = requests[0] as { requests: Array<{ files: Array<{ path: string }> }> };
+        assert.deepEqual(body.requests[0].files.map((file) => file.path).sort(), ["main.py", "src/helper.py"]);
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("runs raw --url inputs after client-side download", async () => {
+    await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--json",
+        "--entry", "main.py",
+        "--url", `${apiUrl}/raw/main.py`,
+      ]);
+      const body = requests[0] as { requests: Array<{ files: Array<{ path: string; content_base64: string }> }> };
+      assert.equal(body.requests[0].files[0].path, "main.py");
+      assert.equal(Buffer.from(body.requests[0].files[0].content_base64, "base64").toString("utf8"), "print('url')\n");
+    });
+  });
+
+  it("runs chat-bound mode without uploading direct files", async () => {
+    await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--json",
+        "--chat", "chat-1",
+        "--target-embed", "embed-1",
+      ]);
+      const body = requests[0] as { requests: Array<{ mode: string; chat_id: string; target_embed_id: string; files: unknown[] }> };
+      assert.equal(body.requests[0].mode, "chat_bound");
+      assert.equal(body.requests[0].chat_id, "chat-1");
+      assert.equal(body.requests[0].target_embed_id, "embed-1");
+      assert.deepEqual(body.requests[0].files, []);
+    });
   });
 });
 

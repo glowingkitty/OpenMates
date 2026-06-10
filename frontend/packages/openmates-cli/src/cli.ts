@@ -31,6 +31,7 @@ import {
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
+import WebSocket from "ws";
 
 import {
   parseMentions,
@@ -47,6 +48,10 @@ import { createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js"
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 import { handleServer, printServerHelp } from "./server.js";
+import {
+  buildCodeRunRequestsFromFlags,
+  buildCodeRunStreamUrl,
+} from "./codeRunInput.js";
 
 type CliArgs = {
   positionals: string[];
@@ -1149,6 +1154,11 @@ async function handleApps(
     return;
   }
 
+  if (subcommand === "code" && rest[0] === "run") {
+    await handleCodeRun(client, flags, apiKey);
+    return;
+  }
+
   // Sugar alias: openmates apps <app> <skill> [inline text]
   const app = subcommand;
   const skill = rest[0];
@@ -1285,6 +1295,129 @@ async function handleApps(
   console.error(`Unknown apps subcommand '${subcommand}'.\n`);
   printAppsHelp();
   process.exit(1);
+}
+
+interface CodeRunSkillResponse {
+  success?: boolean;
+  data?: {
+    results?: Array<{
+      execution_id?: string;
+      status?: string;
+      target_filename?: string;
+      files?: string[];
+      stream_path?: string;
+      status_path?: string;
+      credits_per_minute?: number;
+    }>;
+  };
+}
+
+async function handleCodeRun(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  const requests = await buildCodeRunRequestsFromFlags({
+    code: typeof flags.code === "string" ? flags.code : undefined,
+    language: typeof flags.language === "string" ? flags.language : undefined,
+    filename: typeof flags.filename === "string" ? flags.filename : undefined,
+    entry: typeof flags.entry === "string" ? flags.entry : undefined,
+    file: typeof flags.file === "string" ? flags.file : undefined,
+    dir: typeof flags.dir === "string" ? flags.dir : undefined,
+    url: typeof flags.url === "string" ? flags.url : undefined,
+    repo: typeof flags.repo === "string" ? flags.repo : undefined,
+    include: typeof flags.include === "string" ? flags.include : undefined,
+    exclude: typeof flags.exclude === "string" ? flags.exclude : undefined,
+    noInternet: flags["no-internet"] === true,
+    chat: typeof flags.chat === "string" ? flags.chat : undefined,
+    targetEmbed: typeof flags["target-embed"] === "string" ? flags["target-embed"] : undefined,
+  });
+
+  if (flags.json !== true) {
+    const first = requests[0];
+    if (first.mode === "direct") {
+      process.stderr.write(`Starting Code Run for ${first.entry_path} (${first.files.length} file${first.files.length === 1 ? "" : "s"})...\n`);
+    }
+  }
+
+  const response = await client.runSkill({
+    app: "code",
+    skill: "run",
+    inputData: { requests: requests as unknown as Array<Record<string, unknown>> },
+    apiKey,
+  }) as CodeRunSkillResponse;
+  const result = response.data?.results?.[0];
+  if (!result?.execution_id || !result.status_path) {
+    throw new Error("Code Run did not return an execution id.");
+  }
+
+  const streamAuth = apiKey ? null : client.getCodeRunStreamAuth();
+  let finalStatus: Record<string, unknown>;
+  if (streamAuth && result.stream_path) {
+    const url = buildCodeRunStreamUrl({
+      apiUrl: client.apiUrl,
+      executionId: result.execution_id,
+      sessionId: streamAuth.sessionId,
+      token: streamAuth.token,
+    });
+    finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
+  } else {
+    finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
+  }
+
+  if (flags.json === true) {
+    printJson({ ...result, final: finalStatus });
+  }
+}
+
+async function streamCodeRunToTerminal(url: string, jsonMode: boolean): Promise<Record<string, unknown>> {
+  return await new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    let lastStatus: Record<string, unknown> = {};
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(String(data)) as { type?: string; payload?: Record<string, unknown> };
+        const payload = message.payload ?? {};
+        if (message.type === "code_run_event") {
+          const kind = String(payload.kind ?? "status");
+          const text = String(payload.text ?? "");
+          if (!jsonMode) {
+            if (kind === "stdout") process.stdout.write(text);
+            else process.stderr.write(text);
+          }
+        } else if (message.type === "code_run_update") {
+          lastStatus = { ...lastStatus, ...payload };
+          const status = String(payload.status ?? "");
+          if (["finished", "failed", "timeout", "cancelled"].includes(status)) {
+            ws.close();
+            resolve(lastStatus);
+          }
+        }
+      } catch (err) {
+        ws.close();
+        reject(err);
+      }
+    });
+    ws.on("error", () => reject(new Error("Code Run stream failed.")));
+    ws.on("close", () => {
+      if (Object.keys(lastStatus).length > 0) resolve(lastStatus);
+    });
+  });
+}
+
+async function pollCodeRunStatus(
+  client: OpenMatesClient,
+  statusPath: string,
+  apiKey: string | undefined,
+  jsonMode: boolean,
+): Promise<Record<string, unknown>> {
+  for (;;) {
+    const status = await client.getCodeRunStatus(statusPath, apiKey);
+    const value = String(status.status ?? "");
+    if (!jsonMode && value) process.stderr.write(`Code Run status: ${value}\n`);
+    if (["finished", "failed", "timeout", "cancelled"].includes(value)) return status;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 }
 
 /**
@@ -2847,13 +2980,13 @@ function parseArgs(argv: string[]): CliArgs {
     const valueFromEquals = keyValue[1];
 
     if (valueFromEquals !== undefined) {
-      flags[key] = valueFromEquals;
+      flags[key] = appendFlagValue(flags[key], valueFromEquals);
       continue;
     }
 
     const next = argv[i + 1];
     if (next && !next.startsWith("--")) {
-      flags[key] = next;
+      flags[key] = appendFlagValue(flags[key], next);
       i += 1;
     } else {
       flags[key] = true;
@@ -2861,6 +2994,11 @@ function parseArgs(argv: string[]): CliArgs {
   }
 
   return { positionals, flags };
+}
+
+function appendFlagValue(existing: string | boolean | undefined, value: string): string {
+  if (typeof existing === "string" && existing.length > 0) return `${existing}\n${value}`;
+  return value;
 }
 
 function resolveApiKey(flags: Record<string, string | boolean>): string | null {
@@ -5221,6 +5359,9 @@ function printAppsHelp(): void {
   openmates apps skill-info <app-id> <skill-id> [--json]
   openmates apps <app-id> <skill-id> "<query>" [--json]
   openmates apps <app-id> <skill-id> --input '<json>' [--json]
+  openmates apps code run --language python --code 'print("Hello")'
+  openmates apps code run --entry main.py --file main.py [--file requirements.txt]
+  openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
   openmates apps travel booking-link --token "<token>" [--context '<json>']
 
 Authentication:
@@ -5233,6 +5374,7 @@ Examples:
   openmates apps web search "latest AI news"
   openmates apps news search "climate change"
   openmates apps ai ask "Summarise this: ..."
+  openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
   openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);

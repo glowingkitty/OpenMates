@@ -2639,6 +2639,26 @@ export class OpenMatesClient {
     return this.resolveAsyncSkillResponse(response.data, headers);
   }
 
+  getCodeRunStreamAuth(): { sessionId: string; token: string } | null {
+    const session = this.session;
+    if (!session) return null;
+    const token = session.wsToken || session.cookies.auth_refresh_token;
+    if (!token) return null;
+    return { sessionId: session.sessionId, token };
+  }
+
+  async getCodeRunStatus(path: string, apiKey?: string): Promise<Record<string, unknown>> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const response = await this.http.get<Record<string, unknown>>(path, headers);
+    if (!response.ok) {
+      throw new Error(`Code Run status request failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
   // -------------------------------------------------------------------------
   // Travel: booking link resolution
   // -------------------------------------------------------------------------

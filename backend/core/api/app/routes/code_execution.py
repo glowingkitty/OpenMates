@@ -23,12 +23,12 @@ from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from toon_format import decode as toon_decode
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -216,6 +216,55 @@ class CodeRunStartRequest(BaseModel):
     dependency_installs: list[CodeRunDependencyInstall] = Field(default_factory=list, max_length=20)
 
 
+class CodeRunDirectFile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1, max_length=255)
+    content_base64: str = Field(min_length=1)
+    language: str = ""
+    mime_type: str = "text/plain"
+    is_target: bool = False
+
+
+class CodeRunAppSkillRunItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["direct", "chat_bound"] = "direct"
+    entry_path: str | None = Field(default=None, max_length=255)
+    files: list[CodeRunDirectFile] = Field(default_factory=list, max_length=MAX_FILES)
+    chat_id: str | None = Field(default=None, min_length=1)
+    target_embed_id: str | None = Field(default=None, min_length=1)
+    selected_embed_ids: list[str] | None = Field(default=None, max_length=MAX_FILES)
+    dependency_installs: list[CodeRunDependencyInstall] = Field(default_factory=list, max_length=20)
+    enable_internet: bool = True
+
+
+class CodeRunAppSkillRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requests: list[CodeRunAppSkillRunItem] = Field(min_length=1, max_length=10)
+
+
+class CodeRunAppSkillResult(BaseModel):
+    execution_id: str
+    status: str
+    target_filename: str
+    files: list[str]
+    credits_per_minute: int = RUN_CREDITS_PER_MINUTE
+    persisted_output: bool = False
+    stream_path: str
+    status_path: str
+
+
+class CodeRunAppSkillResponseData(BaseModel):
+    results: list[CodeRunAppSkillResult]
+
+
+class CodeRunAppSkillResponse(BaseModel):
+    success: bool = True
+    data: CodeRunAppSkillResponseData
+
+
 class CodeRunPrepareRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     target_embed_id: str = Field(min_length=1)
@@ -327,6 +376,24 @@ def _safe_attachment_path(raw_path: str, embed_id: str) -> str:
     if not cleaned.startswith("inputs/"):
         cleaned = f"inputs/{cleaned}"
     return cleaned or f"inputs/attachment-{embed_id[:8]}.bin"
+
+
+def _validate_direct_code_run_path(raw_path: str) -> str:
+    path = raw_path.strip().replace("\\", "/")
+    if (
+        not path
+        or "\x00" in path
+        or path.startswith(("/", "~/"))
+        or re.match(r"^[A-Za-z]:/", path)
+    ):
+        raise HTTPException(status_code=400, detail="Unsafe Code Run path")
+    parts = PurePosixPath(path).parts
+    if any(part in ("", ".", "..") for part in parts):
+        raise HTTPException(status_code=400, detail="Unsafe Code Run path")
+    cleaned = "/".join(parts)
+    if not cleaned or cleaned != path:
+        raise HTTPException(status_code=400, detail="Unsafe Code Run path")
+    return cleaned
 
 
 def _dedupe_path(path: str, used: set[str]) -> str:
@@ -1012,6 +1079,59 @@ async def _collect_code_files(
     return files, target_path
 
 
+def collect_direct_code_run_files(item: CodeRunAppSkillRunItem) -> tuple[list[dict[str, Any]], str]:
+    if item.mode != "direct":
+        raise HTTPException(status_code=400, detail="Direct Code Run file collection requires mode=direct")
+    if not item.files:
+        raise HTTPException(status_code=400, detail="Direct Code Run requires at least one file")
+
+    used_paths: set[str] = set()
+    files: list[dict[str, Any]] = []
+    total_chars = 0
+    entry_path = _validate_direct_code_run_path(item.entry_path or "") if item.entry_path else None
+
+    for file in item.files:
+        path = _validate_direct_code_run_path(file.path)
+        if path in used_paths:
+            raise HTTPException(status_code=400, detail="Duplicate Code Run file path")
+        used_paths.add(path)
+        try:
+            content_bytes = base64.b64decode(file.content_base64, validate=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Code Run file content is not valid base64") from exc
+        try:
+            content = content_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Code Run direct files must be UTF-8 text") from exc
+        if len(content) > MAX_FILE_CHARS:
+            raise HTTPException(status_code=400, detail="One Code Run file is too large")
+        total_chars += len(content)
+        if total_chars > MAX_TOTAL_CHARS:
+            raise HTTPException(status_code=400, detail="Code Run file bundle is too large")
+        if _looks_like_secret(content):
+            raise HTTPException(status_code=400, detail=f"Code Run file {path} appears to contain a secret")
+        _validate_dependency_manifest(path, content)
+        files.append({
+            "path": path,
+            "content_base64": base64.b64encode(content_bytes).decode("ascii"),
+            "content": content,
+            "language": file.language,
+            "is_target": file.is_target,
+            "mime_type": file.mime_type,
+        })
+
+    target_path = entry_path or next((file["path"] for file in files if file.get("is_target")), None)
+    if not target_path:
+        target_path = files[0]["path"]
+        files[0]["is_target"] = True
+    target_path = _validate_direct_code_run_path(target_path)
+    if target_path not in used_paths:
+        raise HTTPException(status_code=400, detail="Code Run entry file is not included in uploaded files")
+    for file in files:
+        file["is_target"] = file["path"] == target_path
+    return files, target_path
+
+
 async def _create_execution_record(cache_service: CacheService, execution_id: str, data: dict[str, Any]) -> None:
     client = await cache_service.client
     await client.set(_execution_key(execution_id), json.dumps(data), ex=EXECUTION_TTL_SECONDS)
@@ -1067,6 +1187,93 @@ return 'ok'
     return None if value == "ok" else value
 
 
+async def start_code_run_execution(
+    *,
+    current_user: User,
+    cache_service: CacheService,
+    files: list[dict[str, Any]],
+    target_path: str,
+    enable_internet: bool,
+    chat_id: str | None,
+    target_embed_id: str | None,
+    message_id: str | None,
+    dependency_installs: list[CodeRunDependencyInstall],
+) -> CodeRunStartResponse:
+    if current_user.credits < RUN_CREDITS_PER_MINUTE:
+        raise HTTPException(status_code=402, detail="Not enough credits to run code")
+
+    dependency_installs = _merge_dependency_installs(
+        dependency_installs,
+        _dependency_installs_from_install_snippets(files),
+    )
+    if dependency_installs:
+        logger.info(
+            "Code Run dependency installs requested: %s",
+            {install.ecosystem: len(install.packages) for install in dependency_installs},
+        )
+
+    user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+    client = await cache_service.client
+    active_key = _active_run_key(user_id_hash)
+    execution_id = str(uuid.uuid4())
+    run_slot_created = await _try_add_active_run(client, active_key, execution_id)
+    if not run_slot_created:
+        raise HTTPException(status_code=429, detail="Too many code runs are already active for this user")
+    provider_limit = await _try_reserve_provider_run(client, execution_id)
+    if provider_limit:
+        await client.srem(active_key, execution_id)
+        if provider_limit == "rate_limited":
+            raise HTTPException(
+                status_code=429,
+                detail="Code Run is starting sandboxes too quickly. Please try again in a moment",
+            )
+        raise HTTPException(
+            status_code=429,
+            detail="Code Run sandbox capacity is currently full. Please try again shortly",
+        )
+
+    now = time.time()
+    record = {
+        "execution_id": execution_id,
+        "user_id_hash": user_id_hash,
+        "status": "queued",
+        "target_embed_id": target_embed_id,
+        "target_filename": target_path,
+        "files": [file["path"] for file in files],
+        "events": [{"kind": "status", "text": "Queued code run...\n", "timestamp": now}],
+        "created_at": now,
+        "updated_at": now,
+    }
+    payload = {
+        "user_id": current_user.id,
+        "user_id_hash": user_id_hash,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "target_embed_id": target_embed_id,
+        "target_path": target_path,
+        "enable_internet": enable_internet,
+        "files": files,
+        "dependency_installs": [install.model_dump() for install in dependency_installs],
+        "active_run_key": active_key,
+        "active_run_owner": execution_id,
+        "provider_active_run_key": _provider_active_run_key(),
+        "provider_active_run_owner": execution_id,
+    }
+    try:
+        await _create_execution_record(cache_service, execution_id, record)
+        celery_app.send_task("code.run_execution", args=[execution_id, payload], queue="app_code")
+    except Exception:
+        await client.srem(active_key, execution_id)
+        await client.srem(_provider_active_run_key(), execution_id)
+        raise
+    return CodeRunStartResponse(
+        execution_id=execution_id,
+        status="queued",
+        target_filename=target_path,
+        files=[file["path"] for file in files],
+    )
+
+
 @router.post("/prepare", response_model=CodeRunPrepareResponse)
 @limiter.limit(CODE_RUN_PREPARE_RATE_LIMIT)
 async def prepare_code_run(
@@ -1102,9 +1309,6 @@ async def start_code_run(
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> CodeRunStartResponse:
-    if current_user.credits < RUN_CREDITS_PER_MINUTE:
-        raise HTTPException(status_code=402, detail="Not enough credits to run code")
-
     files, target_path = await _collect_code_files(
         body.chat_id,
         body.target_embed_id,
@@ -1116,83 +1320,25 @@ async def start_code_run(
         directus_service,
         encryption_service,
     )
-    dependency_installs = _merge_dependency_installs(
-        body.dependency_installs,
-        _dependency_installs_from_install_snippets(files),
-    )
-    if dependency_installs:
-        logger.info(
-            "Code Run dependency installs requested: %s",
-            {install.ecosystem: len(install.packages) for install in dependency_installs},
-        )
     target_metadata = await _get_embed_metadata(body.target_embed_id, cache_service, directus_service) or {}
     target_message_id = target_metadata.get("message_id")
-    user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
-    client = await cache_service.client
-    active_key = _active_run_key(user_id_hash)
-    execution_id = str(uuid.uuid4())
-    run_slot_created = await _try_add_active_run(client, active_key, execution_id)
-    if not run_slot_created:
-        raise HTTPException(status_code=429, detail="Too many code runs are already active for this user")
-    provider_limit = await _try_reserve_provider_run(client, execution_id)
-    if provider_limit:
-        await client.srem(active_key, execution_id)
-        if provider_limit == "rate_limited":
-            raise HTTPException(
-                status_code=429,
-                detail="Code Run is starting sandboxes too quickly. Please try again in a moment",
-            )
-        raise HTTPException(
-            status_code=429,
-            detail="Code Run sandbox capacity is currently full. Please try again shortly",
-        )
-
-    now = time.time()
-    record = {
-        "execution_id": execution_id,
-        "user_id_hash": user_id_hash,
-        "status": "queued",
-        "target_embed_id": body.target_embed_id,
-        "target_filename": target_path,
-        "files": [file["path"] for file in files],
-        "events": [{"kind": "status", "text": "Queued code run...\n", "timestamp": now}],
-        "created_at": now,
-        "updated_at": now,
-    }
-    payload = {
-        "user_id": current_user.id,
-        "user_id_hash": user_id_hash,
-        "chat_id": body.chat_id,
-        "message_id": target_message_id if isinstance(target_message_id, str) else None,
-        "target_embed_id": body.target_embed_id,
-        "target_path": target_path,
-        "enable_internet": body.enable_internet,
-        "files": files,
-        "dependency_installs": [install.model_dump() for install in dependency_installs],
-        "active_run_key": active_key,
-        "active_run_owner": execution_id,
-        "provider_active_run_key": _provider_active_run_key(),
-        "provider_active_run_owner": execution_id,
-    }
-    try:
-        await _create_execution_record(cache_service, execution_id, record)
-        celery_app.send_task("code.run_execution", args=[execution_id, payload], queue="app_code")
-    except Exception:
-        await client.srem(active_key, execution_id)
-        await client.srem(_provider_active_run_key(), execution_id)
-        raise
-    return CodeRunStartResponse(
-        execution_id=execution_id,
-        status="queued",
-        target_filename=target_path,
-        files=[file["path"] for file in files],
+    return await start_code_run_execution(
+        current_user=current_user,
+        cache_service=cache_service,
+        files=files,
+        target_path=target_path,
+        enable_internet=body.enable_internet,
+        chat_id=body.chat_id,
+        target_embed_id=body.target_embed_id,
+        message_id=target_message_id if isinstance(target_message_id, str) else None,
+        dependency_installs=body.dependency_installs,
     )
 
 
 @router.get("/{execution_id}")
 async def get_code_run_status(
     execution_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> dict[str, Any]:
     client = await cache_service.client
@@ -1209,7 +1355,7 @@ async def get_code_run_status(
 @router.post("/{execution_id}/cancel", response_model=CodeRunCancelResponse)
 async def cancel_code_run(
     execution_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> CodeRunCancelResponse:
     client = await cache_service.client
