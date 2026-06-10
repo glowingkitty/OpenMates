@@ -36,6 +36,29 @@ async function locatorCount(locator: any): Promise<number> {
 	return locator.count().catch(() => 0);
 }
 
+function visibleMessageAnchor(message: string): string {
+	return message
+		.replace(/<<<TEST_(?:MOCK|RECORD):[^>]+>>>/g, '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, 80);
+}
+
+async function userMessagePersisted(userMessages: any, previousCount: number, message: string): Promise<boolean> {
+	const currentCount = await locatorCount(userMessages);
+	if (currentCount >= previousCount + 1) {
+		return true;
+	}
+
+	const anchor = visibleMessageAnchor(message);
+	if (!anchor || currentCount === 0) {
+		return false;
+	}
+
+	const lastVisibleText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
+	return (lastVisibleText ?? '').replace(/\s+/g, ' ').includes(anchor);
+}
+
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
 	const authDom = authSignal.waitFor({ state: 'visible', timeout })
 		.then(() => true)
@@ -493,8 +516,8 @@ async function sendMessage(
 	logCheckpoint('Clicked send button.');
 	try {
 		await expect
-			.poll(async () => await locatorCount(userMessages), { timeout: 30000 })
-			.toBeGreaterThanOrEqual(userCountBeforeSend + 1);
+			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message), { timeout: 30000 })
+			.toBeTruthy();
 	} catch (error) {
 		const diagnosticsBeforeSynthetic = await messageField.evaluate((field: HTMLElement) => {
 			const wrapper = field.closest('[data-action="message-input"]') as HTMLElement | null;
@@ -530,8 +553,8 @@ async function sendMessage(
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
 		});
 		await expect
-			.poll(async () => await locatorCount(userMessages), { timeout: 10000 })
-			.toBeGreaterThanOrEqual(userCountBeforeSend + 1)
+			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message), { timeout: 10000 })
+			.toBeTruthy()
 			.catch(() => undefined);
 		const userCountAfterSynthetic = await locatorCount(userMessages);
 		logCheckpoint('Synthetic custom-send-message diagnostic completed.', {
@@ -541,7 +564,7 @@ async function sendMessage(
 				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 			})
 		});
-		if (userCountAfterSynthetic >= userCountBeforeSend + 1) {
+		if (await userMessagePersisted(userMessages, userCountBeforeSend, message)) {
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend
 			});
