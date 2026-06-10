@@ -17,7 +17,7 @@ from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_se
 from backend.core.api.app.schemas.auth import LoginRequest
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 from backend.core.api.app.tasks.celery_config import app as celery_app
-from backend.core.api.app.utils.server_mode import get_server_edition
+from backend.core.api.app.utils.server_mode import get_server_edition, validate_request_domain
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 
@@ -424,26 +424,33 @@ async def setup_password(
             await cache_service.update_user(user_id, {"gifted_credits_for_signup": plain_gift_value})
 
         try:
-            free_testing_service = FreeTestingCreditsService(
-                directus_service=directus_service,
-                cache_service=cache_service,
-                encryption_service=encryption_service,
-                websocket_manager=ws_manager,
-                celery_app=celery_app,
-            )
-            grant_result = await free_testing_service.grant_to_new_signup(user_id)
-            if grant_result.granted:
+            _, is_self_hosted_request, _ = validate_request_domain(request)
+            if is_self_hosted_request:
                 logger.info(
-                    "Granted %s free testing credits to new password signup user %s",
-                    grant_result.credits_granted,
+                    "Skipping free testing credits for self-hosted password signup user %s",
                     user_id[:8],
                 )
             else:
-                logger.info(
-                    "No free testing credits granted to new password signup user %s: %s",
-                    user_id[:8],
-                    grant_result.reason,
+                free_testing_service = FreeTestingCreditsService(
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    websocket_manager=ws_manager,
+                    celery_app=celery_app,
                 )
+                grant_result = await free_testing_service.grant_to_new_signup(user_id)
+                if grant_result.granted:
+                    logger.info(
+                        "Granted %s free testing credits to new password signup user %s",
+                        grant_result.credits_granted,
+                        user_id[:8],
+                    )
+                else:
+                    logger.info(
+                        "No free testing credits granted to new password signup user %s: %s",
+                        user_id[:8],
+                        grant_result.reason,
+                    )
         except Exception as free_testing_err:
             logger.error(
                 "Failed to process free testing credits for password signup user %s: %s",

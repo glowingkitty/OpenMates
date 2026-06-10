@@ -81,7 +81,7 @@ from backend.core.api.app.routes.auth_routes.auth_common import verify_authentic
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
-from backend.core.api.app.utils.server_mode import get_server_edition
+from backend.core.api.app.utils.server_mode import get_server_edition, validate_request_domain
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 # Import Celery app instance for cache warming tasks
@@ -1446,26 +1446,33 @@ async def passkey_registration_complete(
                 logger.warning(f"Failed to increment auth_passkey_setup funnel stat: {stats_err}")
 
             try:
-                free_testing_service = FreeTestingCreditsService(
-                    directus_service=directus_service,
-                    cache_service=cache_service,
-                    encryption_service=encryption_service,
-                    websocket_manager=ws_manager,
-                    celery_app=celery_app,
-                )
-                grant_result = await free_testing_service.grant_to_new_signup(user_id)
-                if grant_result.granted:
+                _, is_self_hosted_request, _ = validate_request_domain(request)
+                if is_self_hosted_request:
                     logger.info(
-                        "Granted %s free testing credits to new passkey signup user %s",
-                        grant_result.credits_granted,
+                        "Skipping free testing credits for self-hosted passkey signup user %s",
                         user_id[:8],
                     )
                 else:
-                    logger.info(
-                        "No free testing credits granted to new passkey signup user %s: %s",
-                        user_id[:8],
-                        grant_result.reason,
+                    free_testing_service = FreeTestingCreditsService(
+                        directus_service=directus_service,
+                        cache_service=cache_service,
+                        encryption_service=encryption_service,
+                        websocket_manager=ws_manager,
+                        celery_app=celery_app,
                     )
+                    grant_result = await free_testing_service.grant_to_new_signup(user_id)
+                    if grant_result.granted:
+                        logger.info(
+                            "Granted %s free testing credits to new passkey signup user %s",
+                            grant_result.credits_granted,
+                            user_id[:8],
+                        )
+                    else:
+                        logger.info(
+                            "No free testing credits granted to new passkey signup user %s: %s",
+                            user_id[:8],
+                            grant_result.reason,
+                        )
             except Exception as free_testing_err:
                 logger.error(
                     "Failed to process free testing credits for passkey signup user %s: %s",

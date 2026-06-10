@@ -9,6 +9,8 @@ import importlib
 import sys
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 
 def _install_settings_route_dependency_stubs() -> dict[str, ModuleType | None]:
     class _StubLimiter:
@@ -112,6 +114,24 @@ def _server_status_response_model():
         _restore_modules(previous_modules)
 
 
+def _settings_route_module():
+    previous_modules = _install_settings_route_dependency_stubs()
+    return importlib.import_module("backend.core.api.app.routes.settings"), previous_modules
+
+
+def _request(headers: dict[str, str]):
+    return SimpleNamespace(
+        headers=headers,
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                directus_service=object(),
+                cache_service=object(),
+                encryption_service=object(),
+            )
+        ),
+    )
+
+
 def test_self_host_server_status_omits_payment_enabled():
     response_model = _server_status_response_model()
 
@@ -139,3 +159,77 @@ def test_cloud_server_status_can_include_payment_enabled():
     )
 
     assert response.model_dump(exclude_none=True)["payment_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_self_host_server_status_omits_free_testing_credits(monkeypatch):
+    settings_module, previous_modules = _settings_route_module()
+    try:
+        server_mode = importlib.import_module("backend.core.api.app.utils.server_mode")
+        promo_service_calls = 0
+
+        class PromoService:
+            def __init__(self, **_kwargs):
+                nonlocal promo_service_calls
+                promo_service_calls += 1
+
+            async def get_public_promotion(self):
+                raise AssertionError("self-hosted status must not load cloud-only promotion metadata")
+
+        async def no_ai_models(_request):
+            return False
+
+        monkeypatch.setattr(settings_module, "FreeTestingCreditsService", PromoService)
+        monkeypatch.setattr(settings_module, "_are_ai_models_configured", no_ai_models)
+        monkeypatch.setattr(
+            server_mode,
+            "validate_request_domain",
+            lambda _request: (None, True, "self_hosted"),
+        )
+        monkeypatch.setattr(server_mode, "get_server_edition", lambda: "self_hosted")
+
+        response = await settings_module.get_server_status(_request({"host": "localhost"}))
+        payload = response.model_dump(exclude_none=True)
+
+        assert payload["is_self_hosted"] is True
+        assert "payment_enabled" not in payload
+        assert "free_testing_credits" not in payload
+        assert promo_service_calls == 0
+    finally:
+        _restore_modules(previous_modules)
+
+
+@pytest.mark.asyncio
+async def test_cloud_server_status_includes_safe_free_testing_credits(monkeypatch):
+    settings_module, previous_modules = _settings_route_module()
+    try:
+        server_mode = importlib.import_module("backend.core.api.app.utils.server_mode")
+
+        class PromoService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def get_public_promotion(self):
+                return {"active": True, "grant_credits": 1000}
+
+        async def has_ai_models(_request):
+            return True
+
+        monkeypatch.setattr(settings_module, "FreeTestingCreditsService", PromoService)
+        monkeypatch.setattr(settings_module, "_are_ai_models_configured", has_ai_models)
+        monkeypatch.setattr(
+            server_mode,
+            "validate_request_domain",
+            lambda _request: ("openmates.org", False, "production"),
+        )
+        monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: True)
+        monkeypatch.setattr(server_mode, "get_server_edition", lambda: "production")
+
+        response = await settings_module.get_server_status(_request({"origin": "https://openmates.org"}))
+        payload = response.model_dump(exclude_none=True)
+
+        assert payload["is_self_hosted"] is False
+        assert payload["payment_enabled"] is True
+        assert payload["free_testing_credits"] == {"active": True, "grant_credits": 1000}
+    finally:
+        _restore_modules(previous_modules)

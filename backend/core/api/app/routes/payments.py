@@ -33,6 +33,7 @@ from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
 from backend.core.api.app.services.referral_service import ReferralService
+from backend.core.api.app.utils.server_mode import validate_request_domain
 from fastapi.responses import StreamingResponse
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -74,6 +75,15 @@ def get_payment_tier_service(request: Request) -> PaymentTierService:
 
 def is_production() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development") == "production"
+
+
+def _require_official_cloud(request: Request) -> None:
+    _, is_self_hosted, _ = validate_request_domain(request)
+    if is_self_hosted:
+        raise HTTPException(
+            status_code=404,
+            detail="Feature not available on this server edition",
+        )
 
 class PaymentConfigResponse(BaseModel):
     provider: str
@@ -1342,6 +1352,7 @@ async def create_gift_card_bank_transfer_order(
     current_user: User = Depends(get_current_user),
 ):
     """Create a pending bank transfer order for a gift-card purchase."""
+    _require_official_cloud(request)
     gift_card_order_data = order_data.model_copy(update={"is_gift_card": True, "is_signup": False})
     return await create_bank_transfer_order(
         request=request,
@@ -1509,6 +1520,7 @@ async def get_gift_card_purchase_status(
     current_user: User = Depends(get_current_user),
 ):
     """Get status for a gift-card bank-transfer purchase."""
+    _require_official_cloud(request)
     order = await cache_service.get_bank_transfer_by_order_id(order_id)
 
     if not order:
@@ -4150,6 +4162,7 @@ async def redeem_gift_card(
     Checks cache first, then Directus if not found in cache.
     Gift cards are single-use and are deleted after redemption.
     """
+    _require_official_cloud(request)
     user_id = current_user.id
     code = gift_card_request.code.strip().upper()  # Normalize the code (uppercase, trimmed)
     
@@ -4453,6 +4466,7 @@ async def buy_gift_card(
     Supports Stripe (EU users) and Stripe Managed Payments (non-EU users), mirroring the
     credits purchase flow. Provider is selected via geo-detection or explicit `provider` override.
     """
+    _require_official_cloud(request)
     user_id = current_user.id
 
     # Detect user region for provider selection (same logic as /create-order)
@@ -4608,6 +4622,7 @@ async def get_redeemed_gift_cards(
     Get all gift cards redeemed by the current user.
     Gift card codes are decrypted using the user's vault key.
     """
+    _require_official_cloud(request)
     user_id = current_user.id
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
     

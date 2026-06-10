@@ -19,6 +19,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.utils.server_mode import validate_request_domain
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +160,15 @@ def _build_free_testing_service(
         celery_app=celery_app,
     )
 
+
+def _require_official_cloud(request: Request) -> None:
+    _, is_self_hosted, _ = validate_request_domain(request)
+    if is_self_hosted:
+        raise HTTPException(
+            status_code=404,
+            detail="Feature not available on this server edition",
+        )
+
 # --- Endpoints ---
 
 @router.post("/become-admin")
@@ -294,6 +304,7 @@ async def get_free_testing_credits_budget(
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> FreeTestingBudgetResponse:
     """Return admin-visible Free testing credit budget state."""
+    _require_official_cloud(request)
     service = _build_free_testing_service(directus_service, cache_service, encryption_service)
     return _free_testing_budget_response(await service.get_budget_status())
 
@@ -309,6 +320,7 @@ async def update_free_testing_credits_budget(
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> FreeTestingBudgetResponse:
     """Create or update the Free testing credit budget."""
+    _require_official_cloud(request)
     service = _build_free_testing_service(directus_service, cache_service, encryption_service)
     try:
         status = await service.save_budget(
@@ -378,6 +390,7 @@ async def admin_generate_gift_cards(
     Security: Protected by require_admin dependency which validates
     the user is in the server_admins collection with is_active=True.
     """
+    _require_official_cloud(request)
     try:
         generated_cards: List[Dict[str, Any]] = []
         max_retries = 3  # Max retries per code in case of collision
@@ -480,6 +493,7 @@ async def admin_list_gift_cards(
 
     Security: Protected by require_admin dependency.
     """
+    _require_official_cloud(request)
     try:
         cards = await directus_service.get_all_gift_cards()
 

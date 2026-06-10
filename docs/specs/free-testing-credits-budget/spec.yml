@@ -21,8 +21,9 @@ scope:
     - One admin email when the promotion transitions from active to exhausted.
     - Cleanup of legacy signup payment and credits step code so payment purchase flows remain only in Settings.
     - Privacy-preserving device/account promo hiding after the current browser or authenticated account has already received a Free testing grant.
+    - Free testing credits and gift cards are official-cloud-only and are hidden/unavailable on self-hosted editions.
   out:
-    - Changing regular Settings > Billing purchase, gift-card, refund, referral, or auto-top-up behavior.
+    - Changing regular official-cloud Settings > Billing purchase, gift-card, refund, referral, or auto-top-up behavior.
     - Changing alpha disclaimer copy or layout.
     - Partial grants when remaining budget is below the per-user grant amount.
     - Retroactively granting credits to existing users.
@@ -183,6 +184,17 @@ scenarios:
       - The browser stores a first-party local marker that the grant was received.
       - Signup basics shows Pay per use instead of Free credits for testing on that browser.
       - Clearing browser storage can clear the local marker, but the backend grant ledger remains authoritative and still prevents duplicate grants.
+  - id: S-8
+    title: Self-hosted editions do not expose cloud-only credits or gift cards
+    given:
+      - A request is made from a self-hosted domain or localhost.
+    when:
+      - Signup, Server settings, or direct payment/admin API surfaces are loaded.
+    then:
+      - Public server status omits Free testing promotion metadata.
+      - Signup completion does not grant Free testing credits.
+      - Server settings does not mention gift-card generation or Free testing budget management.
+      - Direct gift-card and Free testing budget endpoints return not found for self-hosted requests.
 
 acceptance_criteria:
   - id: AC-1
@@ -221,6 +233,9 @@ acceptance_criteria:
   - id: AC-12
     scenario: S-7
     text: Signup promotion display is gated by both safe public promotion metadata and the local device flag, without adding IP hashes, fingerprints, or email-claim tracking.
+  - id: AC-13
+    scenario: S-8
+    text: Self-hosted editions do not expose, mention, or permit Free testing credits or gift-card features through public metadata, signup grants, Settings UI, or direct API calls.
 
 contracts:
   api:
@@ -229,6 +244,7 @@ contracts:
       notes:
         - Public response must not expose total budget, used budget, remaining exact amount, admin email state, or internal IDs.
         - active is true only when remaining_credits >= grant_credits and grant_credits > 0.
+        - Self-hosted responses omit free_testing_credits entirely.
     - route: GET /v1/admin/free-testing-credits-budget
       auth: admin only
       response: "{ enabled, total_budget_credits, used_budget_credits, remaining_budget_credits, per_user_grant_credits, active, exhausted, exhausted_email_sent_at, updated_at }"
@@ -244,6 +260,10 @@ contracts:
       notes:
         - Called from existing signup completion paths after a new user is authenticated and before or during the /chat/new completion transition.
         - Must be idempotent per user.
+        - Must no-op on self-hosted requests.
+    - route: gift-card and Free testing admin/payment endpoints
+      notes:
+        - Direct self-hosted requests return 404 Feature not available on this server edition.
     - route: authenticated user/session responses
       response_delta: "{ user: { has_free_testing_credits_grant: boolean } }"
       notes:
@@ -271,6 +291,7 @@ contracts:
     - Grant ledger uses user_id_hash if a separate collection is introduced.
     - Admin exhausted email contains aggregate budget numbers only, not recipient user data.
     - Device/account promo hiding uses an account boolean derived from the grant ledger and a first-party browser flag; no IP hashes, fingerprint-derived identifiers, or email-claim hashes are introduced.
+    - Self-hosted detection uses request-domain validation, not frontend-only hiding.
   i18n:
     - Add signup.advantage_free_testing_credits with English Free credits for testing and translated placeholders for other locales if not human-verified.
     - Add signup.free_testing_credits_received with English You received {credits} free credits for testing.
@@ -314,6 +335,31 @@ tests:
       evidence:
         status: passed
         run_id: local-pytest-5-passed
+        timestamp: "2026-06-10"
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_server_status_response.py
+    command: python3 -m pytest backend/tests/test_server_status_response.py
+    covers:
+      - AC-3
+      - AC-13
+    assertions:
+      - self-hosted server-status omits payment_enabled and free_testing_credits
+      - self-hosted server-status does not instantiate the Free testing promotion service
+      - cloud server-status can include only safe free_testing_credits metadata
+    red_phase:
+      required: false
+      expected: existing_regression_guard
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-server-status-4-passed
         timestamp: "2026-06-10"
   - id: T-PLAYWRIGHT-001
     type: playwright
@@ -496,6 +542,12 @@ implementation_plan:
       reason: Password signup completion grant hook.
     - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
       reason: Passkey signup completion grant hook.
+    - path: backend/core/api/app/routes/payments.py
+      reason: Official-cloud-only gift-card endpoint guards.
+    - path: frontend/packages/ui/src/components/Settings.svelte
+      reason: Hide cloud-only billing and server gift-card/free-testing routes on self-hosted.
+    - path: frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+      reason: Pass self-hosted state to settings sub-pages.
     - path: frontend/packages/ui/src/components/signup/signupFlow.ts
       reason: Remove legacy payment/credits step assumptions from active signup sequence.
     - path: frontend/packages/ui/src/components/signup/Signup.svelte
@@ -522,6 +574,7 @@ implementation_plan:
       reason: Admin settings strings.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/free-testing-credits-budget/spec.yml
+    - python3 -m pytest backend/tests/test_server_status_response.py
     - python3 -m pytest backend/tests/test_free_testing_credits_budget.py
     - python3 scripts/run_tests.py --suite vitest
     - python3 scripts/run_tests.py --spec signup-free-testing-credits.spec.ts
@@ -622,6 +675,26 @@ tasks:
       - T-VITEST-001
       - T-PLAYWRIGHT-001
       - T-PLAYWRIGHT-003
+    independently_deployable: true
+  - id: TASK-5
+    title: Hide cloud-only Free testing and gift-card surfaces on self-hosted
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-13
+    expected_files:
+      - backend/core/api/app/routes/settings.py
+      - backend/core/api/app/routes/admin.py
+      - backend/core/api/app/routes/payments.py
+      - backend/core/api/app/routes/auth_routes/auth_password.py
+      - backend/core/api/app/routes/auth_routes/auth_passkey.py
+      - backend/tests/test_server_status_response.py
+      - frontend/packages/ui/src/components/Settings.svelte
+      - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+      - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    verification:
+      - T-PYTEST-002
     independently_deployable: true
 
 risks:

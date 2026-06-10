@@ -2476,7 +2476,7 @@ async def get_server_status(
         directus_service = getattr(request.app.state, "directus_service", None)
         cache_service = getattr(request.app.state, "cache_service", None)
         encryption_service = getattr(request.app.state, "encryption_service", None)
-        if directus_service and cache_service and encryption_service:
+        if not is_self_hosted and directus_service and cache_service and encryption_service:
             try:
                 free_testing_service = FreeTestingCreditsService(
                     directus_service=directus_service,

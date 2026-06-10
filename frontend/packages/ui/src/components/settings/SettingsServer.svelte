@@ -19,6 +19,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsFreeTestingCreditsBudget from './server/SettingsFreeTestingCreditsBudget.svelte';
     import SettingsTests from './server/SettingsTests.svelte';
 
+    let { isSelfHosted = false }: { isSelfHosted?: boolean } = $props();
+
     const dispatch = createEventDispatcher();
     
     // Track current view within this component
@@ -146,18 +148,20 @@ changes to the documentation (to keep the documentation up to date).
         subtitleTop="View global server usage and growth metrics"
         onClick={() => showStatsSettings()}
     />
-    <SettingsItem
-        icon="gift_cards"
-        title={$text('common.gift_cards')}
-        subtitleTop={$text('settings.server.gift_cards.subtitle')}
-        onClick={() => showGiftCardGenerator()}
-    />
-    <SettingsItem
-        icon="gift_cards"
-        title={$text('settings.server.free_testing_budget.title')}
-        subtitleTop={$text('settings.server.free_testing_budget.subtitle')}
-        onClick={() => showFreeTestingCreditsBudget()}
-    />
+    {#if !isSelfHosted}
+        <SettingsItem
+            icon="gift_cards"
+            title={$text('common.gift_cards')}
+            subtitleTop={$text('settings.server.gift_cards.subtitle')}
+            onClick={() => showGiftCardGenerator()}
+        />
+        <SettingsItem
+            icon="gift_cards"
+            title={$text('settings.server.free_testing_budget.title')}
+            subtitleTop={$text('settings.server.free_testing_budget.subtitle')}
+            onClick={() => showFreeTestingCreditsBudget()}
+        />
+    {/if}
     <SettingsItem
         icon="check"
         title={$text('settings.server.tests')}

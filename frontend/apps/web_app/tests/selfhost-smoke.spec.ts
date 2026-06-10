@@ -86,7 +86,8 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 
 	const status = await apiResponse.json();
 	expect(status.is_self_hosted).toBe(true);
-	expect(status.payment_enabled).toBe(false);
+	expect(status).not.toHaveProperty('payment_enabled');
+	expect(status).not.toHaveProperty('free_testing_credits');
 	expect(status.ai_models_configured).toBe(false);
 
  const sessionResponse = await request.post(`${SELFHOST_API_URL}/v1/auth/session`);
@@ -104,15 +105,17 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 		};
 	}, SELFHOST_API_URL);
 
- expect(browserStatus.ok, `browser fetch failed with ${browserStatus.status}`).toBe(true);
- expect(browserStatus.json.is_self_hosted).toBe(true);
+	expect(browserStatus.ok, `browser fetch failed with ${browserStatus.status}`).toBe(true);
+	expect(browserStatus.json.is_self_hosted).toBe(true);
+	expect(browserStatus.json).not.toHaveProperty('free_testing_credits');
 
  await openSignupInterface(page, 30000);
 
  const loginTabs = page.getByTestId('login-tabs');
  await expect(loginTabs).toBeVisible({ timeout: 15000 });
- await loginTabs.getByRole('button', { name: /sign up/i }).click();
- await page.getByRole('button', { name: /continue/i }).click();
+	await loginTabs.getByRole('button', { name: /sign up/i }).click();
+	await page.getByRole('button', { name: /continue/i }).click();
+	await expect(page.getByText('Free credits for testing')).toHaveCount(0);
 
  const inviteInput = page.locator('input[maxlength="14"]').first();
  await expect(inviteInput).toBeVisible({ timeout: 10000 });
@@ -148,7 +151,57 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
   stdio: 'inherit'
  });
 
- const adminSession = await waitForAdminStatus(page, true);
- expect(adminSession.json.success).toBe(true);
- expect(adminSession.json.user?.is_admin).toBe(true);
+	const adminSession = await waitForAdminStatus(page, true);
+	expect(adminSession.json.success).toBe(true);
+	expect(adminSession.json.user?.is_admin).toBe(true);
+
+	const selfHostedCloudOnlyStatuses = await page.evaluate(async (apiUrl: string) => {
+		const requests = [
+			{ method: 'GET', path: '/v1/admin/free-testing-credits-budget' },
+			{
+				method: 'PUT',
+				path: '/v1/admin/free-testing-credits-budget',
+				body: { enabled: true, total_budget_credits: 1000, per_user_grant_credits: 1000 }
+			},
+			{
+				method: 'POST',
+				path: '/v1/admin/generate-gift-cards',
+				body: { credits_value: 1000, count: 1 }
+			},
+			{ method: 'GET', path: '/v1/admin/gift-cards' },
+			{
+				method: 'POST',
+				path: '/v1/payments/redeem-gift-card',
+				body: { code: 'ABCD-EFGH-IJKL' }
+			},
+			{
+				method: 'POST',
+				path: '/v1/payments/buy-gift-card',
+				body: { credits_amount: 1000, currency: 'eur', email_encryption_key: 'test-key' }
+			},
+			{
+				method: 'POST',
+				path: '/v1/payments/create-gift-card-bank-transfer-order',
+				body: { credits_amount: 1000, currency: 'eur', email_encryption_key: 'test-key' }
+			},
+			{ method: 'GET', path: '/v1/payments/gift-card-purchase-status/selfhost-test-order' },
+			{ method: 'GET', path: '/v1/payments/redeemed-gift-cards' }
+		];
+
+		return Promise.all(
+			requests.map(async ({ method, path, body }) => {
+				const response = await fetch(`${apiUrl}${path}`, {
+					method,
+					headers: body ? { 'Content-Type': 'application/json' } : undefined,
+					body: body ? JSON.stringify(body) : undefined,
+					credentials: 'include'
+				});
+				return { path, status: response.status };
+			})
+		);
+	}, SELFHOST_API_URL);
+
+	for (const endpointStatus of selfHostedCloudOnlyStatuses) {
+		expect(endpointStatus.status, `${endpointStatus.path} should be hidden on self-hosted`).toBe(404);
+	}
 });

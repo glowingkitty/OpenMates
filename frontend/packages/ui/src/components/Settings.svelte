@@ -303,7 +303,9 @@ changes to the documentation (to keep the documentation up to date).
             if (isSelfHosted && !demoModeOn) {
                 // Remove billing and gift card routes
                 if (key === 'billing' || key.startsWith('billing/') || 
-                    key === 'shared/tip') { // Tips also require payment
+                    key === 'shared/tip' || // Tips also require payment
+                    key === 'server/gift-cards' ||
+                    key === 'server/free-testing-credits') {
                     return filtered; // Skip this route
                 }
             }
@@ -2858,6 +2860,7 @@ changes to the documentation (to keep the documentation up to date).
             {settingsViews}
             {isMenuVisible}
             paymentEnabled={$demoMode || paymentEnabled}
+            {isSelfHosted}
             showProfileHeader={false}
             resolvedProfileImageUrl={resolvedProfileImageBlobUrl}
             bind:isIncognitoEnabled
