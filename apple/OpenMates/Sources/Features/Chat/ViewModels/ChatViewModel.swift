@@ -822,10 +822,10 @@ final class ChatViewModel: ObservableObject {
         chatLifecycleObserver = NotificationCenter.default.addObserver(
             forName: .wsMessageReceived, object: nil, queue: .main
         ) { [weak self] notification in
+            guard let type = notification.userInfo?["type"] as? String,
+                  let raw = notification.userInfo?["raw"] as? Data else { return }
             Task { @MainActor [weak self] in
-                guard let self,
-                      let type = notification.userInfo?["type"] as? String,
-                      let raw = notification.userInfo?["raw"] as? Data else { return }
+                guard let self else { return }
                 await self.handleChatLifecycleEvent(type: type, raw: raw, activeChatId: chatId)
             }
         }
