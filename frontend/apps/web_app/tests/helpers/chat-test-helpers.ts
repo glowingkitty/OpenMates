@@ -66,13 +66,6 @@ async function userMessagePersisted(
 		}
 	}
 
-	if (messageEditor && currentCount >= previousCount) {
-		const editorText = await messageEditor.innerText({ timeout: 1000 }).catch(() => '');
-		if ((editorText ?? '').trim() === '') {
-			return true;
-		}
-	}
-
 	const anchors = visibleMessageAnchors(message);
 	if (anchors.length === 0 || currentCount === 0) {
 		return false;
@@ -616,23 +609,32 @@ async function sendMessage(
 			lastSendDebug: lastSendDebugAfterClickAttempt,
 			diagnostics: diagnosticsBeforeFallback
 		})}`);
-
-		const domClickResult = await messageField.evaluate((field: HTMLElement) => {
-			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
-			if (!button) return false;
-			button.click();
-			return true;
-		});
-		if (domClickResult) {
-			logCheckpoint('Clicked send button via DOM fallback.');
+		if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
+			await messageEditor.click();
+			await page.keyboard.insertText(message);
+			logCheckpoint('Retyped message after editor reset before send button was available.');
+			await takeStepScreenshot(page, `${stepLabel}-message-retyped`);
+			await expect(sendButton).toBeVisible({ timeout: 5000 });
+			await sendButton.click({ timeout: 5000 });
+			logCheckpoint('Clicked send button after retyping message.');
 		} else {
-			const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-				return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+			const domClickResult = await messageField.evaluate((field: HTMLElement) => {
+				const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+				if (!button) return false;
+				button.click();
+				return true;
 			});
-			logCheckpoint(`Dispatched synthetic custom-send-message after missing send button; diagnostics=${JSON.stringify({
-				syntheticDispatchResult,
-				lastSendDebug: await readLastSendDebug()
-			})}`);
+			if (domClickResult) {
+				logCheckpoint('Clicked send button via DOM fallback.');
+			} else {
+				const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+					return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+				});
+				logCheckpoint(`Dispatched synthetic custom-send-message after missing send button; diagnostics=${JSON.stringify({
+					syntheticDispatchResult,
+					lastSendDebug: await readLastSendDebug()
+				})}`);
+			}
 		}
 	}
 	try {
