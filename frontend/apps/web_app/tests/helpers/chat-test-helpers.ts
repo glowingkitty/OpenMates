@@ -140,6 +140,33 @@ async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promi
 	return waitForAuthenticatedUi(page, authSignal, 20000);
 }
 
+async function hasStoredEmailSalt(page: any): Promise<boolean> {
+	return page.evaluate(() => {
+		return Boolean(
+			sessionStorage.getItem('openmates_email_salt') ||
+				localStorage.getItem('openmates_email_salt')
+		);
+	}).catch(() => false);
+}
+
+async function waitForEmailLookupReady(page: any): Promise<boolean> {
+	const passwordInput = page.locator('#login-password-input');
+	const passwordVisible = passwordInput.waitFor({ state: 'visible', timeout: 15000 })
+		.then(() => true)
+		.catch(() => false);
+	const saltReady = page.waitForFunction(
+		() => Boolean(
+			sessionStorage.getItem('openmates_email_salt') ||
+				localStorage.getItem('openmates_email_salt')
+		),
+		undefined,
+		{ timeout: 15000 }
+	).then(() => true).catch(() => false);
+
+	const [hasPasswordInput, hasSalt] = await Promise.all([passwordVisible, saltReady]);
+	return hasPasswordInput && hasSalt;
+}
+
 /**
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
@@ -218,13 +245,16 @@ async function loginToTestAccount(
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	// Retry if 429 hit on lookup — the EmailLookup component hides the form
-	// and shows a rate-limit message for 120s. To retry, we must clear the
-	// rate-limit flag from localStorage and reload the login interface so the
-	// form reappears. Max 3 retries with increasing back-off.
-	for (let retryCount = 0; retryCount < 3 && hit429; retryCount++) {
-		const waitSec = 5 + retryCount * 5;
-		logCheckpoint(`Hit 429 rate limit on lookup, waiting ${waitSec}s before retry ${retryCount + 1}...`);
+	// Retry if lookup fails before password login. 429 shows a rate-limit view,
+	// while transient 5xx/CORS failures can leave the password form visible but
+	// without the stored email salt required for password hash generation.
+	let lookupReady = await waitForEmailLookupReady(page);
+	for (let retryCount = 0; retryCount < 3 && (!lookupReady || hit429); retryCount++) {
+		const waitSec = hit429 ? 5 + retryCount * 5 : 3 + retryCount * 3;
+		const hasSalt = await hasStoredEmailSalt(page);
+		logCheckpoint(
+			`Email lookup not ready (hit429=${hit429}, hasSalt=${hasSalt}); waiting ${waitSec}s before retry ${retryCount + 1}...`
+		);
 		hit429 = false;
 		await page.waitForTimeout(waitSec * 1000);
 
@@ -247,6 +277,11 @@ async function loginToTestAccount(
 		await retryEmailInput.fill(TEST_EMAIL);
 		await page.getByRole('button', { name: /continue/i }).click();
 		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
+		lookupReady = await waitForEmailLookupReady(page);
+	}
+
+	if (!lookupReady) {
+		throw new Error('Login email lookup did not store the email salt or show a usable password step.');
 	}
 
 	const passwordInput = page.locator('#login-password-input');
