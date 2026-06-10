@@ -57,10 +57,10 @@ const linkedExampleChatCases = [
 		titlePattern: /buck|converter|24v|5v/i
 	},
 	{
-		appId: 'shopping',
-		skillId: 'search_products',
-		chatId: 'example-organic-groceries-berlin',
-		titlePattern: /organic|groceries|Berlin/i
+		appId: 'nutrition',
+		skillId: 'search_recipes',
+		chatId: 'example-chickpea-spinach-protein-dinners',
+		titlePattern: /chickpea|spinach|protein|dinners/i
 	},
 	{
 		appId: 'home',
