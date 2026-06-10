@@ -272,14 +272,12 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: failed
-        run_id: "2026-06-10T10:16:20Z / GitHub Actions 27269394386 / git 973b76f04"
-        timestamp: "2026-06-10T10:34:25Z"
+        status: passed_after_deploy
+        run_id: "2026-06-10T11:09:49Z / GitHub Actions 27272273776 / git 26f25a4ed"
+        timestamp: "2026-06-10T11:22:00Z"
         notes:
-          - Vercel deployed current dev before dispatch.
-          - First Playwright attempt failed before Code Run at shared login OTP wait after dev API/CORS failures.
-          - Retry reached turn 3 but failed existing final multi-turn invariant with only one finished code embed visible instead of three.
-          - This did not reach the new Code Run fullscreen overlay assertions and remains blocked by existing auth/API and multi-turn instability.
+          - Vercel deployed the tested dev commit before dispatch.
+          - Stabilized shared login lookup retry, multi-turn final embed assertion, and runtime CSS token color assertion before this green run.
 
   - id: T-WEB-SAVED-OUTPUT-E2E
     type: playwright
@@ -307,12 +305,12 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: failed
-        run_id: "2026-06-10T10:27:04Z / GitHub Actions 27269933329 / git 0a5bd9c62"
-        timestamp: "2026-06-10T10:34:25Z"
+        status: passed_after_deploy
+        run_id: "2026-06-10T11:17:57Z / GitHub Actions 27272517744 / git e2a7a3f43"
+        timestamp: "2026-06-10T11:22:00Z"
         notes:
-          - Vercel deployed current dev before dispatch.
-          - Spec failed before Code Run at shared login OTP wait, matching the dev auth/API instability seen in T-WEB-CODE-RUN-E2E.
+          - Vercel deployed the tested dev commit before dispatch.
+          - Saved Code Run output path passed after shared login lookup retry fix.
 
   - id: T-WEB-EMBED-SHOWCASE
     type: playwright
