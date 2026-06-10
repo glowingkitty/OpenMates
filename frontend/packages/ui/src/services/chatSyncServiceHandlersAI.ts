@@ -150,6 +150,27 @@ const pendingFinalizedEmbedFlushTimersByChat = new Map<
 const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
 
+function queuePendingFinalizedEmbed(
+  serviceInstance: ChatSynchronizationService,
+  embedData: EmbedDataPayload,
+  reason: string,
+): boolean {
+  if (!embedData.chat_id) return false;
+
+  let pendingForChat = pendingFinalizedEmbedsByChat.get(embedData.chat_id);
+  if (!pendingForChat) {
+    pendingForChat = new Map<string, EmbedDataPayload>();
+    pendingFinalizedEmbedsByChat.set(embedData.chat_id, pendingForChat);
+    pendingFinalizedEmbedQueuedAtByChat.set(embedData.chat_id, Date.now());
+  }
+  pendingForChat.set(embedData.embed_id, embedData);
+  schedulePendingFinalizedEmbedsFlush(serviceInstance, embedData.chat_id);
+  console.warn(
+    `[ChatSyncService:AI] Queued finalized embed ${embedData.embed_id}; ${reason}`,
+  );
+  return true;
+}
+
 // OPE-360: ai_typing_started payloads queued when the chat shell doesn't yet
 // exist on a secondary device. Flushed after the corresponding new_chat_message
 // arrives and creates the shell. See `handleNewChatMessageImpl` for the
@@ -244,7 +265,7 @@ function schedulePendingFinalizedEmbedsFlush(
       const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
       if (!pendingForChat) return;
 
-      if (await chatDB.getChat(chatId)) {
+      if (await chatDB.getChat(chatId) && chatKeyManager.getKeySync(chatId)) {
         await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
       }
 
@@ -254,7 +275,7 @@ function schedulePendingFinalizedEmbedsFlush(
         pendingFinalizedEmbedsByChat.delete(chatId);
         pendingFinalizedEmbedQueuedAtByChat.delete(chatId);
         console.warn(
-          `[ChatSyncService:AI] Dropped queued finalized embed payloads for chat ${chatId} after waiting ${PENDING_FINALIZED_EMBED_TTL_MS}ms for the chat shell`,
+          `[ChatSyncService:AI] Dropped queued finalized embed payloads for chat ${chatId} after waiting ${PENDING_FINALIZED_EMBED_TTL_MS}ms for the chat shell/key`,
         );
         return;
       }
@@ -877,8 +898,14 @@ export async function handleAIBackgroundResponseCompletedImpl(
       // messages_v for non-incognito chats. Local increments cause drift
       // when this code and the broadcast handler race against each other.
       // Only update last_edited_overall_timestamp (safe, no version drift risk).
+      //
+      // CRITICAL: Re-read the current chat before writing to avoid clobbering
+      // messages_v that `handleChatMessageReceivedImpl` may have set since our
+      // initial read at line 758. The stale `chat` object still has the pre-save
+      // version, so spreading it would overwrite the authoritative value.
+      const currentChat = (await chatDB.getChat(payload.chat_id)) || chat;
       const updatedChat: Chat = {
-        ...chat,
+        ...currentChat,
         last_edited_overall_timestamp: newLastEdited,
       };
       await chatDB.updateChat(updatedChat);
@@ -1903,10 +1930,10 @@ export function handleMessageQueuedImpl(
  * Handle AI response storage confirmation from server
  * This confirms that the encrypted AI response has been stored in Directus
  */
-export function handleAIResponseStorageConfirmedImpl(
+export async function handleAIResponseStorageConfirmedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: { chat_id: string; message_id: string; task_id?: string },
-): void {
+): Promise<void> {
   console.info(
     "[ChatSyncService:AI] Received 'ai_response_storage_confirmed':",
     payload,
@@ -1914,6 +1941,31 @@ export function handleAIResponseStorageConfirmedImpl(
 
   // Unmark message as syncing
   serviceInstance.unmarkMessageSyncing(payload.message_id);
+
+  // Update messages_v in IndexedDB to reflect the AI response.
+  // The server does NOT broadcast a chat_message_added event for AI responses,
+  // so handleChatMessageReceivedImpl (the sole writer of messages_v from
+  // server broadcasts) never fires for AI responses. We must update locally.
+  // This is safe because no chat_message_added broadcast races with AI
+  // response completion — the user message broadcast has already been
+  // processed before the AI typing even started.
+  try {
+    const chat = await chatDB.getChat(payload.chat_id);
+    if (chat) {
+      chat.messages_v = (chat.messages_v || 0) + 1;
+      chat.updated_at = Math.floor(Date.now() / 1000);
+      await chatDB.updateChat(chat);
+    } else {
+      console.warn(
+        `[ChatSyncService:AI] Chat ${payload.chat_id} not found for messages_v update after AI storage confirmation`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] Error updating messages_v for chat ${payload.chat_id}:`,
+      error,
+    );
+  }
 
   // Dispatch event to notify components that AI response storage is confirmed
   serviceInstance.dispatchEvent(
@@ -3381,22 +3433,42 @@ export async function handleSendEmbedDataImpl(
       // FINALIZED STATUS (completed/etc): Full encryption and persistence
       // ============================================================
       // Background WebSocket events can arrive before this tab has created the
-      // chat shell. Without the local chat record there is no encrypted_chat_key
-      // to validate against, so queue the plaintext payload until new_chat_message
-      // creates the shell and can safely flush it through this same handler.
-      if (embedData.chat_id && !(await chatDB.getChat(embedData.chat_id))) {
-        let pendingForChat = pendingFinalizedEmbedsByChat.get(embedData.chat_id);
-        if (!pendingForChat) {
-          pendingForChat = new Map<string, EmbedDataPayload>();
-          pendingFinalizedEmbedsByChat.set(embedData.chat_id, pendingForChat);
-          pendingFinalizedEmbedQueuedAtByChat.set(embedData.chat_id, Date.now());
+      // chat shell or before key delivery has warmed ChatKeyManager. Queue the
+      // plaintext payload until it can be safely encrypted with the real chat key.
+      if (embedData.chat_id) {
+        if (!(await chatDB.getChat(embedData.chat_id))) {
+          if (
+            queuePendingFinalizedEmbed(
+              serviceInstance,
+              embedData,
+              `local chat ${embedData.chat_id} is not available yet`,
+            )
+          ) {
+            return;
+          }
         }
-        pendingForChat.set(embedData.embed_id, embedData);
-        schedulePendingFinalizedEmbedsFlush(serviceInstance, embedData.chat_id);
-        console.warn(
-          `[ChatSyncService:AI] Queued finalized embed ${embedData.embed_id}; local chat ${embedData.chat_id} is not available yet`,
-        );
-        return;
+
+        const chatKeyForEmbed =
+          chatKeyManager.getKeySync(embedData.chat_id) ||
+          (await chatKeyManager.getKey(embedData.chat_id));
+        if (
+          !chatKeyForEmbed ||
+          !(await ensureChatKeySafeForWrite(
+            embedData.chat_id,
+            chatKeyForEmbed,
+            "finalized embed deferred processing",
+          ))
+        ) {
+          if (
+            queuePendingFinalizedEmbed(
+              serviceInstance,
+              embedData,
+              `chat key for ${embedData.chat_id} is not available yet`,
+            )
+          ) {
+            return;
+          }
+        }
       }
 
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
