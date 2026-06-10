@@ -910,10 +910,11 @@ async function waitForAssistantMessage(
 
 	const shouldWaitForNewAssistant = lastSendState && (which !== 'first' || lastSendState.assistantCount === 0);
 	if (shouldWaitForNewAssistant) {
+		const currentAssistantCount = await locatorCount(assistantMessages);
 		const minimumAssistantCount =
 			typeof nth === 'number'
 				? Math.max(nth + 1, lastSendState.assistantCount + 1)
-				: lastSendState.assistantCount + 1;
+				: Math.min(lastSendState.assistantCount + 1, currentAssistantCount + 1);
 		await expect
 			.poll(async () => await locatorCount(assistantMessages), { timeout: budget() })
 			.toBeGreaterThanOrEqual(minimumAssistantCount);
