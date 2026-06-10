@@ -1,0 +1,898 @@
+title:
+  context: "Title of example chat: Saved travel connection memory"
+  en: "Saved travel connection memory"
+  de: "Saved travel connection memory"
+  zh: "Saved travel connection memory"
+  es: "Saved travel connection memory"
+  fr: "Saved travel connection memory"
+  pt: "Saved travel connection memory"
+  ru: "Saved travel connection memory"
+  ja: "Saved travel connection memory"
+  ko: "Saved travel connection memory"
+  it: "Saved travel connection memory"
+  tr: "Saved travel connection memory"
+  vi: "Saved travel connection memory"
+  id: "Saved travel connection memory"
+  pl: "Saved travel connection memory"
+  nl: "Saved travel connection memory"
+  ar: "Saved travel connection memory"
+  hi: "Saved travel connection memory"
+  th: "Saved travel connection memory"
+  cs: "Saved travel connection memory"
+  sv: "Saved travel connection memory"
+  he: "Saved travel connection memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Saved travel connection memory"
+  en: "See how a saved train connection memory becomes a trip preparation checklist."
+  de: "See how a saved train connection memory becomes a trip preparation checklist."
+  zh: "See how a saved train connection memory becomes a trip preparation checklist."
+  es: "See how a saved train connection memory becomes a trip preparation checklist."
+  fr: "See how a saved train connection memory becomes a trip preparation checklist."
+  pt: "See how a saved train connection memory becomes a trip preparation checklist."
+  ru: "See how a saved train connection memory becomes a trip preparation checklist."
+  ja: "See how a saved train connection memory becomes a trip preparation checklist."
+  ko: "See how a saved train connection memory becomes a trip preparation checklist."
+  it: "See how a saved train connection memory becomes a trip preparation checklist."
+  tr: "See how a saved train connection memory becomes a trip preparation checklist."
+  vi: "See how a saved train connection memory becomes a trip preparation checklist."
+  id: "See how a saved train connection memory becomes a trip preparation checklist."
+  pl: "See how a saved train connection memory becomes a trip preparation checklist."
+  nl: "See how a saved train connection memory becomes a trip preparation checklist."
+  ar: "See how a saved train connection memory becomes a trip preparation checklist."
+  hi: "See how a saved train connection memory becomes a trip preparation checklist."
+  th: "See how a saved train connection memory becomes a trip preparation checklist."
+  cs: "See how a saved train connection memory becomes a trip preparation checklist."
+  sv: "See how a saved train connection memory becomes a trip preparation checklist."
+  he: "See how a saved train connection memory becomes a trip preparation checklist."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Saved travel connection memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  de: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  zh: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  es: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  fr: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  pt: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  ru: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  ja: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  ko: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  it: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  tr: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  vi: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  id: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  pl: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  nl: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  ar: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  hi: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  th: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  cs: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  sv: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  he: "Use my saved travel connection memory to suggest what I should prepare before this trip."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Saved travel connection memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "7305bc20-29ec-4f35-9e70-3cbd87fac0b8", "app_id": "web", "skill_id": "search", "query": "travel requirements Berlin to Prague 2026 train tips", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9d471d81-a670-45d8-a81e-21e82f0b9967", "app_id": "images", "skill_id": "search", "query": "Prague old town square summer", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved travel connections for your upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on **July 4th** and **August 12th, 2026**, here are the key preparations you should make.
+    
+    ### 1. Mandatory Seat Reservations
+    For your July 4th trip, you must act soon: between **June 15 and August 31, 2026**, seat reservations are **mandatory** for all [EuroCity](wiki:EuroCity) and [ComfortJet](wiki:ComfortJet) trains between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic).
+    > [from June 15 to August 31, it will only be possible to travel from the Czech Republic to Germany and back with seat reservations](embed:ceskedrahy.cz-Kgx)
+    
+    ### 2. Seating and Scenery
+    *   **July 4th Trip:** You noted a preference for a **window seat**. For the most scenic views of the [Elbe River](wiki:Elbe) and the sandstone cliffs of [Saxon Switzerland](wiki:Saxon_Switzerland) (between [Bad Schandau](wiki:Bad_Schandau) and [Děčín](wiki:D%C4%9B%C4%8D%C3%ADn)), try to book a seat on the **left side** of the train in the direction of travel.
+    *   **August 12th Trip:** You specified a **quiet coach**. When booking through [Deutsche Bahn](wiki:Deutsche_Bahn) or [České dráhy](wiki:%C4%8Cesk%C3%A9_dr%C3%A1hy), look for the "Ruhebereich" (quiet zone) icon to ensure you get the environment you prefer.
+    
+    ### 3. Food and Catering
+    For your July trip, your note says "**bring lunch**." While the 2026 [ComfortJet](wiki:ComfortJet) trains feature modern restaurant cars, bringing your own meal is a great way to ensure you have exactly what you like during the ~4.5-hour journey. 
+    *   **Tip:** If you forget, there are several bakeries and grocery stores at [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) near the platforms.
+    
+    ### 4. Destination Logistics
+    *   **Currency:** The [Czech Republic](wiki:Czech_Republic) uses the [Czech koruna](wiki:Czech_koruna) (CZK). While cards are widely accepted in Prague, it’s helpful to have a small amount of cash for local markets or smaller cafes.
+    *   **Arrival:** When you arrive at Prague Main Station (Praha hl.n.), you can access the city center via **Metro Line C**.
+    
+    [!](embed:us.trip.com-DGw)
+    [!](embed:us.trip.com-V0X)
+    [!](embed:us.trip.com-vBl)
+    [!](embed:us.trip.com-tFK)
+    
+    ```json
+    {"type": "document", "embed_id": "60286faa-c2c7-47ad-b1af-4ab4ab5571e3"}
+    ```
+    
+    
+    
+    Would you like me to [set a reminder](/#settings/apps/reminder) for you to pack your lunch or book your seat reservations before the June 15th deadline? You could also [search for hotels in Prague](/#settings/apps/travel) near the main station if you haven't booked accommodation yet.
+  verified_by_human: []
+

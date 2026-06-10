@@ -43,7 +43,12 @@ import {
   clearSyncCache,
   isSyncCacheFresh,
 } from "./storage.js";
-import { OpenMatesWsClient, type SendEmbedDataFrame, type SubChatEvent } from "./ws.js";
+import {
+  OpenMatesWsClient,
+  type AppSettingsMemoriesRequestEvent,
+  type SendEmbedDataFrame,
+  type SubChatEvent,
+} from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
@@ -196,10 +201,9 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       title: { type: "string" },
       tone: {
         type: "string",
-        enum: ["formal", "casual", "friendly", "professional"],
+        enum: ["formal", "casual", "friendly", "professional", "conversational"],
       },
-      verbosity: { type: "string", enum: ["concise", "balanced", "detailed"] },
-      notes: { type: "string" },
+      verbosity: { type: "string", enum: ["concise", "balanced", "detailed", "very_detailed"] },
     },
   },
   "ai/learning_preferences": {
@@ -211,11 +215,11 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       title: { type: "string" },
       learning_type: {
         type: "string",
-        enum: ["visual", "reading", "hands_on", "audio", "mixed"],
+        enum: ["visual", "auditory", "reading", "hands-on", "video", "interactive", "written", "discussion"],
       },
       preference_strength: {
         type: "string",
-        enum: ["strong", "moderate", "slight"],
+        enum: ["strongly_prefer", "prefer", "neutral", "avoid"],
       },
       notes: { type: "string" },
     },
@@ -279,7 +283,7 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       name: { type: "string" },
       status: {
         type: "string",
-        enum: ["active", "paused", "completed", "archived"],
+        enum: ["active", "planned", "completed"],
       },
       description: { type: "string" },
       git_repo_url: { type: "string" },
@@ -300,12 +304,12 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     properties: {
       workspace: {
         type: "string",
-        enum: ["local", "remote", "cloud", "mixed"],
+        enum: ["ide", "terminal", "web_ui", "mixed"],
       },
-      ai_level: { type: "string", enum: ["minimal", "moderate", "extensive"] },
+      ai_level: { type: "string", enum: ["off", "low", "medium", "high"] },
       input_style: {
         type: "string",
-        enum: ["keyboard_only", "mixed", "voice_primary"],
+        enum: ["guided_choices", "free_text", "mixed"],
       },
       notes: { type: "string" },
     },
@@ -317,12 +321,30 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["name"],
     properties: { name: { type: "string" }, description: { type: "string" } },
   },
+  "events/saved_events": {
+    appId: "events",
+    itemType: "saved_events",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
+      provider: { type: "string" },
+      url: { type: "string" },
+      date_start: { type: "string" },
+      date_end: { type: "string" },
+      location: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
   "health/appointments": {
     appId: "health",
     itemType: "appointments",
     entryType: "list",
     required: ["appointment_type", "date"],
     properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
       appointment_type: { type: "string" },
       where: { type: "string" },
       date: { type: "string" },
@@ -339,16 +361,33 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
         type: "string",
         enum: [
           "surgery",
-          "condition",
+          "chronic_condition",
           "allergy",
           "medication",
           "vaccination",
+          "injury",
           "other",
         ],
       },
       name: { type: "string" },
       date: { type: "string" },
       details: { type: "string" },
+    },
+  },
+  "home/saved_listings": {
+    appId: "home",
+    itemType: "saved_listings",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
+      url: { type: "string" },
+      provider: { type: "string" },
+      price_label: { type: "string" },
+      address: { type: "string" },
+      available_from: { type: "string" },
+      notes: { type: "string" },
     },
   },
   "images/preferred_styles": {
@@ -370,12 +409,16 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       footer: { type: "string" },
     },
   },
-  "maps/favorite_places": {
-    appId: "maps",
-    itemType: "favorite_places",
+  "reminder/saved_item_reminder_defaults": {
+    appId: "reminder",
+    itemType: "saved_item_reminder_defaults",
     entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" }, address: { type: "string" } },
+    required: ["item_kind", "offsets_minutes"],
+    properties: {
+      item_kind: { type: "string", enum: ["event", "travel_connection", "travel_stay", "home_listing", "health_appointment"] },
+      offsets_minutes: { type: "string" },
+      notes: { type: "string" },
+    },
   },
   "study/learning_goals": {
     appId: "study",
@@ -404,6 +447,40 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       notes: { type: "string" },
     },
   },
+  "travel/saved_connections": {
+    appId: "travel",
+    itemType: "saved_connections",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
+      transport_method: { type: "string" },
+      origin: { type: "string" },
+      destination: { type: "string" },
+      departure: { type: "string" },
+      arrival: { type: "string" },
+      booking_url: { type: "string" },
+      provider: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "travel/saved_stays": {
+    appId: "travel",
+    itemType: "saved_stays",
+    entryType: "list",
+    required: ["name"],
+    properties: {
+      embed_id: { type: "string" },
+      name: { type: "string" },
+      property_type: { type: "string" },
+      url: { type: "string" },
+      price: { type: "string" },
+      rating: { type: "number" },
+      location: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
   "travel/preferred_airlines": {
     appId: "travel",
     itemType: "preferred_airlines",
@@ -416,7 +493,9 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     itemType: "preferred_transport_methods",
     entryType: "list",
     required: ["method"],
-    properties: { method: { type: "string" } },
+    properties: {
+      method: { type: "string", enum: ["bike", "public_transport", "train", "plane", "car", "walking"] },
+    },
   },
   "travel/preferred_activities": {
     appId: "travel",
@@ -432,12 +511,12 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["title"],
     properties: {
       title: { type: "string" },
-      year: { type: "number" },
+      year: { type: "integer" },
       director: { type: "string" },
       rating: { type: "number" },
-      tmdb_id: { type: "number" },
+      tmdb_id: { type: "integer" },
       notes: { type: "string" },
-      genre: { type: "string" },
+      genre: { type: "array" },
     },
   },
   "tv/watched_tv_shows": {
@@ -447,17 +526,17 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["title"],
     properties: {
       title: { type: "string" },
-      year: { type: "number" },
-      tmdb_id: { type: "number" },
+      year: { type: "integer" },
+      tmdb_id: { type: "integer" },
       status: {
         type: "string",
-        enum: ["watching", "completed", "dropped", "on_hold"],
+        enum: ["watching", "completed", "on_hold", "dropped"],
       },
-      seasons_watched: { type: "number" },
+      seasons_watched: { type: "integer" },
       latest_episode: { type: "string" },
       rating: { type: "number" },
       notes: { type: "string" },
-      genre: { type: "string" },
+      genre: { type: "array" },
     },
   },
   "tv/to_watch_list": {
@@ -467,12 +546,12 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["title", "type"],
     properties: {
       title: { type: "string" },
-      year: { type: "number" },
+      year: { type: "integer" },
       type: { type: "string", enum: ["movie", "tv_show"] },
-      tmdb_id: { type: "number" },
+      tmdb_id: { type: "integer" },
       director: { type: "string" },
       priority: { type: "string", enum: ["high", "medium", "low"] },
-      genre: { type: "string" },
+      genre: { type: "array" },
       reason: { type: "string" },
     },
   },
@@ -1793,6 +1872,8 @@ export class OpenMatesClient {
     ) => boolean | Promise<boolean>;
     /** Explicit opt-in for automatic sub-chat approval in non-interactive runs. */
     autoApproveSubChats?: boolean;
+    /** Explicit opt-in to approve server-requested memory categories in non-interactive runs. */
+    autoApproveMemories?: boolean;
     /** Encrypted file embeds to attach to the message (code, images, PDFs). */
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
@@ -1807,6 +1888,13 @@ export class OpenMatesClient {
     followUpSuggestions: string[];
     /** Sub-chat lifecycle frames observed while collecting the parent response. */
     subChatEvents: SubChatEvent[];
+    /** Memory permission requests observed and optionally approved while collecting the response. */
+    appSettingsMemoryRequests: Array<{
+      requestId: string | null;
+      requestedKeys: string[];
+      approvedKeys: string[];
+      entryCount: number;
+    }>;
   }> {
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
@@ -1824,6 +1912,26 @@ export class OpenMatesClient {
       chatId = resolved;
     } else {
       chatId = params.chatId;
+    }
+
+    let availableMemories: DecryptedMemoryEntry[] = [];
+    let memoryMetadataKeys: string[] = [];
+    if (!params.incognito) {
+      try {
+        availableMemories = await this.listMemories();
+        memoryMetadataKeys = [
+          ...new Set(
+            availableMemories
+              .filter((memory) => memory.app_id && memory.item_type)
+              .map((memory) => `${memory.app_id}-${memory.item_type}`),
+          ),
+        ];
+      } catch (error) {
+        if (params.autoApproveMemories) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to load memories for auto-approval: ${message}`);
+        }
+      }
     }
 
     const { ws, session } = await this.openWsClient();
@@ -1851,6 +1959,10 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
+
+    if (memoryMetadataKeys.length > 0) {
+      messagePayload.app_settings_memories_metadata = memoryMetadataKeys;
+    }
 
     // For non-incognito chats, resolve or generate the chat key and include
     // the encrypted_chat_key in Phase 1 so the server can store it for sync.
@@ -1975,6 +2087,12 @@ export class OpenMatesClient {
     let modelName: string | null = null;
     let followUpSuggestions: string[] = [];
     let subChatEvents: SubChatEvent[] = [];
+    const appSettingsMemoryRequests: Array<{
+      requestId: string | null;
+      requestedKeys: string[];
+      approvedKeys: string[];
+      entryCount: number;
+    }> = [];
 
     const numberOrNull = (value: unknown): number | null =>
       typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -2063,9 +2181,55 @@ export class OpenMatesClient {
       );
     };
 
+    const handleAppSettingsMemoriesRequest = async (
+      event: AppSettingsMemoriesRequestEvent,
+    ) => {
+      if (!params.autoApproveMemories) {
+        throw new Error(
+          `The assistant requested memories (${event.requestedKeys.join(", ")}). ` +
+            "Rerun with --auto-approve-memories to approve requested memory categories from the CLI, " +
+            "or continue this chat in the web app.",
+        );
+      }
+
+      const requested = new Set(event.requestedKeys);
+      const unadvertisedKeys = event.requestedKeys.filter(
+        (key) => !memoryMetadataKeys.includes(key),
+      );
+      if (unadvertisedKeys.length > 0) {
+        throw new Error(
+          `Refusing to auto-approve unadvertised memory categories: ${unadvertisedKeys.join(", ")}`,
+        );
+      }
+
+      const approvedMemories = availableMemories
+        .filter((memory) => requested.has(`${memory.app_id}-${memory.item_type}`))
+        .map((memory) => ({
+          app_id: memory.app_id,
+          item_key: memory.item_type,
+          content: memory.data,
+        }));
+      const approvedKeys = [
+        ...new Set(approvedMemories.map((memory) => `${memory.app_id}-${memory.item_key}`)),
+      ];
+
+      appSettingsMemoryRequests.push({
+        requestId: event.requestId,
+        requestedKeys: event.requestedKeys,
+        approvedKeys,
+        entryCount: approvedMemories.length,
+      });
+
+      await ws.sendAsync("app_settings_memories_confirmed", {
+        chat_id: event.chatId,
+        app_settings_memories: approvedMemories,
+      });
+    };
+
     const streamOpts = {
       onStream: params.onStream,
       onSubChatEvent: handleSubChatEvent,
+      onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
     };
 
     if (params.incognito) {
@@ -2154,6 +2318,7 @@ export class OpenMatesClient {
       mateName,
       followUpSuggestions,
       subChatEvents,
+      appSettingsMemoryRequests,
     };
   }
 

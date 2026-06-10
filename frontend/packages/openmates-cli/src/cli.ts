@@ -289,6 +289,7 @@ async function handleChats(
         incognito: false,
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
       },
       redactor,
     );
@@ -380,6 +381,7 @@ async function handleChats(
         incognito: flags.incognito === true,
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
       },
       redactor,
     );
@@ -400,6 +402,7 @@ async function handleChats(
         incognito: true,
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
       },
       redactor,
     );
@@ -3191,6 +3194,7 @@ async function sendMessageStreaming(
     incognito?: boolean;
     json?: boolean;
     autoApproveSubChats?: boolean;
+    autoApproveMemories?: boolean;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -3201,6 +3205,12 @@ async function sendMessageStreaming(
   mateName: string | null;
   followUpSuggestions: string[];
   subChatEvents: SubChatEvent[];
+  appSettingsMemoryRequests: Array<{
+    requestId: string | null;
+    requestedKeys: string[];
+    approvedKeys: string[];
+    entryCount: number;
+  }>;
 }> {
   let headerPrinted = false;
   let typingShown = false;
@@ -3559,6 +3569,7 @@ async function sendMessageStreaming(
     onSubChatEvent,
     onSubChatApprovalRequest,
     autoApproveSubChats: params.autoApproveSubChats,
+    autoApproveMemories: params.autoApproveMemories,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
   });
 
@@ -5280,9 +5291,9 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--auto-approve]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve]
-  openmates chats send --chat <id> --followup <n> [--json] [--auto-approve]
+  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
@@ -5310,8 +5321,10 @@ Options for 'send':
   --incognito      Send without saving to chat history
 
 Options for 'new', 'send', and 'incognito':
-  --auto-approve   Automatically approve server-requested sub-chat batches.
-                   Without this, the CLI prompts in the terminal like the web app.
+  --auto-approve           Automatically approve server-requested sub-chat batches.
+                           Without this, the CLI prompts in the terminal like the web app.
+  --auto-approve-memories  Automatically approve server-requested memory categories.
+                           Use only for trusted non-interactive runs.
 
 Options for 'download':
   --output <path>  Target directory (default: current directory)

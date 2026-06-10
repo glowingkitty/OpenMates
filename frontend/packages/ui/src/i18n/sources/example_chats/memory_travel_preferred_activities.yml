@@ -1,0 +1,961 @@
+title:
+  context: "Title of example chat: Preferred travel activity memory"
+  en: "Preferred travel activity memory"
+  de: "Preferred travel activity memory"
+  zh: "Preferred travel activity memory"
+  es: "Preferred travel activity memory"
+  fr: "Preferred travel activity memory"
+  pt: "Preferred travel activity memory"
+  ru: "Preferred travel activity memory"
+  ja: "Preferred travel activity memory"
+  ko: "Preferred travel activity memory"
+  it: "Preferred travel activity memory"
+  tr: "Preferred travel activity memory"
+  vi: "Preferred travel activity memory"
+  id: "Preferred travel activity memory"
+  pl: "Preferred travel activity memory"
+  nl: "Preferred travel activity memory"
+  ar: "Preferred travel activity memory"
+  hi: "Preferred travel activity memory"
+  th: "Preferred travel activity memory"
+  cs: "Preferred travel activity memory"
+  sv: "Preferred travel activity memory"
+  he: "Preferred travel activity memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Preferred travel activity memory"
+  en: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  de: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  zh: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  es: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  fr: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  pt: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  ru: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  ja: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  ko: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  it: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  tr: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  vi: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  id: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  pl: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  nl: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  ar: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  hi: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  th: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  cs: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  sv: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  he: "See how a saved travel activity memory suggests an enjoyable city afternoon."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Preferred travel activity memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  de: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  zh: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  es: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  fr: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  pt: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  ru: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  ja: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  ko: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  it: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  tr: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  vi: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  id: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  pl: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  nl: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  ar: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  hi: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  th: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  cs: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  sv: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  he: "Use my saved travel activity memory to suggest what kind of afternoon plan I would probably enjoy in a new city."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Preferred travel activity memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "4acacb44-fb75-4e5b-a3a4-206c21586469", "app_id": "images", "skill_id": "search", "query": "vibrant local food market stalls street food tour guide", "provider": "Brave Search"}
+    ```
+    
+    Based on what you've shared in your [travel activities](/#settings/app_store/travel/settings_memories/preferred_activities), you have a clear preference for authentic culinary experiences, specifically **local food markets** and **small local food tours**. 
+    
+    When exploring a new city, you would likely find a "Flavor & Folklore" afternoon to be the most fulfilling. Here is a plan tailored to your interests:
+    
+    ### Your Ideal Afternoon Itinerary
+    *   **2:00 PM: The Market Immersion** 
+        Head to the city's oldest public market. Instead of just browsing the tourist stalls, look for where the locals are buying their daily produce or [gourmet](wiki:Gourmet) specialties. This is often where you'll find the most authentic atmosphere and unique regional ingredients.
+    *   **4:00 PM: Guided Small-Group Tasting**
+        Join a curated [street food](wiki:Street_food) tour with a local guide. Since you prefer small groups, this allows for a more intimate conversation about the history of the dishes and the culture of the neighborhood.
+    *   **7:00 PM: The "Insider" Follow-up**
+        End your afternoon at a small, family-run eatery that your guide pointed out during the tour—one that isn't featured in the major guidebooks.
+    
+    [!](embed:getyourguide.com-mPV)
+    [!](embed:getyourguide.com-BGS)
+    [!](embed:veronikasadventure.com-BOC)
+    [!](embed:veronikasadventure.com-qG4)
+    
+    Exploring through food is a wonderful way to build a sense of [belonging](wiki:Belongingness) in a new place, as it connects you directly with the people and traditions that make a city unique.
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "city_selection",
+      "fields": [
+        {
+          "id": "destination",
+          "label": "Is there a specific city you're planning to visit soon?",
+          "placeholder": "e.g., Tokyo, Mexico City, Lisbon...",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2ede2ca2-f05d-4e5d-a49b-00f13ffd13b1"}
+    ```
+    
+    
+  verified_by_human: []
+

@@ -54,6 +54,7 @@ writeLegacySession();
 
 const {
   OpenMatesClient,
+  MEMORY_TYPE_REGISTRY,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
 } = await import("../src/client.ts");
@@ -119,6 +120,43 @@ describe("OpenMatesClient session API URL", () => {
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+});
+
+describe("memory type registry", () => {
+  it("covers all production memory types needed by CLI memory commands", () => {
+    assert.deepEqual(Object.keys(MEMORY_TYPE_REGISTRY).sort(), [
+      "ai/communication_style",
+      "ai/learning_preferences",
+      "books/currently_reading",
+      "books/favorite_books",
+      "books/to_read_list",
+      "code/coding_setup",
+      "code/preferred_tech",
+      "code/projects",
+      "code/want_to_learn",
+      "docs/writing_style",
+      "events/saved_events",
+      "health/appointments",
+      "health/medical_history",
+      "home/saved_listings",
+      "images/preferred_styles",
+      "mail/writing_styles",
+      "reminder/saved_item_reminder_defaults",
+      "study/learning_goals",
+      "travel/preferred_activities",
+      "travel/preferred_airlines",
+      "travel/preferred_transport_methods",
+      "travel/saved_connections",
+      "travel/saved_stays",
+      "travel/trips",
+      "tv/to_watch_list",
+      "tv/watched_movies",
+      "tv/watched_tv_shows",
+      "videos/to_watch_list",
+      "web/bookmarks",
+      "web/read_later",
+    ]);
   });
 });
 

@@ -1,0 +1,1003 @@
+title:
+  context: "Title of example chat: Email writing style memory"
+  en: "Email writing style memory"
+  de: "Email writing style memory"
+  zh: "Email writing style memory"
+  es: "Email writing style memory"
+  fr: "Email writing style memory"
+  pt: "Email writing style memory"
+  ru: "Email writing style memory"
+  ja: "Email writing style memory"
+  ko: "Email writing style memory"
+  it: "Email writing style memory"
+  tr: "Email writing style memory"
+  vi: "Email writing style memory"
+  id: "Email writing style memory"
+  pl: "Email writing style memory"
+  nl: "Email writing style memory"
+  ar: "Email writing style memory"
+  hi: "Email writing style memory"
+  th: "Email writing style memory"
+  cs: "Email writing style memory"
+  sv: "Email writing style memory"
+  he: "Email writing style memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Email writing style memory"
+  en: "See how a saved email style memory shapes a concise client update draft."
+  de: "See how a saved email style memory shapes a concise client update draft."
+  zh: "See how a saved email style memory shapes a concise client update draft."
+  es: "See how a saved email style memory shapes a concise client update draft."
+  fr: "See how a saved email style memory shapes a concise client update draft."
+  pt: "See how a saved email style memory shapes a concise client update draft."
+  ru: "See how a saved email style memory shapes a concise client update draft."
+  ja: "See how a saved email style memory shapes a concise client update draft."
+  ko: "See how a saved email style memory shapes a concise client update draft."
+  it: "See how a saved email style memory shapes a concise client update draft."
+  tr: "See how a saved email style memory shapes a concise client update draft."
+  vi: "See how a saved email style memory shapes a concise client update draft."
+  id: "See how a saved email style memory shapes a concise client update draft."
+  pl: "See how a saved email style memory shapes a concise client update draft."
+  nl: "See how a saved email style memory shapes a concise client update draft."
+  ar: "See how a saved email style memory shapes a concise client update draft."
+  hi: "See how a saved email style memory shapes a concise client update draft."
+  th: "See how a saved email style memory shapes a concise client update draft."
+  cs: "See how a saved email style memory shapes a concise client update draft."
+  sv: "See how a saved email style memory shapes a concise client update draft."
+  he: "See how a saved email style memory shapes a concise client update draft."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Email writing style memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  de: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  zh: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  es: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  fr: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  pt: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  ru: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  ja: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  ko: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  it: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  tr: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  vi: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  id: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  pl: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  nl: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  ar: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  hi: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  th: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  cs: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  sv: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  he: "Use my saved email writing style memory to draft a short Friday progress update to a client."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Email writing style memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  de: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  zh: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  es: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  fr: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  pt: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  ru: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  ja: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  ko: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  it: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  tr: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  vi: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  id: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  pl: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  nl: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  ar: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  hi: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  th: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  cs: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  sv: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  he: |
+    Based on your **Friday client update** writing style from your [mail settings](/#settings/apps/mail), I've prepared a draft for you. This style focuses on being warm, concise, and specific, with clear bullet points for next steps.
+    
+    ***
+    
+    **Subject:** Progress Update: [Project Name] | Friday, June 12
+    
+    Hi [Client Name],
+    
+    I hope you’ve had a productive week! 
+    
+    We’ve made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.
+    
+    **Next steps:**
+    * [Action Item 1] – Scheduled for completion by [Day]
+    * [Action Item 2] – Internal review of [Deliverable]
+    * [Action Item 3] – Follow-up meeting on [Date/Time]
+    
+    I'll keep you posted as these items progress. Have a wonderful weekend!
+    
+    Best,  
+    Alex
+    
+    ***
+    
+    Would you like me to save this as a draft in your email account, or should we adjust any of the details first?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "draft_action",
+      "multiple": false,
+      "question": "What would you like to do with this draft?",
+      "options": [
+        { "id": "save_draft", "text": "Save as draft in Mail app" },
+        { "id": "edit_tone", "text": "Adjust the tone" },
+        { "id": "add_details", "text": "Add specific project details" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    ```
+    
+    
+  verified_by_human: []
+

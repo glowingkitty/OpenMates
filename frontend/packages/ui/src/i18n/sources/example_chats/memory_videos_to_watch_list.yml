@@ -1,0 +1,373 @@
+title:
+  context: "Title of example chat: Video watchlist memory"
+  en: "Video watchlist memory"
+  de: "Video watchlist memory"
+  zh: "Video watchlist memory"
+  es: "Video watchlist memory"
+  fr: "Video watchlist memory"
+  pt: "Video watchlist memory"
+  ru: "Video watchlist memory"
+  ja: "Video watchlist memory"
+  ko: "Video watchlist memory"
+  it: "Video watchlist memory"
+  tr: "Video watchlist memory"
+  vi: "Video watchlist memory"
+  id: "Video watchlist memory"
+  pl: "Video watchlist memory"
+  nl: "Video watchlist memory"
+  ar: "Video watchlist memory"
+  hi: "Video watchlist memory"
+  th: "Video watchlist memory"
+  cs: "Video watchlist memory"
+  sv: "Video watchlist memory"
+  he: "Video watchlist memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Video watchlist memory"
+  en: "See how a saved video memory suggests a useful note-taking approach."
+  de: "See how a saved video memory suggests a useful note-taking approach."
+  zh: "See how a saved video memory suggests a useful note-taking approach."
+  es: "See how a saved video memory suggests a useful note-taking approach."
+  fr: "See how a saved video memory suggests a useful note-taking approach."
+  pt: "See how a saved video memory suggests a useful note-taking approach."
+  ru: "See how a saved video memory suggests a useful note-taking approach."
+  ja: "See how a saved video memory suggests a useful note-taking approach."
+  ko: "See how a saved video memory suggests a useful note-taking approach."
+  it: "See how a saved video memory suggests a useful note-taking approach."
+  tr: "See how a saved video memory suggests a useful note-taking approach."
+  vi: "See how a saved video memory suggests a useful note-taking approach."
+  id: "See how a saved video memory suggests a useful note-taking approach."
+  pl: "See how a saved video memory suggests a useful note-taking approach."
+  nl: "See how a saved video memory suggests a useful note-taking approach."
+  ar: "See how a saved video memory suggests a useful note-taking approach."
+  hi: "See how a saved video memory suggests a useful note-taking approach."
+  th: "See how a saved video memory suggests a useful note-taking approach."
+  cs: "See how a saved video memory suggests a useful note-taking approach."
+  sv: "See how a saved video memory suggests a useful note-taking approach."
+  he: "See how a saved video memory suggests a useful note-taking approach."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Video watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  de: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  zh: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  es: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  fr: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  pt: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  ru: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  ja: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  ko: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  it: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  tr: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  vi: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  id: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  pl: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  nl: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  ar: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  hi: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  th: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  cs: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  sv: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  he: "Plain text only, no links or embeds: use my saved video watchlist memory to suggest how I should take notes while watching tonight."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Video watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  de: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  zh: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  es: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  fr: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  pt: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  ru: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  ja: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  ko: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  it: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  tr: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  vi: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  id: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  pl: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  nl: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  ar: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  hi: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  th: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  cs: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  sv: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  he: |
+    Since you have the "Designing Data-Intensive Applications" talk saved on your watchlist, here are some effective ways to take notes for such a high-density technical session:
+    
+    1. **Focus on Trade-offs:** This talk (and the book it's based on) centers on the idea that there are no "perfect" solutions, only trade-offs. Create a two-column list for each technology or architecture discussed. On one side, list the problems it solves (pros), and on the other, the new complexities it introduces (cons).
+    
+    2. **The Cornell Method:** Divide your page into three sections. Use a wide right-hand column for the main talk notes, a narrow left-hand column for key terms like "linearizability," "idempotence," or "partitioning," and a bottom section to summarize the "Big Idea" of the talk in two sentences.
+    
+    3. **Architecture Mapping:** Instead of writing long sentences, draw simple box-and-arrow diagrams. When the speaker explains how data flows from a user to a database and then to a search index, sketching that movement will help you remember the system design better than text alone.
+    
+    4. **The "Why" Log:** Every time a specific tool or database is mentioned, ask yourself: "Why would I choose this over the alternative?" Documenting the reasoning behind technical choices is more valuable for your long-term growth than just listing tool names.
+    
+    5. **Glossary of Concepts:** High-level system design talks use specific jargon. Keep a small area of your notes dedicated to defining terms you aren't 100% sure about so you can look up the formal documentation later.
+    
+    Would you like me to help you summarize the main points of that talk once you've finished watching it? Or perhaps you'd like suggestions for other technical talks to add to your list?
+  verified_by_human: []
+

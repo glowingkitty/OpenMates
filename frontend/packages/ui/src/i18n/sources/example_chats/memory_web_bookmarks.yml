@@ -1,0 +1,394 @@
+title:
+  context: "Title of example chat: Web bookmark memory"
+  en: "Web bookmark memory"
+  de: "Web bookmark memory"
+  zh: "Web bookmark memory"
+  es: "Web bookmark memory"
+  fr: "Web bookmark memory"
+  pt: "Web bookmark memory"
+  ru: "Web bookmark memory"
+  ja: "Web bookmark memory"
+  ko: "Web bookmark memory"
+  it: "Web bookmark memory"
+  tr: "Web bookmark memory"
+  vi: "Web bookmark memory"
+  id: "Web bookmark memory"
+  pl: "Web bookmark memory"
+  nl: "Web bookmark memory"
+  ar: "Web bookmark memory"
+  hi: "Web bookmark memory"
+  th: "Web bookmark memory"
+  cs: "Web bookmark memory"
+  sv: "Web bookmark memory"
+  he: "Web bookmark memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Web bookmark memory"
+  en: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  de: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  zh: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  es: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  fr: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  pt: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  ru: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  ja: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  ko: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  it: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  tr: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  vi: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  id: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  pl: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  nl: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  ar: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  hi: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  th: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  cs: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  sv: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  he: "See how a saved bookmark memory points to the right page for planning a dashboard."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Web bookmark memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  de: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  zh: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  es: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  fr: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  pt: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  ru: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  ja: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  ko: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  it: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  tr: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  vi: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  id: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  pl: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  nl: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  ar: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  hi: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  th: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  cs: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  sv: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  he: "Without searching the web, use my saved bookmark memory to suggest what page I should open first while planning a SvelteKit dashboard."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Web bookmark memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  de: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  zh: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  es: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  fr: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  pt: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  ru: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  ja: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  ko: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  it: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  tr: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  vi: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  id: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  pl: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  nl: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  ar: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  hi: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  th: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  cs: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  sv: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  he: |
+    Based on your [web bookmarks](/#settings/apps/web), you should start by opening the **SvelteKit Documentation**.
+    
+    You have this specific resource saved multiple times (including the svelte.dev/docs/kit mirror), which is the authoritative guide for [SvelteKit](wiki:Svelte).
+    
+    For planning a dashboard, I recommend looking at these specific sections within those docs first:
+    1.  **Routing:** To plan how your dashboard sub-pages and layouts will be structured.
+    2.  **Loading data:** To understand how you'll fetch the statistics and data your dashboard will display.
+    3.  **Form actions:** To plan how user inputs (like settings or data entry) will be handled.
+    
+    How far along are you with the dashboard design? Are you planning to use a specific UI library like Svelte UI or Skeleton?
+    
+    **Next Steps:**
+    - [Open your bookmarks](/#settings/apps/web) to see all your saved developer resources.
+    - Would you like me to help you draft a project structure for your dashboard?
+  verified_by_human: []
+

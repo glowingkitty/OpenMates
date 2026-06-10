@@ -1,0 +1,436 @@
+title:
+  context: "Title of example chat: Reminder defaults memory"
+  en: "Reminder defaults memory"
+  de: "Reminder defaults memory"
+  zh: "Reminder defaults memory"
+  es: "Reminder defaults memory"
+  fr: "Reminder defaults memory"
+  pt: "Reminder defaults memory"
+  ru: "Reminder defaults memory"
+  ja: "Reminder defaults memory"
+  ko: "Reminder defaults memory"
+  it: "Reminder defaults memory"
+  tr: "Reminder defaults memory"
+  vi: "Reminder defaults memory"
+  id: "Reminder defaults memory"
+  pl: "Reminder defaults memory"
+  nl: "Reminder defaults memory"
+  ar: "Reminder defaults memory"
+  hi: "Reminder defaults memory"
+  th: "Reminder defaults memory"
+  cs: "Reminder defaults memory"
+  sv: "Reminder defaults memory"
+  he: "Reminder defaults memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Reminder defaults memory"
+  en: "See how saved reminder defaults explain when event nudges should happen."
+  de: "See how saved reminder defaults explain when event nudges should happen."
+  zh: "See how saved reminder defaults explain when event nudges should happen."
+  es: "See how saved reminder defaults explain when event nudges should happen."
+  fr: "See how saved reminder defaults explain when event nudges should happen."
+  pt: "See how saved reminder defaults explain when event nudges should happen."
+  ru: "See how saved reminder defaults explain when event nudges should happen."
+  ja: "See how saved reminder defaults explain when event nudges should happen."
+  ko: "See how saved reminder defaults explain when event nudges should happen."
+  it: "See how saved reminder defaults explain when event nudges should happen."
+  tr: "See how saved reminder defaults explain when event nudges should happen."
+  vi: "See how saved reminder defaults explain when event nudges should happen."
+  id: "See how saved reminder defaults explain when event nudges should happen."
+  pl: "See how saved reminder defaults explain when event nudges should happen."
+  nl: "See how saved reminder defaults explain when event nudges should happen."
+  ar: "See how saved reminder defaults explain when event nudges should happen."
+  hi: "See how saved reminder defaults explain when event nudges should happen."
+  th: "See how saved reminder defaults explain when event nudges should happen."
+  cs: "See how saved reminder defaults explain when event nudges should happen."
+  sv: "See how saved reminder defaults explain when event nudges should happen."
+  he: "See how saved reminder defaults explain when event nudges should happen."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Reminder defaults memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  de: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  zh: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  es: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  fr: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  pt: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  ru: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  ja: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  ko: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  it: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  tr: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  vi: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  id: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  pl: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  nl: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  ar: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  hi: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  th: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  cs: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  sv: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  he: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Reminder defaults memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  zh: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  es: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  fr: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pt: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ru: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ja: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ko: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  it: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  tr: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  vi: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  id: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pl: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  nl: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ar: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  hi: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  th: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  cs: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  sv: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  he: |
+    Based on your [saved reminder settings](/#settings/apps/reminder), you have configured a default notification schedule for your events. According to your preferences, you will receive two nudges for any event you save for next week:
+    
+    1.  **One day before:** A reminder will trigger exactly **1,440 minutes** (24 hours) prior to the event start time.
+    2.  **One hour before:** A second reminder will trigger **60 minutes** before the event begins.
+    
+    For example, if you have an event scheduled for next **Wednesday, June 17, at 2:00 PM**, you should expect to be nudged at:
+    *   **Tuesday, June 16, at 2:00 PM**
+    *   **Wednesday, June 17, at 1:00 PM**
+    
+    These defaults ensure you have enough lead time to prepare a day in advance and a final prompt just before you need to be ready.
+    
+    How are you feeling about your schedule for next week? If you'd like to adjust these offsets or add more specific reminders, you can always [update your reminder defaults](/#settings/apps/reminder).
+    
+    **Would you like me to help you schedule any specific events for next week now?**
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  verified_by_human: []
+

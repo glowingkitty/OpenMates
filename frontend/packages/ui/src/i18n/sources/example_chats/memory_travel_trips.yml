@@ -1,0 +1,1024 @@
+title:
+  context: "Title of example chat: Trip memory"
+  en: "Trip memory"
+  de: "Trip memory"
+  zh: "Trip memory"
+  es: "Trip memory"
+  fr: "Trip memory"
+  pt: "Trip memory"
+  ru: "Trip memory"
+  ja: "Trip memory"
+  ko: "Trip memory"
+  it: "Trip memory"
+  tr: "Trip memory"
+  vi: "Trip memory"
+  id: "Trip memory"
+  pl: "Trip memory"
+  nl: "Trip memory"
+  ar: "Trip memory"
+  hi: "Trip memory"
+  th: "Trip memory"
+  cs: "Trip memory"
+  sv: "Trip memory"
+  he: "Trip memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Trip memory"
+  en: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  de: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  zh: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  es: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  fr: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  pt: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  ru: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  ja: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  ko: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  it: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  tr: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  vi: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  id: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  pl: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  nl: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  ar: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  hi: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  th: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  cs: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  sv: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  he: "See how a saved trip memory shapes a relaxed first-day itinerary."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Trip memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved trip memory to suggest a relaxed first-day plan."
+  de: "Use my saved trip memory to suggest a relaxed first-day plan."
+  zh: "Use my saved trip memory to suggest a relaxed first-day plan."
+  es: "Use my saved trip memory to suggest a relaxed first-day plan."
+  fr: "Use my saved trip memory to suggest a relaxed first-day plan."
+  pt: "Use my saved trip memory to suggest a relaxed first-day plan."
+  ru: "Use my saved trip memory to suggest a relaxed first-day plan."
+  ja: "Use my saved trip memory to suggest a relaxed first-day plan."
+  ko: "Use my saved trip memory to suggest a relaxed first-day plan."
+  it: "Use my saved trip memory to suggest a relaxed first-day plan."
+  tr: "Use my saved trip memory to suggest a relaxed first-day plan."
+  vi: "Use my saved trip memory to suggest a relaxed first-day plan."
+  id: "Use my saved trip memory to suggest a relaxed first-day plan."
+  pl: "Use my saved trip memory to suggest a relaxed first-day plan."
+  nl: "Use my saved trip memory to suggest a relaxed first-day plan."
+  ar: "Use my saved trip memory to suggest a relaxed first-day plan."
+  hi: "Use my saved trip memory to suggest a relaxed first-day plan."
+  th: "Use my saved trip memory to suggest a relaxed first-day plan."
+  cs: "Use my saved trip memory to suggest a relaxed first-day plan."
+  sv: "Use my saved trip memory to suggest a relaxed first-day plan."
+  he: "Use my saved trip memory to suggest a relaxed first-day plan."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Trip memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "6f10bc56-8a32-43e4-b950-22e294e6dff1", "app_id": "web", "skill_id": "search", "query": "relaxed first day in Lisbon itinerary afternoon viewpoints food", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f15a0cca-a483-46d0-a6f3-86712a0e1337", "app_id": "images", "skill_id": "search", "query": "Miradouro da Senhora do Monte Lisbon sunset", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "f7d0016b-cb46-41cd-b67a-94e17561b880", "app_id": "images", "skill_id": "search", "query": "Alfama Lisbon streets food", "provider": "Brave Search"}
+    ```
+    
+    For your first day in [Lisbon](wiki:Lisbon) on **September 10, 2026**, I’ve designed a plan that respects your goal of working in the morning while prioritizing those stunning viewpoints and local food in the afternoon.
+    
+    ### Morning: Work with a View
+    Since you'll be working remotely, I suggest heading to the **Príncipe Real** neighborhood. It’s slightly quieter than the main tourist hubs but filled with beautiful gardens and high-quality cafes.
+    *   **Work Spot:** Look for a cafe near the Jardim do Príncipe Real. Many spots here offer reliable Wi-Fi and a more local, professional atmosphere.
+    *   **Quick Lunch:** Grab a **Bifana** (a traditional Portuguese pork sandwich) from a local *tasca*. It’s fast, cheap, and delicious—perfect for a work break.
+    
+    ### Afternoon: The Viewpoint Crawl
+    Once you close your laptop, start your exploration in the historic [Alfama](wiki:Alfama) district. This area is the soul of Lisbon and is best experienced by wandering aimlessly through its narrow, tiled streets.
+    
+    1.  **Miradouro de Santa Luzia:** Start here for a classic view of white-washed houses and the [Tagus River](wiki:Tagus). The bougainvillea and azulejo tiles make it one of the most romantic spots in the city.
+    2.  **Alfama Wandering:** Head down into the maze of streets. Stop for a **Ginjinha** (cherry liqueur) served in a chocolate cup from a window stall—it’s the ultimate afternoon pick-me-up.
+    3.  **Sunset at Senhora do Monte:** For your first evening, go to the highest point in the city: **Miradouro da Senhora do Monte**. It’s more relaxed than the busier Miradouro da Graça and offers a panoramic view of the [São Jorge Castle](wiki:São_Jorge_Castle) and the 25 de Abril Bridge as the sun goes down.
+    
+    [!](embed:bucketlistbri.com-nas)
+    [!](embed:motionarray.com-CJ9)
+    [!](embed:doeatbetterexperience.com-JnS)
+    
+    ### Evening: Authentic Graça Dinner
+    After sunset, walk down into the **Graça** neighborhood. It’s less touristy than Alfama and has some fantastic, authentic restaurants. 
+    *   **Food Tip:** Try *Bacalhau à Brás* (shredded cod with onions and potatoes) for a classic first-night meal.
+    *   **Relaxed Vibe:** If you aren't too tired, end the night with a glass of Portuguese wine at a sidewalk table in one of Graça’s small squares.
+    
+    ### Helpful Links for Your Trip
+    *   [Update your "Lisbon" trip notes with this plan](/#settings/app_store/travel/settings_memories/trips/entry/create?prefill={"destination":"Lisbon","notes":"Day 1: Work in Principe Real, afternoon in Alfama, sunset at Senhora do Monte."})
+    *   Find more viewpoints in Lisbon
+    
+    Would you like me to find some specific cafes in Príncipe Real with good Wi-Fi for your morning work session, or should we look into options for your "beach day" later in the week?
+    
+    **Next steps:**
+    *   "Find cafes with Wi-Fi in Príncipe Real"
+    *   "Suggest a beach day near Lisbon"
+  verified_by_human: []
+

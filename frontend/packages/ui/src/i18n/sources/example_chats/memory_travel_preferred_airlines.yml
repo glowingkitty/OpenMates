@@ -1,0 +1,1045 @@
+title:
+  context: "Title of example chat: Preferred airline memory"
+  en: "Preferred airline memory"
+  de: "Preferred airline memory"
+  zh: "Preferred airline memory"
+  es: "Preferred airline memory"
+  fr: "Preferred airline memory"
+  pt: "Preferred airline memory"
+  ru: "Preferred airline memory"
+  ja: "Preferred airline memory"
+  ko: "Preferred airline memory"
+  it: "Preferred airline memory"
+  tr: "Preferred airline memory"
+  vi: "Preferred airline memory"
+  id: "Preferred airline memory"
+  pl: "Preferred airline memory"
+  nl: "Preferred airline memory"
+  ar: "Preferred airline memory"
+  hi: "Preferred airline memory"
+  th: "Preferred airline memory"
+  cs: "Preferred airline memory"
+  sv: "Preferred airline memory"
+  he: "Preferred airline memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Preferred airline memory"
+  en: "See how a saved airline preference guides flight comparison priorities."
+  de: "See how a saved airline preference guides flight comparison priorities."
+  zh: "See how a saved airline preference guides flight comparison priorities."
+  es: "See how a saved airline preference guides flight comparison priorities."
+  fr: "See how a saved airline preference guides flight comparison priorities."
+  pt: "See how a saved airline preference guides flight comparison priorities."
+  ru: "See how a saved airline preference guides flight comparison priorities."
+  ja: "See how a saved airline preference guides flight comparison priorities."
+  ko: "See how a saved airline preference guides flight comparison priorities."
+  it: "See how a saved airline preference guides flight comparison priorities."
+  tr: "See how a saved airline preference guides flight comparison priorities."
+  vi: "See how a saved airline preference guides flight comparison priorities."
+  id: "See how a saved airline preference guides flight comparison priorities."
+  pl: "See how a saved airline preference guides flight comparison priorities."
+  nl: "See how a saved airline preference guides flight comparison priorities."
+  ar: "See how a saved airline preference guides flight comparison priorities."
+  hi: "See how a saved airline preference guides flight comparison priorities."
+  th: "See how a saved airline preference guides flight comparison priorities."
+  cs: "See how a saved airline preference guides flight comparison priorities."
+  sv: "See how a saved airline preference guides flight comparison priorities."
+  he: "See how a saved airline preference guides flight comparison priorities."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Preferred airline memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  de: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  zh: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  es: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  fr: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  pt: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  ru: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  ja: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  ko: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  it: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  tr: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  vi: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  id: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  pl: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  nl: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  ar: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  hi: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  th: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  cs: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  sv: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  he: "Use my saved airline preference memory to explain what flight options I should compare first for a work trip."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Preferred airline memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  de: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  zh: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  es: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  fr: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  pt: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  ru: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  ja: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  ko: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  it: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  tr: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  vi: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  id: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  pl: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  nl: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  ar: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  hi: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  th: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  cs: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  sv: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  he: |
+    Based on the preferences in your [travel settings](/#settings/apps/travel), your top choice for flights is **[Lufthansa](wiki:Lufthansa)**. 
+    
+    For a work trip, focusing on your preferred airline first is a smart move for several reasons:
+    
+    1.  **Direct Routes & Scheduling:** Lufthansa offers extensive connections through its hubs in **[Frankfurt](wiki:Frankfurt_Airport)** and **[Munich](wiki:Munich_Airport)**. For business travel, prioritizing direct flights or well-timed connections on your preferred carrier reduces travel fatigue and maximizes your time.
+    2.  **[Star Alliance](wiki:Star_Alliance) Benefits:** Since Lufthansa is a founding member of Star Alliance, your first comparison should also include partners like **[United Airlines](wiki:United_Airlines)**, **[Swiss International Air Lines](wiki:Swiss_International_Air_Lines)**, and **[Austrian Airlines](wiki:Austrian_Airlines)**. This allows you to maintain consistent service standards and continue accruing miles within the same ecosystem.
+    3.  **Lounge Access & Priority:** If you have status with Lufthansa, you'll likely have access to priority check-in and lounges, which are essential for staying productive or resting during a work trip.
+    
+    **Recommendation for your search:**
+    1.  **First Look:** Lufthansa direct flights for the best schedule.
+    2.  **Second Look:** Star Alliance partners if the Lufthansa schedule doesn't align perfectly.
+    3.  **Third Look:** Other major carriers only if there is a significant price or time advantage that outweighs your loyalty benefits.
+    
+    To help you find specific options, could you share some details about your upcoming trip?
+    
+    ```interactive_question
+    {
+      "type": "input",
+      "id": "work_trip_details",
+      "fields": [
+        {
+          "id": "origin",
+          "label": "Departure City",
+          "placeholder": "e.g., Berlin",
+          "required": true
+        },
+        {
+          "id": "destination",
+          "label": "Arrival City",
+          "placeholder": "e.g., New York",
+          "required": true
+        },
+        {
+          "id": "date",
+          "label": "Departure Date",
+          "placeholder": "YYYY-MM-DD",
+          "required": true
+        }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "2dfaadf5-b662-48e5-b130-a35ddd667689"}
+    ```
+    
+    
+  verified_by_human: []
+

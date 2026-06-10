@@ -1,0 +1,373 @@
+title:
+  context: "Title of example chat: TV watchlist memory"
+  en: "TV watchlist memory"
+  de: "TV watchlist memory"
+  zh: "TV watchlist memory"
+  es: "TV watchlist memory"
+  fr: "TV watchlist memory"
+  pt: "TV watchlist memory"
+  ru: "TV watchlist memory"
+  ja: "TV watchlist memory"
+  ko: "TV watchlist memory"
+  it: "TV watchlist memory"
+  tr: "TV watchlist memory"
+  vi: "TV watchlist memory"
+  id: "TV watchlist memory"
+  pl: "TV watchlist memory"
+  nl: "TV watchlist memory"
+  ar: "TV watchlist memory"
+  hi: "TV watchlist memory"
+  th: "TV watchlist memory"
+  cs: "TV watchlist memory"
+  sv: "TV watchlist memory"
+  he: "TV watchlist memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: TV watchlist memory"
+  en: "See how a saved watchlist memory helps choose what to start after dinner."
+  de: "See how a saved watchlist memory helps choose what to start after dinner."
+  zh: "See how a saved watchlist memory helps choose what to start after dinner."
+  es: "See how a saved watchlist memory helps choose what to start after dinner."
+  fr: "See how a saved watchlist memory helps choose what to start after dinner."
+  pt: "See how a saved watchlist memory helps choose what to start after dinner."
+  ru: "See how a saved watchlist memory helps choose what to start after dinner."
+  ja: "See how a saved watchlist memory helps choose what to start after dinner."
+  ko: "See how a saved watchlist memory helps choose what to start after dinner."
+  it: "See how a saved watchlist memory helps choose what to start after dinner."
+  tr: "See how a saved watchlist memory helps choose what to start after dinner."
+  vi: "See how a saved watchlist memory helps choose what to start after dinner."
+  id: "See how a saved watchlist memory helps choose what to start after dinner."
+  pl: "See how a saved watchlist memory helps choose what to start after dinner."
+  nl: "See how a saved watchlist memory helps choose what to start after dinner."
+  ar: "See how a saved watchlist memory helps choose what to start after dinner."
+  hi: "See how a saved watchlist memory helps choose what to start after dinner."
+  th: "See how a saved watchlist memory helps choose what to start after dinner."
+  cs: "See how a saved watchlist memory helps choose what to start after dinner."
+  sv: "See how a saved watchlist memory helps choose what to start after dinner."
+  he: "See how a saved watchlist memory helps choose what to start after dinner."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: TV watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  de: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  zh: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  es: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  fr: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  pt: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  ru: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  ja: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  ko: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  it: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  tr: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  vi: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  id: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  pl: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  nl: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  ar: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  hi: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  th: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  cs: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  sv: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  he: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: TV watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
+    ```
+    
+    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
+    
+    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
+    
+    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
+    
+    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
+    
+    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+  verified_by_human: []
+

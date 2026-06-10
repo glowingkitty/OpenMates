@@ -69,6 +69,13 @@ export interface SubChatEvent {
   payload: Record<string, unknown>;
 }
 
+export interface AppSettingsMemoriesRequestEvent {
+  requestId: string | null;
+  chatId: string;
+  requestedKeys: string[];
+  payload: Record<string, unknown>;
+}
+
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "spawn_sub_chats",
   "sub_chat_progress",
@@ -292,6 +299,9 @@ export class OpenMatesWsClient {
       asyncEmbedWaitMs?: number;
       onStream?: (event: StreamEvent) => void;
       onSubChatEvent?: (event: SubChatEvent) => void | Promise<void>;
+      onAppSettingsMemoriesRequest?: (
+        event: AppSettingsMemoriesRequestEvent,
+      ) => void | Promise<void>;
     },
   ): Promise<{
     messageId: string | null;
@@ -316,6 +326,7 @@ export class OpenMatesWsClient {
       let followUpSuggestions: string[] = [];
       const subChatEvents: SubChatEvent[] = [];
       const pendingSubChatHandlers = new Set<Promise<void>>();
+      const pendingMemoryRequestHandlers = new Set<Promise<void>>();
       const embeds = new Map<string, SendEmbedDataFrame>();
       const processingEmbedIds = new Set<string>();
       // Track whether the AI response is done so we can wait for post-processing.
@@ -372,6 +383,7 @@ export class OpenMatesWsClient {
       const maybeResolve = () => {
         if (!aiResponseDone || !postProcessingDone) return;
         if (pendingSubChatHandlers.size > 0) return;
+        if (pendingMemoryRequestHandlers.size > 0) return;
         if (processingEmbedIds.size > 0 && !asyncEmbedTimer) {
           asyncEmbedTimer = setTimeout(() => {
             cleanup();
@@ -433,12 +445,45 @@ export class OpenMatesWsClient {
           });
       };
 
+      const handleAppSettingsMemoriesRequest = (p: Record<string, unknown>) => {
+        const eventChatId = typeof p.chat_id === "string" ? p.chat_id : null;
+        if (eventChatId !== chatId) return;
+
+        const handler = options?.onAppSettingsMemoriesRequest;
+        if (!handler) return;
+
+        resetTimeout(timeoutMs);
+        const requestedKeys = Array.isArray(p.requested_keys)
+          ? (p.requested_keys as unknown[]).filter(
+              (key): key is string => typeof key === "string" && key.length > 0,
+            )
+          : [];
+        const event: AppSettingsMemoriesRequestEvent = {
+          requestId: typeof p.request_id === "string" ? p.request_id : null,
+          chatId: eventChatId,
+          requestedKeys,
+          payload: p,
+        };
+
+        const pending = Promise.resolve(handler(event));
+        pendingMemoryRequestHandlers.add(pending);
+        pending
+          .catch((error: unknown) => {
+            cleanup();
+            reject(error instanceof Error ? error : new Error(String(error)));
+          })
+          .finally(() => {
+            pendingMemoryRequestHandlers.delete(pending);
+            maybeResolve();
+          });
+      };
+
       // Called once AI response is done. Start a short window to wait for
       // post_processing_metadata which may carry follow-up suggestions.
       const scheduleResolve = (content: string) => {
         if (
           awaitingSubChatsCompletion &&
-          content.trim() === SUB_CHAT_PARENT_STATUS_MESSAGE
+          content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
         ) {
           latestContent = "";
           return;
@@ -472,6 +517,11 @@ export class OpenMatesWsClient {
 
           if (SUB_CHAT_EVENT_TYPES.has(type)) {
             handleSubChatEvent(type, p);
+            return;
+          }
+
+          if (type === "request_app_settings_memories") {
+            handleAppSettingsMemoriesRequest(p);
             return;
           }
 

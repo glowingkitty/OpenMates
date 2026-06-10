@@ -1,0 +1,478 @@
+title:
+  context: "Title of example chat: Document writing style memory"
+  en: "Document writing style memory"
+  de: "Document writing style memory"
+  zh: "Document writing style memory"
+  es: "Document writing style memory"
+  fr: "Document writing style memory"
+  pt: "Document writing style memory"
+  ru: "Document writing style memory"
+  ja: "Document writing style memory"
+  ko: "Document writing style memory"
+  it: "Document writing style memory"
+  tr: "Document writing style memory"
+  vi: "Document writing style memory"
+  id: "Document writing style memory"
+  pl: "Document writing style memory"
+  nl: "Document writing style memory"
+  ar: "Document writing style memory"
+  hi: "Document writing style memory"
+  th: "Document writing style memory"
+  cs: "Document writing style memory"
+  sv: "Document writing style memory"
+  he: "Document writing style memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Document writing style memory"
+  en: "See how a saved writing style shapes a clear changelog outline."
+  de: "See how a saved writing style shapes a clear changelog outline."
+  zh: "See how a saved writing style shapes a clear changelog outline."
+  es: "See how a saved writing style shapes a clear changelog outline."
+  fr: "See how a saved writing style shapes a clear changelog outline."
+  pt: "See how a saved writing style shapes a clear changelog outline."
+  ru: "See how a saved writing style shapes a clear changelog outline."
+  ja: "See how a saved writing style shapes a clear changelog outline."
+  ko: "See how a saved writing style shapes a clear changelog outline."
+  it: "See how a saved writing style shapes a clear changelog outline."
+  tr: "See how a saved writing style shapes a clear changelog outline."
+  vi: "See how a saved writing style shapes a clear changelog outline."
+  id: "See how a saved writing style shapes a clear changelog outline."
+  pl: "See how a saved writing style shapes a clear changelog outline."
+  nl: "See how a saved writing style shapes a clear changelog outline."
+  ar: "See how a saved writing style shapes a clear changelog outline."
+  hi: "See how a saved writing style shapes a clear changelog outline."
+  th: "See how a saved writing style shapes a clear changelog outline."
+  cs: "See how a saved writing style shapes a clear changelog outline."
+  sv: "See how a saved writing style shapes a clear changelog outline."
+  he: "See how a saved writing style shapes a clear changelog outline."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Document writing style memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  de: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  zh: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  es: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  fr: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  pt: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  ru: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  ja: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  ko: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  it: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  tr: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  vi: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  id: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  pl: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  nl: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  ar: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  hi: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  th: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  cs: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  sv: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  he: "Use my saved document writing style memory to outline a short changelog entry for a new import feature."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Document writing style memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  de: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  zh: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  es: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  fr: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  pt: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  ru: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  ja: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  ko: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  it: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  tr: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  vi: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  id: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  pl: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  nl: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  ar: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  hi: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  th: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  cs: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  sv: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  he: |
+    Based on your saved [writing style preferences](/#settings/app_store/docs/settings_memories/writing_style), I've outlined a changelog entry for your new import feature. I applied your "Plain-language" and "Changelog Brief" rules: short headings, active voice, concrete user impact, and zero hype.
+    
+    ### Import from CSV and JSON
+    **Upload data directly from CSV and JSON files.** You can now import external datasets to populate your projects automatically. This eliminates manual data entry, prevents copy-paste errors, and allows you to sync data from other tools in seconds.
+    
+    ***
+    
+    **How this matches your style:**
+    *   **Short Heading:** Focused on the action and file types.
+    *   **Active Voice:** Starts with "Upload" and "Import" rather than "A new feature has been added."
+    *   **User Impact:** Clearly explains that it saves time and prevents errors.
+    *   **No Hype:** Avoided adjectives like "powerful," "easy," or "amazing."
+    
+    Would you like me to generate this as a [formal document](/#settings/apps/docs) for your internal records, or should we refine the technical details?
+    
+    **Next steps:**
+    *   Do you want to add specific details about file size limits or field mapping?
+    *   Should I draft a longer version for a blog post using a similar "no-hype" style?
+  verified_by_human: []
+

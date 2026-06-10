@@ -62,6 +62,36 @@ import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcr
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
 import { frontendDeveloperCareerPivotChat } from "./data/example_chats/frontend-developer-career-pivot";
+import { memoryAiCommunicationStyleChat } from "./data/example_chats/memory-ai-communication-style";
+import { memoryAiLearningPreferencesChat } from "./data/example_chats/memory-ai-learning-preferences";
+import { memoryBooksFavoriteBooksChat } from "./data/example_chats/memory-books-favorite-books";
+import { memoryBooksCurrentlyReadingChat } from "./data/example_chats/memory-books-currently-reading";
+import { memoryBooksToReadListChat } from "./data/example_chats/memory-books-to-read-list";
+import { memoryCodePreferredTechChat } from "./data/example_chats/memory-code-preferred-tech";
+import { memoryCodeProjectsChat } from "./data/example_chats/memory-code-projects";
+import { memoryCodeWantToLearnChat } from "./data/example_chats/memory-code-want-to-learn";
+import { memoryCodeCodingSetupChat } from "./data/example_chats/memory-code-coding-setup";
+import { memoryDocsWritingStyleChat } from "./data/example_chats/memory-docs-writing-style";
+import { memoryEventsSavedEventsChat } from "./data/example_chats/memory-events-saved-events";
+import { memoryHealthAppointmentsChat } from "./data/example_chats/memory-health-appointments";
+import { memoryHealthMedicalHistoryChat } from "./data/example_chats/memory-health-medical-history";
+import { memoryHomeSavedListingsChat } from "./data/example_chats/memory-home-saved-listings";
+import { memoryImagesPreferredStylesChat } from "./data/example_chats/memory-images-preferred-styles";
+import { memoryMailWritingStylesChat } from "./data/example_chats/memory-mail-writing-styles";
+import { memoryReminderDefaultsChat } from "./data/example_chats/memory-reminder-defaults";
+import { memoryStudyLearningGoalsChat } from "./data/example_chats/memory-study-learning-goals";
+import { memoryTravelSavedConnectionsChat } from "./data/example_chats/memory-travel-saved-connections";
+import { memoryTravelSavedStaysChat } from "./data/example_chats/memory-travel-saved-stays";
+import { memoryTravelTripsChat } from "./data/example_chats/memory-travel-trips";
+import { memoryTravelPreferredAirlinesChat } from "./data/example_chats/memory-travel-preferred-airlines";
+import { memoryTravelPreferredTransportChat } from "./data/example_chats/memory-travel-preferred-transport";
+import { memoryTravelPreferredActivitiesChat } from "./data/example_chats/memory-travel-preferred-activities";
+import { memoryTvWatchedMoviesChat } from "./data/example_chats/memory-tv-watched-movies";
+import { memoryTvWatchedShowsChat } from "./data/example_chats/memory-tv-watched-shows";
+import { memoryTvToWatchListChat } from "./data/example_chats/memory-tv-to-watch-list";
+import { memoryVideosToWatchListChat } from "./data/example_chats/memory-videos-to-watch-list";
+import { memoryWebBookmarksChat } from "./data/example_chats/memory-web-bookmarks";
+import { memoryWebReadLaterChat } from "./data/example_chats/memory-web-read-later";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -116,6 +146,36 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   usEggPricesDeepResearchChat,
   frameworkStoreReputationCheckChat,
   frontendDeveloperCareerPivotChat,
+  memoryAiCommunicationStyleChat,
+  memoryAiLearningPreferencesChat,
+  memoryBooksFavoriteBooksChat,
+  memoryBooksCurrentlyReadingChat,
+  memoryBooksToReadListChat,
+  memoryCodePreferredTechChat,
+  memoryCodeProjectsChat,
+  memoryCodeWantToLearnChat,
+  memoryCodeCodingSetupChat,
+  memoryDocsWritingStyleChat,
+  memoryEventsSavedEventsChat,
+  memoryHealthAppointmentsChat,
+  memoryHealthMedicalHistoryChat,
+  memoryHomeSavedListingsChat,
+  memoryImagesPreferredStylesChat,
+  memoryMailWritingStylesChat,
+  memoryReminderDefaultsChat,
+  memoryStudyLearningGoalsChat,
+  memoryTravelSavedConnectionsChat,
+  memoryTravelSavedStaysChat,
+  memoryTravelTripsChat,
+  memoryTravelPreferredAirlinesChat,
+  memoryTravelPreferredTransportChat,
+  memoryTravelPreferredActivitiesChat,
+  memoryTvWatchedMoviesChat,
+  memoryTvWatchedShowsChat,
+  memoryTvToWatchListChat,
+  memoryVideosToWatchListChat,
+  memoryWebBookmarksChat,
+  memoryWebReadLaterChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */

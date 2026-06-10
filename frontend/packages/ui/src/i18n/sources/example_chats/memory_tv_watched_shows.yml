@@ -1,0 +1,541 @@
+title:
+  context: "Title of example chat: Watched TV shows memory"
+  en: "Watched TV shows memory"
+  de: "Watched TV shows memory"
+  zh: "Watched TV shows memory"
+  es: "Watched TV shows memory"
+  fr: "Watched TV shows memory"
+  pt: "Watched TV shows memory"
+  ru: "Watched TV shows memory"
+  ja: "Watched TV shows memory"
+  ko: "Watched TV shows memory"
+  it: "Watched TV shows memory"
+  tr: "Watched TV shows memory"
+  vi: "Watched TV shows memory"
+  id: "Watched TV shows memory"
+  pl: "Watched TV shows memory"
+  nl: "Watched TV shows memory"
+  ar: "Watched TV shows memory"
+  hi: "Watched TV shows memory"
+  th: "Watched TV shows memory"
+  cs: "Watched TV shows memory"
+  sv: "Watched TV shows memory"
+  he: "Watched TV shows memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Watched TV shows memory"
+  en: "See how a watched-show memory helps choose the next series to try."
+  de: "See how a watched-show memory helps choose the next series to try."
+  zh: "See how a watched-show memory helps choose the next series to try."
+  es: "See how a watched-show memory helps choose the next series to try."
+  fr: "See how a watched-show memory helps choose the next series to try."
+  pt: "See how a watched-show memory helps choose the next series to try."
+  ru: "See how a watched-show memory helps choose the next series to try."
+  ja: "See how a watched-show memory helps choose the next series to try."
+  ko: "See how a watched-show memory helps choose the next series to try."
+  it: "See how a watched-show memory helps choose the next series to try."
+  tr: "See how a watched-show memory helps choose the next series to try."
+  vi: "See how a watched-show memory helps choose the next series to try."
+  id: "See how a watched-show memory helps choose the next series to try."
+  pl: "See how a watched-show memory helps choose the next series to try."
+  nl: "See how a watched-show memory helps choose the next series to try."
+  ar: "See how a watched-show memory helps choose the next series to try."
+  hi: "See how a watched-show memory helps choose the next series to try."
+  th: "See how a watched-show memory helps choose the next series to try."
+  cs: "See how a watched-show memory helps choose the next series to try."
+  sv: "See how a watched-show memory helps choose the next series to try."
+  he: "See how a watched-show memory helps choose the next series to try."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Watched TV shows memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  de: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  zh: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  es: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  fr: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  pt: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  ru: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  ja: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  ko: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  it: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  tr: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  vi: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  id: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  pl: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  nl: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  ar: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  hi: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  th: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  cs: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  sv: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  he: "Plain text only, no links or embeds: use my saved watched TV shows memory to recommend what kind of series I should try next."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Watched TV shows memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
+    ```
+    
+    Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
+    
+    1. Devs: This is perhaps the closest match to Severance in terms of tone. It follows a software engineer who investigates the secretive development division of her high-tech employer. Like Severance, it features a sleek, unsettling corporate environment and explores deep philosophical questions about free will and technology.
+    
+    2. Silo: If you like the feeling of being trapped in a world where the rules don't quite make sense and the "truth" is hidden behind layers of bureaucracy, Silo is a great choice. It is a dystopian sci-fi series set in a massive underground bunker where the inhabitants are forbidden from knowing about the outside world. It excels at the same kind of steady, rewarding reveals you enjoy.
+    
+    3. Dark: This German series is a masterclass in slow-burn mystery and intricate plotting. While it leans more into time travel and family secrets than corporate satire, it shares the same DNA of identity puzzles and a dark, moody atmosphere that demands your full attention to piece everything together.
+    
+    4. Homecoming: Specifically the first season, this show features a psychological mystery centered around a facility that helps soldiers transition back to civilian life. It uses unique cinematography and a tight, claustrophobic narrative style to build a sense of corporate paranoia very similar to the halls of Lumon Industries.
+    
+    5. Carol: Since we are in 2026, you might want to check out this newer series from Vince Gilligan. It stars Rhea Seehorn and deals with a person trying to navigate a world where a virus has turned everyone into part of a smiling, eerie hive mind. It mirrors the "cheerful corporate culture" of Severance in a very unsettling way.
+    
+    Given that you've rated Severance a 9 out of 10 and specifically noted the eerie mystery, these shows should definitely fit your taste. 
+    
+    What's next for you?
+    - Would you like more details on any of these specific shows, such as where to watch them?
+    - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
+  verified_by_human: []
+

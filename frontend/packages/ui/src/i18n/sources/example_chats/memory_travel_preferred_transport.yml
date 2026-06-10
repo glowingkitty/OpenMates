@@ -1,0 +1,1003 @@
+title:
+  context: "Title of example chat: Preferred transport memory"
+  en: "Preferred transport memory"
+  de: "Preferred transport memory"
+  zh: "Preferred transport memory"
+  es: "Preferred transport memory"
+  fr: "Preferred transport memory"
+  pt: "Preferred transport memory"
+  ru: "Preferred transport memory"
+  ja: "Preferred transport memory"
+  ko: "Preferred transport memory"
+  it: "Preferred transport memory"
+  tr: "Preferred transport memory"
+  vi: "Preferred transport memory"
+  id: "Preferred transport memory"
+  pl: "Preferred transport memory"
+  nl: "Preferred transport memory"
+  ar: "Preferred transport memory"
+  hi: "Preferred transport memory"
+  th: "Preferred transport memory"
+  cs: "Preferred transport memory"
+  sv: "Preferred transport memory"
+  he: "Preferred transport memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Preferred transport memory"
+  en: "See how a saved transport preference shapes a nearby weekend trip plan."
+  de: "See how a saved transport preference shapes a nearby weekend trip plan."
+  zh: "See how a saved transport preference shapes a nearby weekend trip plan."
+  es: "See how a saved transport preference shapes a nearby weekend trip plan."
+  fr: "See how a saved transport preference shapes a nearby weekend trip plan."
+  pt: "See how a saved transport preference shapes a nearby weekend trip plan."
+  ru: "See how a saved transport preference shapes a nearby weekend trip plan."
+  ja: "See how a saved transport preference shapes a nearby weekend trip plan."
+  ko: "See how a saved transport preference shapes a nearby weekend trip plan."
+  it: "See how a saved transport preference shapes a nearby weekend trip plan."
+  tr: "See how a saved transport preference shapes a nearby weekend trip plan."
+  vi: "See how a saved transport preference shapes a nearby weekend trip plan."
+  id: "See how a saved transport preference shapes a nearby weekend trip plan."
+  pl: "See how a saved transport preference shapes a nearby weekend trip plan."
+  nl: "See how a saved transport preference shapes a nearby weekend trip plan."
+  ar: "See how a saved transport preference shapes a nearby weekend trip plan."
+  hi: "See how a saved transport preference shapes a nearby weekend trip plan."
+  th: "See how a saved transport preference shapes a nearby weekend trip plan."
+  cs: "See how a saved transport preference shapes a nearby weekend trip plan."
+  sv: "See how a saved transport preference shapes a nearby weekend trip plan."
+  he: "See how a saved transport preference shapes a nearby weekend trip plan."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Preferred transport memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  de: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  zh: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  es: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  fr: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  pt: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  ru: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  ja: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  ko: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  it: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  tr: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  vi: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  id: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  pl: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  nl: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  ar: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  hi: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  th: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  cs: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  sv: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  he: "Use my saved transport preference memory to suggest how I should travel for a nearby weekend trip."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Preferred transport memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "61e27e5e-adb2-46be-88d3-d082c8d93441", "app_id": "web", "skill_id": "search", "query": "best weekend train getaways summer 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "2653a4a2-d5c2-4cf1-81ea-c18f14d4a90f", "app_id": "images", "skill_id": "search", "query": "scenic weekend train trip destinations summer", "provider": "Brave Search"}
+    ```
+    
+    Since you prefer traveling by **[train](wiki:Train)**, there are some fantastic scenic getaways perfect for a June weekend. Since I don't have your current city in your settings, I've selected a few of the most popular rail-accessible destinations for this time of year:
+    
+    ### 🚆 Recommended Weekend Rail Getaways (June 2026)
+    
+    *   **Napa Valley, California:** Perfect for a "car-free" weekend. You can take the train into Northern California and use the **[Napa Valley Wine Train](wiki:Napa_Valley_Wine_Train)** for a scenic tour of the vineyards without the hassle of driving.
+    *   **[Glacier National Park](wiki:Glacier_National_Park_(U.S.)), Montana:** The **[Empire Builder](wiki:Empire_Builder)** route offers breathtaking views of the Rockies. June is ideal as the snow has mostly melted from the lower trails, but the peaks are still capped.
+    *   **The [Hudson Valley](wiki:Hudson_Valley), New York:** If you're on the East Coast, the ride from **Penn Station** up the Hudson River is one of the most beautiful short trips in the country, leading to charming towns like **[Hudson](wiki:Hudson,_New_York)** or **[Beacon](wiki:Beacon,_New_York)**.
+    *   **[Canadian Rockies](wiki:Canadian_Rockies):** For a slightly longer weekend, a rail journey from **[Vancouver](wiki:Vancouver)** into the mountains offers world-class service and glass-domed cars for 360-degree views.
+    
+    [!](embed:amtrak.com-Ax9)
+    [!](embed:acg.aaa.com-exm)
+    [!](embed:travelandleisure.com-464)
+    [!](embed:canadiantrainvacations.com-oQZ)
+    
+    To give you a truly "nearby" suggestion, could you let me know which region you're starting from?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "travel_region_lookup",
+      "multiple": false,
+      "question": "Where are you traveling from?",
+      "options": [
+        { "id": "us_northeast", "text": "US Northeast (NYC, Boston, Philly)" },
+        { "id": "us_west", "text": "US West Coast (LA, SF, Seattle)" },
+        { "id": "us_midwest", "text": "US Midwest (Chicago, Denver)" },
+        { "id": "canada", "text": "Canada (Toronto, Vancouver, Montreal)" },
+        { "id": "europe", "text": "Europe" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "057d225d-54dd-41bf-a2c4-09b7feee9a6a"}
+    ```
+    
+    
+  verified_by_human: []
+

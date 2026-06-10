@@ -1,0 +1,1276 @@
+title:
+  context: "Title of example chat: Medical history memory"
+  en: "Medical history memory"
+  de: "Medical history memory"
+  zh: "Medical history memory"
+  es: "Medical history memory"
+  fr: "Medical history memory"
+  pt: "Medical history memory"
+  ru: "Medical history memory"
+  ja: "Medical history memory"
+  ko: "Medical history memory"
+  it: "Medical history memory"
+  tr: "Medical history memory"
+  vi: "Medical history memory"
+  id: "Medical history memory"
+  pl: "Medical history memory"
+  nl: "Medical history memory"
+  ar: "Medical history memory"
+  hi: "Medical history memory"
+  th: "Medical history memory"
+  cs: "Medical history memory"
+  sv: "Medical history memory"
+  he: "Medical history memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Medical history memory"
+  en: "See how a saved medical history memory helps summarize what to tell a doctor."
+  de: "See how a saved medical history memory helps summarize what to tell a doctor."
+  zh: "See how a saved medical history memory helps summarize what to tell a doctor."
+  es: "See how a saved medical history memory helps summarize what to tell a doctor."
+  fr: "See how a saved medical history memory helps summarize what to tell a doctor."
+  pt: "See how a saved medical history memory helps summarize what to tell a doctor."
+  ru: "See how a saved medical history memory helps summarize what to tell a doctor."
+  ja: "See how a saved medical history memory helps summarize what to tell a doctor."
+  ko: "See how a saved medical history memory helps summarize what to tell a doctor."
+  it: "See how a saved medical history memory helps summarize what to tell a doctor."
+  tr: "See how a saved medical history memory helps summarize what to tell a doctor."
+  vi: "See how a saved medical history memory helps summarize what to tell a doctor."
+  id: "See how a saved medical history memory helps summarize what to tell a doctor."
+  pl: "See how a saved medical history memory helps summarize what to tell a doctor."
+  nl: "See how a saved medical history memory helps summarize what to tell a doctor."
+  ar: "See how a saved medical history memory helps summarize what to tell a doctor."
+  hi: "See how a saved medical history memory helps summarize what to tell a doctor."
+  th: "See how a saved medical history memory helps summarize what to tell a doctor."
+  cs: "See how a saved medical history memory helps summarize what to tell a doctor."
+  sv: "See how a saved medical history memory helps summarize what to tell a doctor."
+  he: "See how a saved medical history memory helps summarize what to tell a doctor."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Medical history memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  de: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  zh: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  es: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  fr: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  pt: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  ru: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  ja: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  ko: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  it: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  tr: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  vi: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  id: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  pl: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  nl: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  ar: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  hi: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  th: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  cs: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  sv: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  he: "Use my saved medical history memory to list what I should remember to tell a new doctor."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Medical history memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "000adbd5-e6db-4685-9dd9-41632f75d554", "app_id": "web", "skill_id": "search", "query": "what to tell a new doctor medical history checklist", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "47d5449e-0f94-436d-92b5-0e2bede2b924", "app_id": "images", "skill_id": "search", "query": "medical history checklist for new doctor", "provider": "Brave Search"}
+    ```
+    
+    Based on your saved medical history, the most critical piece of information you should communicate to a new doctor is your **penicillin allergy**.
+    
+    Your records note that this allergy causes **[hives](wiki:Hives)** and was documented in June 2020. Since this is a significant [drug allergy](wiki:Drug_allergy), it is vital to mention it before any [antibiotics](wiki:Antibiotic) or new medications are prescribed.
+    
+    Beyond your saved memory, it is standard practice to provide a comprehensive overview during a first visit. Here is a checklist of what you should prepare:
+    
+    ### 1. Specific Medical Conditions & History
+    *   **Current Conditions:** Any ongoing issues like [hypertension](wiki:Hypertension), [diabetes](wiki:Diabetes), or [asthma](wiki:Asthma).
+    *   **Past Surgeries:** The dates and types of any operations you’ve had, including any complications with [anesthesia](wiki:Anesthesia).
+    *   **Major Illnesses:** Previous hospitalizations or chronic illnesses from your past.
+    
+    ### 2. Medications and Supplements
+    Doctors need a full list of everything you take to avoid dangerous [drug interactions](wiki:Drug_interaction). This includes:
+    *   Prescription drugs (name and dosage).
+    *   Over-the-counter medicines (like [aspirin](wiki:Aspirin) or [ibuprofen](wiki:Ibuprofen)).
+    *   Vitamins, herbal supplements, and minerals.
+    
+    ### 3. Family Health History
+    Mention if immediate family members (parents, siblings) have had:
+    *   [Cancer](wiki:Cancer) (especially early-onset).
+    *   Heart disease or [stroke](wiki:Stroke).
+    *   Genetic conditions.
+    
+    ### 4. Recent Healthcare Encounters
+    *   Recent visits to the [emergency department](wiki:Emergency_department) or urgent care.
+    *   Names and contact information of previous doctors or specialists you've seen.
+    
+    ### Visual Checklists
+    [!](embed:patienttalker.com-ytx)
+    [!](embed:etsy.com-1Os)
+    [!](embed:doctorsolve.com-wQE)
+    
+    ---
+    
+    ### New Doctor Information Sheet
+    I have drafted a structured summary that you can print or share digitally to make your first appointment smoother.
+    
+    ```json
+    {"type": "document", "embed_id": "02c68b38-b587-42ca-8717-e32187b77a10"}
+    ```
+    
+    
+    
+    Preparing this information in advance helps you feel more in control and ensures your new doctor has the best possible "big picture" of your health. 
+    
+    Would you like help looking for [questions to ask](/#settings/apps/web) a new primary care doctor, or should I help you find [nearby clinics](/#settings/apps/maps) that accept your insurance?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  verified_by_human: []
+

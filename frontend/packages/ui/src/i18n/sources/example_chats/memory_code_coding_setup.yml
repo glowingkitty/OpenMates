@@ -1,0 +1,1339 @@
+title:
+  context: "Title of example chat: Coding setup memory"
+  en: "Coding setup memory"
+  de: "Coding setup memory"
+  zh: "Coding setup memory"
+  es: "Coding setup memory"
+  fr: "Coding setup memory"
+  pt: "Coding setup memory"
+  ru: "Coding setup memory"
+  ja: "Coding setup memory"
+  ko: "Coding setup memory"
+  it: "Coding setup memory"
+  tr: "Coding setup memory"
+  vi: "Coding setup memory"
+  id: "Coding setup memory"
+  pl: "Coding setup memory"
+  nl: "Coding setup memory"
+  ar: "Coding setup memory"
+  hi: "Coding setup memory"
+  th: "Coding setup memory"
+  cs: "Coding setup memory"
+  sv: "Coding setup memory"
+  he: "Coding setup memory"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Coding setup memory"
+  en: "See how a saved coding setup preference guides a concise debugging workflow."
+  de: "See how a saved coding setup preference guides a concise debugging workflow."
+  zh: "See how a saved coding setup preference guides a concise debugging workflow."
+  es: "See how a saved coding setup preference guides a concise debugging workflow."
+  fr: "See how a saved coding setup preference guides a concise debugging workflow."
+  pt: "See how a saved coding setup preference guides a concise debugging workflow."
+  ru: "See how a saved coding setup preference guides a concise debugging workflow."
+  ja: "See how a saved coding setup preference guides a concise debugging workflow."
+  ko: "See how a saved coding setup preference guides a concise debugging workflow."
+  it: "See how a saved coding setup preference guides a concise debugging workflow."
+  tr: "See how a saved coding setup preference guides a concise debugging workflow."
+  vi: "See how a saved coding setup preference guides a concise debugging workflow."
+  id: "See how a saved coding setup preference guides a concise debugging workflow."
+  pl: "See how a saved coding setup preference guides a concise debugging workflow."
+  nl: "See how a saved coding setup preference guides a concise debugging workflow."
+  ar: "See how a saved coding setup preference guides a concise debugging workflow."
+  hi: "See how a saved coding setup preference guides a concise debugging workflow."
+  th: "See how a saved coding setup preference guides a concise debugging workflow."
+  cs: "See how a saved coding setup preference guides a concise debugging workflow."
+  sv: "See how a saved coding setup preference guides a concise debugging workflow."
+  he: "See how a saved coding setup preference guides a concise debugging workflow."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Coding setup memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  de: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  zh: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  es: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  fr: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  pt: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  ru: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  ja: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  ko: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  it: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  tr: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  vi: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  id: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  pl: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  nl: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  ar: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  hi: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  th: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  cs: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  sv: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  he: "Use my saved coding setup memory to suggest how I should structure a debugging session tonight."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Coding setup memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  de: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  zh: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  es: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  fr: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  pt: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  ru: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  ja: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  ko: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  it: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  tr: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  vi: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  id: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  pl: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  nl: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  ar: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  hi: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  th: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  cs: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  sv: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  he: |
+    Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
+    
+    Since you prefer **explicit commands** and **small diffs** you can review manually, this workflow focuses on local isolation and CLI-native tools.
+    
+    ### 1. State Isolation & Clean Slate
+    Before changing any code, ensure you are working in a clean environment to make those "small diffs" meaningful.
+    *   **Create a dedicated branch:** `git checkout -b debug/session-name`
+    *   **Clear artifacts:** Run your project's clean command (e.g., `make clean`, `npm cache clean`, or `cargo clean`) to ensure you aren't chasing ghosts in compiled binaries.
+    
+    ### 2. The "Single-Command" Reproduction
+    In line with your shell-first preference, your first goal is to reduce the bug to a single [shell](wiki:Shell_(computing)) command or a minimal script.
+    *   **Draft a reproduction script:** Create a `repro.sh` that sets up the environment and triggers the failure.
+    *   **Automate the test:** Use `watch` or a simple loop to run this command as you make changes:
+        ```json
+    {"type": "code", "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8"}
+    ```
+    
+    
+    
+    ### 3. Explicit Trace & Observation
+    Since you prefer a **low AI level**, rely on explicit [debugging](wiki:Debugging) and tracing tools rather than speculative fixes:
+    *   **CLI Debuggers:** Use `gdb`, `lldb`, `pdb`, or `node inspect` depending on your language.
+    *   **System Tracing:** If the bug involves file I/O or networking, use `strace` (Linux) or `dtrace` (macOS) to see exactly what the process is doing at the kernel level.
+    *   **Grep-driven search:** Use `rg` (ripgrep) to explicitly trace data flow through your codebase from the terminal.
+    
+    ### 4. Incremental Patching & Diff Review
+    To honor your preference for **small, reviewable diffs**:
+    *   **Atomic Changes:** Make exactly one change at a time.
+    *   **Review before Commit:** Use `git diff --color-words` to see exactly what changed in the terminal.
+    *   **The "Check-in" Loop:**
+        1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
+        2.  Run `./repro.sh`.
+        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+    
+    ### 5. Final Verification
+    Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
+    
+    ***
+    
+    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
+    
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "debug_type_selection",
+      "multiple": false,
+      "question": "What is the nature of the bug you're hunting?",
+      "options": [
+        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
+        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
+        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
+        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
+      ]
+    }
+    ```json
+    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
+    ```
+    
+    
+  verified_by_human: []
+
