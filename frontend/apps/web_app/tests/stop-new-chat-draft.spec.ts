@@ -63,7 +63,7 @@ test('stop during new chat creation restores the sent message as a draft', async
 
 		await expect(stopButton).not.toBeVisible({ timeout: 10000 });
 		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });
-		await expect(chatHeader).not.toContainText(/Creating new chat/i, { timeout: 15000 });
+		await expect(page.getByText(/Creating new chat/i)).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('message-user')).toHaveCount(0, { timeout: 10000 });
 		await takeStepScreenshot(page, 'draft-restored-after-stop');
 	} finally {
