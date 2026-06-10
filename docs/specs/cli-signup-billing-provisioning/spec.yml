@@ -685,9 +685,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27263053793"
+        timestamp: "2026-06-10T08:21:29Z"
 
   - id: T-E2E-RECOVERY-001
     type: playwright
@@ -710,9 +710,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27262866451"
+        timestamp: "2026-06-10T08:18:03Z"
 
   - id: T-E2E-BACKUP-001
     type: playwright
@@ -735,9 +735,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27262721376"
+        timestamp: "2026-06-10T08:15:34Z"
 
   - id: T-E2E-BANK-TRANSFER-001
     type: playwright
@@ -760,9 +760,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27258872040"
+        timestamp: "2026-06-10T06:56:58Z"
 
 implementation_plan:
   existing_patterns:
