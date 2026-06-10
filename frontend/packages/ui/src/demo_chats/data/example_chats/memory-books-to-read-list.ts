@@ -197,5 +197,6 @@ export const memoryBooksToReadListChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 54,
+    app_settings_memory_examples: ["books.to_read_list"],
   },
 };

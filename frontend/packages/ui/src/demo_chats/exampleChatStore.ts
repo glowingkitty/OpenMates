@@ -401,6 +401,14 @@ export function getExampleChatsForFocusMode(appId: string, focusModeId: string):
   ).map(exampleChatToChat);
 }
 
+/** Get example chats explicitly linked to an app-store settings/memory page. */
+export function getExampleChatsForSettingsMemory(appId: string, categoryId: string): Chat[] {
+  const key = `${appId}.${categoryId}`;
+  return ALL_EXAMPLE_CHATS.filter((example) =>
+    example.metadata.app_settings_memory_examples?.includes(key),
+  ).map(exampleChatToChat);
+}
+
 /** Get featured example chats (limited to homepage display count) */
 export function getFeaturedExampleChats(): Chat[] {
   return ALL_EXAMPLE_CHATS.filter((c) => c.metadata.featured)

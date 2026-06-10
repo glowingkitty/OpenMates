@@ -183,5 +183,6 @@ export const memoryTravelTripsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 70,
+    app_settings_memory_examples: ["travel.trips"],
   },
 };

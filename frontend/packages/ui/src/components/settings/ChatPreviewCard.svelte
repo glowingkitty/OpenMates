@@ -17,10 +17,11 @@
         chat: Chat;
         appId?: string | null;
         skillId?: string | null;
+        memoryCategoryId?: string | null;
         onOpen: (chat: Chat) => void;
     }
 
-    let { chat, appId = null, skillId = null, onOpen }: Props = $props();
+    let { chat, appId = null, skillId = null, memoryCategoryId = null, onOpen }: Props = $props();
 
     let category = $derived(chat.category || 'general_knowledge');
     let gradientColors = $derived(getContinueGradientColors(category, appId));
@@ -35,6 +36,7 @@
     data-testid="app-store-example-chat-card"
     data-app-id={appId ?? undefined}
     data-skill-id={skillId ?? undefined}
+    data-memory-category-id={memoryCategoryId ?? undefined}
     data-chat-id={chat.chat_id}
     type="button"
     style={getResumeCardGradientStyle(gradientColors)}

@@ -178,5 +178,6 @@ export const memoryCodePreferredTechChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 55,
+    app_settings_memory_examples: ["code.preferred_tech"],
   },
 };

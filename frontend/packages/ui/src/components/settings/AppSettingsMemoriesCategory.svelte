@@ -33,6 +33,10 @@
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
     import AppSettingsMemoryEmbedPreview from './AppSettingsMemoryEmbedPreview.svelte';
+    import ChatPreviewCard from './ChatPreviewCard.svelte';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { getExampleChatsForSettingsMemory } from '../../demo_chats';
+    import type { Chat } from '../../types/chat';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -73,6 +77,8 @@
      * These are resolved via $text() and shown to non-authenticated users to illustrate what this category stores.
      */
     let exampleTranslationKeys = $derived(category?.example_translation_keys ?? []);
+
+    let chatExamples = $derived(getExampleChatsForSettingsMemory(appId, categoryId));
 
     // Get schema from category for title/subtitle field detection
     let schema = $derived(category?.schema_definition);
@@ -267,6 +273,13 @@
             title
         });
     }
+
+    function openExampleChat(chat: Chat) {
+        activeChatStore.setActiveChat(chat.chat_id);
+        dispatch('chatSelected', { chat });
+        window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+        dispatch('closeSettings');
+    }
     
     /**
      * Get the title to display for an entry based on schema is_title field.
@@ -444,9 +457,24 @@
             </div>
         {/if}
 
+        {#if chatExamples.length > 0}
+            <div class="chat-examples-section">
+                <SettingsSectionHeading
+                    title={$text('settings.app_settings_memories.examples')}
+                    icon="task"
+                />
+                <p class="examples-prefix">{$text('settings.app_store.skills.examples_prefix')}</p>
+                <div class="recent-chats-scroll-container" data-testid="app-store-memory-example-chats">
+                    {#each chatExamples as chat (chat.chat_id)}
+                        <ChatPreviewCard {chat} {appId} memoryCategoryId={categoryId} onOpen={openExampleChat} />
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
         <!-- Examples section — only shown when user has no saved entries yet (or is not authenticated).
              This avoids cluttering the list when user already has their own entries. -->
-        {#if exampleTranslationKeys.length > 0 && (!isAuthenticated || allEntries.length === 0)}
+        {#if chatExamples.length === 0 && exampleTranslationKeys.length > 0 && (!isAuthenticated || allEntries.length === 0)}
             <div class="examples-section">
                 <!-- "Examples" section heading — uses task/checklist icon, matching skill heading style -->
                 <SettingsSectionHeading
@@ -500,6 +528,39 @@
 
     .examples-section {
         margin-top: 1rem;
+    }
+
+    .chat-examples-section {
+        margin-top: 1rem;
+    }
+
+    .examples-prefix {
+        margin: 0.25rem 0 0.5rem;
+        color: var(--text-secondary, #666666);
+        font-size: var(--font-size-small, 0.9rem);
+    }
+
+    .recent-chats-scroll-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--spacing-8);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        visibility: visible;
+        padding: 0.75rem 0 0.5rem 0;
+        box-sizing: border-box;
+        pointer-events: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .recent-chats-scroll-container::-webkit-scrollbar {
+        display: none;
     }
 
     .examples-list {

@@ -155,5 +155,6 @@ export const memoryTravelSavedConnectionsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 68,
+    app_settings_memory_examples: ["travel.saved_connections"],
   },
 };

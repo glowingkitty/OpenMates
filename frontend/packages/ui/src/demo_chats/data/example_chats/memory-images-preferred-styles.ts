@@ -92,5 +92,6 @@ export const memoryImagesPreferredStylesChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 64,
+    app_settings_memory_examples: ["images.preferred_styles"],
   },
 };

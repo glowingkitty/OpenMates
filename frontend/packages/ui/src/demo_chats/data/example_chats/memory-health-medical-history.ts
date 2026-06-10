@@ -155,5 +155,6 @@ export const memoryHealthMedicalHistoryChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 62,
+    app_settings_memory_examples: ["health.medical_history"],
   },
 };

@@ -35,5 +35,6 @@ export const memoryTvToWatchListChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 76,
+    app_settings_memory_examples: ["tv.to_watch_list"],
   },
 };

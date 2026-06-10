@@ -43,5 +43,6 @@ export const memoryStudyLearningGoalsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 67,
+    app_settings_memory_examples: ["study.learning_goals"],
   },
 };

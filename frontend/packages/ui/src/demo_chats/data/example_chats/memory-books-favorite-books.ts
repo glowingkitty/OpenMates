@@ -155,5 +155,6 @@ export const memoryBooksFavoriteBooksChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 52,
+    app_settings_memory_examples: ["books.favorite_books"],
   },
 };

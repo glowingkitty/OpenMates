@@ -35,5 +35,6 @@ export const memoryCodeWantToLearnChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 57,
+    app_settings_memory_examples: ["code.want_to_learn"],
   },
 };

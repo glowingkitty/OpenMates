@@ -162,5 +162,6 @@ export const memoryHealthAppointmentsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 61,
+    app_settings_memory_examples: ["health.appointments"],
   },
 };

@@ -183,5 +183,6 @@ export const memoryHomeSavedListingsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 63,
+    app_settings_memory_examples: ["home.saved_listings"],
   },
 };

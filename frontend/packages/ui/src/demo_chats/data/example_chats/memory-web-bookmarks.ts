@@ -35,5 +35,6 @@ export const memoryWebBookmarksChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 78,
+    app_settings_memory_examples: ["web.bookmarks"],
   },
 };

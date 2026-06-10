@@ -155,5 +155,6 @@ export const memoryTravelPreferredTransportChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 72,
+    app_settings_memory_examples: ["travel.preferred_transport_methods"],
   },
 };

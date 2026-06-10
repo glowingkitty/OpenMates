@@ -162,5 +162,6 @@ export const memoryEventsSavedEventsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 60,
+    app_settings_memory_examples: ["events.saved_events"],
   },
 };

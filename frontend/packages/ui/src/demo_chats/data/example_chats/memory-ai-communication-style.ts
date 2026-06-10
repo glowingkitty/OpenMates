@@ -50,5 +50,6 @@ export const memoryAiCommunicationStyleChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 50,
+    app_settings_memory_examples: ["ai.communication_style"],
   },
 };

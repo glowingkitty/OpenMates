@@ -43,5 +43,6 @@ export const memoryMailWritingStylesChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 65,
+    app_settings_memory_examples: ["mail.writing_styles"],
   },
 };

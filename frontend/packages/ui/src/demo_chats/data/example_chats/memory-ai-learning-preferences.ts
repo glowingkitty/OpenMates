@@ -176,5 +176,6 @@ export const memoryAiLearningPreferencesChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 51,
+    app_settings_memory_examples: ["ai.learning_preferences"],
   },
 };

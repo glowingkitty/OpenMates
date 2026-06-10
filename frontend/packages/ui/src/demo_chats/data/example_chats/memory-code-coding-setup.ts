@@ -50,5 +50,6 @@ export const memoryCodeCodingSetupChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 58,
+    app_settings_memory_examples: ["code.coding_setup"],
   },
 };

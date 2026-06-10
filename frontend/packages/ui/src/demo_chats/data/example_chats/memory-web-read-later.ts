@@ -35,5 +35,6 @@ export const memoryWebReadLaterChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 79,
+    app_settings_memory_examples: ["web.read_later"],
   },
 };

@@ -43,5 +43,6 @@ export const memoryTravelPreferredAirlinesChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 71,
+    app_settings_memory_examples: ["travel.preferred_airlines"],
   },
 };

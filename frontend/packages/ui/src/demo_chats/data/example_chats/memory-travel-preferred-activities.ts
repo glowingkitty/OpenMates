@@ -99,5 +99,6 @@ export const memoryTravelPreferredActivitiesChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 73,
+    app_settings_memory_examples: ["travel.preferred_activities"],
   },
 };

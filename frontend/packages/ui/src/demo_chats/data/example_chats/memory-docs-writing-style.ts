@@ -35,5 +35,6 @@ export const memoryDocsWritingStyleChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 59,
+    app_settings_memory_examples: ["docs.writing_style"],
   },
 };

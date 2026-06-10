@@ -35,5 +35,6 @@ export const memoryCodeProjectsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 56,
+    app_settings_memory_examples: ["code.projects"],
   },
 };

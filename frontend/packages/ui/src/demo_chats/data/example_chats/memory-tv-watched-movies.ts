@@ -35,5 +35,6 @@ export const memoryTvWatchedMoviesChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 74,
+    app_settings_memory_examples: ["tv.watched_movies"],
   },
 };

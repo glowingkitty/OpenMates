@@ -35,5 +35,6 @@ export const memoryReminderDefaultsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 66,
+    app_settings_memory_examples: ["reminder.saved_item_reminder_defaults"],
   },
 };

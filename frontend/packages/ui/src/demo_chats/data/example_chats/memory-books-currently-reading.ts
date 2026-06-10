@@ -162,5 +162,6 @@ export const memoryBooksCurrentlyReadingChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 53,
+    app_settings_memory_examples: ["books.currently_reading"],
   },
 };
