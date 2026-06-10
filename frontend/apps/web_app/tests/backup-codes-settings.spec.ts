@@ -216,7 +216,7 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	logCheckpoint('Checked confirmation checkbox.');
 
 	// Click "Done" button (reset flow uses "Done" instead of "Complete Setup")
-	const doneButton = backupCodesContainer.getByRole('button');
+	const doneButton = backupCodesContainer.getByRole('button', { name: /^done$/i });
 	await expect(doneButton).toBeEnabled();
 	await doneButton.click();
 	logCheckpoint('Clicked Done to confirm codes stored.');
