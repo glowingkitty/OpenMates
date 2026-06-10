@@ -466,7 +466,12 @@ export async function handleSend(
     draftChatId: draftStateBeforeSend.currentChatId,
     isSaveInProgress: draftStateBeforeSend.isSaveInProgress,
   });
-  if (!currentChatId && !draftStateBeforeSend.currentChatId) {
+  if (
+    draftStateBeforeSend.isSaveInProgress &&
+    (!currentChatId ||
+      !draftStateBeforeSend.currentChatId ||
+      currentChatId === draftStateBeforeSend.currentChatId)
+  ) {
     await waitForDraftSaveIdle();
   }
 
