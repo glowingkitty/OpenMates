@@ -28,6 +28,7 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 
 type LastSendState = {
 	assistantCount: number;
+	assistantLastText: string;
 };
 
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
@@ -562,6 +563,11 @@ async function sendMessage(
 	const assistantMessages = page.getByTestId('message-assistant');
 	const userCountBeforeSend = await locatorCount(userMessages);
 	const assistantCountBeforeSend = await locatorCount(assistantMessages);
+	const assistantLastTextBeforeSend = assistantCountBeforeSend > 0
+		? ((await assistantMessages.last()
+			.textContent({ timeout: 1000 })
+			.catch(() => '')) ?? '').trim()
+		: '';
 
 	await messageEditor.click();
 	await page.keyboard.insertText(message);
@@ -710,7 +716,8 @@ async function sendMessage(
 			)
 		) {
 			lastSendStateByPage.set(page, {
-				assistantCount: assistantCountBeforeSend
+				assistantCount: assistantCountBeforeSend,
+				assistantLastText: assistantLastTextBeforeSend
 			});
 			logCheckpoint('Message send accepted after synthetic send fallback.', {
 				userCount: userCountAfterSynthetic,
@@ -723,7 +730,8 @@ async function sendMessage(
 		throw error;
 	}
 	lastSendStateByPage.set(page, {
-		assistantCount: assistantCountBeforeSend
+		assistantCount: assistantCountBeforeSend,
+		assistantLastText: assistantLastTextBeforeSend
 	});
 	logCheckpoint('Message send accepted after send.', {
 		userCount: await locatorCount(userMessages),
@@ -926,9 +934,24 @@ async function waitForAssistantMessage(
 				? Math.max(nth + 1, lastSendState.assistantCount + 1)
 				: Math.min(lastSendState.assistantCount + 1, currentAssistantCount + 1);
 		await expect
-			.poll(async () => await locatorCount(assistantMessages), { timeout: budget() })
-			.toBeGreaterThanOrEqual(minimumAssistantCount);
-		logCheckpoint(`New assistant message attached (count>=${minimumAssistantCount}).`);
+			.poll(async () => {
+				const assistantCount = await locatorCount(assistantMessages);
+				if (assistantCount >= minimumAssistantCount) return true;
+
+				// ChatHistory merges adjacent assistant continuations into one bubble.
+				// In that case the count stays stable, but the last assistant text expands.
+				if (assistantCount > 0 && lastSendState.assistantLastText) {
+					const lastText = ((await assistantMessages.last()
+						.textContent({ timeout: 1000 })
+						.catch(() => '')) ?? '').trim();
+					return lastText.length > lastSendState.assistantLastText.length
+						&& lastText !== lastSendState.assistantLastText;
+				}
+
+				return false;
+			}, { timeout: budget() })
+			.toBeTruthy();
+		logCheckpoint(`Assistant response attached or merged (target count>=${minimumAssistantCount}).`);
 	}
 
 	// Stage 1 — stream-started gate.
