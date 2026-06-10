@@ -288,16 +288,21 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Enter password
+	// Enter password first. The OTP field appears only after /login confirms that
+	// 2FA is required; /lookup stays generic for anti-enumeration.
 	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
+	const loginSubmitButton = page.locator('#login-submit-button');
+	await expect(loginSubmitButton).toBeVisible();
+	await loginSubmitButton.click();
+	logCheckpoint('Submitted password to reveal backup-code prompt.');
 
-	// The TFA input should already be visible (tfa_enabled=true from lookup)
 	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
+	logCheckpoint('TFA input visible after password submission.');
 
 	// Switch to backup code mode using the toggle button
 	const backupModeButton = page.locator('#login-with-backup-code button');
@@ -319,7 +324,6 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	logCheckpoint('Entered backup code.');
 
 	// Submit login with password + backup code
-	const loginSubmitButton = page.locator('#login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');
