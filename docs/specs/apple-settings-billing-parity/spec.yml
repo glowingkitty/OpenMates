@@ -436,9 +436,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: partial_passed_ipad_app_store_layout_smoke
+        run_id: apple-remote-ipad-pro-13-m5-c579-settings-apps-layout
+        timestamp: "2026-06-10"
   - id: T-UI-005
     type: unit
     file: apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
