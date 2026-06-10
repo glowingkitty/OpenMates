@@ -54,7 +54,7 @@ On signup completion, demo chats are kept and the user receives a message explai
 
 ### Onboarding
 
-See [Onboarding Architecture](onboarding.md) for planned user onboarding features.
+See [Onboarding Guide](../../user-guide/onboarding.md) for the implemented user onboarding flow.
 
 ## Native Apps
 

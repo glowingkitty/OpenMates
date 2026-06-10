@@ -1,5 +1,6 @@
 ---
-status: implemented
+status: active
+last_verified: 2026-06-10
 created: 2026-04-04
 updated: 2026-04-05
 linear_task: OPE-326

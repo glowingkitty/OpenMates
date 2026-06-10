@@ -103,5 +103,5 @@ For security reasons, the following are excluded:
 
 ## Related
 
-- [Usage & Billing](usage-and-billing.md) -- Viewing usage details
-- [Pricing](pricing.md) -- How credits work
+- [Usage & Billing](billing/usage.md) -- Viewing usage details
+- [Pricing](billing/pricing.md) -- How credits work

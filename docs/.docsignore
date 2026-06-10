@@ -14,6 +14,10 @@ figma-newchat/
 # Exclude developer contribution docs (guides, standards — not user-facing)
 contributing/
 
+# Exclude executable implementation specs from the public /docs web app.
+# Specs remain versioned in git under docs/specs/ for agents and contributors.
+specs/
+
 # Exclude any temporary or draft files
 *.draft.md
 *.temp.md

@@ -182,6 +182,5 @@ Acceptance criteria:
 ## Related Docs
 
 - [CLI Package](./cli-package.md) -- package architecture and implemented command surface.
-- [CLI Remote Access](./cli-remote-access.md) -- planned connected-server features.
 - [CLI Settings](../../cli/settings.md) -- user-facing settings command reference.
 - [CLI Standards](../../contributing/standards/cli.md) -- implementation rules and security boundaries.

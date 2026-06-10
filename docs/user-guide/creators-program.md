@@ -67,5 +67,5 @@ A tipping feature is planned that will let you send credits directly to creators
 
 ## Related
 
-- [Pricing](pricing.md) -- How credits work
-- [Usage & Billing](usage-and-billing.md) -- Your credit usage
+- [Pricing](billing/pricing.md) -- How credits work
+- [Usage & Billing](billing/usage.md) -- Your credit usage

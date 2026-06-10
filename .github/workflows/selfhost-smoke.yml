@@ -96,6 +96,7 @@ jobs:
           openmates server --help
 
       - name: Source-mode timing baseline
+        # docAssert('openmates server install --source-path starts self-host smoke stack')
         run: |
           CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
           mkdir -p "$GITHUB_WORKSPACE/test-results"
@@ -153,6 +154,7 @@ jobs:
           build_with_retry -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted -f frontend/apps/web_app/Dockerfile .
 
       - name: Image-mode self-hosted install and timing
+        # docAssert('self-host install smoke passes without provider API keys')
         env:
           OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}
           OPENMATES_SKIP_IMAGE_PULL: "1"

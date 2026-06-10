@@ -1,11 +1,17 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-10
+claims: []
 ---
 
 # Pricing
 
-> OpenMates uses a pay-per-use credits system. No subscriptions -- you only pay for what you use, and credits never expire.
+## Summary
+
+OpenMates uses a pay-per-use credits system. No subscriptions -- you only pay for what you use, and credits never expire.
 
 ## What It Does
 
@@ -21,7 +27,7 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 ## What Gets Charged
 
 - **Messages**: Every message you send uses credits based on the length of the conversation and the model selected.
-- **App skills**: Tools like web search, image generation, and code execution have their own prices. Some charge per use, per token, or per unit (like per image or per minute of audio).
+- **App skills**: Tools like web search, image generation, and code execution have their own prices. Some charge per use, per token, or per unit, like per image or per minute of audio.
 - **Prices are listed** in the Apps section for each skill.
 
 ## Cost Transparency
@@ -33,7 +39,7 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 ## Running Out of Credits
 
 - If you try to send a message with **insufficient credits**, your request is rejected and a system notice appears in the chat with a **Buy Credits** button. Once you purchase credits, you can resend your message.
-- The chat enters a "waiting" state until you top up -- no credits are lost on a rejected request.
+- The chat enters a waiting state until you top up -- no credits are lost on a rejected request.
 
 ## Tips
 
@@ -43,5 +49,5 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 
 ## Related
 
-- [Usage & Billing](usage-and-billing.md) -- Viewing your usage history
+- [Usage & Billing](usage.md) -- Viewing your usage history
 - [Gift Cards](gift-cards.md) -- Redeeming gift cards for credits

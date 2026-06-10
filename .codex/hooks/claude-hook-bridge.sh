@@ -168,6 +168,7 @@ case "$EVENT" in
 
         run_for_files "PostToolUse" false \
           "auto-track.sh" \
+          "docs-claims-impact.sh" \
           "auto-rebuild-translations.sh" \
           "testid-drift-detector.sh" \
           "encryption-architecture-reminder.sh" \

@@ -90,6 +90,5 @@ Real-time regex detection in [piiDetectionService.ts](../../frontend/packages/ui
 ## Related Docs
 
 - [PII Protection](./pii-protection.md) — architecture overview of client-side PII system
-- [PII Detection Phase 2](./pii-detection-phase2.md) — planned server-side document PII detection
 - [Prompt Injection](./prompt-injection.md) — defense-in-depth for external content
 - [Security](../core/security.md) — encryption tiers (client-managed vs vault)

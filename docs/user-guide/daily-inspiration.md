@@ -56,4 +56,4 @@ Daily inspiration generation is **free** -- you are not charged for the inspirat
 
 - [Getting Started](getting-started.md) -- Overview of OpenMates
 - [Chats](chats.md) -- Managing your conversations
-- [Pricing](pricing.md) -- How credits work
+- [Pricing](billing/pricing.md) -- How credits work

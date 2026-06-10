@@ -193,5 +193,4 @@ Accessible from fullscreen view of any versioned embed (code, doc, sheet):
 ## Related Docs
 
 - [Embeds Architecture](./embeds.md) — base embed lifecycle
-- [Embed Cold Storage](../storage/embed-cold-storage.md) — cold tier includes diffs
 - [Message Processing](./message-processing.md) — embed resolution in AI context

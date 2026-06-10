@@ -57,4 +57,4 @@ Scheduled backups to S3/GCS/Azure/Dropbox/Google Drive/OneDrive/WebDAV/SFTP. Cre
 ## Related Docs
 
 - [Delete Account](./delete-account.md) -- users may want to export before deletion
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- decryption happens client-side
+- [Encryption Architecture](./encryption-architecture.md) -- decryption happens client-side

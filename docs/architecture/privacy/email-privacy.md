@@ -70,5 +70,5 @@ Invoices use a 7-character randomly generated **Account ID** (e.g., "K7M9P2S") i
 
 ## Related Docs
 
-- [Zero-Knowledge Storage](../core/zero-knowledge-storage.md) -- overall encryption architecture
+- [Encryption Architecture](../core/encryption-architecture.md) -- overall encryption architecture
 - [Signup and Auth](../core/signup-and-auth.md) -- authentication flows

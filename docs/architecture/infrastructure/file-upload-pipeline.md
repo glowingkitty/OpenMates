@@ -127,4 +127,4 @@ Key Directus fields on `users`: `storage_used_bytes`, `storage_last_billed_at`, 
 ## Related Docs
 
 - [Message Processing](../messaging/message-processing.md) -- how AI skills consume uploaded file embed data
-- [Zero-Knowledge Storage](../core/zero-knowledge-storage.md) -- encryption model
+- [Encryption Architecture](../core/encryption-architecture.md) -- encryption model

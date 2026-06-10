@@ -1,15 +1,21 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-10
+claims: []
 ---
 
 # Gift Cards
 
-> Redeem a gift card code to add credits to your account.
+## Summary
+
+Redeem a gift card code to add credits to your account.
 
 ## What It Does
 
-Gift cards are single-use codes that add credits to your account. Each card has a set credit value (from 1 to 50,000 credits). Once redeemed, the credits are available immediately.
+Gift cards are single-use codes that add credits to your account. Each card has a set credit value from 1 to 50,000 credits. Once redeemed, the credits are available immediately.
 
 ## How to Redeem a Gift Card
 
@@ -26,7 +32,7 @@ If you change your mind, click **Cancel** to return to the credit purchase optio
 - **Single-use**: Each gift card can only be redeemed once. After redemption, the code is permanently removed.
 - **Case-insensitive**: You can type the code in uppercase or lowercase -- it does not matter.
 - **Flexible amounts**: Gift cards can have any credit value between 1 and 50,000, unlike standard purchase tiers.
-- **No expiration**: Gift card codes do not expire (unless the issuer specifies otherwise).
+- **No expiration**: Gift card codes do not expire unless the issuer specifies otherwise.
 
 ## Error Messages
 
@@ -44,4 +50,4 @@ If you change your mind, click **Cancel** to return to the credit purchase optio
 ## Related
 
 - [Pricing](pricing.md) -- How credits work
-- [Usage & Billing](usage-and-billing.md) -- Viewing your credit usage
+- [Usage & Billing](usage.md) -- Viewing your credit usage

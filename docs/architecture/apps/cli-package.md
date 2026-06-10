@@ -88,7 +88,7 @@ Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_A
 
 ## Planned Features
 
-- **Remote access** (`openmates remote-access start`) -- web app interaction with server filesystem. See [cli-remote-access.md](./cli-remote-access.md).
+- **Remote access** (`openmates remote-access start`) -- planned connected-server workflow, not part of the implemented CLI command set yet.
 - **Secret tokenization** -- reversible secret redaction via Aho-Corasick multi-pattern matching
 - **Python SDK** -- `pip install openmates` with Click-based CLI
 - **Browser setup** -- Docker + Playwright for localhost app testing

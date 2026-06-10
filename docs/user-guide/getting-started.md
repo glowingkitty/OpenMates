@@ -36,7 +36,7 @@ last_verified: 2026-03-24
 - [Apps](apps/README.md) -- Explore built-in apps and skills
 - [Chats](chats.md) -- Managing your conversations
 - [Keyboard Shortcuts](keyboard-shortcuts.md) -- Speed up your workflow
-- [Pricing](pricing.md) -- How credits work
+- [Pricing](billing/pricing.md) -- How credits work
 - [Memories](apps/settings-and-memories.md) -- Personalise your experience
 
 ## Community

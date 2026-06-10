@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DOCS_ROOT = REPO_ROOT / "docs"
 USER_GUIDE_ROOT = DOCS_ROOT / "user-guide"
 VALID_CLAIM_TYPES = {"e2e", "unit", "backend", "integration", "static", "manual"}
+INVALID_NON_SPEC_STATUSES = {"planned", "idea", "todo", "in-progress", "partial", "implemented"}
 SUPPORTED_ASSERTION_MARKERS = (
     "docAssert",
     "docAssertStatic",
@@ -51,6 +52,14 @@ class DocClaims:
     claims: tuple[Claim, ...]
     has_summary: bool
     has_remotion_placeholder: bool
+
+
+@dataclass(frozen=True)
+class ValidationResult:
+    errors: list[str]
+    warnings: list[str]
+    checked_docs: int
+    docs_with_claims: int
 
 
 def _extract_frontmatter(markdown: str) -> list[str]:
@@ -265,6 +274,123 @@ def validate_global_claim_ids(docs: list[DocClaims]) -> list[str]:
             else:
                 seen[claim.id] = rel_doc
     return errors
+
+
+def _rel_to_root(path: Path, repo_root: Path) -> str:
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
+
+
+def _is_under_specs(doc: DocClaims, docs_root: Path) -> bool:
+    try:
+        parts = doc.path.relative_to(docs_root).parts
+    except ValueError:
+        return False
+    return bool(parts) and parts[0] == "specs"
+
+
+def _validate_doc_with_root(
+    doc: DocClaims,
+    *,
+    docs_root: Path,
+    repo_root: Path,
+    enforce_active: bool,
+) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    rel_doc = _rel_to_root(doc.path, repo_root)
+    in_specs = _is_under_specs(doc, docs_root)
+
+    if not in_specs and doc.status in INVALID_NON_SPEC_STATUSES:
+        errors.append(f"{rel_doc}: invalid status outside docs/specs: {doc.status}")
+
+    if doc.status == "active":
+        missing_level = errors if enforce_active else warnings
+        if not doc.doc_type:
+            missing_level.append(f"{rel_doc}: active doc is missing doc_type")
+        if not doc.audience:
+            missing_level.append(f"{rel_doc}: active doc is missing audience")
+        if not doc.last_verified:
+            missing_level.append(f"{rel_doc}: active doc is missing last_verified")
+        if not doc.claims:
+            missing_level.append(f"{rel_doc}: active doc is missing claims")
+
+    seen_claim_ids: set[str] = set()
+    for claim in doc.claims:
+        label = f"{rel_doc}: claim {claim.id or '<missing id>'}"
+        if not claim.id:
+            errors.append(f"{label} is missing id")
+            continue
+        if claim.id in seen_claim_ids:
+            errors.append(f"{label} duplicates another claim id in the same doc")
+        seen_claim_ids.add(claim.id)
+        if claim.type not in VALID_CLAIM_TYPES:
+            errors.append(f"{label} has invalid type: {claim.type or '<missing>'}")
+            continue
+        if claim.type == "manual":
+            if not claim.reason:
+                (errors if enforce_active else warnings).append(f"{label} is manual but has no reason")
+            continue
+        if not claim.file:
+            errors.append(f"{label} is missing file")
+            continue
+        if not claim.assertion:
+            errors.append(f"{label} is missing assertion")
+            continue
+        claim_file = repo_root / claim.file
+        if not claim_file.exists():
+            errors.append(f"{label} references missing file: {claim.file}")
+            continue
+        text = claim_file.read_text(encoding="utf-8", errors="replace")
+        if not _assertion_marker_exists(text, claim.assertion):
+            errors.append(f"{label} assertion marker not found in {claim.file}: {claim.assertion}")
+
+    return errors, warnings
+
+
+def validate_docs_tree(
+    docs_root: Path = DOCS_ROOT,
+    *,
+    repo_root: Path | None = None,
+    enforce_active: bool = False,
+) -> ValidationResult:
+    """Validate docs under docs_root with configurable repository root."""
+
+    docs_root = docs_root.resolve()
+    repo_root = (repo_root or docs_root.parent).resolve()
+    docs = [parse_doc(path) for path in sorted(docs_root.rglob("*.md"))]
+    errors: list[str] = []
+    warnings: list[str] = []
+    for doc in docs:
+        doc_errors, doc_warnings = _validate_doc_with_root(
+            doc,
+            docs_root=docs_root,
+            repo_root=repo_root,
+            enforce_active=enforce_active,
+        )
+        errors.extend(doc_errors)
+        warnings.extend(doc_warnings)
+
+    seen_global: dict[str, str] = {}
+    for doc in docs:
+        rel_doc = _rel_to_root(doc.path, repo_root)
+        for claim in doc.claims:
+            if not claim.id:
+                continue
+            previous = seen_global.get(claim.id)
+            if previous is not None:
+                errors.append(f"claim id {claim.id} is duplicated in {previous} and {rel_doc}")
+            else:
+                seen_global[claim.id] = rel_doc
+
+    return ValidationResult(
+        errors=errors,
+        warnings=warnings,
+        checked_docs=len(docs),
+        docs_with_claims=sum(1 for doc in docs if doc.claims),
+    )
 
 
 def main() -> int:

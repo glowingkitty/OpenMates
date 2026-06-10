@@ -48,22 +48,7 @@ Apps give your digital team mates special abilities. They let your mates search 
 - [Health](./health.md) -- Find doctor appointments and track medical history
 - [Events](./events.md) -- Search for local meetups, conferences, and events
 - [Maps](./maps.md) -- Search for places, restaurants, and businesses
-- [Plants](./plants.md) -- Track your plant collection and care schedules
 
 ### Professional
 
 - [Jobs](./jobs.md) -- Career guidance and insights through a focus mode
-
-### Planned Apps
-
-These apps are planned but not yet available:
-
-- [Business](./business.md) -- Business research and startup resources
-- [Coaching](./coaching.md) -- Personalized AI coaching (ADD, productivity, wellness)
-- [Contacts](./contacts.md) -- Contact management and people discovery
-- [Design](./design.md) -- AI-assisted graphic design
-- [Drawing](./drawing.md) -- Creative canvas with AI assistance
-- [Fitness](./fitness.md) -- Fitness class search and trainer tracking
-- [Home](./home.md) -- Smart home automation
-- [Music](./music.md) -- Sheet music conversion and music discovery
-- [Slides](./slides.md) -- AI-powered presentation creation

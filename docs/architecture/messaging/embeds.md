@@ -96,7 +96,7 @@ sequenceDiagram
 | `share_mode` | string | `private` / `shared_with_user` / `public` |
 | `embed_ids` | json | Child embed IDs for composite `app_skill_use` embeds |
 
-Full schema: [embed_schemas.py](../../backend/shared/python_schemas/embed_schemas.py)
+Full schema: [app_metadata_schemas.py](../../backend/shared/python_schemas/app_metadata_schemas.py)
 
 ### Embed Types (`encrypted_type` values)
 

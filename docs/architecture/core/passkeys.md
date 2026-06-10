@@ -133,6 +133,6 @@ PRF support depends on the whole browser + OS + authenticator chain. Chrome on L
 ## Related Docs
 
 - [Signup & Login](./signup-and-auth.md) -- full authentication flow context
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- master key wrapping details
+- [Encryption Architecture](./encryption-architecture.md) -- master key wrapping details
 - [Account Recovery](./account-recovery.md) -- recovery when passkey is lost
 - [Security Architecture](./security.md) -- overall security model

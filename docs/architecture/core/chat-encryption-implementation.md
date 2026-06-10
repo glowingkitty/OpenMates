@@ -42,7 +42,7 @@ coverage:
 ## Why This Exists
 
 - Documents which fields are encrypted, with which keys, and at which layer
-- Provides the implementation reference for the zero-knowledge architecture described in [zero-knowledge-storage.md](./zero-knowledge-storage.md)
+- Provides the implementation reference for the zero-knowledge architecture described in [encryption-architecture.md](./encryption-architecture.md)
 - Tracks the dual-phase processing model: plaintext for AI inference, encrypted for storage
 
 ## How It Works
@@ -141,6 +141,6 @@ In [messages.yml](../../backend/core/directus/schemas/messages.yml):
 
 ## Related Docs
 
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- encryption tiers and master key lifecycle
+- [Encryption Architecture](./encryption-architecture.md) -- encryption tiers and master key lifecycle
 - [Security Architecture](./security.md) -- overall security model
 - [Message Processing](../messaging/message-processing.md) -- dual-cache (vault vs client encryption)

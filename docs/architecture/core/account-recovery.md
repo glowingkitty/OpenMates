@@ -85,6 +85,6 @@ All chats, messages, app settings, memories, embeds, hidden demo chats, encrypti
 ## Related Docs
 
 - [Signup & Login](./signup-and-auth.md) -- authentication flows
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- why reset destroys data
+- [Encryption Architecture](./encryption-architecture.md) -- why reset destroys data
 - [Passkeys](./passkeys.md) -- passkey re-registration during recovery
 - [Security Architecture](./security.md) -- overall security model

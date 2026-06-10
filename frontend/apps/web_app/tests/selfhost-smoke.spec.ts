@@ -147,16 +147,18 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
   timeout: 45000
  });
 
- const signedUpSession = await waitForAdminStatus(page, false);
- expect(signedUpSession.ok, `session after signup failed with ${signedUpSession.status}`).toBe(true);
- expect(signedUpSession.json.success).toBe(true);
- expect(signedUpSession.json.user?.is_admin).toBe(false);
+	const signedUpSession = await waitForAdminStatus(page, false);
+	// docAssert('invite signup creates a normal user and make-admin promotes that user')
+	expect(signedUpSession.ok, `session after signup failed with ${signedUpSession.status}`).toBe(true);
+	expect(signedUpSession.json.success).toBe(true);
+	expect(signedUpSession.json.user?.is_admin).toBe(false);
 
  execFileSync('openmates', ['server', 'make-admin', signupEmail, '--path', SELFHOST_INSTALL_PATH], {
   stdio: 'inherit'
  });
 
 	const adminSession = await waitForAdminStatus(page, true);
+	// docAssert('openmates server make-admin promotes a self-hosted signup user to admin')
 	expect(adminSession.json.success).toBe(true);
 	expect(adminSession.json.user?.is_admin).toBe(true);
 

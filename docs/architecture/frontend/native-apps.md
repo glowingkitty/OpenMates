@@ -1,5 +1,9 @@
 ---
-status: in-progress
+status: active
+doc_type: architecture
+audience:
+  - contributors
+  - technical-users
 last_verified: 2026-04-17
 key_files:
   - apple/project.yml
