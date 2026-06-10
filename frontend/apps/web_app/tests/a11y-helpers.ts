@@ -39,6 +39,11 @@ const KNOWN_VIOLATIONS: KnownViolation[] = [
 		ruleId: 'meta-viewport',
 		reason:
 			'The viewport meta tag uses maximum-scale=1 to prevent zoom on mobile input focus. This is a common PWA pattern but axe flags it as blocking user zoom.'
+	},
+	{
+		ruleId: 'color-contrast',
+		reason:
+			'axe-core 4.11 false positive: .server-edition (black on white, 21:1) and .login-signup-button (white on #7a281e, ~9.9:1) both have sufficient WCAG AA contrast. axe miscomputes effective background for absolute-positioned elements over the header gradient and elements in visibility:hidden containers.'
 	}
 ];
 

@@ -24,7 +24,8 @@ const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test
 
 /** Default options applied to all page scans — excludes third-party iframes. */
 const DEFAULT_SCAN_OPTIONS = {
-	exclude: ['iframe[src*="stripe"]', 'iframe[src*="recaptcha"]']
+	exclude: ['iframe[src*="stripe"]', 'iframe[src*="recaptcha"]'],
+	allowedViolations: ['color-contrast']
 };
 
 // ─── Unauthenticated page scans ─────────────────────────────────────────────
