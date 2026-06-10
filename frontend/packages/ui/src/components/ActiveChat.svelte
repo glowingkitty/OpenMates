@@ -5795,6 +5795,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 embedFullscreenData = null;
             }
             
+            let hydratedMessagesForChat: ChatMessageModel[] = [];
+
             // Force update currentChat immediately (fallback to DB if newChat wasn't provided)
             if (newChat) {
                 currentChat = newChat;
@@ -5805,10 +5807,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     const incognitoChat = await incognitoChatService.getChat(message.chat_id);
                     if (incognitoChat) {
                         currentChat = incognitoChat as Chat;
+                        hydratedMessagesForChat = await incognitoChatService.getMessagesForChat(message.chat_id);
                     } else {
                         const dbChat = await chatDB.getChat(message.chat_id);
                         if (dbChat) {
                             currentChat = dbChat as Chat;
+                            hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
                         } else {
                             // Minimal fallback to keep UI consistent; DB should catch up shortly
                             currentChat = { chat_id: message.chat_id } as Chat;
@@ -5832,6 +5836,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     currentMessages = [message]; // Initialize messages with the first message
                 }
+            } else if (hydratedMessagesForChat.length > 0) {
+                currentMessages = hydratedMessagesForChat.some(m => m.message_id === message.message_id)
+                    ? hydratedMessagesForChat
+                    : [...hydratedMessagesForChat, message];
             } else {
                 currentMessages = [message]; // Initialize messages with the first message
             }
