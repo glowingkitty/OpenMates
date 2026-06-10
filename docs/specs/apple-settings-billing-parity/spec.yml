@@ -460,9 +460,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: partial_passed_billing_storekit_fixture_smoke
+        run_id: apple-remote-iphone17-c579-settings-billing-storekit
+        timestamp: "2026-06-10"
   - id: T-UI-006
     type: unit
     file: apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
