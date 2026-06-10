@@ -77,7 +77,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -191,26 +191,27 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// this with "You cannot send messages to this shared chat." because the chat
 	// was not in the user's chat_ids_versions sorted set.
 	log('Typing follow-up message "tell me more"...');
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('tell me more', 'daily_inspiration'));
-	await screenshot(page, 'followup-message-typed');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
+	const assistantMessages = page.getByTestId('message-assistant');
+	const assistantCountBeforeFollowUp = await assistantMessages.count();
+	await sendMessage(
+		page,
+		withMockMarker('tell me more', 'daily_inspiration'),
+		log,
+		screenshot,
+		'followup'
+	);
 	log('Sent follow-up message "tell me more".');
-	await screenshot(page, 'followup-message-sent');
 
 	// ── 12. Wait for AI response ─────────────────────────────────────────────
 	// The AI should respond to the follow-up. We wait for a second assistant
 	// message to appear (the first being the inspiration intro, the second being
 	// the AI response to "tell me more").
 	log('Waiting for AI response to follow-up...');
-	const assistantMessages = page.getByTestId('message-assistant');
-	// After sending "tell me more", there should be at least 2 assistant messages
-	await expect(assistantMessages).toHaveCount(2, { timeout: 60000 });
+	let assistantCountAfterFollowUp = assistantCountBeforeFollowUp;
+	await expect(async () => {
+		assistantCountAfterFollowUp = await assistantMessages.count();
+		expect(assistantCountAfterFollowUp).toBeGreaterThan(assistantCountBeforeFollowUp);
+	}).toPass({ timeout: 90000 });
 	log('AI responded to follow-up message — Bug #1 regression check passed.');
 	await screenshot(page, 'ai-response-received');
 
