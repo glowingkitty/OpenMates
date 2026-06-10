@@ -46,10 +46,22 @@ function visibleMessageAnchors(message: string): string[] {
 		.filter((anchor) => anchor.length >= 20);
 }
 
-async function userMessagePersisted(userMessages: any, previousCount: number, message: string): Promise<boolean> {
+async function userMessagePersisted(
+	userMessages: any,
+	previousCount: number,
+	message: string,
+	messageEditor?: any
+): Promise<boolean> {
 	const currentCount = await locatorCount(userMessages);
 	if (currentCount >= previousCount + 1) {
 		return true;
+	}
+
+	if (messageEditor && currentCount >= previousCount) {
+		const editorText = await messageEditor.innerText({ timeout: 1000 }).catch(() => '');
+		if ((editorText ?? '').trim() === '') {
+			return true;
+		}
 	}
 
 	const anchors = visibleMessageAnchors(message);
@@ -519,7 +531,7 @@ async function sendMessage(
 	logCheckpoint('Clicked send button.');
 	try {
 		await expect
-			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message), { timeout: 30000 })
+			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message, messageEditor), { timeout: 30000 })
 			.toBeTruthy();
 	} catch (error) {
 		const diagnosticsBeforeSynthetic = await messageField.evaluate((field: HTMLElement) => {
@@ -556,7 +568,7 @@ async function sendMessage(
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
 		});
 		await expect
-			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message), { timeout: 10000 })
+			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message, messageEditor), { timeout: 10000 })
 			.toBeTruthy()
 			.catch(() => undefined);
 		const userCountAfterSynthetic = await locatorCount(userMessages);
@@ -567,7 +579,7 @@ async function sendMessage(
 				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 			})
 		});
-		if (await userMessagePersisted(userMessages, userCountBeforeSend, message)) {
+		if (await userMessagePersisted(userMessages, userCountBeforeSend, message, messageEditor)) {
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend
 			});
