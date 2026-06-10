@@ -70,12 +70,10 @@ test('shared recipient starts an isolated application preview session', async ({
 
 	const shortLinkSection = page.getByTestId('share-short-link-section');
 	await expect(shortLinkSection).toBeVisible({ timeout: 10_000 });
-	await shortLinkSection.getByTestId('short-link-ttl-option').first().click();
-	await page.getByTestId('share-short-link-generate').click();
 	const shortLinkCopy = page.getByTestId('share-short-link-copy');
 	await expect(shortLinkCopy).toBeVisible({ timeout: 30_000 });
 	const shareUrl = (await shortLinkCopy.getByTestId('share-short-link-url').innerText()).trim();
-	expect(shareUrl).toContain('/');
+	expect(shareUrl).toMatch(/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/);
 
 	const recipientContext = await browser.newContext();
 	const recipientPage = await recipientContext.newPage();

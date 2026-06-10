@@ -6,8 +6,8 @@
  * encrypted blob it cannot decrypt. The decryption key (shortKey) lives only
  * in the URL fragment — never sent to the server.
  *
- * URL format: {domain}/s/#{token}-{shortKey}
- *   - token: 8-char base62 lookup ID (sent to server API)
+ * URL format: {domain}/s/{token}#{shortKey}
+ *   - token: 8-char base62 lookup ID (visible to server for OG metadata)
  *   - shortKey: 6-char base62 decryption key (never sent to server)
  *
  * Encryption flow:
@@ -182,6 +182,9 @@ export async function decryptShareUrl(
  *
  * Fragment format: "{token}-{shortKey}" (e.g., "a8f3kLmN-Xk7pQr")
  *
+ * @deprecated Legacy parser for old /s/#token-shortKey URLs. New durable short
+ * URLs use /s/{token}#{shortKey}; use parseShortUrlParts for new links.
+ *
  * @param fragment - The URL hash without the leading '#'
  * @returns Parsed token and shortKey, or null if invalid format
  */
@@ -212,6 +215,35 @@ export function parseShortUrlFragment(
 }
 
 /**
+ * Parse the current durable short URL path and fragment.
+ *
+ * New format: /s/{token}#{shortKey}
+ * Legacy fallback: /s/#{token}-{shortKey}
+ */
+export function parseShortUrlParts(
+  pathname: string,
+  fragment: string,
+): { token: string; shortKey: string } | null {
+  const cleanHash = fragment.startsWith("#") ? fragment.slice(1) : fragment;
+  const pathMatch = pathname.match(/^\/s\/([A-Za-z0-9]{6,12})\/?$/);
+  const base62Pattern = /^[A-Za-z0-9]+$/;
+
+  if (pathMatch) {
+    const token = pathMatch[1];
+    if (
+      cleanHash.length >= 4 &&
+      cleanHash.length <= 12 &&
+      base62Pattern.test(cleanHash)
+    ) {
+      return { token, shortKey: cleanHash };
+    }
+    return null;
+  }
+
+  return parseShortUrlFragment(cleanHash);
+}
+
+/**
  * Build the short URL string.
  *
  * If PUBLIC_SHORT_URL_DOMAIN env var is set, uses that domain.
@@ -221,19 +253,23 @@ export function parseShortUrlFragment(
  * @param shortKey - The decryption key
  * @returns The complete short URL (e.g., "https://omts.io/#token-shortKey")
  */
-export function buildShortUrl(token: string, shortKey: string): string {
+export function buildShortUrl(
+  token: string,
+  shortKey: string,
+  originOverride?: string,
+): string {
   const shortDomain = typeof import.meta !== "undefined"
     ? import.meta.env?.VITE_SHORT_URL_DOMAIN
     : undefined;
 
   if (shortDomain) {
-    // Custom short domain: omts.io/#token-shortKey
-    return `https://${shortDomain}/#${token}-${shortKey}`;
+    // Custom short domain: omts.io/s/token#shortKey
+    return `https://${shortDomain}/s/${token}#${shortKey}`;
   }
 
   // Fallback: current domain + /s/ path
-  const origin = typeof window !== "undefined"
+  const origin = originOverride ?? (typeof window !== "undefined"
     ? window.location.origin
-    : "https://openmates.org";
-  return `${origin}/s/#${token}-${shortKey}`;
+    : "https://openmates.org");
+  return `${origin}/s/${token}#${shortKey}`;
 }

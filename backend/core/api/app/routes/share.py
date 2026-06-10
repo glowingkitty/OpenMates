@@ -8,8 +8,8 @@ import hashlib
 import re
 import time
 import os
-from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Query
+from typing import Dict, Any, Optional, List, Literal
+from fastapi import APIRouter, HTTPException, Request, Depends, Query, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.directus import DirectusService
@@ -1168,37 +1168,337 @@ async def update_embed_share_metadata(
 
 
 # --- Short URL Sharing Endpoints ---
-# These enable ephemeral short URLs for the "hand someone a link across the room" use case.
-# The server stores only opaque encrypted blobs — zero-knowledge is preserved because the
-# decryption key lives only in the URL fragment (#token-shortKey), never sent to the server.
+# Durable short URLs use /s/{token}#shortKey. The server receives only the token
+# and stores only an opaque encrypted URL blob; the decryption key remains in the
+# URL fragment and is never sent over HTTP.
 
 # Validation: token must be 6-12 alphanumeric chars (base62)
 SHORT_URL_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9]{6,12}$")
 # Max size for encrypted URL blob (base64-encoded AES-GCM ciphertext)
 SHORT_URL_MAX_BLOB_SIZE = 4096
+SHORT_URL_MAX_TTL_SECONDS = 7_776_000  # 90 days, matching the share-key max
+SHORT_URL_COLLECTION = "share_short_links"
+
+SHORT_URL_FIELDS = (
+    "id,token,encrypted_url,content_type,content_id,hashed_user_id,"
+    "password_protected,expires_at,revoked_at,created_at,updated_at"
+)
+
+PROTECTED_CHAT_TITLE = "Password protected chat"
+PROTECTED_CHAT_DESCRIPTION = "Open this password-protected chat on OpenMates."
+DEFAULT_CHAT_TITLE = "Shared Chat - OpenMates"
+DEFAULT_CHAT_DESCRIPTION = "View this shared conversation on OpenMates"
+DEFAULT_EMBED_TITLE = "Shared Embed - OpenMates"
+DEFAULT_EMBED_DESCRIPTION = "View this shared content on OpenMates"
+
+OG_IMAGE_WIDTH = 1200
+OG_IMAGE_HEIGHT = 630
+
+OG_CATEGORY_GRADIENTS: Dict[str, tuple[str, str]] = {
+    "software_development": ("#155D91", "#42ABF4"),
+    "business_development": ("#004040", "#008080"),
+    "medical_health": ("#FD50A0", "#F42C2D"),
+    "legal_law": ("#239CFF", "#005BA5"),
+    "openmates_official": ("#6366f1", "#4f46e5"),
+    "maker_prototyping": ("#EA7600", "#FBAB59"),
+    "marketing_sales": ("#FF8C00", "#F4B400"),
+    "finance": ("#119106", "#15780D"),
+    "design": ("#101010", "#2E2E2E"),
+    "electrical_engineering": ("#233888", "#2E4EC8"),
+    "movies_tv": ("#00C2C5", "#3170DC"),
+    "history": ("#4989F2", "#2F44BF"),
+    "science": ("#CE5B06", "#8F220E"),
+    "life_coach_psychology": ("#FDB250", "#F42C2D"),
+    "cooking_food": ("#FD8450", "#F42C2D"),
+    "activism": ("#F53D00", "#F56200"),
+    "general_knowledge": ("#DE1E66", "#FF763B"),
+    "onboarding_support": ("#6364FF", "#9B6DFF"),
+}
 
 
 class CreateShortUrlRequest(BaseModel):
     """Request model for creating a short URL."""
     token: str = Field(..., description="Lookup token (6-12 base62 chars, generated client-side)")
     encrypted_url: str = Field(..., description="AES-GCM encrypted share URL blob (opaque to server)")
-    ttl_seconds: int = Field(
-        default=300,
-        description="Time-to-live in seconds (60-3600, default 300)",
+    content_type: Literal["chat", "embed"] = Field(..., description="Shared content type")
+    content_id: str = Field(..., description="Chat ID or embed ID associated with the share")
+    password_protected: bool = Field(default=False, description="Whether crawler metadata must hide content metadata")
+    ttl_seconds: Optional[int] = Field(
+        default=None,
+        description="Optional time-to-live in seconds. Null means no expiration.",
         ge=60,
-        le=3600,
+        le=SHORT_URL_MAX_TTL_SECONDS,
     )
 
 
 class CreateShortUrlResponse(BaseModel):
     """Response model for short URL creation."""
     success: bool = Field(..., description="Whether the short URL was created successfully")
-    expires_at: int = Field(..., description="Unix timestamp when the short URL expires")
+    expires_at: Optional[int] = Field(default=None, description="Unix timestamp when the short URL expires, or null")
 
 
 class ResolveShortUrlResponse(BaseModel):
     """Response model for short URL resolution."""
     encrypted_url: str = Field(..., description="The encrypted share URL blob")
+
+
+def _short_url_image_path(token: str) -> str:
+    return f"/v1/share/short-url/{token}/og-image.png"
+
+
+async def _get_short_link_record(token: str, directus_service: DirectusService) -> Optional[Dict[str, Any]]:
+    items = await directus_service.get_items(
+        SHORT_URL_COLLECTION,
+        params={
+            "filter[token][_eq]": token,
+            "fields": SHORT_URL_FIELDS,
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    if not items:
+        return None
+    return items[0]
+
+
+def _short_link_is_expired_or_revoked(record: Dict[str, Any]) -> bool:
+    if record.get("revoked_at"):
+        return True
+    expires_at = record.get("expires_at")
+    return bool(expires_at and int(expires_at) <= int(time.time()))
+
+
+async def _verify_short_link_target(
+    payload: CreateShortUrlRequest,
+    current_user: User,
+    directus_service: DirectusService,
+) -> str:
+    current_user_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+    if payload.content_type == "chat":
+        chat = await directus_service.chat.get_chat_metadata(payload.content_id, admin_required=True)
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if chat.get("hashed_user_id") != current_user_hash:
+            raise HTTPException(status_code=403, detail="You do not have permission to share this chat")
+        return current_user_hash
+
+    embed = await directus_service.embed.get_embed_by_id(payload.content_id)
+    if not embed:
+        raise HTTPException(status_code=404, detail="Embed not found")
+    if embed.get("hashed_user_id") != current_user_hash:
+        raise HTTPException(status_code=403, detail="You do not have permission to share this embed")
+    return current_user_hash
+
+
+async def _create_directus_item(directus_service: DirectusService, collection: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    created = await directus_service.create_item(collection, payload, admin_required=True)
+    if isinstance(created, tuple):
+        success, item = created
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to store short URL")
+        return item or payload
+    if isinstance(created, dict):
+        return created
+    raise HTTPException(status_code=500, detail="Failed to store short URL")
+
+
+async def _decrypt_shared_metadata(
+    encrypted_value: Optional[str],
+    fallback: str,
+    encryption_service: EncryptionService,
+) -> str:
+    if not encrypted_value:
+        return fallback
+    try:
+        value = await encryption_service.decrypt(encrypted_value, key_name="shared-content-metadata")
+        return value if isinstance(value, str) and value.strip() else fallback
+    except Exception as exc:
+        logger.warning("Failed to decrypt shared metadata for short URL preview: %s", exc)
+        return fallback
+
+
+async def _build_short_url_metadata(
+    token: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> Dict[str, Any]:
+    fallback = {
+        "title": DEFAULT_CHAT_TITLE,
+        "description": DEFAULT_CHAT_DESCRIPTION,
+        "image": _short_url_image_path(token),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": None,
+        "icon": None,
+    }
+    if not SHORT_URL_TOKEN_PATTERN.match(token):
+        return fallback
+
+    record = await _get_short_link_record(token, directus_service)
+    if not record or _short_link_is_expired_or_revoked(record):
+        return fallback
+
+    content_type = record.get("content_type") or "chat"
+    password_protected = bool(record.get("password_protected"))
+    if content_type == "chat" and password_protected:
+        return {
+            "title": PROTECTED_CHAT_TITLE,
+            "description": PROTECTED_CHAT_DESCRIPTION,
+            "image": _short_url_image_path(token),
+            "content_type": "chat",
+            "password_protected": True,
+            "category": "openmates_official",
+            "icon": "lock",
+        }
+
+    if content_type == "embed":
+        return {
+            "title": DEFAULT_EMBED_TITLE,
+            "description": DEFAULT_EMBED_DESCRIPTION,
+            "image": "/images/og-image.jpg",
+            "content_type": "embed",
+            "password_protected": password_protected,
+            "category": None,
+            "icon": None,
+        }
+
+    chat = await directus_service.chat.get_chat_metadata(record.get("content_id"), admin_required=True)
+    if not chat or chat.get("is_private", False):
+        return fallback
+
+    title = await _decrypt_shared_metadata(chat.get("shared_encrypted_title"), DEFAULT_CHAT_TITLE, encryption_service)
+    summary = await _decrypt_shared_metadata(chat.get("shared_encrypted_summary"), DEFAULT_CHAT_DESCRIPTION, encryption_service)
+    category = await _decrypt_shared_metadata(chat.get("shared_encrypted_category"), "general_knowledge", encryption_service)
+    icon = await _decrypt_shared_metadata(chat.get("shared_encrypted_icon"), "chat", encryption_service)
+    return {
+        "title": title,
+        "description": summary,
+        "image": _short_url_image_path(token),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": category,
+        "icon": icon,
+    }
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    color = hex_color.lstrip("#")
+    return tuple(int(color[index:index + 2], 16) for index in (0, 2, 4))
+
+
+def _wrap_text(draw: Any, text: str, font: Any, max_width: int, max_lines: int) -> List[str]:
+    words = (text or "").split()
+    lines: List[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        bbox = draw.textbbox((0, 0), candidate, font=font)
+        if bbox[2] - bbox[0] <= max_width:
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+        current = word
+        if len(lines) >= max_lines:
+            break
+    if current and len(lines) < max_lines:
+        lines.append(current)
+    if words and len(lines) == max_lines and " ".join(lines).split() != words[:len(" ".join(lines).split())]:
+        lines[-1] = lines[-1].rstrip(".") + "..."
+    return lines or [""]
+
+
+def _load_og_font(size: int, bold: bool = False) -> Any:
+    from PIL import ImageFont
+
+    font_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+    for path in (
+        f"/usr/share/fonts/truetype/dejavu/{font_name}",
+        f"/usr/local/share/fonts/{font_name}",
+    ):
+        try:
+            return ImageFont.truetype(path, size=size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
+
+
+def _draw_lock_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, int, int]) -> None:
+    shackle_width = int(size * 0.56)
+    shackle_height = int(size * 0.44)
+    body_width = int(size * 0.68)
+    body_height = int(size * 0.50)
+    shackle_left = center_x - shackle_width // 2
+    shackle_top = center_y - int(size * 0.45)
+    shackle_right = center_x + shackle_width // 2
+    shackle_bottom = shackle_top + shackle_height
+    body_left = center_x - body_width // 2
+    body_top = center_y - int(size * 0.05)
+    body_right = center_x + body_width // 2
+    body_bottom = body_top + body_height
+    stroke = max(5, size // 14)
+    draw.arc((shackle_left, shackle_top, shackle_right, shackle_bottom + shackle_height), 180, 360, fill=color, width=stroke)
+    draw.line((shackle_left, center_y - int(size * 0.05), shackle_left, body_top + 4), fill=color, width=stroke)
+    draw.line((shackle_right, center_y - int(size * 0.05), shackle_right, body_top + 4), fill=color, width=stroke)
+    draw.rounded_rectangle((body_left, body_top, body_right, body_bottom), radius=size // 12, fill=color)
+
+
+def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
+    import io
+    from PIL import Image, ImageDraw
+
+    category = str(metadata.get("category") or "openmates_official")
+    start_hex, end_hex = OG_CATEGORY_GRADIENTS.get(category, OG_CATEGORY_GRADIENTS["openmates_official"])
+    start = _hex_to_rgb(start_hex)
+    end = _hex_to_rgb(end_hex)
+    image = Image.new("RGB", (OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT), start)
+    pixels = image.load()
+    for x in range(OG_IMAGE_WIDTH):
+        ratio = x / max(1, OG_IMAGE_WIDTH - 1)
+        color = tuple(int(start[channel] * (1 - ratio) + end[channel] * ratio) for channel in range(3))
+        for y in range(OG_IMAGE_HEIGHT):
+            vertical = 0.92 + 0.08 * (1 - y / OG_IMAGE_HEIGHT)
+            pixels[x, y] = tuple(max(0, min(255, int(component * vertical))) for component in color)
+
+    draw = ImageDraw.Draw(image)
+    white = (255, 255, 255)
+    soft_white = (255, 255, 255, 210)
+    title_font = _load_og_font(64, bold=True)
+    summary_font = _load_og_font(31)
+    brand_font = _load_og_font(28, bold=True)
+
+    draw.ellipse((92, 110, 292, 310), fill=(255, 255, 255, 45), outline=(255, 255, 255, 80), width=3)
+    draw.ellipse((908, 318, 1130, 540), fill=(255, 255, 255, 42), outline=(255, 255, 255, 78), width=3)
+
+    icon_center_x = OG_IMAGE_WIDTH // 2
+    icon_center_y = 158
+    draw.ellipse((icon_center_x - 54, icon_center_y - 54, icon_center_x + 54, icon_center_y + 54), fill=(255, 255, 255, 40), outline=(255, 255, 255, 90), width=2)
+    if metadata.get("password_protected"):
+        _draw_lock_icon(draw, icon_center_x, icon_center_y, 78, white)
+    else:
+        icon_font = _load_og_font(52, bold=True)
+        icon_label = str(metadata.get("icon") or "chat")[:1].upper()
+        bbox = draw.textbbox((0, 0), icon_label, font=icon_font)
+        draw.text((icon_center_x - (bbox[2] - bbox[0]) / 2, icon_center_y - (bbox[3] - bbox[1]) / 2 - 4), icon_label, fill=white, font=icon_font)
+
+    title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 900, 2)
+    y = 245
+    for line in title_lines:
+        bbox = draw.textbbox((0, 0), line, font=title_font)
+        draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=white, font=title_font)
+        y += 76
+
+    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 840, 3)
+    y += 14
+    for line in summary_lines:
+        bbox = draw.textbbox((0, 0), line, font=summary_font)
+        draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
+        y += 42
+
+    draw.text((54, OG_IMAGE_HEIGHT - 68), "OpenMates", fill=white, font=brand_font)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 @router.post("/short-url", response_model=CreateShortUrlResponse)
@@ -1207,14 +1507,14 @@ async def create_short_url(
     request: Request,
     payload: CreateShortUrlRequest,
     current_user: User = Depends(get_current_user),
-    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """
-    Create an ephemeral short URL entry.
+    Create a durable short URL entry.
 
     The client generates a token and shortKey, encrypts the full share URL with
     a key derived from shortKey via PBKDF2, and sends only the token + encrypted
-    blob to this endpoint. The server stores the opaque blob in Redis with a TTL.
+    blob to this endpoint. The server stores the opaque blob in Directus.
 
     Requires authentication to prevent abuse.
 
@@ -1222,7 +1522,7 @@ async def create_short_url(
     - Rate limited to 10/hour per user
     - Token validated as 6-12 alphanumeric chars
     - Encrypted URL blob max 4KB
-    - TTL clamped to 60s-3600s
+    - Optional TTL up to the share-key maximum; null means no expiration
     """
     try:
         # Validate token format
@@ -1239,26 +1539,40 @@ async def create_short_url(
                 detail=f"Encrypted URL too large: max {SHORT_URL_MAX_BLOB_SIZE} characters",
             )
 
-        # Check if token already exists (prevent collisions)
-        existing = await cache_service.resolve_short_url(payload.token)
+        existing = await _get_short_link_record(payload.token, directus_service)
         if existing is not None:
             raise HTTPException(
                 status_code=409,
                 detail="Token already in use. Please generate a new one.",
             )
 
-        # Store in Redis
-        stored = await cache_service.store_short_url(
-            token=payload.token,
-            encrypted_url=payload.encrypted_url,
-            ttl_seconds=payload.ttl_seconds,
+        hashed_user_id = await _verify_short_link_target(payload, current_user, directus_service)
+        now = int(time.time())
+        expires_at = now + payload.ttl_seconds if payload.ttl_seconds else None
+        await _create_directus_item(
+            directus_service,
+            SHORT_URL_COLLECTION,
+            {
+                "token": payload.token,
+                "encrypted_url": payload.encrypted_url,
+                "content_type": payload.content_type,
+                "content_id": payload.content_id,
+                "hashed_user_id": hashed_user_id,
+                "password_protected": payload.password_protected,
+                "expires_at": expires_at,
+                "revoked_at": None,
+                "created_at": now,
+                "updated_at": now,
+            },
         )
-
-        if not stored:
-            raise HTTPException(status_code=500, detail="Failed to store short URL")
-
-        expires_at = int(time.time()) + payload.ttl_seconds
-        logger.info(f"Short URL created: token={payload.token}, ttl={payload.ttl_seconds}s, user={current_user.id}")
+        logger.info(
+            "Short URL created: token=%s, content_type=%s, content_id=%s, expires_at=%s, user=%s",
+            payload.token,
+            payload.content_type,
+            payload.content_id,
+            expires_at,
+            current_user.id,
+        )
 
         return {"success": True, "expires_at": expires_at}
 
@@ -1274,10 +1588,11 @@ async def create_short_url(
 async def resolve_short_url(
     request: Request,
     token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Resolve an ephemeral short URL.
+    Resolve a durable short URL.
 
     Returns the encrypted blob for a given token. The client decrypts it using
     the shortKey from the URL fragment (never sent to server).
@@ -1286,7 +1601,6 @@ async def resolve_short_url(
 
     Security:
     - Rate limited to 30/minute per IP
-    - Max 10 resolves per token lifetime (prevents brute-force)
     - Token validated as 6-12 alphanumeric chars
     """
     try:
@@ -1294,29 +1608,56 @@ async def resolve_short_url(
         if not SHORT_URL_TOKEN_PATTERN.match(token):
             raise HTTPException(status_code=404, detail="Not found")
 
-        # Check resolve count BEFORE returning the blob
-        from backend.core.api.app.services import cache_config
-        current_count = await cache_service.get_resolve_count(token)
-        if current_count >= cache_config.MAX_SHORT_URL_RESOLVES:
-            logger.warning(f"Short URL token={token} exceeded max resolves ({current_count})")
-            raise HTTPException(
-                status_code=429,
-                detail="This short link has been used too many times and is now disabled.",
-            )
+        record = await _get_short_link_record(token, directus_service)
+        if record and not _short_link_is_expired_or_revoked(record):
+            return {"encrypted_url": record["encrypted_url"]}
 
-        # Resolve the encrypted blob
-        encrypted_url = await cache_service.resolve_short_url(token)
-        if encrypted_url is None:
-            raise HTTPException(status_code=404, detail="Short link expired or not found")
+        # Legacy fallback for old Redis-backed /s/#token-shortKey links created
+        # before durable short links moved the token into the path.
+        if cache_service and hasattr(cache_service, "resolve_short_url"):
+            from backend.core.api.app.services import cache_config
+            current_count = await cache_service.get_resolve_count(token)
+            if current_count >= cache_config.MAX_SHORT_URL_RESOLVES:
+                raise HTTPException(status_code=429, detail="This short link has been used too many times and is now disabled.")
+            encrypted_url = await cache_service.resolve_short_url(token)
+            if encrypted_url is not None:
+                await cache_service.increment_resolve_count(token)
+                return {"encrypted_url": encrypted_url}
 
-        # Increment resolve counter
-        new_count = await cache_service.increment_resolve_count(token)
-        logger.debug(f"Short URL resolved: token={token}, resolve_count={new_count}")
-
-        return {"encrypted_url": encrypted_url}
+        raise HTTPException(status_code=404, detail="Short link expired or not found")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error resolving short URL token={token}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal error")
+
+
+@router.get("/short-url/{token}/metadata")
+@limiter.limit("60/minute")
+async def get_short_url_metadata(
+    request: Request,
+    token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Dict[str, Any]:
+    """Return crawler-safe metadata for a durable short link."""
+    return await _build_short_url_metadata(token, directus_service, encryption_service)
+
+
+@router.get("/short-url/{token}/og-image.png")
+@limiter.limit("60/minute")
+async def get_short_url_og_image(
+    request: Request,
+    token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Response:
+    """Generate a PNG social preview image for a durable short-link token."""
+    metadata = await _build_short_url_metadata(token, directus_service, encryption_service)
+    png = _render_short_url_og_png(metadata)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )

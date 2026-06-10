@@ -7,7 +7,7 @@ audience:
 last_verified: 2026-03-24
 tested_by:
   - spec: frontend/apps/web_app/tests/share-chat-flow.spec.ts
-    test: creates and shares a chat link with QR code and short link
+    test: creates and shares a chat link with QR code and a default short link
     checkpoints:
       - share-config-step
       - link-generated
@@ -35,10 +35,10 @@ claims:
     type: e2e
     file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
     assertion: share-qr-code-opens-fullscreen
-  - id: share-link-offers-short-link-generation
+  - id: share-link-uses-short-link-by-default
     type: e2e
     file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
-    assertion: share-link-offers-short-link-generation
+    assertion: share-link-uses-short-link-by-default
   - id: share-link-can-have-expiration
     type: e2e
     file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
@@ -50,7 +50,7 @@ claims:
 <!-- remotion-video:
 slug: sharing
 status: planned
-purpose: Show opening the share panel from a chat, generating a link, copying it, opening the QR fullscreen view, creating a short link, and setting an expiration.
+purpose: Show opening the share panel from a chat, generating a default short link, copying it, opening the QR fullscreen view, and setting an expiration.
 duration_target: 45-60s
 -->
 
@@ -60,7 +60,7 @@ duration_target: 45-60s
 
 - Use sharing when you want someone else to view a chat or app result without changing your original chat.
 - Open the share panel from the chat header, choose your options, then copy the link or scan the QR code.
-- You can add expiration, password protection, short links, and community sharing depending on how broadly you want to share.
+- You can add expiration, password protection, and community sharing depending on how broadly you want to share. When you are online, OpenMates creates a compact short link by default.
 
 ## What It Does
 
@@ -81,19 +81,19 @@ Anyone with the link can view the chat.
 You can add a password (up to 10 characters) to any shared link for extra security.
 
 - The password encrypts the access key inside the link itself.
-- The server has no knowledge of whether a password is set -- true zero-knowledge protection.
+- OpenMates never stores or receives the password. For compact short links, OpenMates may store that a link is password-protected so social previews can hide the chat title and summary.
 - If the password is wrong, the content simply cannot be decrypted.
 
 ## Link Expiration
 
-Every share link has a time limit that you set when creating it (for example, 1 hour, 24 hours, or longer).
+Share links can have a time limit that you set when creating them (for example, 1 hour, 24 hours, or longer). If you do not set a limit, the share link does not expire by default.
 
 - Expiration is checked against the server clock, so it cannot be bypassed by changing your device time.
 - Once expired, the link stops working.
 
 ## Creating a Share Link
 
-Share links are generated entirely on your device -- no internet connection is needed to create one.
+Share links are generated on your device first. When you are online, OpenMates wraps that encrypted link in a compact `/s/{token}#{key}` short link. If the short-link service is unreachable, copying and QR codes fall back to the longer encrypted `/share/...#key=...` link.
 
 1. Open the chat or embed you want to share.
 2. Set an expiration time and optional password.
@@ -110,7 +110,7 @@ Share links are generated entirely on your device -- no internet connection is n
 Results from apps (web summaries, code, transcripts, and so on) can be shared independently of the chat they appeared in.
 
 - Embed links work the same way as chat links: encrypted, with optional password and expiration.
-- The link format is `/share/embed/{embed-id}#key={encrypted-key}`.
+- Online embed sharing uses the compact `/s/{token}#{key}` format. Offline fallback links use `/share/embed/{embed-id}#key={encrypted-key}`.
 
 ## Social Media Previews
 
@@ -126,7 +126,7 @@ When you share a link on social media or messaging apps, a preview (title and su
 
 ## Tips
 
-- Share links are compact enough to fit in a QR code.
+- Online share links are compact enough to fit in a QR code. Offline fallback links are longer but still encrypted.
 - Use password protection when sharing sensitive content, even with a time limit.
 
 ## Related

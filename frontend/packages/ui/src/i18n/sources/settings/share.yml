@@ -1277,7 +1277,7 @@ short_link:
 
 short_link_info:
   context: Description text for the short link feature
-  en: Generate a temporary short link to share across the room. Expires automatically.
+  en: Your primary share link is compact by default when OpenMates is online.
   de: Erstelle einen temporären Kurzlink zum Teilen im Raum. Läuft automatisch ab.
   zh: 生成一个临时短链接以便在房间内分享。自动过期。
   es: Genera un enlace corto temporal para compartir en la sala. Expira automáticamente.

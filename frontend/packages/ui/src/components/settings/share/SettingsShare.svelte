@@ -7,8 +7,8 @@
     - Copy link button
     - QR code display
     
-    The sharing is done entirely offline - no server request is needed to create
-    a shareable link. The encryption key and expiration info are embedded in the URL.
+    Share links are generated locally first, then wrapped in a durable short URL
+    when the API is reachable. Offline sharing falls back to the long encrypted URL.
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
@@ -101,6 +101,10 @@
 
     // Generated share link state
     let generatedLink = $state('');
+    let generatedLongLink = $state('');
+    let generatedShareContentType = $state<'chat' | 'embed' | null>(null);
+    let generatedShareContentId = $state('');
+    let generatedSharePasswordProtected = $state(false);
     let isLinkGenerated = $state(false);
     let isCopied = $state(false);
 
@@ -394,6 +398,7 @@
      * For owned chats: uses configured settings (password, expiration)
      */
     async function generateLink() {
+        resetShortLinkState();
         // Handle embed sharing
         if (isEmbedSharing) {
             if (!embedContext || !embedContext.embed_id) {
@@ -427,7 +432,19 @@
 
                 // Construct encrypted embed share URL similar to chat sharing
                 const baseUrl = window.location.origin;
-                generatedLink = `${baseUrl}/share/embed/${embedContext.embed_id}#key=${encryptedBlob}`;
+                const longShareLink = `${baseUrl}/share/embed/${embedContext.embed_id}#key=${encryptedBlob}`;
+                const shareLinkResult = await createPrimaryShareLink(
+                    longShareLink,
+                    'embed',
+                    embedContext.embed_id,
+                    useDuration,
+                    usePassword,
+                );
+                generatedLink = shareLinkResult.url;
+                generatedLongLink = longShareLink;
+                generatedShareContentType = 'embed';
+                generatedShareContentId = embedContext.embed_id;
+                generatedSharePasswordProtected = usePassword;
                 isLinkGenerated = true;
                 isConfigurationStep = false;
                 // Note: sharedChatId not set for embeds (embedContext is used instead)
@@ -471,6 +488,10 @@
             if (isPublicChat(currentChatId)) {
                 const baseUrl = window.location.origin;
                 generatedLink = `${baseUrl}/#chat-id=${currentChatId}`;
+                generatedLongLink = generatedLink;
+                generatedShareContentType = null;
+                generatedShareContentId = '';
+                generatedSharePasswordProtected = false;
                 isLinkGenerated = true;
                 isConfigurationStep = false;
                 // Store the shared chat ID to keep it stable when user switches chats
@@ -498,7 +519,20 @@
                     );
                     
                     const baseUrl = window.location.origin;
-                    generatedLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
+                    const longShareLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
+                    const shareLinkResult = await createPrimaryShareLink(
+                        longShareLink,
+                        'chat',
+                        currentChatId,
+                        0,
+                        false,
+                        false,
+                    );
+                    generatedLink = shareLinkResult.url;
+                    generatedLongLink = longShareLink;
+                    generatedShareContentType = null;
+                    generatedShareContentId = '';
+                    generatedSharePasswordProtected = false;
                     isLinkGenerated = true;
                     isConfigurationStep = false;
                     // Store the shared chat ID to keep it stable when user switches chats
@@ -539,7 +573,19 @@
             // The chat ID is in the path (visible to server for OG tags)
             // The encrypted blob is in the fragment (never sent to server)
             const baseUrl = window.location.origin;
-            generatedLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
+            const longShareLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
+            const shareLinkResult = await createPrimaryShareLink(
+                longShareLink,
+                'chat',
+                currentChatId,
+                useDuration,
+                usePassword,
+            );
+            generatedLink = shareLinkResult.url;
+            generatedLongLink = longShareLink;
+            generatedShareContentType = 'chat';
+            generatedShareContentId = currentChatId;
+            generatedSharePasswordProtected = usePassword;
             isLinkGenerated = true;
             
             // Move to link generation step (show link and QR code)
@@ -567,6 +613,68 @@
             console.debug('[SettingsShare] Share link generated successfully');
         } catch (error) {
             console.error('[SettingsShare] Error generating share link:', error);
+        }
+    }
+
+    async function createPrimaryShareLink(
+        longShareLink: string,
+        contentType: 'chat' | 'embed',
+        contentId: string,
+        ttlSeconds: ShareDuration,
+        passwordProtected: boolean,
+        requireOwnership = true,
+    ): Promise<{ url: string; usedLongFallback: boolean }> {
+        if (!$authStore.isAuthenticated || !requireOwnership) {
+            return { url: longShareLink, usedLongFallback: false };
+        }
+
+        try {
+            const { token, shortKey } = generateShortUrlParts();
+            const encryptedBlob = await encryptShareUrl(longShareLink, token, shortKey);
+            const response = await fetch(getApiEndpoint('/v1/share/short-url'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin,
+                },
+                body: JSON.stringify({
+                    token,
+                    encrypted_url: encryptedBlob,
+                    content_type: contentType,
+                    content_id: contentId,
+                    password_protected: passwordProtected,
+                    ttl_seconds: ttlSeconds > 0 ? ttlSeconds : null,
+                }),
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                throw new Error(errorData.detail || `Short link creation failed with ${response.status}`);
+            }
+
+            const responseData = await response.json().catch(() => ({}));
+            const url = buildShortUrl(token, shortKey);
+            shortLinkUrl = url;
+            isShortLinkGenerated = true;
+            shortLinkExpiresAt = responseData.expires_at || 0;
+            if (shortLinkExpiresAt > 0) {
+                startShortLinkCountdown();
+            }
+            return { url, usedLongFallback: false };
+        } catch (error) {
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                console.warn('[SettingsShare] Offline while creating short link; using long share URL fallback');
+                shortLinkError = 'Short link unavailable while offline. Copy and QR code use the long encrypted link.';
+                return { url: longShareLink, usedLongFallback: true };
+            }
+            if (error instanceof TypeError) {
+                console.warn('[SettingsShare] Network error while creating short link; using long share URL fallback:', error);
+                shortLinkError = 'Short link unavailable. Copy and QR code use the long encrypted link.';
+                return { url: longShareLink, usedLongFallback: true };
+            }
+            throw error;
         }
     }
     
@@ -1123,10 +1231,16 @@
 
         try {
             // Generate token + shortKey
+            if (!generatedLongLink || !generatedShareContentType || !generatedShareContentId) {
+                shortLinkError = 'This share cannot be shortened.';
+                return;
+            }
+
             const { token, shortKey } = generateShortUrlParts();
 
-            // Encrypt the full share URL (including #key= fragment)
-            const encryptedBlob = await encryptShareUrl(generatedLink, token, shortKey);
+            // Encrypt the long share URL (including #key= fragment). If the
+            // current primary link is already short, avoid wrapping short→short.
+            const encryptedBlob = await encryptShareUrl(generatedLongLink, token, shortKey);
 
             // Send to API
             const response = await fetch(getApiEndpoint('/v1/share/short-url'), {
@@ -1139,6 +1253,9 @@
                 body: JSON.stringify({
                     token,
                     encrypted_url: encryptedBlob,
+                    content_type: generatedShareContentType,
+                    content_id: generatedShareContentId,
+                    password_protected: generatedSharePasswordProtected,
                     ttl_seconds: shortLinkTtl,
                 }),
                 credentials: 'include',
@@ -1311,6 +1428,10 @@
     function resetGeneratedState() {
         isLinkGenerated = false;
         generatedLink = '';
+        generatedLongLink = '';
+        generatedShareContentType = null;
+        generatedShareContentId = '';
+        generatedSharePasswordProtected = false;
         qrCodeSvg = '';
         isCopied = false;
         sharedChatId = null; // Clear shared chat ID when resetting
@@ -1667,7 +1788,7 @@
             </button>
 
             <!-- Short Link Section (only for authenticated users) -->
-            {#if $authStore.isAuthenticated}
+            {#if $authStore.isAuthenticated && generatedShareContentType}
                 <div class="short-link-section" data-testid="share-short-link-section" transition:slide={{ duration: 200, easing: cubicOut }}>
                     <div class="short-link-header">
                         <h4 class="short-link-title">{$text('settings.share.short_link')}</h4>
