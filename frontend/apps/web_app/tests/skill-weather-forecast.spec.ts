@@ -47,8 +47,8 @@ const linkedExampleChatCases = [
 	{
 		appId: 'images',
 		skillId: 'generate',
-		chatId: 'example-watercolor-robot-balcony',
-		titlePattern: /watercolor|robot|balcony/i
+		chatId: 'example-privacy-website-hero-background',
+		titlePattern: /privacy|website|hero|background/i
 	},
 	{
 		appId: 'electronics',
