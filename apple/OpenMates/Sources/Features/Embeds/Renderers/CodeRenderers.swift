@@ -190,7 +190,7 @@ private struct CodeRunTerminalView: View {
     let onViewCode: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing7) {
+        VStack(alignment: .leading, spacing: .spacing8) {
             viewCodeButton
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
