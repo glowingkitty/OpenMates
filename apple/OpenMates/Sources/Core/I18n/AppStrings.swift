@@ -209,8 +209,9 @@ enum AppStrings {
 
     // MARK: - Settings - Server (admin)
     static var serverAdmin: String { L("settings.server") }
-    // Web hardcodes "Logs" for this admin-only entry (no i18n key exists)
-    static var logs: String { "Logs" }
+    static var serverConnection: String { L("settings.server.connection") }
+    static var serverConnectionDescription: String { L("settings.server.connection_description") }
+    static var logs: String { L("settings.logs") }
 
     // MARK: - Auth
     static var login: String { L("login.login") }

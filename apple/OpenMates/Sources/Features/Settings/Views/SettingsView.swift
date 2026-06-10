@@ -15,6 +15,195 @@
 
 import SwiftUI
 
+enum SettingsRouteInventory {
+    static let webBaseRoutes: Set<String> = [
+        "pricing",
+        "ai",
+        "app_store",
+        "app_store/all",
+        "settings_memories",
+        "privacy",
+        "privacy/hide-personal-data",
+        "privacy/hide-personal-data/add-name",
+        "privacy/hide-personal-data/add-address",
+        "privacy/hide-personal-data/add-birthday",
+        "privacy/hide-personal-data/add-custom",
+        "privacy/auto-deletion/chats",
+        "privacy/auto-deletion/files",
+        "privacy/share-debug-logs",
+        "mates",
+        "billing",
+        "billing/buy-credits",
+        "billing/buy-credits/payment",
+        "billing/buy-credits/confirmation",
+        "billing/redeem-giftcard",
+        "billing/auto-topup",
+        "billing/auto-topup/low-balance",
+        "billing/auto-topup/monthly",
+        "billing/invoices",
+        "billing/referral-code",
+        "billing/gift-cards",
+        "billing/gift-cards/redeem",
+        "billing/gift-cards/redeemed",
+        "billing/gift-cards/buy",
+        "billing/gift-cards/buy/payment",
+        "billing/gift-cards/buy/confirmation",
+        "notifications",
+        "notifications/chat",
+        "notifications/backup",
+        "shared",
+        "shared/share",
+        "shared/tip",
+        "fork",
+        "interface",
+        "interface/language",
+        "interface/dark_mode",
+        "interface/font",
+        "account",
+        "account/timezone",
+        "account/username",
+        "account/email",
+        "account/security",
+        "account/security/passkeys",
+        "account/security/password",
+        "account/security/2fa",
+        "account/security/recovery-key",
+        "account/security/sessions",
+        "account/security/sessions/pair-initiate",
+        "account/security/sessions/confirm-pair",
+        "account/export",
+        "account/import",
+        "account/chats",
+        "account/storage",
+        "account/storage/images",
+        "account/storage/videos",
+        "account/storage/audio",
+        "account/storage/pdf",
+        "account/storage/code",
+        "account/storage/docs",
+        "account/storage/sheets",
+        "account/storage/archives",
+        "account/storage/other",
+        "account/profile-picture",
+        "account/delete",
+        "developers",
+        "developers/api-keys",
+        "developers/devices",
+        "developers/webhooks",
+        "newsletter",
+        "support",
+        "support/one-time",
+        "support/monthly",
+        "report_issue",
+        "report_issue/confirmation",
+        "incognito/info",
+        "server",
+        "server/software-update",
+        "server/stats",
+        "server/gift-cards",
+        "server/free-testing-credits",
+        "server/tests",
+        "logs",
+    ]
+
+    static let nativeRoutes: Set<String> = [
+        "pricing",
+        "ai",
+        "app_store",
+        "settings_memories",
+        "privacy",
+        "mates",
+        "billing",
+        "notifications",
+        "shared",
+        "interface",
+        "account",
+        "developers",
+        "newsletter",
+        "support",
+        "report_issue",
+        "server",
+        "logs",
+    ]
+
+    static let nativeEquivalentOrPlannedRoutes: Set<String> = [
+        "app_store/all",
+        "privacy/hide-personal-data",
+        "privacy/hide-personal-data/add-name",
+        "privacy/hide-personal-data/add-address",
+        "privacy/hide-personal-data/add-birthday",
+        "privacy/hide-personal-data/add-custom",
+        "privacy/auto-deletion/chats",
+        "privacy/auto-deletion/files",
+        "privacy/share-debug-logs",
+        "billing/buy-credits",
+        "billing/buy-credits/payment",
+        "billing/buy-credits/confirmation",
+        "billing/redeem-giftcard",
+        "billing/auto-topup",
+        "billing/auto-topup/low-balance",
+        "billing/auto-topup/monthly",
+        "billing/invoices",
+        "billing/referral-code",
+        "billing/gift-cards",
+        "billing/gift-cards/redeem",
+        "billing/gift-cards/redeemed",
+        "billing/gift-cards/buy",
+        "billing/gift-cards/buy/payment",
+        "billing/gift-cards/buy/confirmation",
+        "notifications/chat",
+        "notifications/backup",
+        "shared/share",
+        "shared/tip",
+        "fork",
+        "interface/language",
+        "interface/dark_mode",
+        "interface/font",
+        "account/timezone",
+        "account/username",
+        "account/email",
+        "account/security",
+        "account/security/passkeys",
+        "account/security/password",
+        "account/security/2fa",
+        "account/security/recovery-key",
+        "account/security/sessions",
+        "account/security/sessions/pair-initiate",
+        "account/security/sessions/confirm-pair",
+        "account/export",
+        "account/import",
+        "account/chats",
+        "account/storage",
+        "account/storage/images",
+        "account/storage/videos",
+        "account/storage/audio",
+        "account/storage/pdf",
+        "account/storage/code",
+        "account/storage/docs",
+        "account/storage/sheets",
+        "account/storage/archives",
+        "account/storage/other",
+        "account/profile-picture",
+        "account/delete",
+        "developers/api-keys",
+        "developers/devices",
+        "developers/webhooks",
+        "support/one-time",
+        "support/monthly",
+        "report_issue/confirmation",
+        "incognito/info",
+        "server/software-update",
+        "server/stats",
+        "server/gift-cards",
+        "server/free-testing-credits",
+        "server/tests",
+    ]
+
+    static var coveredWebBaseRoutes: Set<String> {
+        nativeRoutes.union(nativeEquivalentOrPlannedRoutes)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
@@ -119,7 +308,7 @@ struct SettingsView: View {
                     }
 
                     row(.interface, AppStrings.settingsInterface, icon: "interface")
-                    row(.serverConnection, "Server", icon: "server")
+                    row(.serverConnection, AppStrings.serverConnection, icon: "server")
 
                     if isAuthenticated {
                         row(.account, AppStrings.settingsAccount, icon: "account")
@@ -456,7 +645,7 @@ struct SettingsView: View {
             case .newsletter: return AppStrings.settingsNewsletter
             case .support: return AppStrings.settingsSupport
             case .reportIssue: return AppStrings.settingsReportIssue
-            case .serverConnection: return "Server"
+            case .serverConnection: return AppStrings.serverConnection
             case .server: return AppStrings.serverAdmin
             case .logs: return AppStrings.logs
             case .privacyPolicy: return AppStrings.privacyPolicy
@@ -539,7 +728,7 @@ struct SettingsView: View {
             case .developers: return LocalizationManager.shared.text("settings.developers_description")
             case .newsletter: return LocalizationManager.shared.text("settings.newsletter.description")
             case .support: return LocalizationManager.shared.text("settings.support.description")
-            case .serverConnection: return "Choose the OpenMates server domain"
+            case .serverConnection: return AppStrings.serverConnectionDescription
             case .server: return LocalizationManager.shared.text("settings.server.description")
             default: return ""
             }

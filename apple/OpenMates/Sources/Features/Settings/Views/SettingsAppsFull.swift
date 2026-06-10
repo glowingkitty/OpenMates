@@ -3,6 +3,15 @@
 // install/uninstall toggles, and app detail navigation.
 // All strings use AppStrings (i18n).
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+//          frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+//          frontend/packages/ui/src/components/settings/AppDetails.svelte
+// CSS:     frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift, GradientTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsAppsFullView: View {
@@ -27,7 +36,50 @@ struct SettingsAppsFullView: View {
         let id: String
         let name: String
         let description: String?
+        let pricing: [String: AnyCodable]?
+        let providers: [String]?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case description
+            case pricing
+            case providers
+        }
+
+        init(
+            id: String,
+            name: String,
+            description: String?,
+            pricing: [String: AnyCodable]? = nil,
+            providers: [String]? = nil
+        ) {
+            self.id = id
+            self.name = name
+            self.description = description
+            self.pricing = pricing
+            self.providers = providers
+        }
     }
+
+    static let appStoreExcludedAppIDs: Set<String> = ["ai"]
+
+    static let webAppStoreCategoryKeys: [String] = [
+        "top_picks",
+        "most_used",
+        "new_apps",
+        "for_work",
+        "for_everyday_life",
+    ]
+
+    static let allAppsFilterKeys: [String] = [
+        "all",
+        "settings_memories",
+        "focus_modes",
+        "skills",
+    ]
+
+    static let allAppsSortKeys: [String] = ["newest", "name"]
 
     private var filteredApps: [AppInfo] {
         guard !searchText.isEmpty else { return apps }
@@ -106,7 +158,7 @@ struct SettingsAppsFullView: View {
                         id: app.id,
                         name: app.name,
                         description: app.description,
-                        category: Self.category(for: app.id),
+                        category: Self.appStoreCategory(for: app),
                         isInstalled: nil,
                         iconName: nil,
                         skills: app.skills,
@@ -114,7 +166,7 @@ struct SettingsAppsFullView: View {
                         settingsAndMemories: app.settingsAndMemories
                     )
                 }
-                .filter { $0.id != "ai" }
+                .filter { !Self.appStoreExcludedAppIDs.contains($0.id) }
                 .sorted { $0.name < $1.name }
         } catch {
             print("[Settings] Failed to load apps: \(error)")
@@ -122,42 +174,61 @@ struct SettingsAppsFullView: View {
         isLoading = false
     }
 
-    private struct AppsMetadataResponse: Decodable {
+    struct AppsMetadataResponse: Decodable {
         let apps: [String: AppMetadataItem]
     }
 
-    private struct AppMetadataItem: Decodable {
+    struct AppMetadataItem: Decodable {
         let id: String
         let name: String
         let description: String?
+        let category: String?
+        let providers: [String]?
+        let lastUpdated: String?
         let skills: [AppSkill]
         let focusModes: [AppSkill]
         let settingsAndMemories: [AppSkill]
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case description
+            case category
+            case providers
+            case lastUpdated = "last_updated"
+            case skills
+            case focusModes = "focus_modes"
+            case settingsAndMemories = "settings_and_memories"
+        }
     }
 
-    private static func category(for appId: String) -> String {
-        switch appId {
-        case "docs", "sheets", "slides", "pdf", "notes", "code": return "explore"
-        case "web", "videos", "images", "maps", "news": return "most_used"
-        case "travel", "shopping", "events", "health", "nutrition": return "daily_life"
-        default: return "apps"
+    static func appStoreCategory(for app: AppMetadataItem) -> String {
+        switch app.category {
+        case "work": return "for_work"
+        case "personal": return "for_everyday_life"
+        default:
+            return app.lastUpdated == nil ? "top_picks" : "new_apps"
         }
     }
 
     private func categoryTitle(_ category: String) -> String {
         switch category {
-        case "explore": return LocalizationManager.shared.text("settings.app_store.categories.explore_discover")
+        case "top_picks": return LocalizationManager.shared.text("settings.app_store.categories.explore_discover")
         case "most_used": return LocalizationManager.shared.text("settings.app_store.categories.most_used")
-        case "daily_life": return LocalizationManager.shared.text("settings.app_store.categories.for_everyday_life")
+        case "new_apps": return LocalizationManager.shared.text("settings.app_store.categories.new_apps")
+        case "for_work": return LocalizationManager.shared.text("settings.app_store.categories.for_work")
+        case "for_everyday_life": return LocalizationManager.shared.text("settings.app_store.categories.for_everyday_life")
         default: return AppStrings.apps
         }
     }
 
     private func categoryIcon(_ category: String) -> String {
         switch category {
-        case "explore": return "search"
+        case "top_picks": return "reload"
         case "most_used": return "heart"
-        case "daily_life": return "calendar"
+        case "new_apps": return "create"
+        case "for_work": return "business"
+        case "for_everyday_life": return "home"
         default: return "app_store"
         }
     }

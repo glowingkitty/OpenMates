@@ -2685,6 +2685,54 @@ server:
   sv: Server
   he: שרת
   verified_by_human: []
+server.connection:
+  context: Server connection settings menu item
+  en: Server
+  de: Server
+  zh: 服务器
+  es: Servidor
+  fr: Serveur
+  pt: Servidor
+  ru: Сервер
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
+  ar: الخادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
+  he: שרת
+  verified_by_human: []
+server.connection_description:
+  context: Description for server connection settings
+  en: Choose the OpenMates server domain
+  de: OpenMates-Serverdomain auswählen
+  zh: 选择 OpenMates 服务器域名
+  es: Elige el dominio del servidor de OpenMates
+  fr: Choisissez le domaine du serveur OpenMates
+  pt: Escolha o domínio do servidor OpenMates
+  ru: Выберите домен сервера OpenMates
+  ja: OpenMates サーバードメインを選択
+  ko: OpenMates 서버 도메인을 선택하세요
+  it: Scegli il dominio del server OpenMates
+  tr: OpenMates sunucu alan adını seçin
+  vi: Chọn miền máy chủ OpenMates
+  id: Pilih domain server OpenMates
+  pl: Wybierz domenę serwera OpenMates
+  nl: Kies het OpenMates-serverdomein
+  ar: اختر نطاق خادم OpenMates
+  hi: OpenMates सर्वर डोमेन चुनें
+  th: เลือกโดเมนเซิร์ฟเวอร์ OpenMates
+  cs: Vyberte doménu serveru OpenMates
+  sv: Välj OpenMates-serverdomänen
+  he: בחרו את דומיין השרת של OpenMates
+  verified_by_human: []
 server.community_suggestions:
   context: Community suggestions menu item
   en: Community Suggestions
