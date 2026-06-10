@@ -13,9 +13,18 @@
     if (!forceRefresh && pending) return pending;
 
     const loadPromise = (async () => {
-      const { getSubChatsForParent } = await import('../services/db/chatCrudOperations');
-      const { chatDB } = await import('../services/db');
-      const subChats = await getSubChatsForParent(chatDB, parentChatId);
+      const [{ getSubChatsForParent }, { chatDB }, { getExampleSubChats }] = await Promise.all([
+        import('../services/db/chatCrudOperations'),
+        import('../services/db'),
+        import('../demo_chats'),
+      ]);
+      const exampleSubChats = getExampleSubChats(parentChatId);
+      const dbSubChats = await getSubChatsForParent(chatDB, parentChatId);
+      const seenChatIds = new Set(exampleSubChats.map((chat) => chat.chat_id));
+      const subChats = [
+        ...exampleSubChats,
+        ...dbSubChats.filter((chat) => !seenChatIds.has(chat.chat_id)),
+      ];
       subChatsByParentCache.set(parentChatId, subChats);
       return subChats;
     })().finally(() => {
@@ -264,10 +273,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       const msgTime = original_message?.created_at || 0;
       // Filter sub-chats created close to this assistant message (within 60s)
       const matchingSubChats = all
-        .filter(c => 
-          (c.is_sub_chat || c.parent_id !== null) &&
-          Math.abs(c.created_at - msgTime) < 60
-        );
+        .filter(c => {
+          const isSubChat = c.is_sub_chat || c.parent_id !== null;
+          if (!isSubChat) return false;
+          if (currentChatId.startsWith('example-')) return c.parent_id === currentChatId;
+          return Math.abs(c.created_at - msgTime) < 60;
+        });
       const previews: SubChatPreview[] = [];
       const fallbackKey = await chatKeyManager.getKey(currentChatId);
 

@@ -38,6 +38,7 @@ RAW_PAYLOAD_PATTERNS = [
     re.compile(r"^\s*embed_ref:\s*", re.MULTILINE),
 ]
 FOCUS_MODES_REQUIRING_SUB_CHATS = {"web-research"}
+FOCUS_MENTION_RE = re.compile(r"(^|\s)@focus:[a-z0-9_-]+:[a-z0-9_-]+\b")
 
 
 @dataclass(frozen=True)
@@ -182,6 +183,11 @@ def audit() -> list[str]:
             resolved, missing_key = resolve_message_content(message.content)
             if missing_key:
                 issues.append(f"{chat_id}: message {index} references missing i18n key {missing_key}")
+            if active_focus_id in FOCUS_MODES_REQUIRING_SUB_CHATS and message.role == "user":
+                if FOCUS_MENTION_RE.search(resolved):
+                    issues.append(
+                        f"{chat_id}: user message {index} contains @focus directive; focus-mode examples must demonstrate auto-selection"
+                    )
             if message.role == "assistant" and not resolved.lstrip().startswith("```json"):
                 for pattern in RAW_PAYLOAD_PATTERNS:
                     if pattern.search(resolved):
