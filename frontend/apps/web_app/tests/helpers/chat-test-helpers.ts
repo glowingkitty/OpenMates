@@ -77,6 +77,49 @@ async function userMessagePersisted(
 	return anchors.some((anchor) => normalizedVisibleText.includes(anchor));
 }
 
+async function waitForUserMessageAcceptedByServer(
+	page: any,
+	userMessages: any,
+	assistantMessages: any,
+	previousAssistantCount: number,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	try {
+		await expect
+			.poll(
+				async () => {
+					const assistantCount = await locatorCount(assistantMessages);
+					if (assistantCount > previousAssistantCount) {
+						return true;
+					}
+
+					const userCount = await locatorCount(userMessages);
+					if (userCount === 0) {
+						return false;
+					}
+
+					const lastUserText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
+					return !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
+				},
+				{ timeout: 45_000 }
+			)
+			.toBeTruthy();
+	} catch (error) {
+		const diagnostics = await page.evaluate(() => {
+			const input = document.querySelector('[data-action="message-input"]') as HTMLElement | null;
+			const lastUser = Array.from(document.querySelectorAll('[data-testid="message-user"]')).at(-1) as HTMLElement | undefined;
+
+			return {
+				url: window.location.href,
+				inputChatId: input?.getAttribute('data-current-chat-id') ?? null,
+				lastUserText: lastUser?.innerText ?? null
+			};
+		});
+		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify(diagnostics)}`);
+		throw error;
+	}
+}
+
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
 	const authDom = authSignal.waitFor({ state: 'visible', timeout })
 		.then(() => true)
@@ -715,6 +758,13 @@ async function sendMessage(
 				assistantCountBeforeSend
 			)
 		) {
+			await waitForUserMessageAcceptedByServer(
+				page,
+				userMessages,
+				assistantMessages,
+				assistantCountBeforeSend,
+				logCheckpoint
+			);
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend,
 				assistantLastText: assistantLastTextBeforeSend
@@ -729,6 +779,13 @@ async function sendMessage(
 		}
 		throw error;
 	}
+	await waitForUserMessageAcceptedByServer(
+		page,
+		userMessages,
+		assistantMessages,
+		assistantCountBeforeSend,
+		logCheckpoint
+	);
 	lastSendStateByPage.set(page, {
 		assistantCount: assistantCountBeforeSend,
 		assistantLastText: assistantLastTextBeforeSend
