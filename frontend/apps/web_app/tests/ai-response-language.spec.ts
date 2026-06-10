@@ -166,7 +166,7 @@ function detectLanguage(text: string): 'de' | 'en' | 'unknown' {
  */
 async function getAssistantProseText(page: any, messageIndex: number): Promise<string> {
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
-	const proseMirror = targetMessage.getByTestId('message-content').first();
+	const proseMirror = targetMessage.getByTestId('mate-message-content').first();
 
 	await expect(proseMirror).toBeVisible({ timeout: 10000 });
 
@@ -187,21 +187,40 @@ async function getAssistantProseText(page: any, messageIndex: number): Promise<s
  * (typing indicator disappears). This two-phase wait prevents the test from
  * reading a pre-existing message before the AI has even started responding.
  */
-async function waitForStreamingStartAndComplete(page: any, log: any) {
+async function waitForStreamingStartAndComplete(
+	page: any,
+	log: any,
+	previousAssistantCount: number
+) {
 	const typingIndicator = page.getByTestId('typing-indicator');
+	const assistantMessages = page.getByTestId('message-assistant');
 
-	// Phase 1: Wait for typing indicator to appear (AI started processing)
+	// Phase 1: Wait for either the typing indicator or a rendered assistant message.
 	try {
-		await expect(typingIndicator).toBeVisible({ timeout: 30000 });
-		log('Typing indicator appeared — AI is streaming.');
+		await expect(async () => {
+			const typingVisible = await typingIndicator.isVisible().catch(() => false);
+			const assistantCount = await assistantMessages.count().catch(() => 0);
+			expect(typingVisible || assistantCount > previousAssistantCount).toBeTruthy();
+		}).toPass({ timeout: 20000 });
+		log('AI response started or assistant message appeared.');
 	} catch {
-		// Typing indicator may have already appeared and disappeared if response was fast
-		log('WARNING: Typing indicator not seen — response may have completed very quickly.');
+		// Fast mock responses can complete before the typing indicator is observed.
+		log('WARNING: AI start signal not observed before response wait.');
 	}
 
-	// Phase 2: Wait for typing indicator to disappear (AI finished)
-	await expect(typingIndicator).not.toBeVisible({ timeout: 120000 });
-	log('Streaming completed.');
+	// Phase 2: Require the assistant message to render. Do not block the whole
+	// spec on a stale typing indicator; that hides the real failure by hitting
+	// the GitHub Actions cancellation path before artifacts can upload.
+	await expect(async () => {
+		const assistantCount = await assistantMessages.count().catch(() => 0);
+		log(`Assistant message count during response wait: ${assistantCount}`);
+		expect(assistantCount).toBeGreaterThan(previousAssistantCount);
+	}).toPass({ timeout: 60000 });
+
+	await expect(typingIndicator).not.toBeVisible({ timeout: 5000 }).catch(() => {
+		log('WARNING: Typing indicator still visible after assistant message rendered.');
+	});
+	log('Assistant response rendered.');
 }
 
 /**
@@ -218,13 +237,11 @@ async function waitForNewAssistantMessage(
 	await expect(async () => {
 		newCount = await assistantMessages.count();
 		log(`Assistant message count: ${newCount} (waiting for > ${previousCount})`);
-		expect(newCount).toBeGreaterThanOrEqual(previousCount);
+		expect(newCount).toBeGreaterThan(previousCount);
 	}).toPass({ timeout: 90000 });
 
-	// If count didn't increase (mock may update existing message), still return
-	// the last index so downstream assertions can check content.
 	log(`Assistant message available (total: ${newCount}).`);
-	return Math.max(newCount - 1, 0);
+	return newCount - 1;
 }
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
@@ -290,7 +307,7 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
 
 	// Wait for the AI to start and finish streaming
-	await waitForStreamingStartAndComplete(page, log);
+	await waitForStreamingStartAndComplete(page, log, countBeforeTurn1);
 
 	// Wait for the NEW assistant message (count must increase from before)
 	const turn1Index = await waitForNewAssistantMessage(page, countBeforeTurn1, log);
@@ -342,7 +359,7 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	);
 
 	// Wait for AI to start and finish streaming, then find the new message
-	await waitForStreamingStartAndComplete(page, log);
+	await waitForStreamingStartAndComplete(page, log, countBeforeTurn2);
 	const turn2Index = await waitForNewAssistantMessage(page, countBeforeTurn2, log);
 	await page.waitForTimeout(3000);
 	await screenshot(page, 'turn2-response');
