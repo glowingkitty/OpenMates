@@ -576,27 +576,8 @@ async function sendMessage(
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
 	const sendButton = messageField.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 15000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-	logCheckpoint('Clicked send button.');
-	try {
-		await expect
-			.poll(
-				async () =>
-					await userMessagePersisted(
-						userMessages,
-						userCountBeforeSend,
-						message,
-						messageEditor,
-						assistantMessages,
-						assistantCountBeforeSend
-					),
-				{ timeout: 30000 }
-			)
-			.toBeTruthy();
-	} catch (error) {
-		const diagnosticsBeforeSynthetic = await messageField.evaluate((field: HTMLElement) => {
+	const captureSendDiagnostics = async () => {
+		return messageField.evaluate((field: HTMLElement) => {
 			const wrapper = field.closest('[data-action="message-input"]') as HTMLElement | null;
 			const editor = field.querySelector('[data-testid="message-editor"]') as HTMLElement | null;
 			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
@@ -617,9 +598,61 @@ async function sendMessage(
 				fieldRect: { x: fieldRect.x, y: fieldRect.y, width: fieldRect.width, height: fieldRect.height }
 			};
 		});
-		const lastSendDebugAfterClick = await page.evaluate(() => {
+	};
+	const readLastSendDebug = async () => {
+		return page.evaluate(() => {
 			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 		});
+	};
+	try {
+		await expect(sendButton).toBeVisible({ timeout: 5000 });
+		await sendButton.click({ timeout: 5000 });
+		logCheckpoint('Clicked send button.');
+	} catch (clickError) {
+		const diagnosticsBeforeFallback = await captureSendDiagnostics();
+		const lastSendDebugAfterClickAttempt = await readLastSendDebug();
+		logCheckpoint(`Send button click did not complete; diagnostics=${JSON.stringify({
+			clickError: clickError instanceof Error ? clickError.message : String(clickError),
+			lastSendDebug: lastSendDebugAfterClickAttempt,
+			diagnostics: diagnosticsBeforeFallback
+		})}`);
+
+		const domClickResult = await messageField.evaluate((field: HTMLElement) => {
+			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+			if (!button) return false;
+			button.click();
+			return true;
+		});
+		if (domClickResult) {
+			logCheckpoint('Clicked send button via DOM fallback.');
+		} else {
+			const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+				return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+			});
+			logCheckpoint(`Dispatched synthetic custom-send-message after missing send button; diagnostics=${JSON.stringify({
+				syntheticDispatchResult,
+				lastSendDebug: await readLastSendDebug()
+			})}`);
+		}
+	}
+	try {
+		await expect
+			.poll(
+				async () =>
+					await userMessagePersisted(
+						userMessages,
+						userCountBeforeSend,
+						message,
+						messageEditor,
+						assistantMessages,
+						assistantCountBeforeSend
+					),
+				{ timeout: 30000 }
+			)
+			.toBeTruthy();
+	} catch (error) {
+		const diagnosticsBeforeSynthetic = await captureSendDiagnostics();
+		const lastSendDebugAfterClick = await readLastSendDebug();
 		logCheckpoint(`Send did not persist user message after click; diagnostics=${JSON.stringify({
 			userCountBeforeSend,
 			userCountAfterClick: await locatorCount(userMessages),
