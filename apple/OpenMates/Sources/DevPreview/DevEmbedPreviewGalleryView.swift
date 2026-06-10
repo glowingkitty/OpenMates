@@ -60,49 +60,26 @@ struct DevEmbedPreviewGalleryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: .spacing5) {
-            HStack(spacing: .spacing4) {
-                AppIconView(appId: selectedApp.rawValue, size: 44)
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text("Native Embed Preview")
-                        .font(.omH3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontPrimary)
-                    Text("/dev/preview/embeds/\(selectedApp.rawValue)")
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
-                        .accessibilityIdentifier("dev-preview-route")
-                }
-                Spacer(minLength: 0)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: .spacing3) {
-                    ForEach(DevEmbedPreviewApp.allCases) { app in
-                        Button {
-                            selectedApp = app
-                        } label: {
-                            HStack(spacing: .spacing2) {
-                                AppIconView(appId: app.rawValue, size: 22)
-                                Text(app.title)
-                                    .font(.omSmall)
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundStyle(selectedApp == app ? Color.fontButton : Color.fontPrimary)
-                            .padding(.horizontal, .spacing4)
-                            .frame(height: 38)
-                            .background(selectedApp == app ? Color.buttonPrimary : Color.grey20)
-                            .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("dev-preview-app-\(app.rawValue)")
-                    }
-                }
+            HStack(alignment: .firstTextBaseline, spacing: .spacing2) {
+                Text(selectedApp.title)
+                    .font(.omH3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                Text(skillCountLabel)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("dev-preview-route")
             }
         }
         .padding(.horizontal, .spacing8)
         .padding(.top, .spacing8)
-        .padding(.bottom, .spacing5)
-        .background(Color.grey10)
+        .padding(.bottom, .spacing3)
+        .background(Color.grey0)
+    }
+
+    private var skillCountLabel: String {
+        let count = DevEmbedPreviewFixtures.skills(for: selectedApp).count
+        return count == 1 ? "1 skill" : "\(count) skills"
     }
 }
 
