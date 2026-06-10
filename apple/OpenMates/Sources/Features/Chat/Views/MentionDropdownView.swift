@@ -227,6 +227,15 @@ struct MentionItem: Identifiable, Equatable {
             iconAppId: "web",
             mentionSyntax: "@focus:web:check_reputation",
             searchTerms: ["focus", "research", "web"]
+        ),
+        MentionItem(
+            id: "focus:jobs:career_insights",
+            type: .focusMode,
+            nameKey: "app_focus_modes.jobs.career_insights",
+            subtitleKey: "app_focus_modes.jobs.career_insights.description",
+            iconAppId: "jobs",
+            mentionSyntax: "@focus:jobs:career_insights",
+            searchTerms: ["focus", "career", "jobs", "professional"]
         )
     ]
 }

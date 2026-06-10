@@ -349,16 +349,18 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         // Chat updates
         case "new_chat_message", "chat_message_added", "chat_message_confirmed",
-             "encrypted_chat_metadata", "chat_update", "new_message", "message_update",
-             "chat_draft_updated", "draft_deleted", "chat_deleted", "chat_read_status_updated",
-             "chat_pinned_updated", "message_deleted", "message_highlight_added",
-             "message_highlight_updated", "message_highlight_removed", "draft_embed_deleted",
-             "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
-             "new_system_message", "reminder_fired", "pending_ai_response",
-             "ai_response_storage_confirmed", "ai_background_response_completed",
-             "ai_task_cancel_requested", "chat_compression_started", "chat_compression_completed",
-             "encrypted_metadata_stored", "post_processing_metadata_stored",
-             "ai_typing_ended", "message_queued":
+              "encrypted_chat_metadata", "chat_update", "new_message", "message_update",
+              "chat_draft_updated", "draft_deleted", "chat_deleted", "chat_read_status_updated",
+              "chat_pinned_updated", "message_deleted", "message_highlight_added",
+              "message_highlight_updated", "message_highlight_removed", "draft_embed_deleted",
+              "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
+              "new_system_message", "reminder_fired", "pending_ai_response",
+              "ai_response_storage_confirmed", "ai_background_response_completed",
+              "ai_task_cancel_requested", "chat_compression_started", "chat_compression_completed",
+              "encrypted_metadata_stored", "post_processing_metadata_stored",
+              "ai_typing_ended", "message_queued", "focus_mode_activated",
+              "spawn_sub_chats", "sub_chat_confirmation_required",
+              "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped":
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]

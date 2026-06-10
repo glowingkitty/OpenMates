@@ -372,6 +372,18 @@ chat.sub_chats.stop_queue:
   he: עצור תור
   verified_by_human: []
 
+chat.sub_chats.broadcast_to_siblings:
+  context: Toggle label for sending a message to sibling sub-chats under the same parent.
+  en: Send to sibling sub-chats
+  de: An Geschwister-Sub-Chats senden
+  verified_by_human: []
+
+chat.sub_chats.return_to_parent:
+  context: Button label for navigating from a sub-chat back to its parent chat.
+  en: Return to parent chat
+  de: Zurück zum übergeordneten Chat
+  verified_by_human: []
+
 chat.sub_chats.start_first:
   context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
   en: Start first {count}

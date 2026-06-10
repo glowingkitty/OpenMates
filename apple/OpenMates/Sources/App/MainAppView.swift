@@ -97,8 +97,32 @@ struct MainAppView: View {
 
     private var filteredUnpinnedChats: [Chat] {
         let unpinned = chatStore.unpinnedChats.filter { self.publicChatGroup(for: $0.id) == nil }
-        guard !searchText.isEmpty else { return unpinned }
-        return unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
+        let filtered = searchText.isEmpty
+            ? unpinned
+            : unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
+        return orderedWithSubChats(filtered)
+    }
+
+    private func orderedWithSubChats(_ chats: [Chat]) -> [Chat] {
+        let childrenByParent = Dictionary(grouping: chats.filter { $0.parentId != nil }) { $0.parentId ?? "" }
+        var emitted = Set<String>()
+        var ordered: [Chat] = []
+
+        func appendChat(_ chat: Chat) {
+            guard emitted.insert(chat.id).inserted else { return }
+            ordered.append(chat)
+            for child in childrenByParent[chat.id] ?? [] {
+                appendChat(child)
+            }
+        }
+
+        for chat in chats where chat.parentId == nil || !chats.contains(where: { $0.id == chat.parentId }) {
+            appendChat(chat)
+        }
+        for chat in chats {
+            appendChat(chat)
+        }
+        return ordered
     }
 
     private var visibleFilteredUnpinnedChats: [Chat] {
@@ -1044,6 +1068,7 @@ struct MainAppView: View {
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
+                onOpenChat: { selectedChatId = $0; showNewChat = false },
                 onNewChat: openNewChatScreen,
                 onScrollPositionChanged: { messageId in
                     sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
@@ -1906,6 +1931,11 @@ struct MainAppView: View {
                     showNewChat = true
                 }
 
+            case "focus_mode_activated":
+                let envelope = try syncDecoder.decode(WSEnvelope<FocusModeActivatedPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applyFocusModeActivated(payload)
+
             default:
                 await loadInitialData()
             }
@@ -1941,7 +1971,11 @@ struct MainAppView: View {
             messagesV: payload.messagesV ?? existing?.messagesV,
             titleV: payload.encryptedTitle != nil ? 1 : existing?.titleV,
             draftV: existing?.draftV,
-            lastVisibleMessageId: existing?.lastVisibleMessageId
+            lastVisibleMessageId: existing?.lastVisibleMessageId,
+            parentId: payload.parentId ?? existing?.parentId,
+            isSubChat: payload.isSubChat ?? existing?.isSubChat,
+            encryptedActiveFocusId: existing?.encryptedActiveFocusId,
+            activeFocusId: existing?.activeFocusId
         )
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
@@ -1987,7 +2021,11 @@ struct MainAppView: View {
             messagesV: existing?.messagesV,
             titleV: payload.title == nil ? existing?.titleV : max(existing?.titleV ?? 0, 1),
             draftV: existing?.draftV,
-            lastVisibleMessageId: existing?.lastVisibleMessageId
+            lastVisibleMessageId: existing?.lastVisibleMessageId,
+            parentId: existing?.parentId,
+            isSubChat: existing?.isSubChat,
+            encryptedActiveFocusId: existing?.encryptedActiveFocusId,
+            activeFocusId: existing?.activeFocusId
         )
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
@@ -2054,7 +2092,14 @@ struct MainAppView: View {
             messagesV: nextMessagesV,
             titleV: existingChat.titleV,
             draftV: existingChat.draftV,
-            lastVisibleMessageId: existingChat.lastVisibleMessageId
+            lastVisibleMessageId: existingChat.lastVisibleMessageId,
+            parentId: existingChat.parentId,
+            isSubChat: existingChat.isSubChat,
+            subChatSettings: existingChat.subChatSettings,
+            budgetLimit: existingChat.budgetLimit,
+            budgetSpent: existingChat.budgetSpent,
+            encryptedActiveFocusId: existingChat.encryptedActiveFocusId,
+            activeFocusId: existingChat.activeFocusId
         )
         chatStore.upsertChat(updatedChat)
         chatStore.appendMessage(message, to: chatId)
@@ -2082,6 +2127,62 @@ struct MainAppView: View {
         await pushManager.showChatMessageNotification(
             chatId: chat.id
         )
+    }
+
+    private func applyFocusModeActivated(_ payload: FocusModeActivatedPayload) async {
+        guard let existing = chatStore.chat(for: payload.chatId) else { return }
+        await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: existing.encryptedChatKey)
+        guard let key = ChatKeyManager.shared.key(for: payload.chatId),
+              let encryptedFocusId = try? CryptoManager.shared.encryptContent(payload.focusId, key: key) else {
+            NativeSyncPerfLog.warning("phase=focusModeActivated chat=\(payload.chatId.prefix(8)) reason=missingKey")
+            return
+        }
+        let updated = Chat(
+            id: existing.id,
+            title: existing.title,
+            lastMessageAt: existing.lastMessageAt,
+            createdAt: existing.createdAt,
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
+            isArchived: existing.isArchived,
+            isPinned: existing.isPinned,
+            appId: existing.appId,
+            category: existing.category,
+            icon: existing.icon,
+            chatSummary: existing.chatSummary,
+            encryptedTitle: existing.encryptedTitle,
+            encryptedCategory: existing.encryptedCategory,
+            encryptedIcon: existing.encryptedIcon,
+            encryptedChatSummary: existing.encryptedChatSummary,
+            encryptedChatKey: existing.encryptedChatKey,
+            messagesV: existing.messagesV,
+            titleV: existing.titleV,
+            draftV: existing.draftV,
+            lastVisibleMessageId: existing.lastVisibleMessageId,
+            parentId: existing.parentId,
+            isSubChat: existing.isSubChat,
+            subChatSettings: existing.subChatSettings,
+            budgetLimit: existing.budgetLimit,
+            budgetSpent: existing.budgetSpent,
+            encryptedActiveFocusId: encryptedFocusId,
+            activeFocusId: payload.focusId
+        )
+        chatStore.upsertChat(updated)
+        chatStore.updateActiveFocus(
+            chatId: payload.chatId,
+            encryptedActiveFocusId: encryptedFocusId,
+            activeFocusId: payload.focusId
+        )
+        do {
+            try await wsManager.send(WSOutboundMessage(
+                type: "update_encrypted_active_focus_id",
+                payload: [
+                    "chat_id": payload.chatId,
+                    "encrypted_active_focus_id": encryptedFocusId
+                ]
+            ))
+        } catch {
+            print("[MainApp] Failed to persist focus sync metadata")
+        }
     }
 
     private func announceActiveChat(_ chatId: String?) async {
@@ -2586,6 +2687,15 @@ struct MainAppView: View {
                 print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
             }
         }
+        if decrypted.activeFocusId == nil,
+           let encryptedActiveFocusId = decrypted.encryptedActiveFocusId,
+           let activeFocusId = await ChatKeyManager.shared.decryptChatField(
+                chatId: decrypted.id,
+                encryptedValue: encryptedActiveFocusId,
+                fieldName: "encrypted_active_focus_id"
+        ) {
+            decrypted.activeFocusId = activeFocusId
+        }
         return decrypted
     }
 
@@ -2717,6 +2827,8 @@ private struct NewChatMessagePayload: Decodable {
     let encryptedChatKey: String?
     let encryptedTitle: String?
     let encryptedCategory: String?
+    let parentId: String?
+    let isSubChat: Bool?
 }
 
 private struct AITypingStartedSyncPayload: Decodable {
@@ -2753,6 +2865,11 @@ private struct PendingAIResponsePayload: Decodable {
 
 private struct ChatDeletedSyncPayload: Decodable {
     let chatId: String
+}
+
+private struct FocusModeActivatedPayload: Decodable {
+    let chatId: String
+    let focusId: String
 }
 
 private struct Phase1SyncPayload: Decodable {

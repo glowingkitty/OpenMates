@@ -105,6 +105,15 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived([chats[index]]) }
     }
 
+    func updateActiveFocus(chatId: String, encryptedActiveFocusId: String?, activeFocusId: String?) {
+        guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        chats[index] = chats[index].withActiveFocus(
+            encryptedActiveFocusId: encryptedActiveFocusId,
+            activeFocusId: activeFocusId
+        )
+        persistIfAllowed { $0.onChatsReceived([chats[index]]) }
+    }
+
     // MARK: - Message operations
 
     func messages(for chatId: String) -> [Message] {
@@ -308,7 +317,14 @@ private extension Chat {
             messagesV: incoming.messagesV ?? messagesV,
             titleV: incoming.titleV ?? titleV,
             draftV: incoming.draftV ?? draftV,
-            lastVisibleMessageId: incoming.lastVisibleMessageId ?? lastVisibleMessageId
+            lastVisibleMessageId: incoming.lastVisibleMessageId ?? lastVisibleMessageId,
+            parentId: incoming.parentId ?? parentId,
+            isSubChat: incoming.isSubChat ?? isSubChat,
+            subChatSettings: incoming.subChatSettings ?? subChatSettings,
+            budgetLimit: incoming.budgetLimit ?? budgetLimit,
+            budgetSpent: incoming.budgetSpent ?? budgetSpent,
+            encryptedActiveFocusId: incoming.encryptedActiveFocusId ?? encryptedActiveFocusId,
+            activeFocusId: incoming.activeFocusId ?? activeFocusId
         )
     }
 
@@ -333,7 +349,46 @@ private extension Chat {
             messagesV: messagesV,
             titleV: titleV,
             draftV: draftV,
-            lastVisibleMessageId: messageId
+            lastVisibleMessageId: messageId,
+            parentId: parentId,
+            isSubChat: isSubChat,
+            subChatSettings: subChatSettings,
+            budgetLimit: budgetLimit,
+            budgetSpent: budgetSpent,
+            encryptedActiveFocusId: encryptedActiveFocusId,
+            activeFocusId: activeFocusId
+        )
+    }
+
+    func withActiveFocus(encryptedActiveFocusId: String?, activeFocusId: String?) -> Chat {
+        Chat(
+            id: id,
+            title: title,
+            lastMessageAt: lastMessageAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isArchived: isArchived,
+            isPinned: isPinned,
+            appId: appId,
+            category: category,
+            icon: icon,
+            chatSummary: chatSummary,
+            encryptedTitle: encryptedTitle,
+            encryptedCategory: encryptedCategory,
+            encryptedIcon: encryptedIcon,
+            encryptedChatSummary: encryptedChatSummary,
+            encryptedChatKey: encryptedChatKey,
+            messagesV: messagesV,
+            titleV: titleV,
+            draftV: draftV,
+            lastVisibleMessageId: lastVisibleMessageId,
+            parentId: parentId,
+            isSubChat: isSubChat,
+            subChatSettings: subChatSettings,
+            budgetLimit: budgetLimit,
+            budgetSpent: budgetSpent,
+            encryptedActiveFocusId: encryptedActiveFocusId,
+            activeFocusId: activeFocusId
         )
     }
 }

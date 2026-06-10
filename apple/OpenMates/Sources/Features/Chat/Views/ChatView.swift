@@ -114,6 +114,8 @@ struct ChatView: View {
     /// Mirrors web `demoChatSelected`: embedded public chat cards ask the app shell
     /// to select and load a different bundled demo/example chat.
     var onOpenPublicChat: ((String) -> Void)? = nil
+    /// Opens another user chat in the owning app shell.
+    var onOpenChat: ((String) -> Void)? = nil
     /// Opens the new-chat surface in the owning app shell window.
     var onNewChat: (() -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
@@ -147,6 +149,7 @@ struct ChatView: View {
     @State private var isRestoringScroll = false
     @State private var lastReportedVisibleMessageId: String?
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
+    @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
     @StateObject private var pendingUploads = PendingUploadStore.shared
@@ -185,7 +188,13 @@ struct ChatView: View {
                             }
                         )
 
-                    FocusModePill(focusModeManager: focusModeManager)
+                    subChatLifecyclePanel
+
+                    returnToParentButton
+
+                    FocusModePill(focusModeManager: focusModeManager) { _ in
+                        Task { await viewModel.deactivateActiveFocusMode() }
+                    }
 
                     if viewModel.isStreaming {
                         streamingBanner
@@ -302,6 +311,17 @@ struct ChatView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
+        }
+        .onChange(of: viewModel.chat?.activeFocusId) { _, focusId in
+            if let focusId, !focusId.isEmpty {
+                focusModeManager.activate(.init(
+                    id: focusId,
+                    appId: focusId.components(separatedBy: "-").first ?? "ai",
+                    name: focusId
+                ))
+            } else {
+                focusModeManager.deactivate()
+            }
         }
     }
 
@@ -891,10 +911,184 @@ struct ChatView: View {
     }
 
     private var inputBar: some View {
-        inputField(compact: false, placeholder: AppStrings.typeMessage)
+        VStack(spacing: .spacing3) {
+            subChatBroadcastToggle
+            inputField(compact: false, placeholder: AppStrings.typeMessage)
+        }
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
             .background(Color.grey0)
+    }
+
+    @ViewBuilder
+    private var subChatLifecyclePanel: some View {
+        if let request = viewModel.subChatApprovalRequest {
+            subChatApprovalCard(request)
+        } else if let progress = viewModel.subChatProgress {
+            subChatProgressBar(progress)
+        }
+    }
+
+    @ViewBuilder
+    private var returnToParentButton: some View {
+        if let parentId = viewModel.chat?.parentId {
+            Button {
+                onOpenChat?(parentId)
+            } label: {
+                HStack(spacing: .spacing4) {
+                    Icon("arrow-left", size: 14)
+                        .foregroundStyle(Color.buttonPrimary)
+                    Text(LocalizationManager.shared.text("chat.sub_chats.return_to_parent"))
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer()
+                }
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing3)
+                .background(Color.grey0)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("return-to-parent-button")
+        }
+    }
+
+    private func subChatApprovalCard(_ request: SubChatApprovalRequest) -> some View {
+        let count = request.subChats?.count ?? 0
+        return VStack(alignment: .leading, spacing: .spacing5) {
+            Text(LocalizationManager.shared.text("chat.sub_chats.confirmation_title", replacements: ["count": String(count)]))
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+            Text(LocalizationManager.shared.text(
+                "chat.sub_chats.confirmation_description",
+                replacements: [
+                    "auto": String(request.maxAutoSubChats ?? 0),
+                    "max": String(request.maxDirectSubChats ?? count)
+                ]
+            ))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+            subChatPromptPreview(request.subChats ?? [])
+            HStack(spacing: .spacing4) {
+                subChatActionButton(
+                    title: LocalizationManager.shared.text("chat.sub_chats.start_all", replacements: ["count": String(count)]),
+                    primary: true,
+                    identifier: "sub-chat-approve-button"
+                ) {
+                    Task { await viewModel.approveSubChatRequest() }
+                }
+                subChatActionButton(
+                    title: AppStrings.cancel,
+                    primary: false,
+                    identifier: "sub-chat-cancel-button"
+                ) {
+                    Task { await viewModel.cancelSubChatRequest() }
+                }
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .padding(.horizontal, .spacing8)
+        .padding(.bottom, .spacing4)
+        .accessibilityIdentifier("sub-chat-approval-card")
+    }
+
+    private func subChatPromptPreview(_ subChats: [SpawnedSubChat]) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            ForEach(subChats.prefix(3)) { child in
+                Text(child.title ?? child.prompt)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func subChatActionButton(title: String, primary: Bool, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(primary ? Color.fontButton : Color.fontPrimary)
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing4)
+                .background(primary ? Color.buttonPrimary : Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    private func subChatProgressBar(_ progress: SubChatProgress) -> some View {
+        HStack(spacing: .spacing5) {
+            Text(subChatProgressLabel(progress))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+            Spacer()
+            Button {
+                Task { await viewModel.stopSubChats() }
+            } label: {
+                Text(LocalizationManager.shared.text("chat.sub_chats.stop_queue"))
+                    .font(.omXs)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing3)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("sub-chat-stop-button")
+        }
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing4)
+        .background(Color.grey0)
+        .accessibilityIdentifier("sub-chat-progress-bar")
+    }
+
+    @ViewBuilder
+    private var subChatBroadcastToggle: some View {
+        if viewModel.chat?.isSubChat == true {
+            Button {
+                broadcastToSiblingSubChats.toggle()
+            } label: {
+                HStack(spacing: .spacing4) {
+                    if broadcastToSiblingSubChats {
+                        Icon("select", size: 14)
+                            .foregroundStyle(Color.buttonPrimary)
+                    } else {
+                        Circle()
+                            .stroke(Color.fontTertiary, lineWidth: 1.5)
+                            .frame(width: 14, height: 14)
+                    }
+                    Text(LocalizationManager.shared.text("chat.sub_chats.broadcast_to_siblings"))
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer()
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("sub-chat-broadcast-toggle")
+        }
+    }
+
+    private func subChatProgressLabel(_ progress: SubChatProgress) -> String {
+        if progress.status == "stopping" {
+            return LocalizationManager.shared.text("chat.sub_chats.progress_stopping")
+        }
+        return LocalizationManager.shared.text(
+            "chat.sub_chats.progress_label",
+            replacements: [
+                "completed": String(progress.completed ?? 0),
+                "total": String(progress.total ?? 0)
+            ]
+        )
     }
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
@@ -1358,7 +1552,7 @@ struct ChatView: View {
         mentionQuery = nil
 
         Task {
-            await viewModel.sendMessage(sanitizedText)
+            await viewModel.sendMessage(sanitizedText, broadcastToSiblings: broadcastToSiblingSubChats)
         }
     }
 
@@ -1369,7 +1563,7 @@ struct ChatView: View {
               deferredChatId == viewModel.chat?.id,
               let content = notification.userInfo?["content"] as? String else { return }
         Task {
-            await viewModel.sendMessage(content)
+            await viewModel.sendMessage(content, broadcastToSiblings: broadcastToSiblingSubChats)
         }
     }
 

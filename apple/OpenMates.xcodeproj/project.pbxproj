@@ -111,6 +111,8 @@
 		C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */; };
 		C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */; };
 		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
+		C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000012001 /* ChatSyncParityTests.swift */; };
+		C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000013001 /* SubChatProcessingTests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
 		30B0859F19D08233DE184B42 /* TravelPriceCalendarEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85945164CEE92FF9FAEA451C /* TravelPriceCalendarEmbedRenderer.swift */; };
 		31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224ACCD58377D1F4497661CC /* BackgroundChatSender.swift */; };
@@ -702,6 +704,8 @@
 		C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWindowLoadingTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000012001 /* ChatSyncParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSyncParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000013001 /* SubChatProcessingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubChatProcessingTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000002003 /* OpenMatesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C204366C8F557707BFA41C6D /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
@@ -1235,6 +1239,8 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
+				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
+				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
 				C0FFEE000000000000002002 /* Info.plist */,
 			);
 			path = OpenMatesTests;
@@ -2213,6 +2219,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
+				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
+				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

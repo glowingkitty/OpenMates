@@ -39,6 +39,7 @@ final class FocusModeManager: ObservableObject {
 
 struct FocusModePill: View {
     @ObservedObject var focusModeManager: FocusModeManager
+    var onDeactivate: ((FocusModeManager.FocusModeInfo) -> Void)? = nil
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
@@ -51,6 +52,7 @@ struct FocusModePill: View {
                     .foregroundStyle(Color.fontPrimary)
                 Button {
                     focusModeManager.deactivate()
+                    onDeactivate?(focus)
                     AccessibilityAnnouncement.announce("Focus mode \(focus.name) deactivated")
                 } label: {
                     Icon("close", size: 14)
