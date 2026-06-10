@@ -8,7 +8,9 @@ the web app, because chat gradients only accept canonical category IDs.
 from __future__ import annotations
 
 import json
+import importlib.util
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -97,12 +99,11 @@ def test_scaffold_normalizes_home_category_label(tmp_path: Path) -> None:
 
 
 def test_current_example_chats_pass_audit() -> None:
-    result = subprocess.run(
-        ["python3", "scripts/audit_example_chats.py"],
-        cwd=REPO_ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    audit_script = REPO_ROOT / "scripts" / "audit_example_chats.py"
+    spec = importlib.util.spec_from_file_location("audit_example_chats", audit_script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
 
-    assert "Example chat audit passed." in result.stdout
+    assert module.audit() == []
