@@ -2212,7 +2212,9 @@ async function handleE2E(
   }
   if (flags.password !== undefined) throw new Error("Use generated passwords or OPENMATES_CLI_SIGNUP_PASSWORD, not --password.");
   const slot = parseRequiredNumber(flags.slot, "--slot");
-  if (![15, 17].includes(slot)) throw new Error("Only reserved slots 15 and 17 are supported.");
+  if (![15, 16, 17, 18, 19, 20].includes(slot)) {
+    throw new Error("Only reserved slots 15-20 are supported.");
+  }
   const artifact = typeof flags.artifact === "string" ? flags.artifact : `test-results/credential-updates/slot-${slot}.env`;
   const domain = typeof flags.domain === "string" ? flags.domain : process.env.OPENMATES_CLI_E2E_EMAIL_DOMAIN;
   const email = typeof flags.email === "string"
@@ -5277,7 +5279,7 @@ Creates local ignored credential artifacts for reserved E2E auth accounts. The
 command refuses production API URLs and does not upload GitHub secrets.
 
 Options:
-  --slot <15|17>                     Reserved auth-account slot
+  --slot <15-20>                     Reserved auth-account slot
   --artifact <path>                  Output .env artifact path
   --email <email>                    Test email; prompted/generated when omitted
   --domain <mail-domain>             Generate email at this domain

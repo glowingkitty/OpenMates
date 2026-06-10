@@ -30,4 +30,9 @@ describe("E2E provisioning command surface", () => {
       /refuses production API URLs/,
     );
   });
+
+  it("allows the reserved auth-test slot range", () => {
+    const output = runCli(["e2e", "--help"]);
+    assert.ok(output.includes("--slot <15-20>"));
+  });
 });

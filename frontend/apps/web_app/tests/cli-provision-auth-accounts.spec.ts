@@ -81,7 +81,7 @@ test.describe('CLI E2E auth account provisioning', () => {
 
 		let output = '';
 		let promptedForEmailCode = false;
-		const waitForPrompt = new Promise<void>((resolve) => {
+		const waitForPrompt = new Promise<void>((resolve, reject) => {
 			const onData = (chunk: Buffer) => {
 				output += chunk.toString('utf8');
 				if (!promptedForEmailCode && output.includes('Email verification code:')) {
@@ -91,6 +91,11 @@ test.describe('CLI E2E auth account provisioning', () => {
 			};
 			child.stdout.on('data', onData);
 			child.stderr.on('data', onData);
+			child.on('close', (code: number | null) => {
+				if (!promptedForEmailCode) {
+					reject(new Error(`CLI exited before email-code prompt with ${code}:\n${output}`));
+				}
+			});
 		});
 
 		await waitForPrompt;
