@@ -29,6 +29,7 @@ class CacheServiceBase:
     """Base service for caching data using Dragonfly (Redis-compatible)"""
 
     _CONNECTION_RETRY_COOLDOWN_SECONDS = 30.0
+    _PUBSUB_RECONNECT_DELAY_SECONDS = 1.0
     _next_connection_retry_at = 0.0
     _last_connection_warning_at = 0.0
 
@@ -298,73 +299,79 @@ class CacheServiceBase:
 
     async def subscribe_to_channel(self, channel_pattern: str):
         """Subscribe to a Redis channel pattern and yield messages."""
-        client = await self.client
-        if not client:
-            logger.error(f"Cannot subscribe to channel pattern '{channel_pattern}': client not connected.")
-            return
+        while True:
+            client = await self.client
+            if not client:
+                logger.error(f"Cannot subscribe to channel pattern '{channel_pattern}': client not connected.")
+                await asyncio.sleep(self._PUBSUB_RECONNECT_DELAY_SECONDS)
+                continue
 
-        pubsub = client.pubsub()
-        await pubsub.psubscribe(channel_pattern)
-        logger.debug(f"Subscribed to Redis channel pattern: {channel_pattern}")
-        
-        try:
-            while True:
-                # CRITICAL: Use shorter timeout (0.1s) for faster message processing
-                # This ensures chunks are forwarded immediately without delay
-                # The timeout is only for periodic checks, messages return immediately when available
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.1)
-                if message:
-                    logger.debug(
-                        "DEBUG: Received message from Redis "
-                        f"(summary={_safe_cache_payload_summary(message)})"
-                    )
-                if message and message.get("type") in ["pmessage", "message"]: 
-                    channel = message.get("channel")
-                    if isinstance(channel, bytes):
-                        channel = channel.decode('utf-8')
-                    
-                    data = message.get("data")
-                    if isinstance(data, bytes):
-                        data = data.decode('utf-8')
-                    
-                    logger.debug(
-                        f"Received message from Redis channel '{channel}' "
-                        f"(data_summary={_safe_cache_payload_summary(data)})"
-                    )
-                    try:
-                        parsed_data = json.loads(data)
-                        payload_to_yield = {"channel": channel, "data": parsed_data}
-                        yield payload_to_yield
-                    except json.JSONDecodeError as e_json:
-                        logger.error(
-                            f"Failed to parse JSON from message on channel '{channel}' "
-                            f"(data_summary={_safe_cache_payload_summary(data)}). Error: {e_json}",
-                            exc_info=True,
+            pubsub = None
+            try:
+                pubsub = client.pubsub()
+                await pubsub.psubscribe(channel_pattern)
+                logger.debug(f"Subscribed to Redis channel pattern: {channel_pattern}")
+
+                while True:
+                    # CRITICAL: Use shorter timeout (0.1s) for faster message processing
+                    # This ensures chunks are forwarded immediately without delay
+                    # The timeout is only for periodic checks, messages return immediately when available
+                    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.1)
+                    if message:
+                        logger.debug(
+                            "DEBUG: Received message from Redis "
+                            f"(summary={_safe_cache_payload_summary(message)})"
                         )
-                        # Optionally yield an error message
-                        yield {"channel": channel, "data": data, "error": "json_decode_error"}
-                        
-                elif message:
-                    logger.debug(
-                        "Received other type of message on pubsub "
-                        f"(summary={_safe_cache_payload_summary(message)})"
-                    )
-        except asyncio.CancelledError:
-            logger.debug(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
-            raise # Re-raise for the main lifespan handler to catch
-        except redis_exceptions.ConnectionError as e:
-            logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
-            # Potentially attempt to re-subscribe or handle error
-        except Exception as e:
-            logger.error(f"Error in Redis PubSub listener for pattern '{channel_pattern}': {e}", exc_info=True)
-        finally:
-            logger.debug(f"Unsubscribing from Redis channel pattern: {channel_pattern}")
-            if pubsub:
-                try:
-                    await pubsub.punsubscribe(channel_pattern)
-                    await pubsub.close() # Ensure the pubsub connection is closed
-                except Exception as e_close:
-                    logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")
+                    if message and message.get("type") in ["pmessage", "message"]:
+                        channel = message.get("channel")
+                        if isinstance(channel, bytes):
+                            channel = channel.decode('utf-8')
+
+                        data = message.get("data")
+                        if isinstance(data, bytes):
+                            data = data.decode('utf-8')
+
+                        logger.debug(
+                            f"Received message from Redis channel '{channel}' "
+                            f"(data_summary={_safe_cache_payload_summary(data)})"
+                        )
+                        try:
+                            parsed_data = json.loads(data)
+                            payload_to_yield = {"channel": channel, "data": parsed_data}
+                            yield payload_to_yield
+                        except json.JSONDecodeError as e_json:
+                            logger.error(
+                                f"Failed to parse JSON from message on channel '{channel}' "
+                                f"(data_summary={_safe_cache_payload_summary(data)}). Error: {e_json}",
+                                exc_info=True,
+                            )
+                            # Optionally yield an error message
+                            yield {"channel": channel, "data": data, "error": "json_decode_error"}
+
+                    elif message:
+                        logger.debug(
+                            "Received other type of message on pubsub "
+                            f"(summary={_safe_cache_payload_summary(message)})"
+                        )
+            except asyncio.CancelledError:
+                logger.debug(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
+                raise # Re-raise for the main lifespan handler to catch
+            except redis_exceptions.ConnectionError as e:
+                logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
+                self._client = None
+                self._connection_error = True
+            except Exception as e:
+                logger.error(f"Error in Redis PubSub listener for pattern '{channel_pattern}': {e}", exc_info=True)
+            finally:
+                logger.debug(f"Unsubscribing from Redis channel pattern: {channel_pattern}")
+                if pubsub:
+                    try:
+                        await pubsub.punsubscribe(channel_pattern)
+                        await pubsub.close() # Ensure the pubsub connection is closed
+                    except Exception as e_close:
+                        logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")
+
+            await asyncio.sleep(self._PUBSUB_RECONNECT_DELAY_SECONDS)
 
     async def execute_pipeline_operations(self, operations: List[tuple]) -> bool:
         """
