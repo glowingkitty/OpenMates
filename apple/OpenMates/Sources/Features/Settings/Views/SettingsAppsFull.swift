@@ -131,14 +131,12 @@ struct SettingsAppsFullView: View {
                         }
                     } else {
                         VStack(spacing: 0) {
-                            OMSettingsSection {
-                                OMSettingsRow(title: AppStrings.showAllApps, icon: "app_store") {
-                                    withAnimation(.easeOut(duration: 0.2)) {
-                                        isShowingAllApps = true
-                                    }
+                            OMSettingsRow(title: AppStrings.showAllApps, icon: "app_store") {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    isShowingAllApps = true
                                 }
-                                .accessibilityIdentifier("settings-show-all-apps-row")
                             }
+                            .accessibilityIdentifier("settings-show-all-apps-row")
 
                             appStoreCategories
                         }
