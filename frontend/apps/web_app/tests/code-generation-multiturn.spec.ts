@@ -251,8 +251,19 @@ async function waitForCodeRunSuccess(fullscreenOverlay: any, expectedOutput: str
 async function expectCodeRunOverlaySurface(fullscreenOverlay: any, expectedBackground: string) {
 	const overlay = fullscreenOverlay.getByTestId('code-run-overlay');
 	await expect(overlay).toBeVisible({ timeout: 15000 });
-	const backgroundColor = await overlay.evaluate((node: HTMLElement) => getComputedStyle(node).backgroundColor);
-	expect(backgroundColor).toBe(expectedBackground);
+	const colors = await overlay.evaluate((node: HTMLElement, expected: string) => {
+		const probe = document.createElement('span');
+		probe.style.backgroundColor = expected;
+		node.appendChild(probe);
+		const expectedColor = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+
+		return {
+			actual: getComputedStyle(node).backgroundColor,
+			expected: expectedColor
+		};
+	}, expectedBackground);
+	expect(colors.actual).toBe(colors.expected);
 	await expect(fullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
 	return overlay;
 }
@@ -625,7 +636,7 @@ test('generated Python code embed can run in E2B sandbox', async ({ page, contex
 
    const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
    await expect(fileSelection).toBeVisible({ timeout: 15000 });
-   await expectCodeRunOverlaySurface(fullscreenOverlay, 'rgb(25, 25, 25)');
+   await expectCodeRunOverlaySurface(fullscreenOverlay, 'var(--color-grey-100)');
    await expect(fullscreenOverlay.getByTestId('code-run-view-code')).toBeVisible({ timeout: 10000 });
    await expect(fileSelection).toContainText('Upload to E2B & execute:');
    await expect(fileSelection).toContainText('Cost: 5 credits per minute');
