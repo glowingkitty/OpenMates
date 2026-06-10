@@ -20,12 +20,14 @@ scope:
     - Admin visibility into total budget, used credits, remaining credits, grant amount, active/exhausted state, and exhausted notification state.
     - One admin email when the promotion transitions from active to exhausted.
     - Cleanup of legacy signup payment and credits step code so payment purchase flows remain only in Settings.
+    - Privacy-preserving device/account promo hiding after the current browser or authenticated account has already received a Free testing grant.
   out:
     - Changing regular Settings > Billing purchase, gift-card, refund, referral, or auto-top-up behavior.
     - Changing alpha disclaimer copy or layout.
     - Partial grants when remaining budget is below the per-user grant amount.
     - Retroactively granting credits to existing users.
     - Per-invite, per-domain, or per-user-segment promotional budgets.
+    - IP hashing, device fingerprinting, or email-claim limits for promotional abuse prevention.
     - Apple-specific signup or StoreKit UI changes.
 
 context_discovery:
@@ -170,6 +172,17 @@ scenarios:
       - Signup step ordering contains no credits, payment, or auto-top-up purchase step.
       - Signup components no longer import or render legacy signup payment/credits content.
       - Settings > Billing purchase, gift-card redemption, and bank-transfer flows remain unchanged.
+  - id: S-7
+    title: Device hides promotion after receiving a Free testing grant
+    given:
+      - The Free testing promotion is active.
+      - A browser session completes signup and receives the Free testing grant.
+    when:
+      - The same browser returns to the signup basics page or logs in to an account that already has a Free testing grant.
+    then:
+      - The browser stores a first-party local marker that the grant was received.
+      - Signup basics shows Pay per use instead of Free credits for testing on that browser.
+      - Clearing browser storage can clear the local marker, but the backend grant ledger remains authoritative and still prevents duplicate grants.
 
 acceptance_criteria:
   - id: AC-1
@@ -202,6 +215,12 @@ acceptance_criteria:
   - id: AC-10
     scenario: S-6
     text: Legacy signup credits/payment/auto-top-up purchase steps are removed from the active signup code without regressing Settings billing flows.
+  - id: AC-11
+    scenario: S-7
+    text: Authenticated user/session responses expose only a boolean has_free_testing_credits_grant marker derived from the grant ledger, and the frontend persists a first-party local device flag when that marker or the grant notification is observed.
+  - id: AC-12
+    scenario: S-7
+    text: Signup promotion display is gated by both safe public promotion metadata and the local device flag, without adding IP hashes, fingerprints, or email-claim tracking.
 
 contracts:
   api:
@@ -225,25 +244,33 @@ contracts:
       notes:
         - Called from existing signup completion paths after a new user is authenticated and before or during the /chat/new completion transition.
         - Must be idempotent per user.
+    - route: authenticated user/session responses
+      response_delta: "{ user: { has_free_testing_credits_grant: boolean } }"
+      notes:
+        - Marker is derived from the existing Free testing grant ledger.
+        - Response must not expose grant IDs, user hashes, budget totals, remaining budget, or device identifiers.
   data:
     - Add persistent server-level Free testing budget state, likely a singleton Directus collection or equivalent server settings table.
     - Store total_budget_credits, used_budget_credits, per_user_grant_credits, enabled, exhausted_email_sent_at, created_at, updated_at, and updated_by_admin_user_id.
     - Store a per-user marker for free-testing grant idempotency, either on directus_users or a grant ledger keyed by user_id_hash.
+    - Derive account-level promo hiding from the grant ledger; do not add a separate persistent user field unless future requirements need it.
     - User credit balance continues to use encrypted_credit_balance encrypted with the user's vault key.
     - Budget reservation and user credit update must be transactional enough to prevent overspending and duplicate grants during concurrent signups.
     - Free testing credits are promotional grants and must not increment credits_sold.
     - Free testing credits should use separate stats fields such as free_testing_credits_granted and free_testing_grants_created if grant analytics are needed.
   ui_states:
     - Signup basics advantage text shows Free credits for testing only when server status says the promotion is active.
-    - Signup basics advantage text falls back to signup.advantage_pay_per_use on server-status error, disabled budget, exhausted budget, or insufficient remaining budget.
+    - Signup basics advantage text falls back to signup.advantage_pay_per_use on server-status error, disabled budget, exhausted budget, insufficient remaining budget, or a local device flag showing this browser/account already received the promotion.
     - Admin Server settings shows loading, saved, validation error, disabled, active, exhausted, and email-sent states.
     - User grant notification uses translated string signup.free_testing_credits_received with {credits} replacement.
+    - Local device flag is first-party localStorage only and is not cleared by logout.
   privacy_security:
     - Public status exposes only whether the promotion is active and the grant amount.
     - Admin endpoints require the existing require_admin dependency.
     - No plaintext user emails, user IDs, or private signup data are written to logs or specs.
     - Grant ledger uses user_id_hash if a separate collection is introduced.
     - Admin exhausted email contains aggregate budget numbers only, not recipient user data.
+    - Device/account promo hiding uses an account boolean derived from the grant ledger and a first-party browser flag; no IP hashes, fingerprint-derived identifiers, or email-claim hashes are introduced.
   i18n:
     - Add signup.advantage_free_testing_credits with English Free credits for testing and translated placeholders for other locales if not human-verified.
     - Add signup.free_testing_credits_received with English You received {credits} free credits for testing.
@@ -263,6 +290,7 @@ tests:
       - AC-6
       - AC-8
       - AC-9
+      - AC-11
     assertions:
       - admin can save and fetch enabled budget state
       - non-admin access to admin budget endpoints returns 403
@@ -272,6 +300,7 @@ tests:
       - concurrent grants cannot push used budget above total budget
       - remaining budget below per-user grant returns inactive and no partial grant
       - exhausted email task is queued once when final full grant is consumed
+      - account grant marker is false before a grant and true after a grant
     red_phase:
       required: true
       expected: fail
@@ -297,12 +326,14 @@ tests:
       - AC-5
       - AC-7
       - AC-8
+      - AC-12
     assertions:
       - signup basics shows Free credits for testing when mocked server-status reports active promotion
       - alpha disclaimer text remains unchanged
       - signup completes directly to chat without payment or credits step
       - successful signup grant shows You received 1000 free credits for testing
       - inactive promotion shows Pay per use and no free-testing notification
+      - local device marker hides the Free credits for testing copy on the same browser after grant
     red_phase:
       required: true
       expected: fail
@@ -393,6 +424,31 @@ tests:
         status: ""
         run_id: ""
         timestamp: ""
+  - id: T-VITEST-002
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/serverStatusStore.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-11
+      - AC-12
+    assertions:
+      - active public promotion is visible when the local device flag is absent
+      - marking the device as already granted hides the signup promotion without changing raw public metadata
+      - malformed localStorage reads fail closed without crashing signup rendering
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
 
 implementation_plan:
   existing_patterns:
@@ -409,12 +465,16 @@ implementation_plan:
     user_credits_updated broadcast, user notification broadcast, stats updates,
     and exhausted-email enqueueing. Frontend signup only consumes safe public
     promotion metadata and never calculates remaining budget itself.
+    The browser stores a first-party local marker after a successful grant or when
+    an authenticated account response reports an existing grant; signup promo
+    display checks that marker before rendering Free credits for testing.
   data_flow:
     - Admin saves budget in Server settings through an admin-only endpoint.
     - Public server-status returns active promotion metadata when remaining budget covers a full grant.
     - Signup basics renders Free credits for testing only from active public metadata.
     - Signup completion calls backend grant path after account creation/session setup.
     - Grant path atomically reserves budget, encrypts the new user credit balance, updates cache, broadcasts credit update and notification, and queues exhausted email if needed.
+    - Frontend observes the grant notification or authenticated user marker and sets a local device flag so the same browser no longer advertises the promotion.
   affected_files:
     - path: backend/core/directus/schemas/free_testing_credits_budget.yml
       reason: Persistent server-level budget state or equivalent singleton schema.
@@ -422,6 +482,12 @@ implementation_plan:
       reason: Per-user idempotency ledger if not stored on directus_users.
     - path: backend/core/api/app/services/free_testing_credits_service.py
       reason: Central budget and grant logic.
+    - path: backend/core/api/app/schemas/user.py
+      reason: Authenticated account-level Free testing grant marker.
+    - path: backend/core/api/app/routes/auth_routes/auth_login.py
+      reason: Populate account-level grant marker on login responses.
+    - path: backend/core/api/app/routes/auth_routes/auth_session.py
+      reason: Populate account-level grant marker on session responses.
     - path: backend/core/api/app/routes/admin.py
       reason: Admin budget endpoints.
     - path: backend/core/api/app/routes/settings.py
@@ -437,7 +503,13 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
       reason: Dynamic advantage text.
     - path: frontend/packages/ui/src/stores/serverStatusStore.ts
-      reason: Safe promotion metadata.
+      reason: Safe promotion metadata and first-party local promo hiding flag.
+    - path: frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+      reason: Sync local promo hiding flag from authenticated login response.
+    - path: frontend/packages/ui/src/stores/authSessionActions.ts
+      reason: Sync local promo hiding flag from authenticated session response.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      reason: Sync local promo hiding flag from grant notification event.
     - path: frontend/packages/ui/src/components/settings/SettingsServer.svelte
       reason: Add Free testing budget entry.
     - path: frontend/packages/ui/src/components/settings/server/SettingsFreeTestingBudget.svelte
@@ -474,11 +546,15 @@ tasks:
         - AC-6
         - AC-8
         - AC-9
+        - AC-11
     expected_files:
       - backend/core/directus/schemas/free_testing_credits_budget.yml
       - backend/core/api/app/services/free_testing_credits_service.py
       - backend/core/api/app/routes/admin.py
       - backend/core/api/app/routes/settings.py
+      - backend/core/api/app/schemas/user.py
+      - backend/core/api/app/routes/auth_routes/auth_login.py
+      - backend/core/api/app/routes/auth_routes/auth_session.py
       - backend/tests/test_free_testing_credits_budget.py
     verification:
       - T-PYTEST-001
@@ -513,8 +589,12 @@ tasks:
         - AC-3
         - AC-4
         - AC-9
+        - AC-12
     expected_files:
       - frontend/packages/ui/src/stores/serverStatusStore.ts
+      - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+      - frontend/packages/ui/src/stores/authSessionActions.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
       - frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
       - frontend/packages/ui/src/components/settings/SettingsServer.svelte
       - frontend/packages/ui/src/components/settings/server/SettingsFreeTestingBudget.svelte
@@ -523,6 +603,7 @@ tasks:
     verification:
       - T-PLAYWRIGHT-001
       - T-PLAYWRIGHT-002
+      - T-VITEST-002
     independently_deployable: false
   - id: TASK-4
     title: Remove legacy signup payment and credits paths
@@ -549,6 +630,7 @@ risks:
   - Public server-status must not leak exact remaining promotional budget.
   - Removing legacy signup payment components may affect tests or dormant deep links that still reference credits/payment steps.
   - Admin exhausted email could spam without an exhausted_email_sent_at guard tied to budget configuration changes.
+  - Local device promo hiding is intentionally soft friction; users can clear browser storage, so backend grant idempotency remains the authoritative abuse control.
 
 open_questions:
   - Should changing total_budget_credits after exhaustion reset exhausted_email_sent_at automatically, or only when the budget transitions from exhausted to active?

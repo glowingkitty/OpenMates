@@ -44,6 +44,7 @@ import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference on session restore
 import { captureReferralCodeFromUrl, submitPendingReferralCode } from "../services/referralService";
+import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
 
 // Import core auth state and related flags
 import {
@@ -186,6 +187,10 @@ export async function checkAuth(
 
     // Handle Successful Authentication
     if (data.success && data.user) {
+      if (data.user.has_free_testing_credits_grant) {
+        markDeviceReceivedFreeTestingCredits();
+      }
+
       // Store WebSocket token if provided (for Safari iOS compatibility)
       // This MUST happen before updating authStore to avoid race conditions
       if (data.ws_token) {
@@ -659,6 +664,8 @@ export async function checkAuth(
           // Refund policy consent — used to skip redundant consent screens in settings
           has_accepted_refund_policy:
             data.user.has_accepted_refund_policy ?? false,
+          has_free_testing_credits_grant:
+            data.user.has_free_testing_credits_grant ?? false,
           default_ai_model_simple:
             data.user.default_ai_model_simple ?? null,
           default_ai_model_complex:

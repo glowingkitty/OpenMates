@@ -163,12 +163,16 @@ async def test_grant_is_idempotent_and_does_not_count_as_credits_sold() -> None:
     service, directus, cache, manager, celery = make_service()
     await service.save_budget(enabled=True, total_budget_credits=2_000, per_user_grant_credits=1_000, admin_user_id="admin-1")
 
+    assert await service.has_grant_for_user("user-1") is False
+
     first = await service.grant_to_new_signup("user-1")
     second = await service.grant_to_new_signup("user-1")
 
     assert first.granted is True
     assert first.credits_granted == 1_000
     assert first.current_credits == 1_000
+    assert await service.has_grant_for_user("user-1") is True
+    assert await service.has_grant_for_user("user-2") is False
     assert second.granted is False
     assert second.reason == "already_granted"
     assert directus.budget is not None

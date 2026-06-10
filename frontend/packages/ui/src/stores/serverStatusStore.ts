@@ -51,9 +51,25 @@ const initialState: ServerStatusState = {
     error: null
 };
 
+export const FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY = 'openmates_free_testing_credits_granted';
+
+function readFreeTestingCreditsDeviceGrantFlag(): boolean {
+    if (typeof localStorage === 'undefined') {
+        return false;
+    }
+
+    try {
+        return localStorage.getItem(FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY) === 'true';
+    } catch (error) {
+        console.warn('[ServerStatusStore] Failed to read Free testing credits device flag:', error);
+        return false;
+    }
+}
+
 // --- Store ---
 
 const serverStatusStore = writable<ServerStatusState>(initialState);
+export const freeTestingCreditsDeviceGrantReceived = writable<boolean>(readFreeTestingCreditsDeviceGrantFlag());
 
 // --- Derived Values ---
 
@@ -82,6 +98,41 @@ export const freeTestingCreditsPromotion = derived(
     serverStatusStore,
     ($state) => $state.status?.free_testing_credits ?? null
 );
+
+export const signupFreeTestingCreditsPromotion = derived(
+    [freeTestingCreditsPromotion, freeTestingCreditsDeviceGrantReceived],
+    ([$promotion, $deviceGrantReceived]) => {
+        if (!$promotion?.active || $deviceGrantReceived) {
+            return null;
+        }
+        return $promotion;
+    }
+);
+
+export function hasDeviceReceivedFreeTestingCredits(): boolean {
+    return get(freeTestingCreditsDeviceGrantReceived);
+}
+
+export function refreshFreeTestingCreditsDeviceGrantFromStorage(): void {
+    freeTestingCreditsDeviceGrantReceived.set(readFreeTestingCreditsDeviceGrantFlag());
+}
+
+export function markDeviceReceivedFreeTestingCredits(): void {
+    if (typeof localStorage !== 'undefined') {
+        try {
+            localStorage.setItem(FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY, 'true');
+        } catch (error) {
+            console.warn('[ServerStatusStore] Failed to persist Free testing credits device flag:', error);
+        }
+    }
+    freeTestingCreditsDeviceGrantReceived.set(true);
+}
+
+export function markDeviceReceivedFreeTestingCreditsFromNotification(messageKey?: string): void {
+    if (messageKey === 'signup.free_testing_credits_received') {
+        markDeviceReceivedFreeTestingCredits();
+    }
+}
 
 // --- Actions ---
 

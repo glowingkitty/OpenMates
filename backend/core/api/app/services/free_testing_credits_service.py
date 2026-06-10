@@ -81,6 +81,13 @@ class FreeTestingCreditsService:
             "grant_credits": status.per_user_grant_credits,
         }
 
+    async def has_grant_for_user(self, user_id: str) -> bool:
+        """Return whether the grant ledger already contains a Free testing grant for this user."""
+        if not user_id:
+            return False
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        return await self._grant_exists(user_id_hash)
+
     async def save_budget(
         self,
         *,

@@ -15,6 +15,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.services.limiter import limiter
 from typing import Optional
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent, truncate_ip, derive_device_name # Updated imports
@@ -80,6 +81,23 @@ def _generic_lookup_response(*, hashed_email: str, stay_logged_in: bool, user_em
 def _is_obsolete_signup_resume_path(last_opened_path: Optional[str]) -> bool:
     """Return True when login should not resume the legacy signup wizard."""
     return isinstance(last_opened_path, str) and last_opened_path.startswith(("/signup/", "#signup/"))
+
+
+async def _has_free_testing_credits_grant(
+    user_id: str,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+) -> bool:
+    try:
+        service = FreeTestingCreditsService(
+            directus_service=directus_service,
+            cache_service=cache_service,
+            encryption_service=None,
+        )
+        return await service.has_grant_for_user(user_id)
+    except Exception as exc:
+        logger.error("Failed to load Free testing grant marker for user %s: %s", user_id[:8], exc, exc_info=True)
+        return False
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("120/minute")
@@ -242,6 +260,11 @@ async def login(
 
         # tfa_enabled is now included directly in the profile from get_user_profile
         tfa_enabled = user_profile.get("tfa_enabled", False)
+        has_free_testing_credits_grant = await _has_free_testing_credits_grant(
+            user_id,
+            directus_service,
+            cache_service,
+        )
         
         # CRITICAL: Verify that encrypted_tfa_secret actually exists before requiring 2FA
         # This prevents requiring 2FA when user hasn't completed setup during signup
@@ -574,6 +597,7 @@ async def login(
                         push_notification_subscription=user_profile.get("push_notification_subscription"),
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                        has_free_testing_credits_grant=has_free_testing_credits_grant,
                     ),
                     ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -802,6 +826,7 @@ async def login(
                         push_notification_subscription=user_profile.get("push_notification_subscription"),
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                        has_free_testing_credits_grant=has_free_testing_credits_grant,
                     ),
                     ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -1121,6 +1146,7 @@ async def login(
                         push_notification_subscription=user_profile.get("push_notification_subscription"),
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
+                        has_free_testing_credits_grant=has_free_testing_credits_grant,
                     ),
                     ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )

@@ -12,7 +12,7 @@
     import { get } from 'svelte/store';
     import { updateUsername } from '../../../../stores/userProfile';
     import { signupStore, clearSignupData } from '../../../../stores/signupStore';
-    import { freeTestingCreditsPromotion } from '../../../../stores/serverStatusStore';
+    import { signupFreeTestingCreditsPromotion } from '../../../../stores/serverStatusStore';
     import * as cryptoService from '../../../../services/cryptoService';
     import { isValidLocale } from '../../../../i18n/types';
 
@@ -925,7 +925,7 @@
     <li class="advantage-item">
         <span class="advantage-check-icon"></span>
         <span class="advantage-text">
-            {$text($freeTestingCreditsPromotion?.active ? 'signup.advantage_free_testing_credits' : 'signup.advantage_pay_per_use')}
+            {$text($signupFreeTestingCreditsPromotion?.active ? 'signup.advantage_free_testing_credits' : 'signup.advantage_pay_per_use')}
         </span>
     </li>
 </ul>

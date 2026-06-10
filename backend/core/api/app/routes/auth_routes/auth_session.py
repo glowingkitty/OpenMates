@@ -17,11 +17,29 @@ from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.utils.ws_token import create_ws_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+async def _has_free_testing_credits_grant(
+    user_id: str,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+) -> bool:
+    try:
+        service = FreeTestingCreditsService(
+            directus_service=directus_service,
+            cache_service=cache_service,
+            encryption_service=None,
+        )
+        return await service.has_grant_for_user(user_id)
+    except Exception as exc:
+        logger.error("Failed to load Free testing grant marker for user %s: %s", user_id[:8], exc, exc_info=True)
+        return False
 
 @router.post("/session", response_model=SessionResponse)
 async def get_session(
@@ -411,6 +429,11 @@ async def get_session(
                 }
 
         logger.info(f"Session valid for user_id={user_id}. Returning user data.")
+        has_free_testing_credits_grant = await _has_free_testing_credits_grant(
+            user_id,
+            directus_service,
+            cache_service,
+        )
         return SessionResponse(
             success=True,
             message="Session valid",
@@ -436,6 +459,7 @@ async def get_session(
                     auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp")),
+                    has_free_testing_credits_grant=has_free_testing_credits_grant,
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,
