@@ -37,6 +37,7 @@
     const STEP_PAYMENT = 'payment';
     const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
+    const LEGACY_SIGNUP_PAYMENT_STEPS = [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP];
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
     import { updateProfile } from '../../stores/userProfile';
@@ -235,9 +236,8 @@
             console.log(`[Signup] Email confirmation disabled (self-hosted), skipping to secure_account.`);
             currentSignupStep.set(STEP_SECURE_ACCOUNT);
             currentStep = STEP_SECURE_ACCOUNT;
-        } else if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
-            // If self-hosted and user is on a payment step, skip to completion
-            console.log(`[Signup] Payment disabled, skipping payment steps. Moving from ${existingStep} to completion.`);
+        } else if (LEGACY_SIGNUP_PAYMENT_STEPS.includes(existingStep)) {
+            console.log(`[Signup] Legacy signup payment step ${existingStep} restored, moving to completion.`);
             currentSignupStep.set(STEP_COMPLETION);
             currentStep = STEP_COMPLETION;
         } else if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
@@ -254,7 +254,7 @@
         updateSettingsStep(''); // Provide empty string as initial prevStepValue
         
         // Update footer visibility based on step
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_COMPLETION];
         showSignupFooter.set(true);
         
         // Listen for credit updates via WebSocket (e.g., after successful payment)
@@ -349,7 +349,7 @@
     // Function to update settings step state and close panel if necessary
     function updateSettingsStep(prevStepValue: string) {
         // Check if current step should show settings
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS];
         const shouldShowSettings = settingsSteps.includes(currentStep);
         isSignupSettingsStep.set(shouldShowSettings);
 
@@ -537,12 +537,7 @@
     function handleSkip() {
         // Profile picture step removed - moved to settings
         if (currentStep === STEP_TFA_APP_REMINDER) {
-            // Skip settings and mate settings - go directly to credits (or completion if self-hosted)
-            if (!isSelfHosted) {
-                goToStep(STEP_CREDITS);
-            } else {
-                goToStep(STEP_COMPLETION);
-            }
+            goToStep(STEP_COMPLETION);
         }
     }
 
@@ -550,13 +545,13 @@
         let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         
-        // Skip email confirmation and payment steps if self-hosted
-        if (isSelfHosted && [STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
+        // Skip email confirmation if self-hosted, and always skip removed signup payment steps.
+        if ((isSelfHosted && newStep === STEP_CONFIRM_EMAIL) || LEGACY_SIGNUP_PAYMENT_STEPS.includes(newStep)) {
             if (newStep === STEP_CONFIRM_EMAIL) {
                 console.log(`[Signup] Email confirmation disabled (self-hosted), redirecting to secure_account`);
                 newStep = STEP_SECURE_ACCOUNT;
             } else {
-                console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
+                console.log(`[Signup] Signup payment removed, redirecting from ${newStep} to completion`);
                 newStep = STEP_COMPLETION;
             }
         }
@@ -666,7 +661,7 @@
         updateSettingsStep(oldStep); // Call update function with old step value
         
         // Update footer visibility based on step
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_COMPLETION];
         showSignupFooter.set(true);
 
         // If credits amount is provided (from step 9 to 10), store it
@@ -716,9 +711,8 @@
             console.log(`[Signup] Email confirmation disabled (self-hosted), redirecting to secure_account`);
             step = STEP_SECURE_ACCOUNT;
         }
-        // Skip payment steps if self-hosted - go to completion
-        else if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
-            console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
+        else if (LEGACY_SIGNUP_PAYMENT_STEPS.includes(step)) {
+            console.log(`[Signup] Signup payment removed, skipping step ${step} and going to completion`);
             step = STEP_COMPLETION;
         }
         const oldStep = currentStep; // Capture old step value
@@ -794,7 +788,7 @@
         updateSettingsStep(oldStep); // Call update function with old step value
         
         // Update footer visibility based on step
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_COMPLETION];
         showSignupFooter.set(true);
         
         // Scroll to top when step changes
@@ -1464,9 +1458,6 @@
             [STEP_RECOVERY_KEY]: 10,
             [STEP_SETTINGS]: 11,
             [STEP_MATE_SETTINGS]: 12,
-            [STEP_CREDITS]: 13,
-            [STEP_PAYMENT]: 14,
-            [STEP_AUTO_TOP_UP]: 15,
             [STEP_COMPLETION]: 16
         };
         return fullStepMap[stepName] || 0;
@@ -1475,11 +1466,10 @@
     // Update showSkip logic to show for specific steps using Svelte 5 runes
     // Update the bindable showSkip prop
     $effect(() => {
-        showSkip = currentStep === STEP_TFA_APP_REMINDER || currentStep === STEP_CREDITS;
+        showSkip = currentStep === STEP_TFA_APP_REMINDER;
     });
 
-    // Show expanded header on credits and payment steps using Svelte 5 runes
-    let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
+    let showExpandedHeader = $derived(false);
 
     // For payment step, auto top-up step, secure account step, and backup codes step, use expanded height for the top content wrapper
     // For recovery key step, only expand if the creation UI is not active using Svelte 5 runes
@@ -1647,7 +1637,6 @@
                                             />
                                         {:else if currentStep === STEP_RECOVERY_KEY}
                                             <RecoveryKeyBottomContent
-                                                paymentEnabled={paymentEnabled}
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}

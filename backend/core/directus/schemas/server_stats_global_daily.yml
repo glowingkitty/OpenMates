@@ -81,6 +81,16 @@ server_stats_global_daily:
       default: 0
       note: "Number of gift cards redeemed on this day."
 
+    free_testing_credits_granted:
+      type: integer
+      default: 0
+      note: "Promotional Free testing credits granted on this day. Not credits_sold."
+
+    free_testing_grants_created:
+      type: integer
+      default: 0
+      note: "Number of Free testing credit grants created on this day."
+
     subscription_creations:
       type: integer
       default: 0

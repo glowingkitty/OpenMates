@@ -4,7 +4,7 @@
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { getWebsiteUrl, routes } from '../../config/links';
     // Import current step store and gift check stores
-    import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState';
+    import { currentSignupStep } from '../../stores/signupState';
     // Import signupStore to check loginMethod for passkey flow
     import { signupStore } from '../../stores/signupStore';
     import { getSignupStepSequence } from './signupFlow';
@@ -23,9 +23,6 @@
     const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
     const STEP_SETTINGS = 'settings';
     const STEP_MATE_SETTINGS = 'mate_settings';
-    const STEP_CREDITS = 'credits';
-    const STEP_PAYMENT = 'payment';
-    const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
 
     function getCurrentStepSequence(): string[] {
@@ -91,10 +88,6 @@
         } else if (currentStep === STEP_RECOVERY_KEY && $signupStore.loginMethod === 'password' && !$userProfile.tfa_enabled) {
             // Password signup with skipped 2FA: return to warning step, not backup codes.
             onstep({ step: STEP_SKIP_2FA_CONSENT });
-        } else if (currentStep === STEP_AUTO_TOP_UP) {
-            // Auto top-up step should trigger logout when back button is clicked
-            console.log('[SignupNav] Auto top-up step - triggering logout');
-            onlogout();
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
             onstep({ step: STEP_BASICS });
@@ -120,10 +113,7 @@
         } else if (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) {
             onstep({ step: STEP_MATE_SETTINGS });
         } else if (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) {
-            onstep({ step: STEP_CREDITS });
-        } else if (currentStep === STEP_CREDITS) {
-            console.debug('Skip and show demo first');
-            // Custom action for credits step - will be replaced later with real action
+            onstep({ step: STEP_COMPLETION });
         } else {
             // Default skip action
             onskip();
@@ -170,10 +160,6 @@
         // if (step === STEP_PROFILE_PICTURE) return $text('settings.logout'); // Removed
         if (step === STEP_SETTINGS) return $text('signup.upload_profile_picture');
         if (step === STEP_MATE_SETTINGS) return $text('common.settings');
-        // Credits step: show previous step text (recovery_key for both passkey and password flows)
-        if (step === STEP_CREDITS) return $text('common.recovery_key');
-        if (step === STEP_PAYMENT) return $text('signup.select_credits');
-        if (step === STEP_AUTO_TOP_UP) return $text('settings.logout');
         return $text('signup.sign_up');
     }
 
@@ -185,7 +171,6 @@ let skipButtonText = $derived(
     (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $text('signup.next') :
     (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $text('signup.next') :
     (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $text('signup.next') :
-    // (currentStep === STEP_CREDITS) ? $text('signup.skip_and_show_demo_first') : // Credits step skip demo # TODO implement this later
     $text('signup.skip') // Default skip text
 );
 
@@ -196,7 +181,6 @@ let skipButtonText = $derived(
     // - TFA App Reminder step AND (no app selected OR app selected and saved) OR
     // - Settings step AND consent_privacy_and_apps_default_settings is true OR
     // - Mate Settings step AND consent_mates_default_settings is true OR
-    // - Credits step AND gift check is done AND NO gift is available OR
     // - showSkip prop is true AND it's not one of the special steps
     let showActualSkipButton = $derived(
         mode === 'login' ? false : (
@@ -204,8 +188,7 @@ let skipButtonText = $derived(
             (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
             (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
             (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
-            // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
-            (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep))
+            (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS].includes(currentStep))
         )
     );
 </script>

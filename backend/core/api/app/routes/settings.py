@@ -29,6 +29,7 @@ from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -2413,6 +2414,10 @@ class ServerStatusResponse(BaseModel):
         default=True,
         description="Whether at least one server-side LLM provider key is configured.",
     )
+    free_testing_credits: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Safe public Free testing promotion metadata for signup UI.",
+    )
 
 
 @router.get(
@@ -2467,6 +2472,20 @@ async def get_server_status(
             payment_enabled = is_payment_enabled()
         
         ai_models_configured = await _are_ai_models_configured(request)
+        free_testing_credits = None
+        directus_service = getattr(request.app.state, "directus_service", None)
+        cache_service = getattr(request.app.state, "cache_service", None)
+        encryption_service = getattr(request.app.state, "encryption_service", None)
+        if directus_service and cache_service and encryption_service:
+            try:
+                free_testing_service = FreeTestingCreditsService(
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                )
+                free_testing_credits = await free_testing_service.get_public_promotion()
+            except Exception as promo_err:
+                logger.error("Failed to load free testing promotion metadata: %s", promo_err, exc_info=True)
 
         # Get server edition (for backward compatibility)
         server_edition = get_server_edition()
@@ -2493,6 +2512,7 @@ async def get_server_status(
             server_edition=request_edition,  # Use request-based edition (more accurate)
             domain=request_domain,
             ai_models_configured=ai_models_configured,
+            free_testing_credits=free_testing_credits,
         )
         
     except Exception as e:

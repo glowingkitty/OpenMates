@@ -1,0 +1,25 @@
+# backend/core/directus/schemas/free_testing_credit_grants.yml
+# Ledger for idempotent Free testing credit grants.
+# It stores hashed user IDs only, so grant accounting does not expose plaintext
+# user identifiers in the promotional budget collection.
+free_testing_credit_grants:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Primary key for the grant ledger row."
+
+    user_id_hash:
+      type: string
+      length: 128
+      unique: true
+      note: "SHA-256 hash of the user ID. Enforces one grant per user."
+
+    credits_granted:
+      type: integer
+      note: "Promotional credits granted to the user."
+
+    created_at:
+      type: datetime
+      note: "ISO timestamp when the grant was created."

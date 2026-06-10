@@ -2756,6 +2756,82 @@ server.gift_cards:
   sv: Presentkort
   he: כרטיסי מתנה
   verified_by_human: []
+server.free_testing_budget.title:
+  context: Admin Server settings page title for configuring the Free testing credits signup promotion
+  en: Free testing credits
+  verified_by_human: []
+server.free_testing_budget.subtitle:
+  context: Subtitle for admin Free testing credits budget settings menu item
+  en: Configure the signup testing credit budget
+  verified_by_human: []
+server.free_testing_budget.loading:
+  context: Loading state while fetching admin Free testing credits budget
+  en: Loading Free testing credits budget...
+  verified_by_human: []
+server.free_testing_budget.load_error:
+  context: Error shown when loading admin Free testing credits budget fails
+  en: Failed to load Free testing credits budget.
+  verified_by_human: []
+server.free_testing_budget.save_success:
+  context: Success notification after saving admin Free testing credits budget
+  en: Free testing credits budget saved.
+  verified_by_human: []
+server.free_testing_budget.save_error:
+  context: Error shown when saving admin Free testing credits budget fails
+  en: Failed to save Free testing credits budget.
+  verified_by_human: []
+server.free_testing_budget.status_active:
+  context: Status message when Free testing credits can be granted to new signups
+  en: Free testing credits are active for new signups.
+  verified_by_human: []
+server.free_testing_budget.status_exhausted:
+  context: Status message when Free testing credits budget is enabled but cannot grant another full user amount
+  en: The budget is exhausted and will not grant partial credits.
+  verified_by_human: []
+server.free_testing_budget.status_disabled:
+  context: Status message when Free testing credits are disabled or inactive
+  en: Free testing credits are currently inactive.
+  verified_by_human: []
+server.free_testing_budget.used:
+  context: Label for used Free testing credits budget
+  en: Used
+  verified_by_human: []
+server.free_testing_budget.remaining:
+  context: Label for remaining Free testing credits budget
+  en: Remaining
+  verified_by_human: []
+server.free_testing_budget.exhausted_email_sent:
+  context: Label for exhausted-budget admin email sent timestamp
+  en: Exhausted email sent
+  verified_by_human: []
+server.free_testing_budget.updated_at:
+  context: Label for Free testing credits budget updated timestamp
+  en: Updated
+  verified_by_human: []
+server.free_testing_budget.never:
+  context: Value shown when a Free testing credits timestamp has never been set
+  en: Never
+  verified_by_human: []
+server.free_testing_budget.enabled:
+  context: Toggle label for enabling Free testing credits promotion
+  en: Enable Free testing credits for new signups
+  verified_by_human: []
+server.free_testing_budget.total_budget:
+  context: Input label for total Free testing credits budget
+  en: Total budget credits
+  verified_by_human: []
+server.free_testing_budget.per_user_grant:
+  context: Input label for per-user Free testing credits grant amount
+  en: Credits per new signup
+  verified_by_human: []
+server.free_testing_budget.validation_below_used:
+  context: Validation message when total budget is below already used Free testing credits
+  en: Total budget cannot be below credits already granted.
+  verified_by_human: []
+server.free_testing_budget.validation_no_partial:
+  context: Validation message when remaining budget is below the per-user grant amount
+  en: Remaining budget must cover one full user grant. Partial grants are not allowed.
+  verified_by_human: []
 server.gift_cards.title:
   context: Title shown at top of admin gift card generator page
   en: Generate Gift Cards

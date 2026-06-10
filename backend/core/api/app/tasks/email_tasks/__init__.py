@@ -36,6 +36,7 @@ from . import incomplete_signup_deletion_task  # Import incomplete signup deleti
 from . import error_digest_task  # Import weekly error digest task
 from . import daily_issue_digest_task  # Import daily reliability digest task
 from . import referral_reward_email_task  # Import referral reward notification task
+from . import free_testing_budget_email_task  # Import Free testing credits budget alerts task
 
 # Note: When celery_config.py imports 'backend.core.api.app.tasks.email_tasks',
 # this __init__.py will execute and import all the task modules, which causes
@@ -73,4 +74,5 @@ __all__ = [
     'error_digest_task',
     'daily_issue_digest_task',
     'referral_reward_email_task',
+    'free_testing_budget_email_task',
 ]

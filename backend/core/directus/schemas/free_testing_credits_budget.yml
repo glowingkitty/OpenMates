@@ -1,0 +1,53 @@
+# backend/core/directus/schemas/free_testing_credits_budget.yml
+# Stores the singleton server-admin Free testing credit budget.
+# The public signup UI only sees safe active/grant metadata from server-status;
+# exact totals and exhausted-email state remain admin-only.
+free_testing_credits_budget:
+  type: collection
+  fields:
+    id:
+      type: string
+      length: 64
+      primary: true
+      note: "Singleton key. The application uses 'default'."
+
+    enabled:
+      type: boolean
+      default: false
+      note: "Whether the Free testing credits promotion is enabled."
+
+    total_budget_credits:
+      type: integer
+      default: 0
+      note: "Total promotional credit budget configured by the server admin."
+
+    used_budget_credits:
+      type: integer
+      default: 0
+      note: "Total promotional credits already granted from this budget."
+
+    per_user_grant_credits:
+      type: integer
+      default: 1000
+      note: "Credits granted to each eligible newly completed signup."
+
+    exhausted_email_sent_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the exhausted-budget admin email was queued."
+
+    updated_by_admin_user_id:
+      type: string
+      length: 128
+      nullable: true
+      note: "Admin user ID that last changed the budget."
+
+    created_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the budget row was created."
+
+    updated_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the budget row was last changed."

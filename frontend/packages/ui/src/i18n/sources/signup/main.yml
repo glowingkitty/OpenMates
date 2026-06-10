@@ -7194,3 +7194,51 @@ advantage_pay_per_use:
   sv: Betala per användning
   he: תשלום לפי שימוש
   verified_by_human: []
+advantage_free_testing_credits:
+  context: Signup page advantage item shown while the Free testing credits budget has enough budget for a full grant
+  en: Free credits for testing
+  de: Kostenlose Credits zum Testen
+  zh: 用于测试的免费积分
+  es: Créditos gratuitos para probar
+  fr: Crédits gratuits pour tester
+  pt: Créditos gratuitos para teste
+  ru: Бесплатные кредиты для тестирования
+  ja: テスト用の無料クレジット
+  ko: 테스트용 무료 크레딧
+  it: Crediti gratuiti per testare
+  tr: Test için ücretsiz krediler
+  vi: Tín dụng miễn phí để thử nghiệm
+  id: Kredit gratis untuk pengujian
+  pl: Darmowe kredyty do testowania
+  nl: Gratis credits om te testen
+  ar: أرصدة مجانية للاختبار
+  hi: परीक्षण के लिए मुफ्त क्रेडिट
+  th: เครดิตฟรีสำหรับการทดสอบ
+  cs: Bezplatné kredity na testování
+  sv: Gratis krediter för testning
+  he: קרדיטים בחינם לבדיקה
+  verified_by_human: []
+free_testing_credits_received:
+  context: In-app notification shown after signup grants promotional Free testing credits. Variable {credits} is the granted credit amount.
+  en: You received {credits} free credits for testing.
+  de: Du hast {credits} kostenlose Credits zum Testen erhalten.
+  zh: 你已收到 {credits} 个用于测试的免费积分。
+  es: Recibiste {credits} créditos gratuitos para probar.
+  fr: Vous avez reçu {credits} crédits gratuits pour tester.
+  pt: Você recebeu {credits} créditos gratuitos para teste.
+  ru: Вы получили {credits} бесплатных кредитов для тестирования.
+  ja: テスト用に {credits} 個の無料クレジットを受け取りました。
+  ko: 테스트용 무료 크레딧 {credits}개를 받았습니다.
+  it: Hai ricevuto {credits} crediti gratuiti per testare.
+  tr: Test için {credits} ücretsiz kredi aldınız.
+  vi: Bạn đã nhận được {credits} tín dụng miễn phí để thử nghiệm.
+  id: Anda menerima {credits} kredit gratis untuk pengujian.
+  pl: Otrzymano {credits} darmowych kredytów do testowania.
+  nl: Je hebt {credits} gratis credits ontvangen om te testen.
+  ar: لقد تلقيت {credits} رصيدًا مجانيًا للاختبار.
+  hi: आपको परीक्षण के लिए {credits} मुफ्त क्रेडिट मिले हैं।
+  th: คุณได้รับเครดิตฟรี {credits} เครดิตสำหรับการทดสอบ
+  cs: Obdrželi jste {credits} bezplatných kreditů na testování.
+  sv: Du fick {credits} gratis krediter för testning.
+  he: קיבלת {credits} קרדיטים בחינם לבדיקה.
+  verified_by_human: []

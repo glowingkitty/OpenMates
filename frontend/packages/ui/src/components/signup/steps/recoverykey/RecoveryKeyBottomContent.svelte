@@ -48,9 +48,6 @@ step_5_bottom_content_svelte:
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { recoveryKeyLoaded, recoveryKeyData } from '../../../../stores/recoveryKeyState';
 
-    // Props using Svelte 5 runes
-    let { paymentEnabled = true }: { paymentEnabled?: boolean } = $props();
-    
     const dispatch = createEventDispatcher();
     let hasConfirmedStorage = $state(false);
     let isSubmitting = $state(false);
@@ -89,10 +86,8 @@ step_5_bottom_content_svelte:
             const data = await response.json();
             
             if (response.ok && data.success) {
-                // Proceed to next step only after successful API response
-                // Navigate to credits step if payment is enabled, otherwise go to completion (self-hosted mode)
-                const nextStep = paymentEnabled ? 'credits' : 'completion';
-                dispatch('step', { step: nextStep });
+                // Signup payment was removed; billing setup now lives in Settings.
+                dispatch('step', { step: 'completion' });
             } else {
                 // If API call failed, reset the toggle
                 console.error('Failed to confirm recovery key stored:', data.message);

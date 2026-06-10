@@ -418,7 +418,7 @@ class EmailTemplateService:
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
-                'openrouter_model_watch',
+                'openrouter_model_watch', 'free-testing-budget-exhausted',
             }
             is_transactional = template in transactional_templates
             

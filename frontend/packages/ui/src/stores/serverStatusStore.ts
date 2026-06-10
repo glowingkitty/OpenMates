@@ -24,6 +24,11 @@ interface ServerStatus {
     domain: string | null;
     /** Whether at least one server-side AI model provider key is configured */
     ai_models_configured: boolean;
+    /** Safe public metadata for signup Free testing credits promotion */
+    free_testing_credits?: {
+        active: boolean;
+        grant_credits: number;
+    } | null;
 }
 
 interface ServerStatusState {
@@ -71,6 +76,11 @@ export const isSelfHosted = derived(
 export const serverEdition = derived(
     serverStatusStore,
     ($state) => $state.status?.server_edition ?? null
+);
+
+export const freeTestingCreditsPromotion = derived(
+    serverStatusStore,
+    ($state) => $state.status?.free_testing_credits ?? null
 );
 
 // --- Actions ---
@@ -121,7 +131,8 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
             payment_enabled: data.is_self_hosted ? false : data.payment_enabled ?? true,
             server_edition: data.server_edition ?? null,
             domain: data.domain ?? null,
-            ai_models_configured: data.ai_models_configured ?? true
+            ai_models_configured: data.ai_models_configured ?? true,
+            free_testing_credits: data.free_testing_credits ?? null
         };
         
         console.debug('[ServerStatusStore] Server status fetched:', status);
