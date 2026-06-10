@@ -16,6 +16,7 @@ import time
 
 import pytest
 
+from backend.core.api.app.routes import payments
 from backend.core.api.app.services.payment.revolut_business_service import (
     RevolutBusinessService,
 )
@@ -379,3 +380,141 @@ class TestBankDetails:
         assert details["account_holder_postal_code"] == ""
         assert details["account_holder_city"] == ""
         assert details["account_holder_country"] == ""
+
+
+class TestGiftCardBankTransferWebhook:
+    """Regression coverage for purchased gift cards paid by SEPA transfer."""
+
+    @pytest.mark.asyncio
+    async def test_confirmed_gift_card_transfer_creates_card_and_email_not_credits(self, monkeypatch):
+        reference = "OM-TEST-btgift01"
+        order_id = "bt_gift01"
+        user_id = "user-123"
+
+        class FakePaymentService:
+            revolut_business = object()
+
+        class FakeCache:
+            def __init__(self):
+                self.user = {"vault_key_id": "vault-key", "credits": 500}
+                self.status_updates = []
+                self.events = []
+                self.stats = []
+
+            async def get_bank_transfer_by_reference(self, requested_reference):
+                assert requested_reference == reference
+                return {
+                    "order_id": order_id,
+                    "status": "pending",
+                    "amount_expected_cents": 2000,
+                    "user_id": user_id,
+                    "credits_amount": 21000,
+                    "order_type": "gift_card_purchase",
+                    "email_encryption_key": "email-key",
+                }
+
+            async def get_user_by_id(self, requested_user_id):
+                assert requested_user_id == user_id
+                return dict(self.user)
+
+            async def set_user(self, data, user_id):
+                self.user = dict(data)
+
+            async def update_bank_transfer_status(self, **kwargs):
+                self.status_updates.append(kwargs)
+
+            async def increment_stat(self, name):
+                self.stats.append(("increment_stat", name))
+
+            async def increment_json_stat(self, name, key):
+                self.stats.append(("increment_json_stat", name, key))
+
+            async def update_liability(self, amount):
+                self.stats.append(("update_liability", amount))
+
+            async def publish_event(self, channel, event_data):
+                self.events.append((channel, event_data))
+
+        class FakeDirectus:
+            def __init__(self):
+                self.created_gift_cards = []
+                self.updated_items = []
+                self.updated_users = []
+
+            async def get_items(self, collection, params=None):
+                if collection == "pending_bank_transfers":
+                    return [{"id": "pending-row-id"}]
+                return []
+
+            async def update_item(self, collection, item_id, data):
+                self.updated_items.append((collection, item_id, data))
+
+            async def create_gift_card(self, **kwargs):
+                self.created_gift_cards.append(kwargs)
+                return {"id": "gift-card-id", **kwargs}
+
+            async def update_user(self, user_id, payload):
+                self.updated_users.append((user_id, payload))
+                return True
+
+        class FakeSecrets:
+            async def get_secret(self, secret_path, secret_key):
+                return f"secret-{secret_key}"
+
+        class FakeTier:
+            def __init__(self):
+                self.spending_updates = []
+                self.successful_payments = []
+
+            async def update_monthly_spending(self, **kwargs):
+                self.spending_updates.append(kwargs)
+
+            async def handle_successful_payment(self, **kwargs):
+                self.successful_payments.append(kwargs)
+
+        sent_tasks = []
+        broadcasts = []
+
+        def fake_send_task(**kwargs):
+            sent_tasks.append(kwargs)
+
+        async def fake_broadcast_to_user_specific_event(**kwargs):
+            broadcasts.append(kwargs)
+
+        monkeypatch.setattr(payments, "generate_gift_card_code", lambda: "GIFT-BANK-TEST")
+        monkeypatch.setattr(payments.app, "send_task", fake_send_task)
+        monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", fake_broadcast_to_user_specific_event)
+
+        cache = FakeCache()
+        directus = FakeDirectus()
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=20.0,
+                currency="EUR",
+                reference=reference,
+                transaction_id="txn-gift-card",
+            ),
+            event_type="TransactionCreated",
+            payment_service=FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=object(),
+            secrets_manager=FakeSecrets(),
+            tier_service=FakeTier(),
+        )
+
+        assert result == {"status": "gift_card_bank_transfer_completed"}
+        assert directus.created_gift_cards == [{
+            "code": "GIFT-BANK-TEST",
+            "credits_value": 21000,
+            "purchaser_user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+        }]
+        assert directus.updated_users == []
+        assert cache.user["credits"] == 500
+        assert cache.status_updates[0]["status"] == "completed"
+        assert any(event[1]["event_for_client"] == "gift_card_created" for event in cache.events)
+        assert any(event["event_name"] == "gift_card_created" for event in broadcasts)
+        assert sent_tasks[0]["name"] == "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email"
+        assert sent_tasks[0]["kwargs"]["is_gift_card"] is True
+        assert sent_tasks[0]["kwargs"]["gift_card_code"] == "GIFT-BANK-TEST"

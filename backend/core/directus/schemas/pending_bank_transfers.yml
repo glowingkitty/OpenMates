@@ -52,7 +52,7 @@ pending_bank_transfers:
       type: string
       length: 30
       default: "credit_purchase"
-      note: "Type of order: 'credit_purchase' (default) or 'support_contribution'"
+      note: "Type of order: 'credit_purchase' (default), 'gift_card_purchase', or 'support_contribution'"
 
     created_at:
       type: datetime

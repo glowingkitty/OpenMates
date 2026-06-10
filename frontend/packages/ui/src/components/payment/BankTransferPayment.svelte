@@ -31,6 +31,7 @@
         emailEncryptionKey = '',
         allowContinueWithoutPayment = false,
         isSignup = false,
+        isGiftCard = false,
     }: {
         credits_amount: number;
         price: number;
@@ -40,6 +41,7 @@
         emailEncryptionKey?: string;
         allowContinueWithoutPayment?: boolean;
         isSignup?: boolean;
+        isGiftCard?: boolean;
     } = $props();
 
     let state: 'loading' | 'awaiting_transfer' | 'completed' | 'error' = $state('loading');
@@ -90,7 +92,7 @@
 
             const body = isSupportContribution
                 ? { amount: price, currency: currency.toLowerCase(), support_email: supportEmail }
-                : { credits_amount, currency: currency.toLowerCase(), email_encryption_key: emailEncryptionKey, is_signup: isSignup };
+                : { credits_amount, currency: currency.toLowerCase(), email_encryption_key: emailEncryptionKey, is_signup: isSignup, is_gift_card: isGiftCard };
 
             const response = await fetch(endpoint, {
                 method: 'POST',
