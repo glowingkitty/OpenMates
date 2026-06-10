@@ -191,7 +191,12 @@ test.describe('Report Issue Flow', () => {
 		await expect(submitButton).toBeVisible({ timeout: 5000 });
 		logCheckpoint('Submit button visible.');
 
-		const adminControlsVisible = await page.getByTestId('admin-implement-fix-directly').count() > 0;
+		await page.waitForFunction(async () => {
+			const debug = (window as any).debug;
+			const state = await debug?.state?.();
+			return Boolean(state?.user && state.user !== 'unavailable' && state.user.id);
+		}, null, { timeout: 10000 });
+		const adminControlsVisible = await page.getByTestId('admin-add-to-linear').count() > 0;
 		logCheckpoint(`Admin report controls visible for authenticated test account: ${adminControlsVisible}`);
 
 		// Direct calls to the admin investigation endpoint must not be accepted from
