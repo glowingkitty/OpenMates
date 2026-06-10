@@ -335,9 +335,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17 + iPad Pro 13-inch (M5)"
-        timestamp: "2026-06-10T00:25:37Z"
+        status: passed_with_intentional_visual_review_warning
+        run_id: "local-a624 python3 scripts/apple_ui_contracts.py audit --surface embeds; python3 -m pytest backend/tests/test_apple_ui_contracts.py"
+        timestamp: "2026-06-10T05:53:59Z"
 
   - id: T-BUILD-APPLE-EMBEDS
     type: build
@@ -442,6 +442,8 @@ implementation_plan:
       reason: Reuse or extend contract capture helpers for embed preview/fullscreen surfaces.
     - path: scripts/apple_ui_contracts.py
       reason: Validate, promote, pair, and audit embed contracts and native coverage.
+    - path: backend/tests/test_apple_ui_contracts.py
+      reason: Unit-test deterministic embed coverage aliases and renderer-only classifications.
     - path: apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json
       reason: Store promoted sanitized web source-of-truth fixture for native tests.
     - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
@@ -494,6 +496,7 @@ tasks:
         - AC-6
     expected_files:
       - scripts/apple_ui_contracts.py
+      - backend/tests/test_apple_ui_contracts.py
       - apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json
     verification:
       - T-LINT-EMBED-CONTRACTS

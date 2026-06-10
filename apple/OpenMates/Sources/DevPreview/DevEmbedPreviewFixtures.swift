@@ -121,7 +121,7 @@ enum DevEmbedPreviewFixtures {
         case .socialMedia:
             return [socialMediaGetPosts, socialMediaSearch, socialMediaPost]
         case .travel:
-            return [travelSearch, travelConnection, travelPriceCalendar, travelStay, travelStays]
+            return [travelSearch, travelConnection, travelPriceCalendar, travelFlight, travelStay, travelStays]
         case .videos:
             return [videosSearch, video, videoTranscript, videoGenerate]
         case .weather:
@@ -406,6 +406,25 @@ enum DevEmbedPreviewFixtures {
             ]
         )
         return skill(id: "travel-price-calendar", label: "Price Calendar", primary: embed)
+    }
+
+    private static var travelFlight: DevEmbedPreviewSkill {
+        let embed = appSkill(
+            id: "preview-travel-flight-1",
+            type: EmbedType.travelFlight.rawValue,
+            appId: "travel",
+            skillId: "get_flight",
+            data: [
+                "airline": "Lufthansa",
+                "flight_number": "LH 2474",
+                "departure": "Munich (MUC) 08:30",
+                "arrival": "London Heathrow (LHR) 10:00",
+                "duration": "2h 30m",
+                "price": 189.0,
+                "currency": "EUR "
+            ]
+        )
+        return skill(id: "travel-get-flight", label: "Flight", primary: embed)
     }
 
     private static var travelStay: DevEmbedPreviewSkill {

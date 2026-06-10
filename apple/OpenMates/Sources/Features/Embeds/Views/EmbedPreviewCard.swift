@@ -2,6 +2,13 @@
 // Mirrors UnifiedEmbedPreview.svelte with app gradient header, content area,
 // and status bar footer. Dispatches to per-type renderers via EmbedContentView.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 enum EmbedPreviewCardVariant {
@@ -21,6 +28,8 @@ struct EmbedPreviewCard: View {
         static let minimumProcessingDuration: TimeInterval = 0.5
         static let storedEncryptedHintDuration: UInt64 = 2_000_000_000
         static let openDetailsHintDuration: UInt64 = 2_000_000_000
+        static let standardHoverScale: CGFloat = 0.985
+        static let largeHoverScale: CGFloat = 0.995
     }
 
     private enum StatusHintPhase {
@@ -77,7 +86,7 @@ struct EmbedPreviewCard: View {
             .padding(.bottom, variant == .large ? Constants.expandedBottomOutset : 0)
             .rotation3DEffect(.degrees(isHovering ? -hoverY * tiltMaxAngle : 0), axis: (x: 1, y: 0, z: 0), perspective: 1 / tiltPerspective)
             .rotation3DEffect(.degrees(isHovering ? hoverX * tiltMaxAngle : 0), axis: (x: 0, y: 1, z: 0), perspective: 1 / tiltPerspective)
-            .scaleEffect(isHovering ? 1.02 : 1)
+            .scaleEffect(isHovering ? hoverScale : 1)
             #if os(macOS)
             .background(hoverTracker)
             #endif
@@ -155,6 +164,10 @@ struct EmbedPreviewCard: View {
 
     private var tiltPerspective: CGFloat {
         variant == .large ? 1200 : 800
+    }
+
+    private var hoverScale: CGFloat {
+        variant == .large ? Constants.largeHoverScale : Constants.standardHoverScale
     }
 
     private var hoverTracker: some View {
