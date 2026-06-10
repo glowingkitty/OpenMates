@@ -272,9 +272,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed
+        run_id: "2026-06-10T10:16:20Z / GitHub Actions 27269394386 / git 973b76f04"
+        timestamp: "2026-06-10T10:34:25Z"
+        notes:
+          - Vercel deployed current dev before dispatch.
+          - First Playwright attempt failed before Code Run at shared login OTP wait after dev API/CORS failures.
+          - Retry reached turn 3 but failed existing final multi-turn invariant with only one finished code embed visible instead of three.
+          - This did not reach the new Code Run fullscreen overlay assertions and remains blocked by existing auth/API and multi-turn instability.
 
   - id: T-WEB-SAVED-OUTPUT-E2E
     type: playwright
@@ -302,9 +307,12 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed
+        run_id: "2026-06-10T10:27:04Z / GitHub Actions 27269933329 / git 0a5bd9c62"
+        timestamp: "2026-06-10T10:34:25Z"
+        notes:
+          - Vercel deployed current dev before dispatch.
+          - Spec failed before Code Run at shared login OTP wait, matching the dev auth/API instability seen in T-WEB-CODE-RUN-E2E.
 
   - id: T-WEB-EMBED-SHOWCASE
     type: playwright
@@ -329,9 +337,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "2026-06-10T10:19:54Z / GitHub Actions 27269566221 / git 973b76f04"
+        timestamp: "2026-06-10T10:34:25Z"
 
   - id: T-LINT-FRONTEND
     type: lint
@@ -357,14 +365,18 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed
+        run_id: "local ./scripts/lint_changed.sh / 2026-06-10T10:34:25Z"
+        timestamp: "2026-06-10T10:34:25Z"
+        notes:
+          - Svelte check for frontend/packages/ui passed.
+          - Blocked by unrelated dirty-file lint failures in backend/apps/ai/testing/mock_replay.py and backend/core/api/app/routes/admin_debug.py.
+          - Also reported missing local test node_modules tsc and CLI eslint dependency state outside the Code Run overlay files.
 
   - id: T-BUILD-APPLE
     type: build
     file: apple/OpenMates.xcodeproj/project.pbxproj
-    command: python3 scripts/apple_remote.py xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build
+    command: python3 scripts/apple_remote.py repo xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build
     covers:
       - AC-6
     assertions:
@@ -382,9 +394,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac-xcodebuild / exit_code=0"
+        timestamp: "2026-06-10T10:34:25Z"
 
   - id: T-APPLE-CODE-RUN-PARITY
     type: manual
