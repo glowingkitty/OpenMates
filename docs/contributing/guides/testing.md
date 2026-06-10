@@ -201,7 +201,7 @@ Most specs use the normal account pool. Specs that rotate, reset, or delete pers
 
 Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 15-20 when a slot secret is missing or intentionally rotated. The utility writes credential artifacts to the GitHub Actions artifact bundle; copy them into the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` repository secrets and never commit generated credentials.
 
-Apple XCUITests that cover sensitive settings use the same reserved slot variables through `RealAccountUITestSupport.fromReservedSlot(<slot>)`; tests must skip when a required reserved slot is absent rather than falling back to the normal account pool.
+Apple XCUITests that mutate sensitive account state use the same reserved slot variables through `RealAccountUITestSupport.fromReservedSlot(<slot>)`; tests must skip when a required reserved slot is absent rather than falling back to the normal account pool. Static sensitive-settings parity smokes can use narrow fixture launch arguments when they do not call live account APIs.
 
 API-key cleanup must only delete keys created by E2E specs, currently names starting with `E2E-Test-Key`, `E2E-RestAPI`, or `E2E-Limit-Key`. Never delete arbitrary existing keys to make room at the 5-key limit.
 

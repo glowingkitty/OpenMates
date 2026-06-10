@@ -220,7 +220,7 @@ struct SettingsView: View {
         self.onClose = onClose
     }
 
-    private var isAuthenticated: Bool { authManager.currentUser != nil }
+    private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
     private var isAdmin: Bool { authManager.currentUser?.isAdmin == true }
 
     var body: some View {
@@ -764,6 +764,12 @@ struct SettingsView: View {
             case .imprint: LegalChatView(documentType: .imprint)
             }
         }
+    }
+}
+
+private enum AccountSettingsUITestFixture {
+    static var enabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-account-settings-fixture")
     }
 }
 

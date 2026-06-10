@@ -1,8 +1,7 @@
-// Reserved-account sensitive settings parity UI tests.
-// Verifies native account-security entry points with the same reserved slot
-// policy as web Playwright specs. Tests load credentials only from XCTest
-// environment variables and avoid logging or attaching secrets, backup codes,
-// recovery keys, OTP seeds, API keys, or private email values.
+// Fixture-backed sensitive settings parity UI tests.
+// Verifies native account-security entry points and destructive-action previews
+// without live account mutation. Tests must avoid logging or attaching secrets,
+// backup codes, recovery keys, OTP seeds, API keys, or private email values.
 
 import XCTest
 
@@ -12,11 +11,10 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testReservedSlotSensitiveEntrypointsAndDeletePreview() throws {
-        let credentials = try RealAccountTestCredentials.fromReservedSlot(16)
-        let app = RealAccountUITestSupport.launchApp(disableAuthCache: true)
-
-        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+    func testSensitiveEntrypointsAndDeletePreview() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-account-settings-fixture"]
+        app.launch()
         openSettingsAccountPage(in: app)
 
         for identifier in sensitiveAccountRows {
