@@ -131,6 +131,10 @@ struct SettingsAppsFullView: View {
                         }
                     } else {
                         VStack(spacing: 0) {
+                            Color.clear
+                                .frame(height: 0)
+                                .accessibilityIdentifier("settings-app-store-page")
+
                             OMSettingsRow(title: AppStrings.showAllApps, icon: "app_store") {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     isShowingAllApps = true
@@ -140,7 +144,6 @@ struct SettingsAppsFullView: View {
 
                             appStoreCategories
                         }
-                        .accessibilityIdentifier("settings-app-store-page")
                     }
                 }
             }
@@ -480,6 +483,10 @@ private struct SettingsAllAppsNativeView: View {
     var body: some View {
         OMSettingsPage(title: AppStrings.showAllApps, showsHeader: false) {
             VStack(alignment: .leading, spacing: .spacing5) {
+                Color.clear
+                    .frame(height: 0)
+                    .accessibilityIdentifier("settings-all-apps-page")
+
                 backButton
                 searchField
                 filterRow
@@ -492,7 +499,6 @@ private struct SettingsAllAppsNativeView: View {
                     }
                 }
             }
-            .accessibilityIdentifier("settings-all-apps-page")
         }
     }
 
@@ -575,6 +581,10 @@ struct AppDetailView: View {
 
     var body: some View {
         OMSettingsPage(title: app.name, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-app-detail-page")
+
             Button(action: onBack) {
                 HStack(spacing: .spacing3) {
                     Icon("back", size: 20)
@@ -622,7 +632,6 @@ struct AppDetailView: View {
                 }
             }
         }
-        .accessibilityIdentifier("settings-app-detail-page")
     }
 
     private func skillRow(_ item: SettingsAppsFullView.AppSkill) -> some View {
