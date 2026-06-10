@@ -9,6 +9,7 @@
  *   3. `window.inspectChat` client-side data check (messages, title, category)
  *   4. Sidebar + message health check (initial state — sidebar opened explicitly)
  *   4.5. Navigate to "new chat" → open sidebar → verify just-created chat is most recent
+ *   4.6. Send from that explicit new-chat screen → verify a second chat is created
  *   5. Tab reload → verify chat still decrypts correctly (no encryption errors)
  *   6. Logout → login again → verify chat still decrypts correctly
  *   7. Delete chat
@@ -72,7 +73,7 @@ const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./hel
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const { isSignupInterfaceVisible, openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { isSignupInterfaceVisible, openSignupInterface, submitPasswordAndHandleOtp, deleteActiveChat } = require('./helpers/chat-test-helpers');
 
 const LLM_QUICK_TIP_SLUGS = [
 	'search-current-info-next-time',
@@ -856,6 +857,35 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Close sidebar to restore default state
 	await ensureSidebarClosed(page, logChatCheckpoint);
+
+	// =========================================================================
+	// PHASE 4.6: Send from explicit new-chat screen
+	// =========================================================================
+	// Regression guard for temporary draft chat IDs: clicking New Chat pre-allocates
+	// a draft chat ID before IndexedDB has a chat/key. Sending from that state must
+	// create the chat and key before saving the first encrypted message.
+	logChatCheckpoint('Phase 4.6: Sending from explicit new-chat screen...');
+	const newChatMessageEditor = page.getByTestId('message-editor');
+	await expect(newChatMessageEditor).toBeVisible({ timeout: 10000 });
+	await newChatMessageEditor.click();
+	const secondChatMessage = 'Reply with only: explicit new chat works';
+	await page.keyboard.type(secondChatMessage);
+
+	const secondSendButton = page.locator('[data-action="send-message"]');
+	await expect(secondSendButton).toBeVisible({ timeout: 15000 });
+	await expect(secondSendButton).toBeEnabled({ timeout: 5000 });
+	await secondSendButton.click();
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const secondChatIdMatch = page.url().match(/chat-id=([a-zA-Z0-9-]+)/);
+	const secondChatId = secondChatIdMatch ? secondChatIdMatch[1] : 'unknown';
+	expect(secondChatId, 'Explicit new-chat send should create a different chat ID').not.toBe(chatId);
+	await expect(page.getByTestId('message-user').last()).toContainText(secondChatMessage, {
+		timeout: 15000
+	});
+	logChatCheckpoint(`Explicit new-chat send created chat ${secondChatId}.`);
+	await takeStepScreenshot(page, '05b-explicit-new-chat-send');
+
+	await deleteActiveChat(page, logChatCheckpoint, takeStepScreenshot, 'cleanup-explicit-new-chat');
 
 	// Navigate back to the test chat for subsequent phases
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
