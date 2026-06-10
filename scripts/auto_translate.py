@@ -231,11 +231,34 @@ def call_gemini(api_key: str, system_prompt: str, user_message: str, lang: str, 
             fc = part.get("functionCall")
             if fc and fc.get("name") == "return_translations":
                 return fc.get("args", {})
+        text_response = "\n".join(part.get("text", "") for part in parts if part.get("text", "")).strip()
+        if text_response:
+            parsed = _parse_text_response(text_response, keys)
+            if parsed:
+                return parsed
         print(f"{YELLOW}No function call found in response parts{RESET}", file=sys.stderr)
         return {}
     except Exception as e:
         print(f"{RED}Failed to parse Gemini response: {e}{RESET}", file=sys.stderr)
         return {}
+
+
+def _parse_text_response(text_response: str, keys: list[str]) -> dict[str, str]:
+    """Fallback parser for Gemini responses that ignore the function call tool."""
+    if len(keys) == 1:
+        cleaned = re.sub(r"^```(?:\w+)?\s*|\s*```$", "", text_response.strip(), flags=re.DOTALL)
+        return {keys[0]: cleaned} if cleaned else {}
+
+    json_match = re.search(r"\{.*\}", text_response, flags=re.DOTALL)
+    if not json_match:
+        return {}
+    try:
+        parsed = json.loads(json_match.group(0))
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {key: str(parsed[key]) for key in keys if key in parsed and parsed[key]}
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +271,13 @@ LONG_TEXT_THRESHOLD = 1500
 BATCH_CHAR_LIMIT = 6000
 # Maximum number of keys per batch
 BATCH_KEY_LIMIT = 30
+
+
+def source_text(value) -> str:
+    """Return a prompt-safe string for YAML scalar source values."""
+    if value is None:
+        return ""
+    return str(value)
 
 
 def build_batches(records: list[dict]) -> list[list[dict]]:
@@ -264,7 +294,7 @@ def build_batches(records: list[dict]) -> list[list[dict]]:
     current_chars = 0
 
     for record in records:
-        en_text = record.get("en", "")
+        en_text = source_text(record.get("en", ""))
         en_len = len(en_text)
 
         # Long texts always get their own batch
@@ -393,12 +423,20 @@ def write_translation_to_file(file_path: Path, key: str, lang: str, value: str) 
         # End of file — insert at end
         insert_idx = len(lines)
 
-    # Check if the language key already exists between key_line_idx and insert_idx
+    # Check if the language key already exists between key_line_idx and insert_idx.
+    # Empty placeholders like `de: ""` still count as missing and should be replaced.
     lang_pattern = re.compile(r"^\s+" + re.escape(lang) + r":\s")
     for j in range(key_line_idx + 1, insert_idx):
         if lang_pattern.match(lines[j]):
-            # Already exists — skip (don't overwrite)
-            return False
+            existing_value = lines[j].split(":", 1)[1].strip().strip('"').strip("'")
+            if existing_value:
+                # Already exists — skip (don't overwrite)
+                return False
+
+            new_lines = _yaml_value_lines(lang, value, indent=entry_indent)
+            lines[j:j + 1] = new_lines
+            file_path.write_text("".join(lines), encoding="utf-8")
+            return True
 
     # Build the lines to insert
     new_lines = _yaml_value_lines(lang, value, indent=entry_indent)
@@ -512,7 +550,7 @@ def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[in
             items.append(
                 f"Key: {r['key']}\n"
                 f"Context: {r['context']}\n"
-                f"English: {r['en']}"
+                f"English: {source_text(r['en'])}"
             )
         user_message = (
             f"Translate the following {len(batch)} UI string(s) into {lang}.\n\n"

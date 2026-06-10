@@ -2,6 +2,25 @@ generate:
   context: Skill name for video generation
   en: Generate
   de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Создать видео
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: जनरेट करें
+  th: สร้างวิดีโอ
+  cs: Generovat
+  sv: Generera
+  he: יצירה
   verified_by_human:
     - en
     - de
@@ -10,6 +29,25 @@ generate.description:
   context: Description for generated video skill
   en: Generate a short AI video from a text prompt.
   de: Erstelle ein kurzes KI-Video aus einer Texteingabe.
+  zh: 根据文本提示词生成一段 AI 短视频。
+  es: Genera un video corto de IA a partir de un mensaje de texto.
+  fr: "Génère une courte vidéo par IA à partir d'une invite textuelle."
+  pt: Gera um vídeo curto de IA a partir de um comando de texto.
+  ru: Создавай короткие ИИ-видео по текстовому описанию.
+  ja: テキストプロンプトから短いAI動画を生成します。
+  ko: 텍스트 프롬프트로 짧은 AI 비디오를 생성합니다.
+  it: Genera un breve video AI da un prompt di testo.
+  tr: Metin isteminden kısa bir yapay zeka videosu oluştur.
+  vi: Tạo video AI ngắn từ lời nhắc văn bản.
+  id: Buat video AI pendek dari perintah teks.
+  pl: Generuj krótkie wideo AI na podstawie opisu tekstowego.
+  nl: Genereer een korte AI-video op basis van een tekstprompt.
+  ar: إنشاء فيديو قصير بالذكاء الاصطناعي من مطالبة نصية.
+  hi: टेक्स्ट प्रॉम्प्ट से एक छोटा AI वीडियो जनरेट करें।
+  th: สร้างวิดีโอ AI สั้นๆ จากข้อความพรอมต์
+  cs: Generuj krátké AI video z textového zadání.
+  sv: Generera en kort AI-video från en textprompt.
+  he: יצירת סרטון AI קצר מהנחיית טקסט.
   verified_by_human:
     - en
     - de

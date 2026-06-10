@@ -6,49 +6,49 @@ title:
   context: 'Newsletter announcements/introducing-openmates-v010 — title'
   en: 'OpenMates v0.10: New apps, skills, providers & learning tools'
   de: 'OpenMates v0.10: Neue Apps, Skills, Provider & Lernfunktionen'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: OpenMates v0.10：新应用、技能、提供商和学习工具
+  es: "OpenMates v0.10: Nuevas apps, habilidades, proveedores y herramientas de aprendizaje"
+  fr: "OpenMates v0.10 : Nouvelles apps, compétences, fournisseurs & outils d'apprentissage"
+  pt: "OpenMates v0.10: Novos apps, habilidades, provedores e ferramentas de aprendizado"
+  ru: "OpenMates v0.10: новые приложения, навыки, провайдеры и инструменты обучения"
+  ja: "OpenMates v0.10: 新しいアプリ、スキル、プロバイダー、学習ツール"
+  ko: "OpenMates v0.10: 새로운 앱, 스킬, 제공자 및 학습 도구"
+  it: "OpenMates v0.10: Nuove app, skill, provider e strumenti di apprendimento"
+  tr: "OpenMates v0.10: Yeni uygulamalar, yetenekler, sağlayıcılar ve öğrenme araçları"
+  vi: "OpenMates v0.10: Ứng dụng, kỹ năng, nhà cung cấp & công cụ học tập mới"
+  id: "OpenMates v0.10: Aplikasi, skill, provider & alat pembelajaran baru"
+  pl: "OpenMates v0.10: Nowe aplikacje, umiejętności, dostawcy i narzędzia do nauki"
+  nl: "OpenMates v0.10: Nieuwe apps, skills, providers & leertools"
+  ar: "OpenMates v0.10: تطبيقات ومهارات ومزودون وأدوات تعلم جديدة"
+  hi: "OpenMates v0.10: नए ऐप्स, स्किल्स, प्रोवाइडर्स और लर्निंग टूल्स"
+  th: "OpenMates v0.10: แอป ทักษะ ผู้ให้บริการ และเครื่องมือการเรียนรู้ใหม่"
+  cs: "OpenMates v0.10: Nové aplikace, dovednosti, poskytovatelé a vzdělávací nástroje"
+  sv: "OpenMates v0.10: Nya appar, färdigheter, leverantörer & lärverktyg"
+  he: "OpenMates v0.10: אפליקציות, כישורים, ספקים וכלי למידה חדשים"
   verified_by_human: []
 description:
   context: 'Newsletter announcements/introducing-openmates-v010 — description'
   en: 'More useful things to do with OpenMates'
   de: 'Mehr nützliche Dinge, die du mit OpenMates tun kannst'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: 探索 OpenMates 的更多实用功能
+  es: Más cosas útiles que hacer con OpenMates
+  fr: Plus de choses utiles à faire avec OpenMates
+  pt: Mais coisas úteis para fazer com o OpenMates
+  ru: Ещё больше полезных возможностей с OpenMates
+  ja: OpenMatesでできることがさらに増えました
+  ko: OpenMates로 할 수 있는 더 유용한 기능들
+  it: Altre cose utili da fare con OpenMates
+  tr: OpenMates ile yapabileceğin daha fazla yararlı şey
+  vi: Thêm nhiều điều hữu ích để làm với OpenMates
+  id: Lebih banyak hal bermanfaat yang bisa dilakukan dengan OpenMates
+  pl: Więcej przydatnych rzeczy do zrobienia z OpenMates
+  nl: Meer nuttige dingen om te doen met OpenMates
+  ar: المزيد من الأشياء المفيدة للقيام بها مع OpenMates
+  hi: OpenMates के साथ करने के लिए और भी उपयोगी चीज़ें
+  th: ทำสิ่งที่มีประโยชน์ได้มากขึ้นด้วย OpenMates
+  cs: Více užitečných věcí, které můžeš s OpenMates dělat
+  sv: Fler användbara saker att göra med OpenMates
+  he: עוד דברים שימושיים שאפשר לעשות עם OpenMates
   verified_by_human: []
 message:
   context: 'Newsletter announcements/introducing-openmates-v010 — message'
@@ -154,25 +154,975 @@ message:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    你好，
+    
+    OpenMates v0.10 的重点是让产品在日常场景中更加实用：更清晰的回答、更流畅的对话、更多的应用和提供商，以及更好的学习和办事方式。
+    
+    # ✨ 亮点介绍
+    
+    ## 1. 回答中直接显示维基百科链接
+    
+    OpenMates 现在可以直接在助手回复中突出显示相关的维基百科主题。当某个概念值得进一步探索时，你可以点击突出显示的术语，在不离开对话流的情况下快速了解更多信息。
+    
+    这对于学习、研究、旅行规划、历史问题、科学主题，或者任何回答会引发新好奇心的场景都特别有用。
+    
+    ## 2. 消息高亮与评论
+    
+    你现在可以高亮显示助手消息的部分内容并对其进行备注。这让长篇回答变得更加实用：保存重要的段落、标记想要回顾的内容，或者在特定的观点或建议旁添加评论。
+    
+    ## 3. 新应用与应用技能
+    
+    OpenMates 在日常类别中获得了更多实用的应用技能。旅游搜索变得更加实用，增加了火车线路和预订链接；活动（Events）增加了更多有用的活动来源；代码（Code）在理解代码库方面变得更强；几种嵌入类型也变得更加清晰且易于操作。
+    
+    OpenMates 不再仅仅依靠模型的记忆来回答，而是越来越多地使用专用工具：搜索、对比、总结、创建文件、检查源代码，并直接在对话中显示结构化结果。
+    
+    ## 4. 更多提供商带来真实结果
+    
+    v0.10 在幕后添加并改进了提供商，例如旅游、活动、支付和内容安全。这很重要，因为只有当结果是及时的、有来源支持的且足够具体时，技能才有用。
+    
+    对于用户来说，可见的效果很简单：更丰富的卡片、更好的来源归属、更多的直接链接，以及在提供商可以返回真实数据时，减少通用的回答。
+    
+    ## 5. 更好的嵌入与预览
+    
+    嵌入内容在整个应用中变得更加实用。搜索结果、预订链接、生成的文件、代码输出、图像和公开示例现在拥有更清晰的预览和全屏视图，让你可以在不丢失对话上下文的情况下查看结果。
+    
+    ## 6. 更实用的示例与公开页面
+    
+    公告、提示、法律页面和示例对话现在变成了正式的公开对话页面。这使得分享 OpenMates 的功能以及稍后重新打开有用的示例变得更加容易。
+    
+    ## 7. 更顺畅的注册与支付选项
+    
+    OpenMates 还增加了通过 Revolut Business 进行的 SEPA 银行转账，改进了欧盟以外用户的 Stripe 结账流程，并增加了更改账户邮箱的功能。这些虽然不是华丽的功能，但在你实际使用产品时，它们能让基础体验更加稳健。
+    
+    # 这对日常使用的意义
+    
+    OpenMates 现在应该感觉更像一个实用的工作空间：回答可以包含学习链接，你可以标记并回顾重要部分，更多应用技能可以返回真实的结构化结果，公开示例也更容易分享。
+    
+    一如既往，大量工作也花在了看不见的错误修复和可靠性提升上——特别是围绕加密对话同步、嵌入内容、注册以及 Safari 浏览器的表现。
+    
+    祝好，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    Hola,
+    
+    OpenMates v0.10 se centró principalmente en hacer que el producto resulte más útil en situaciones cotidianas: respuestas más claras, chats más fluidos, más aplicaciones y proveedores, y mejores formas de aprender y hacer cosas.
+    
+    # ✨ Lo más destacado
+    
+    ## 1. Enlaces de Wikipedia directamente en las respuestas
+    
+    Ahora OpenMates puede resaltar temas relevantes de Wikipedia directamente en las respuestas del asistente. Cuando valga la pena profundizar en un concepto, puedes hacer clic en el término resaltado y aprender más rápidamente sin salir del flujo del chat.
+    
+    Esto es especialmente útil para el aprendizaje, la investigación, la planificación de viajes, preguntas de historia, temas científicos o cualquier cosa en la que la respuesta abra una nueva madriguera de información.
+    
+    ## 2. Resaltado de mensajes y comentarios
+    
+    Ahora puedes resaltar partes de los mensajes del asistente y guardar notas sobre ellas. Esto hace que las respuestas largas sean mucho más útiles: guarda el párrafo importante, marca algo que quieras volver a consultar o deja un comentario junto a una afirmación o recomendación específica.
+    
+    ## 3. Nuevas aplicaciones y habilidades
+    
+    OpenMates ha incorporado habilidades de aplicaciones más útiles en categorías cotidianas. Las búsquedas de viajes son ahora más prácticas con conexiones de tren y enlaces de reserva, Eventos ha ganado fuentes más útiles, Código ha mejorado en la comprensión de repositorios y varios tipos de elementos incrustados son ahora más claros y fáciles de usar.
+    
+    En lugar de responder solo desde la memoria del modelo, OpenMates puede utilizar cada vez más herramientas dedicadas: buscar, comparar, resumir, crear archivos, inspeccionar material de origen y mostrar resultados estructurados directamente en el chat.
+    
+    ## 4. Más proveedores para resultados del mundo real
+    
+    La v0.10 ha añadido y mejorado proveedores internos, por ejemplo para viajes, eventos, pagos y seguridad de contenidos. Esto es importante porque una habilidad solo es útil cuando el resultado es actual, está respaldado por fuentes y es lo suficientemente específico como para ser utilizado.
+    
+    Para los usuarios, el efecto visible es sencillo: tarjetas más completas, mejor atribución de fuentes, más enlaces directos y menos respuestas genéricas cuando un proveedor puede devolver datos reales.
+    
+    ## 5. Mejores elementos incrustados y vistas previas
+    
+    Los elementos incrustados son ahora más útiles en toda la aplicación. Los resultados de búsqueda, enlaces de reserva, archivos generados, salidas de código, imágenes y ejemplos públicos tienen ahora vistas previas más claras y vistas a pantalla completa, para que puedas inspeccionar los resultados sin perder el contexto de la conversación.
+    
+    ## 6. Ejemplos y páginas públicas más útiles
+    
+    Los anuncios, consejos, páginas legales y chats de ejemplo se han convertido en páginas de chat públicas propiamente dichas. Esto facilita compartir lo que OpenMates puede hacer y volver a abrir ejemplos útiles más tarde.
+    
+    ## 7. Opciones de registro y pago más fluidas
+    
+    OpenMates también ha añadido transferencias bancarias SEPA a través de Revolut Business, ha mejorado el proceso de pago con Stripe para usuarios de fuera de la UE y ha añadido la posibilidad de cambiar el correo electrónico de la cuenta. No son funciones espectaculares, pero hacen que lo básico sea menos frágil cuando realmente quieres usar el producto.
+    
+    # Qué significa esto para el uso diario
+    
+    OpenMates debería sentirse ahora más como un espacio de trabajo útil: las respuestas pueden contener enlaces de aprendizaje, puedes marcar y volver a consultar partes importantes, más habilidades de aplicaciones pueden devolver resultados estructurados reales y los ejemplos públicos son más fáciles de compartir.
+    
+    Como siempre, gran parte del trabajo también consistió en la corrección de errores invisibles y mejoras de fiabilidad, especialmente en torno a la sincronización de chats cifrados, elementos incrustados, el registro y el comportamiento en Safari.
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    Salut,
+    
+    OpenMates v0.10 visait principalement à rendre le produit plus utile au quotidien : des réponses plus claires, des discussions plus fluides, plus d'applications et de fournisseurs, et de meilleures façons d'apprendre et d'avancer dans tes tâches.
+    
+    # ✨ Les points forts
+    
+    ## 1. Liens Wikipédia directement dans les réponses
+    
+    OpenMates peut désormais mettre en évidence des sujets Wikipédia pertinents directement dans les réponses de l'assistant. Lorsqu'un concept mérite d'être approfondi, tu peux cliquer sur le terme surligné et en apprendre plus rapidement sans quitter le fil de la discussion.
+    
+    C'est particulièrement utile pour l'apprentissage, la recherche, la planification de voyages, les questions d'histoire, les sujets scientifiques ou tout ce qui ouvre de nouvelles pistes de découverte.
+    
+    ## 2. Surlignage de messages et commentaires
+    
+    Tu peux désormais surligner des parties des messages de l'assistant et y ajouter des notes. Cela rend les réponses longues bien plus utiles : enregistre le paragraphe important, marque un élément à revoir plus tard ou ajoute un commentaire à côté d'une affirmation ou d'une recommandation spécifique.
+    
+    ## 3. Nouvelles applications et compétences
+    
+    OpenMates a acquis des compétences d'application plus utiles dans les catégories du quotidien. Les recherches de voyage sont devenues plus pratiques avec les liaisons ferroviaires et les liens de réservation, les Événements ont gagné des sources plus pertinentes, le Code comprend mieux les dépôts, et plusieurs types d'intégrations sont devenus plus clairs et interactifs.
+    
+    Au lieu de répondre uniquement à partir de la mémoire du modèle, OpenMates peut de plus en plus utiliser des outils dédiés : rechercher, comparer, résumer, créer des fichiers, inspecter les sources et afficher des résultats structurés directement dans le chat.
+    
+    ## 4. Plus de fournisseurs pour des résultats concrets
+    
+    La v0.10 a ajouté et amélioré des fournisseurs en coulisses, par exemple pour les voyages, les événements, les paiements et la sécurité du contenu. C'est important car une compétence n'est utile que si le résultat est actuel, sourcé et assez précis pour être exploité.
+    
+    Pour les utilisateurs, l'effet visible est simple : des fiches plus riches, une meilleure attribution des sources, plus de liens directs et moins de réponses génériques lorsqu'un fournisseur peut renvoyer des données réelles.
+    
+    ## 5. Meilleures intégrations et aperçus
+    
+    Les intégrations (embeds) sont devenues plus utiles dans toute l'application. Les résultats de recherche, les liens de réservation, les fichiers générés, les sorties de code, les images et les exemples publics bénéficient d'aperçus plus clairs et de vues plein écran, pour que tu puisses inspecter les résultats sans perdre le contexte de la conversation.
+    
+    ## 6. Exemples et pages publiques plus utiles
+    
+    Les annonces, les conseils, les pages juridiques et les exemples de discussions sont devenus de véritables pages de chat publiques. Cela permet de partager plus facilement ce qu'OpenMates peut faire et de rouvrir des exemples utiles plus tard.
+    
+    ## 7. Inscription et options de paiement simplifiées
+    
+    OpenMates a également ajouté les virements bancaires SEPA via Revolut Business, amélioré le paiement Stripe pour les utilisateurs hors UE et ajouté la modification de l'e-mail du compte. Ce ne sont pas des fonctionnalités spectaculaires, mais elles rendent les bases plus solides quand tu veux vraiment utiliser le produit.
+    
+    # Ce que cela change au quotidien
+    
+    OpenMates devrait maintenant ressembler davantage à un espace de travail utile : les réponses peuvent contenir des liens d'apprentissage, tu peux marquer et revenir sur des parties importantes, plus de compétences d'application peuvent renvoyer des résultats structurés réels, et les exemples publics sont plus faciles à partager.
+    
+    Comme toujours, une grande partie du travail a également porté sur la correction de bugs invisibles et l'amélioration de la fiabilité — en particulier concernant la synchronisation chiffrée du chat, les intégrations, l'inscription et le comportement sur Safari.
+    
+    Bien à toi,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Olá,
+    
+    O OpenMates v0.10 focou principalmente em tornar o produto mais útil em situações do dia a dia: respostas mais claras, chats mais fluidos, mais apps e provedores, e melhores maneiras de aprender e realizar tarefas.
+    
+    # ✨ Os destaques
+    
+    ## 1. Links da Wikipédia diretamente nas respostas
+    
+    O OpenMates agora pode destacar tópicos relevantes da Wikipédia diretamente nas respostas do assistente. Quando um conceito vale a pena ser explorado, você pode clicar no termo destacado e aprender mais rapidamente sem sair do fluxo do chat.
+    
+    Isso é especialmente útil para aprendizado, pesquisa, planejamento de viagens, perguntas de história, tópicos científicos ou qualquer situação em que a resposta abra uma nova "toca do coelho".
+    
+    ## 2. Destaques e comentários em mensagens
+    
+    Agora você pode destacar partes das mensagens do assistente e fazer anotações nelas. Isso torna as respostas longas muito mais úteis: salve o parágrafo importante, marque algo que deseja revisitar ou mantenha um comentário ao lado de uma afirmação ou recomendação específica.
+    
+    ## 3. Novos apps e habilidades de apps
+    
+    O OpenMates ganhou habilidades de apps mais úteis em categorias cotidianas. As buscas de viagens tornaram-se mais práticas com conexões de trem e links de reserva, Eventos ganhou fontes mais úteis, Código melhorou na compreensão de repositórios e vários tipos de embeds ficaram mais claros e fáceis de interagir.
+    
+    Em vez de apenas responder a partir da memória do modelo, o OpenMates pode usar cada vez mais ferramentas dedicadas: pesquisar, comparar, resumir, criar arquivos, inspecionar material de origem e mostrar resultados estruturados diretamente no chat.
+    
+    ## 4. Mais provedores para resultados do mundo real
+    
+    A v0.10 adicionou e melhorou provedores nos bastidores, por exemplo, para viagens, eventos, pagamentos e segurança de conteúdo. Isso é importante porque uma habilidade só é útil quando o resultado é atual, baseado em fontes e específico o suficiente para ser usado.
+    
+    Para os usuários, o efeito visível é simples: cards mais ricos, melhor atribuição de fontes, mais links diretos e menos respostas genéricas quando um provedor pode retornar dados reais.
+    
+    ## 5. Melhores embeds e pré-visualizações
+    
+    Os embeds tornaram-se mais úteis em todo o app. Resultados de busca, links de reserva, arquivos gerados, saídas de código, imagens e exemplos públicos ganharam pré-visualizações mais claras e visualizações em tela cheia, para que você possa inspecionar os resultados sem perder o contexto da conversa.
+    
+    ## 6. Exemplos e páginas públicas mais úteis
+    
+    Anúncios, dicas, páginas legais e chats de exemplo tornaram-se páginas de chat públicas propriamente ditas. Isso facilita o compartilhamento do que o OpenMates pode fazer e permite abrir exemplos úteis novamente mais tarde.
+    
+    ## 7. Opções de cadastro e pagamento mais fluidas
+    
+    O OpenMates também adicionou transferências bancárias SEPA via Revolut Business, melhorou o checkout do Stripe para usuários fora da UE e adicionou a alteração de e-mail da conta. Essas não são funcionalidades chamativas, mas tornam o básico menos frágil quando você realmente quer usar o produto.
+    
+    # O que isso significa para o uso diário
+    
+    O OpenMates deve parecer mais um espaço de trabalho útil agora: as respostas podem conter links de aprendizado, você pode marcar e revisitar partes importantes, mais habilidades de apps podem retornar resultados estruturados reais e os exemplos públicos são mais fáceis de compartilhar.
+    
+    Como sempre, muito do trabalho também foi correção de bugs invisíveis e melhorias de confiabilidade — especialmente em relação à sincronização de chat criptografado, embeds, cadastro e comportamento no Safari.
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Привет!
+    
+    OpenMates v0.10 в основном был посвящен тому, чтобы сделать продукт более полезным в повседневных ситуациях: более четкие ответы, плавная работа чатов, больше приложений и провайдеров, а также лучшие способы учиться и добиваться результатов.
+    
+    # ✨ Главное
+    
+    ## 1. Ссылки на Википедию прямо в ответах
+    
+    Теперь OpenMates может выделять соответствующие темы из Википедии прямо в ответах ассистента. Если какое-то понятие стоит изучить подробнее, ты можешь нажать на выделенный термин и быстро узнать больше, не прерывая ход беседы.
+    
+    Это особенно полезно для учебы, исследований, планирования поездок, вопросов по истории, научных тем или любых случаев, когда ответ заставляет тебя погрузиться в тему с головой.
+    
+    ## 2. Выделение сообщений и комментарии
+    
+    Теперь ты можешь выделять части сообщений ассистента и оставлять к ним заметки. Это делает длинные ответы гораздо полезнее: сохрани важный абзац, отметь то, к чему хочешь вернуться позже, или оставь комментарий рядом с конкретным утверждением или рекомендацией.
+    
+    ## 3. Новые приложения и навыки
+    
+    OpenMates получил больше полезных навыков в повседневных категориях. Поиск поездок стал практичнее благодаря ж/д маршрутам и ссылкам на бронирование, в «Событиях» появилось больше полезных источников, «Код» стал лучше понимать репозитории, а несколько типов встроенных элементов стали понятнее и удобнее в использовании.
+    
+    Вместо того чтобы отвечать только на основе памяти модели, OpenMates всё чаще может использовать специальные инструменты: поиск, сравнение, обобщение, создание файлов, изучение исходных материалов и отображение структурированных результатов прямо в чате.
+    
+    ## 4. Больше провайдеров для реальных результатов
+    
+    В версии 0.10 мы добавили и улучшили работу провайдеров «под капотом», например, для путешествий, событий, платежей и безопасности контента. Это важно, потому что навык полезен только тогда, когда результат актуален, подтвержден источниками и достаточно конкретен для использования.
+    
+    Для пользователей видимый эффект прост: более информативные карточки, лучшее указание источников, больше прямых ссылок и меньше общих ответов в тех случаях, когда провайдер может предоставить реальные данные.
+    
+    ## 5. Улучшенные вставки и предпросмотры
+    
+    Встроенные элементы (embeds) стали полезнее во всем приложении. Результаты поиска, ссылки на бронирование, созданные файлы, вывод кода, изображения и публичные примеры получили более четкие превью и полноэкранный режим, чтобы ты мог изучать результаты, не теряя контекста беседы.
+    
+    ## 6. Больше полезных примеров и публичных страниц
+    
+    Объявления, советы, юридические страницы и примеры чатов стали полноценными публичными страницами. Благодаря этому проще делиться возможностями OpenMates и возвращаться к полезным примерам позже.
+    
+    ## 7. Более удобная регистрация и способы оплаты
+    
+    В OpenMates также добавлены банковские переводы SEPA через Revolut Business, улучшена оплата через Stripe для пользователей за пределами ЕС и добавлена возможность смены email аккаунта. Это не самые яркие функции, но они делают базовые вещи надежнее, когда тебе действительно нужно воспользоваться продуктом.
+    
+    # Что это значит для повседневного использования
+    
+    Теперь OpenMates больше похож на удобное рабочее пространство: ответы могут содержать ссылки для обучения, ты можешь отмечать важные части и возвращаться к ним, больше навыков приложений возвращают реальные структурированные результаты, а публичными примерами легче делиться.
+    
+    Как всегда, большая часть работы заключалась в невидимом исправлении ошибок и повышении надежности — особенно в части синхронизации зашифрованных чатов, встроенных элементов, регистрации и работы в Safari.
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    こんにちは、
+    
+    OpenMates v0.10では、日常のあらゆる場面でより便利に感じられるよう、回答の明確化、チャットの円滑化、アプリやプロバイダーの拡充、そして学習やタスク遂行のための機能向上に重点を置きました。
+    
+    # ✨ 主なアップデート内容
+    
+    ## 1. 回答内にWikipediaリンクを直接表示
+    
+    アシスタントの回答内で、関連するWikipediaのトピックを直接ハイライトできるようになりました。さらに詳しく知りたい概念がある場合、ハイライトされた用語をクリックするだけで、チャットの流れを止めることなく素早く詳細を確認できます。
+    
+    学習、リサーチ、旅行の計画、歴史の質問、科学トピックなど、回答からさらに深掘りしたくなるような場面で特に便利です。
+    
+    ## 2. メッセージのハイライトとコメント
+    
+    アシスタントのメッセージの一部をハイライトし、メモを残せるようになりました。これにより、長い回答がより活用しやすくなります。重要な段落を保存したり、後で見返したい箇所に印を付けたり、特定の主張や推奨事項の横にコメントを残したりできます。
+    
+    ## 3. 新しいアプリとアプリスキル
+    
+    日常的なカテゴリーにおいて、より便利なアプリスキルが追加されました。旅行検索では列車の乗り換えや予約リンクが表示されて実用的になり、「イベント」ではより有用な情報源が追加されました。「コード」はリポジトリの理解が深まり、いくつかの埋め込みタイプはより明確で操作しやすくなりました。
+    
+    モデルの記憶から回答するだけでなく、検索、比較、要約、ファイル作成、ソース資料の調査、構造化された結果の表示など、専用のツールをチャット内で直接活用できるようになりました。
+    
+    ## 4. 実用的な結果のためのプロバイダー拡充
+    
+    v0.10では、旅行、イベント、決済、コンテンツの安全性など、バックエンドのプロバイダーを追加・改善しました。スキルが真に役立つためには、結果が最新で、根拠があり、すぐに使えるほど具体的である必要があるからです。
+    
+    ユーザーにとっては、カード情報の充実、出典の明示、ダイレクトリンクの増加、そしてリアルなデータに基づいた具体的な回答が得られるというメリットがあります。
+    
+    ## 5. 埋め込みとプレビューの改善
+    
+    アプリ全体の埋め込み機能がより便利になりました。検索結果、予約リンク、生成されたファイル、コード出力、画像、公開サンプルなどのプレビューがより鮮明になり、全画面表示も可能になったため、会話の文脈を維持したまま結果を確認できます。
+    
+    ## 6. 便利なサンプルと公開ページの拡充
+    
+    お知らせ、ヒント、法的ページ、チャットのサンプルが、適切な公開チャットページになりました。これにより、OpenMatesでできることを共有したり、便利なサンプルを後で開き直したりすることが容易になります。
+    
+    ## 7. 登録と支払いオプションの円滑化
+    
+    Revolut Business経由のSEPA銀行振込の追加、EU圏外のユーザー向けのStripeチェックアウトの改善、アカウントメールアドレスの変更機能を追加しました。これらは派手な機能ではありませんが、製品を実際に使用する際の基本的な利便性を高めるものです。
+    
+    # 日常での利用における変化
+    
+    OpenMatesは、より便利なワークスペースのように感じられるはずです。回答に学習用リンクが含まれ、重要な箇所に印を付けて後で見返すことができ、より多くのアプリスキルが構造化された結果を返し、公開サンプルも共有しやすくなりました。
+    
+    また、暗号化されたチャットの同期、埋め込み、登録プロセス、Safariでの動作など、目に見えない部分でのバグ修正や信頼性の向上にも多くの時間を費やしました。
+    
+    よろしくお願いいたします。
+    
+    Marco  
+    OpenMates クリエイター
+  ko: |
+    안녕하세요,
+    
+    OpenMates v0.10은 일상적인 상황에서 제품을 더 유용하게 느끼도록 만드는 데 집중했습니다. 더 명확한 답변, 더 매끄러운 채팅, 더 많은 앱과 제공업체, 그리고 학습하고 업무를 처리하는 더 나은 방법들을 담았습니다.
+    
+    # ✨ 주요 업데이트 내용
+    
+    ## 1. 답변 내 위키백과 링크 직접 연결
+    
+    이제 OpenMates는 어시스턴트 답변 내에서 관련 위키백과 주제를 직접 강조 표시할 수 있습니다. 더 자세히 알아볼 가치가 있는 개념이 나오면, 강조된 용어를 클릭하여 채팅의 흐름을 끊지 않고도 빠르게 더 많은 정보를 확인할 수 있습니다.
+    
+    이는 학습, 조사, 여행 계획, 역사 질문, 과학 주제 등 답변을 통해 새로운 지식의 세계로 빠져들게 되는 모든 상황에서 특히 유용합니다.
+    
+    ## 2. 메시지 하이라이트 및 댓글
+    
+    이제 어시스턴트 메시지의 일부를 하이라이트하고 메모를 남길 수 있습니다. 이를 통해 긴 답변을 훨씬 더 유용하게 활용할 수 있습니다. 중요한 단락을 저장하거나, 나중에 다시 확인하고 싶은 부분을 표시하거나, 특정 주장이나 추천 사항 옆에 의견을 남겨보세요.
+    
+    ## 3. 새로운 앱 및 앱 스킬
+    
+    OpenMates가 일상적인 카테고리 전반에 걸쳐 더 유용한 앱 스킬을 갖추게 되었습니다. 여행 검색은 기차 연결편과 예약 링크를 통해 더 실용적으로 변했고, 이벤트는 더 유용한 정보 소스를 확보했으며, 코드는 저장소를 더 잘 이해하게 되었습니다. 또한 여러 임베드 유형이 더 명확해지고 작업하기 쉬워졌습니다.
+    
+    모델의 기억에만 의존하여 답변하는 대신, OpenMates는 검색, 비교, 요약, 파일 생성, 소스 자료 검토와 같은 전용 도구를 점점 더 많이 사용하여 채팅창에 직접 구조화된 결과를 보여줄 수 있습니다.
+    
+    ## 4. 실질적인 결과를 위한 더 많은 제공업체
+    
+    v0.10에서는 여행, 이벤트, 결제, 콘텐츠 안전 등 보이지 않는 곳에서 제공업체들을 추가하고 개선했습니다. 이는 결과가 최신 상태이고, 출처가 뒷받침되며, 바로 사용할 수 있을 만큼 구체적일 때만 스킬이 유용하기 때문에 중요합니다.
+    
+    사용자 입장에서 눈에 띄는 효과는 간단합니다. 제공업체가 실제 데이터를 반환할 수 있을 때 더 풍부한 카드, 더 나은 출처 표시, 더 많은 직접 링크를 제공하며 일반적인 답변은 줄어듭니다.
+    
+    ## 5. 더 나은 임베드 및 미리보기
+    
+    앱 전반에서 임베드가 더 유용해졌습니다. 검색 결과, 예약 링크, 생성된 파일, 코드 출력, 이미지 및 공개 예시의 미리보기가 더 명확해졌고 전체 화면 보기가 추가되어 대화의 맥락을 잃지 않고도 결과를 자세히 살펴볼 수 있습니다.
+    
+    ## 6. 더 유용한 예시 및 공개 페이지
+    
+    공지사항, 팁, 법적 고지 페이지 및 예시 채팅이 정식 공개 채팅 페이지로 전환되었습니다. 이를 통해 OpenMates의 기능을 더 쉽게 공유하고 나중에 유용한 예시를 다시 열어볼 수 있습니다.
+    
+    ## 7. 더 원활한 가입 및 결제 옵션
+    
+    또한 OpenMates는 Revolut Business를 통한 SEPA 은행 송금을 추가하고, EU 외부 사용자를 위한 Stripe 결제를 개선했으며, 계정 이메일 변경 기능을 추가했습니다. 화려한 기능은 아니지만, 제품을 실제로 사용하고자 할 때 기본적인 부분들을 더 견고하게 만들어 줍니다.
+    
+    # 일상적인 사용에 미치는 영향
+    
+    이제 OpenMates는 더 유용한 작업 공간처럼 느껴질 것입니다. 답변에 학습 링크가 포함될 수 있고, 중요한 부분을 표시하고 다시 방문할 수 있으며, 더 많은 앱 스킬이 실제 구조화된 결과를 반환하고, 공개 예시를 더 쉽게 공유할 수 있습니다.
+    
+    언제나 그렇듯, 암호화된 채팅 동기화, 임베드, 가입 및 Safari 동작과 관련된 보이지 않는 버그 수정과 안정성 개선 작업도 많이 이루어졌습니다.
+    
+    감사합니다.
+    
+    Marco  
+    OpenMates 제작자 드림
+  it: |
+    Ciao,
+    
+    OpenMates v0.10 si è concentrata soprattutto nel rendere il prodotto più utile nelle situazioni quotidiane: risposte più chiare, chat più fluide, più app e provider, e modi migliori per imparare e fare le cose.
+    
+    # ✨ Le novità principali
+    
+    ## 1. Link a Wikipedia direttamente nelle risposte
+    
+    OpenMates ora può evidenziare argomenti rilevanti di Wikipedia direttamente nelle risposte dell'assistente. Quando un concetto merita di essere approfondito, puoi cliccare sul termine evidenziato e imparare rapidamente di più senza interrompere il flusso della chat.
+    
+    Questo è particolarmente utile per l'apprendimento, la ricerca, la pianificazione di viaggi, domande di storia, argomenti scientifici o qualsiasi cosa in cui la risposta apra nuovi spunti di approfondimento.
+    
+    ## 2. Evidenziazioni e commenti ai messaggi
+    
+    Ora puoi evidenziare parti dei messaggi dell'assistente e aggiungere note. Questo rende le risposte lunghe molto più utili: salva il paragrafo importante, segna qualcosa che vuoi rivedere o scrivi un commento accanto a un'affermazione o raccomandazione specifica.
+    
+    ## 3. Nuove app e funzionalità
+    
+    OpenMates ha ottenuto funzionalità più utili in diverse categorie quotidiane. Le ricerche di viaggio sono diventate più pratiche con collegamenti ferroviari e link di prenotazione, la sezione Eventi ha guadagnato fonti più utili, Code è migliorata nel comprendere i repository e diversi tipi di embed sono diventati più chiari e facili da usare.
+    
+    Invece di rispondere solo basandosi sulla memoria del modello, OpenMates può utilizzare sempre più strumenti dedicati: cercare, confrontare, riassumere, creare file, ispezionare materiale sorgente e mostrare risultati strutturati direttamente nella chat.
+    
+    ## 4. Più provider per risultati reali
+    
+    La v0.10 ha aggiunto e migliorato i provider dietro le quinte, ad esempio per viaggi, eventi, pagamenti e sicurezza dei contenuti. Questo è importante perché una funzionalità è utile solo quando il risultato è aggiornato, supportato da fonti e abbastanza specifico da essere utilizzato.
+    
+    Per gli utenti, l'effetto visibile è semplice: schede più ricche, migliore attribuzione delle fonti, più link diretti e meno risposte generiche quando un provider può restituire dati reali.
+    
+    ## 5. Embed e anteprime migliori
+    
+    Gli embed sono diventati più utili in tutta l'app. Risultati di ricerca, link di prenotazione, file generati, output di codice, immagini ed esempi pubblici hanno ora anteprime più chiare e visualizzazioni a schermo intero, così puoi ispezionare i risultati senza perdere il contesto della conversazione.
+    
+    ## 6. Esempi e pagine pubbliche più utili
+    
+    Annunci, suggerimenti, pagine legali e chat di esempio sono diventate vere e proprie pagine di chat pubbliche. Questo rende più facile condividere ciò che OpenMates può fare e riaprire esempi utili in un secondo momento.
+    
+    ## 7. Opzioni di registrazione e pagamento più fluide
+    
+    OpenMates ha anche aggiunto i bonifici bancari SEPA tramite Revolut Business, migliorato il checkout di Stripe per gli utenti fuori dall'UE e aggiunto la possibilità di cambiare l'email dell'account. Non sono funzioni appariscenti, ma rendono le basi meno fragili quando vuoi effettivamente usare il prodotto.
+    
+    # Cosa significa per l'uso quotidiano
+    
+    Ora OpenMates dovrebbe sembrare più uno spazio di lavoro utile: le risposte possono contenere link di approfondimento, puoi segnare e rivedere parti importanti, più funzionalità delle app possono restituire risultati strutturati reali e gli esempi pubblici sono più facili da condividere.
+    
+    Come sempre, gran parte del lavoro ha riguardato anche la correzione di bug invisibili e miglioramenti dell'affidabilità, specialmente per quanto riguarda la sincronizzazione crittografata delle chat, gli embed, la registrazione e il comportamento su Safari.
+    
+    Un saluto,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    Selam,
+    
+    OpenMates v0.10, temel olarak ürünü günlük durumlarda daha kullanışlı hale getirmeye odaklandı: daha net yanıtlar, daha akıcı sohbetler, daha fazla uygulama ve sağlayıcı, öğrenmek ve işleri halletmek için daha iyi yollar.
+    
+    # ✨ Öne çıkanlar
+    
+    ## 1. Yanıtların içinde doğrudan Wikipedia bağlantıları
+    
+    OpenMates artık asistan yanıtlarının içinde ilgili Wikipedia konularını doğrudan vurgulayabiliyor. Bir kavram daha derinlemesine incelenmeye değer olduğunda, vurgulanan terime tıklayabilir ve sohbetin akışından ayrılmadan hızlıca daha fazla bilgi edinebilirsin.
+    
+    Bu özellik özellikle öğrenme, araştırma, seyahat planlama, tarih soruları, bilim konuları veya yanıtın yeni bir merak konusuna kapı açtığı her durum için çok kullanışlı.
+    
+    ## 2. Mesaj vurguları ve yorumlar
+    
+    Artık asistan mesajlarının bölümlerini vurgulayabilir ve üzerlerine notlar alabilirsin. Bu, uzun yanıtları çok daha kullanışlı hale getirir: önemli bir paragrafı kaydet, tekrar bakmak istediğin bir yeri işaretle veya belirli bir iddia ya da önerinin yanına yorum ekle.
+    
+    ## 3. Yeni uygulamalar ve uygulama yetenekleri
+    
+    OpenMates, günlük kategorilerde daha kullanışlı uygulama yetenekleri kazandı. Seyahat aramaları tren bağlantıları ve rezervasyon linkleriyle daha pratik hale geldi, Etkinlikler daha kullanışlı etkinlik kaynaklarına kavuştu, Kod depoları anlama konusunda gelişti ve çeşitli yerleştirme (embed) türleri daha net ve üzerinde işlem yapması daha kolay hale geldi.
+    
+    OpenMates, yalnızca modelin hafızasından yanıt vermek yerine, giderek daha fazla özel araç kullanabiliyor: arama yapma, karşılaştırma, özetleme, dosya oluşturma, kaynak materyali inceleme ve yapılandırılmış sonuçları doğrudan sohbette gösterme.
+    
+    ## 4. Gerçek dünya sonuçları için daha fazla sağlayıcı
+    
+    v0.10 ile arka planda seyahat, etkinlikler, ödemeler ve içerik güvenliği gibi alanlarda sağlayıcılar eklendi ve iyileştirildi. Bu önemli, çünkü bir yetenek ancak sonuç güncel, kaynak destekli ve kullanılacak kadar spesifik olduğunda işe yarar.
+    
+    Kullanıcılar için görünür etkisi basit: bir sağlayıcı gerçek veri döndürebildiğinde daha zengin kartlar, daha iyi kaynak atıfları, daha fazla doğrudan bağlantı ve daha az genel geçer yanıt.
+    
+    ## 5. Daha iyi yerleştirmeler ve önizlemeler
+    
+    Yerleştirmeler (embeds) uygulama genelinde daha kullanışlı hale geldi. Arama sonuçları, rezervasyon bağlantıları, oluşturulan dosyalar, kod çıktıları, görseller ve herkese açık örnekler daha net önizlemelere ve tam ekran görünümlere kavuştu; böylece sohbet bağlamını kaybetmeden sonuçları inceleyebilirsin.
+    
+    ## 6. Daha kullanışlı örnekler ve herkese açık sayfalar
+    
+    Duyurular, ipuçları, yasal sayfalar ve örnek sohbetler düzgün birer kamuya açık sohbet sayfası haline geldi. Bu, OpenMates'in neler yapabileceğini paylaşmayı ve yararlı örnekleri daha sonra tekrar açmayı kolaylaştırıyor.
+    
+    ## 7. Daha sorunsuz kayıt ve ödeme seçenekleri
+    
+    OpenMates ayrıca Revolut Business üzerinden SEPA banka transferlerini ekledi, AB dışındaki kullanıcılar için Stripe ödeme sayfasını iyileştirdi ve hesap e-postası değiştirme özelliğini getirdi. Bunlar gösterişli özellikler değil, ancak ürünü gerçekten kullanmak istediğinde temel işlemlerin daha sağlam olmasını sağlıyorlar.
+    
+    # Günlük kullanım için ne anlama geliyor?
+    
+    OpenMates artık daha çok kullanışlı bir çalışma alanı gibi hissettirmeli: yanıtlar öğrenme bağlantıları içerebilir, önemli kısımları işaretleyip tekrar ziyaret edebilirsin, daha fazla uygulama yeteneği gerçek yapılandırılmış sonuçlar döndürebilir ve herkese açık örnekleri paylaşmak daha kolaydır.
+    
+    Her zamanki gibi, çalışmaların çoğu görünmez hata düzeltmeleri ve güvenilirlik iyileştirmeleriydi; özellikle şifreli sohbet senkronizasyonu, yerleştirmeler, kayıt olma ve Safari davranışı konularında.
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Chào bạn,
+    
+    OpenMates v0.10 tập trung chủ yếu vào việc làm cho sản phẩm trở nên hữu ích hơn trong các tình huống hàng ngày: câu trả lời rõ ràng hơn, trò chuyện mượt mà hơn, thêm nhiều ứng dụng và nhà cung cấp, cùng các cách học tập và làm việc hiệu quả hơn.
+    
+    # ✨ Những điểm nổi bật
+    
+    ## 1. Liên kết Wikipedia trực tiếp trong câu trả lời
+    
+    Giờ đây, OpenMates có thể làm nổi bật các chủ đề Wikipedia liên quan trực tiếp trong phản hồi của trợ lý. Khi một khái niệm đáng để tìm hiểu thêm, bạn có thể nhấp vào thuật ngữ được làm nổi bật và nhanh chóng tìm hiểu thêm mà không cần rời khỏi luồng trò chuyện.
+    
+    Điều này đặc biệt hữu ích cho việc học tập, nghiên cứu, lập kế hoạch du lịch, các câu hỏi lịch sử, chủ đề khoa học hoặc bất kỳ điều gì mà câu trả lời mở ra một hướng tìm hiểu mới.
+    
+    ## 2. Làm nổi bật tin nhắn và nhận xét
+    
+    Giờ đây, bạn có thể làm nổi bật các phần trong tin nhắn của trợ lý và ghi chú lại. Điều này giúp các câu trả lời dài trở nên hữu ích hơn nhiều: lưu đoạn văn quan trọng, đánh dấu nội dung bạn muốn xem lại hoặc để lại nhận xét bên cạnh một khẳng định hoặc đề xuất cụ thể.
+    
+    ## 3. Các ứng dụng và kỹ năng ứng dụng mới
+    
+    OpenMates đã có thêm nhiều kỹ năng ứng dụng hữu ích trong các danh mục hàng ngày. Tìm kiếm du lịch trở nên thực tế hơn với các kết nối tàu hỏa và liên kết đặt chỗ, Sự kiện có thêm các nguồn sự kiện hữu ích, Mã nguồn hiểu các kho lưu trữ tốt hơn, và một số loại nội dung nhúng trở nên rõ ràng và dễ thao tác hơn.
+    
+    Thay vì chỉ trả lời từ bộ nhớ của mô hình, OpenMates ngày càng có thể sử dụng các công cụ chuyên dụng: tìm kiếm, so sánh, tóm tắt, tạo tệp, kiểm tra tài liệu nguồn và hiển thị kết quả có cấu trúc trực tiếp trong cuộc trò chuyện.
+    
+    ## 4. Thêm nhiều nhà cung cấp cho kết quả thực tế
+    
+    Phiên bản v0.10 đã thêm và cải thiện các nhà cung cấp ngầm, ví dụ như về du lịch, sự kiện, thanh toán và an toàn nội dung. Điều này quan trọng vì một kỹ năng chỉ hữu ích khi kết quả được cập nhật, có nguồn gốc và đủ cụ thể để sử dụng.
+    
+    Đối với người dùng, hiệu quả rõ rệt rất đơn giản: các thẻ thông tin phong phú hơn, trích dẫn nguồn tốt hơn, nhiều liên kết trực tiếp hơn và ít câu trả lời chung chung hơn khi nhà cung cấp có thể trả về dữ liệu thực tế.
+    
+    ## 5. Nội dung nhúng và xem trước tốt hơn
+    
+    Các nội dung nhúng đã trở nên hữu ích hơn trong toàn bộ ứng dụng. Kết quả tìm kiếm, liên kết đặt chỗ, tệp được tạo, đầu ra mã nguồn, hình ảnh và các ví dụ công khai có bản xem trước rõ ràng hơn và chế độ xem toàn màn hình, giúp bạn có thể kiểm tra kết quả mà không làm mất ngữ cảnh cuộc trò chuyện.
+    
+    ## 6. Các ví dụ và trang công khai hữu ích hơn
+    
+    Các thông báo, mẹo, trang pháp lý và các cuộc trò chuyện ví dụ đã trở thành các trang trò chuyện công khai thực thụ. Điều này giúp việc chia sẻ những gì OpenMates có thể làm trở nên dễ dàng hơn và có thể mở lại các ví dụ hữu ích sau này.
+    
+    ## 7. Tùy chọn đăng ký và thanh toán mượt mà hơn
+    
+    OpenMates cũng đã thêm chuyển khoản ngân hàng SEPA qua Revolut Business, cải thiện quy trình thanh toán Stripe cho người dùng ngoài EU và thêm tính năng thay đổi email tài khoản. Đây không phải là những tính năng hào nhoáng, nhưng chúng giúp các bước cơ bản ổn định hơn khi bạn thực sự muốn sử dụng sản phẩm.
+    
+    # Ý nghĩa đối với việc sử dụng hàng ngày
+    
+    Giờ đây, OpenMates sẽ mang lại cảm giác giống như một không gian làm việc hữu ích hơn: các câu trả lời có thể chứa liên kết học tập, bạn có thể đánh dấu và xem lại các phần quan trọng, nhiều kỹ năng ứng dụng hơn có thể trả về kết quả có cấu trúc thực tế và các ví dụ công khai dễ chia sẻ hơn.
+    
+    Như thường lệ, rất nhiều công việc cũng tập trung vào việc sửa lỗi ngầm và cải thiện độ tin cậy — đặc biệt là xung quanh việc đồng bộ hóa trò chuyện được mã hóa, nội dung nhúng, đăng ký và hoạt động trên trình duyệt Safari.
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng lập OpenMates
+  id: |
+    Halo,
+    
+    OpenMates v0.10 sebagian besar berfokus pada membuat produk terasa lebih bermanfaat dalam situasi sehari-hari: jawaban yang lebih jelas, obrolan yang lebih lancar, lebih banyak aplikasi dan penyedia, serta cara yang lebih baik untuk belajar dan menyelesaikan berbagai hal.
+    
+    # ✨ Sorotan utama
+    
+    ## 1. Tautan Wikipedia langsung di dalam jawaban
+    
+    OpenMates kini dapat menyoroti topik Wikipedia yang relevan langsung di dalam respons asisten. Saat sebuah konsep layak untuk dipelajari lebih lanjut, kamu dapat mengeklik istilah yang disorot dan mempelajarinya dengan cepat tanpa meninggalkan alur obrolan.
+    
+    Ini sangat berguna untuk belajar, riset, perencanaan perjalanan, pertanyaan sejarah, topik sains, atau apa pun di mana jawabannya membuka rasa ingin tahu yang lebih dalam.
+    
+    ## 2. Sorotan pesan dan komentar
+    
+    Kamu sekarang dapat menyoroti bagian dari pesan asisten dan menyimpan catatan di sana. Ini membuat jawaban yang panjang menjadi jauh lebih berguna: simpan paragraf penting, tandai sesuatu yang ingin kamu tinjau kembali, atau simpan komentar di samping klaim atau rekomendasi tertentu.
+    
+    ## 3. Aplikasi dan keahlian aplikasi baru
+    
+    OpenMates mendapatkan keahlian aplikasi yang lebih berguna di berbagai kategori sehari-hari. Pencarian perjalanan menjadi lebih praktis dengan koneksi kereta dan tautan pemesanan, Acara mendapatkan sumber acara yang lebih berguna, Kode menjadi lebih baik dalam memahami repositori, dan beberapa jenis sematan menjadi lebih jelas dan lebih mudah untuk ditindaklanjuti.
+    
+    Alih-alih hanya menjawab dari memori model, OpenMates semakin bisa menggunakan alat khusus: mencari, membandingkan, meringkas, membuat file, memeriksa materi sumber, dan menampilkan hasil terstruktur langsung di dalam obrolan.
+    
+    ## 4. Lebih banyak penyedia untuk hasil dunia nyata
+    
+    v0.10 menambahkan dan meningkatkan penyedia di balik layar, misalnya untuk perjalanan, acara, pembayaran, dan keamanan konten. Ini penting karena sebuah keahlian hanya berguna jika hasilnya mutakhir, didukung sumber, dan cukup spesifik untuk digunakan.
+    
+    Bagi pengguna, efek yang terlihat sederhana: kartu yang lebih kaya, atribusi sumber yang lebih baik, lebih banyak tautan langsung, dan lebih sedikit jawaban umum saat penyedia dapat mengembalikan data nyata.
+    
+    ## 5. Sematan dan pratinjau yang lebih baik
+    
+    Sematan menjadi lebih berguna di seluruh aplikasi. Hasil pencarian, tautan pemesanan, file yang dihasilkan, output kode, gambar, dan contoh publik mendapatkan pratinjau yang lebih jelas dan tampilan layar penuh, sehingga kamu dapat memeriksa hasil tanpa kehilangan konteks percakapan.
+    
+    ## 6. Contoh dan halaman publik yang lebih berguna
+    
+    Pengumuman, tips, halaman hukum, dan contoh obrolan menjadi halaman obrolan publik yang semestinya. Hal ini memudahkan untuk membagikan apa yang bisa dilakukan OpenMates dan membuka kembali contoh-contoh berguna di kemudian hari.
+    
+    ## 7. Opsi pendaftaran dan pembayaran yang lebih lancar
+    
+    OpenMates juga menambahkan transfer bank SEPA melalui Revolut Business, meningkatkan checkout Stripe untuk pengguna di luar UE, dan menambahkan perubahan email akun. Ini bukan fitur yang mencolok, tetapi membuat hal-hal mendasar menjadi lebih kokoh saat kamu benar-benar ingin menggunakan produk ini.
+    
+    # Apa artinya ini untuk penggunaan sehari-hari
+    
+    OpenMates seharusnya terasa lebih seperti ruang kerja yang berguna sekarang: jawaban dapat berisi tautan pembelajaran, kamu dapat menandai dan meninjau kembali bagian-bagian penting, lebih banyak keahlian aplikasi dapat mengembalikan hasil terstruktur yang nyata, dan contoh publik lebih mudah untuk dibagikan.
+    
+    Seperti biasa, banyak pekerjaan yang juga berupa perbaikan bug yang tidak terlihat dan peningkatan keandalan — terutama seputar sinkronisasi obrolan terenkripsi, sematan, pendaftaran, dan perilaku Safari.
+    
+    Salam,
+    
+    Marco  
+    Pencipta OpenMates
+  pl: |
+    Hej,
+    
+    Wersja v0.10 OpenMates skupiała się głównie na tym, aby produkt był bardziej użyteczny w codziennych sytuacjach: wyraźniejsze odpowiedzi, płynniejsze czaty, więcej aplikacji i dostawców oraz lepsze sposoby na naukę i realizację zadań.
+    
+    # ✨ Najważniejsze nowości
+    
+    ## 1. Linki do Wikipedii bezpośrednio w odpowiedziach
+    
+    OpenMates potrafi teraz wyróżniać istotne tematy z Wikipedii bezpośrednio w odpowiedziach asystenta. Gdy dany temat jest wart zgłębienia, możesz kliknąć wyróżniony termin i szybko dowiedzieć się więcej bez przerywania rozmowy.
+    
+    Jest to szczególnie przydatne podczas nauki, researchu, planowania podróży, pytań o historię, zagadnień naukowych lub w każdej sytuacji, gdy odpowiedź zachęca do dalszego odkrywania.
+    
+    ## 2. Wyróżnienia i komentarze do wiadomości
+    
+    Możesz teraz wyróżniać fragmenty wiadomości asystenta i dodawać do nich notatki. Dzięki temu dłuższe odpowiedzi stają się znacznie bardziej użyteczne: zapisz ważny akapit, zaznacz coś, do czego chcesz wrócić, lub zostaw komentarz przy konkretnym twierdzeniu lub rekomendacji.
+    
+    ## 3. Nowe aplikacje i umiejętności aplikacji
+    
+    OpenMates zyskało więcej przydatnych umiejętności w codziennych kategoriach. Wyszukiwanie podróży stało się bardziej praktyczne dzięki połączeniom kolejowym i linkom do rezerwacji, Wydarzenia zyskały więcej przydatnych źródeł, Kod lepiej radzi sobie ze zrozumieniem repozytoriów, a kilka typów osadzonych treści stało się czytelniejszych i łatwiejszych w obsłudze.
+    
+    Zamiast odpowiadać wyłącznie z pamięci modelu, OpenMates coraz częściej korzysta z dedykowanych narzędzi: wyszukiwania, porównywania, podsumowywania, tworzenia plików, sprawdzania materiałów źródłowych i wyświetlania ustrukturyzowanych wyników bezpośrednio w czacie.
+    
+    ## 4. Więcej dostawców dla rzeczywistych wyników
+    
+    W wersji v0.10 dodaliśmy i ulepszyliśmy dostawców „pod maską”, na przykład w zakresie podróży, wydarzeń, płatności i bezpieczeństwa treści. Ma to znaczenie, ponieważ umiejętność jest przydatna tylko wtedy, gdy wynik jest aktualny, poparty źródłami i wystarczająco konkretny.
+    
+    Dla użytkowników widoczny efekt jest prosty: bogatsze karty, lepsze przypisanie źródeł, więcej bezpośrednich linków i mniej ogólnych odpowiedzi, gdy dostawca może zwrócić rzeczywiste dane.
+    
+    ## 5. Lepsze osadzone treści i podglądy
+    
+    Osadzone treści stały się bardziej użyteczne w całej aplikacji. Wyniki wyszukiwania, linki do rezerwacji, wygenerowane pliki, wyniki kodu, obrazy i publiczne przykłady zyskały wyraźniejsze podglądy i widoki pełnoekranowe, dzięki czemu możesz przeglądać wyniki bez utraty kontekstu rozmowy.
+    
+    ## 6. Bardziej przydatne przykłady i strony publiczne
+    
+    Ogłoszenia, wskazówki, strony prawne i przykładowe czaty stały się pełnoprawnymi publicznymi stronami czatu. Ułatwia to dzielenie się możliwościami OpenMates i ponowne otwieranie przydatnych przykładów w przyszłości.
+    
+    ## 7. Płynniejsza rejestracja i opcje płatności
+    
+    OpenMates dodało również przelewy bankowe SEPA przez Revolut Business, ulepszyło płatności Stripe dla użytkowników spoza UE oraz dodało możliwość zmiany adresu e-mail konta. To nie są widowiskowe funkcje, ale sprawiają, że podstawy działają stabilniej, gdy faktycznie chcesz korzystać z produktu.
+    
+    # Co to oznacza w codziennym użytkowaniu
+    
+    OpenMates powinno teraz sprawiać wrażenie bardziej użytecznej przestrzeni roboczej: odpowiedzi mogą zawierać linki do nauki, możesz zaznaczać i wracać do ważnych fragmentów, więcej umiejętności aplikacji może zwracać rzeczywiste, ustrukturyzowane wyniki, a publiczne przykłady są łatwiejsze do udostępniania.
+    
+    Jak zawsze, duża część pracy to również niewidoczne poprawki błędów i usprawnienia stabilności – szczególnie w zakresie synchronizacji szyfrowanych czatów, osadzonych treści, rejestracji i działania w przeglądarce Safari.
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Hoi,
+    
+    OpenMates v0.10 draaide vooral om het product nuttiger te maken in alledaagse situaties: duidelijkere antwoorden, soepelere chats, meer apps en providers, en betere manieren om te leren en dingen gedaan te krijgen.
+    
+    # ✨ De hoogtepunten
+    
+    ## 1. Wikipedia-links direct in antwoorden
+    
+    OpenMates kan nu relevante Wikipedia-onderwerpen direct in de antwoorden van de assistent markeren. Wanneer een concept de moeite waard is om verder te verkennen, kun je op de gemarkeerde term klikken en snel meer leren zonder de chat te verlaten.
+    
+    Dit is vooral handig voor leren, onderzoek, reisplanning, geschiedenisvragen, wetenschappelijke onderwerpen, of alles waarbij het antwoord een nieuw 'rabbit hole' opent.
+    
+    ## 2. Berichten markeren en opmerkingen
+    
+    Je kunt nu delen van assistent-berichten markeren en er aantekeningen bij maken. Dit maakt langere antwoorden veel nuttiger: sla de belangrijke alinea op, markeer iets waar je later op terug wilt komen, of plaats een opmerking bij een specifieke bewering of aanbeveling.
+    
+    ## 3. Nieuwe apps en app-vaardigheden
+    
+    OpenMates heeft meer nuttige app-vaardigheden gekregen in alledaagse categorieën. Zoekopdrachten voor reizen zijn praktischer geworden met treinverbindingen en boekingslinks, Events heeft meer nuttige bronnen gekregen, Code is beter geworden in het begrijpen van repositories, en verschillende embed-types zijn duidelijker en makkelijker in gebruik geworden.
+    
+    In plaats van alleen te antwoorden vanuit het geheugen van het model, kan OpenMates steeds vaker specifieke tools gebruiken: zoeken, vergelijken, samenvatten, bestanden maken, bronmateriaal inspecteren en gestructureerde resultaten direct in de chat tonen.
+    
+    ## 4. Meer providers voor resultaten uit de echte wereld
+    
+    v0.10 heeft achter de schermen providers toegevoegd en verbeterd, bijvoorbeeld voor reizen, evenementen, betalingen en inhoudsbeveiliging. Dit is belangrijk omdat een vaardigheid pas nuttig is als het resultaat actueel is, onderbouwd door bronnen en specifiek genoeg om te gebruiken.
+    
+    Voor gebruikers is het zichtbare effect simpel: rijkere kaarten, betere bronvermelding, meer directe links en minder algemene antwoorden wanneer een provider echte data kan teruggeven.
+    
+    ## 5. Betere embeds en voorvertoningen
+    
+    Embeds zijn overal in de app nuttiger geworden. Zoekresultaten, boekingslinks, gegenereerde bestanden, code-outputs, afbeeldingen en openbare voorbeelden kregen duidelijkere voorvertoningen en schermvullende weergaven, zodat je resultaten kunt bekijken zonder de context van het gesprek te verliezen.
+    
+    ## 6. Nuttigere voorbeelden en openbare pagina's
+    
+    Aankondigingen, tips, juridische pagina's en voorbeeldchats zijn nu echte openbare chatpagina's. Dat maakt het makkelijker om te delen wat OpenMates kan en om nuttige voorbeelden later opnieuw te openen.
+    
+    ## 7. Soepelere aanmelding en betalingsopties
+    
+    OpenMates heeft ook SEPA-bankoverschrijvingen via Revolut Business toegevoegd, de Stripe-checkout verbeterd voor gebruikers buiten de EU, en de mogelijkheid toegevoegd om het e-mailadres van je account te wijzigen. Dit zijn geen flitsende functies, maar ze maken de basis minder kwetsbaar wanneer je het product daadwerkelijk wilt gebruiken.
+    
+    # Wat dit betekent voor dagelijks gebruik
+    
+    OpenMates zou nu meer als een nuttige werkplek moeten voelen: antwoorden kunnen links bevatten om te leren, je kunt belangrijke delen markeren en later terugkijken, meer app-vaardigheden kunnen echte gestructureerde resultaten teruggeven, en openbare voorbeelden zijn makkelijker te delen.
+    
+    Zoals altijd bestond een groot deel van het werk ook uit onzichtbare bugfixes en verbeteringen in de betrouwbaarheid — vooral rond versleutelde chatsynchronisatie, embeds, aanmelding en het gedrag in Safari.
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    أهلاً بك،
+    
+    ركز إصدار OpenMates v0.10 بشكل أساسي على جعل المنتج أكثر فائدة في المواقف اليومية المعتادة: إجابات أوضح، محادثات أكثر سلاسة، المزيد من التطبيقات والمزودين، وطرق أفضل للتعلم وإنجاز المهام.
+    
+    # ✨ أبرز التحديثات
+    
+    ## 1. روابط ويكيبيديا مباشرة داخل الإجابات
+    
+    يمكن لـ OpenMates الآن تمييز مواضيع ويكيبيديا ذات الصلة مباشرة داخل ردود المساعد. عندما يستحق مفهوم ما المزيد من الاستكشاف، يمكنك النقر على المصطلح المميز والتعلم بسرعة دون مغادرة سياق المحادثة.
+    
+    هذا مفيد بشكل خاص للتعلم، والبحث، وتخطيط السفر، والأسئلة التاريخية، والمواضيع العلمية، أو أي شيء تفتح فيه الإجابة آفاقاً جديدة للاستكشاف.
+    
+    ## 2. تمييز الرسائل والتعليقات
+    
+    يمكنك الآن تمييز أجزاء من رسائل المساعد وتدوين ملاحظات عليها. وهذا يجعل الإجابات الطويلة أكثر فائدة: احفظ فقرة مهمة، أو حدد شيئاً تريد العودة إليه لاحقاً، أو ضع تعليقاً بجانب ادعاء أو توصية محددة.
+    
+    ## 3. تطبيقات ومهارات تطبيقات جديدة
+    
+    حصل OpenMates على مهارات تطبيقات أكثر فائدة عبر الفئات اليومية. أصبحت عمليات البحث عن السفر أكثر عملية مع توفير روابط القطارات وروابط الحجز، واكتسبت "الفعاليات" مصادر أكثر فائدة، وأصبح "الكود" أفضل في فهم المستودعات، وأصبحت العديد من أنواع التضمين (embeds) أوضح وأسهل في التعامل معها.
+    
+    بدلاً من الإجابة فقط من ذاكرة النموذج، يمكن لـ OpenMates استخدام أدوات مخصصة بشكل متزايد: البحث، المقارنة، التلخيص، إنشاء الملفات، فحص المصادر، وعرض نتائج منظمة مباشرة في الدردشة.
+    
+    ## 4. المزيد من المزودين لنتائج واقعية
+    
+    أضاف الإصدار v0.10 مزودين وحسّن آخرين في الخلفية، على سبيل المثال للسفر، والفعاليات، والمدفوعات، وسلامة المحتوى. هذا أمر مهم لأن المهارة تكون مفيدة فقط عندما تكون النتيجة حديثة، ومدعومة بالمصادر، ومحددة بما يكفي للاستخدام.
+    
+    بالنسبة للمستخدمين، التأثير المرئي بسيط: بطاقات أغنى، إسناد أفضل للمصادر، روابط مباشرة أكثر، وإجابات عامة أقل عندما يتمكن المزود من إرجاع بيانات حقيقية.
+    
+    ## 5. تحسين التضمينات والمعاينات
+    
+    أصبحت التضمينات (Embeds) أكثر فائدة في جميع أنحاء التطبيق. حصلت نتائج البحث، وروابط الحجز، والملفات المنشأة، ومخرجات الكود، والصور، والأمثلة العامة على معاينات أوضح وعروض بملء الشاشة، بحيث يمكنك فحص النتائج دون فقدان سياق المحادثة.
+    
+    ## 6. أمثلة وصفحات عامة أكثر فائدة
+    
+    أصبحت الإعلانات، والنصائح، والصفحات القانونية، ومحادثات الأمثلة صفحات دردشة عامة حقيقية. وهذا يسهل مشاركة ما يمكن لـ OpenMates فعله وفتح الأمثلة المفيدة مرة أخرى لاحقاً.
+    
+    ## 7. خيارات تسجيل ودفع أكثر سلاسة
+    
+    أضاف OpenMates أيضاً تحويلات SEPA البنكية عبر Revolut Business، وحسّن عملية الدفع عبر Stripe للمستخدمين خارج الاتحاد الأوروبي، وأضاف إمكانية تغيير بريد الحساب الإلكتروني. هذه ليست ميزات مبهرة، لكنها تجعل الأساسيات أكثر استقراراً عندما تريد استخدام المنتج فعلياً.
+    
+    # ماذا يعني هذا للاستخدام اليومي
+    
+    من المفترض أن يبدو OpenMates الآن كمساحة عمل مفيدة: يمكن أن تحتوي الإجابات على روابط تعليمية، ويمكنك تمييز الأجزاء المهمة والعودة إليها، ويمكن لمزيد من مهارات التطبيقات إرجاع نتائج منظمة حقيقية، كما أصبحت الأمثلة العامة أسهل في المشاركة.
+    
+    وكما هو الحال دائماً، كان جزء كبير من العمل غير مرئي في إصلاح الأخطاء وتحسين الموثوقية — خاصة فيما يتعلق بمزامنة الدردشة المشفرة، والتضمينات، والتسجيل، وسلوك متصفح Safari.
+    
+    تحياتي،
+    
+    ماركو  
+    مبتكر OpenMates
+  hi: |
+    नमस्ते,
+    
+    OpenMates v0.10 मुख्य रूप से प्रोडक्ट को रोज़मर्रा की स्थितियों में अधिक उपयोगी बनाने के बारे में था: स्पष्ट उत्तर, आसान चैट, अधिक ऐप्स और प्रोवाइडर्स, और सीखने और काम पूरा करने के बेहतर तरीके।
+    
+    # ✨ मुख्य बातें
+    
+    ## 1. उत्तरों के अंदर सीधे विकिपीडिया लिंक्स
+    
+    OpenMates अब असिस्टेंट के जवाबों के अंदर ही संबंधित विकिपीडिया (Wikipedia) विषयों को हाईलाइट कर सकता है। जब कोई विषय विस्तार से जानने लायक हो, तो तुम हाईलाइट किए गए शब्द पर क्लिक कर सकते हो और चैट के प्रवाह को छोड़े बिना जल्दी से और अधिक सीख सकते हो।
+    
+    यह विशेष रूप से सीखने, रिसर्च, यात्रा की योजना बनाने, इतिहास के सवालों, विज्ञान के विषयों, या ऐसी किसी भी चीज़ के लिए उपयोगी है जहाँ उत्तर से नई चीज़ें जानने की जिज्ञासा पैदा होती है।
+    
+    ## 2. मैसेज हाईलाइट्स और कमेंट्स
+    
+    अब तुम असिस्टेंट के मैसेज के कुछ हिस्सों को हाईलाइट कर सकते हो और उन पर नोट्स रख सकते हो। यह लंबे उत्तरों को बहुत अधिक उपयोगी बनाता है: महत्वपूर्ण पैराग्राफ को सेव करें, किसी ऐसी चीज़ को मार्क करें जिसे तुम फिर से देखना चाहते हो, या किसी विशिष्ट दावे या सुझाव के पास कमेंट लिखें।
+    
+    ## 3. नए ऐप्स और ऐप स्किल्स
+    
+    OpenMates को रोज़मर्रा की श्रेणियों में और अधिक उपयोगी ऐप स्किल्स मिली हैं। ट्रेन कनेक्शन और बुकिंग लिंक के साथ यात्रा सर्च अधिक व्यावहारिक हो गई है, इवेंट्स में अधिक उपयोगी इवेंट सोर्स जुड़े हैं, कोड रिपॉजिटरी को समझने में बेहतर हो गया है, और कई एम्बेड (embed) प्रकार स्पष्ट और उपयोग में आसान हो गए हैं।
+    
+    केवल मॉडल की मेमोरी से उत्तर देने के बजाय, OpenMates अब समर्पित टूल्स का अधिक उपयोग कर सकता है: सर्च करना, तुलना करना, सारांश बनाना, फाइलें बनाना, सोर्स मटेरियल की जांच करना और सीधे चैट में स्ट्रक्चर्ड परिणाम दिखाना।
+    
+    ## 4. वास्तविक दुनिया के परिणामों के लिए अधिक प्रोवाइडर्स
+    
+    v0.10 ने बैकएंड में प्रोवाइडर्स को जोड़ा और बेहतर बनाया है, उदाहरण के लिए यात्रा, इवेंट्स, पेमेंट और कंटेंट सुरक्षा के लिए। यह महत्वपूर्ण है क्योंकि कोई स्किल तभी उपयोगी होती है जब परिणाम वर्तमान हो, सोर्स-आधारित हो और उपयोग करने के लिए पर्याप्त रूप से विशिष्ट हो।
+    
+    यूजर्स के लिए, इसका प्रभाव सीधा है: बेहतर कार्ड्स, बेहतर सोर्स एट्रिब्यूशन, अधिक डायरेक्ट लिंक्स, और जब कोई प्रोवाइडर वास्तविक डेटा दे सकता है तो कम सामान्य उत्तर।
+    
+    ## 5. बेहतर एम्बेड्स और प्रिव्यू
+    
+    पूरे ऐप में एम्बेड्स अधिक उपयोगी हो गए हैं। सर्च रिजल्ट्स, बुकिंग लिंक्स, जेनरेट की गई फाइलें, कोड आउटपुट, इमेज और सार्वजनिक उदाहरणों को स्पष्ट प्रिव्यू और फुलस्क्रीन व्यू मिले हैं, ताकि तुम बातचीत के संदर्भ को खोए बिना परिणामों की जांच कर सको।
+    
+    ## 6. अधिक उपयोगी उदाहरण और सार्वजनिक पेज
+    
+    घोषणाएं, टिप्स, कानूनी पेज और उदाहरण चैट अब उचित सार्वजनिक चैट पेज बन गए हैं। इससे यह साझा करना आसान हो जाता है कि OpenMates क्या कर सकता है और उपयोगी उदाहरणों को बाद में फिर से खोलना आसान हो जाता है।
+    
+    ## 7. आसान साइनअप और पेमेंट विकल्प
+    
+    OpenMates ने Revolut Business के माध्यम से SEPA बैंक ट्रांसफर भी जोड़ा है, यूरोपीय संघ (EU) के बाहर के यूजर्स के लिए Stripe चेकआउट में सुधार किया है, और अकाउंट ईमेल बदलने की सुविधा जोड़ी है। ये कोई दिखावटी फीचर्स नहीं हैं, लेकिन जब तुम वास्तव में प्रोडक्ट का उपयोग करना चाहते हो तो ये बुनियादी चीज़ों को अधिक मजबूत बनाते हैं।
+    
+    # रोज़मर्रा के उपयोग के लिए इसका क्या अर्थ है
+    
+    OpenMates अब एक उपयोगी वर्कस्पेस की तरह महसूस होना चाहिए: उत्तरों में सीखने के लिंक हो सकते हैं, तुम महत्वपूर्ण हिस्सों को मार्क कर सकते हो और उन्हें फिर से देख सकते हो, अधिक ऐप स्किल्स वास्तविक स्ट्रक्चर्ड परिणाम दे सकती हैं, और सार्वजनिक उदाहरणों को साझा करना आसान है।
+    
+    हमेशा की तरह, बहुत सारा काम अदृश्य बग फिक्सिंग और विश्वसनीयता में सुधार का भी था — विशेष रूप से एन्क्रिप्टेड चैट सिंक, एम्बेड्स, साइनअप और Safari व्यवहार के आसपास।
+    
+    शुभकामनाएँ,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    สวัสดีครับ,
+    
+    OpenMates v0.10 เน้นไปที่การทำให้ผลิตภัณฑ์ใช้งานได้จริงมากขึ้นในชีวิตประจำวัน: คำตอบที่ชัดเจนขึ้น, การแชทที่ลื่นไหลขึ้น, แอปและผู้ให้บริการที่มากขึ้น, และวิธีที่ดีกว่าในการเรียนรู้และทำงานให้สำเร็จ
+    
+    # ✨ ไฮไลต์ที่สำคัญ
+    
+    ## 1. ลิงก์ Wikipedia ภายในคำตอบโดยตรง
+    
+    ตอนนี้ OpenMates สามารถไฮไลต์หัวข้อ Wikipedia ที่เกี่ยวข้องได้โดยตรงภายในคำตอบของ AI เมื่อมีแนวคิดที่น่าสำรวจเพิ่มเติม คุณสามารถคลิกคำที่ไฮไลต์เพื่อเรียนรู้เพิ่มเติมได้อย่างรวดเร็วโดยไม่ต้องออกจากหน้าแชท
+    
+    สิ่งนี้มีประโยชน์อย่างยิ่งสำหรับการเรียนรู้, การวิจัย, การวางแผนการเดินทาง, คำถามทางประวัติศาสตร์, หัวข้อวิทยาศาสตร์ หรืออะไรก็ตามที่คำตอบนำไปสู่การค้นคว้าเพิ่มเติม
+    
+    ## 2. การไฮไลต์ข้อความและคอมเมนต์
+    
+    ตอนนี้คุณสามารถไฮไลต์ส่วนต่างๆ ของข้อความจาก AI และจดบันทึกไว้ได้ สิ่งนี้ทำให้คำตอบที่ยาวๆ มีประโยชน์มากขึ้น: บันทึกย่อหน้าที่สำคัญ, ทำเครื่องหมายสิ่งที่คุณต้องการกลับมาดูใหม่ หรือเขียนคอมเมนต์ไว้ข้างๆ ข้ออ้างอิงหรือคำแนะนำที่เฉพาะเจาะจง
+    
+    ## 3. แอปและทักษะใหม่ๆ ของแอป
+    
+    OpenMates มีทักษะของแอปที่มีประโยชน์มากขึ้นในหมวดหมู่ต่างๆ ในชีวิตประจำวัน การค้นหาข้อมูลการเดินทางใช้งานได้จริงมากขึ้นด้วยการเชื่อมต่อรถไฟและลิงก์การจอง, ส่วนกิจกรรม (Events) มีแหล่งข้อมูลกิจกรรมที่มีประโยชน์มากขึ้น, ส่วนโค้ด (Code) เข้าใจที่เก็บข้อมูล (repositories) ได้ดีขึ้น และประเภทการฝัง (embed) หลายอย่างก็ชัดเจนและใช้งานได้ง่ายขึ้น
+    
+    แทนที่จะตอบจากความจำของโมเดลเพียงอย่างเดียว OpenMates สามารถใช้เครื่องมือเฉพาะทางได้มากขึ้นเรื่อยๆ: ค้นหา, เปรียบเทียบ, สรุป, สร้างไฟล์, ตรวจสอบแหล่งข้อมูล และแสดงผลลัพธ์ที่มีโครงสร้างโดยตรงในแชท
+    
+    ## 4. ผู้ให้บริการที่มากขึ้นเพื่อผลลัพธ์ที่ใช้งานได้จริง
+    
+    v0.10 ได้เพิ่มและปรับปรุงผู้ให้บริการเบื้องหลัง เช่น สำหรับการเดินทาง, กิจกรรม, การชำระเงิน และความปลอดภัยของเนื้อหา สิ่งนี้สำคัญเพราะทักษะจะมีประโยชน์ก็ต่อเมื่อผลลัพธ์เป็นปัจจุบัน มีแหล่งข้อมูลรองรับ และมีความเฉพาะเจาะจงเพียงพอที่จะนำไปใช้งาน
+    
+    สำหรับผู้ใช้ ผลลัพธ์ที่เห็นได้ชัดคือ: การ์ดข้อมูลที่ละเอียดขึ้น, การระบุแหล่งที่มาที่ดีขึ้น, ลิงก์ตรงที่มากขึ้น และคำตอบทั่วไปที่น้อยลงเมื่อผู้ให้บริการสามารถส่งข้อมูลจริงกลับมาได้
+    
+    ## 5. การฝัง (Embeds) และการแสดงตัวอย่างที่ดีขึ้น
+    
+    การฝังข้อมูลมีประโยชน์มากขึ้นทั่วทั้งแอป ผลการค้นหา, ลิงก์การจอง, ไฟล์ที่สร้างขึ้น, ผลลัพธ์ของโค้ด, รูปภาพ และตัวอย่างสาธารณะ มีการแสดงตัวอย่างที่ชัดเจนขึ้นและมุมมองแบบเต็มหน้าจอ เพื่อให้คุณสามารถตรวจสอบผลลัพธ์ได้โดยไม่เสียบริบทของการสนทนา
+    
+    ## 6. ตัวอย่างและหน้าสาธารณะที่มีประโยชน์มากขึ้น
+    
+    ประกาศ, เคล็ดลับ, หน้ากฎหมาย และแชทตัวอย่าง ได้กลายเป็นหน้าแชทสาธารณะที่เหมาะสม สิ่งนี้ทำให้การแชร์สิ่งที่ OpenMates ทำได้ง่ายขึ้น และสามารถเปิดตัวอย่างที่มีประโยชน์ซ้ำได้ในภายหลัง
+    
+    ## 7. ตัวเลือกการสมัครใช้งานและการชำระเงินที่ราบรื่นขึ้น
+    
+    OpenMates ยังได้เพิ่มการโอนเงินผ่านธนาคาร SEPA ผ่าน Revolut Business, ปรับปรุงการชำระเงินด้วย Stripe สำหรับผู้ใช้นอกสหภาพยุโรป และเพิ่มการเปลี่ยนอีเมลบัญชี สิ่งเหล่านี้ไม่ใช่ฟีเจอร์ที่หวือหวา แต่ช่วยให้พื้นฐานต่างๆ ไม่ติดขัดเมื่อคุณต้องการใช้งานผลิตภัณฑ์จริงๆ
+    
+    # สิ่งนี้หมายความว่าอย่างไรสำหรับการใช้งานในทุกๆ วัน
+    
+    ตอนนี้ OpenMates ควรจะให้ความรู้สึกเหมือนพื้นที่ทำงานที่มีประโยชน์มากขึ้น: คำตอบสามารถมีลิงก์การเรียนรู้, คุณสามารถทำเครื่องหมายและกลับมาดูส่วนที่สำคัญได้, ทักษะของแอปที่มากขึ้นสามารถส่งผลลัพธ์ที่มีโครงสร้างจริงกลับมาได้ และตัวอย่างสาธารณะก็แชร์ได้ง่ายขึ้น
+    
+    เช่นเคย งานส่วนใหญ่ยังเป็นการแก้ไขบั๊กที่มองไม่เห็นและการปรับปรุงความเสถียร — โดยเฉพาะเรื่องการซิงค์แชทแบบเข้ารหัส, การฝังข้อมูล, การสมัครใช้งาน และพฤติกรรมบน Safari
+    
+    ด้วยความเคารพ,
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    Ahoj,
+    
+    OpenMates v0.10 se zaměřuje především na to, aby byl produkt užitečnější v běžných každodenních situacích: jasnější odpovědi, plynulejší chaty, více aplikací a poskytovatelů a lepší způsoby, jak se učit a dotahovat věci do konce.
+    
+    # ✨ To nejdůležitější
+    
+    ## 1. Odkazy na Wikipedii přímo v odpovědích
+    
+    OpenMates nyní dokáže zvýraznit relevantní témata z Wikipedie přímo v odpovědích asistenta. Když nějaký pojem stojí za hlubší prozkoumání, můžeš na zvýrazněný termín kliknout a rychle se dozvědět víc, aniž bys musel opustit chat.
+    
+    To je užitečné zejména pro učení, výzkum, plánování cest, historické otázky, vědecká témata nebo cokoli, kde odpověď otevírá novou „králičí noru“ informací.
+    
+    ## 2. Zvýraznění zpráv a komentáře
+    
+    Nyní můžeš zvýrazňovat části zpráv od asistenta a psát si k nim poznámky. Díky tomu jsou delší odpovědi mnohem užitečnější: ulož si důležitý odstavec, označ si něco, k čemu se chceš vrátit, nebo si přidej komentář ke konkrétnímu tvrzení či doporučení.
+    
+    ## 3. Nové aplikace a dovednosti aplikací
+    
+    OpenMates získal užitečnější dovednosti v běžných kategoriích. Vyhledávání cestování je praktičtější díky vlakovým spojům a odkazům na rezervace, Události získaly více užitečných zdrojů, Kód lépe rozumí repozitářům a několik typů vloženého obsahu je nyní přehlednějších a snadněji použitelných.
+    
+    Místo toho, aby OpenMates odpovídal pouze z paměti modelu, může stále častěji využívat specializované nástroje: vyhledávat, porovnávat, shrnovat, vytvářet soubory, zkoumat zdrojové materiály a zobrazovat strukturované výsledky přímo v chatu.
+    
+    ## 4. Více poskytovatelů pro výsledky z reálného světa
+    
+    Verze 0.10 přidala a vylepšila poskytovatele v pozadí, například pro cestování, události, platby a bezpečnost obsahu. To je důležité, protože dovednost je užitečná jen tehdy, když je výsledek aktuální, podložený zdroji a dostatečně konkrétní pro praktické použití.
+    
+    Pro uživatele je viditelný efekt jednoduchý: bohatší karty, lepší uvádění zdrojů, více přímých odkazů a méně obecných odpovědí v případech, kdy poskytovatel může vrátit reálná data.
+    
+    ## 5. Lepší vložený obsah a náhledy
+    
+    Vložený obsah (embedy) je nyní v celé aplikaci užitečnější. Výsledky vyhledávání, odkazy na rezervace, generované soubory, výstupy kódu, obrázky a veřejné příklady mají jasnější náhledy a zobrazení na celou obrazovku, takže si můžeš výsledky prohlédnout, aniž bys ztratil kontext konverzace.
+    
+    ## 6. Užitečnější příklady a veřejné stránky
+    
+    Oznámení, tipy, právní stránky a ukázkové chaty se staly plnohodnotnými veřejnými stránkami chatu. Díky tomu je snazší sdílet, co OpenMates umí, a později se k užitečným příkladům vrátit.
+    
+    ## 7. Hladší registrace a možnosti plateb
+    
+    OpenMates také přidal bankovní převody SEPA přes Revolut Business, vylepšil platby přes Stripe pro uživatele mimo EU a přidal možnost změny e-mailu účtu. Nejsou to sice převratné funkce, ale díky nim jsou základní věci spolehlivější, když produkt skutečně chceš používat.
+    
+    # Co to znamená pro každodenní používání
+    
+    OpenMates by teď měl působit spíše jako užitečný pracovní prostor: odpovědi mohou obsahovat odkazy na učení, můžeš si označovat a vracet se k důležitým částem, více dovedností aplikací vrací reálné strukturované výsledky a veřejné příklady se snadněji sdílejí.
+    
+    Jako vždy byla velká část práce věnována neviditelným opravám chyb a zlepšení spolehlivosti – zejména v oblasti synchronizace šifrovaného chatu, vloženého obsahu, registrace a chování v prohlížeči Safari.
+    
+    Zdraví tě,
+    
+    Marco  
+    tvůrce OpenMates
+  sv: |
+    Hej,
+    
+    OpenMates v0.10 handlade främst om att göra produkten mer användbar i vardagen: tydligare svar, smidigare chattar, fler appar och leverantörer, samt bättre sätt att lära sig och få saker gjorda.
+    
+    # ✨ Höjdpunkterna
+    
+    ## 1. Wikipedia-länkar direkt i svaren
+    
+    OpenMates kan nu markera relevanta Wikipedia-ämnen direkt i assistentens svar. När ett begrepp är värt att utforska vidare kan du klicka på den markerade termen och snabbt lära dig mer utan att lämna chatten.
+    
+    Detta är särskilt användbart för lärande, research, reseplanering, historiska frågor, vetenskapliga ämnen eller vad som helst där svaret öppnar upp ett nytt kaninhål.
+    
+    ## 2. Markeringar och kommentarer i meddelanden
+    
+    Du kan nu markera delar av assistentens meddelanden och skriva anteckningar till dem. Detta gör längre svar mycket mer användbara: spara det viktiga stycket, markera något du vill återkomma till, eller lämna en kommentar vid ett specifikt påstående eller en rekommendation.
+    
+    ## 3. Nya appar och app-färdigheter
+    
+    OpenMates har fått mer användbara app-färdigheter inom vardagliga kategorier. Resesökningar blev mer praktiska med tågförbindelser och bokningslänkar, Evenemang fick fler användbara källor, Kod blev bättre på att förstå kodförråd (repositories), och flera typer av inbäddningar blev tydligare och enklare att interagera med.
+    
+    Istället för att bara svara utifrån modellens minne kan OpenMates i allt högre grad använda dedikerade verktyg: söka, jämföra, sammanfatta, skapa filer, granska källmaterial och visa strukturerade resultat direkt i chatten.
+    
+    ## 4. Fler leverantörer för verkliga resultat
+    
+    v0.10 lade till och förbättrade leverantörer bakom kulisserna, till exempel för resor, evenemang, betalningar och innehållssäkerhet. Detta är viktigt eftersom en färdighet bara är användbar när resultatet är aktuellt, källkritiskt underbyggt och tillräckligt specifikt för att användas.
+    
+    För användare är den synliga effekten enkel: fylligare kort, bättre källhänvisning, fler direktlänkar och färre generiska svar när en leverantör kan returnera faktiska data.
+    
+    ## 5. Bättre inbäddningar och förhandsvisningar
+    
+    Inbäddningar blev mer användbara i hela appen. Sökresultat, bokningslänkar, genererade filer, kodutdata, bilder och offentliga exempel fick tydligare förhandsvisningar och helskärmsvyer, så att du kan granska resultat utan att tappa sammanhanget i konversationen.
+    
+    ## 6. Fler användbara exempel och offentliga sidor
+    
+    Meddelanden, tips, juridiska sidor och exempelchattar blev riktiga offentliga chattsidor. Det gör det enklare att dela vad OpenMates kan göra och att öppna användbara exempel igen senare.
+    
+    ## 7. Smidigare alternativ för registrering och betalning
+    
+    OpenMates lade även till SEPA-banköverföringar via Revolut Business, förbättrade Stripe-utcheckningen för användare utanför EU och lade till möjligheten att ändra e-postadress för kontot. Det här är inga flashiga funktioner, men de gör grunderna mindre bräckliga när du faktiskt vill använda produkten.
+    
+    # Vad detta innebär för vardagsanvändningen
+    
+    OpenMates bör kännas mer som en användbar arbetsyta nu: svar kan innehålla länkar för lärande, du kan markera och återkomma till viktiga delar, fler app-färdigheter kan returnera riktiga strukturerade resultat och offentliga exempel är lättare att dela.
+    
+    Som alltid bestod en stor del av arbetet även av osynliga buggfixar och förbättringar av tillförlitligheten – särskilt kring krypterad chattsynkronisering, inbäddningar, registrering och beteende i Safari.
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    היי,
+    
+    OpenMates v0.10 התמקדה בעיקר בהפיכת המוצר לשימושי יותר בסיטואציות יומיומיות: תשובות ברורות יותר, צ'אטים חלקים יותר, יותר אפליקציות וספקים, ודרכים טובות יותר ללמוד ולבצע משימות.
+    
+    # ✨ נקודות מרכזיות
+    
+    ## 1. קישורי ויקיפדיה ישירות בתוך התשובות
+    
+    OpenMates יכולה כעת להדגיש נושאי ויקיפדיה רלוונטיים ישירות בתוך תגובות העוזר. כשמושג מסוים שווה בדיקה מעמיקה יותר, ניתן ללחוץ על המונח המודגש וללמוד עליו במהירות מבלי לצאת מרצף הצ'אט.
+    
+    זה שימושי במיוחד ללמידה, מחקר, תכנון טיולים, שאלות בהיסטוריה, נושאי מדע, או כל דבר שבו התשובה פותחת "מחילת ארנב" חדשה.
+    
+    ## 2. הדגשות והערות בהודעות
+    
+    כעת ניתן להדגיש חלקים מהודעות העוזר ולשמור עליהם הערות. זה הופך תשובות ארוכות להרבה יותר שימושיות: שמירת פסקה חשובה, סימון משהו שרוצים לחזור אליו, או הוספת הערה לצד טענה או המלצה ספציפית.
+    
+    ## 3. אפליקציות ומיומנויות אפליקציה חדשות
+    
+    OpenMates קיבלה מיומנויות אפליקציה שימושיות יותר בקטגוריות יומיומיות. חיפושי נסיעות הפכו למעשיים יותר עם חיבורי רכבות וקישורי הזמנה, אירועים קיבלו מקורות מידע שימושיים יותר, קוד הפך לטוב יותר בהבנת מאגרי קוד (repositories), ומספר סוגי הטמעות הפכו לברורים יותר וקלים יותר לתפעול.
+    
+    במקום לענות רק מהזיכרון של המודל, OpenMates יכולה להשתמש יותר ויותר בכלים ייעודיים: חיפוש, השוואה, סיכום, יצירת קבצים, בדיקת חומרי מקור והצגת תוצאות מובנות ישירות בצ'אט.
+    
+    ## 4. יותר ספקים לתוצאות מהעולם האמיתי
+    
+    גרסה 0.10 הוסיפה ושיפרה ספקים "מאחורי הקלעים", למשל עבור נסיעות, אירועים, תשלומים ובטיחות תוכן. זה חשוב כי מיומנות היא שימושית רק כשהתוצאה עדכנית, מבוססת על מקורות וספציפית מספיק לשימוש.
+    
+    עבור המשתמשים, ההשפעה הנראית לעין היא פשוטה: כרטיסים עשירים יותר, ייחוס טוב יותר למקורות, יותר קישורים ישירים ופחות תשובות גנריות כאשר ספק יכול להחזיר נתונים אמיתיים.
+    
+    ## 5. הטמעות ותצוגות מקדימות טובות יותר
+    
+    הטמעות הפכו לשימושיות יותר בכל האפליקציה. תוצאות חיפוש, קישורי הזמנה, קבצים שנוצרו, פלטי קוד, תמונות ודוגמאות ציבוריות קיבלו תצוגות מקדימות ברורות יותר ותצוגות מסך מלא, כך שניתן לבחון תוצאות מבלי לאבד את הקשר השיחה.
+    
+    ## 6. דוגמאות ודפים ציבוריים שימושיים יותר
+    
+    הודעות, טיפים, דפים משפטיים וצ'אטים לדוגמה הפכו לדפי צ'אט ציבוריים של ממש. זה מקל על שיתוף היכולות של OpenMates ועל פתיחה חוזרת של דוגמאות שימושיות מאוחר יותר.
+    
+    ## 7. אפשרויות הרשמה ותשלום חלקות יותר
+    
+    OpenMates הוסיפה גם העברות בנקאיות מסוג SEPA דרך Revolut Business, שיפרה את התשלום ב-Stripe למשתמשים מחוץ לאיחוד האירופי, והוסיפה אפשרות לשינוי אימייל בחשבון. אלו לא תכונות נוצצות, אבל הן הופכות את הבסיס לפחות שברירי כשבאמת רוצים להשתמש במוצר.
+    
+    # מה זה אומר לשימוש היומיומי
+    
+    OpenMates אמורה להרגיש עכשיו יותר כמו סביבת עבודה שימושית: תשובות יכולות להכיל קישורי למידה, ניתן לסמן ולחזור לחלקים חשובים, יותר מיומנויות אפליקציה יכולות להחזיר תוצאות מובנות אמיתיות, ודוגמאות ציבוריות קלות יותר לשיתוף.
+    
+    כרגיל, חלק גדול מהעבודה היה גם תיקון באגים בלתי נראים ושיפורי אמינות — במיוחד סביב סנכרון צ'אט מוצפן, הטמעות, הרשמה והתנהגות ב-Safari.
+    
+    בברכה,
+    
+    מרקו  
+    יוצר OpenMates
   verified_by_human: []
 email_body:
   context: 'Newsletter announcements/introducing-openmates-v010 — email_body'
@@ -282,23 +1232,1011 @@ email_body:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    嘿，你好，
+    
+    OpenMates v0.10 的重点在于提升产品在日常场景中的实用性：更清晰的回答、更流畅的对话、更多的应用和提供商，以及更高效的学习和办事方式。
+    
+    [cta]
+    
+    # ✨ 亮点概览
+    
+    ## 1. 回答中直接集成维基百科链接
+    
+    OpenMates 现在可以直接在助手回答中高亮显示相关的维基百科主题。当某个概念值得深入探索时，你可以点击高亮词汇快速了解更多信息，而无需离开当前的对话流。
+    
+    这对于学习、研究、旅行规划、历史问题、科学话题，或者任何会引出新知识领域的回答都非常有用。
+    
+    ## 2. 消息高亮与备注
+    
+    你现在可以高亮显示助手消息的部分内容并添加笔记。这让长篇回答变得更有价值：你可以保存重要段落、标记需要复看的内容，或者在特定的观点或建议旁添加备注。
+    
+    ## 3. 新应用与应用技能
+    
+    OpenMates 在各个日常类别中增加了更多实用的应用技能。旅行搜索变得更加实用，增加了火车班次和预订链接；“活动”获得了更多有用的活动来源；“代码”在理解代码库方面表现更佳；几种嵌入类型也变得更清晰、更易于操作。
+    
+    OpenMates 不再仅仅依靠模型的记忆来回答，而是越来越多地使用专用工具：搜索、对比、总结、创建文件、检查源材料，并直接在对话中显示结构化结果。
+    
+    ## 4. 更多提供商，提供真实世界的结果
+    
+    v0.10 在后台添加并改进了提供商，例如旅行、活动、支付和内容安全方面。这很重要，因为只有当结果是实时的、有来源支持且足够具体可用时，一项技能才真正有用。
+    
+    对用户而言，直观的效果很简单：更丰富的卡片、更好的来源归属、更多的直接链接，以及当提供商能返回真实数据时，减少泛泛而谈的回答。
+    
+    ## 5. 更好的嵌入与预览
+    
+    整个应用中的嵌入功能变得更加实用。搜索结果、预订链接、生成的文件、代码输出、图像和公开示例现在拥有更清晰的预览和全屏视图，让你可以在不丢失对话上下文的情况下查看结果。
+    
+    ## 6. 更有用的示例与公开页面
+    
+    公告、提示、法律页面和示例对话现在都变成了正式的公开对话页面。这使得分享 OpenMates 的功能以及日后重新打开有用示例变得更加容易。
+    
+    ## 7. 更顺畅的注册与支付选项
+    
+    OpenMates 还增加了通过 Revolut Business 进行的 SEPA 银行转账，改进了欧盟以外用户的 Stripe 结账流程，并增加了更改账户邮箱的功能。这些虽然不是华丽的功能，但在你真正想要使用产品时，它们能让基础体验更加稳健。
+    
+    # 这对日常使用意味着什么
+    
+    OpenMates 现在应该更像一个实用的工作空间：回答可以包含学习链接，你可以标记并复看重要部分，更多应用技能可以返回真实的结构化结果，公开示例也更容易分享。
+    
+    一如既往，我们也做了大量幕后的 Bug 修复和可靠性改进——特别是在加密对话同步、嵌入、注册以及 Safari 浏览器表现方面。
+    
+    祝好，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    Hola,
+    
+    OpenMates v0.10 se centró principalmente en hacer que el producto sea más útil en situaciones cotidianas: respuestas más claras, chats más fluidos, más aplicaciones y proveedores, y mejores formas de aprender y hacer cosas.
+    
+    [cta]
+    
+    # ✨ Lo más destacado
+    
+    ## 1. Enlaces de Wikipedia directamente en las respuestas
+    
+    OpenMates ahora puede resaltar temas relevantes de Wikipedia directamente en las respuestas del asistente. Cuando valga la pena profundizar en un concepto, puedes hacer clic en el término resaltado y aprender más rápidamente sin salir del flujo del chat.
+    
+    Esto es especialmente útil para el aprendizaje, la investigación, la planificación de viajes, preguntas de historia, temas científicos o cualquier cosa en la que la respuesta abra un nuevo tema en el que profundizar.
+    
+    ## 2. Resaltados de mensajes y comentarios
+    
+    Ahora puedes resaltar partes de los mensajes del asistente y añadir notas sobre ellas. Esto hace que las respuestas largas sean mucho más útiles: guarda el párrafo importante, marca algo que quieras volver a consultar o deja un comentario junto a una afirmación o recomendación específica.
+    
+    ## 3. Nuevas aplicaciones y habilidades
+    
+    OpenMates ha incorporado habilidades de aplicaciones más útiles en categorías cotidianas. Las búsquedas de viajes son ahora más prácticas con conexiones de tren y enlaces de reserva, Eventos ha ganado fuentes más útiles, Código ha mejorado en la comprensión de repositorios y varios tipos de elementos incrustados son ahora más claros y fáciles de usar.
+    
+    En lugar de limitarse a responder basándose en la memoria del modelo, OpenMates puede utilizar cada vez más herramientas específicas: buscar, comparar, resumir, crear archivos, inspeccionar material de origen y mostrar resultados estructurados directamente en el chat.
+    
+    ## 4. Más proveedores para resultados del mundo real
+    
+    La v0.10 ha añadido y mejorado proveedores internos, por ejemplo para viajes, eventos, pagos y seguridad de contenido. Esto es importante porque una habilidad solo es útil cuando el resultado es actual, está respaldado por fuentes y es lo suficientemente específico como para ser utilizado.
+    
+    Para los usuarios, el efecto visible es sencillo: tarjetas más completas, mejor atribución de fuentes, más enlaces directos y menos respuestas genéricas cuando un proveedor puede devolver datos reales.
+    
+    ## 5. Mejores elementos incrustados y vistas previas
+    
+    Los elementos incrustados son ahora más útiles en toda la aplicación. Los resultados de búsqueda, los enlaces de reserva, los archivos generados, las salidas de código, las imágenes y los ejemplos públicos tienen vistas previas más claras y vistas a pantalla completa, para que puedas inspeccionar los resultados sin perder el contexto de la conversación.
+    
+    ## 6. Ejemplos y páginas públicas más útiles
+    
+    Los anuncios, consejos, páginas legales y chats de ejemplo se han convertido en páginas de chat públicas propiamente dichas. Esto facilita compartir lo que OpenMates puede hacer y volver a abrir ejemplos útiles más tarde.
+    
+    ## 7. Opciones de registro y pago más fluidas
+    
+    OpenMates también ha añadido transferencias bancarias SEPA a través de Revolut Business, ha mejorado el proceso de pago con Stripe para usuarios de fuera de la UE y ha añadido la posibilidad de cambiar el correo electrónico de la cuenta. No son funciones espectaculares, pero hacen que lo básico sea menos frágil cuando realmente quieres usar el producto.
+    
+    # Qué significa esto para el uso diario
+    
+    OpenMates debería sentirse ahora más como un espacio de trabajo útil: las respuestas pueden contener enlaces de aprendizaje, puedes marcar y volver a consultar partes importantes, más habilidades de aplicaciones pueden devolver resultados estructurados reales y los ejemplos públicos son más fáciles de compartir.
+    
+    Como siempre, gran parte del trabajo también ha consistido en la corrección de errores invisibles y mejoras de fiabilidad, especialmente en lo que respecta a la sincronización de chats cifrados, los elementos incrustados, el registro y el comportamiento en Safari.
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    Salut,
+    
+    OpenMates v0.10 visait principalement à rendre le produit plus utile au quotidien : des réponses plus claires, des discussions plus fluides, plus d'applications et de fournisseurs, et de meilleures façons d'apprendre et d'avancer dans tes tâches.
+    
+    [cta]
+    
+    # ✨ Les points forts
+    
+    ## 1. Des liens Wikipédia directement dans les réponses
+    
+    OpenMates peut désormais mettre en avant des sujets Wikipédia pertinents directement dans les réponses de l'assistant. Lorsqu'un concept mérite d'être approfondi, tu peux cliquer sur le terme mis en évidence et en apprendre plus rapidement sans quitter le fil de la discussion.
+    
+    C'est particulièrement utile pour l'apprentissage, la recherche, la planification de voyages, les questions d'histoire, les sujets scientifiques ou tout ce qui ouvre de nouvelles pistes d'exploration.
+    
+    ## 2. Surlignage de messages et commentaires
+    
+    Tu peux désormais surligner des parties des messages de l'assistant et y ajouter des notes. Cela rend les réponses longues bien plus utiles : sauvegarde un paragraphe important, marque un élément à revoir plus tard ou ajoute un commentaire à côté d'une affirmation ou d'une recommandation spécifique.
+    
+    ## 3. Nouvelles applications et compétences
+    
+    OpenMates s'est enrichi de compétences applicatives utiles dans des catégories du quotidien. Les recherches de voyage sont devenues plus pratiques avec les liaisons ferroviaires et les liens de réservation, les Événements bénéficient de sources plus pertinentes, le Code comprend mieux les dépôts, et plusieurs types d'intégrations sont devenus plus clairs et interactifs.
+    
+    Au lieu de répondre uniquement à partir de la mémoire du modèle, OpenMates peut de plus en plus utiliser des outils dédiés : rechercher, comparer, résumer, créer des fichiers, inspecter les sources et afficher des résultats structurés directement dans le chat.
+    
+    ## 4. Plus de fournisseurs pour des résultats concrets
+    
+    La v0.10 a ajouté et amélioré des fournisseurs en coulisses, par exemple pour les voyages, les événements, les paiements et la sécurité du contenu. C'est important car une compétence n'est utile que si le résultat est actuel, sourcé et suffisamment précis pour être exploité.
+    
+    Pour les utilisateurs, l'effet visible est simple : des fiches plus riches, une meilleure attribution des sources, plus de liens directs et moins de réponses génériques lorsqu'un fournisseur peut renvoyer des données réelles.
+    
+    ## 5. Meilleures intégrations et aperçus
+    
+    Les intégrations sont devenues plus utiles dans toute l'application. Les résultats de recherche, les liens de réservation, les fichiers générés, les sorties de code, les images et les exemples publics bénéficient d'aperçus plus clairs et de vues plein écran, pour que tu puisses inspecter les résultats sans perdre le contexte de la conversation.
+    
+    ## 6. Des exemples et des pages publiques plus utiles
+    
+    Les annonces, conseils, pages légales et exemples de discussions sont devenus de véritables pages de chat publiques. Cela facilite le partage des capacités d'OpenMates et permet de retrouver facilement des exemples utiles plus tard.
+    
+    ## 7. Inscription et options de paiement simplifiées
+    
+    OpenMates a également ajouté les virements bancaires SEPA via Revolut Business, amélioré le paiement Stripe pour les utilisateurs hors UE et ajouté la modification de l'adresse e-mail du compte. Ce ne sont pas des fonctionnalités spectaculaires, mais elles rendent l'utilisation de base plus robuste quand on en a besoin.
+    
+    # Ce que cela change au quotidien
+    
+    OpenMates ressemble désormais davantage à un espace de travail utile : les réponses peuvent contenir des liens d'apprentissage, tu peux marquer et revenir sur des parties importantes, plus de compétences applicatives peuvent renvoyer des résultats structurés concrets, et les exemples publics sont plus faciles à partager.
+    
+    Comme toujours, une grande partie du travail a porté sur la correction de bugs invisibles et l'amélioration de la fiabilité — notamment concernant la synchronisation chiffrée des discussions, les intégrations, l'inscription et le comportement sur Safari.
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Olá,
+    
+    O OpenMates v0.10 focou principalmente em tornar o produto mais útil em situações do dia a dia: respostas mais claras, conversas mais fluidas, mais apps e provedores, e melhores formas de aprender e realizar tarefas.
+    
+    [cta]
+    
+    # ✨ Os destaques
+    
+    ## 1. Links da Wikipedia diretamente nas respostas
+    
+    O OpenMates agora pode destacar tópicos relevantes da Wikipedia diretamente nas respostas do assistente. Quando um conceito vale a pena ser explorado, você pode clicar no termo destacado e aprender mais rapidamente sem sair do fluxo da conversa.
+    
+    Isso é especialmente útil para aprendizado, pesquisa, planejamento de viagens, perguntas de história, tópicos científicos ou qualquer coisa em que a resposta abra caminho para novas descobertas.
+    
+    ## 2. Destaques e comentários em mensagens
+    
+    Agora você pode destacar partes das mensagens do assistente e fazer anotações nelas. Isso torna as respostas longas muito mais úteis: salve o parágrafo importante, marque algo que deseja revisitar ou mantenha um comentário ao lado de uma afirmação ou recomendação específica.
+    
+    ## 3. Novos apps e habilidades de app
+    
+    O OpenMates ganhou habilidades de app mais úteis em categorias do cotidiano. As buscas de viagens tornaram-se mais práticas com conexões de trem e links de reserva, Eventos ganhou fontes de eventos mais úteis, Código ficou melhor em entender repositórios, e vários tipos de embeds tornaram-se mais claros e fáceis de interagir.
+    
+    Em vez de apenas responder com base na memória do modelo, o OpenMates pode usar cada vez mais ferramentas dedicadas: pesquisar, comparar, resumir, criar arquivos, inspecionar material de origem e mostrar resultados estruturados diretamente no chat.
+    
+    ## 4. Mais provedores para resultados do mundo real
+    
+    A v0.10 adicionou e melhorou provedores nos bastidores, por exemplo, para viagens, eventos, pagamentos e segurança de conteúdo. Isso é importante porque uma habilidade só é útil quando o resultado é atual, baseado em fontes e específico o suficiente para ser usado.
+    
+    Para os usuários, o efeito visível é simples: cards mais ricos, melhor atribuição de fontes, mais links diretos e menos respostas genéricas quando um provedor pode retornar dados reais.
+    
+    ## 5. Melhores embeds e pré-visualizações
+    
+    Os embeds tornaram-se mais úteis em todo o app. Resultados de busca, links de reserva, arquivos gerados, saídas de código, imagens e exemplos públicos ganharam pré-visualizações mais claras e visualizações em tela cheia, para que você possa inspecionar os resultados sem perder o contexto da conversa.
+    
+    ## 6. Exemplos e páginas públicas mais úteis
+    
+    Anúncios, dicas, páginas legais e chats de exemplo tornaram-se páginas de chat públicas propriamente ditas. Isso facilita o compartilhamento do que o OpenMates pode fazer e permite abrir exemplos úteis novamente mais tarde.
+    
+    ## 7. Opções de cadastro e pagamento mais fluidas
+    
+    O OpenMates também adicionou transferências bancárias SEPA via Revolut Business, melhorou o checkout do Stripe para usuários fora da UE e adicionou a alteração de e-mail da conta. Essas não são funcionalidades chamativas, mas tornam o básico menos frágil quando você realmente quer usar o produto.
+    
+    # O que isso significa para o uso diário
+    
+    O OpenMates deve parecer mais um espaço de trabalho útil agora: as respostas podem conter links de aprendizado, você pode marcar e revisitar partes importantes, mais habilidades de app podem retornar resultados estruturados reais e os exemplos públicos são mais fáceis de compartilhar.
+    
+    Como sempre, grande parte do trabalho também envolveu correções de bugs invisíveis e melhorias de confiabilidade — especialmente em relação à sincronização de chat criptografado, embeds, cadastro e comportamento no Safari.
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Привет!
+    
+    В OpenMates v0.10 мы сосредоточились на том, чтобы сделать продукт полезнее в повседневных ситуациях: более четкие ответы, плавная работа чатов, больше приложений и провайдеров, а также новые способы учиться и решать задачи.
+    
+    [cta]
+    
+    # ✨ Главное в обновлении
+    
+    ## 1. Ссылки на Википедию прямо в ответах
+    
+    Теперь OpenMates может выделять темы из Википедии прямо в ответах ассистента. Если какое-то понятие стоит изучить подробнее, ты можешь нажать на выделенный термин и быстро узнать больше, не прерывая ход беседы.
+    
+    Это особенно полезно для учебы, исследований, планирования поездок, вопросов по истории и науке — или в любой ситуации, когда ответ заставляет углубиться в тему.
+    
+    ## 2. Выделение сообщений и комментарии
+    
+    Теперь ты можешь выделять части сообщений ассистента и оставлять к ним заметки. Это делает длинные ответы гораздо полезнее: сохрани важный абзац, отметь то, к чему хочешь вернуться позже, или оставь комментарий к конкретному утверждению или рекомендации.
+    
+    ## 3. Новые приложения и навыки
+    
+    В OpenMates появилось больше полезных навыков в повседневных категориях. Поиск поездок стал практичнее благодаря информации о поездах и ссылкам на бронирование, в «Событиях» добавились новые источники, «Код» стал лучше понимать репозитории, а несколько типов встроенных элементов стали понятнее и удобнее в использовании.
+    
+    Вместо того чтобы отвечать только по памяти модели, OpenMates всё чаще использует специальные инструменты: поиск, сравнение, суммаризацию, создание файлов, анализ исходных материалов и отображение структурированных результатов прямо в чате.
+    
+    ## 4. Больше провайдеров для реальных результатов
+    
+    В версии 0.10 мы добавили и улучшили работу провайдеров «под капотом» — например, для путешествий, событий, платежей и безопасности контента. Это важно, потому что навык полезен только тогда, когда результат актуален, подтвержден источниками и достаточно конкретен для использования.
+    
+    Для пользователей результат очевиден: более информативные карточки, четкое указание источников, больше прямых ссылок и меньше общих ответов там, где провайдер может предоставить реальные данные.
+    
+    ## 5. Улучшенные вставки и предпросмотр
+    
+    Встроенные элементы (эмбеды) стали полезнее во всем приложении. Результаты поиска, ссылки на бронирование, созданные файлы, вывод кода, изображения и публичные примеры получили более четкий предпросмотр и полноэкранный режим, чтобы ты мог изучать результаты, не теряя контекст беседы.
+    
+    ## 6. Полезные примеры и публичные страницы
+    
+    Объявления, советы, юридические страницы и примеры чатов превратились в полноценные публичные страницы. Теперь проще делиться возможностями OpenMates и возвращаться к полезным примерам позже.
+    
+    ## 7. Удобная регистрация и способы оплаты
+    
+    В OpenMates также добавились банковские переводы SEPA через Revolut Business, улучшилась оплата через Stripe для пользователей за пределами ЕС и появилась возможность смены email аккаунта. Это не самые яркие функции, но они делают базовые вещи надежнее, когда тебе действительно нужно воспользоваться продуктом.
+    
+    # Что это значит для повседневного использования
+    
+    Теперь OpenMates больше похож на полноценное рабочее пространство: ответы могут содержать обучающие ссылки, ты можешь отмечать важные части и возвращаться к ним, навыки приложений выдают реальные структурированные результаты, а публичными примерами легче делиться.
+    
+    Как всегда, большая часть работы осталась «невидимой»: исправление ошибок и повышение стабильности — особенно в синхронизации зашифрованных чатов, вставках, регистрации и работе в Safari.
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    こんにちは、
+    
+    OpenMates v0.10では、日常のあらゆる場面でより便利に感じられるよう、回答の明確化、チャットの円滑化、アプリやプロバイダーの拡充、そして学習やタスク遂行のための機能向上に重点を置きました。
+    
+    [cta]
+    
+    # ✨ 主なアップデート内容
+    
+    ## 1. 回答内にWikipediaリンクを直接表示
+    
+    アシスタントの回答内で、関連するWikipediaのトピックを直接ハイライトできるようになりました。さらに詳しく知りたい概念がある場合、ハイライトされた用語をクリックするだけで、チャットの流れを止めることなくすぐに詳細を確認できます。
+    
+    これは、学習、リサーチ、旅行の計画、歴史や科学に関する質問など、回答からさらに興味が広がるような場面で特に役立ちます。
+    
+    ## 2. メッセージのハイライトとコメント
+    
+    アシスタントのメッセージの一部をハイライトし、メモを残せるようになりました。これにより、長い回答がより使いやすくなります。重要な段落を保存したり、後で見返したい箇所に印を付けたり、特定の主張や推奨事項の横にコメントを残したりすることが可能です。
+    
+    ## 3. 新しいアプリとアプリスキル
+    
+    日常的なカテゴリーにおいて、より便利なアプリスキルが追加されました。旅行検索では電車の乗り換えや予約リンクが表示されるようになり、イベント検索ではより有用な情報源が追加されました。コード関連ではリポジトリの理解度が向上し、いくつかの埋め込みタイプもより明確で操作しやすくなりました。
+    
+    モデルの記憶から回答するだけでなく、検索、比較、要約、ファイル作成、ソース資料の調査、構造化された結果の表示など、専用のツールをチャット内で直接活用できるようになっています。
+    
+    ## 4. 実用的な結果のためのプロバイダー拡充
+    
+    v0.10では、旅行、イベント、決済、コンテンツの安全性など、バックグラウンドで動作するプロバイダーを追加・改善しました。スキルが真に役立つためには、結果が最新で、根拠があり、具体的である必要があるからです。
+    
+    ユーザーにとってのメリットは明確です。より詳細なカード、適切な出典表示、直接的なリンクが増え、プロバイダーから実際のデータを取得できる場合には、抽象的な回答が少なくなります。
+    
+    ## 5. 埋め込みとプレビューの改善
+    
+    アプリ全体で埋め込み機能がより便利になりました。検索結果、予約リンク、生成されたファイル、コード出力、画像、公開サンプルなどのプレビューがより鮮明になり、全画面表示も可能になったため、会話の文脈を維持したまま結果を確認できます。
+    
+    ## 6. より便利なサンプルと公開ページ
+    
+    お知らせ、ヒント、法的ページ、チャットのサンプルが、適切な公開チャットページとして整備されました。これにより、OpenMatesでできることを共有したり、役立つサンプルを後で開き直したりすることが容易になります。
+    
+    ## 7. 登録と決済オプションの円滑化
+    
+    Revolut Business経由のSEPA銀行振込の追加、EU圏外のユーザー向けのStripeチェックアウトの改善、アカウントメールアドレスの変更機能を追加しました。これらは派手な機能ではありませんが、製品を実際に使用する際の基本的な利便性を高めるものです。
+    
+    # 日常での利用における変化
+    
+    OpenMatesは、より便利なワークスペースのように感じられるはずです。回答に学習用リンクが含まれ、重要な箇所をマークして後で見返すことができ、より多くのアプリスキルが構造化された実際の結果を返し、公開サンプルも簡単に共有できるようになりました。
+    
+    いつものように、暗号化されたチャットの同期、埋め込み、登録、Safariでの動作など、目に見えない部分でのバグ修正や信頼性の向上にも多くの時間を費やしました。
+    
+    それでは、
+    
+    Marco  
+    OpenMates 開発者
+  ko: |
+    안녕하세요,
+    
+    OpenMates v0.10은 더 명확한 답변, 더 매끄러운 채팅, 더 많은 앱과 제공업체, 그리고 학습하고 업무를 처리하는 더 나은 방법들을 통해 제품이 일상적인 상황에서 더 유용하게 느껴지도록 만드는 데 집중했습니다.
+    
+    [cta]
+    
+    # ✨ 주요 업데이트 내용
+    
+    ## 1. 답변 내 위키백과 링크 직접 연결
+    
+    이제 OpenMates는 어시스턴트 답변 내에서 관련 위키백과 주제를 직접 강조 표시할 수 있습니다. 더 깊이 탐구할 가치가 있는 개념이 나오면, 강조된 용어를 클릭하여 채팅 흐름을 벗어나지 않고도 빠르게 더 많은 정보를 확인할 수 있습니다.
+    
+    이는 학습, 연구, 여행 계획, 역사 질문, 과학 주제 등 답변을 통해 새로운 궁금증이 꼬리에 꼬리를 무는 모든 경우에 특히 유용합니다.
+    
+    ## 2. 메시지 강조 및 댓글
+    
+    이제 어시스턴트 메시지의 일부를 강조 표시하고 메모를 남길 수 있습니다. 이를 통해 긴 답변을 훨씬 더 유용하게 활용할 수 있습니다. 중요한 단락을 저장하거나, 나중에 다시 확인하고 싶은 부분을 표시하거나, 특정 주장이나 추천 사항 옆에 의견을 남겨보세요.
+    
+    ## 3. 새로운 앱 및 앱 스킬
+    
+    OpenMates는 일상적인 카테고리 전반에 걸쳐 더 유용한 앱 스킬을 갖추게 되었습니다. 여행 검색은 기차 연결 및 예약 링크를 통해 더 실용적으로 변했고, 이벤트는 더 유용한 이벤트 소스를 확보했으며, 코드는 저장소를 더 잘 이해하게 되었고, 여러 임베드 유형은 더 명확해지고 실행하기 쉬워졌습니다.
+    
+    모델의 기억에만 의존해 답변하는 대신, OpenMates는 검색, 비교, 요약, 파일 생성, 소스 자료 검토, 채팅 내 구조화된 결과 표시 등 전용 도구를 점점 더 많이 활용할 수 있습니다.
+    
+    ## 4. 실제 결과를 위한 더 많은 제공업체
+    
+    v0.10에서는 여행, 이벤트, 결제, 콘텐츠 안전 등 보이지 않는 곳에서 제공업체를 추가하고 개선했습니다. 스킬은 결과가 최신 상태이고, 출처가 뒷받침되며, 바로 사용할 수 있을 만큼 구체적일 때만 유용하기 때문에 이는 매우 중요합니다.
+    
+    사용자에게 보이는 효과는 간단합니다. 제공업체가 실제 데이터를 반환할 수 있게 됨에 따라 더 풍부한 카드, 더 나은 출처 표기, 더 많은 직접 링크, 그리고 덜 일반적인 답변을 제공합니다.
+    
+    ## 5. 더 나은 임베드 및 미리보기
+    
+    앱 전반에서 임베드가 더 유용해졌습니다. 검색 결과, 예약 링크, 생성된 파일, 코드 출력, 이미지 및 공개 예시는 더 명확한 미리보기와 전체 화면 보기를 제공하므로, 대화의 맥락을 잃지 않고 결과를 확인할 수 있습니다.
+    
+    ## 6. 더 유용한 예시 및 공개 페이지
+    
+    공지사항, 팁, 법적 페이지 및 예시 채팅이 정식 공개 채팅 페이지로 전환되었습니다. 이를 통해 OpenMates가 할 수 있는 일을 더 쉽게 공유하고, 유용한 예시를 나중에 다시 열어보는 것이 더 간편해졌습니다.
+    
+    ## 7. 더 매끄러운 가입 및 결제 옵션
+    
+    또한 OpenMates는 Revolut Business를 통한 SEPA 은행 송금을 추가하고, EU 외부 사용자를 위한 Stripe 결제를 개선했으며, 계정 이메일 변경 기능을 추가했습니다. 화려한 기능은 아니지만, 실제로 제품을 사용하고자 할 때 기본적인 기능들이 더 안정적으로 작동하도록 돕습니다.
+    
+    # 일상적인 사용에 미치는 영향
+    
+    이제 OpenMates는 유용한 워크스페이스처럼 느껴질 것입니다. 답변에는 학습 링크가 포함될 수 있고, 중요한 부분을 표시하고 다시 방문할 수 있으며, 더 많은 앱 스킬이 실제 구조화된 결과를 반환하고, 공개 예시를 더 쉽게 공유할 수 있습니다.
+    
+    언제나 그렇듯, 암호화된 채팅 동기화, 임베드, 가입, Safari 동작 등 보이지 않는 곳에서의 버그 수정과 안정성 개선 작업도 많이 이루어졌습니다.
+    
+    그럼,
+    
+    Marco  
+    OpenMates 제작자
+  it: |
+    Ciao,
+    
+    OpenMates v0.10 si è concentrata soprattutto sul rendere il prodotto più utile nelle situazioni quotidiane: risposte più chiare, chat più fluide, più app e provider, e modi migliori per imparare e fare le cose.
+    
+    [cta]
+    
+    # ✨ Le novità principali
+    
+    ## 1. Link a Wikipedia direttamente nelle risposte
+    
+    OpenMates ora può evidenziare argomenti rilevanti di Wikipedia direttamente nelle risposte dell'assistente. Quando un concetto merita di essere approfondito, puoi cliccare sul termine evidenziato e imparare rapidamente di più senza interrompere il flusso della chat.
+    
+    Questo è particolarmente utile per l'apprendimento, la ricerca, la pianificazione di viaggi, domande di storia, argomenti scientifici o qualsiasi cosa in cui la risposta apra nuovi spunti di approfondimento.
+    
+    ## 2. Evidenziazioni e commenti ai messaggi
+    
+    Ora puoi evidenziare parti dei messaggi dell'assistente e aggiungere delle note. Questo rende le risposte lunghe molto più utili: salva il paragrafo importante, segna qualcosa che vuoi rivedere o aggiungi un commento accanto a una specifica affermazione o raccomandazione.
+    
+    ## 3. Nuove app e funzionalità
+    
+    OpenMates ha acquisito funzionalità più utili in diverse categorie quotidiane. Le ricerche di viaggio sono diventate più pratiche con collegamenti ferroviari e link di prenotazione, la sezione Eventi ha ottenuto fonti più utili, Code è migliorata nel comprendere i repository e diversi tipi di contenuti incorporati sono diventati più chiari e facili da gestire.
+    
+    Invece di rispondere solo basandosi sulla memoria del modello, OpenMates può utilizzare sempre più strumenti dedicati: cercare, confrontare, riassumere, creare file, ispezionare il materiale sorgente e mostrare risultati strutturati direttamente nella chat.
+    
+    ## 4. Più provider per risultati reali
+    
+    La v0.10 ha aggiunto e migliorato i provider dietro le quinte, ad esempio per viaggi, eventi, pagamenti e sicurezza dei contenuti. Questo è importante perché una funzionalità è utile solo quando il risultato è aggiornato, supportato da fonti e abbastanza specifico da essere utilizzato.
+    
+    Per gli utenti, l'effetto visibile è semplice: schede più ricche, migliore attribuzione delle fonti, più link diretti e meno risposte generiche quando un provider può restituire dati reali.
+    
+    ## 5. Embed e anteprime migliori
+    
+    I contenuti incorporati (embed) sono diventati più utili in tutta l'app. Risultati di ricerca, link di prenotazione, file generati, output di codice, immagini ed esempi pubblici hanno ora anteprime più chiare e visualizzazioni a schermo intero, così puoi ispezionare i risultati senza perdere il contesto della conversazione.
+    
+    ## 6. Esempi e pagine pubbliche più utili
+    
+    Annunci, suggerimenti, pagine legali ed esempi di chat sono diventati vere e proprie pagine di chat pubbliche. Questo rende più facile condividere ciò che OpenMates può fare e riaprire esempi utili in seguito.
+    
+    ## 7. Opzioni di registrazione e pagamento più fluide
+    
+    OpenMates ha anche aggiunto i bonifici bancari SEPA tramite Revolut Business, migliorato il checkout di Stripe per gli utenti fuori dall'UE e aggiunto la possibilità di cambiare l'email dell'account. Non sono funzionalità appariscenti, ma rendono le basi meno fragili quando vuoi effettivamente usare il prodotto.
+    
+    # Cosa significa per l'uso quotidiano
+    
+    OpenMates ora dovrebbe sembrare più uno spazio di lavoro utile: le risposte possono contenere link di approfondimento, puoi segnare e rivedere parti importanti, più funzionalità delle app possono restituire risultati strutturati reali e gli esempi pubblici sono più facili da condividere.
+    
+    Come sempre, gran parte del lavoro ha riguardato anche la correzione di bug invisibili e miglioramenti dell'affidabilità, specialmente per quanto riguarda la sincronizzazione crittografata delle chat, gli embed, la registrazione e il comportamento su Safari.
+    
+    Un saluto,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    Selamlar,
+    
+    OpenMates v0.10 çoğunlukla ürünü günlük durumlarda daha kullanışlı hale getirmeye odaklandı: daha net yanıtlar, daha akıcı sohbetler, daha fazla uygulama ve sağlayıcı, öğrenmek ve işleri halletmek için daha iyi yollar.
+    
+    [cta]
+    
+    # ✨ Öne çıkanlar
+    
+    ## 1. Yanıtların içinde doğrudan Wikipedia bağlantıları
+    
+    OpenMates artık asistan yanıtlarının içinde ilgili Wikipedia konularını doğrudan vurgulayabiliyor. Bir kavram daha derinlemesine incelenmeye değer olduğunda, vurgulanan terime tıklayabilir ve sohbet akışından ayrılmadan hızlıca daha fazla bilgi edinebilirsin.
+    
+    Bu özellik özellikle öğrenme, araştırma, seyahat planlama, tarih soruları, bilim konuları veya yanıtın yeni bir merak konusuna kapı açtığı her durum için çok kullanışlıdır.
+    
+    ## 2. Mesaj vurgulama ve yorumlar
+    
+    Artık asistan mesajlarının belirli kısımlarını vurgulayabilir ve üzerlerine notlar alabilirsin. Bu, uzun yanıtları çok daha kullanışlı hale getirir: önemli bir paragrafı kaydet, tekrar bakmak istediğin bir yeri işaretle veya belirli bir iddia ya da önerinin yanına yorum ekle.
+    
+    ## 3. Yeni uygulamalar ve uygulama yetenekleri
+    
+    OpenMates günlük kategorilerde daha kullanışlı uygulama yetenekleri kazandı. Seyahat aramaları tren bağlantıları ve rezervasyon linkleri ile daha pratik hale geldi, Etkinlikler daha faydalı etkinlik kaynaklarına kavuştu, Kod depoları anlama konusunda gelişti ve çeşitli yerleştirme (embed) türleri daha net ve üzerinde işlem yapması daha kolay hale geldi.
+    
+    Sadece modelin hafızasından yanıt vermek yerine, OpenMates giderek daha fazla özel araç kullanabiliyor: arama yapma, karşılaştırma, özetleme, dosya oluşturma, kaynak materyali inceleme ve yapılandırılmış sonuçları doğrudan sohbette gösterme.
+    
+    ## 4. Gerçek dünya sonuçları için daha fazla sağlayıcı
+    
+    v0.10 ile arka planda seyahat, etkinlikler, ödemeler ve içerik güvenliği gibi alanlarda yeni sağlayıcılar eklendi ve mevcutlar iyileştirildi. Bu önemli, çünkü bir yetenek ancak sonuç güncel, kaynak destekli ve kullanılacak kadar spesifik olduğunda faydalıdır.
+    
+    Kullanıcılar için görünür etkisi basit: daha zengin kartlar, daha iyi kaynak atıfları, daha fazla doğrudan bağlantı ve bir sağlayıcı gerçek veri döndürebildiğinde daha az genel geçer yanıt.
+    
+    ## 5. Daha iyi yerleştirmeler ve önizlemeler
+    
+    Yerleştirmeler (embeds) uygulama genelinde daha kullanışlı hale geldi. Arama sonuçları, rezervasyon bağlantıları, oluşturulan dosyalar, kod çıktıları, görseller ve herkese açık örnekler daha net önizlemelere ve tam ekran görünümlere kavuştu; böylece sohbet bağlamını kaybetmeden sonuçları inceleyebilirsin.
+    
+    ## 6. Daha kullanışlı örnekler ve herkese açık sayfalar
+    
+    Duyurular, ipuçları, yasal sayfalar ve örnek sohbetler düzgün birer kamuya açık sohbet sayfası haline geldi. Bu, OpenMates'in neler yapabileceğini paylaşmayı ve faydalı örnekleri daha sonra tekrar açmayı kolaylaştırıyor.
+    
+    ## 7. Daha sorunsuz kayıt ve ödeme seçenekleri
+    
+    OpenMates ayrıca Revolut Business üzerinden SEPA banka transferlerini ekledi, AB dışındaki kullanıcılar için Stripe ödeme ekranını iyileştirdi ve hesap e-postası değiştirme özelliğini getirdi. Bunlar gösterişli özellikler değil, ancak ürünü gerçekten kullanmak istediğinde temel işlemlerin daha sağlam olmasını sağlıyorlar.
+    
+    # Günlük kullanım için ne anlama geliyor?
+    
+    OpenMates artık daha çok kullanışlı bir çalışma alanı gibi hissettirmeli: yanıtlar öğrenme bağlantıları içerebilir, önemli kısımları işaretleyip tekrar ziyaret edebilirsin, daha fazla uygulama yeteneği gerçek yapılandırılmış sonuçlar döndürebilir ve herkese açık örnekleri paylaşmak daha kolaydır.
+    
+    Her zamanki gibi, çalışmaların büyük bir kısmı görünmez hata düzeltmeleri ve güvenilirlik iyileştirmeleriydi; özellikle şifreli sohbet senkronizasyonu, yerleştirmeler, kayıt olma ve Safari davranışı konularında.
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Chào bạn,
+    
+    OpenMates v0.10 tập trung chủ yếu vào việc làm cho sản phẩm trở nên hữu ích hơn trong các tình huống hàng ngày: câu trả lời rõ ràng hơn, trò chuyện mượt mà hơn, thêm nhiều ứng dụng và nhà cung cấp hơn, cùng những cách tốt hơn để học hỏi và hoàn thành công việc.
+    
+    [cta]
+    
+    # ✨ Những điểm nổi bật
+    
+    ## 1. Liên kết Wikipedia trực tiếp trong câu trả lời
+    
+    Giờ đây OpenMates có thể làm nổi bật các chủ đề Wikipedia liên quan trực tiếp trong phản hồi của trợ lý. Khi một khái niệm đáng để tìm hiểu thêm, bạn có thể nhấp vào thuật ngữ được làm nổi bật và nhanh chóng tìm hiểu thêm mà không cần rời khỏi luồng trò chuyện.
+    
+    Điều này đặc biệt hữu ích cho việc học tập, nghiên cứu, lập kế hoạch du lịch, các câu hỏi lịch sử, chủ đề khoa học hoặc bất cứ điều gì mà câu trả lời mở ra một hướng tìm tòi mới.
+    
+    ## 2. Làm nổi bật tin nhắn và nhận xét
+    
+    Giờ đây bạn có thể làm nổi bật các phần trong tin nhắn của trợ lý và ghi chú lại. Điều này giúp các câu trả lời dài trở nên hữu ích hơn nhiều: lưu lại đoạn văn quan trọng, đánh dấu nội dung bạn muốn xem lại hoặc để lại nhận xét bên cạnh một khẳng định hoặc đề xuất cụ thể.
+    
+    ## 3. Ứng dụng và kỹ năng ứng dụng mới
+    
+    OpenMates đã có thêm các kỹ năng ứng dụng hữu ích hơn trong các danh mục hàng ngày. Tìm kiếm du lịch trở nên thực tế hơn với các kết nối tàu hỏa và liên kết đặt chỗ, Sự kiện có thêm các nguồn sự kiện hữu ích, Mã nguồn hiểu các kho lưu trữ tốt hơn và một số loại nội dung nhúng trở nên rõ ràng và dễ thao tác hơn.
+    
+    Thay vì chỉ trả lời từ bộ nhớ của mô hình, OpenMates ngày càng có thể sử dụng các công cụ chuyên dụng: tìm kiếm, so sánh, tóm tắt, tạo tệp, kiểm tra tài liệu nguồn và hiển thị kết quả có cấu trúc trực tiếp trong cuộc trò chuyện.
+    
+    ## 4. Thêm nhiều nhà cung cấp cho kết quả thực tế
+    
+    Phiên bản v0.10 đã thêm và cải thiện các nhà cung cấp ở phía sau, ví dụ như về du lịch, sự kiện, thanh toán và an toàn nội dung. Điều này quan trọng vì một kỹ năng chỉ hữu ích khi kết quả mang tính cập nhật, có nguồn gốc rõ ràng và đủ cụ thể để sử dụng.
+    
+    Đối với người dùng, hiệu quả rõ rệt nhất là: các thẻ thông tin phong phú hơn, trích dẫn nguồn tốt hơn, nhiều liên kết trực tiếp hơn và ít câu trả lời chung chung hơn khi nhà cung cấp có thể trả về dữ liệu thực tế.
+    
+    ## 5. Nội dung nhúng và xem trước tốt hơn
+    
+    Các nội dung nhúng đã trở nên hữu ích hơn trong toàn bộ ứng dụng. Kết quả tìm kiếm, liên kết đặt chỗ, tệp được tạo, đầu ra mã nguồn, hình ảnh và các ví dụ công khai đã có bản xem trước rõ ràng hơn và chế độ xem toàn màn hình, nhờ đó bạn có thể kiểm tra kết quả mà không làm mất ngữ cảnh cuộc trò chuyện.
+    
+    ## 6. Các ví dụ và trang công khai hữu ích hơn
+    
+    Các thông báo, mẹo, trang pháp lý và các cuộc trò chuyện ví dụ đã trở thành các trang trò chuyện công khai chính thức. Điều này giúp việc chia sẻ những gì OpenMates có thể làm trở nên dễ dàng hơn và có thể mở lại các ví dụ hữu ích sau này.
+    
+    ## 7. Tùy chọn đăng ký và thanh toán mượt mà hơn
+    
+    OpenMates cũng đã thêm chuyển khoản ngân hàng SEPA qua Revolut Business, cải thiện quy trình thanh toán Stripe cho người dùng ngoài EU và thêm tính năng thay đổi email tài khoản. Đây không phải là những tính năng hào nhoáng, nhưng chúng giúp các bước cơ bản ổn định hơn khi bạn thực sự muốn sử dụng sản phẩm.
+    
+    # Ý nghĩa đối với việc sử dụng hàng ngày
+    
+    Giờ đây OpenMates sẽ mang lại cảm giác giống như một không gian làm việc hữu ích hơn: các câu trả lời có thể chứa các liên kết học tập, bạn có thể đánh dấu và xem lại các phần quan trọng, nhiều kỹ năng ứng dụng hơn có thể trả về kết quả có cấu trúc thực tế và các ví dụ công khai dễ dàng chia sẻ hơn.
+    
+    Như thường lệ, rất nhiều công việc cũng bao gồm việc sửa lỗi và cải thiện độ tin cậy một cách thầm lặng — đặc biệt là xung quanh việc đồng bộ hóa trò chuyện được mã hóa, nội dung nhúng, đăng ký và hành vi trên Safari.
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng tạo OpenMates
+  id: |
+    Halo,
+    
+    OpenMates v0.10 sebagian besar berfokus pada membuat produk terasa lebih berguna dalam situasi sehari-hari: jawaban yang lebih jelas, obrolan yang lebih lancar, lebih banyak aplikasi dan penyedia, serta cara yang lebih baik untuk belajar dan menyelesaikan berbagai hal.
+    
+    [cta]
+    
+    # ✨ Sorotan utama
+    
+    ## 1. Tautan Wikipedia langsung di dalam jawaban
+    
+    OpenMates kini dapat menyoroti topik Wikipedia yang relevan langsung di dalam respons asisten. Saat sebuah konsep layak untuk dipelajari lebih lanjut, kamu dapat mengeklik istilah yang disorot dan mempelajarinya dengan cepat tanpa harus meninggalkan alur obrolan.
+    
+    Ini sangat berguna untuk belajar, riset, perencanaan perjalanan, pertanyaan sejarah, topik sains, atau apa pun di mana jawabannya membuka rasa ingin tahu yang lebih dalam.
+    
+    ## 2. Sorotan pesan dan komentar
+    
+    Kamu sekarang dapat menyoroti bagian dari pesan asisten dan menyimpan catatan di sana. Ini membuat jawaban yang panjang jadi jauh lebih berguna: simpan paragraf penting, tandai sesuatu yang ingin kamu tinjau kembali, atau simpan komentar di samping klaim atau rekomendasi tertentu.
+    
+    ## 3. Aplikasi dan keahlian aplikasi baru
+    
+    OpenMates mendapatkan lebih banyak keahlian aplikasi yang berguna di berbagai kategori sehari-hari. Pencarian perjalanan menjadi lebih praktis dengan koneksi kereta dan tautan pemesanan, Acara mendapatkan sumber acara yang lebih berguna, Kode menjadi lebih baik dalam memahami repositori, dan beberapa jenis sematan menjadi lebih jelas dan lebih mudah ditindaklanjuti.
+    
+    Alih-alih hanya menjawab dari memori model, OpenMates semakin bisa menggunakan alat khusus: mencari, membandingkan, meringkas, membuat file, memeriksa materi sumber, dan menampilkan hasil terstruktur langsung di dalam obrolan.
+    
+    ## 4. Lebih banyak penyedia untuk hasil dunia nyata
+    
+    v0.10 menambahkan dan meningkatkan penyedia di balik layar, misalnya untuk perjalanan, acara, pembayaran, dan keamanan konten. Ini penting karena sebuah keahlian hanya berguna jika hasilnya mutakhir, didukung sumber, dan cukup spesifik untuk digunakan.
+    
+    Bagi pengguna, efek yang terlihat sederhana: kartu yang lebih kaya, atribusi sumber yang lebih baik, lebih banyak tautan langsung, dan lebih sedikit jawaban umum saat penyedia dapat memberikan data nyata.
+    
+    ## 5. Sematan dan pratinjau yang lebih baik
+    
+    Sematan menjadi lebih berguna di seluruh aplikasi. Hasil pencarian, tautan pemesanan, file yang dihasilkan, output kode, gambar, dan contoh publik mendapatkan pratinjau yang lebih jelas dan tampilan layar penuh, sehingga kamu dapat memeriksa hasil tanpa kehilangan konteks percakapan.
+    
+    ## 6. Contoh dan halaman publik yang lebih berguna
+    
+    Pengumuman, tips, halaman hukum, dan contoh obrolan menjadi halaman obrolan publik yang semestinya. Hal ini memudahkan untuk membagikan apa yang bisa dilakukan OpenMates dan membuka kembali contoh-contoh yang berguna di kemudian hari.
+    
+    ## 7. Opsi pendaftaran dan pembayaran yang lebih lancar
+    
+    OpenMates juga menambahkan transfer bank SEPA melalui Revolut Business, meningkatkan checkout Stripe untuk pengguna di luar UE, dan menambahkan fitur perubahan email akun. Ini bukan fitur yang mencolok, tetapi membuat hal-hal mendasar menjadi lebih kokoh saat kamu benar-benar ingin menggunakan produk ini.
+    
+    # Apa artinya ini untuk penggunaan sehari-hari
+    
+    OpenMates sekarang seharusnya terasa lebih seperti ruang kerja yang berguna: jawaban dapat berisi tautan pembelajaran, kamu dapat menandai dan meninjau kembali bagian-bagian penting, lebih banyak keahlian aplikasi yang dapat memberikan hasil terstruktur yang nyata, dan contoh publik lebih mudah dibagikan.
+    
+    Seperti biasa, banyak pekerjaan yang dilakukan juga berupa perbaikan bug yang tidak terlihat dan peningkatan keandalan — terutama seputar sinkronisasi obrolan terenkripsi, sematan, pendaftaran, dan perilaku di Safari.
+    
+    Salam,
+    
+    Marco  
+    Kreator OpenMates
+  pl: |
+    Cześć,
+    
+    OpenMates v0.10 skupia się przede wszystkim na tym, aby produkt był bardziej przydatny w codziennych sytuacjach: wyraźniejsze odpowiedzi, płynniejsze czaty, więcej aplikacji i dostawców oraz lepsze sposoby na naukę i realizację zadań.
+    
+    [cta]
+    
+    # ✨ Najważniejsze nowości
+    
+    ## 1. Linki do Wikipedii bezpośrednio w odpowiedziach
+    
+    OpenMates może teraz wyróżniać istotne tematy z Wikipedii bezpośrednio w odpowiedziach asystenta. Gdy jakieś pojęcie jest warte zgłębienia, możesz kliknąć wyróżniony termin i szybko dowiedzieć się więcej, nie przerywając rozmowy.
+    
+    Jest to szczególnie przydatne podczas nauki, researchu, planowania podróży, pytań o historię, tematów naukowych lub czegokolwiek, co zachęca do dalszego zgłębiania tematu.
+    
+    ## 2. Wyróżnienia i komentarze do wiadomości
+    
+    Możesz teraz wyróżniać fragmenty wiadomości asystenta i dodawać do nich notatki. Dzięki temu dłuższe odpowiedzi stają się znacznie bardziej użyteczne: zapisz ważny akapit, zaznacz coś, do czego chcesz wrócić, lub dodaj komentarz obok konkretnego twierdzenia lub rekomendacji.
+    
+    ## 3. Nowe aplikacje i umiejętności
+    
+    OpenMates zyskało więcej przydatnych umiejętności w codziennych kategoriach. Wyszukiwanie podróży stało się bardziej praktyczne dzięki połączeniom kolejowym i linkom do rezerwacji, Wydarzenia zyskały więcej przydatnych źródeł, Kod lepiej radzi sobie ze zrozumieniem repozytoriów, a kilka typów osadzonych treści stało się wyraźniejszych i łatwiejszych w obsłudze.
+    
+    Zamiast odpowiadać wyłącznie na podstawie pamięci modelu, OpenMates coraz częściej korzysta z dedykowanych narzędzi: wyszukiwania, porównywania, podsumowywania, tworzenia plików, sprawdzania materiałów źródłowych i wyświetlania ustrukturyzowanych wyników bezpośrednio w czacie.
+    
+    ## 4. Więcej dostawców dla rzeczywistych wyników
+    
+    W wersji 0.10 dodaliśmy i ulepszyliśmy dostawców „za kulisami”, na przykład w zakresie podróży, wydarzeń, płatności i bezpieczeństwa treści. Ma to znaczenie, ponieważ umiejętność jest przydatna tylko wtedy, gdy wynik jest aktualny, poparty źródłami i wystarczająco konkretny, by go wykorzystać.
+    
+    Dla użytkowników widoczny efekt jest prosty: bogatsze karty, lepsze przypisanie źródeł, więcej bezpośrednich linków i mniej ogólnych odpowiedzi, gdy dostawca może zwrócić rzeczywiste dane.
+    
+    ## 5. Lepsze osadzone treści i podglądy
+    
+    Osadzone treści stało się bardziej użyteczne w całej aplikacji. Wyniki wyszukiwania, linki do rezerwacji, wygenerowane pliki, wyniki kodu, obrazy i publiczne przykłady zyskały wyraźniejsze podglądy i widoki pełnoekranowe, dzięki czemu możesz sprawdzać wyniki bez utraty kontekstu rozmowy.
+    
+    ## 6. Bardziej przydatne przykłady i strony publiczne
+    
+    Ogłoszenia, wskazówki, strony prawne i przykładowe czaty stały się pełnoprawnymi publicznymi stronami czatu. Ułatwia to udostępnianie możliwości OpenMates i ponowne otwieranie przydatnych przykładów w przyszłości.
+    
+    ## 7. Sprawniejsza rejestracja i opcje płatności
+    
+    OpenMates dodało również przelewy bankowe SEPA przez Revolut Business, ulepszyło płatności Stripe dla użytkowników spoza UE oraz dodało możliwość zmiany adresu e-mail konta. Nie są to widowiskowe funkcje, ale sprawiają, że podstawy działają stabilniej, gdy faktycznie chcesz korzystać z produktu.
+    
+    # Co to oznacza w codziennym użytkowaniu
+    
+    OpenMates powinno teraz bardziej przypominać przydatną przestrzeń roboczą: odpowiedzi mogą zawierać linki do nauki, możesz zaznaczać i wracać do ważnych fragmentów, więcej umiejętności aplikacji może zwracać rzeczywiste, ustrukturyzowane wyniki, a publiczne przykłady są łatwiejsze do udostępniania.
+    
+    Jak zawsze, duża część pracy to niewidoczne poprawki błędów i ulepszenia niezawodności – szczególnie w zakresie szyfrowanej synchronizacji czatów, osadzonych treści, rejestracji i działania w przeglądarce Safari.
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Hoi,
+    
+    OpenMates v0.10 draaide vooral om het product nuttiger te maken in alledaagse situaties: duidelijkere antwoorden, soepelere chats, meer apps en providers, en betere manieren om te leren en dingen gedaan te krijgen.
+    
+    [cta]
+    
+    # ✨ De hoogtepunten
+    
+    ## 1. Wikipedia-links direct in antwoorden
+    
+    OpenMates kan nu relevante Wikipedia-onderwerpen direct in de antwoorden van de assistent markeren. Wanneer een concept de moeite waard is om verder te verkennen, kun je op de gemarkeerde term klikken en snel meer leren zonder de chat te verlaten.
+    
+    Dit is vooral handig voor leren, onderzoek, reisplanning, geschiedenisvragen, wetenschappelijke onderwerpen, of alles waarbij het antwoord een nieuw 'rabbit hole' opent.
+    
+    ## 2. Berichten markeren en opmerkingen
+    
+    Je kunt nu delen van assistent-berichten markeren en er aantekeningen bij maken. Dit maakt langere antwoorden veel nuttiger: sla de belangrijke alinea op, markeer iets waar je later op terug wilt komen, of plaats een opmerking bij een specifieke bewering of aanbeveling.
+    
+    ## 3. Nieuwe apps en app-vaardigheden
+    
+    OpenMates heeft meer nuttige app-vaardigheden gekregen in alledaagse categorieën. Zoekopdrachten voor reizen zijn praktischer geworden met treinverbindingen en boekingslinks, Events heeft nuttigere bronnen gekregen, Code is beter geworden in het begrijpen van repositories, en verschillende embed-types zijn duidelijker en actiegerichter geworden.
+    
+    In plaats van alleen te antwoorden vanuit het geheugen van het model, kan OpenMates steeds vaker specifieke tools gebruiken: zoeken, vergelijken, samenvatten, bestanden maken, bronmateriaal inspecteren en gestructureerde resultaten direct in de chat tonen.
+    
+    ## 4. Meer providers voor resultaten uit de echte wereld
+    
+    v0.10 heeft achter de schermen providers toegevoegd en verbeterd, bijvoorbeeld voor reizen, evenementen, betalingen en inhoudsbeveiliging. Dit is belangrijk omdat een vaardigheid pas nuttig is als het resultaat actueel is, onderbouwd door bronnen en specifiek genoeg om te gebruiken.
+    
+    Voor gebruikers is het zichtbare effect simpel: rijkere kaarten, betere bronvermelding, meer directe links en minder generieke antwoorden wanneer een provider echte data kan teruggeven.
+    
+    ## 5. Betere embeds en voorvertoningen
+    
+    Embeds zijn overal in de app nuttiger geworden. Zoekresultaten, boekingslinks, gegenereerde bestanden, code-outputs, afbeeldingen en openbare voorbeelden kregen duidelijkere voorvertoningen en schermvullende weergaven, zodat je resultaten kunt bekijken zonder de context van het gesprek te verliezen.
+    
+    ## 6. Nuttigere voorbeelden en openbare pagina's
+    
+    Aankondigingen, tips, juridische pagina's en voorbeeldchats zijn nu volwaardige openbare chatpagina's. Dat maakt het makkelijker om te delen wat OpenMates kan en om nuttige voorbeelden later opnieuw te openen.
+    
+    ## 7. Soepelere aanmeld- en betalingsopties
+    
+    OpenMates heeft ook SEPA-bankoverschrijvingen via Revolut Business toegevoegd, de Stripe-checkout verbeterd voor gebruikers buiten de EU, en de mogelijkheid toegevoegd om je e-mailadres te wijzigen. Dit zijn geen flitsende functies, maar ze maken de basis minder kwetsbaar wanneer je het product daadwerkelijk wilt gebruiken.
+    
+    # Wat dit betekent voor dagelijks gebruik
+    
+    OpenMates zou nu meer als een nuttige werkplek moeten aanvoelen: antwoorden kunnen links bevatten om te leren, je kunt belangrijke delen markeren en later terugkijken, meer app-vaardigheden kunnen echte gestructureerde resultaten teruggeven, en openbare voorbeelden zijn makkelijker te delen.
+    
+    Zoals altijd was veel werk ook onzichtbaar: bugfixes en verbeteringen aan de betrouwbaarheid — vooral rond versleutelde chatsynchronisatie, embeds, aanmelden en gedrag in Safari.
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    أهلاً بك،
+    
+    ركز إصدار OpenMates v0.10 بشكل أساسي على جعل المنتج أكثر فائدة في المواقف اليومية العادية: إجابات أوضح، محادثات أكثر سلاسة، المزيد من التطبيقات والمزودين، وطرق أفضل للتعلم وإنجاز المهام.
+    
+    [cta]
+    
+    # ✨ أبرز التحديثات
+    
+    ## 1. روابط ويكيبيديا مباشرة داخل الإجابات
+    
+    يمكن لـ OpenMates الآن تمييز مواضيع ويكيبيديا ذات الصلة مباشرة داخل ردود المساعد. عندما يستحق مفهوم ما المزيد من الاستكشاف، يمكنك النقر على المصطلح المميز والتعلم بسرعة دون مغادرة سياق المحادثة.
+    
+    هذا مفيد بشكل خاص للتعلم، والبحث، والتخطيط للسفر، والأسئلة التاريخية، والمواضيع العلمية، أو أي شيء تفتح فيه الإجابة آفاقاً جديدة للبحث.
+    
+    ## 2. تمييز الرسائل والتعليقات
+    
+    يمكنك الآن تمييز أجزاء من رسائل المساعد وتدوين ملاحظات عليها. وهذا يجعل الإجابات الطويلة أكثر فائدة بكثير: احفظ الفقرة المهمة، أو حدد شيئاً تريد العودة إليه لاحقاً، أو ضع تعليقاً بجانب ادعاء أو توصية محددة.
+    
+    ## 3. تطبيقات ومهارات تطبيقات جديدة
+    
+    حصل OpenMates على مهارات تطبيقات أكثر فائدة عبر الفئات اليومية. أصبحت عمليات البحث عن السفر أكثر عملية مع توفر اتصالات القطارات وروابط الحجز، واكتسبت "الفعاليات" مصادر أكثر فائدة، وأصبح "البرمجة" أفضل في فهم المستودعات، كما أصبحت عدة أنواع من العناصر المضمنة أوضح وأسهل في التعامل معها.
+    
+    بدلاً من الإجابة فقط من ذاكرة النموذج، يمكن لـ OpenMates بشكل متزايد استخدام أدوات مخصصة: البحث، المقارنة، التلخيص، إنشاء الملفات، فحص المصادر، وعرض نتائج منظمة مباشرة في المحادثة.
+    
+    ## 4. المزيد من المزودين لنتائج واقعية
+    
+    أضاف إصدار v0.10 وحسّن المزودين في الخلفية، على سبيل المثال للسفر، والفعاليات، والمدفوعات، وسلامة المحتوى. هذا أمر مهم لأن المهارة تكون مفيدة فقط عندما تكون النتيجة حديثة، ومدعومة بالمصادر، ومحددة بما يكفي للاستخدام.
+    
+    بالنسبة للمستخدمين، التأثير المرئي بسيط: بطاقات أكثر ثراءً، إسناد أفضل للمصادر، المزيد من الروابط المباشرة، وإجابات عامة أقل عندما يتمكن المزود من تقديم بيانات حقيقية.
+    
+    ## 5. تحسين العناصر المضمنة والمعاينات
+    
+    أصبحت العناصر المضمنة أكثر فائدة في جميع أنحاء التطبيق. حصلت نتائج البحث، وروابط الحجز، والملفات المنشأة، ومخرجات البرمجة، والصور، والأمثلة العامة على معاينات أوضح وعروض بملء الشاشة، بحيث يمكنك فحص النتائج دون فقدان سياق المحادثة.
+    
+    ## 6. أمثلة وصفحات عامة أكثر فائدة
+    
+    أصبحت الإعلانات، والنصائح، والصفحات القانونية، ومحادثات الأمثلة صفحات محادثة عامة حقيقية. وهذا يسهل مشاركة ما يمكن لـ OpenMates فعله وفتح الأمثلة المفيدة مرة أخرى لاحقاً.
+    
+    ## 7. خيارات تسجيل ومدفوعات أكثر سلاسة
+    
+    أضاف OpenMates أيضاً تحويلات SEPA البنكية عبر Revolut Business، وحسّن عملية الدفع عبر Stripe للمستخدمين خارج الاتحاد الأوروبي، وأضاف إمكانية تغيير بريد الحساب الإلكتروني. هذه ليست ميزات مبهرة، لكنها تجعل الأساسيات أكثر استقراراً عندما تريد فعلياً استخدام المنتج.
+    
+    # ماذا يعني هذا للاستخدام اليومي
+    
+    يجب أن يبدو OpenMates الآن كمساحة عمل مفيدة أكثر: يمكن أن تحتوي الإجابات على روابط تعليمية، ويمكنك تمييز الأجزاء المهمة والعودة إليها، ويمكن لمزيد من مهارات التطبيقات تقديم نتائج منظمة حقيقية، كما أصبحت الأمثلة العامة أسهل في المشاركة.
+    
+    وكما هو الحال دائماً، كان جزء كبير من العمل غير مرئي في إصلاح الأخطاء وتحسين الموثوقية — خاصة فيما يتعلق بمزامنة المحادثات المشفرة، والعناصر المضمنة، والتسجيل، وسلوك متصفح Safari.
+    
+    مع التحية،
+    
+    ماركو  
+    مؤسس OpenMates
+  hi: |
+    नमस्ते,
+    
+    OpenMates v0.10 मुख्य रूप से उत्पाद को सामान्य दैनिक स्थितियों में अधिक उपयोगी बनाने के बारे में था: स्पष्ट उत्तर, सहज चैट, अधिक ऐप्स और प्रदाता, और सीखने और काम पूरा करने के बेहतर तरीके।
+    
+    [cta]
+    
+    # ✨ मुख्य आकर्षण
+    
+    ## 1. उत्तरों के भीतर सीधे विकिपीडिया लिंक
+    
+    OpenMates अब सहायक की प्रतिक्रियाओं के भीतर सीधे प्रासंगिक विकिपीडिया विषयों को हाइलाइट कर सकता है। जब कोई अवधारणा आगे जानने लायक हो, तो आप हाइलाइट किए गए शब्द पर क्लिक कर सकते हैं और चैट के प्रवाह को छोड़े बिना जल्दी से अधिक जान सकते हैं।
+    
+    यह विशेष रूप से सीखने, शोध, यात्रा योजना, इतिहास के प्रश्नों, विज्ञान के विषयों, या ऐसी किसी भी चीज़ के लिए उपयोगी है जहाँ उत्तर एक नई जिज्ञासा जगाता है।
+    
+    ## 2. मैसेज हाइलाइट्स और कमेंट्स
+    
+    अब आप सहायक के संदेशों के कुछ हिस्सों को हाइलाइट कर सकते हैं और उन पर नोट्स रख सकते हैं। यह लंबे उत्तरों को बहुत अधिक उपयोगी बनाता है: महत्वपूर्ण पैराग्राफ को सहेजें, किसी ऐसी चीज़ को चिह्नित करें जिसे आप फिर से देखना चाहते हैं, या किसी विशिष्ट दावे या सिफारिश के बगल में एक टिप्पणी रखें।
+    
+    ## 3. नए ऐप्स और ऐप स्किल्स
+    
+    OpenMates को रोज़मर्रा की श्रेणियों में अधिक उपयोगी ऐप स्किल्स मिले हैं। ट्रेन कनेक्शन और बुकिंग लिंक के साथ यात्रा खोजें अधिक व्यावहारिक हो गईं, इवेंट्स को अधिक उपयोगी इवेंट स्रोत मिले, कोड रिपॉजिटरी को समझने में बेहतर हो गया, और कई एम्बेड प्रकार स्पष्ट और उन पर कार्रवाई करना आसान हो गया।
+    
+    केवल मॉडल की मेमोरी से उत्तर देने के बजाय, OpenMates तेजी से समर्पित टूल का उपयोग कर सकता है: खोजें, तुलना करें, सारांशित करें, फ़ाइलें बनाएं, स्रोत सामग्री का निरीक्षण करें, और सीधे चैट में संरचित परिणाम दिखाएं।
+    
+    ## 4. वास्तविक दुनिया के परिणामों के लिए अधिक प्रदाता
+    
+    v0.10 ने पर्दे के पीछे प्रदाताओं को जोड़ा और सुधारा है, उदाहरण के लिए यात्रा, इवेंट्स, भुगतान और सामग्री सुरक्षा के लिए। यह मायने रखता है क्योंकि एक स्किल तभी उपयोगी होती है जब परिणाम वर्तमान, स्रोत-समर्थित और उपयोग करने के लिए पर्याप्त विशिष्ट हो।
+    
+    उपयोगकर्ताओं के लिए, दृश्य प्रभाव सरल है: समृद्ध कार्ड, बेहतर स्रोत एट्रिब्यूशन, अधिक सीधे लिंक, और जब कोई प्रदाता वास्तविक डेटा लौटा सकता है तो कम सामान्य उत्तर।
+    
+    ## 5. बेहतर एम्बेड और प्रीव्यू
+    
+    पूरे ऐप में एम्बेड अधिक उपयोगी हो गए हैं। खोज परिणाम, बुकिंग लिंक, जेनरेट की गई फ़ाइलें, कोड आउटपुट, चित्र और सार्वजनिक उदाहरणों को स्पष्ट प्रीव्यू और फुलस्क्रीन व्यू मिले हैं, ताकि आप बातचीत के संदर्भ को खोए बिना परिणामों का निरीक्षण कर सकें।
+    
+    ## 6. अधिक उपयोगी उदाहरण और सार्वजनिक पेज
+    
+    घोषणाएं, टिप्स, कानूनी पेज और उदाहरण चैट उचित सार्वजनिक चैट पेज बन गए। इससे यह साझा करना आसान हो जाता है कि OpenMates क्या कर सकता है और बाद में उपयोगी उदाहरणों को फिर से खोलना आसान हो जाता है।
+    
+    ## 7. आसान साइनअप और भुगतान विकल्प
+    
+    OpenMates ने Revolut Business के माध्यम से SEPA बैंक ट्रांसफर भी जोड़ा, यूरोपीय संघ के बाहर के उपयोगकर्ताओं के लिए Stripe चेकआउट में सुधार किया, और अकाउंट ईमेल परिवर्तन जोड़ा। ये कोई दिखावटी फीचर्स नहीं हैं, लेकिन जब आप वास्तव में उत्पाद का उपयोग करना चाहते हैं तो ये बुनियादी चीजों को कम जटिल बनाते हैं।
+    
+    # रोज़मर्रा के उपयोग के लिए इसका क्या अर्थ है
+    
+    OpenMates अब एक उपयोगी वर्कस्पेस की तरह महसूस होना चाहिए: उत्तरों में सीखने के लिंक हो सकते हैं, आप महत्वपूर्ण हिस्सों को चिह्नित कर सकते हैं और उन्हें फिर से देख सकते हैं, अधिक ऐप स्किल्स वास्तविक संरचित परिणाम लौटा सकते हैं, और सार्वजनिक उदाहरण साझा करना आसान है।
+    
+    हमेशा की तरह, बहुत सारा काम अदृश्य बग फिक्सिंग और विश्वसनीयता सुधार भी था — विशेष रूप से एन्क्रिप्टेड चैट सिंक, एम्बेड, साइनअप और सफारी व्यवहार के आसपास।
+    
+    शुभकामनाएँ,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    สวัสดีครับ
+    
+    OpenMates v0.10 เน้นการทำให้ผลิตภัณฑ์ใช้งานได้จริงมากขึ้นในชีวิตประจำวัน: คำตอบที่ชัดเจนขึ้น, การแชทที่ลื่นไหลกว่าเดิม, แอปและผู้ให้บริการที่มากขึ้น รวมถึงวิธีที่ดีกว่าในการเรียนรู้และจัดการสิ่งต่างๆ ให้เสร็จสิ้น
+    
+    [cta]
+    
+    # ✨ ไฮไลท์ที่สำคัญ
+    
+    ## 1. ลิงก์ Wikipedia ภายในคำตอบโดยตรง
+    
+    ตอนนี้ OpenMates สามารถไฮไลท์หัวข้อ Wikipedia ที่เกี่ยวข้องได้โดยตรงในคำตอบของ AI เมื่อมีแนวคิดที่น่าสนใจและควรศึกษาต่อ คุณสามารถคลิกที่คำที่ไฮไลท์เพื่อเรียนรู้เพิ่มเติมได้อย่างรวดเร็วโดยไม่ต้องออกจากหน้าแชท
+    
+    ฟีเจอร์นี้มีประโยชน์อย่างยิ่งสำหรับการเรียนรู้, การวิจัย, การวางแผนท่องเที่ยว, คำถามทางประวัติศาสตร์, หัวข้อวิทยาศาสตร์ หรือเรื่องใดก็ตามที่คำตอบนำไปสู่การค้นคว้าต่อยอด
+    
+    ## 2. การไฮไลท์ข้อความและคอมเมนต์
+    
+    ตอนนี้คุณสามารถไฮไลท์บางส่วนของข้อความจาก AI และจดบันทึกไว้ได้ ซึ่งช่วยให้คำตอบที่ยาวๆ มีประโยชน์มากขึ้น: บันทึกย่อหน้าที่สำคัญ, ทำเครื่องหมายสิ่งที่ต้องการกลับมาดูใหม่ หรือเขียนคอมเมนต์ไว้ข้างๆ ข้อความอ้างอิงหรือคำแนะนำที่เฉพาะเจาะจง
+    
+    ## 3. แอปและทักษะของแอปใหม่ๆ
+    
+    OpenMates มีทักษะของแอปที่มีประโยชน์มากขึ้นในหมวดหมู่ต่างๆ ที่ใช้ในชีวิตประจำวัน การค้นหาข้อมูลท่องเที่ยวใช้งานได้จริงมากขึ้นด้วยข้อมูลการเชื่อมต่อรถไฟและลิงก์การจอง, หมวดกิจกรรม (Events) มีแหล่งข้อมูลที่หลากหลายขึ้น, หมวดโค้ด (Code) เข้าใจ Repository ได้ดีขึ้น และรูปแบบการฝัง (embed) หลายประเภทก็ชัดเจนและใช้งานได้ง่ายขึ้น
+    
+    แทนที่จะตอบจากความจำของโมเดลเพียงอย่างเดียว OpenMates สามารถใช้เครื่องมือเฉพาะทางได้มากขึ้น: ค้นหา, เปรียบเทียบ, สรุปผล, สร้างไฟล์, ตรวจสอบแหล่งข้อมูล และแสดงผลลัพธ์แบบมีโครงสร้างในแชทได้โดยตรง
+    
+    ## 4. เพิ่มผู้ให้บริการเพื่อผลลัพธ์ที่ใช้งานได้จริง
+    
+    v0.10 ได้เพิ่มและปรับปรุงผู้ให้บริการเบื้องหลัง เช่น สำหรับการท่องเที่ยว, กิจกรรม, การชำระเงิน และความปลอดภัยของเนื้อหา สิ่งนี้สำคัญเพราะทักษะจะมีประโยชน์ก็ต่อเมื่อผลลัพธ์เป็นปัจจุบัน มีแหล่งข้อมูลอ้างอิง และมีความเฉพาะเจาะจงเพียงพอที่จะนำไปใช้งานได้
+    
+    สำหรับผู้ใช้ สิ่งที่เห็นได้ชัดคือ: การ์ดข้อมูลที่ละเอียดขึ้น, การระบุแหล่งที่มาที่ดีขึ้น, ลิงก์ตรงที่มากขึ้น และคำตอบทั่วไปที่ลดลงเมื่อผู้ให้บริการสามารถดึงข้อมูลจริงมาแสดงได้
+    
+    ## 5. การฝัง (Embeds) และการแสดงตัวอย่างที่ดีขึ้น
+    
+    การฝัง (Embeds) มีประโยชน์มากขึ้นทั่วทั้งแอป ผลการค้นหา, ลิงก์การจอง, ไฟล์ที่สร้างขึ้น, ผลลัพธ์ของโค้ด, รูปภาพ และตัวอย่างสาธารณะ มีการแสดงตัวอย่างที่ชัดเจนขึ้นและสามารถดูแบบเต็มหน้าจอได้ เพื่อให้คุณตรวจสอบผลลัพธ์ได้โดยไม่เสียบริบทของการสนทนา
+    
+    ## 6. ตัวอย่างและหน้าสาธารณะที่มีประโยชน์มากขึ้น
+    
+    ประกาศ, เคล็ดลับ, หน้าข้อกฎหมาย และตัวอย่างการแชท ได้กลายเป็นหน้าแชทสาธารณะอย่างเป็นทางการ ซึ่งช่วยให้แชร์ความสามารถของ OpenMates ได้ง่ายขึ้น และสามารถกลับมาเปิดดูตัวอย่างที่มีประโยชน์ได้อีกในภายหลัง
+    
+    ## 7. การสมัครใช้งานและตัวเลือกการชำระเงินที่ราบรื่นขึ้น
+    
+    OpenMates ยังได้เพิ่มการโอนเงินผ่านธนาคาร SEPA ผ่าน Revolut Business, ปรับปรุงการชำระเงินด้วย Stripe สำหรับผู้ใช้นอกสหภาพยุโรป และเพิ่มการเปลี่ยนอีเมลบัญชี ฟีเจอร์เหล่านี้อาจดูไม่หวือหวา แต่ช่วยให้ระบบพื้นฐานมีความเสถียรมากขึ้นเมื่อคุณต้องการใช้งานจริง
+    
+    # สิ่งนี้หมายความอย่างไรสำหรับการใช้งานในชีวิตประจำวัน
+    
+    ตอนนี้ OpenMates ควรจะให้ความรู้สึกเหมือนพื้นที่ทำงานที่มีประโยชน์มากขึ้น: คำตอบสามารถมีลิงก์เพื่อการเรียนรู้, คุณสามารถทำเครื่องหมายและกลับมาดูส่วนที่สำคัญได้, ทักษะของแอปที่มากขึ้นสามารถแสดงผลลัพธ์จริงแบบมีโครงสร้าง และตัวอย่างสาธารณะก็แชร์ได้ง่ายขึ้น
+    
+    และเช่นเคย งานส่วนใหญ่ยังรวมถึงการแก้ไขบั๊กที่มองไม่เห็นและการปรับปรุงความเสถียร โดยเฉพาะเรื่องการซิงค์แชทแบบเข้ารหัส, การฝัง (embeds), การสมัครใช้งาน และการทำงานบน Safari
+    
+    สวัสดีครับ,
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    Ahoj,
+    
+    Verze OpenMates v0.10 byla hlavně o tom, aby byl produkt užitečnější v běžných každodenních situacích: jasnější odpovědi, plynulejší chaty, více aplikací a poskytovatelů a lepší způsoby, jak se učit a dotahovat věci do konce.
+    
+    [cta]
+    
+    # ✨ To nejdůležitější
+    
+    ## 1. Odkazy na Wikipedii přímo v odpovědích
+    
+    OpenMates nyní dokáže zvýraznit relevantní témata z Wikipedie přímo v odpovědích asistenta. Pokud si nějaký pojem zaslouží hlubší prozkoumání, můžeš na zvýrazněný termín kliknout a rychle se dozvědět víc, aniž bys musel opustit chat.
+    
+    To je užitečné zejména pro učení, výzkum, plánování cest, otázky z historie, vědecká témata nebo cokoli, kde odpověď otevírá prostor pro další bádání.
+    
+    ## 2. Zvýraznění zpráv a komentáře
+    
+    Nyní můžeš zvýrazňovat části zpráv od asistenta a psát si k nim poznámky. Díky tomu jsou delší odpovědi mnohem užitečnější: ulož si důležitý odstavec, označ si něco, k čemu se chceš vrátit, nebo si přidej komentář ke konkrétnímu tvrzení či doporučení.
+    
+    ## 3. Nové aplikace a dovednosti
+    
+    OpenMates získal užitečnější dovednosti napříč každodenními kategoriemi. Vyhledávání cestování je nyní praktičtější díky vlakovým spojům a odkazům na rezervace, sekce Události získala užitečnější zdroje, Kód lépe rozumí repozitářům a několik typů vloženého obsahu je nyní přehlednějších a lépe se s nimi pracuje.
+    
+    Místo toho, aby OpenMates odpovídal pouze z paměti modelu, může stále častěji využívat specializované nástroje: vyhledávat, porovnávat, shrnovat, vytvářet soubory, zkoumat zdrojové materiály a zobrazovat strukturované výsledky přímo v chatu.
+    
+    ## 4. Více poskytovatelů pro výsledky z reálného světa
+    
+    Verze v0.10 přidala a vylepšila poskytovatele v pozadí, například pro cestování, události, platby a bezpečnost obsahu. To je důležité, protože dovednost je užitečná pouze tehdy, když je výsledek aktuální, podložený zdroji a dostatečně konkrétní pro praktické použití.
+    
+    Pro uživatele je viditelný efekt jednoduchý: bohatší karty, lepší uvádění zdrojů, více přímých odkazů a méně obecných odpovědí v případech, kdy poskytovatel může vrátit reálná data.
+    
+    ## 5. Lepší vložený obsah a náhledy
+    
+    Vložený obsah (embedy) je nyní v celé aplikaci užitečnější. Výsledky vyhledávání, odkazy na rezervace, generované soubory, výstupy kódu, obrázky a veřejné příklady získaly přehlednější náhledy a zobrazení na celou obrazovku, takže si můžeš výsledky prohlédnout, aniž bys ztratil kontext konverzace.
+    
+    ## 6. Užitečnější příklady a veřejné stránky
+    
+    Oznámení, tipy, právní stránky a ukázkové chaty se staly plnohodnotnými veřejnými stránkami chatu. Díky tomu je snazší sdílet, co OpenMates umí, a později si znovu otevřít užitečné příklady.
+    
+    ## 7. Hladší registrace a možnosti plateb
+    
+    OpenMates také přidal bankovní převody SEPA přes Revolut Business, vylepšil platby přes Stripe pro uživatele mimo EU a přidal možnost změny e-mailu účtu. Nejsou to sice převratné funkce, ale díky nim jsou základy spolehlivější, když produkt skutečně chceš používat.
+    
+    # Co to znamená pro každodenní používání
+    
+    OpenMates by teď měl působit spíše jako užitečný pracovní prostor: odpovědi mohou obsahovat odkazy na učení, můžeš si označovat důležité části a vracet se k nim, více dovedností aplikací může vracet reálné strukturované výsledky a veřejné příklady se snáze sdílejí.
+    
+    Jako vždy byla velká část práce věnována také neviditelným opravám chyb a zlepšení spolehlivosti – zejména v oblasti šifrované synchronizace chatu, vloženého obsahu, registrace a chování v prohlížeči Safari.
+    
+    S pozdravem,
+    
+    Marco  
+    Tvůrce OpenMates
+  sv: |
+    Hej,
+    
+    OpenMates v0.10 handlade mest om att göra produkten mer användbar i vardagen: tydligare svar, smidigare chattar, fler appar och leverantörer, och bättre sätt att lära sig och få saker gjorda.
+    
+    [cta]
+    
+    # ✨ Höjdpunkterna
+    
+    ## 1. Wikipedia-länkar direkt i svaren
+    
+    OpenMates kan nu markera relevanta Wikipedia-ämnen direkt i assistentens svar. När ett koncept är värt att utforska vidare kan du klicka på den markerade termen och snabbt lära dig mer utan att lämna chattflödet.
+    
+    Detta är särskilt användbart för lärande, research, reseplanering, historiska frågor, vetenskapliga ämnen eller allt där svaret öppnar upp ett nytt kaninhål.
+    
+    ## 2. Markeringar och kommentarer i meddelanden
+    
+    Du kan nu markera delar av assistentens meddelanden och skriva anteckningar till dem. Detta gör längre svar mycket mer användbara: spara det viktiga stycket, markera något du vill återkomma till, eller lämna en kommentar intill ett specifikt påstående eller en rekommendation.
+    
+    ## 3. Nya appar och app-färdigheter
+    
+    OpenMates har fått mer användbara app-färdigheter inom vardagliga kategorier. Resesökningar blev mer praktiska med tågförbindelser och bokningslänkar, Evenemang fick mer användbara källor, Kod blev bättre på att förstå kodförråd, och flera typer av inbäddningar blev tydligare och enklare att agera på.
+    
+    Istället för att bara svara utifrån modellens minne kan OpenMates i allt högre grad använda dedikerade verktyg: söka, jämföra, sammanfatta, skapa filer, granska källmaterial och visa strukturerade resultat direkt i chatten.
+    
+    ## 4. Fler leverantörer för verkliga resultat
+    
+    v0.10 lade till och förbättrade leverantörer bakom kulisserna, till exempel för resor, evenemang, betalningar och innehållssäkerhet. Detta är viktigt eftersom en färdighet bara är användbar när resultatet är aktuellt, källbaserat och tillräckligt specifikt för att användas.
+    
+    För användare är den synliga effekten enkel: rikare kort, bättre källhänvisning, fler direktlänkar och färre generiska svar när en leverantör kan returnera riktig data.
+    
+    ## 5. Bättre inbäddningar och förhandsvisningar
+    
+    Inbäddningar blev mer användbara i hela appen. Sökresultat, bokningslänkar, genererade filer, kodutdata, bilder och offentliga exempel fick tydligare förhandsvisningar och helskärmsvyer, så att du kan granska resultat utan att tappa konversationens sammanhang.
+    
+    ## 6. Mer användbara exempel och offentliga sidor
+    
+    Meddelanden, tips, juridiska sidor och exempelchattar blev riktiga offentliga chattsidor. Det gör det enklare att dela vad OpenMates kan göra och att öppna användbara exempel igen senare.
+    
+    ## 7. Smidigare registrering och betalningsalternativ
+    
+    OpenMates lade även till SEPA-banköverföringar via Revolut Business, förbättrade Stripe-utcheckningen för användare utanför EU och lade till möjligheten att ändra e-postadress för kontot. Det här är inga flashiga funktioner, men de gör grunderna mindre bräckliga när du faktiskt vill använda produkten.
+    
+    # Vad detta innebär för vardagsanvändningen
+    
+    OpenMates bör kännas mer som en användbar arbetsyta nu: svar kan innehålla länkar för lärande, du kan markera och återkomma till viktiga delar, fler app-färdigheter kan returnera riktiga strukturerade resultat och offentliga exempel är lättare att dela.
+    
+    Som alltid bestod en stor del av arbetet också av osynliga buggfixar och tillförlitlighetsförbättringar – särskilt kring krypterad chattsynkronisering, inbäddningar, registrering och Safari-beteende.
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    היי,
+    
+    גרסה 0.10 של OpenMates התמקדה בעיקר בלהפוך את המוצר לשימושי יותר בסיטואציות יומיומיות רגילות: תשובות ברורות יותר, צ'אטים חלקים יותר, יותר אפליקציות וספקים, ודרכים טובות יותר ללמוד ולבצע משימות.
+    
+    [cta]
+    
+    # ✨ נקודות מרכזיות
+    
+    ## 1. קישורים לוויקיפדיה ישירות בתוך התשובות
+    
+    OpenMates יכולה כעת להדגיש נושאי ויקיפדיה רלוונטיים ישירות בתוך תשובות העוזר. כשמושג מסוים שווה חקירה מעמיקה יותר, ניתן ללחוץ על המונח המודגש וללמוד עליו במהירות בלי לצאת מרצף הצ'אט.
+    
+    זה שימושי במיוחד ללמידה, מחקר, תכנון טיולים, שאלות בהיסטוריה, נושאי מדע, או כל דבר שבו התשובה פותחת "מחילת ארנב" של מידע חדש.
+    
+    ## 2. הדגשות והערות בהודעות
+    
+    כעת ניתן להדגיש חלקים מהודעות העוזר ולשמור עליהם הערות. זה הופך תשובות ארוכות להרבה יותר שימושיות: שמירת פסקה חשובה, סימון משהו שרוצים לחזור אליו, או הוספת הערה לצד טענה או המלצה ספציפית.
+    
+    ## 3. אפליקציות ומיומנויות אפליקציה חדשות
+    
+    OpenMates קיבלה מיומנויות אפליקציה שימושיות יותר בקטגוריות יומיומיות. חיפושי נסיעות הפכו למעשיים יותר עם קישורי רכבות והזמנות, קטגוריית האירועים קיבלה מקורות מידע שימושיים יותר, הקוד הפך לטוב יותר בהבנת מאגרי קוד (repositories), ומספר סוגי הטמעות (embeds) הפכו לברורים ונוחים יותר לשימוש.
+    
+    במקום לענות רק מהזיכרון של המודל, OpenMates יכולה להשתמש יותר ויותר בכלים ייעודיים: חיפוש, השוואה, סיכום, יצירת קבצים, בדיקת חומרי מקור והצגת תוצאות מובנות ישירות בצ'אט.
+    
+    ## 4. יותר ספקים לתוצאות מהעולם האמיתי
+    
+    גרסה 0.10 הוסיפה ושיפרה ספקים "מאחורי הקלעים", למשל עבור נסיעות, אירועים, תשלומים ובטיחות תוכן. זה חשוב כי מיומנות היא שימושית רק כשהתוצאה עדכנית, מבוססת על מקורות וספציפית מספיק לשימוש.
+    
+    עבור המשתמשים, ההשפעה הנראית לעין היא פשוטה: כרטיסים עשירים יותר, ייחוס טוב יותר למקורות, יותר קישורים ישירים ופחות תשובות גנריות כאשר ספק יכול להחזיר נתונים אמיתיים.
+    
+    ## 5. הטמעות ותצוגות מקדימות טובות יותר
+    
+    הטמעות הפכו לשימושיות יותר בכל האפליקציה. תוצאות חיפוש, קישורי הזמנה, קבצים שנוצרו, פלטי קוד, תמונות ודוגמאות ציבוריות קיבלו תצוגות מקדימות ברורות יותר ותצוגות מסך מלא, כך שניתן לבחון את התוצאות מבלי לאבד את הקשר השיחה.
+    
+    ## 6. דוגמאות ודפים ציבוריים שימושיים יותר
+    
+    הודעות, טיפים, דפים משפטיים וצ'אטים לדוגמה הפכו לדפי צ'אט ציבוריים של ממש. זה מקל על שיתוף היכולות של OpenMates ועל פתיחה חוזרת של דוגמאות שימושיות מאוחר יותר.
+    
+    ## 7. אפשרויות הרשמה ותשלום חלקות יותר
+    
+    OpenMates הוסיפה גם העברות בנקאיות מסוג SEPA דרך Revolut Business, שיפרה את התשלום ב-Stripe עבור משתמשים מחוץ לאיחוד האירופי, והוסיפה אפשרות לשינוי אימייל בחשבון. אלו לא תכונות נוצצות, אבל הן הופכות את הבסיס לפחות שברירי כשבאמת רוצים להשתמש במוצר.
+    
+    # מה זה אומר לשימוש היומיומי
+    
+    OpenMates אמורה להרגיש עכשיו יותר כמו סביבת עבודה שימושית: תשובות יכולות להכיל קישורי למידה, ניתן לסמן ולחזור לחלקים חשובים, יותר מיומנויות אפליקציה יכולות להחזיר תוצאות מובנות אמיתיות, ודוגמאות ציבוריות קלות יותר לשיתוף.
+    
+    כרגיל, חלק גדול מהעבודה היה גם תיקון באגים בלתי נראים ושיפורי אמינות – במיוחד סביב סנכרון צ'אט מוצפן, הטמעות, הרשמה והתנהגות בדפדפן Safari.
+    
+    בברכה,
+    
+    מרקו  
+    יוצר OpenMates
   verified_by_human: []

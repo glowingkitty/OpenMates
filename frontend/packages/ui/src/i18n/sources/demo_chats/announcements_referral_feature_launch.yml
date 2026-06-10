@@ -6,49 +6,49 @@ title:
   context: 'Newsletter announcements/referral-feature-launch — title'
   en: 'Invite friends, get free credits'
   de: 'Freund:innen einladen, Gratis-Credits erhalten'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: 参加 5 月 19 日在柏林举行的 OpenMates 见面会
+  es: Únete al Meetup de OpenMates el 19 de mayo en Berlín
+  fr: Invite tes amis, reçois des crédits gratuits
+  pt: Convida amigos, ganha créditos grátis
+  ru: Приглашай друзей и получай бесплатные кредиты
+  ja: 友だちを招待して無料クレジットをゲットしよう
+  ko: 친구를 초대하고 무료 크레딧을 받으세요
+  it: Partecipa al Meetup OpenMates il 19 maggio a Berlino
+  tr: Arkadaşlarını davet et, ücretsiz kredi kazan
+  vi: Mời bạn bè, nhận credit miễn phí
+  id: Bergabunglah di OpenMates Meetup pada 19 Mei di Berlin
+  pl: Zaproś znajomych, odbierz darmowe kredyty
+  nl: Nodig vrienden uit, ontvang gratis credits
+  ar: ادعُ أصدقاءك واحصل على رصيد مجاني
+  hi: दोस्तों को आमंत्रित करें, मुफ्त क्रेडिट पाएं
+  th: ชวนเพื่อน รับเครดิตฟรี
+  cs: Pozvi přátele a získej kredity zdarma
+  sv: Bjud in vänner, få gratis krediter
+  he: הזמן חברים, קבל קרדיטים בחינם
   verified_by_human: []
 description:
   context: 'Newsletter announcements/referral-feature-launch — description'
   en: 'The new referral feature is now available'
   de: 'Die neue Empfehlungsfunktion ist jetzt verfügbar'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: "5 月 19 日星期二 19:00"
+  es: "Martes 19 de mayo a las 19:00"
+  fr: Le nouveau programme de parrainage est maintenant disponible
+  pt: A nova funcionalidade de recomendação já está disponível
+  ru: Новая реферальная функция уже доступна
+  ja: 新しい紹介機能が利用可能になりました
+  ko: 새로운 추천 기능이 출시되었습니다
+  it: "Martedì 19 maggio alle 19:00"
+  tr: Yeni referans özelliği artık yayında
+  vi: Tính năng giới thiệu mới hiện đã khả dụng
+  id: "Selasa, 19 Mei pukul 19:00"
+  pl: Nowy program poleceń jest już dostępny
+  nl: De nieuwe referral-functie is nu beschikbaar
+  ar: ميزة الإحالة الجديدة متاحة الآن
+  hi: नया रेफरल फीचर अब उपलब्ध है
+  th: ฟีเจอร์แนะนำเพื่อนใหม่พร้อมใช้งานแล้ว
+  cs: Nová funkce doporučení je nyní k dispozici
+  sv: Den nya värvningsfunktionen är nu tillgänglig
+  he: "פיצ'ר ההפניות החדש זמין כעת"
   verified_by_human: []
 message:
   context: 'Newsletter announcements/referral-feature-launch — message'
@@ -98,25 +98,410 @@ message:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    已经在用 OpenMates 并且想参加 5 月 19 日周二 19:00 在柏林举行的 OpenMates 见面会吗？
+    
+    在过去的一年半里，我一直在开发 OpenMates.org：一个比 ChatGPT、Claude、OpenClaw、Manus 等更好的替代方案。它通常能提供更好的回答，拥有更出色的用户体验设计，通过各种功能优先考虑隐私、安全和用户利益，并且不会将你锁定在某个生态系统中，同时仍允许你使用已经熟悉和使用的 AI 模型。它可以使用各种应用技能来查找活动、火车班次、医生预约、公寓等等，并且已经拥有了首批 200 名付费用户（购买一次性使用额度）。
+    
+    话虽如此：我目前还无法以此维持生计（主要仍靠失业救济金维持），而且最近几周和几个月的工作量巨大，让我感到越来越精疲力竭。我意识到这是一个庞大的项目，需要一个团队，而不是一直作为一个单人项目。因此，我现在正更多地致力于将其转变为一个团队协作项目，让 AI 的实用功能惠及普通大众，而不是只专注于企业。我希望建立一个可持续发展的业务和产品，让人们在未来几年依然喜爱使用，而不是成为另一家走向“平台腐烂”（enshittification）的初创公司。我对诸如“责任制所有权”（steward ownership）之类的概念更感兴趣，而不是讨论退出策略以及如何卖给科技巨头。
+    
+    由于我主要将自己定位为产品负责人（具有 UX 设计和软件开发背景），我特别希望能结识专注于市场营销/传播的人才——但也非常欢迎其他资深软件开发者的支持。此外，任何使用 OpenMates 的人的反馈都弥足珍贵，无论你的背景如何，我们都非常欢迎。
+    
+    如果你对此感兴趣，并希望提供反馈、结识志同道合的人，甚至进行长期合作，请参加 OpenMates 见面会或[给我发邮件](mailto:marco@openmates.org)！:)
+    
+    问候，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    ¿Ya usas OpenMates y quieres unirte al Meetup de OpenMates el martes 19 de mayo a las 19:00 en Berlín?
+    
+    Durante el último año y medio, he estado construyendo OpenMates.org: una mejor alternativa a ChatGPT, Claude, OpenClaw, Manus y otros. Normalmente ofrece mejores respuestas, tiene un mejor diseño de experiencia de usuario, prioriza la privacidad, la seguridad y los intereses del usuario con diversas funciones, y no te encierra en un ecosistema, permitiéndote seguir usando los modelos de IA que ya conoces y utilizas. Puede usar varias habilidades de la aplicación para encontrar eventos, conexiones de tren, citas médicas, apartamentos y mucho más, y ya cuenta con los primeros 200 usuarios de pago (compras de créditos de uso único).
+    
+    Dicho esto: aún no estoy en un punto en el que pueda vivir de ello (sigo financiado principalmente por la prestación por desempleo) y he trabajado tanto en las últimas semanas y meses que he empezado a quemarme cada vez más. Soy consciente de que este es un proyecto enorme y requiere un equipo en lugar de seguir siendo un proyecto de una sola persona. Por eso, ahora me estoy centrando más en convertir esto en un esfuerzo de equipo, para que los aspectos útiles de la IA sean accesibles para la gente común en lugar de centrarme en las empresas. Y para construir un negocio y un producto sostenibles que a la gente le siga gustando usar en los próximos años, en lugar de convertirme en una startup más en su camino hacia la "enshittification". Me interesan mucho más conceptos como la propiedad responsable (steward ownership), por ejemplo, en lugar de hablar de estrategias de salida y de cómo venderse a las grandes tecnológicas.
+    
+    Como me veo principalmente como el responsable de producto (con experiencia en diseño UX y desarrollo de software), me interesan especialmente las personas con un enfoque en marketing/comunicación, pero también me encantaría recibir apoyo de otros desarrolladores de software experimentados. Y los comentarios de cualquiera que use OpenMates son genuinamente valiosos y muy bienvenidos, independientemente de tu formación.
+    
+    Si esto te suena interesante y quieres contribuir con tus comentarios, conectar con otras personas o tal vez incluso colaborar a más largo plazo, ¡únete al meetup de OpenMates o [envíame un mensaje](mailto:marco@openmates.org)! :)
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    Salut,
+    
+    OpenMates propose désormais un programme de parrainage : tu peux partager ton lien de parrainage personnel avec tes amis, et quand quelqu'un s'inscrit via ce lien et effectue son premier achat de crédits éligible, vous recevez tous les deux des crédits OpenMates gratuits.
+    
+    Voici comment ça marche :
+    
+    - Tu partages ton lien de parrainage ou ton code QR depuis les paramètres de facturation.
+    - Ton ami s'inscrit via ce lien et effectue son premier achat de crédits éligible.
+    - Il reçoit 2 000 crédits gratuits, et tu reçois également 2 000 crédits gratuits.
+    
+    La campagne de parrainage actuelle s'applique aux premiers achats de 10 EUR ou plus effectués dans les 7 jours. Chaque compte peut utiliser un code de parrainage une seule fois, et chaque parrain peut recevoir des récompenses pour un maximum de 10 parrainages réussis tant que le budget de parrainage est disponible.
+    
+    J'ai ajouté cela parce que le bouche-à-oreille est le moyen le plus significatif pour OpenMates de se développer : non pas par des publicités de suivi ou des interfaces trompeuses, mais par des personnes qui le recommandent lorsqu'elles le trouvent vraiment utile.
+    
+    Si tu connais quelqu'un qui aimerait une alternative aux chatbots IA classiques, plus respectueuse de la vie privée et plus flexible, n'hésite pas à l'inviter.
+    
+    Merci d'aider OpenMates à grandir d'une manière qui correspond au projet.
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Olá,
+    
+    O OpenMates agora tem uma funcionalidade de recomendação: podes partilhar o teu link de recomendação pessoal com amigos e, quando alguém se registar através dele e fizer a sua primeira compra de créditos elegível, ambos recebem créditos OpenMates grátis.
+    
+    Eis como funciona:
+    
+    - Partilhas o teu link de recomendação ou código QR a partir das definições de faturação.
+    - O teu amigo regista-se através desse link e faz a sua primeira compra de créditos elegível.
+    - Ele recebe 2.000 créditos grátis e tu também recebes 2.000 créditos grátis.
+    
+    A campanha de recomendação atual aplica-se a primeiras compras de 10 EUR ou mais no prazo de 7 dias. Cada conta pode usar um código de recomendação uma vez, e cada recomendador pode receber recompensas por até 10 recomendações bem-sucedidas enquanto o orçamento de recomendação estiver disponível.
+    
+    Adicionei isto porque o passa-palavra é a forma mais significativa de o OpenMates crescer: não através de anúncios de rastreio ou padrões obscuros, mas através de pessoas que o recomendam quando o consideram genuinamente útil.
+    
+    Se conheceres alguém que gostaria de uma alternativa mais focada na privacidade e flexível aos chatbots de IA típicos, sente-te à vontade para os convidar.
+    
+    Obrigado por ajudares o OpenMates a crescer de uma forma que se ajusta ao projeto.
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Привет,
+    
+    В OpenMates появилась реферальная функция: теперь ты можешь делиться своей персональной реферальной ссылкой с друзьями. Когда кто-то зарегистрируется по ней и совершит свою первую подходящую покупку кредитов, вы оба получите бесплатные кредиты OpenMates.
+    
+    Вот как это работает:
+    
+    - Ты делишься своей реферальной ссылкой или QR-кодом из настроек оплаты.
+    - Твой друг регистрируется по этой ссылке и совершает свою первую подходящую покупку кредитов.
+    - Он получает 2 000 бесплатных кредитов, и ты тоже получаешь 2 000 бесплатных кредитов.
+    
+    Текущая реферальная кампания распространяется на первые покупки на сумму от 10 EUR в течение 7 дней. Каждый аккаунт может использовать один реферальный код один раз, а каждый приглашающий может получить вознаграждение максимум за 10 успешных рефералов, пока доступен реферальный бюджет.
+    
+    Я добавил эту функцию, потому что «сарафанное радио» — это самый правильный способ роста для OpenMates: не через рекламную слежку или темные паттерны, а через рекомендации людей, которым проект действительно полезен.
+    
+    Если ты знаешь кого-то, кому подошла бы более конфиденциальная и гибкая альтернатива типичным ИИ-чат-ботам, смело приглашай их.
+    
+    Спасибо, что помогаешь OpenMates расти так, как это соответствует духу проекта.
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    こんにちは。
+    
+    OpenMatesに紹介機能が追加されました。個人の紹介リンクを友だちにシェアして、そのリンクから誰かが参加して初めて対象となるクレジットを購入すると、あなたと友だちの両方が無料のOpenMatesクレジットを受け取れます。
+    
+    仕組みは以下の通りです：
+    
+    - お支払い設定から紹介リンクまたはQRコードをシェアします。
+    - 友だちがそのリンクから登録し、初めて対象となるクレジットを購入します。
+    - 友だちに2,000クレジット、あなたにも2,000クレジットの無料クレジットが付与されます。
+    
+    現在の紹介キャンペーンは、7日以内に行われた10ユーロ以上の初回購入に適用されます。各アカウントは紹介コードを1回のみ使用でき、紹介者は紹介予算がある限り、最大10件の成功した紹介に対して報酬を受け取ることができます。
+    
+    この機能を追加したのは、口コミこそがOpenMatesが成長するための最も意義のある方法だからです。追跡型広告やダークパターンではなく、本当に便利だと感じた人が勧めてくれることで成長したいと考えています。
+    
+    プライバシーを重視した、一般的なAIチャットボットに代わる柔軟な選択肢を求めている人がいれば、ぜひ招待してください。
+    
+    プロジェクトの趣旨に沿った形でOpenMatesの成長をサポートしていただき、ありがとうございます。
+    
+    よろしくお願いします。
+    
+    Marco  
+    OpenMates 開発者
+  ko: |
+    안녕하세요,
+    
+    OpenMates에 추천 기능이 생겼어요. 친구에게 개인 추천 링크를 공유하고, 친구가 가입 후 첫 크레딧을 구매하면 두 분 모두에게 무료 OpenMates 크레딧을 드립니다.
+    
+    이용 방법은 다음과 같아요:
+    
+    - 결제 설정에서 추천 링크나 QR 코드를 공유합니다.
+    - 친구가 해당 링크로 가입하고 첫 크레딧을 구매합니다.
+    - 친구와 본인 모두 각각 2,000 무료 크레딧을 받습니다.
+    
+    현재 추천 캠페인은 7일 이내에 10유로 이상 처음 구매하는 경우에 적용됩니다. 각 계정은 추천 코드를 한 번만 사용할 수 있으며, 추천인은 추천 예산이 소진될 때까지 최대 10명의 성공적인 추천에 대해 보상을 받을 수 있습니다.
+    
+    추적 광고나 다크 패턴이 아니라, 사람들이 진심으로 유용하다고 느껴서 추천하는 입소문이야말로 OpenMates가 성장할 수 있는 가장 의미 있는 방법이라고 생각해서 이 기능을 추가했습니다.
+    
+    일반적인 AI 챗봇보다 개인정보 보호를 중시하고 유연한 대안을 찾는 분을 알고 계신다면 편하게 초대해 주세요.
+    
+    프로젝트의 방향에 맞게 OpenMates가 성장할 수 있도록 도와주셔서 감사합니다.
+    
+    그럼 이만,
+    
+    OpenMates 제작자 Marco 드림
+  it: |
+    Usi già OpenMates e vuoi partecipare all'OpenMates Meetup martedì 19 maggio alle 19:00 a Berlino?
+    
+    Negli ultimi un anno e mezzo, ho sviluppato OpenMates.org: un'alternativa migliore a ChatGPT, Claude, OpenClaw, Manus e altri. In genere offre risposte migliori, ha un design dell'esperienza utente superiore, dà priorità alla privacy, alla sicurezza e agli interessi degli utenti con varie funzionalità e non ti vincola a un ecosistema, pur permettendoti di utilizzare i modelli di IA che già conosci e usi. Può utilizzare diverse abilità dell'app per trovare eventi, collegamenti ferroviari, appuntamenti medici, appartamenti e molto altro, e ha già i primi 200 utenti paganti (acquisti di crediti di utilizzo una tantum).
+    
+    Detto questo: non sono ancora al punto di poterne vivere (è ancora finanziato principalmente dal sussidio di disoccupazione) e ho lavorato così tanto nelle ultime settimane e mesi che ho iniziato ad andare sempre più in burnout. Sono consapevole che si tratta di un progetto enorme e che richiede un team invece di rimanere un progetto individuale. Quindi, ora mi sto concentrando maggiormente sul rendere questo un lavoro di squadra, per rendere gli aspetti utili dell'IA accessibili alle persone comuni invece di concentrarmi sulle aziende. E per costruire un'attività e un prodotto sostenibili che le persone amino ancora usare negli anni a venire, invece di diventare l'ennesima startup sulla strada della "enshittification". Sono molto più interessato a concetti come la steward ownership, ad esempio, invece di parlare di strategie di uscita e di come svendersi alle big tech.
+    
+    Dato che mi vedo principalmente come un "product guy" (background in UX design + sviluppo software), sono particolarmente interessato a persone con un focus su marketing/comunicazione, ma mi piacerebbe anche ricevere supporto da altri sviluppatori software esperti. E il feedback di chiunque utilizzi OpenMates è davvero prezioso e molto gradito, indipendentemente dal tuo background.
+    
+    Se questo ti sembra interessante e vuoi contribuire con il tuo feedback, connetterti con altre persone o magari collaborare a lungo termine, partecipa al meetup di OpenMates o [inviami un messaggio](mailto:marco@openmates.org)! :)
+    
+    Un saluto,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    Selam,
+    
+    OpenMates'te artık bir referans özelliği var: Kişisel referans bağlantını arkadaşlarınla paylaşabilirsin; birisi bu bağlantı üzerinden katıldığında ve ilk uygun kredi satın alımını yaptığında, her ikiniz de ücretsiz OpenMates kredisi kazanırsınız.
+    
+    İşte nasıl çalıştığı:
+    
+    - Ödeme ayarlarından referans bağlantını veya QR kodunu paylaşırsın.
+    - Arkadaşın bu bağlantı üzerinden kaydolur ve ilk uygun kredi satın alımını yapar.
+    - O 2.000 ücretsiz kredi kazanır, sen de 2.000 ücretsiz kredi kazanırsın.
+    
+    Mevcut referans kampanyası, 7 gün içindeki 10 EUR veya üzeri ilk satın alımlar için geçerlidir. Her hesap bir referans kodunu bir kez kullanabilir ve her referans veren, referans bütçesi mevcut olduğu sürece en fazla 10 başarılı referans için ödül alabilir.
+    
+    Bunu ekledim çünkü kulaktan kulağa yayılma OpenMates'in büyümesi için en anlamlı yol: Takip reklamları veya karanlık tasarımlar (dark patterns) yoluyla değil, insanların gerçekten faydalı bulduklarında tavsiye etmeleriyle.
+    
+    Tipik yapay zeka sohbet botlarına daha gizlilik odaklı, esnek bir alternatif arayan birini tanıyorsan, onları davet etmekten çekinme.
+    
+    OpenMates'in projeye uygun bir şekilde büyümesine yardımcı olduğun için teşekkürler.
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Chào bạn,
+    
+    OpenMates hiện đã có tính năng giới thiệu: bạn có thể chia sẻ liên kết giới thiệu cá nhân của mình với bạn bè, và khi ai đó tham gia qua liên kết đó và thực hiện giao dịch mua credit đủ điều kiện đầu tiên, cả hai sẽ nhận được credit OpenMates miễn phí.
+    
+    Cách thức hoạt động như sau:
+    
+    - Bạn chia sẻ liên kết giới thiệu hoặc mã QR từ cài đặt thanh toán.
+    - Bạn của bạn đăng ký qua liên kết đó và thực hiện giao dịch mua credit đủ điều kiện đầu tiên.
+    - Họ nhận được 2.000 credit miễn phí, và bạn cũng nhận được 2.000 credit miễn phí.
+    
+    Chiến dịch giới thiệu hiện tại áp dụng cho các giao dịch mua đầu tiên từ 10 EUR trở lên trong vòng 7 ngày. Mỗi tài khoản có thể sử dụng một mã giới thiệu một lần, và mỗi người giới thiệu có thể nhận phần thưởng cho tối đa 10 lần giới thiệu thành công trong khi ngân sách giới thiệu vẫn còn.
+    
+    Tôi thêm tính năng này vì truyền miệng là cách ý nghĩa nhất để OpenMates phát triển: không phải thông qua quảng cáo theo dõi hay các thủ thuật tâm lý, mà thông qua việc mọi người giới thiệu khi họ thực sự thấy nó hữu ích.
+    
+    Nếu bạn biết ai đó muốn một giải pháp thay thế linh hoạt, tập trung vào quyền riêng tư hơn cho các chatbot AI thông thường, đừng ngần ngại mời họ.
+    
+    Cảm ơn bạn đã giúp OpenMates phát triển theo cách phù hợp với dự án.
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng lập OpenMates
+  id: |
+    Sudah menggunakan OpenMates dan ingin bergabung dalam OpenMates Meetup pada hari Selasa, 19 Mei pukul 19:00 di Berlin?
+    
+    Selama 1 1/2 tahun terakhir, saya telah membangun OpenMates.org: Alternatif yang lebih baik untuk ChatGPT, Claude, OpenClaw, Manus, dan lainnya. Biasanya memberikan respons yang lebih baik, memiliki desain pengalaman pengguna yang lebih baik, memprioritaskan privasi, keamanan, dan kepentingan pengguna dengan berbagai fitur, serta tidak mengunci kamu dalam satu ekosistem, sambil tetap memungkinkan kamu menggunakan model AI yang sudah kamu kenal dan gunakan. Aplikasi ini dapat menggunakan berbagai keahlian aplikasi untuk mencari acara, koneksi kereta api, janji temu dokter, apartemen, dan banyak lagi, serta telah memiliki 200 pengguna berbayar pertama (pembelian kredit penggunaan satu kali).
+    
+    Meski begitu: Saya belum berada di titik di mana saya bisa hidup dari proyek ini (masih dibiayai terutama oleh tunjangan pengangguran) dan saya bekerja sangat keras dalam beberapa minggu dan bulan terakhir hingga saya mulai merasa semakin burn out. Saya sadar bahwa ini adalah proyek besar dan membutuhkan tim alih-alih tetap menjadi proyek satu orang. Jadi, sekarang saya lebih fokus untuk menjadikan ini proyek upaya tim, untuk membuat aspek AI yang bermanfaat dapat diakses oleh orang biasa alih-alih berfokus pada perusahaan besar. Dan untuk membangun bisnis serta produk berkelanjutan yang tetap disukai orang di tahun-tahun mendatang, alih-alih menjadi sekadar startup lain dalam perjalanannya menuju enshittification. Saya jauh lebih tertarik pada konsep-konsep seperti steward ownership, misalnya, daripada membicarakan strategi keluar dan bagaimana menjual diri ke perusahaan teknologi besar.
+    
+    Karena saya melihat diri saya terutama sebagai orang produk (latar belakang desain UX + pengembangan perangkat lunak), saya sangat tertarik pada orang-orang dengan fokus pemasaran/komunikasi - tetapi juga ingin mendapatkan dukungan dari pengembang perangkat lunak berpengalaman lainnya. Dan umpan balik dari siapa pun yang menggunakan OpenMates sangatlah berharga dan sangat disambut baik, apa pun latar belakangmu.
+    
+    Jika ini terdengar menarik bagimu dan kamu ingin berkontribusi dengan umpan balikmu, terhubung dengan orang lain atau bahkan mungkin berkolaborasi dalam jangka panjang - bergabunglah dalam meetup OpenMates atau [kirimkan pesan kepada saya](mailto:marco@openmates.org)! :)
+    
+    Salam,
+    
+    Marco  
+    Kreator OpenMates
+  pl: |
+    Cześć,
+    
+    OpenMates ma teraz program poleceń: możesz udostępnić znajomym swój osobisty link polecający, a gdy ktoś dołączy za jego pośrednictwem i dokona pierwszego kwalifikującego się zakupu kredytów, oboje otrzymacie darmowe kredyty OpenMates.
+    
+    Oto jak to działa:
+    
+    - Udostępniasz swój link polecający lub kod QR z ustawień rozliczeń.
+    - Twój znajomy rejestruje się przez ten link i dokonuje pierwszego kwalifikującego się zakupu kredytów.
+    - On otrzymuje 2000 darmowych kredytów i Ty również otrzymujesz 2000 darmowych kredytów.
+    
+    Obecna kampania poleceń dotyczy pierwszych zakupów o wartości co najmniej 10 EUR dokonanych w ciągu 7 dni. Każde konto może raz użyć jednego kodu polecającego, a każdy polecający może otrzymać nagrody za maksymalnie 10 udanych poleceń, dopóki dostępny jest budżet programu.
+    
+    Dodałem tę funkcję, ponieważ polecenia ustne to najbardziej wartościowy sposób na rozwój OpenMates: nie przez śledzące reklamy czy zwodnicze interfejsy (dark patterns), ale dzięki ludziom, którzy polecają serwis, gdy uznają go za naprawdę przydatny.
+    
+    Jeśli znasz kogoś, komu przydałaby się bardziej dbająca o prywatność i elastyczna alternatywa dla typowych chatbotów AI, śmiało zaproś tę osobę.
+    
+    Dzięki za pomoc w rozwoju OpenMates w sposób zgodny z duchem projektu.
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Hey daar,
+    
+    OpenMates heeft nu een referral-functie: je kunt je persoonlijke referral-link delen met vrienden, en wanneer iemand zich via die link aanmeldt en hun eerste in aanmerking komende credit-aankoop doet, ontvangen jullie allebei gratis OpenMates-credits.
+    
+    Zo werkt het:
+    
+    - Je deelt je referral-link of QR-code vanuit de facturatie-instellingen.
+    - Je vriend meldt zich aan via die link en doet hun eerste in aanmerking komende credit-aankoop.
+    - Zij ontvangen 2.000 gratis credits, en jij ontvangt ook 2.000 gratis credits.
+    
+    De huidige referral-campagne is van toepassing op eerste aankopen van 10 EUR of meer binnen 7 dagen. Elk account kan één referral-code één keer gebruiken, en elke verwijzer kan beloningen ontvangen voor maximaal 10 succesvolle referrals zolang het referral-budget beschikbaar is.
+    
+    Ik heb dit toegevoegd omdat mond-tot-mondreclame de meest betekenisvolle manier is waarop OpenMates kan groeien: niet via tracking-advertenties of dark patterns, maar doordat mensen het aanbevelen wanneer ze het echt nuttig vinden.
+    
+    Als je iemand kent die een meer privacygerichte, flexibele alternatief voor typische AI-chatbots zou willen, voel je dan vrij om hen uit te nodigen.
+    
+    Bedankt voor het helpen groeien van OpenMates op een manier die bij het project past.
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    أهلاً بك،
+    
+    أصبح لدى OpenMates الآن ميزة إحالة: يمكنك مشاركة رابط الإحالة الشخصي الخاص بك مع الأصدقاء، وعندما ينضم شخص ما من خلاله ويقوم بأول عملية شراء رصيد مؤهلة، يحصل كلاكما على رصيد OpenMates مجاني.
+    
+    إليك كيفية العمل:
+    
+    - تشارك رابط الإحالة أو رمز الاستجابة السريعة (QR code) من إعدادات الفوترة.
+    - يقوم صديقك بالتسجيل عبر هذا الرابط ويقوم بأول عملية شراء رصيد مؤهلة.
+    - يحصل هو على 2,000 رصيد مجاني، وتحصل أنت أيضاً على 2,000 رصيد مجاني.
+    
+    تنطبق حملة الإحالة الحالية على أول عملية شراء بقيمة 10 يورو أو أكثر خلال 7 أيام. يمكن لكل حساب استخدام رمز إحالة واحد لمرة واحدة، ويمكن لكل محيل الحصول على مكافآت لما يصل إلى 10 إحالات ناجحة طالما أن ميزانية الإحالة متاحة.
+    
+    لقد أضفت هذه الميزة لأن التوصية الشخصية هي الطريقة الأكثر أهمية لنمو OpenMates: ليس من خلال إعلانات التتبع أو الأساليب الملتوية، ولكن من خلال توصية الأشخاص بها عندما يجدونها مفيدة حقاً.
+    
+    إذا كنت تعرف شخصاً يرغب في بديل أكثر مرونة وتركيزاً على الخصوصية لروبوتات الدردشة التقليدية التي تعمل بالذكاء الاصطناعي، فلا تتردد في دعوته.
+    
+    شكراً لمساعدتك في نمو OpenMates بطريقة تناسب المشروع.
+    
+    تحياتي،
+    
+    ماركو  
+    مؤسس OpenMates
+  hi: |
+    नमस्ते,
+    
+    OpenMates में अब एक रेफरल फीचर है: तुम अपने दोस्तों के साथ अपना व्यक्तिगत रेफरल लिंक साझा कर सकते हो, और जब कोई इसके माध्यम से जुड़ता है और अपनी पहली योग्य क्रेडिट खरीदारी करता है, तो तुम दोनों को मुफ्त OpenMates क्रेडिट मिलते हैं।
+    
+    यह इस तरह काम करता है:
+    
+    - तुम बिलिंग सेटिंग्स से अपना रेफरल लिंक या QR कोड साझा करते हो।
+    - तुम्हारा दोस्त उस लिंक के माध्यम से साइन अप करता है और अपनी पहली योग्य क्रेडिट खरीदारी करता है।
+    - उन्हें 2,000 मुफ्त क्रेडिट मिलते हैं, और तुम्हें भी 2,000 मुफ्त क्रेडिट मिलते हैं।
+    
+    वर्तमान रेफरल अभियान 7 दिनों के भीतर 10 EUR या उससे अधिक की पहली खरीदारी पर लागू होता है। प्रत्येक खाता एक बार एक रेफरल कोड का उपयोग कर सकता है, और प्रत्येक रेफरर रेफरल बजट उपलब्ध होने तक 10 सफल रेफरल तक पुरस्कार प्राप्त कर सकता है।
+    
+    मैंने इसे इसलिए जोड़ा क्योंकि OpenMates के बढ़ने का सबसे सार्थक तरीका लोगों की सिफारिशें हैं: ट्रैकिंग विज्ञापनों या डार्क पैटर्न के माध्यम से नहीं, बल्कि लोगों द्वारा इसे तब सुझाने के माध्यम से जब वे इसे वास्तव में उपयोगी पाते हैं।
+    
+    यदि तुम किसी ऐसे व्यक्ति को जानते हो जो सामान्य AI चैटबॉट्स के लिए अधिक गोपनीयता-केंद्रित, लचीला विकल्प चाहता है, तो बेझिझक उन्हें आमंत्रित करें।
+    
+    OpenMates को इस तरह से बढ़ने में मदद करने के लिए धन्यवाद जो प्रोजेक्ट के अनुकूल हो।
+    
+    शुभकामनाएं,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    สวัสดี
+    
+    ตอนนี้ OpenMates มีฟีเจอร์แนะนำเพื่อนแล้ว: เธอสามารถแชร์ลิงก์แนะนำส่วนตัวกับเพื่อนๆ และเมื่อมีคนสมัครผ่านลิงก์นั้นและซื้อเครดิตครั้งแรกตามเงื่อนไข ทั้งเธอและเพื่อนจะได้รับเครดิต OpenMates ฟรี
+    
+    วิธีการมีดังนี้:
+    
+    - แชร์ลิงก์แนะนำหรือรหัส QR จากการตั้งค่าการเรียกเก็บเงิน
+    - เพื่อนของเธอสมัครใช้งานผ่านลิงก์นั้นและซื้อเครดิตครั้งแรกตามเงื่อนไข
+    - เพื่อนจะได้รับ 2,000 เครดิตฟรี และเธอจะได้รับ 2,000 เครดิตฟรีเช่นกัน
+    
+    แคมเปญแนะนำเพื่อนปัจจุบันใช้กับการซื้อครั้งแรกตั้งแต่ 10 EUR ขึ้นไปภายใน 7 วัน แต่ละบัญชีสามารถใช้รหัสแนะนำได้หนึ่งครั้ง และผู้แนะนำแต่ละคนสามารถรับรางวัลได้สูงสุดสำหรับการแนะนำที่สำเร็จ 10 ครั้ง ตราบเท่าที่ยังมีงบประมาณสำหรับแคมเปญนี้อยู่
+    
+    ฉันเพิ่มฟีเจอร์นี้เพราะการบอกต่อเป็นวิธีที่มีความหมายที่สุดที่ OpenMates จะเติบโตได้: ไม่ใช่ผ่านโฆษณาติดตามตัวหรือรูปแบบที่หลอกล่อ (dark patterns) แต่ผ่านการที่ผู้คนแนะนำเมื่อพวกเขารู้สึกว่ามันมีประโยชน์จริงๆ
+    
+    หากเธอรู้จักใครที่ต้องการทางเลือกอื่นนอกเหนือจากแชทบอท AI ทั่วไป ที่เน้นความเป็นส่วนตัวและยืดหยุ่นกว่า อย่าลังเลที่จะชวนพวกเขามาใช้งานนะ
+    
+    ขอบคุณที่ช่วยให้ OpenMates เติบโตในแนวทางที่เหมาะสมกับโปรเจกต์นี้
+    
+    ด้วยความเคารพ
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    Ahoj,
+    
+    OpenMates má nyní funkci doporučení: můžeš sdílet svůj osobní odkaz s přáteli, a když se někdo přidá přes tvůj odkaz a provede svůj první nákup kreditů splňující podmínky, oba získáte kredity OpenMates zdarma.
+    
+    Takhle to funguje:
+    
+    - Sdílíš svůj odkaz pro doporučení nebo QR kód z nastavení fakturace.
+    - Tvůj přítel se zaregistruje přes tento odkaz a provede svůj první nákup kreditů splňující podmínky.
+    - Získá 2 000 kreditů zdarma a ty získáš také 2 000 kreditů zdarma.
+    
+    Současná kampaň se vztahuje na první nákupy v hodnotě 10 EUR a více provedené do 7 dní. Každý účet může použít jeden kód pro doporučení jednou a každý doporučující může získat odměnu až za 10 úspěšných doporučení, dokud je k dispozici rozpočet kampaně.
+    
+    Tuto funkci jsem přidal, protože osobní doporučení je pro OpenMates ten nejsmysluplnější způsob růstu: ne přes sledovací reklamy nebo nekalé praktiky (dark patterns), ale díky lidem, kteří projekt doporučí, protože jim přijde skutečně užitečný.
+    
+    Pokud znáš někoho, kdo by ocenil flexibilní alternativu k běžným AI chatbotům zaměřenou na soukromí, neváhej ho pozvat.
+    
+    Díky, že pomáháš OpenMates růst způsobem, který k projektu sedí.
+    
+    Zdraví tě,
+    
+    Marco  
+    tvůrce OpenMates
+  sv: |
+    Hej,
+    
+    OpenMates har nu en värvningsfunktion: du kan dela din personliga värvningslänk med vänner, och när någon går med via den och gör sitt första berättigade köp av krediter får ni båda gratis OpenMates-krediter.
+    
+    Så här fungerar det:
+    
+    - Du delar din värvningslänk eller QR-kod från faktureringsinställningarna.
+    - Din vän registrerar sig via länken och gör sitt första berättigade köp av krediter.
+    - De får 2 000 gratis krediter, och du får också 2 000 gratis krediter.
+    
+    Den nuvarande värvningskampanjen gäller för första köp på 10 EUR eller mer inom 7 dagar. Varje konto kan använda en värvningskod en gång, och varje värvare kan få belöningar för upp till 10 framgångsrika värvningar så länge värvningsbudgeten räcker.
+    
+    Jag lade till detta eftersom rekommendationer är det mest meningsfulla sättet för OpenMates att växa: inte genom spårningsannonser eller dark patterns, utan genom att människor rekommenderar tjänsten när de verkligen tycker att den är användbar.
+    
+    Om du känner någon som skulle vilja ha ett mer integritetsfokuserat och flexibelt alternativ till typiska AI-chatbottar, får du gärna bjuda in dem.
+    
+    Tack för att du hjälper OpenMates att växa på ett sätt som passar projektet.
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    היי,
+    
+    ל-OpenMates יש עכשיו פיצ'ר הפניות: תוכל לשתף את קישור ההפניה האישי שלך עם חברים, וכשמישהו יצטרף דרכו ויבצע את רכישת הקרדיטים הראשונה המתאימה שלו, שניכם תקבלו קרדיטים של OpenMates בחינם.
+    
+    כך זה עובד:
+    
+    - משתפים את קישור ההפניה או את קוד ה-QR מהגדרות החיוב.
+    - החבר נרשם דרך הקישור ומבצע את רכישת הקרדיטים הראשונה המתאימה שלו.
+    - הוא מקבל 2,000 קרדיטים בחינם, וגם אתה מקבל 2,000 קרדיטים בחינם.
+    
+    קמפיין ההפניות הנוכחי חל על רכישות ראשונות של 10 אירו ומעלה בתוך 7 ימים. כל חשבון יכול להשתמש בקוד הפניה אחד פעם אחת, וכל מפנה יכול לקבל תגמולים עבור עד 10 הפניות מוצלחות כל עוד תקציב ההפניות זמין.
+    
+    הוספתי את זה כי "מפה לאוזן" היא הדרך המשמעותית ביותר שבה OpenMates יכולה לצמוח: לא דרך מודעות מעקב או דפוסים אפלים, אלא דרך אנשים שממליצים עליה כשהם באמת מוצאים אותה שימושית.
+    
+    אם אתה מכיר מישהו שמעוניין בחלופה גמישה וממוקדת פרטיות לצ'אטבוטים רגילים של AI, אל תהסס להזמין אותו.
+    
+    תודה שעזרת ל-OpenMates לצמוח בדרך שמתאימה לפרויקט.
+    
+    בברכה,
+    
+    מרקו  
+    היוצר של OpenMates
   verified_by_human: []
 email_body:
   context: 'Newsletter announcements/referral-feature-launch — email_body'
@@ -170,23 +555,659 @@ email_body:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    你好，
+    
+    我是 Marco（又名 [glowingkitty](https://github.com/glowingkitty)）—— OpenMates 的开发者。
+    我没有忘记 OpenMates —— 恰恰相反。
+    
+    [video]
+    
+    # 🙏 首先，我想说几句感谢的话
+    
+    12 月底，在 Chaos Communication Congress (CCC) 期间，我意外地收到了德国电视台 ZDF 的采访邀请[（这是一篇讨论针对大型科技公司 AI 的隐私保护替代方案重要性的报道）](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html)。哇，那真是一次难忘的经历。尽管当时的 OpenMates 还比较粗糙，但第一批用户已经开始注册并使用它了 —— 他们还发现了一些我在自己设备上测试时没遇到的 Bug 和极端情况，并热心地报告了这些问题。非常感谢每一位提供反馈的朋友 —— 这对让 OpenMates 变得更精炼、更稳定、更完备起到了巨大的帮助！当然，如果你在使用 OpenMates 时发现任何感觉不对劲或损坏的地方，非常欢迎继续报告问题。
+    
+    虽然这并不是我开发的第一个软件，但这是第一次有这么多（不仅仅是几个人）开始使用我构建的软件 —— 到目前为止，OpenMates 已经有超过 180 名活跃用户了！这非常令人兴奋，坦白说，起初也让我感到有些应接不暇。
+    
+    从那时起，我完全专注于改进和调试 OpenMates，使其功能更趋完备和精炼 —— 并对代码进行了大量更改。包括 Bug 修复、新功能、改进的用户界面以及许多其他优化。
+    
+    今天，我很高兴能为你带来过去几个月最令人兴奋的变化更新！请记住，在一个简报中讨论所有更改内容太多了 —— 因此我将重点介绍亮点，并在接下来的几周内发布多个关于 OpenMates 各种功能的短视频，发布平台包括：
+    - [Instagram](https://instagram.com/openmates_official)
+    - [Bluesky](https://bsky.app/profile/openmates.bsky.social)
+    - [Mastodon](https://mastodon.social/@OpenMates)
+    - [YouTube](https://www.youtube.com/@OpenMates)。
+    
+    # ✨ 过去几个月的亮点
+    
+    ## 1. 🧩 新应用与应用技能
+    
+    除了现有的搜索网页、阅读和分析网站以及读取 YouTube 视频字幕以发起讨论的功能外 —— OpenMates 还新增了许多应用和应用技能。以下是一些亮点：
+    
+    - 🏥 **[健康 (Health)](https://openmates.org/#settings/apps/health/skills/search_appointments)：** 正在寻找医生预约？健康应用现在可以检查 Doctolib 和 Jameda 上的可用时段。
+    - 🏠 **[房产 (Home)](https://openmates.org/#settings/apps/home/skills/search)：** 在 ImmoScout24、WG-Gesucht 和 Kleinanzeigen 上搜索公寓 —— 关键细节直接在 OpenMates 上可见。
+    - 🎉 **[活动 (Events)](https://openmates.org/#settings/apps/events/skills/search)：** 在 Meetup、Luma、Resident Advisor 和 Google 上搜索和筛选活动 —— 包含描述、图片、活动时间和地点等详情，以及直接 RSVP 或加入的链接。
+    - ✈️ **[旅行 (Travel)](https://openmates.org/#settings/apps/travel)：** 新的“[搜索交通连接](https://openmates.org/#settings/apps/travel/skills/search_connections)”技能让你通过 Google 搜索航班，可同时跨多天搜索多个连接 —— 包括完整的航班详情和预订链接。对火车连接的支持即将推出。而“[价格日历](https://openmates.org/#settings/apps/travel/skills/price_calendar)”技能可以让你快速概览一个月的价格走势。
+    - ⏰ **[提醒 (Reminders)](https://openmates.org/#settings/apps/reminder)：** 为聊天创建提醒以便稍后处理 —— 甚至可以触发 OpenMates 搜索并总结特定主题的每日最新新闻。
+    - 🖼️ **[图片 (Images)](https://openmates.org/#settings/apps/images)：** 在网页上[搜索](https://openmates.org/#settings/apps/images/skills/search)图片、[生成](https://openmates.org/#settings/apps/images/skills/generate)图片和[矢量图形](https://openmates.org/#settings/apps/images/skills/vectorize)。
+    - 📄 **[PDF](https://openmates.org/#settings/apps/pdf)：** 上传 PDF 并针对文本甚至视觉布局提问 —— OpenMates 既能阅读也能查看 PDF！
+    - 💻 **[代码 (Code)](https://openmates.org/#settings/apps/code)：** OpenMates 可以[搜索最新的文档](https://openmates.org/#settings/apps/code/skills/get_docs)来回答编程相关问题，然后编写代码 —— 甚至让你直接在浏览器中预览网站设计和代码！而这仅仅是其编程能力的初步阶段。
+    - 🧮 **[数学 (Math)](https://openmates.org/#settings/apps/math)：** 在 OpenMates 中计算表达式，甚至可视化绘图。
+    - 📝 **[文档 (Docs)](https://openmates.org/#settings/apps/docs)：** 请求生成 Word 文档 —— 并将其下载为 .docx 文件。
+    - 📊 **[表格 (Sheets)](https://openmates.org/#settings/apps/sheets)：** OpenMates 还可以创建表格并让你将其下载为 .xlsx 文件。在接下来的几周内，文档和表格功能都将变得更好、更强大。
+    - 📧 **[邮件 (Mail)](https://openmates.org/#settings/apps/mail)：** OpenMates 可以为你起草电子邮件，然后你可以通过设备上的默认邮件程序轻松打开并发送。
+    - 🎙️ **[音频 (Audio)](https://openmates.org/#settings/apps/audio)：** 不想打字？直接从消息栏录制并向 OpenMates 发送语音消息。
+    
+    还有更多应用技能已添加。只需[查看并探索 OpenMates 应用](https://openmates.org/#settings/apps)。
+    
+    ## 2. 🔒 个人数据占位符
+    
+    与大型科技公司和典型初创公司的 AI 聊天机器人不同，OpenMates 将你的隐私作为首要任务。它已经具备了各种隐私保护措施：
+    - 🔐 你所有的聊天内容仅在你的设备上进行加密和解密
+    - 🖼️ 所有外部图片都通过我们的 OpenMates 服务器加载（因此外部网站看不到你的 IP 地址或设备信息）
+    - 📉 OpenMates 不使用 Google Analytics 或任何其他分析软件（这也是为什么你在 OpenMates 上看不到 Cookie 横幅的原因）
+    
+    新功能：当你起草并向 OpenMates 发送消息时，电子邮件地址、电话号码、API 密钥等敏感数据会在你的设备上被自动检测并替换为占位符。你随时可以在用户界面中切换回原始值，也可以点击检测到的数据以防止替换。但默认情况下，此功能可确保 OpenMates 和处理你消息的 AI 提供商从一开始就看不到这些敏感数据。
+    
+    [亲自尝试一下](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) —— 点击此链接查看个人数据占位符的实际效果：你的电子邮件和电话号码将在发送给 AI 之前被自动检测并替换。
+    
+    ## 3. 🧠 记忆 (Memories)
+    
+    OpenMates 现在可以记住特定应用的记忆，例如你即将到来的旅行或项目详情。但是：所有记忆仅在你的设备上加密和解密，并且只有在你为特定聊天明确确认后，才会临时与 OpenMates 服务器和 AI 提供商共享。这让你能够充分利用个性化回复，而无需不断重复你的项目细节 —— 同时仍能完全控制你共享的数据、共享时间以及与哪个 AI 提供商共享。查看 [OpenMates 应用中的记忆](https://openmates.org/#settings/apps/all/memories)。
+    
+    ## 4. 🎯 专注模式 (Focus Modes)
+    
+    了解如何向 AI 聊天机器人提供正确的指令，对于聊天机器人的帮助程度和回复质量有着巨大的影响。有了专注模式，你不需要成为提示词工程专家，也能充分利用出色的、有针对性的指令。例如，只需向 OpenMates 询问职业见解，“职业见解”专注模式就会自动激活，引导你完成整个过程。当然：这仅仅是个开始。接下来的几周内将添加更多专注模式，并进一步提高现有模式的质量。欢迎查看 [OpenMates 应用中的专注模式](https://openmates.org/#settings/apps/all/focus-modes)。
+    
+    ## 5. 🤖 新模型
+    
+    OpenMates 提供了广泛的高效且性能卓越的 AI 模型选择。默认情况下，它会根据任务自动选择合适的模型。但你随时可以[在 AI 设置中](https://openmates.org/#settings/ai)永久覆盖此行为，或者通过在消息栏中使用 `@{modelname}` 提及特定模型来按需覆盖。你现在可以从多种 AI 模型中进行选择，例如：
+    
+    - [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) 和 [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)
+    - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) 和 [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
+    - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
+    - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
+    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - `@best` 和 `@fast` 模型别名 —— 输入 `@best` 自动路由到最强模型，输入 `@fast` 使用 OpenMates 上可用的最快模型。
+    
+    ## 6. 💡 每日灵感与维基百科链接
+    
+    如果使用得当，AI 可以成为一个极好的学习工具。OpenMates 经过优化，旨在鼓励人们学习、探索和获取灵感。这就是你登录后在界面顶部看到的“每日灵感”的作用。它们会展示有趣的新视频 —— 很快还会包含其他内容，如维基百科文章、OpenMates 新功能、艺术品的照片和详情、重要的历史事件等。每日灵感是根据你的聊天内容量身定制的，然后使用只有你拥有的密钥锁定在你的设备上 —— 因此它们对你来说是私密的。
+    此外，OpenMates 还会自动在助手消息的回复中突出显示维基百科文章。这使得你只需点击带有学习图标的橙色高亮单词，即可轻松了解有关某个主题的更多信息。
+    
+    # 🚀 后续计划
+    
+    在接下来的几周里，我将发布各种短视频，展示 OpenMates 的众多功能以及可以用它做的有用事情，同时进一步改进软件并添加更多应用、提供商和功能。
+    
+    从现在起，我的计划是每隔几周发送一次关于公告和更新的简报邮件，并单独发送关于如何使用 OpenMates 的提示和技巧。如果你想接收更多或更少的简报邮件，请随时[检查你的简报设置](https://openmates.org/#settings/newsletter)。
+    
+    祝你使用 OpenMates 愉快，并敬请期待更多更新！
+    
+    [cta]
+  es: |
+    [image]
+    
+    [cta]
+    
+    ¿Ya usas OpenMates y quieres unirte al Meetup de OpenMates el martes 19 de mayo a las 19:00 en Berlín?
+    
+    Durante el último año y medio, he estado construyendo OpenMates.org: una mejor alternativa a ChatGPT, Claude, OpenClaw, Manus y otros. Normalmente ofrece mejores respuestas, tiene un mejor diseño de experiencia de usuario, prioriza la privacidad, la seguridad y los intereses del usuario con varias funciones, y no te encierra en un ecosistema, permitiéndote seguir usando los modelos de IA que ya conoces y utilizas. Puede usar varias habilidades de aplicación para encontrar eventos, conexiones de tren, citas médicas, apartamentos y mucho más, y ya cuenta con los primeros 200 usuarios de pago (compras de créditos de uso único).
+    
+    Dicho esto: aún no estoy en un punto en el que pueda vivir de ello (todavía se financia principalmente con la prestación por desempleo) y he trabajado tanto en las últimas semanas y meses que he empezado a quemarme cada vez más. Soy consciente de que este es un proyecto enorme y requiere un equipo en lugar de seguir siendo un proyecto de una sola persona. Por eso, ahora me estoy centrando más en convertir esto en un esfuerzo de equipo, para que los aspectos útiles de la IA sean accesibles para la gente común en lugar de centrarme en el sector empresarial. Y para construir un negocio y un producto sostenibles que la gente siga amando usar en los próximos años, en lugar de convertirme en otra startup más en su camino hacia la mierdificación (*enshittification*). Me interesan mucho más conceptos como la propiedad responsable (*steward ownership*), por ejemplo, en lugar de hablar de estrategias de salida y de cómo venderse a las grandes tecnológicas.
+    
+    Como me veo principalmente como el responsable de producto (con experiencia en diseño UX y desarrollo de software), me interesan especialmente las personas con un enfoque en marketing/comunicación, pero también me encantaría recibir apoyo de otros desarrolladores de software experimentados. Y el feedback de cualquier persona que use OpenMates es genuinamente valioso y muy bienvenido, independientemente de tu formación.
+    
+    Si esto te suena interesante y quieres contribuir con tus comentarios, conectar con otras personas o tal vez incluso colaborar a más largo plazo, ¡únete al meetup de OpenMates o [envíame un mensaje](mailto:marco@openmates.org)! :)
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    Salut,
+    
+    OpenMates propose désormais un programme de parrainage : tu peux partager ton lien de parrainage personnel avec tes amis, et quand quelqu'un s'inscrit via ce lien et effectue son premier achat de crédits éligible, vous recevez tous les deux des crédits OpenMates gratuits.
+    
+    [cta]
+    
+    Voici comment ça marche :
+    
+    - Tu partages ton lien de parrainage ou ton code QR depuis les paramètres de facturation.
+    - Ton ami s'inscrit via ce lien et effectue son premier achat de crédits éligible.
+    - Il reçoit 2 000 crédits gratuits, et tu reçois également 2 000 crédits gratuits.
+    
+    La campagne de parrainage actuelle s'applique aux premiers achats de 10 EUR ou plus effectués dans les 7 jours. Chaque compte peut utiliser un code de parrainage une seule fois, et chaque parrain peut recevoir des récompenses pour un maximum de 10 parrainages réussis tant que le budget de parrainage est disponible.
+    
+    J'ai ajouté cela parce que le bouche-à-oreille est le moyen le plus significatif pour OpenMates de se développer : non pas par des publicités de suivi ou des interfaces trompeuses, mais par des personnes qui le recommandent lorsqu'elles le trouvent vraiment utile.
+    
+    Si tu connais quelqu'un qui aimerait une alternative aux chatbots IA classiques, plus respectueuse de la vie privée et plus flexible, n'hésite pas à l'inviter.
+    
+    Merci d'aider OpenMates à grandir d'une manière qui correspond au projet.
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Olá,
+    
+    O OpenMates agora tem uma funcionalidade de recomendação: podes partilhar o teu link de recomendação pessoal com amigos e, quando alguém se registar através dele e fizer a sua primeira compra de créditos elegível, ambos recebem créditos OpenMates grátis.
+    
+    [cta]
+    
+    Eis como funciona:
+    
+    - Partilhas o teu link de recomendação ou código QR a partir das definições de faturação.
+    - O teu amigo regista-se através desse link e faz a sua primeira compra de créditos elegível.
+    - Ele recebe 2.000 créditos grátis e tu também recebes 2.000 créditos grátis.
+    
+    A campanha de recomendação atual aplica-se a primeiras compras de 10 EUR ou mais no prazo de 7 dias. Cada conta pode usar um código de recomendação uma vez, e cada recomendador pode receber recompensas por até 10 recomendações bem-sucedidas enquanto o orçamento de recomendação estiver disponível.
+    
+    Adicionei isto porque o passa-palavra é a forma mais significativa de o OpenMates crescer: não através de anúncios de rastreio ou padrões obscuros, mas através de pessoas que o recomendam quando o consideram genuinamente útil.
+    
+    Se conheceres alguém que gostaria de uma alternativa mais focada na privacidade e flexível aos chatbots de IA típicos, sente-te à vontade para os convidar.
+    
+    Obrigado por ajudares o OpenMates a crescer de uma forma que se ajusta ao projeto.
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Привет,
+    
+    В OpenMates появилась реферальная функция: теперь ты можешь делиться своей персональной реферальной ссылкой с друзьями. Когда кто-то зарегистрируется по ней и совершит свою первую подходящую покупку кредитов, вы оба получите бесплатные кредиты OpenMates.
+    
+    [cta]
+    
+    Вот как это работает:
+    
+    - Ты делишься своей реферальной ссылкой или QR-кодом из настроек оплаты.
+    - Твой друг регистрируется по этой ссылке и совершает свою первую подходящую покупку кредитов.
+    - Он получает 2 000 бесплатных кредитов, и ты тоже получаешь 2 000 бесплатных кредитов.
+    
+    Текущая реферальная кампания распространяется на первые покупки на сумму от 10 EUR в течение 7 дней. Каждый аккаунт может использовать один реферальный код один раз, а каждый приглашающий может получить вознаграждение максимум за 10 успешных рефералов, пока доступен реферальный бюджет.
+    
+    Я добавил эту функцию, потому что «сарафанное радио» — это самый правильный способ роста для OpenMates: не через рекламную слежку или темные паттерны, а через рекомендации людей, которым проект действительно полезен.
+    
+    Если ты знаешь кого-то, кому подошла бы более конфиденциальная и гибкая альтернатива типичным ИИ-чат-ботам, смело приглашай их.
+    
+    Спасибо, что помогаешь OpenMates расти так, как это соответствует духу проекта.
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    こんにちは。
+    
+    OpenMatesに紹介機能が追加されました。個人の紹介リンクを友だちにシェアして、そのリンクから誰かが参加して初めて対象となるクレジットを購入すると、あなたと友だちの両方が無料のOpenMatesクレジットを受け取れます。
+    
+    [cta]
+    
+    仕組みは以下の通りです：
+    
+    - お支払い設定から紹介リンクまたはQRコードをシェアします。
+    - 友だちがそのリンクから登録し、初めて対象となるクレジットを購入します。
+    - 友だちに2,000クレジット、あなたにも2,000クレジットの無料クレジットが付与されます。
+    
+    現在の紹介キャンペーンは、7日以内に行われた10ユーロ以上の初回購入に適用されます。各アカウントは紹介コードを1回のみ使用でき、紹介者は紹介予算がある限り、最大10件の成功した紹介に対して報酬を受け取ることができます。
+    
+    この機能を追加したのは、口コミこそがOpenMatesが成長するための最も意義のある方法だからです。追跡型広告やダークパターンではなく、本当に便利だと感じた人が勧めてくれることで成長したいと考えています。
+    
+    プライバシーを重視した、一般的なAIチャットボットに代わる柔軟な選択肢を求めている人がいれば、ぜひ招待してください。
+    
+    プロジェクトの趣旨に沿った形でOpenMatesの成長をサポートしていただき、ありがとうございます。
+    
+    よろしくお願いします。
+    
+    Marco  
+    OpenMates 開発者
+  ko: |
+    안녕하세요,
+    
+    OpenMates에 추천 기능이 생겼어요. 친구에게 개인 추천 링크를 공유하고, 친구가 가입 후 첫 크레딧을 구매하면 두 분 모두에게 무료 OpenMates 크레딧을 드립니다.
+    
+    [cta]
+    
+    이용 방법은 다음과 같아요:
+    
+    - 결제 설정에서 추천 링크나 QR 코드를 공유합니다.
+    - 친구가 해당 링크로 가입하고 첫 크레딧을 구매합니다.
+    - 친구와 본인 모두 각각 2,000 무료 크레딧을 받습니다.
+    
+    현재 추천 캠페인은 7일 이내에 10유로 이상 처음 구매하는 경우에 적용됩니다. 각 계정은 추천 코드를 한 번만 사용할 수 있으며, 추천인은 추천 예산이 소진될 때까지 최대 10명의 성공적인 추천에 대해 보상을 받을 수 있습니다.
+    
+    추적 광고나 다크 패턴이 아니라, 사람들이 진심으로 유용하다고 느껴서 추천하는 입소문이야말로 OpenMates가 성장할 수 있는 가장 의미 있는 방법이라고 생각해서 이 기능을 추가했습니다.
+    
+    일반적인 AI 챗봇보다 개인정보 보호를 중시하고 유연한 대안을 찾는 분을 알고 계신다면 편하게 초대해 주세요.
+    
+    프로젝트의 방향에 맞게 OpenMates가 성장할 수 있도록 도와주셔서 감사합니다.
+    
+    그럼 이만,
+    
+    OpenMates 제작자 Marco 드림
+  it: |
+    Ciao,
+    sono Marco (alias [glowingkitty](https://github.com/glowingkitty)), il creatore di OpenMates.
+    Non mi sono dimenticato di OpenMates — tutt'altro. 
+    
+    [video]
+    
+    # 🙏 Prima di tutto, qualche parola di ringraziamento
+    
+    A fine dicembre, nell'ambito del Chaos Communication Congress, mi è stata inaspettatamente chiesta un'intervista per il canale televisivo tedesco ZDF [(un servizio sull'importanza delle alternative incentrate sulla privacy alle grandi aziende tecnologiche di IA)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). E wow, che esperienza. Nonostante OpenMates fosse ancora molto acerbo all'epoca, le prime persone hanno iniziato a iscriversi e a usarlo — trovando anche bug e casi limite che non avevo riscontrato durante i test sui miei dispositivi, e segnalandoli prontamente. Grazie mille a tutti coloro che l'hanno fatto — ha aiutato davvero molto a rendere OpenMates più rifinito, stabile e completo! E ovviamente sei il benvenuto a continuare a segnalare problemi se noti qualcosa che non va o che sembra rotto su OpenMates.
+    
+    Anche se questo non è stato il primo software che ho creato, è stata la prima volta che più di una manciata di persone ha iniziato a usare qualcosa costruito da me — finora oltre 180 utenti attivi stanno usando OpenMates! È stato entusiasmante e, devo ammetterlo, all'inizio anche un po' travolgente.
+    
+    Da allora, mi sono concentrato completamente sul miglioramento e sul debugging di OpenMates, rendendolo più completo e rifinito — e ho apportato un'infinità di modifiche al codice. Correzioni di bug, nuove funzionalità, un'interfaccia utente migliorata e molti altri perfezionamenti. 
+    
+    E oggi sono felice di darti un aggiornamento con i cambiamenti più entusiasmanti degli ultimi mesi! Tieni presente che parlare di tutti i cambiamenti sarebbe troppo per una singola newsletter — quindi mi concentrerò sui punti salienti e pubblicherò anche diversi brevi video sulle varie funzionalità di OpenMates nelle prossime settimane su:
+    - [Instagram](https://instagram.com/openmates_official)
+    - [Bluesky](https://bsky.app/profile/openmates.bsky.social)
+    - [Mastodon](https://mastodon.social/@OpenMates)
+    - [YouTube](https://www.youtube.com/@OpenMates).
+    
+    # ✨ I punti salienti degli ultimi mesi
+    
+    ## 1. 🧩 Nuove app e funzionalità
+    
+    Oltre alle funzionalità esistenti di ricerca sul web, lettura e analisi di siti web e lettura delle trascrizioni dei video di YouTube per avviare discussioni — OpenMates ha ottenuto molte nuove app e funzionalità. Ecco alcuni punti salienti:
+    
+    - 🏥 **[Salute](https://openmates.org/#settings/apps/health/skills/search_appointments):** Cerchi appuntamenti dal medico? L'app Salute ora può controllare Doctolib e Jameda per le disponibilità.
+    - 🏠 **[Casa](https://openmates.org/#settings/apps/home/skills/search):** Cerca appartamenti su ImmoScout24, WG-Gesucht e Kleinanzeigen — con i dettagli principali visibili direttamente su OpenMates.
+    - 🎉 **[Eventi](https://openmates.org/#settings/apps/events/skills/search):** Cerca e filtra eventi su Meetup, Luma, Resident Advisor e Google — con dettagli come descrizioni, immagini, data e luogo, e link diretti per confermare la partecipazione o iscriverti.
+    - ✈️ **[Viaggi](https://openmates.org/#settings/apps/travel):** La nuova funzionalità '[Cerca collegamento](https://openmates.org/#settings/apps/travel/skills/search_connections)' ti permette di cercare voli tramite Google, su più collegamenti in vari giorni contemporaneamente — inclusi i dettagli completi del volo e i link per la prenotazione. Seguirà il supporto per i collegamenti ferroviari. E la funzionalità '[Calendario prezzi](https://openmates.org/#settings/apps/travel/skills/price_calendar)' ti mostra una rapida panoramica dell'andamento dei prezzi nell'arco di un mese.
+    - ⏰ **[Promemoria](https://openmates.org/#settings/apps/reminder):** Crea un promemoria per una chat per tornarci più tardi — o persino attiva OpenMates per cercare e riassumere le ultime notizie quotidiane su un determinato argomento, ad esempio.
+    - 🖼️ **[Immagini](https://openmates.org/#settings/apps/images):** [Cerca](https://openmates.org/#settings/apps/images/skills/search) immagini sul web, [genera](https://openmates.org/#settings/apps/images/skills/generate) immagini e [grafica vettoriale](https://openmates.org/#settings/apps/images/skills/vectorize).
+    - 📄 **[PDF](https://openmates.org/#settings/apps/pdf):** Carica PDF e fai domande sul testo o persino sul layout visivo — OpenMates può sia leggere che visualizzare i PDF! 
+    - 💻 **[Codice](https://openmates.org/#settings/apps/code):** OpenMates può [cercare la documentazione più recente](https://openmates.org/#settings/apps/code/skills/get_docs) per rispondere a domande relative alla programmazione, quindi scrivere codice — e persino farti visualizzare in anteprima il design di siti web e il codice direttamente nel browser! E questo è solo l'inizio delle sue capacità di programmazione.
+    - 🧮 **[Matematica](https://openmates.org/#settings/apps/math):** Calcola espressioni e visualizza persino grafici, tutto all'interno di OpenMates.
+    - 📝 **[Documenti](https://openmates.org/#settings/apps/docs):** Chiedi di generare documenti Word — e scaricali come file .docx.
+    - 📊 **[Fogli](https://openmates.org/#settings/apps/sheets):** OpenMates può anche creare tabelle e farti scaricare file .xlsx. Sia Documenti che Fogli diventeranno ancora migliori e più potenti nelle prossime settimane.
+    - 📧 **[Email](https://openmates.org/#settings/apps/mail):** OpenMates può scrivere bozze di email per te, che potrai poi aprire e inviare facilmente tramite il tuo programma di posta predefinito sul tuo dispositivo.
+    - 🎙️ **[Audio](https://openmates.org/#settings/apps/audio):** Non vuoi scrivere? Registra e invia un messaggio vocale a OpenMates, direttamente dal campo del messaggio.
+    
+    E sono state aggiunte ancora più funzionalità. [Dai un'occhiata ed esplora le App di OpenMates](https://openmates.org/#settings/apps).
+    
+    ## 2. 🔒 Segnaposto per i dati personali
+    
+    A differenza dei chatbot AI delle grandi aziende tecnologiche e delle startup tipiche, OpenMates è progettato con la tua privacy come priorità principale. E aveva già diverse protezioni della privacy in atto:
+    - 🔐 tutte le tue chat sono criptate e decriptate solo sul tuo dispositivo
+    - 🖼️ tutte le immagini esterne vengono caricate tramite il nostro server OpenMates (così i siti esterni non vedono il tuo indirizzo IP o le informazioni sul dispositivo)
+    - 📉 su OpenMates non viene utilizzato Google Analytics né alcun altro software di analisi (motivo per cui non vedi un banner dei cookie su OpenMates)
+    
+    Novità: i dati sensibili come indirizzi email, numeri di telefono, chiavi API e altro vengono rilevati automaticamente e sostituiti con segnaposto sul tuo dispositivo quando scrivi e invii un messaggio a OpenMates. Puoi sempre tornare al valore originale nell'interfaccia utente e puoi cliccare sui dati rilevati per impedirne la sostituzione. Ma per impostazione predefinita, questa funzione garantisce che né OpenMates né i fornitori di AI che elaborano i tuoi messaggi vedano mai i dati sensibili.
+    
+    [Provalo tu stesso](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — clicca su questo link per vedere i segnaposto per i dati personali in azione: la tua email e il tuo numero di telefono verranno rilevati automaticamente e sostituiti prima di essere inviati all'AI.
+    
+    ## 3. 🧠 Ricordi (Memories)
+    
+    OpenMates ora può ricordare dettagli specifici delle app, come i tuoi prossimi viaggi o i dettagli di un progetto. MA: tutti i ricordi sono criptati e decriptati solo sul tuo dispositivo, e vengono condivisi temporaneamente con il server di OpenMates e il fornitore di AI solo se lo confermi esplicitamente per la chat in questione. Questo ti permette di sfruttare appieno le risposte personalizzate senza ripetere costantemente i dettagli del tuo progetto — mantenendo il pieno controllo su quali dati condividi, quando e con quale fornitore di AI. Dai un'occhiata ai [Ricordi nelle App di OpenMates](https://openmates.org/#settings/apps/all/memories).
+    
+    ## 4. 🎯 Modalità Focus
+    
+    Sapere come dare le istruzioni giuste a un chatbot AI fa un'enorme differenza in termini di utilità del chatbot e qualità delle risposte. Con le Modalità Focus, non è necessario essere un esperto di prompt engineering per sfruttare al meglio istruzioni mirate ed efficaci. Chiedi a OpenMates informazioni sulla carriera, ad esempio, e la modalità focus 'Career insights' dovrebbe attivarsi automaticamente per guidarti nel processo. E naturalmente: questo è solo l'inizio. Verranno aggiunte molte altre Modalità Focus e la qualità di quelle esistenti sarà ulteriormente migliorata nelle prossime settimane. Sentiti libero di dare un'occhiata alle [Modalità Focus nelle App di OpenMates](https://openmates.org/#settings/apps/all/focus-modes).
+    
+    ## 5. 🤖 Nuovi modelli
+    
+    OpenMates ha un'ampia selezione dei modelli AI più efficienti e performanti in circolazione. Per impostazione predefinita, seleziona automaticamente quello giusto in base al compito. Ma puoi sempre sovrascrivere questo comportamento [nelle impostazioni AI](https://openmates.org/#settings/ai) in modo permanente, o su richiesta menzionando un modello specifico nel campo del messaggio tramite `@{modelname}`. Ora puoi scegliere tra una vasta gamma di modelli AI, ad esempio:
+    
+    - [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)
+    - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
+    - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
+    - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
+    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - alias dei modelli `@best` e `@fast` — scrivi `@best` per indirizzare automaticamente al modello più potente, `@fast` per usare il modello più veloce disponibile su OpenMates.
+    
+    ## 6. 💡 Ispirazioni quotidiane e link a Wikipedia
+    
+    L'AI, se usata correttamente, può essere uno strumento straordinario per l'apprendimento. E OpenMates è ottimizzato per incoraggiare le persone a imparare, esplorare e lasciarsi ispirare. A questo servono le Ispirazioni Quotidiane, che vedi nella parte superiore dell'interfaccia dopo aver effettuato l'accesso. Mostrano nuovi video interessanti — e presto anche altri contenuti come articoli di Wikipedia, nuove funzionalità di OpenMates, foto e dettagli di opere d'arte, eventi storici importanti e altro ancora. Le Ispirazioni Quotidiane sono personalizzate in base alle tue chat, quindi bloccate sul tuo dispositivo con una chiave che hai solo tu — in modo che rimangano private.
+    Inoltre, OpenMates evidenzia automaticamente gli articoli di Wikipedia nelle risposte dei messaggi dell'assistente. Questo rende semplicissimo saperne di più su un argomento cliccando sulla parola evidenziata in arancione con l'icona dello studio accanto.
+    
+    # 🚀 Cosa succederà ora
+    
+    Nelle prossime settimane pubblicherò vari brevi filmati che mostrano le numerose funzionalità di OpenMates e le cose utili che si possono fare, oltre a continuare a migliorare il software e ad aggiungere altre app, fornitori e funzionalità.
+    
+    Da ora in poi il mio piano è di inviare email della newsletter per annunci e aggiornamenti ogni poche settimane, e separatamente anche suggerimenti e trucchi su come usare OpenMates. Sentiti libero di [controllare le tue impostazioni della newsletter in qualsiasi momento](https://openmates.org/#settings/newsletter), se desideri ricevere più o meno email.
+    
+    Buon divertimento con OpenMates e resta sintonizzato per altri aggiornamenti!
+    
+    [cta]
+  tr: |
+    Selam,
+    
+    OpenMates'te artık bir referans özelliği var: Kişisel referans bağlantını arkadaşlarınla paylaşabilirsin; birisi bu bağlantı üzerinden katıldığında ve ilk uygun kredi satın alımını yaptığında, her ikiniz de ücretsiz OpenMates kredisi kazanırsınız.
+    
+    [cta]
+    
+    İşte nasıl çalıştığı:
+    
+    - Ödeme ayarlarından referans bağlantını veya QR kodunu paylaşırsın.
+    - Arkadaşın bu bağlantı üzerinden kaydolur ve ilk uygun kredi satın alımını yapar.
+    - O 2.000 ücretsiz kredi kazanır, sen de 2.000 ücretsiz kredi kazanırsın.
+    
+    Mevcut referans kampanyası, 7 gün içindeki 10 EUR veya üzeri ilk satın alımlar için geçerlidir. Her hesap bir referans kodunu bir kez kullanabilir ve her referans veren, referans bütçesi mevcut olduğu sürece en fazla 10 başarılı referans için ödül alabilir.
+    
+    Bunu ekledim çünkü kulaktan kulağa yayılma OpenMates'in büyümesi için en anlamlı yol: Takip reklamları veya karanlık tasarımlar (dark patterns) yoluyla değil, insanların gerçekten faydalı bulduklarında tavsiye etmeleriyle.
+    
+    If you know someone who would like a more privacy-focused, flexible alternative to typical AI chatbots, feel free to invite them.
+    
+    OpenMates'in projeye uygun bir şekilde büyümesine yardımcı olduğun için teşekkürler.
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Chào bạn,
+    
+    OpenMates hiện đã có tính năng giới thiệu: bạn có thể chia sẻ liên kết giới thiệu cá nhân của mình với bạn bè, và khi ai đó tham gia qua liên kết đó và thực hiện giao dịch mua credit đủ điều kiện đầu tiên, cả hai sẽ nhận được credit OpenMates miễn phí.
+    
+    [cta]
+    
+    Cách thức hoạt động như sau:
+    
+    - Bạn chia sẻ liên kết giới thiệu hoặc mã QR từ cài đặt thanh toán.
+    - Bạn của bạn đăng ký qua liên kết đó và thực hiện giao dịch mua credit đủ điều kiện đầu tiên.
+    - Họ nhận được 2.000 credit miễn phí, và bạn cũng nhận được 2.000 credit miễn phí.
+    
+    Chiến dịch giới thiệu hiện tại áp dụng cho các giao dịch mua đầu tiên từ 10 EUR trở lên trong vòng 7 ngày. Mỗi tài khoản có thể sử dụng một mã giới thiệu một lần, và mỗi người giới thiệu có thể nhận phần thưởng cho tối đa 10 lần giới thiệu thành công trong khi ngân sách giới thiệu vẫn còn.
+    
+    Tôi thêm tính năng này vì truyền miệng là cách ý nghĩa nhất để OpenMates phát triển: không phải thông qua quảng cáo theo dõi hay các thủ thuật tâm lý, mà thông qua việc mọi người giới thiệu khi họ thực sự thấy nó hữu ích.
+    
+    Nếu bạn biết ai đó muốn một giải pháp thay thế linh hoạt, tập trung vào quyền riêng tư hơn cho các chatbot AI thông thường, đừng ngần ngại mời họ.
+    
+    Cảm ơn bạn đã giúp OpenMates phát triển theo cách phù hợp với dự án.
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng lập OpenMates
+  id: |
+    Halo,
+    Saya Marco (alias [glowingkitty](https://github.com/glowingkitty)) — pencipta OpenMates.
+    Saya tidak melupakan OpenMates — justru sebaliknya. 
+    
+    [video]
+    
+    # 🙏 Sepatah kata terima kasih terlebih dahulu
+    
+    Di akhir Desember, dalam konteks Chaos Communication Congress, saya secara tidak terduga diminta untuk wawancara di saluran TV Jerman ZDF [(sebuah laporan yang membahas pentingnya alternatif yang berfokus pada privasi dibandingkan perusahaan AI teknologi besar)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Dan wow, sungguh sebuah pengalaman yang luar biasa. Meskipun OpenMates saat itu masih banyak kekurangan, orang-orang pertama mulai mendaftar dan menggunakannya — dan juga menemukan bug serta kasus-kasus langka yang tidak saya alami selama pengujian di perangkat saya sendiri, dan untungnya mereka melaporkannya. Terima kasih banyak kepada semua orang yang telah melakukannya — ini sangat membantu dalam membuat OpenMates lebih terpoles, lebih stabil, dan lebih lengkap! Dan tentu saja kamu sangat dipersilakan untuk terus melaporkan masalah jika kamu melihat ada sesuatu yang terasa salah atau rusak di OpenMates.
+    
+    Meskipun ini bukan perangkat lunak pertama yang saya buat, ini adalah pertama kalinya lebih dari segelintir orang mulai menggunakan perangkat lunak yang saya bangun — sejauh ini sudah lebih dari 180 pengguna aktif yang menggunakan OpenMates! Hal ini sangat menggembirakan, dan harus diakui pada awalnya juga sedikit membuat kewalahan.
+    
+    Sejak saat itu, saya fokus sepenuhnya pada peningkatan dan perbaikan bug OpenMates, serta menjadikannya lebih lengkap fiturnya dan lebih halus — dan melakukan banyak perubahan pada kode. Perbaikan bug, fitur baru, antarmuka pengguna yang ditingkatkan, dan banyak lagi peningkatan lainnya. 
+    
+    Dan hari ini, saya senang bisa memberikan pembaruan dengan perubahan paling menarik dari beberapa bulan terakhir! Perlu diingat, membahas semua perubahan akan terlalu banyak untuk satu buletin — jadi saya akan fokus pada sorotan utama dan juga menerbitkan beberapa video pendek tentang berbagai fitur di OpenMates dalam minggu-minggu mendatang, di:
+    - [Instagram](https://instagram.com/openmates_official)
+    - [Bluesky](https://bsky.app/profile/openmates.bsky.social)
+    - [Mastodon](https://mastodon.social/@OpenMates)
+    - [YouTube](https://www.youtube.com/@OpenMates).
+    
+    # ✨ Sorotan beberapa bulan terakhir
+    
+    ## 1. 🧩 Aplikasi & keahlian aplikasi baru
+    
+    Selain kemampuan yang sudah ada untuk mencari di web, membaca & menganalisis situs web, dan membaca transkrip video YouTube untuk memulai diskusi — OpenMates mendapatkan banyak aplikasi dan keahlian aplikasi baru. Berikut adalah beberapa sorotannya:
+    
+    - 🏥 **[Kesehatan](https://openmates.org/#settings/apps/health/skills/search_appointments):** Mencari janji temu dokter? Aplikasi Kesehatan sekarang dapat memeriksa Doctolib dan Jameda untuk slot yang tersedia.
+    - 🏠 **[Rumah](https://openmates.org/#settings/apps/home/skills/search):** Cari apartemen di ImmoScout24, WG-Gesucht, dan Kleinanzeigen — dengan detail utama yang langsung terlihat di OpenMates.
+    - 🎉 **[Acara](https://openmates.org/#settings/apps/events/skills/search):** Cari & filter acara di Meetup, Luma, Resident Advisor, dan Google — dengan detail seperti deskripsi, gambar, kapan dan di mana acara tersebut, serta tautan langsung untuk RSVP atau bergabung.
+    - ✈️ **[Perjalanan](https://openmates.org/#settings/apps/travel):** Keahlian '[Cari koneksi](https://openmates.org/#settings/apps/travel/skills/search_connections)' yang baru memungkinkanmu mencari penerbangan melalui Google, di berbagai koneksi pada beberapa hari secara bersamaan — termasuk detail penerbangan lengkap dan tautan pemesanan. Dukungan untuk koneksi kereta api akan menyusul. Dan keahlian '[Kalender harga](https://openmates.org/#settings/apps/travel/skills/price_calendar)' menunjukkan ringkasan cepat perkembangan harga selama sebulan.
+    - ⏰ **[Pengingat](https://openmates.org/#settings/apps/reminder):** Buat pengingat untuk chat agar bisa kembali lagi nanti — atau bahkan memicu OpenMates untuk mencari & merangkum berita harian terbaru untuk topik tertentu, misalnya.
+    - 🖼️ **[Gambar](https://openmates.org/#settings/apps/images):** [Cari](https://openmates.org/#settings/apps/images/skills/search) gambar di web, [hasilkan](https://openmates.org/#settings/apps/images/skills/generate) gambar dan [grafik vektor](https://openmates.org/#settings/apps/images/skills/vectorize).
+    - 📄 **[PDF](https://openmates.org/#settings/apps/pdf):** Unggah PDF dan ajukan pertanyaan tentang teks atau bahkan tata letak visualnya — OpenMates dapat membaca sekaligus melihat PDF! 
+    - 💻 **[Kode](https://openmates.org/#settings/apps/code):** OpenMates dapat [mencari dokumentasi terbaru](https://openmates.org/#settings/apps/code/skills/get_docs) untuk menjawab pertanyaan terkait pemrograman, lalu menulis kode — dan bahkan memungkinkanmu melihat pratinjau desain situs web dan kode langsung di browser! Dan ini baru awal dari kemampuan pemrogramannya.
+    - 🧮 **[Matematika](https://openmates.org/#settings/apps/math):** Hitung ekspresi dan bahkan visualisasikan plot, semuanya di dalam OpenMates.
+    - 📝 **[Dokumen](https://openmates.org/#settings/apps/docs):** Minta dokumen Word dibuat — dan unduh sebagai file .docx.
+    - 📊 **[Sheet](https://openmates.org/#settings/apps/sheets):** OpenMates juga dapat membuat tabel dan memungkinkanmu mengunduhnya sebagai file .xlsx. Baik Dokumen maupun Sheet akan menjadi lebih baik dan lebih kuat dalam minggu-minggu mendatang.
+    - 📧 **[Email](https://openmates.org/#settings/apps/mail):** OpenMates dapat membuat draf email untukmu, yang kemudian dapat kamu buka & kirim dengan mudah melalui program email default di perangkatmu.
+    - 🎙️ **[Audio](https://openmates.org/#settings/apps/audio):** Tidak ingin mengetik? Rekam dan kirim pesan suara ke OpenMates, langsung dari kolom pesan.
+    
+    Dan masih banyak lagi keahlian aplikasi yang telah ditambahkan. Silakan [lihat & jelajahi Aplikasi OpenMates](https://openmates.org/#settings/apps).
+    
+    ## 2. 🔒 Placeholder Data Pribadi
+    
+    Berbeda dengan chatbot AI dari perusahaan teknologi besar dan startup pada umumnya, OpenMates dirancang dengan privasimu sebagai prioritas utama. Dan OpenMates sudah memiliki berbagai perlindungan privasi:
+    - 🔐 semua chat kamu dienkripsi & didekripsi hanya di perangkatmu
+    - 🖼️ semua gambar eksternal dimuat melalui server OpenMates kami (sehingga situs web eksternal tidak melihat alamat IP atau informasi perangkatmu)
+    - 📉 tidak ada Google Analytics atau perangkat lunak analitik lainnya yang digunakan di OpenMates (itulah sebabnya kamu tidak melihat spanduk cookie di OpenMates)
+    
+    Yang baru: data sensitif seperti alamat email, nomor telepon, kunci API, dan lainnya secara otomatis terdeteksi dan diganti dengan placeholder di perangkatmu, saat kamu membuat draf dan mengirim pesan ke OpenMates. Kamu selalu dapat beralih kembali ke nilai asli di antarmuka pengguna, dan kamu dapat mengeklik data yang terdeteksi untuk mencegah penggantian. Namun secara default, fitur ini memastikan bahwa baik OpenMates maupun penyedia AI yang memproses pesanmu tidak akan pernah melihat data sensitif tersebut sejak awal.
+    
+    [Coba sendiri](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — klik tautan ini untuk melihat Placeholder Data Pribadi beraksi: email dan nomor teleponmu akan terdeteksi otomatis dan diganti sebelum dikirim ke AI.
+    
+    ## 3. 🧠 Memori
+    
+    OpenMates sekarang dapat mengingat memori khusus aplikasi, seperti perjalananmu yang akan datang atau detail proyek. TAPI: semua memori dienkripsi & didekripsi hanya di perangkatmu, dan hanya dibagikan sementara dengan server OpenMates dan penyedia AI jika kamu mengonfirmasinya secara eksplisit untuk chat tersebut. Ini memungkinkanmu memanfaatkan sepenuhnya respons yang dipersonalisasi tanpa terus-menerus mengulangi detail proyekmu — sambil tetap memegang kendali penuh atas data apa yang kamu bagikan, kapan, dan dengan penyedia AI mana. Lihat [Memori di Aplikasi OpenMates](https://openmates.org/#settings/apps/all/memories).
+    
+    ## 4. 🎯 Mode Fokus
+    
+    Mengetahui cara memberikan instruksi yang tepat kepada chatbot AI memberikan perbedaan besar dalam hal seberapa membantu chatbot tersebut dan kualitas responsnya. Dengan Mode Fokus, kamu tidak perlu menjadi ahli dalam rekayasa prompt untuk memanfaatkan instruksi yang hebat dan terarah. Cukup tanyakan wawasan karier kepada OpenMates, misalnya, dan mode fokus 'Wawasan karier' akan otomatis aktif untuk memandumu melalui proses tersebut. Dan tentu saja: ini baru permulaan. Lebih banyak Mode Fokus akan ditambahkan, dan kualitas yang sudah ada akan terus ditingkatkan dalam minggu-minggu mendatang. Jangan ragu untuk melihat [Mode Fokus di Aplikasi OpenMates](https://openmates.org/#settings/apps/all/focus-modes).
+    
+    ## 5. 🤖 Model baru
+    
+    OpenMates memiliki berbagai pilihan model AI yang paling efisien dan berkinerja terbaik di luar sana. Secara default, ia memilih secara otomatis model yang tepat berdasarkan tugasnya. Namun kamu selalu dapat mengganti perilaku ini [di pengaturan AI](https://openmates.org/#settings/ai) secara permanen, atau sesuai permintaan dengan menyebutkan model tertentu di kolom pesan melalui `@{modelname}`. Kamu sekarang dapat memilih dari berbagai model AI, misalnya:
+    
+    - [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)
+    - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
+    - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
+    - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
+    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - Alias model `@best` dan `@fast` — ketik `@best` untuk merutekan otomatis ke model terkuat, `@fast` untuk menggunakan model tercepat yang tersedia di OpenMates.
+    
+    ## 6. 💡 Inspirasi Harian & tautan Wikipedia
+    
+    AI, jika digunakan dengan benar, bisa menjadi alat yang luar biasa untuk belajar. Dan OpenMates dioptimalkan untuk mendorong orang belajar, menjelajah, dan mendapatkan inspirasi. Itulah gunanya Inspirasi Harian, yang kamu lihat di bagian atas antarmuka setelah kamu masuk. Mereka menampilkan video baru yang menarik — dan segera juga konten lain seperti artikel Wikipedia, fitur baru OpenMates, foto dan detail karya seni, peristiwa sejarah penting, dan banyak lagi. Inspirasi Harian disesuaikan dengan chat kamu, lalu dikunci di perangkatmu dengan kunci yang hanya kamu miliki — sehingga tetap pribadi bagimu.
+    Selain itu, OpenMates juga menyoroti artikel Wikipedia secara otomatis dalam respons pesan asisten. Hal ini memudahkanmu untuk mempelajari lebih lanjut tentang suatu topik hanya dengan mengeklik kata yang disorot oranye dengan ikon studi di sampingnya.
+    
+    # 🚀 Apa selanjutnya
+    
+    Dalam minggu-minggu mendatang saya akan memposting berbagai klip pendek yang menunjukkan banyak fitur OpenMates dan hal-hal berguna yang dapat dilakukan dengannya, serta terus meningkatkan perangkat lunak dan menambahkan lebih banyak aplikasi, penyedia, dan fitur.
+    
+    Mulai sekarang rencana saya adalah mengirimkan email buletin untuk pengumuman & pembaruan setiap beberapa minggu, dan secara terpisah juga tips & trik tentang cara menggunakan OpenMates. Jangan ragu untuk [memeriksa pengaturan buletinmu kapan saja](https://openmates.org/#settings/newsletter), jika kamu ingin menerima lebih banyak atau lebih sedikit email buletin.
+    
+    Bersenang-senanglah menggunakan OpenMates, dan nantikan pembaruan lainnya!
+    
+    [cta]
+  pl: |
+    Cześć,
+    
+    OpenMates ma teraz program poleceń: możesz udostępnić znajomym swój osobisty link polecający, a gdy ktoś dołączy za jego pośrednictwem i dokona pierwszego kwalifikującego się zakupu kredytów, oboje otrzymacie darmowe kredyty OpenMates.
+    
+    [cta]
+    
+    Oto jak to działa:
+    
+    - Udostępniasz swój link polecający lub kod QR z ustawień rozliczeń.
+    - Twój znajomy rejestruje się przez ten link i dokonuje pierwszego kwalifikującego się zakupu kredytów.
+    - On otrzymuje 2000 darmowych kredytów i Ty również otrzymujesz 2000 darmowych kredytów.
+    
+    Obecna kampania poleceń dotyczy pierwszych zakupów o wartości co najmniej 10 EUR dokonanych w ciągu 7 dni. Każde konto może raz użyć jednego kodu polecającego, a każdy polecający może otrzymać nagrody za maksymalnie 10 udanych poleceń, dopóki dostępny jest budżet programu.
+    
+    Dodałem tę funkcję, ponieważ polecenia ustne to najbardziej wartościowy sposób na rozwój OpenMates: nie przez śledzące reklamy czy zwodnicze interfejsy (dark patterns), ale dzięki ludziom, którzy polecają serwis, gdy uznają go za naprawdę przydatny.
+    
+    Jeśli znasz kogoś, komu przydałaby się bardziej dbająca o prywatność i elastyczna alternatywa dla typowych chatbotów AI, śmiało zaproś tę osobę.
+    
+    Dzięki za pomoc w rozwoju OpenMates w sposób zgodny z duchem projektu.
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Hey daar,
+    
+    OpenMates heeft nu een referral-functie: je kunt je persoonlijke referral-link delen met vrienden, en wanneer iemand zich via die link aanmeldt en hun eerste in aanmerking komende credit-aankoop doet, ontvangen jullie allebei gratis OpenMates-credits.
+    
+    [cta]
+    
+    Zo werkt het:
+    
+    - Je deelt je referral-link of QR-code vanuit de facturatie-instellingen.
+    - Je vriend meldt zich aan via die link en doet hun eerste in aanmerking komende credit-aankoop.
+    - Zij ontvangen 2.000 gratis credits, en jij ontvangt ook 2.000 gratis credits.
+    
+    De huidige referral-campagne is van toepassing op eerste aankopen van 10 EUR of meer binnen 7 dagen. Elk account kan één referral-code één keer gebruiken, en elke verwijzer kan beloningen ontvangen voor maximaal 10 succesvolle referrals zolang het referral-budget beschikbaar is.
+    
+    Ik heb dit toegevoegd omdat mond-tot-mondreclame de meest betekenisvolle manier is waarop OpenMates kan groeien: niet via tracking-advertenties of dark patterns, maar doordat mensen het aanbevelen wanneer ze het echt nuttig vinden.
+    
+    Als je iemand kent die een meer privacygerichte, flexibele alternatief voor typische AI-chatbots zou willen, voel je dan vrij om hen uit te nodigen.
+    
+    Bedankt voor het helpen groeien van OpenMates op een manier die bij het project past.
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    أهلاً بك،
+    
+    أصبح لدى OpenMates الآن ميزة إحالة: يمكنك مشاركة رابط الإحالة الشخصي الخاص بك مع الأصدقاء، وعندما ينضم شخص ما من خلاله ويقوم بأول عملية شراء رصيد مؤهلة، يحصل كلاكما على رصيد OpenMates مجاني.
+    
+    [cta]
+    
+    إليك كيفية العمل:
+    
+    - تشارك رابط الإحالة أو رمز الاستجابة السريعة (QR code) من إعدادات الفوترة.
+    - يقوم صديقك بالتسجيل عبر هذا الرابط ويقوم بأول عملية شراء رصيد مؤهلة.
+    - يحصل هو على 2,000 رصيد مجاني، وتحصل أنت أيضاً على 2,000 رصيد مجاني.
+    
+    تنطبق حملة الإحالة الحالية على أول عملية شراء بقيمة 10 يورو أو أكثر خلال 7 أيام. يمكن لكل حساب استخدام رمز إحالة واحد لمرة واحدة، ويمكن لكل محيل الحصول على مكافآت لما يصل إلى 10 إحالات ناجحة طالما أن ميزانية الإحالة متاحة.
+    
+    لقد أضفت هذه الميزة لأن التوصية الشخصية هي الطريقة الأكثر أهمية لنمو OpenMates: ليس من خلال إعلانات التتبع أو الأساليب الملتوية، ولكن من خلال توصية الأشخاص بها عندما يجدونها مفيدة حقاً.
+    
+    إذا كنت تعرف شخصاً يرغب في بديل أكثر مرونة وتركيزاً على الخصوصية لروبوتات الدردشة التقليدية التي تعمل بالذكاء الاصطناعي، فلا تتردد في دعوته.
+    
+    شكراً لمساعدتك في نمو OpenMates بطريقة تناسب المشروع.
+    
+    تحياتي،
+    
+    ماركو  
+    مؤسس OpenMates
+  hi: |
+    नमस्ते,
+    
+    OpenMates में अब एक रेफरल फीचर है: तुम अपने दोस्तों के साथ अपना व्यक्तिगत रेफरल लिंक साझा कर सकते हो, और जब कोई इसके माध्यम से जुड़ता है और अपनी पहली योग्य क्रेडिट खरीदारी करता है, तो तुम दोनों को मुफ्त OpenMates क्रेडिट मिलते हैं।
+    
+    [cta]
+    
+    यह इस तरह काम करता है:
+    
+    - तुम बिलिंग सेटिंग्स से अपना रेफरल लिंक या QR कोड साझा करते हो।
+    - तुम्हारा दोस्त उस लिंक के माध्यम से साइन अप करता है और अपनी पहली योग्य क्रेडिट खरीदारी करता है।
+    - उन्हें 2,000 मुफ्त क्रेडिट मिलते हैं, और तुम्हें भी 2,000 मुफ्त क्रेडिट मिलते हैं।
+    
+    वर्तमान रेफरल अभियान 7 दिनों के भीतर 10 EUR या उससे अधिक की पहली खरीदारी पर लागू होता है। प्रत्येक खाता एक बार एक रेफरल कोड का उपयोग कर सकता है, और प्रत्येक रेफरर रेफरल बजट उपलब्ध होने तक 10 सफल रेफरल तक पुरस्कार प्राप्त कर सकता है।
+    
+    मैंने इसे इसलिए जोड़ा क्योंकि OpenMates के बढ़ने का सबसे सार्थक तरीका लोगों की सिफारिशें हैं: ट्रैकिंग विज्ञापनों या डार्क पैटर्न के माध्यम से नहीं, बल्कि लोगों द्वारा इसे तब सुझाने के माध्यम से जब वे इसे वास्तव में उपयोगी पाते हैं।
+    
+    यदि तुम किसी ऐसे व्यक्ति को जानते हो जो सामान्य AI चैटबॉट्स के लिए अधिक गोपनीयता-केंद्रित, लचीला विकल्प चाहता है, तो बेझिझक उन्हें आमंत्रित करें।
+    
+    OpenMates को इस तरह से बढ़ने में मदद करने के लिए धन्यवाद जो प्रोजेक्ट के अनुकूल हो।
+    
+    शुभकामनाएं,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    สวัสดี
+    
+    ตอนนี้ OpenMates มีฟีเจอร์แนะนำเพื่อนแล้ว: เธอสามารถแชร์ลิงก์แนะนำส่วนตัวกับเพื่อนๆ และเมื่อมีคนสมัครผ่านลิงก์นั้นและซื้อเครดิตครั้งแรกตามเงื่อนไข ทั้งเธอและเพื่อนจะได้รับเครดิต OpenMates ฟรี
+    
+    [cta]
+    
+    วิธีการมีดังนี้:
+    
+    - แชร์ลิงก์แนะนำหรือรหัส QR จากการตั้งค่าการเรียกเก็บเงิน
+    - เพื่อนของเธอสมัครใช้งานผ่านลิงก์นั้นและซื้อเครดิตครั้งแรกตามเงื่อนไข
+    - เพื่อนจะได้รับ 2,000 เครดิตฟรี และเธอจะได้รับ 2,000 เครดิตฟรีเช่นกัน
+    
+    แคมเปญแนะนำเพื่อนปัจจุบันใช้กับการซื้อครั้งแรกตั้งแต่ 10 EUR ขึ้นไปภายใน 7 วัน แต่ละบัญชีสามารถใช้รหัสแนะนำได้หนึ่งครั้ง และผู้แนะนำแต่ละคนสามารถรับรางวัลได้สูงสุดสำหรับการแนะนำที่สำเร็จ 10 ครั้ง ตราบเท่าที่ยังมีงบประมาณสำหรับแคมเปญนี้อยู่
+    
+    ฉันเพิ่มฟีเจอร์นี้เพราะการบอกต่อเป็นวิธีที่มีความหมายที่สุดที่ OpenMates จะเติบโตได้: ไม่ใช่ผ่านโฆษณาติดตามตัวหรือรูปแบบที่หลอกล่อ (dark patterns) แต่ผ่านการที่ผู้คนแนะนำเมื่อพวกเขารู้สึกว่ามันมีประโยชน์จริงๆ
+    
+    หากเธอรู้จักใครที่ต้องการทางเลือกอื่นนอกเหนือจากแชทบอท AI ทั่วไป ที่เน้นความเป็นส่วนตัวและยืดหยุ่นกว่า อย่าลังเลที่จะชวนพวกเขามาใช้งานนะ
+    
+    ขอบคุณที่ช่วยให้ OpenMates เติบโตในแนวทางที่เหมาะสมกับโปรเจกต์นี้
+    
+    ด้วยความเคารพ
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    Ahoj,
+    
+    OpenMates má nyní funkci doporučení: můžeš sdílet svůj osobní odkaz s přáteli, a když se někdo přidá přes tvůj odkaz a provede svůj první nákup kreditů splňující podmínky, oba získáte kredity OpenMates zdarma.
+    
+    [cta]
+    
+    Takhle to funguje:
+    
+    - Sdílíš svůj odkaz pro doporučení nebo QR kód z nastavení fakturace.
+    - Tvůj přítel se zaregistruje přes tento odkaz a provede svůj první nákup kreditů splňující podmínky.
+    - Získá 2 000 kreditů zdarma a ty získáš také 2 000 kreditů zdarma.
+    
+    Současná kampaň se vztahuje na první nákupy v hodnotě 10 EUR a více provedené do 7 dní. Každý účet může použít jeden kód pro doporučení jednou a každý doporučující může získat odměnu až za 10 úspěšných doporučení, dokud je k dispozici rozpočet kampaně.
+    
+    Tuto funkci jsem přidal, protože osobní doporučení je pro OpenMates ten nejsmysluplnější způsob růstu: ne přes sledovací reklamy nebo nekalé praktiky (dark patterns), ale díky lidem, kteří projekt doporučí, protože jim přijde skutečně užitečný.
+    
+    Pokud znáš někoho, kdo by ocenil flexibilní alternativu k běžným AI chatbotům zaměřenou na soukromí, neváhej ho pozvat.
+    
+    Díky, že pomáháš OpenMates růst způsobem, který k projektu sedí.
+    
+    Zdraví tě,
+    
+    Marco  
+    tvůrce OpenMates
+  sv: |
+    Hej,
+    
+    OpenMates har nu en värvningsfunktion: du kan dela din personliga värvningslänk med vänner, och när någon går med via den och gör sitt första berättigade köp av krediter får ni båda gratis OpenMates-krediter.
+    
+    [cta]
+    
+    Så här fungerar det:
+    
+    - Du delar din värvningslänk eller QR-kod från faktureringsinställningarna.
+    - Din vän registrerar sig via länken och gör sitt första berättigade köp av krediter.
+    - De får 2 000 gratis krediter, och du får också 2 000 gratis krediter.
+    
+    Den nuvarande värvningskampanjen gäller för första köp på 10 EUR eller mer inom 7 dagar. Varje konto kan använda en värvningskod en gång, och varje värvare kan få belöningar för upp till 10 framgångsrika värvningar så länge värvningsbudgeten räcker.
+    
+    Jag lade till detta eftersom rekommendationer är det mest meningsfulla sättet för OpenMates att växa: inte genom spårningsannonser eller dark patterns, utan genom att människor rekommenderar tjänsten när de verkligen tycker att den är användbar.
+    
+    Om du känner någon som skulle vilja ha ett mer integritetsfokuserat och flexibelt alternativ till typiska AI-chatbottar, får du gärna bjuda in dem.
+    
+    Tack för att du hjälper OpenMates att växa på ett sätt som passar projektet.
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    היי,
+    
+    ל-OpenMates יש עכשיו פיצ'ר הפניות: תוכל לשתף את קישור ההפניה האישי שלך עם חברים, וכשמישהו יצטרף דרכו ויבצע את רכישת הקרדיטים הראשונה המתאימה שלו, שניכם תקבלו קרדיטים של OpenMates בחינם.
+    
+    [cta]
+    
+    כך זה עובד:
+    
+    - משתפים את קישור ההפניה או את קוד ה-QR מהגדרות החיוב.
+    - החבר נרשם דרך הקישור ומבצע את רכישת הקרדיטים הראשונה המתאימה שלו.
+    - הוא מקבל 2,000 קרדיטים בחינם, וגם אתה מקבל 2,000 קרדיטים בחינם.
+    
+    קמפיין ההפניות הנוכחי חל על רכישות ראשונות של 10 אירו ומעלה בתוך 7 ימים. כל חשבון יכול להשתמש בקוד הפניה אחד פעם אחת, וכל מפנה יכול לקבל תגמולים עבור עד 10 הפניות מוצלחות כל עוד תקציב ההפניות זמין.
+    
+    הוספתי את זה כי "מפה לאוזן" היא הדרך המשמעותית ביותר שבה OpenMates יכולה לצמוח: לא דרך מודעות מעקב או דפוסים אפלים, אלא דרך אנשים שממליצים עליה כשהם באמת מוצאים אותה שימושית.
+    
+    אם אתה מכיר מישהו שמעוניין בחלופה גמישה וממוקדת פרטיות לצ'אטבוטים רגילים של AI, אל תהסס להזמין אותו.
+    
+    תודה שעזרת ל-OpenMates לצמוח בדרך שמתאימה לפרויקט.
+    
+    בברכה,
+    
+    מרקו  
+    היוצר של OpenMates
   verified_by_human: []

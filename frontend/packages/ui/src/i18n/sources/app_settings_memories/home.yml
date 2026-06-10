@@ -2,6 +2,25 @@ saved_listings:
   context: Settings/memory name for saved home listings
   en: Saved listings
   de: Gespeicherte Anzeigen
+  zh: 已保存的房源
+  fr: Annonces enregistrées
+  pt: Anúncios salvos
+  ru: Сохраненные объявления
+  ja: 保存済みの物件情報
+  ko: 저장된 매물
+  it: Annunci salvati
+  tr: Kaydedilen ilanlar
+  vi: Danh sách nhà đã lưu
+  id: Daftar properti tersimpan
+  pl: Zapisane oferty
+  nl: Opgeslagen woningen
+  ar: العقارات المحفوظة
+  hi: सेव की गई लिस्टिंग
+  th: รายการประกาศที่บันทึกไว้
+  es: Anuncios guardados
+  cs: Uložené nabídky
+  sv: Sparade bostäder
+  he: מודעות שמורות
   verified_by_human:
     - en
     - de
@@ -9,6 +28,25 @@ saved_listings.description:
   context: Description for saved home listings settings/memory
   en: Homes and apartments you saved from search results.
   de: Wohnungen und Häuser, die du aus Suchergebnissen gespeichert hast.
+  zh: 你从搜索结果中保存的住宅和公寓。
+  fr: Maisons et appartements que tu as enregistrés à partir des résultats de recherche.
+  pt: Casas e apartamentos que salvaste dos resultados de pesquisa.
+  ru: Дома и квартиры, которые ты сохранил из результатов поиска.
+  ja: 検索結果から保存した住宅やアパート。
+  ko: 검색 결과에서 저장한 주택 및 아파트입니다.
+  it: Case e appartamenti che hai salvato dai risultati di ricerca.
+  tr: Arama sonuçlarından kaydettiğin evler ve daireler.
+  vi: Nhà và căn hộ bạn đã lưu từ kết quả tìm kiếm.
+  id: Rumah dan apartemen yang kamu simpan dari hasil pencarian.
+  pl: Domy i apartamenty zapisane z wyników wyszukiwania.
+  nl: Huizen en appartementen die je hebt opgeslagen uit de zoekresultaten.
+  ar: المنازل والشقق التي حفظتها من نتائج البحث.
+  hi: सर्च रिज़ल्ट से आपके द्वारा सेव किए गए घर और अपार्टमेंट।
+  th: บ้านและอพาร์ตเมนต์ที่คุณบันทึกไว้จากผลการค้นหา
+  es: Casas y apartamentos que guardaste de los resultados de búsqueda.
+  cs: Domy a byty, které sis uložil z výsledků vyhledávání.
+  sv: Hus och lägenheter som du har sparat från sökresultat.
+  he: בתים ודירות ששמרת מתוצאות החיפוש.
   verified_by_human:
     - en
     - de

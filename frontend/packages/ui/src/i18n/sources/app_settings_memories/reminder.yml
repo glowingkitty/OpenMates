@@ -2,6 +2,25 @@ saved_item_reminder_defaults:
   context: Settings/memory name for saved item reminder defaults
   en: Saved item reminders
   de: Erinnerungen für gespeicherte Einträge
+  zh: 已保存项目的提醒设置
+  fr: "Rappels d'éléments enregistrés"
+  pt: Lembretes de itens salvos
+  ru: Напоминания для сохраненного
+  ja: 保存済みアイテムのリマインダー設定
+  ko: 저장된 항목 알림
+  it: Promemoria elementi salvati
+  tr: Kaydedilen öğe hatırlatıcıları
+  vi: Lời nhắc mục đã lưu
+  id: Pengingat item tersimpan
+  pl: Przypomnienia o zapisanych elementach
+  nl: Standaardherinneringen voor opgeslagen items
+  ar: تذكيرات العناصر المحفوظة
+  hi: सेव किए गए आइटम रिमाइंडर
+  th: การแจ้งเตือนรายการที่บันทึกไว้
+  es: Recordatorios de elementos guardados
+  cs: Výchozí připomenutí uložených položek
+  sv: Sparade påminnelser för objekt
+  he: תזכורות לפריטים שמורים
   verified_by_human:
     - en
     - de
@@ -9,6 +28,25 @@ saved_item_reminder_defaults.description:
   context: Description for saved item reminder defaults settings/memory
   en: Customize default reminder offsets for saved events, trips, listings, stays, and appointments.
   de: Passe Standard-Erinnerungen für gespeicherte Events, Reisen, Anzeigen, Aufenthalte und Termine an.
+  zh: 自定义已保存活动、行程、房源、住宿和预约的默认提醒时间。
+  fr: Personnalise les délais de rappel par défaut pour les événements, voyages, annonces, séjours et rendez-vous enregistrés.
+  pt: Personaliza os tempos padrão de lembrete para eventos, viagens, anúncios, estadias e compromissos salvos.
+  ru: Настрой время напоминаний по умолчанию для сохраненных мероприятий, поездок, объявлений, проживаний и встреч.
+  ja: 保存済みのイベント、旅行、物件、宿泊、予約のデフォルトのリマインダー時間をカスタマイズします。
+  ko: 저장된 이벤트, 여행, 매물, 숙소 및 일정에 대한 기본 알림 시간을 설정합니다.
+  it: Personalizza gli anticipi predefiniti dei promemoria per eventi, viaggi, annunci, soggiorni e appuntamenti salvati.
+  tr: Kaydedilen etkinlikler, seyahatler, ilanlar, konaklamalar ve randevular için varsayılan hatırlatıcı sürelerini özelleştir.
+  vi: Tùy chỉnh thời gian nhắc mặc định cho các sự kiện, chuyến đi, danh sách nhà, chỗ ở và cuộc hẹn đã lưu.
+  id: Sesuaikan waktu pengingat default untuk acara, perjalanan, daftar properti, penginapan, dan janji temu yang tersimpan.
+  pl: Dostosuj domyślne czasy przypomnień dla zapisanych wydarzeń, podróży, ofert, pobytów i wizyt.
+  nl: Pas de standaard herinneringstijden aan voor opgeslagen evenementen, reizen, woningen, verblijven en afspraken.
+  ar: تخصيص أوقات التذكير الافتراضية للفعاليات والرحلات والعقارات والإقامات والمواعيد المحفوظة.
+  hi: सेव किए गए इवेंट, ट्रिप, लिस्टिंग, स्टे और अपॉइंटमेंट के लिए डिफ़ॉल्ट रिमाइंडर ऑफ़सेट कस्टमाइज़ करें।
+  th: ปรับแต่งเวลาแจ้งเตือนเริ่มต้นสำหรับกิจกรรม, ทริป, รายการประกาศ, ที่พัก และการนัดหมายที่บันทึกไว้
+  es: Personaliza la antelación predeterminada de los recordatorios para eventos, viajes, anuncios, estancias y citas guardados.
+  cs: Přizpůsob si výchozí časy připomenutí pro uložené události, cesty, nabídky, pobyty a schůzky.
+  sv: Anpassa standardtider för påminnelser för sparade evenemang, resor, bostäder, vistelser och bokningar.
+  he: התאמה אישית של ברירות המחדל לזמני התזכורות עבור אירועים, טיולים, מודעות, שהיות ופגישות שנשמרו.
   verified_by_human:
     - en
     - de

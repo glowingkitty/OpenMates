@@ -866,12 +866,72 @@ open_on_provider:
 data_from:
   context: Website fullscreen metadata date, e.g. 'Data from 2026/04/29'
   en: Data from {date}
+  de: "Daten vom {date}"
+  zh: "数据来自 {date}"
+  es: "Datos del {date}"
+  fr: "Données du {date}"
+  pt: "Dados de {date}"
+  ru: "Данные от {date}"
+  ja: "{date}のデータ"
+  ko: "{date} 기준 데이터"
+  it: "Dati del {date}"
+  tr: "{date} tarihli veriler"
+  vi: "Dữ liệu từ {date}"
+  id: "Data dari {date}"
+  pl: "Dane z {date}"
+  nl: "Gegevens van {date}"
+  ar: "بيانات من {date}"
+  hi: "{date} से डेटा"
+  th: "ข้อมูลจาก {date}"
+  cs: "Data z {date}"
+  sv: "Data från {date}"
+  he: "נתונים מ-{date}"
 snippets:
   context: Heading for website/search result snippets in embed fullscreen
   en: Snippets
+  de: Snippets
+  zh: 片段
+  es: Fragmentos
+  fr: Extraits
+  pt: Snippets
+  ru: Фрагменты
+  ja: スニペット
+  ko: 스니펫
+  it: Snippet
+  tr: "Snippet'lar"
+  vi: Đoạn trích
+  id: Cuplikan
+  pl: Fragmenty
+  nl: Snippets
+  ar: مقتطفات
+  hi: स्निपेट्स
+  th: ข้อมูลสรุป
+  cs: Úryvky
+  sv: Snippets
+  he: קטעי מידע
 via_brave_search:
   context: Source label under snippets in website fullscreen
   en: via Brave Search
+  de: über Brave Search
+  zh: 通过 Brave Search
+  es: vía Brave Search
+  fr: via Brave Search
+  pt: via Brave Search
+  ru: через Brave Search
+  ja: Brave Search経由
+  ko: Brave Search 제공
+  it: tramite Brave Search
+  tr: Brave Search aracılığıyla
+  vi: qua Brave Search
+  id: melalui Brave Search
+  pl: przez Brave Search
+  nl: via Brave Search
+  ar: عبر Brave Search
+  hi: Brave Search के माध्यम से
+  th: ผ่าน Brave Search
+  cs: přes Brave Search
+  sv: via Brave Search
+  he: באמצעות Brave Search
 open_on_youtube:
   context: Button label to open video on YouTube
   en: Open on YouTube
@@ -2302,6 +2362,25 @@ register_on_provider:
   context: Button label to register for an event on a provider website, e.g. 'Register on Meetup'
   en: Register on {provider}
   de: Auf {provider} registrieren
+  zh: "在 {provider} 上注册"
+  es: "Regístrate en {provider}"
+  fr: "S'inscrire sur {provider}"
+  pt: "Inscrever-se em {provider}"
+  ru: "Зарегистрироваться на {provider}"
+  ja: "{provider}で登録"
+  ko: "{provider}에서 등록"
+  it: "Registrati su {provider}"
+  tr: "{provider} üzerinde kaydol"
+  vi: "Đăng ký trên {provider}"
+  id: "Daftar di {provider}"
+  pl: "Zarejestruj się na {provider}"
+  nl: "Registreren op {provider}"
+  ar: "سجل في {provider}"
+  hi: "{provider} पर रजिस्टर करें"
+  th: "ลงทะเบียนบน {provider}"
+  cs: "Registrovat se na {provider}"
+  sv: "Registrera dig på {provider}"
+  he: "הרשמה ב-{provider}"
   verified_by_human: [en]
 book_on:
   context: CTA button text, e.g. 'Book on Google Flights'
@@ -3197,6 +3276,25 @@ booking_link_example_only:
   context: Info notification shown when user clicks "Get booking link" on a store example embed
   en: Booking links are only available for real flight searches. Sign up and start a new search to get live booking links.
   de: Buchungslinks sind nur für echte Flugsuchen verfügbar. Melde dich an und starte eine neue Suche, um aktuelle Buchungslinks zu erhalten.
+  zh: 预订链接仅适用于真实的航班搜索。请注册并开始新的搜索以获取实时预订链接。
+  es: Los enlaces de reserva solo están disponibles para búsquedas de vuelos reales. Regístrate e inicia una nueva búsqueda para obtener enlaces de reserva en vivo.
+  fr: Les liens de réservation sont uniquement disponibles pour les recherches de vols réelles. Inscris-toi et lance une nouvelle recherche pour obtenir des liens de réservation en direct.
+  pt: Os links de reserva só estão disponíveis para pesquisas de voos reais. Regista-te e inicia uma nova pesquisa para obteres links de reserva em tempo real.
+  ru: Ссылки на бронирование доступны только для реальных поисков авиабилетов. Зарегистрируйся и начни новый поиск, чтобы получить актуальные ссылки.
+  ja: 予約リンクは実際のフライト検索でのみ利用可能です。サインアップして新しい検索を開始し、最新の予約リンクを取得してください。
+  ko: 예약 링크는 실제 항공편 검색 시에만 제공됩니다. 가입 후 새로운 검색을 시작하여 실시간 예약 링크를 확인하세요.
+  it: I link di prenotazione sono disponibili solo per ricerche di voli reali. Registrati e avvia una nuova ricerca per ottenere link di prenotazione in tempo reale.
+  tr: Rezervasyon bağlantıları yalnızca gerçek uçuş aramaları için kullanılabilir. Canlı rezervasyon bağlantılarını almak için kaydol ve yeni bir arama başlat.
+  vi: Liên kết đặt chỗ chỉ khả dụng cho các tìm kiếm chuyến bay thực tế. Hãy đăng ký và bắt đầu tìm kiếm mới để nhận liên kết đặt chỗ trực tiếp.
+  id: Tautan pemesanan hanya tersedia untuk pencarian penerbangan sungguhan. Daftar dan mulai pencarian baru untuk mendapatkan tautan pemesanan langsung.
+  pl: Linki do rezerwacji są dostępne tylko dla rzeczywistych wyszukiwań lotów. Zarejestruj się i rozpocznij nowe wyszukiwanie, aby otrzymać aktualne linki.
+  nl: Boekingslinks zijn alleen beschikbaar voor echte vluchtzoekopdrachten. Meld je aan en start een nieuwe zoekopdracht om live boekingslinks te krijgen.
+  ar: روابط الحجز متاحة فقط لعمليات البحث الحقيقية عن الرحلات الجوية. سجل وابدأ بحثًا جديدًا للحصول على روابط حجز مباشرة.
+  hi: बुकिंग लिंक केवल वास्तविक उड़ान खोजों के लिए उपलब्ध हैं। लाइव बुकिंग लिंक प्राप्त करने के लिए साइन अप करें और एक नई खोज शुरू करें।
+  th: ลิงก์การจองมีให้สำหรับการค้นหาเที่ยวบินจริงเท่านั้น สมัครสมาชิกและเริ่มการค้นหาใหม่เพื่อรับลิงก์การจองแบบเรียลไทม์
+  cs: Odkazy na rezervaci jsou k dispozici pouze pro skutečné vyhledávání letů. Zaregistruj se a začni nové vyhledávání, abys získal aktuální odkazy na rezervaci.
+  sv: Bokningslänkar är endast tillgängliga för riktiga flygsökningar. Registrera dig och starta en ny sökning för att få live-bokningslänkar.
+  he: קישורי הזמנה זמינים רק עבור חיפושי טיסות אמיתיים. הירשם והתחל חיפוש חדש כדי לקבל קישורי הזמנה חיים.
 stay:
   context: Singular label for a travel stay/accommodation result
   en: stay
@@ -4716,86 +4814,409 @@ shopping.base_price:
   context: Label for a product's base price, e.g. price per meter or unit
   en: Base price
   de: Grundpreis
+  zh: 基准价格
+  es: Precio base
+  fr: Prix de base
+  pt: Preço base
+  ru: Базовая цена
+  ja: 基本価格
+  ko: 기본 가격
+  it: Prezzo base
+  tr: Birim fiyat
+  vi: Giá cơ sở
+  id: Harga dasar
+  pl: Cena podstawowa
+  nl: Basisprijs
+  ar: السعر الأساسي
+  hi: आधार मूल्य
+  th: ราคาพื้นฐาน
+  cs: Základní cena
+  sv: Baspris
+  he: מחיר בסיס
   verified_by_human: [en, de]
 shopping.unit:
   context: Label for the sales unit of a product
   en: Unit
   de: Einheit
+  zh: 单位
+  es: Unidad
+  fr: Unité
+  pt: Unidade
+  ru: Единица измерения
+  ja: 単位
+  ko: 단위
+  it: Unità
+  tr: Birim
+  vi: Đơn vị
+  id: Satuan
+  pl: Jednostka
+  nl: Eenheid
+  ar: الوحدة
+  hi: इकाई
+  th: หน่วย
+  cs: Jednotka
+  sv: Enhet
+  he: יחידה
   verified_by_human: [en, de]
 shopping.stock:
   context: Label for product stock quantity
   en: Stock
   de: Bestand
+  zh: 库存
+  es: Stock
+  fr: Stock
+  pt: Stock
+  ru: Запас
+  ja: 在庫
+  ko: 재고
+  it: Scorte
+  tr: Stok
+  vi: Tồn kho
+  id: Stok
+  pl: Stan magazynowy
+  nl: Voorraad
+  ar: المخزون
+  hi: स्टॉक
+  th: สต็อก
+  cs: Skladem
+  sv: Lager
+  he: מלאי
   verified_by_human: [en, de]
 shopping.colors:
   context: Label for available color variants of a product
   en: Colors
   de: Farben
+  zh: 颜色
+  es: Colores
+  fr: Couleurs
+  pt: Cores
+  ru: Цвета
+  ja: カラー
+  ko: 색상
+  it: Colori
+  tr: Renkler
+  vi: Màu sắc
+  id: Warna
+  pl: Kolory
+  nl: Kleuren
+  ar: الألوان
+  hi: रंग
+  th: สี
+  cs: Barvy
+  sv: Färger
+  he: צבעים
   verified_by_human: [en, de]
 shopping.availability:
   context: Label for product availability or delivery readiness
   en: Availability
   de: Verfügbarkeit
+  zh: 供货情况
+  es: Disponibilidad
+  fr: Disponibilité
+  pt: Disponibilidade
+  ru: Наличие
+  ja: 在庫状況
+  ko: 구매 가능 여부
+  it: Disponibilità
+  tr: Stok durumu
+  vi: Tình trạng hàng
+  id: Ketersediaan
+  pl: Dostępność
+  nl: Beschikbaarheid
+  ar: التوفر
+  hi: उपलब्धता
+  th: ความพร้อมจำหน่าย
+  cs: Dostupnost
+  sv: Tillgänglighet
+  he: זמינות
   verified_by_human: [en, de]
 shopping.status:
   context: Label for whether a product can be purchased
   en: Status
   de: Status
+  zh: 状态
+  es: Estado
+  fr: Statut
+  pt: Estado
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  he: סטטוס
   verified_by_human: [en, de]
 shopping.available:
   context: Product status when it can be purchased
   en: Available
   de: Verfügbar
+  zh: 有货
+  es: Disponible
+  fr: Disponible
+  pt: Disponível
+  ru: В наличии
+  ja: 在庫あり
+  ko: 구매 가능
+  it: Disponibile
+  tr: Mevcut
+  vi: Còn hàng
+  id: Tersedia
+  pl: Dostępny
+  nl: Beschikbaar
+  ar: متوفر
+  hi: उपलब्ध
+  th: พร้อมจำหน่าย
+  cs: Skladem
+  sv: Tillgänglig
+  he: זמין
   verified_by_human: [en, de]
 shopping.not_available:
   context: Product status when it cannot be purchased
   en: Not available
   de: Nicht verfügbar
+  zh: 暂无供应
+  es: No disponible
+  fr: Non disponible
+  pt: Indisponível
+  ru: Нет в наличии
+  ja: 在庫なし
+  ko: 구매 불가
+  it: Non disponibile
+  tr: Mevcut değil
+  vi: Hết hàng
+  id: Tidak tersedia
+  pl: Niedostępny
+  nl: Niet beschikbaar
+  ar: غير متوفر
+  hi: उपलब्ध नहीं
+  th: ไม่พร้อมจำหน่าย
+  cs: Nedostupné
+  sv: Inte tillgänglig
+  he: לא זמין
   verified_by_human: [en, de]
 shopping.fabric_details:
   context: Section title for fabric-specific product metadata
   en: Fabric details
   de: Stoffdetails
+  zh: 面料详情
+  es: Detalles de la tela
+  fr: Détails du tissu
+  pt: Detalhes do tecido
+  ru: Детали ткани
+  ja: 生地の詳細
+  ko: 원단 상세 정보
+  it: Dettagli tessuto
+  tr: Kumaş detayları
+  vi: Chi tiết vải
+  id: Detail kain
+  pl: Szczegóły tkaniny
+  nl: Stofdetails
+  ar: تفاصيل القماش
+  hi: कपड़े का विवरण
+  th: รายละเอียดผ้า
+  cs: Detaily látky
+  sv: Tygdetaljer
+  he: פרטי בד
   verified_by_human: [en, de]
 shopping.material:
   context: Fabric material label
   en: Material
   de: Material
+  zh: 材质
+  es: Material
+  fr: Matière
+  pt: Material
+  ru: Материал
+  ja: 素材
+  ko: 소재
+  it: Materiale
+  tr: Malzeme
+  vi: Chất liệu
+  id: Bahan
+  pl: Materiał
+  nl: Materiaal
+  ar: المادة
+  hi: सामग्री
+  th: วัสดุ
+  cs: Materiál
+  sv: Material
+  he: חומר
   verified_by_human: [en, de]
 shopping.width:
   context: Fabric width label
   en: Width
   de: Breite
+  zh: 幅宽
+  es: Ancho
+  fr: Largeur
+  pt: Largura
+  ru: Ширина
+  ja: 幅
+  ko: 폭
+  it: Larghezza
+  tr: Genişlik
+  vi: Chiều rộng
+  id: Lebar
+  pl: Szerokość
+  nl: Breedte
+  ar: العرض
+  hi: चौड़ाई
+  th: ความกว้าง
+  cs: Šířka
+  sv: Bredd
+  he: רוחב
   verified_by_human: [en, de]
 shopping.weight:
   context: Fabric weight label
   en: Weight
   de: Gewicht
+  zh: 重量
+  es: Peso
+  fr: Poids
+  pt: Peso
+  ru: Вес
+  ja: 重量
+  ko: 무게
+  it: Peso
+  tr: Ağırlık
+  vi: Trọng lượng
+  id: Berat
+  pl: Waga
+  nl: Gewicht
+  ar: الوزن
+  hi: वजन
+  th: น้ำหนัก
+  cs: Hmotnost
+  sv: Vikt
+  he: משקל
   verified_by_human: [en, de]
 shopping.motif:
   context: Fabric motif or pattern label
   en: Motif
   de: Motiv
+  zh: 图案
+  es: Motivo
+  fr: Motif
+  pt: Padrão
+  ru: Узор
+  ja: 柄
+  ko: 모티프
+  it: Motivo
+  tr: Motif
+  vi: Họa tiết
+  id: Motif
+  pl: Motyw
+  nl: Motief
+  ar: النقشة
+  hi: मोटिफ
+  th: ลวดลาย
+  cs: Motiv
+  sv: Motiv
+  he: מוטיב
   verified_by_human: [en, de]
 shopping.usage:
   context: Fabric recommended usage label
   en: Usage
   de: Verwendung
+  zh: 用途
+  es: Uso
+  fr: Utilisation
+  pt: Utilização
+  ru: Применение
+  ja: 用途
+  ko: 용도
+  it: Utilizzo
+  tr: Kullanım
+  vi: Công dụng
+  id: Penggunaan
+  pl: Zastosowanie
+  nl: Gebruik
+  ar: الاستخدام
+  hi: उपयोग
+  th: การใช้งาน
+  cs: Použití
+  sv: Användning
+  he: שימוש
   verified_by_human: [en, de]
 shopping.composition:
   context: Fabric composition label
   en: Composition
   de: Zusammensetzung
+  zh: 成分
+  es: Composición
+  fr: Composition
+  pt: Composição
+  ru: Состав
+  ja: 組成
+  ko: 혼용률
+  it: Composizione
+  tr: Bileşim
+  vi: Thành phần
+  id: Komposisi
+  pl: Skład
+  nl: Samenstelling
+  ar: التركيبة
+  hi: संरचना
+  th: ส่วนประกอบ
+  cs: Složení
+  sv: Sammansättning
+  he: הרכב
   verified_by_human: [en, de]
 shopping.product_id:
   context: Product identifier label
   en: Product ID
   de: Produkt-ID
+  zh: 产品 ID
+  es: ID del producto
+  fr: ID produit
+  pt: ID do produto
+  ru: ID товара
+  ja: 商品ID
+  ko: 상품 ID
+  it: ID prodotto
+  tr: Ürün ID
+  vi: Mã sản phẩm
+  id: ID Produk
+  pl: ID produktu
+  nl: Product-ID
+  ar: معرف المنتج
+  hi: उत्पाद आईडी
+  th: รหัสสินค้า
+  cs: ID produktu
+  sv: Produkt-ID
+  he: מזהה מוצר
   verified_by_human: [en, de]
 shopping.variation_id:
   context: Product variation identifier label
   en: Variation ID
   de: Varianten-ID
+  zh: 规格 ID
+  es: ID de variante
+  fr: ID variante
+  pt: ID da variação
+  ru: ID варианта
+  ja: バリエーションID
+  ko: 옵션 ID
+  it: ID variante
+  tr: Varyasyon ID
+  vi: Mã biến thể
+  id: ID Variasi
+  pl: ID wariantu
+  nl: Variatie-ID
+  ar: معرف المتغير
+  hi: वेरिएशन आईडी
+  th: รหัสตัวเลือกสินค้า
+  cs: ID varianty
+  sv: Variations-ID
+  he: מזהה וריאציה
   verified_by_human: [en, de]
 shopping.no_results:
   context: Message when no products were found
@@ -4850,111 +5271,529 @@ electronics.search_components:
   context: Electronics search components skill label shown in BasicInfosBar
   en: Search components
   de: Komponenten suchen
+  zh: 搜索元件
+  es: Buscar componentes
+  fr: Rechercher des composants
+  pt: Pesquisar componentes
+  ru: Поиск компонентов
+  ja: コンポーネント検索
+  ko: 부품 검색
+  it: Cerca componenti
+  tr: Bileşenleri ara
+  vi: Tìm kiếm linh kiện
+  id: Cari komponen
+  pl: Szukaj komponentów
+  nl: Componenten zoeken
+  ar: البحث عن المكونات
+  hi: कंपोनेंट्स खोजें
+  th: ค้นหาชิ้นส่วน
+  cs: Hledat součástky
+  sv: Sök komponenter
+  he: חיפוש רכיבים
   verified_by_human: [en, de]
 electronics.component:
   context: Singular label for an electronics component result
   en: component
   de: Komponente
+  zh: 元件
+  es: componente
+  fr: composant
+  pt: componente
+  ru: компонент
+  ja: コンポーネント
+  ko: 부품
+  it: componente
+  tr: bileşen
+  vi: linh kiện
+  id: komponen
+  pl: komponent
+  nl: component
+  ar: مكون
+  hi: कंपोनेंट
+  th: ชิ้นส่วน
+  cs: součástka
+  sv: komponent
+  he: רכיב
   verified_by_human: [en, de]
 electronics.components:
   context: Plural label for electronics component results
   en: components
   de: Komponenten
+  zh: 元件
+  es: componentes
+  fr: composants
+  pt: componentes
+  ru: компонентов
+  ja: コンポーネント
+  ko: 부품
+  it: componenti
+  tr: bileşenler
+  vi: linh kiện
+  id: komponen
+  pl: komponenty
+  nl: componenten
+  ar: مكونات
+  hi: कंपोनेंट्स
+  th: ชิ้นส่วน
+  cs: součástky
+  sv: komponenter
+  he: רכיבים
   verified_by_human: [en, de]
 electronics.efficiency:
   context: Electronics result metric label for converter efficiency
   en: Efficiency
   de: Effizienz
+  zh: 效率
+  es: Eficiencia
+  fr: Rendement
+  pt: Eficiência
+  ru: Эффективность
+  ja: 効率
+  ko: 효율
+  it: Efficienza
+  tr: Verimlilik
+  vi: Hiệu suất
+  id: Efisiensi
+  pl: Sprawność
+  nl: Efficiëntie
+  ar: الكفاءة
+  hi: दक्षता
+  th: ประสิทธิภาพ
+  cs: Účinnost
+  sv: Verkningsgrad
+  he: נצילות
   verified_by_human: [en, de]
 electronics.bom_cost:
   context: Electronics result metric label for bill-of-materials cost
   en: BOM cost
   de: BOM-Kosten
+  zh: BOM 成本
+  es: Coste BOM
+  fr: Coût BOM
+  pt: Custo BOM
+  ru: Стоимость BOM
+  ja: BOMコスト
+  ko: BOM 비용
+  it: Costo BOM
+  tr: BOM maliyeti
+  vi: Chi phí BOM
+  id: Biaya BOM
+  pl: Koszt BOM
+  nl: BOM-kosten
+  ar: تكلفة قائمة المواد (BOM)
+  hi: BOM लागत
+  th: ต้นทุน BOM
+  cs: Cena kusovníku (BOM)
+  sv: BOM-kostnad
+  he: עלות BOM
   verified_by_human: [en, de]
 electronics.bom_count:
   context: Electronics result metric label for bill-of-materials part count
   en: BOM parts
   de: BOM-Teile
+  zh: BOM 零件数
+  es: Piezas BOM
+  fr: Pièces BOM
+  pt: Peças BOM
+  ru: Деталей в BOM
+  ja: BOM部品数
+  ko: BOM 부품 수
+  it: Parti BOM
+  tr: BOM parça sayısı
+  vi: Số linh kiện BOM
+  id: Bagian BOM
+  pl: Części BOM
+  nl: BOM-onderdelen
+  ar: قطع قائمة المواد (BOM)
+  hi: BOM पुर्जे
+  th: จำนวนชิ้นส่วน BOM
+  cs: Počet položek BOM
+  sv: BOM-delar
+  he: רכיבי BOM
   verified_by_human: [en, de]
 electronics.footprint:
   context: Electronics result metric label for board footprint area
   en: Footprint
   de: Footprint
+  zh: 占板面积
+  es: Huella
+  fr: Empreinte
+  pt: Footprint
+  ru: Занимаемая площадь
+  ja: フットプリント
+  ko: 풋프린트
+  it: Footprint
+  tr: Ayak izi
+  vi: Diện tích chiếm dụng
+  id: Footprint
+  pl: Powierzchnia
+  nl: Footprint
+  ar: البصمة
+  hi: फुटप्रिंट
+  th: พื้นที่ติดตั้ง
+  cs: Plocha na desce
+  sv: Fotavtryck
+  he: טביעת רגל
   verified_by_human: [en, de]
 electronics.frequency:
   context: Electronics result metric label for switching frequency
   en: Frequency
   de: Frequenz
+  zh: 频率
+  es: Frecuencia
+  fr: Fréquence
+  pt: Frequência
+  ru: Частота
+  ja: 周波数
+  ko: 주파수
+  it: Frequenza
+  tr: Frekans
+  vi: Tần số
+  id: Frekuensi
+  pl: Częstotliwość
+  nl: Frequentie
+  ar: التردد
+  hi: आवृत्ति
+  th: ความถี่
+  cs: Frekvence
+  sv: Frekvens
+  he: תדר
   verified_by_human: [en, de]
 electronics.output_current:
   context: Electronics result metric label for maximum output current
   en: Output current
   de: Ausgangsstrom
+  zh: 输出电流
+  es: Corriente de salida
+  fr: Courant de sortie
+  pt: Corrente de saída
+  ru: Выходной ток
+  ja: 出力電流
+  ko: 출력 전류
+  it: Corrente di uscita
+  tr: Çıkış akımı
+  vi: Dòng điện đầu ra
+  id: Arus output
+  pl: Prąd wyjściowy
+  nl: Uitgangsstroom
+  ar: تيار الخرج
+  hi: आउटपुट करंट
+  th: กระแสเอาต์พุต
+  cs: Výstupní proud
+  sv: Utström
+  he: זרם מוצא
   verified_by_human: [en, de]
 electronics.output_ripple:
   context: Electronics result metric label for output ripple voltage
   en: Output ripple
   de: Ausgangsripple
+  zh: 输出纹波
+  es: Rizado de salida
+  fr: Ondulation de sortie
+  pt: Ripple de saída
+  ru: Пульсации на выходе
+  ja: 出力リップル
+  ko: 출력 리플
+  it: Ripple di uscita
+  tr: Çıkış dalgalanması
+  vi: Độ gợn đầu ra
+  id: Ripple output
+  pl: Tętnienia wyjściowe
+  nl: Uitgangsrimpel
+  ar: تموج الخرج
+  hi: आउटपुट रिपल
+  th: ริปเปิลเอาต์พุต
+  cs: Zvlnění výstupu
+  sv: Utgångsrippel
+  he: אדוות מוצא
   verified_by_human: [en, de]
 electronics.input_voltage:
   context: Electronics result metric label for input voltage range
   en: Input voltage
   de: Eingangsspannung
+  zh: 输入电压
+  es: Voltaje de entrada
+  fr: "Tension d'entrée"
+  pt: Tensão de entrada
+  ru: Входное напряжение
+  ja: 入力電圧
+  ko: 입력 전압
+  it: Tensione di ingresso
+  tr: Giriş voltajı
+  vi: Điện áp đầu vào
+  id: Tegangan input
+  pl: Napięcie wejściowe
+  nl: Ingangsspanning
+  ar: جهد الدخل
+  hi: इनपुट वोल्टेज
+  th: แรงดันอินพุต
+  cs: Vstupní napětí
+  sv: Ingångsspänning
+  he: מתח כניסה
   verified_by_human: [en, de]
 electronics.output_voltage:
   context: Electronics result metric label for output voltage range
   en: Output voltage
   de: Ausgangsspannung
+  zh: 输出电压
+  fr: Tension de sortie
+  pt: Tensão de saída
+  ru: Выходное напряжение
+  ja: 出力電圧
+  ko: 출력 전압
+  it: Tensione di uscita
+  tr: Çıkış voltajı
+  vi: Điện áp đầu ra
+  id: Tegangan output
+  pl: Napięcie wyjściowe
+  nl: Uitgangsspanning
+  ar: جهد الخرج
+  hi: आउटपुट वोल्टेज
+  th: แรงดันเอาต์พุต
+  es: Voltaje de salida
+  cs: Výstupní napětí
+  sv: Utgångsspänning
+  he: מתח מוצא
   verified_by_human: [en, de]
 electronics.topology:
   context: Electronics result metric label for converter topology
   en: Topology
   de: Topologie
+  zh: 拓扑结构
+  fr: Topologie
+  pt: Topologia
+  ru: Топология
+  ja: トポロジー
+  ko: 토폴로지
+  it: Topologia
+  tr: Topoloji
+  vi: Sơ đồ mạch (Topology)
+  id: Topologi
+  pl: Topologia
+  nl: Topologie
+  ar: الطوبولوجيا
+  hi: टोपोलॉजी
+  th: โทโพโลยี
+  es: Topología
+  cs: Topologie
+  sv: Topologi
+  he: טופולוגיה
   verified_by_human: [en, de]
 electronics.regulator_type:
   context: Electronics result metric label for regulator type
   en: Regulator type
   de: Reglertyp
+  zh: 稳压器类型
+  fr: Type de régulateur
+  pt: Tipo de regulador
+  ru: Тип регулятора
+  ja: レギュレータ・タイプ
+  ko: 레귤레이터 유형
+  it: Tipo di regolatore
+  tr: Regülatör tipi
+  vi: Loại bộ điều chỉnh
+  id: Tipe regulator
+  pl: Typ regulatora
+  nl: Regulatortype
+  ar: نوع المنظم
+  hi: रेगुलेटर का प्रकार
+  th: ประเภทเรกูเลเตอร์
+  es: Tipo de regulador
+  cs: Typ regulátoru
+  sv: Regulatortyp
+  he: סוג ווסת
   verified_by_human: [en, de]
 electronics.control_mode:
   context: Electronics result metric label for regulator control mode
   en: Control mode
   de: Regelmodus
+  zh: 控制模式
+  fr: Mode de contrôle
+  pt: Modo de controle
+  ru: Режим управления
+  ja: 制御モード
+  ko: 제어 모드
+  it: Modalità di controllo
+  tr: Kontrol modu
+  vi: Chế độ điều khiển
+  id: Mode kontrol
+  pl: Tryb sterowania
+  nl: Controlemodus
+  ar: وضع التحكم
+  hi: कंट्रोल मोड
+  th: โหมดการควบคุม
+  es: Modo de control
+  cs: Režim řízení
+  sv: Reglerläge
+  he: מצב בקרה
   verified_by_human: [en, de]
 electronics.isolated:
   context: Electronics result metric label for isolation support
   en: Isolated
   de: Isoliert
+  zh: 隔离
+  fr: Isolé
+  pt: Isolado
+  ru: Изоляция
+  ja: 絶縁型
+  ko: 절연형
+  it: Isolato
+  tr: İzole
+  vi: Cách ly
+  id: Terisolasi
+  pl: Izolowany
+  nl: Geïsoleerd
+  ar: معزول
+  hi: आइसोलेटेड
+  th: แยกอิสระ
+  es: Aislado
+  cs: Izolovaný
+  sv: Isolerad
+  he: מבודד
   verified_by_human: [en, de]
 electronics.yes:
   context: Boolean yes value in electronics embed details
   en: Yes
   de: Ja
+  zh: 是
+  fr: Vrai
+  pt: Verdadeiro
+  ru: Да
+  ja: はい
+  ko: 참
+  it: Vero
+  tr: Doğru
+  vi: Đúng
+  id: Benar
+  pl: Tak
+  nl: Ja
+  ar: صحيح
+  hi: सत्य
+  th: จริง
+  es: Verdadero
+  cs: Ano
+  sv: Sant
+  he: כן
   verified_by_human: [en, de]
 electronics.no:
   context: Boolean no value in electronics embed details
   en: No
   de: Nein
+  zh: 否
+  fr: Faux
+  pt: Falso
+  ru: Нет
+  ja: いいえ
+  ko: 거짓
+  it: Falso
+  tr: Yanlış
+  vi: Sai
+  id: Salah
+  pl: Nie
+  nl: Nee
+  ar: خطأ
+  hi: असत्य
+  th: เท็จ
+  es: Falso
+  cs: Ne
+  sv: Falskt
+  he: לא
   verified_by_human: [en, de]
 electronics.product_page:
   context: Link label for a TI product page in electronics component embeds
   en: Product page
   de: Produktseite
+  zh: 产品页面
+  fr: Page du produit
+  pt: Página do produto
+  ru: Страница продукта
+  ja: 製品ページ
+  ko: 제품 페이지
+  it: Pagina del prodotto
+  tr: Ürün sayfası
+  vi: Trang sản phẩm
+  id: Halaman produk
+  pl: Strona produktu
+  nl: Productpagina
+  ar: صفحة المنتج
+  hi: प्रोडक्ट पेज
+  th: หน้าผลิตภัณฑ์
+  es: Página del producto
+  cs: Stránka produktu
+  sv: Produktsida
+  he: דף מוצר
   verified_by_human: [en, de]
 electronics.datasheet:
   context: Link label for a component datasheet in electronics component embeds
   en: Datasheet
   de: Datenblatt
+  zh: 数据手册
+  fr: Fiche technique
+  pt: Datasheet
+  ru: Datasheet
+  ja: データシート
+  ko: 데이터시트
+  it: Datasheet
+  tr: Veri sayfası
+  vi: Datasheet
+  id: Lembar data
+  pl: Karta katalogowa
+  nl: Datasheet
+  ar: ورقة البيانات
+  hi: डेटाशीट
+  th: ดาต้าชีท
+  es: Hoja de datos
+  cs: Datový list
+  sv: Datablad
+  he: דף נתונים
   verified_by_human: [en, de]
 electronics.performance:
   context: Section title for performance metrics in electronics component embeds
   en: Performance
   de: Leistung
+  zh: 性能
+  fr: Performances
+  pt: Desempenho
+  ru: Производительность
+  ja: パフォーマンス
+  ko: 성능
+  it: Prestazioni
+  tr: Performans
+  vi: Hiệu suất
+  id: Performa
+  pl: Wydajność
+  nl: Prestaties
+  ar: الأداء
+  hi: प्रदर्शन
+  th: ประสิทธิภาพ
+  es: Rendimiento
+  cs: Výkon a efektivita
+  sv: Prestanda
+  he: ביצועים
   verified_by_human: [en, de]
 electronics.electrical:
   context: Section title for electrical specifications in electronics component embeds
   en: Electrical
   de: Elektrisch
+  zh: 电气参数
+  fr: Électrique
+  pt: Elétrica
+  ru: Электрические параметры
+  ja: 電気的仕様
+  ko: 전기 사양
+  it: Specifiche elettriche
+  tr: Elektriksel
+  vi: Thông số điện
+  id: Kelistrikan
+  pl: Parametry elektryczne
+  nl: Elektrisch
+  ar: المواصفات الكهربائية
+  hi: इलेक्ट्रिकल
+  th: ข้อมูลทางไฟฟ้า
+  es: Eléctrico
+  cs: Elektrické parametry
+  sv: Elektriska specifikationer
+  he: נתונים חשמליים
   verified_by_human: [en, de]
 
 math.calculate:

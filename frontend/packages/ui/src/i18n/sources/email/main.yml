@@ -241,116 +241,553 @@ post_purchase_security_setup.subject:
   context: Subject line for post-purchase account security setup reminder
   en: Secure your OpenMates account
   de: Sichere dein OpenMates-Konto
+  fr: Sécurise ton compte OpenMates
+  pt: Protege a tua conta OpenMates
+  ru: Защити свой аккаунт OpenMates
+  ja: OpenMatesアカウントを保護してください
+  ko: OpenMates 계정 보안을 강화하세요
+  tr: OpenMates hesabını güvene al
+  vi: Bảo mật tài khoản OpenMates của bạn
+  pl: Zabezpiecz swoje konto OpenMates
+  nl: Beveilig je OpenMates-account
+  ar: تأمين حساب OpenMates الخاص بك
+  hi: अपना OpenMates खाता सुरक्षित करें
+  th: รักษาความปลอดภัยบัญชี OpenMates ของเธอ
+  zh: 保护你的 OpenMates 账户
+  es: Protege tu cuenta de OpenMates
+  it: Proteggi il tuo account OpenMates
+  id: Amankan akun OpenMates kamu
+  cs: Zabezpeč si svůj účet OpenMates
+  sv: Säkra ditt OpenMates-konto
+  he: אבטח את חשבון ה-OpenMates שלך
   verified_by_human: []
 post_purchase_security_setup.header:
   context: Header in post-purchase account security setup reminder email
   en: Secure your account
   de: Sichere dein Konto
+  fr: Sécurise ton compte
+  pt: Protege a tua conta
+  ru: Защити свой аккаунт
+  ja: アカウントを保護する
+  ko: 계정 보안 강화하기
+  tr: Hesabını güvene al
+  vi: Bảo mật tài khoản của bạn
+  pl: Zabezpiecz swoje konto
+  nl: Beveilig je account
+  ar: تأمين حسابك
+  hi: अपना खाता सुरक्षित करें
+  th: รักษาความปลอดภัยบัญชีของเธอ
+  zh: 保护你的账户
+  es: Protege tu cuenta
+  it: Proteggi il tuo account
+  id: Amankan akunmu
+  cs: Zabezpeč si svůj účet
+  sv: Säkra ditt konto
+  he: אבטח את החשבון שלך
   verified_by_human: []
 post_purchase_security_setup.description:
   context: Intro paragraph in post-purchase account security setup reminder email
   en: You now have credits in your account. Please take a moment to protect access to your encrypted chats and settings.
   de: Du hast jetzt Guthaben in deinem Konto. Bitte nimm dir kurz Zeit, den Zugriff auf deine verschlüsselten Chats und Einstellungen zu schützen.
+  fr: "Tu as maintenant des crédits sur ton compte. Prends un moment pour protéger l'accès à tes chats chiffrés et à tes paramètres."
+  pt: Agora tens créditos na tua conta. Reserva um momento para proteger o acesso às tuas conversas encriptadas e definições.
+  ru: На твоем счету теперь есть кредиты. Пожалуйста, удели минуту, чтобы защитить доступ к своим зашифрованным чатам и настройкам.
+  ja: アカウントにクレジットが追加されました。暗号化されたチャットや設定へのアクセスを保護するため、セキュリティ設定をお願いします。
+  ko: 현재 계정에 크레딧이 있습니다. 잠시 시간을 내어 암호화된 채팅과 설정에 대한 액세스 권한을 보호해 주세요.
+  tr: Artık hesabında kredilerin var. Lütfen şifrelenmiş sohbetlerine ve ayarlarına erişimi korumak için bir dakikanı ayır.
+  vi: Bạn hiện đã có credit trong tài khoản. Vui lòng dành chút thời gian để bảo vệ quyền truy cập vào các cuộc trò chuyện và cài đặt đã mã hóa của mình.
+  pl: Masz teraz kredyty na swoim koncie. Poświęć chwilę, aby zabezpieczyć dostęp do swoich zaszyfrowanych czatów i ustawień.
+  nl: Je hebt nu credits in je account. Neem even de tijd om de toegang tot je versleutelde chats en instellingen te beschermen.
+  ar: لديك الآن رصيد في حسابك. يرجى تخصيص لحظة لحماية الوصول إلى محادثاتك وإعداداتك المشفرة.
+  hi: अब तुम्हारे खाते में क्रेडिट हैं। कृपया अपनी एन्क्रिप्टेड चैट और सेटिंग्स तक पहुंच सुरक्षित करने के लिए कुछ समय निकालें।
+  th: ตอนนี้เธอมีเครดิตในบัญชีแล้ว โปรดสละเวลาสักครู่เพื่อปกป้องการเข้าถึงแชทที่เข้ารหัสและการตั้งค่าต่างๆ ของเธอ
+  zh: 你的账户中现在已有积分。请花点时间保护你的加密聊天和设置。
+  es: Ya tienes créditos en tu cuenta. Tómate un momento para proteger el acceso a tus chats cifrados y a tu configuración.
+  it: "Ora hai dei crediti nel tuo account. Prenditi un momento per proteggere l'accesso alle tue chat crittografate e alle tue impostazioni."
+  id: Kamu sekarang memiliki kredit di akunmu. Luangkan waktu sejenak untuk melindungi akses ke obrolan terenkripsi dan pengaturanmu.
+  cs: Nyní máš na svém účtu kredity. Věnuj prosím chvilku ochraně přístupu ke svým šifrovaným chatům a nastavení.
+  sv: Du har nu krediter på ditt konto. Ta en stund för att skydda åtkomsten till dina krypterade chattar och inställningar.
+  he: "יש לך כעת קרדיטים בחשבון. אנא הקדש רגע כדי להגן על הגישה לצ'אטים המוצפנים ולהגדרות שלך."
   verified_by_human: []
 post_purchase_security_setup.recovery_key_reason:
   context: Explains why the recovery key should be set up after purchase
   en: Set up a recovery key so you do not lose access if you lose your login method.
   de: Richte einen Wiederherstellungsschlüssel ein, damit du den Zugriff nicht verlierst, falls deine Login-Methode verloren geht.
+  fr: "Configure une clé de récupération pour ne pas perdre l'accès si tu perds ta méthode de connexion."
+  pt: Configura uma chave de recuperação para não perderes o acesso se perderes o teu método de início de sessão.
+  ru: Настрой ключ восстановления, чтобы не потерять доступ в случае утраты основного способа входа.
+  ja: ログイン方法を紛失した場合に備え、アクセスを失わないようリカバリーキーを設定してください。
+  ko: 로그인 수단을 분실했을 때 액세스 권한을 잃지 않도록 복구 키를 설정하세요.
+  tr: Giriş yöntemini kaybetmen durumunda erişimi kaybetmemek için bir kurtarma anahtarı oluştur.
+  vi: Thiết lập mã khôi phục để bạn không bị mất quyền truy cập nếu mất phương thức đăng nhập.
+  pl: Skonfiguruj klucz odzyskiwania, aby nie stracić dostępu w przypadku utraty metody logowania.
+  nl: Stel een herstelsleutel in zodat je de toegang niet verliest als je je inlogmethode kwijtraakt.
+  ar: قم بإعداد مفتاح استرداد حتى لا تفقد الوصول في حال فقدان وسيلة تسجيل الدخول الخاصة بك.
+  hi: एक रिकवरी की (recovery key) सेटअप करें ताकि यदि तुम अपनी लॉगिन विधि खो देते हो तो तुम्हारी पहुंच समाप्त न हो।
+  th: ตั้งค่าคีย์กู้คืนข้อมูล เพื่อไม่ให้เสียสิทธิ์การเข้าถึงหากเธอทำวิธีการเข้าสู่ระบบหายไป
+  zh: 设置恢复密钥，以免在丢失登录方式时无法访问。
+  es: Configura una clave de recuperación para no perder el acceso si pierdes tu método de inicio de sesión.
+  it: "Imposta una chiave di recupero per non perdere l'accesso se smarrisci il tuo metodo di login."
+  id: Siapkan kunci pemulihan agar kamu tidak kehilangan akses jika kehilangan metode loginmu.
+  cs: Nastav si klíč pro obnovení, abys neztratil přístup, pokud přijdeš o svou metodu přihlášení.
+  sv: Ställ in en återställningsnyckel så att du inte förlorar åtkomsten om du förlorar din inloggningsmetod.
+  he: הגדר מפתח שחזור כדי שלא תאבד את הגישה אם תאבד את שיטת ההתחברות שלך.
   verified_by_human: []
 post_purchase_security_setup.twofa_reason:
   context: Explains why password users should set up OTP 2FA and backup codes
   en: If you use password login, add OTP 2FA and save backup codes to protect your account.
   de: Wenn du Passwort-Login nutzt, füge OTP-2FA hinzu und speichere Backup-Codes, um dein Konto zu schützen.
+  fr: "Si tu utilises une connexion par mot de passe, ajoute l'A2F par OTP et sauvegarde tes codes de secours pour protéger ton compte."
+  pt: Se utilizas o início de sessão por palavra-passe, adiciona o 2FA por OTP e guarda os códigos de reserva para proteger a tua conta.
+  ru: Если ты используешь вход по паролю, добавь OTP 2FA и сохрани резервные коды для защиты своего аккаунта.
+  ja: パスワードログインを使用している場合は、アカウントを保護するためにOTP 2要素認証を追加し、バックアップコードを保存してください。
+  ko: 비밀번호 로그인을 사용하는 경우, 계정 보호를 위해 OTP 2FA를 추가하고 백업 코드를 저장하세요.
+  tr: Şifre ile giriş yapıyorsan, hesabını korumak için OTP 2FA ekle ve yedek kodlarını kaydet.
+  vi: Nếu bạn sử dụng đăng nhập bằng mật khẩu, hãy thêm OTP 2FA và lưu mã dự phòng để bảo vệ tài khoản của mình.
+  pl: Jeśli logujesz się za pomocą hasła, dodaj 2FA (OTP) i zapisz kody zapasowe, aby chronić swoje konto.
+  nl: Als je inlogt met een wachtwoord, voeg dan OTP 2FA toe en sla reservekopiecodes op om je account te beschermen.
+  ar: إذا كنت تستخدم تسجيل الدخول بكلمة مرور، فأضف المصادقة الثنائية (OTP 2FA) واحفظ رموز النسخ الاحتياطي لحماية حسابك.
+  hi: यदि तुम पासवर्ड लॉगिन का उपयोग करते हो, तो अपने खाते की सुरक्षा के लिए OTP 2FA जोड़ें और बैकअप कोड सहेजें।
+  th: หากเธอใช้การเข้าสู่ระบบด้วยรหัสผ่าน โปรดเพิ่ม OTP 2FA และบันทึกรหัสสำรองเพื่อปกป้องบัญชีของเธอ
+  zh: 如果你使用密码登录，请添加 OTP 双重身份验证 (2FA) 并保存备份代码以保护你的账户。
+  it: "Se usi l'accesso tramite password, aggiungi l'autenticazione a due fattori (OTP 2FA) e salva i codici di backup per proteggere il tuo account."
+  id: Jika kamu menggunakan login kata sandi, tambahkan OTP 2FA dan simpan kode cadangan untuk melindungi akunmu.
+  es: Si usas el inicio de sesión con contraseña, añade el 2FA por OTP y guarda los códigos de respaldo para proteger tu cuenta.
+  cs: Pokud používáš přihlášení heslem, přidej si OTP 2FA a ulož si záložní kódy pro ochranu svého účtu.
+  sv: Om du använder lösenordsinloggning, lägg till OTP 2FA och spara reservkoder för att skydda ditt konto.
+  he: אם אתה משתמש בהתחברות עם סיסמה, הוסף אימות דו-שלבי (OTP 2FA) ושמור קודי גיבוי כדי להגן על החשבון שלך.
   verified_by_human: []
 post_purchase_security_setup.open_recovery_key_settings:
   context: Button label for opening recovery key settings from post-purchase reminder email
   en: Set up recovery key
   de: Wiederherstellungsschlüssel einrichten
+  fr: Configurer une clé de récupération
+  pt: Configurar chave de recuperação
+  ru: Настроить ключ восстановления
+  ja: リカバリーキーを設定する
+  ko: 복구 키 설정하기
+  tr: Kurtarma anahtarı oluştur
+  vi: Thiết lập mã khôi phục
+  pl: Skonfiguruj klucz odzyskiwania
+  nl: Herstelsleutel instellen
+  ar: إعداد مفتاح الاسترداد
+  hi: रिकवरी की सेटअप करें
+  th: ตั้งค่าคีย์กู้คืนข้อมูล
+  zh: 设置恢复密钥
+  it: Imposta chiave di recupero
+  id: Siapkan kunci pemulihan
+  es: Configurar clave de recuperación
+  cs: Nastavit klíč pro obnovení
+  sv: Ställ in återställningsnyckel
+  he: הגדר מפתח שחזור
   verified_by_human: []
 post_purchase_security_setup.open_2fa_settings:
   context: Button label for opening 2FA settings from post-purchase reminder email
   en: Set up 2FA
   de: 2FA einrichten
+  fr: "Configurer l'A2F"
+  pt: Configurar 2FA
+  ru: Настроить 2FA
+  ja: 2要素認証を設定する
+  ko: 2FA 설정하기
+  tr: "2FA'yı ayarla"
+  vi: Thiết lập 2FA
+  pl: Skonfiguruj 2FA
+  nl: 2FA instellen
+  ar: إعداد المصادقة الثنائية (2FA)
+  hi: 2FA सेटअप करें
+  th: ตั้งค่า 2FA
+  zh: 设置双重身份验证 (2FA)
+  it: Imposta 2FA
+  id: Siapkan 2FA
+  es: Configurar 2FA
+  cs: Nastavit 2FA
+  sv: Ställ in 2FA
+  he: הגדר אימות דו-שלבי
   verified_by_human: []
 incomplete_signup_deletion_reminder.subject_14d:
   context: Subject for incomplete signup deletion reminder sent 14 days before deletion
   en: Complete your OpenMates signup before your account is deleted
   de: Schließe deine OpenMates-Registrierung ab, bevor dein Konto gelöscht wird
+  fr: Termine ton inscription à OpenMates avant que ton compte ne soit supprimé
+  pt: Conclui o teu registo no OpenMates antes que a tua conta seja eliminada
+  ru: Заверши регистрацию в OpenMates, пока твой аккаунт не был удален
+  ja: アカウントが削除される前にOpenMatesの登録を完了してください
+  ko: 계정이 삭제되기 전에 OpenMates 가입을 완료하세요
+  tr: Hesabın silinmeden önce OpenMates kaydını tamamla
+  vi: Hoàn tất đăng ký OpenMates trước khi tài khoản của bạn bị xóa
+  pl: Dokończ rejestrację w OpenMates, zanim Twoje konto zostanie usunięte
+  nl: Voltooi je OpenMates-aanmelding voordat je account wordt verwijderd
+  ar: أكمل تسجيلك في OpenMates قبل حذف حسابك
+  hi: अपना खाता हटाए जाने से पहले अपना OpenMates साइनअप पूरा करें
+  th: ดำเนินการสมัคร OpenMates ให้เสร็จสิ้นก่อนที่บัญชีของเธอจะถูกลบ
+  zh: 请在账户被删除前完成 OpenMates 注册
+  it: Completa la tua registrazione a OpenMates prima che il tuo account venga eliminato
+  id: Selesaikan pendaftaran OpenMates kamu sebelum akunmu dihapus
+  es: Completa tu registro en OpenMates antes de que se elimine tu cuenta
+  cs: Dokonči svou registraci do OpenMates, než bude tvůj účet smazán
+  sv: Slutför din OpenMates-registrering innan ditt konto raderas
+  he: השלם את ההרשמה ל-OpenMates לפני שחשבונך יימחק
   verified_by_human: []
 incomplete_signup_deletion_reminder.headline_14d:
   context: Headline for incomplete signup deletion reminder sent 14 days before deletion
   en: Complete your signup before deletion
   de: Schließe deine Registrierung vor der Löschung ab
+  fr: Termine ton inscription avant la suppression
+  pt: Conclui o teu registo antes da eliminação
+  ru: Заверши регистрацию до удаления аккаунта
+  ja: 削除される前に登録を完了してください
+  ko: 삭제 전 가입 완료하기
+  tr: Silinmeden önce kaydını tamamla
+  vi: Hoàn tất đăng ký trước khi bị xóa
+  pl: Dokończ rejestrację przed usunięciem konta
+  nl: Voltooi je aanmelding voor verwijdering
+  ar: أكمل تسجيلك قبل الحذف
+  hi: हटाए जाने से पहले अपना साइनअप पूरा करें
+  th: ดำเนินการสมัครให้เสร็จสิ้นก่อนถูกลบบัญชี
+  zh: 请在删除前完成注册
+  it: "Completa la registrazione prima dell'eliminazione"
+  id: Selesaikan pendaftaranmu sebelum penghapusan
+  es: Completa tu registro antes de la eliminación
+  cs: Dokonči registraci před smazáním
+  sv: Slutför din registrering innan radering
+  he: השלם את ההרשמה לפני המחיקה
   verified_by_human: []
 incomplete_signup_deletion_reminder.deletion_time_14d:
   context: Time until deletion for the 14-day incomplete signup reminder
   en: in 14 days
   de: in 14 Tagen
+  fr: dans 14 jours
+  pt: em 14 dias
+  ru: через 14 дней
+  ja: 14日後
+  ko: 14일 후
+  tr: 14 gün içinde
+  vi: trong 14 ngày tới
+  pl: za 14 dni
+  nl: over 14 dagen
+  ar: خلال 14 يوماً
+  hi: 14 दिनों में
+  th: ในอีก 14 วัน
+  zh: 14 天后
+  it: tra 14 giorni
+  id: dalam 14 hari
+  es: en 14 días
+  cs: za 14 dní
+  sv: om 14 dagar
+  he: בעוד 14 ימים
   verified_by_human: []
 incomplete_signup_deletion_reminder.wait_time_14d:
   context: Wait time phrase for the manual delete link in the 14-day reminder
   en: 14 days
   de: 14 Tage
+  fr: 14 jours
+  pt: 14 dias
+  ru: 14 дней
+  ja: 14日間
+  ko: 14일
+  tr: 14 gün
+  vi: 14 ngày
+  pl: 14 dni
+  nl: 14 dagen
+  ar: 14 يوماً
+  hi: 14 दिन
+  th: 14 วัน
+  zh: 14 天
+  it: 14 giorni
+  id: 14 hari
+  es: 14 días
+  cs: 14 dní
+  sv: 14 dagar
+  he: 14 ימים
   verified_by_human: []
 incomplete_signup_deletion_reminder.reminder_info_14d:
   context: Follow-up reminder schedule for the 14-day incomplete signup reminder
   en: If you take no action, you will be reminded again 7 days before deletion and 1 day before deletion.
   de: Wenn du nichts unternimmst, wirst du erneut 7 Tage vor der Löschung und 1 Tag vor der Löschung informiert.
+  fr: Si tu ne fais rien, tu recevras un nouveau rappel 7 jours avant la suppression et 1 jour avant la suppression.
+  pt: Se não fizeres nada, serás lembrado novamente 7 dias antes da eliminação e 1 dia antes da eliminação.
+  ru: Если ты не предпримешь никаких действий, мы напомним тебе еще раз за 7 дней и за 1 день до удаления.
+  ja: 何も行われない場合、削除の7日前と1日前にもう一度通知が届きます。
+  ko: 아무런 조치를 취하지 않으면 삭제 7일 전과 1일 전에 다시 안내해 드립니다.
+  tr: Herhangi bir işlem yapmazsan, silinmeden 7 gün önce ve 1 gün önce tekrar hatırlatılacaktır.
+  vi: Nếu bạn không thực hiện hành động nào, bạn sẽ được nhắc lại 7 ngày trước khi xóa và 1 ngày trước khi xóa.
+  pl: Jeśli nie podejmiesz żadnych działań, otrzymasz ponowne przypomnienie na 7 dni oraz na 1 dzień przed usunięciem.
+  nl: Als je geen actie onderneemt, word je 7 dagen voor verwijdering en 1 dag voor verwijdering opnieuw herinnerd.
+  ar: إذا لم تتخذ أي إجراء، فسيتم تذكيرك مرة أخرى قبل 7 أيام من الحذف وقبل يوم واحد من الحذف.
+  hi: यदि तुम कोई कार्रवाई नहीं करते हो, तो तुम्हें हटाए जाने से 7 दिन पहले और 1 दिन पहले फिर से याद दिलाया जाएगा।
+  th: หากเธอไม่ดำเนินการใดๆ เธอจะได้รับการแจ้งเตือนอีกครั้งใน 7 วันก่อนการลบ และ 1 วันก่อนการลบ
+  zh: 如果你不采取任何行动，我们将在删除前 7 天和删除前 1 天再次提醒你。
+  it: "Se non intervieni, riceverai un altro promemoria 7 giorni prima dell'eliminazione e un altro 1 giorno prima."
+  id: Jika kamu tidak melakukan tindakan apa pun, kamu akan diingatkan kembali 7 hari sebelum penghapusan dan 1 hari sebelum penghapusan.
+  es: Si no realizas ninguna acción, se te recordará de nuevo 7 días antes de la eliminación y 1 día antes de la eliminación.
+  cs: Pokud nepodnikneš žádné kroky, připomeneme se ti znovu 7 dní a 1 den před smazáním.
+  sv: Om du inte gör något kommer du att bli påmind igen 7 dagar före radering och 1 dag före radering.
+  he: אם לא תבצע שום פעולה, תקבל תזכורת נוספת 7 ימים לפני המחיקה ויום אחד לפני המחיקה.
   verified_by_human: []
 incomplete_signup_deletion_reminder.subject_7d:
   context: Subject for incomplete signup deletion reminder sent 7 days before deletion
   en: Your incomplete OpenMates account will be deleted in 7 days
   de: Dein unvollständiges OpenMates-Konto wird in 7 Tagen gelöscht
+  fr: Ton compte OpenMates incomplet sera supprimé dans 7 jours
+  pt: A tua conta incompleta do OpenMates será eliminada em 7 dias
+  ru: Твой незавершенный аккаунт OpenMates будет удален через 7 дней
+  ja: 未完了のOpenMatesアカウントは7日後に削除されます
+  ko: 가입이 완료되지 않은 OpenMates 계정이 7일 후에 삭제됩니다
+  tr: Tamamlanmamış OpenMates hesabın 7 gün içinde silinecek
+  vi: Tài khoản OpenMates chưa hoàn tất của bạn sẽ bị xóa trong 7 ngày tới
+  pl: Twoje niedokończone konto OpenMates zostanie usunięte za 7 dni
+  nl: Je onvoltooide OpenMates-account wordt over 7 dagen verwijderd
+  ar: سيتم حذف حساب OpenMates غير المكتمل خلال 7 أيام
+  hi: आपका अधूरा OpenMates खाता 7 दिनों में हटा दिया जाएगा
+  th: บัญชี OpenMates ที่ยังสมัครไม่เสร็จสิ้นจะถูกลบในอีก 7 วัน
+  zh: 你的未完成 OpenMates 账户将在 7 天后被删除
+  it: Il tuo account OpenMates incompleto verrà eliminato tra 7 giorni
+  id: Akun OpenMates kamu yang belum lengkap akan dihapus dalam 7 hari
+  es: Tu cuenta incompleta de OpenMates se eliminará en 7 días
+  cs: Tvůj nedokončený účet OpenMates bude smazán za 7 dní
+  sv: Ditt ofullständiga OpenMates-konto raderas om 7 dagar
+  he: חשבון ה-OpenMates הלא מושלם שלך יימחק בעוד 7 ימים
   verified_by_human: []
 incomplete_signup_deletion_reminder.headline_7d:
   context: Headline for incomplete signup deletion reminder sent 7 days before deletion
   en: Your account will be deleted soon
   de: Dein Konto wird bald gelöscht
+  fr: Ton compte sera bientôt supprimé
+  pt: A tua conta será eliminada em breve
+  ru: Твой аккаунт скоро будет удален
+  ja: アカウントがまもなく削除されます
+  ko: 계정이 곧 삭제될 예정입니다
+  tr: Hesabın yakında silinecek
+  vi: Tài khoản của bạn sẽ sớm bị xóa
+  pl: Twoje konto zostanie wkrótce usunięte
+  nl: Je account wordt binnenkort verwijderd
+  ar: سيتم حذف حسابك قريباً
+  hi: आपका खाता जल्द ही हटा दिया जाएगा
+  th: บัญชีของเธอจะถูกลบในเร็วๆ นี้
+  zh: 你的账户即将被删除
+  it: Il tuo account verrà eliminato a breve
+  id: Akunmu akan segera dihapus
+  es: Tu cuenta se eliminará pronto
+  cs: Tvůj účet bude brzy smazán
+  sv: Ditt konto raderas snart
+  he: חשבונך יימחק בקרוב
   verified_by_human: []
 incomplete_signup_deletion_reminder.deletion_time_7d:
   context: Time until deletion for the 7-day incomplete signup reminder
   en: in 7 days
   de: in 7 Tagen
+  fr: dans 7 jours
+  pt: em 7 dias
+  ru: через 7 дней
+  ja: 7日後
+  ko: 7일 후
+  tr: 7 gün içinde
+  vi: trong 7 ngày tới
+  pl: za 7 dni
+  nl: over 7 dagen
+  ar: خلال 7 أيام
+  hi: 7 दिनों में
+  th: ในอีก 7 วัน
+  zh: 7 天后
+  it: tra 7 giorni
+  id: dalam 7 hari
+  es: en 7 días
+  cs: za 7 dní
+  sv: om 7 dagar
+  he: בעוד 7 ימים
   verified_by_human: []
 incomplete_signup_deletion_reminder.wait_time_7d:
   context: Wait time phrase for the manual delete link in the 7-day reminder
   en: 7 days
   de: 7 Tage
+  fr: 7 jours
+  pt: 7 dias
+  ru: 7 дней
+  ja: 7日間
+  ko: 7일
+  tr: 7 gün
+  vi: 7 ngày
+  pl: 7 dni
+  nl: 7 dagen
+  ar: 7 أيام
+  hi: 7 दिन
+  th: 7 วัน
+  zh: 7 天
+  it: 7 giorni
+  id: 7 hari
+  es: 7 días
+  cs: 7 dní
+  sv: 7 dagar
+  he: 7 ימים
   verified_by_human: []
 incomplete_signup_deletion_reminder.reminder_info_7d:
   context: Follow-up reminder schedule for the 7-day incomplete signup reminder
   en: If you take no action, you will receive one final reminder 1 day before deletion.
   de: Wenn du nichts unternimmst, erhältst du 1 Tag vor der Löschung eine letzte Erinnerung.
+  fr: Si tu ne fais rien, tu recevras un dernier rappel 1 jour avant la suppression.
+  pt: Se não fizeres nada, receberás um último lembrete 1 dia antes da eliminação.
+  ru: Если ты не предпримешь никаких действий, ты получишь последнее напоминание за 1 день до удаления.
+  ja: 何も行われない場合、削除の1前日に最終通知が届きます。
+  ko: 아무런 조치를 취하지 않으면 삭제 1일 전에 마지막 안내를 드립니다.
+  tr: Herhangi bir işlem yapmazsan, silinmeden 1 gün önce son bir hatırlatma alacaksın.
+  vi: Nếu bạn không thực hiện hành động nào, bạn sẽ nhận được một lời nhắc cuối cùng 1 ngày trước khi xóa.
+  pl: Jeśli nie podejmiesz żadnych działań, otrzymasz ostatnie przypomnienie na 1 dzień przed usunięciem.
+  nl: Als je geen actie onderneemt, ontvang je één laatste herinnering 1 dag voor verwijdering.
+  ar: إذا لم تتخذ أي إجراء، فستتلقى تذكيراً نهائياً واحداً قبل يوم واحد من الحذف.
+  hi: यदि तुम कोई कार्रवाई नहीं करते हो, तो तुम्हें हटाए जाने से 1 दिन पहले एक अंतिम अनुस्मारक प्राप्त होगा।
+  th: หากเธอไม่ดำเนินการใดๆ เธอจะได้รับการแจ้งเตือนครั้งสุดท้ายใน 1 วันก่อนการลบ
+  zh: 如果你不采取任何行动，你将在删除前 1 天收到最后一次提醒。
+  it: "Se non intervieni, riceverai un ultimo promemoria 1 giorno prima dell'eliminazione."
+  id: Jika kamu tidak melakukan tindakan apa pun, kamu akan menerima satu pengingat terakhir 1 hari sebelum penghapusan.
+  es: Si no realizas ninguna acción, recibirás un último recordatorio 1 día antes de la eliminación.
+  cs: Pokud nepodnikneš žádné kroky, obdržíš poslední připomenutí 1 den před smazáním.
+  sv: Om du inte gör något kommer du att få en sista påminnelse 1 dag före radering.
+  he: אם לא תבצע שום פעולה, תקבל תזכורת אחרונה יום אחד לפני המחיקה.
   verified_by_human: []
 incomplete_signup_deletion_reminder.subject_1d:
   context: Subject for incomplete signup deletion reminder sent 1 day before deletion
   en: "Final notice: your incomplete OpenMates account will be deleted tomorrow"
   de: "Letzte Erinnerung: Dein unvollständiges OpenMates-Konto wird morgen gelöscht"
+  fr: "Dernier avis : ton compte OpenMates incomplet sera supprimé demain"
+  pt: "Aviso final: a tua conta incompleta do OpenMates será eliminada amanhã"
+  ru: "Последнее уведомление: твой незавершенный аккаунт OpenMates будет удален завтра"
+  ja: 最終通知：未完了のOpenMatesアカウントは明日削除されます
+  ko: "최종 안내: 가입이 완료되지 않은 OpenMates 계정이 내일 삭제됩니다"
+  tr: "Son bildirim: Tamamlanmamış OpenMates hesabın yarın silinecek"
+  vi: "Thông báo cuối cùng: tài khoản OpenMates chưa hoàn tất của bạn sẽ bị xóa vào ngày mai"
+  pl: "Ostatnie wezwanie: Twoje niedokończone konto OpenMates zostanie jutro usunięte"
+  nl: "Laatste waarschuwing: je onvoltooide OpenMates-account wordt morgen verwijderd"
+  ar: "إشعار أخير: سيتم حذف حساب OpenMates غير المكتمل غداً"
+  hi: "अंतिम सूचना: आपका अधूरा OpenMates खाता कल हटा दिया जाएगा"
+  th: "แจ้งเตือนครั้งสุดท้าย: บัญชี OpenMates ที่ยังสมัครไม่เสร็จสิ้นจะถูกลบในวันพรุ่งนี้"
+  zh: 最后通知：你的未完成 OpenMates 账户将于明天被删除
+  it: "Ultimo avviso: il tuo account OpenMates incompleto verrà eliminato domani"
+  id: "Pemberitahuan terakhir: akun OpenMates kamu yang belum lengkap akan dihapus besok"
+  es: "Aviso final: tu cuenta incompleta de OpenMates se eliminará mañana"
+  cs: "Poslední upozornění: tvůj nedokončený účet OpenMates bude zítra smazán"
+  sv: "Sista påminnelsen: ditt ofullständiga OpenMates-konto raderas i morgon"
+  he: "הודעה אחרונה: חשבון ה-OpenMates הלא מושלם שלך יימחק מחר"
   verified_by_human: []
 incomplete_signup_deletion_reminder.headline_1d:
   context: Headline for incomplete signup deletion reminder sent 1 day before deletion
   en: Final notice
   de: Letzte Erinnerung
+  fr: Dernier avis
+  pt: Aviso final
+  ru: Последнее уведомление
+  ja: 最終通知
+  ko: 최종 안내
+  tr: Son bildirim
+  vi: Thông báo cuối cùng
+  pl: Ostatnie wezwanie
+  nl: Laatste waarschuwing
+  ar: إشعار أخير
+  hi: अंतिम सूचना
+  th: ประกาศแจ้งเตือนครั้งสุดท้าย
+  zh: 最后通知
+  it: Ultimo avviso
+  id: Pemberitahuan terakhir
+  es: Aviso final
+  cs: Poslední upozornění
+  sv: Sista påminnelsen
+  he: הודעה אחרונה
   verified_by_human: []
 incomplete_signup_deletion_reminder.deletion_time_1d:
   context: Time until deletion for the 1-day incomplete signup reminder
   en: tomorrow
   de: morgen
+  fr: demain
+  pt: amanhã
+  ru: завтра
+  ja: 明日
+  ko: 내일
+  tr: yarın
+  vi: vào ngày mai
+  pl: jutro
+  nl: morgen
+  ar: غداً
+  hi: कल
+  th: ในวันพรุ่งนี้
+  zh: 明天
+  it: domani
+  id: besok
+  es: mañana
+  cs: zítra
+  sv: i morgon
+  he: מחר
   verified_by_human: []
 incomplete_signup_deletion_reminder.wait_time_1d:
   context: Wait time phrase for the manual delete link in the 1-day reminder
   en: until tomorrow
   de: bis morgen
+  fr: "jusqu'à demain"
+  pt: até amanhã
+  ru: до завтра
+  ja: 明日まで
+  ko: 내일까지
+  tr: yarına kadar
+  vi: cho đến ngày mai
+  pl: do jutra
+  nl: tot morgen
+  ar: حتى الغد
+  hi: कल तक
+  th: จนถึงวันพรุ่งนี้
+  zh: 直到明天
+  it: fino a domani
+  id: sampai besok
+  es: hasta mañana
+  cs: do zítřka
+  sv: tills i morgon
+  he: עד מחר
   verified_by_human: []
 incomplete_signup_deletion_reminder.reminder_info_1d:
   context: Follow-up reminder schedule for the 1-day incomplete signup reminder
-  en: ""
-  de: ""
+  en: This is the final reminder before deletion.
+  de: Dies ist die letzte Erinnerung vor der Löschung.
+  fr: Ceci est le dernier rappel avant la suppression.
+  pt: Este é o último lembrete antes da eliminação.
+  ru: Это последнее напоминание перед удалением.
+  ja: これが削除前の最終通知です。
+  ko: 삭제 전 마지막 안내입니다.
+  tr: Bu, silinmeden önceki son hatırlatmadır.
+  vi: Đây là lời nhắc cuối cùng trước khi xóa.
+  pl: To ostatnie przypomnienie przed usunięciem.
+  nl: Dit is de laatste herinnering voor verwijdering.
+  ar: هذا هو التذكير الأخير قبل الحذف.
+  hi: हटाए जाने से पहले यह अंतिम अनुस्मारक है।
+  th: นี่คือการแจ้งเตือนครั้งสุดท้ายก่อนการลบ
+  zh: 这是删除前的最后一次提醒。
+  it: "Questo è l'ultimo promemoria prima dell'eliminazione."
+  id: Ini adalah pengingat terakhir sebelum penghapusan.
+  es: Este es el último recordatorio antes de la eliminación.
+  cs: Toto je poslední připomenutí před smazáním.
+  sv: Detta är den sista påminnelsen före radering.
+  he: זוהי התזכורת האחרונה לפני המחיקה.
   verified_by_human: []
 incomplete_signup_deletion_reminder.greeting:
   context: Greeting in incomplete signup deletion reminder email
   en: Hey{greeting_name},
   de: Hallo{greeting_name},
+  fr: "Salut{greeting_name},"
+  pt: "Olá{greeting_name},"
+  ru: "Привет{greeting_name},"
+  ja: "こんにちは{greeting_name}、"
+  ko: "안녕하세요{greeting_name}님,"
+  tr: "Selam{greeting_name},"
+  vi: "Chào{greeting_name},"
+  pl: "Cześć{greeting_name},"
+  nl: "Hey{greeting_name},"
+  ar: "أهلاً {greeting_name}،"
+  hi: "नमस्ते{greeting_name},"
+  th: "สวัสดี{greeting_name}"
+  zh: "嘿{greeting_name}，"
+  it: "Ehi{greeting_name},"
+  id: "Hai{greeting_name},"
+  es: "Hola{greeting_name},"
+  cs: "Ahoj{greeting_name},"
+  sv: "Hej{greeting_name},"
+  he: "היי{greeting_name},"
   verified_by_human: []
 incomplete_signup_deletion_reminder.intro:
   context: Intro paragraph in incomplete signup deletion reminder email
@@ -358,11 +795,49 @@ incomplete_signup_deletion_reminder.intro:
     You started signing up on <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> but didn't complete the signup process.
   de: >-
     Du hast mit der Registrierung auf <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> begonnen, den Prozess aber nicht abgeschlossen.
+  fr: "Tu as commencé ton inscription sur <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> mais tu n'as pas terminé le processus."
+  pt: "Começaste o registo em <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> mas não concluíste o processo."
+  ru: "Ты начал регистрацию на <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>, но не завершил этот процесс."
+  ja: "<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>で登録を開始されましたが、まだ手続きが完了していません。"
+  ko: "<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>에서 가입을 시작하셨지만 완료하지 않으셨습니다."
+  tr: "<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> üzerinden kaydolmaya başladın ancak kayıt işlemini tamamlamadın."
+  vi: "Bạn đã bắt đầu đăng ký trên <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> nhưng chưa hoàn tất quá trình đăng ký."
+  pl: "Rozpocząłeś rejestrację na <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>, ale proces nie został ukończony."
+  nl: "Je bent begonnen met aanmelden op <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> maar hebt het aanmeldproces niet voltooid."
+  ar: "لقد بدأت التسجيل في <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> ولكنك لم تكمل العملية."
+  hi: "तुमने <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> पर साइन अप करना शुरू किया था लेकिन साइनअप प्रक्रिया पूरी नहीं की।"
+  th: "เธอได้เริ่มลงชื่อสมัครใช้บน <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> แต่ยังดำเนินการไม่เสร็จสิ้น"
+  zh: "你已开始在 <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> 注册，但尚未完成注册流程。"
+  it: "Hai iniziato la registrazione su <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> ma non hai completato la procedura."
+  id: "Kamu mulai mendaftar di <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> tetapi tidak menyelesaikan proses pendaftaran."
+  es: "Empezaste a registrarte en <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> pero no completaste el proceso de registro."
+  cs: "Začal jsi s registrací na <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>, ale proces registrace jsi nedokončil."
+  sv: "Du påbörjade din registrering på <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> men slutförde den inte."
+  he: "התחלת להירשם ב-<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> אך לא השלמת את תהליך ההרשמה."
   verified_by_human: []
 incomplete_signup_deletion_reminder.scheduled:
   context: Bold scheduled deletion sentence in incomplete signup deletion reminder email
   en: Your incomplete account is scheduled for deletion {deletion_time_text}.
   de: Dein unvollständiges Konto ist zur Löschung {deletion_time_text} vorgesehen.
+  fr: "La suppression de ton compte incomplet est prévue {deletion_time_text}."
+  pt: "A tua conta incompleta está agendada para eliminação {deletion_time_text}."
+  ru: "Твой незавершенный аккаунт запланирован к удалению {deletion_time_text}."
+  ja: "未完了のアカウントは {deletion_time_text} に削除される予定です。"
+  ko: "가입이 완료되지 않은 계정은 {deletion_time_text} 삭제될 예정입니다."
+  tr: "Tamamlanmamış hesabın {deletion_time_text} silinmek üzere planlandı."
+  vi: "Tài khoản chưa hoàn tất của bạn đã được lên lịch xóa {deletion_time_text}."
+  pl: "Twoje niedokończone konto ma zaplanowane usunięcie {deletion_time_text}."
+  nl: "Je onvoltooide account staat gepland voor verwijdering {deletion_time_text}."
+  ar: "من المقرر حذف حسابك غير المكتمل {deletion_time_text}."
+  hi: "आपका अधूरा खाता {deletion_time_text} हटाए जाने के लिए निर्धारित है।"
+  th: "บัญชีที่ยังสมัครไม่เสร็จสิ้นของเธอมีกำหนดจะถูกลบ {deletion_time_text}"
+  zh: "你的未完成账户计划于 {deletion_time_text} 删除。"
+  it: "L'eliminazione del tuo account incompleto è prevista {deletion_time_text}."
+  id: "Akunmu yang belum lengkap dijadwalkan untuk dihapus {deletion_time_text}."
+  es: "Tu cuenta incompleta está programada para ser eliminada {deletion_time_text}."
+  cs: "Tvůj nedokončený účet je naplánován ke smazání {deletion_time_text}."
+  sv: "Ditt ofullständiga konto är schemalagt för radering {deletion_time_text}."
+  he: "החשבון הלא מושלם שלך מיועד למחיקה {deletion_time_text}."
   verified_by_human: []
 incomplete_signup_deletion_reminder.finish_setup:
   context: Paragraph explaining how to finish setup in incomplete signup deletion reminder email
@@ -370,6 +845,25 @@ incomplete_signup_deletion_reminder.finish_setup:
     If you still want to use OpenMates, simply log in to <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> again and finish the signup flow by buying credits and start using OpenMates.
   de: >-
     Wenn du OpenMates weiterhin nutzen möchtest, melde dich einfach wieder bei <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> an, schließe die Registrierung durch den Kauf von Credits ab und nutze OpenMates.
+  fr: "Si tu souhaites toujours utiliser OpenMates, connecte-toi simplement à nouveau sur <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> et termine l'inscription en achetant des crédits pour commencer à utiliser OpenMates."
+  pt: "Se ainda quiseres usar o OpenMates, basta iniciares sessão em <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> novamente e terminares o fluxo de registo comprando créditos para começares a usar o OpenMates."
+  ru: "Если ты все еще хочешь пользоваться OpenMates, просто снова войди на <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> и заверши процесс регистрации, купив кредиты и начав использовать OpenMates."
+  ja: "引き続きOpenMatesの利用を希望される場合は、<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>に再度ログインし、クレジットを購入して登録手続きを完了させてください。"
+  ko: "OpenMates를 계속 이용하고 싶으시다면, <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>에 다시 로그인하여 크레딧을 구매하고 가입 절차를 완료하여 OpenMates를 시작해 보세요."
+  tr: "Hala OpenMates'i kullanmak istiyorsan, <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> adresine tekrar giriş yapıp kredi satın alarak kayıt akışını bitirmen ve OpenMates'i kullanmaya başlaman yeterli."
+  vi: "Nếu bạn vẫn muốn sử dụng OpenMates, chỉ cần đăng nhập lại vào <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> và hoàn tất quy trình đăng ký bằng cách mua credit và bắt đầu sử dụng OpenMates."
+  pl: "Jeśli nadal chcesz korzystać z OpenMates, po prostu zaloguj się ponownie na <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> i dokończ proces rejestracji, kupując kredyty, aby zacząć korzystać z serwisu."
+  nl: "Als je OpenMates nog steeds wilt gebruiken, log dan gewoon opnieuw in op <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> en voltooi het aanmeldproces door credits te kopen en OpenMates te gaan gebruiken."
+  ar: "إذا كنت لا تزال ترغب في استخدام OpenMates، فما عليك سوى تسجيل الدخول إلى <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> مرة أخرى وإكمال عملية التسجيل عن طريق شراء رصيد والبدء في استخدام OpenMates."
+  hi: "यदि तुम अभी भी OpenMates का उपयोग करना चाहते हो, तो बस फिर से <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> पर लॉग इन करें और क्रेडिट खरीदकर साइनअप प्रक्रिया पूरी करें और OpenMates का उपयोग करना शुरू करें।"
+  th: "หากเธอยังต้องการใช้งาน OpenMates เพียงแค่เข้าสู่ระบบที่ <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> อีกครั้ง และดำเนินการสมัครให้เสร็จสิ้นโดยการซื้อเครดิตและเริ่มใช้งาน OpenMates"
+  zh: "如果你仍想使用 OpenMates，只需再次登录 <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>，通过购买积分完成注册流程，即可开始使用 OpenMates。"
+  it: "Se vuoi ancora usare OpenMates, effettua nuovamente l'accesso su <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> e completa la registrazione acquistando dei crediti per iniziare a usare OpenMates."
+  id: "Jika kamu masih ingin menggunakan OpenMates, cukup login ke <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> lagi dan selesaikan alur pendaftaran dengan membeli kredit dan mulai menggunakan OpenMates."
+  es: "Si aún quieres usar OpenMates, simplemente vuelve a iniciar sesión en <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> y termina el proceso de registro comprando créditos para empezar a usar OpenMates."
+  cs: "Pokud chceš OpenMates stále používat, jednoduše se znovu přihlas na <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> a dokonči registraci zakoupením kreditů a začni OpenMates používat."
+  sv: "Om du fortfarande vill använda OpenMates är det bara att logga in på <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> igen och slutföra registreringsprocessen genom att köpa krediter och börja använda OpenMates."
+  he: "אם ברצונך להמשיך להשתמש ב-OpenMates, פשוט היכנס שוב ל-<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> והשלם את תהליך ההרשמה על ידי רכישת קרדיטים והתחלת השימוש ב-OpenMates."
   verified_by_human: []
 incomplete_signup_deletion_reminder.changes:
   context: Product update paragraph in incomplete signup deletion reminder email
@@ -377,6 +871,25 @@ incomplete_signup_deletion_reminder.changes:
     A lot of changes have been made in recent weeks: from various new apps which your AI team mates can use to fulfill all kinds of tasks, many bug fixes and stability improvements, and other features. OpenMates continues to be under very active development. Watch the latest announcement below for a quick tour of what changed.
   de: >-
     In den letzten Wochen hat sich viel getan: verschiedene neue Apps, die deine KI-Teammitglieder für alle möglichen Aufgaben nutzen können, viele Fehlerbehebungen, Stabilitätsverbesserungen und weitere Funktionen. OpenMates wird weiterhin sehr aktiv entwickelt. Schau dir unten die neueste Ankündigung an, um einen schnellen Überblick über die Änderungen zu bekommen.
+  zh: 最近几周我们进行了许多改进：从 AI 队友可以用来完成各种任务的各种新应用，到许多错误修复、稳定性改进以及其他功能。OpenMates 仍在积极开发中。观看下方的最新公告，快速了解变化内容。
+  es: "Se han realizado muchos cambios en las últimas semanas: desde varias aplicaciones nuevas que tus compañeros de IA pueden usar para cumplir todo tipo de tareas, hasta muchas correcciones de errores y mejoras de estabilidad, y otras funciones. OpenMates sigue en desarrollo muy activo. Mira el último anuncio a continuación para un recorrido rápido por lo que ha cambiado."
+  fr: "De nombreux changements ont été apportés ces dernières semaines : de nouvelles applications que tes coéquipiers IA peuvent utiliser pour accomplir toutes sortes de tâches, de nombreuses corrections de bugs et améliorations de la stabilité, ainsi que d'autres fonctionnalités. OpenMates continue d'être en développement très actif. Regarde la dernière annonce ci-dessous pour un tour d'horizon rapide des changements."
+  pt: "Muitas alterações foram feitas nas últimas semanas: desde várias novas apps que os teus colegas de equipa de IA podem usar para realizar todo o tipo de tarefas, muitas correções de erros e melhorias de estabilidade, e outras funcionalidades. O OpenMates continua sob desenvolvimento muito ativo. Vê o último anúncio abaixo para uma visita rápida ao que mudou."
+  ja: ここ数週間で多くの変更が行われました。AIチームメイトがあらゆるタスクをこなすために使える様々な新アプリから、多くのバグ修正や安定性の向上、その他の機能まで多岐にわたります。OpenMatesは引き続き非常に活発に開発が進められています。変更内容のクイックツアーについては、以下の最新のアナウンスをご覧ください。
+  ko: "최근 몇 주 동안 많은 변화가 있었어: AI 팀원들이 온갖 작업을 수행하는 데 사용할 수 있는 다양한 신규 앱부터 수많은 버그 수정 및 안정성 개선, 그리고 기타 기능들까지 말이야. OpenMates는 계속해서 활발히 개발되고 있어. 아래의 최신 공지 영상을 통해 무엇이 바뀌었는지 빠르게 확인해 봐."
+  it: "Sono stati apportati molti cambiamenti nelle ultime settimane: da varie nuove app che i tuoi compagni di squadra IA possono usare per svolgere ogni tipo di compito, a molte correzioni di bug e miglioramenti della stabilità, e altre funzionalità. OpenMates continua a essere in fase di sviluppo molto attivo. Guarda l'ultimo annuncio qui sotto per una rapida panoramica di ciò che è cambiato."
+  tr: "Son haftalarda pek çok değişiklik yapıldı: yapay zeka ekip arkadaşlarının her türlü görevi yerine getirmek için kullanabileceği çeşitli yeni uygulamalardan, birçok hata düzeltmesine, kararlılık iyileştirmelerine ve diğer özelliklere kadar. OpenMates çok aktif bir şekilde geliştirilmeye devam ediyor. Nelerin değiştiğine dair kısa bir tur için aşağıdaki en son duyuruyu izle."
+  vi: "Rất nhiều thay đổi đã được thực hiện trong những tuần gần đây: từ nhiều ứng dụng mới mà các cộng sự AI của bạn có thể sử dụng để hoàn thành mọi loại tác vụ, cho đến nhiều bản sửa lỗi, cải thiện độ ổn định và các tính năng khác. OpenMates vẫn đang được phát triển rất tích cực. Hãy xem thông báo mới nhất bên dưới để biết nhanh những gì đã thay đổi."
+  id: "Banyak perubahan telah dilakukan dalam beberapa minggu terakhir: mulai dari berbagai aplikasi baru yang dapat digunakan oleh rekan tim AI kamu untuk memenuhi segala jenis tugas, banyak perbaikan bug dan peningkatan stabilitas, serta fitur-fitur lainnya. OpenMates terus berada di bawah pengembangan yang sangat aktif. Tonton pengumuman terbaru di bawah ini untuk tur singkat tentang apa saja yang berubah."
+  pl: "W ostatnich tygodniach wprowadziliśmy wiele zmian: od różnych nowych aplikacji, których Twoi koledzy z zespołu AI mogą używać do wykonywania wszelkiego rodzaju zadań, po liczne poprawki błędów i ulepszenia stabilności oraz inne funkcje. OpenMates jest stale i bardzo aktywnie rozwijane. Obejrzyj poniższe ogłoszenie, aby szybko zapoznać się z wprowadzonymi zmianami."
+  nl: "Er zijn de afgelopen weken veel wijzigingen doorgevoerd: van diverse nieuwe apps die je AI-teamgenoten kunnen gebruiken om allerlei taken uit te voeren, tot vele bugfixes, stabiliteitsverbeteringen en andere functies. OpenMates is nog steeds volop in ontwikkeling. Bekijk de nieuwste aankondiging hieronder voor een kort overzicht van wat er is veranderd."
+  ar: "تم إجراء الكثير من التغييرات في الأسابيع الأخيرة: من تطبيقات جديدة متنوعة يمكن لزملائك في فريق الذكاء الاصطناعي استخدامها لإنجاز جميع أنواع المهام، إلى العديد من إصلاحات الأخطاء وتحسينات الاستقرار، وميزات أخرى. لا يزال OpenMates قيد التطوير النشط للغاية. شاهد أحدث إعلان أدناه للحصول على جولة سريعة حول ما تغير."
+  th: "มีการเปลี่ยนแปลงมากมายในช่วงไม่กี่สัปดาห์ที่ผ่านมา: ตั้งแต่แอปใหม่ๆ มากมายที่เพื่อนร่วมทีม AI ของคุณสามารถใช้เพื่อทำงานทุกประเภท ไปจนถึงการแก้ไขข้อบกพร่องและการปรับปรุงความเสถียร และฟีเจอร์อื่นๆ OpenMates ยังคงได้รับการพัฒนาอย่างต่อเนื่อง ชมประกาศล่าสุดด้านล่างเพื่อดูสรุปการเปลี่ยนแปลงอย่างรวดเร็ว"
+  ru: "За последние недели произошло много изменений: от различных новых приложений, которые твои ИИ-коллеги могут использовать для выполнения самых разных задач, до множества исправлений ошибок и улучшений стабильности, а также других функций. OpenMates продолжает активно развиваться. Посмотри последнее объявление ниже, чтобы кратко ознакомиться с изменениями."
+  hi: "पिछले कुछ हफ्तों में कई बदलाव किए गए हैं: विभिन्न नए ऐप्स से लेकर जिनका उपयोग तुम्हारे AI टीम के साथी सभी प्रकार के कार्यों को पूरा करने के लिए कर सकते हैं, कई बग फिक्स और स्थिरता में सुधार, और अन्य सुविधाएँ। OpenMates पर सक्रिय रूप से काम जारी है। क्या बदला है, इसकी एक त्वरित झलक के लिए नीचे दी गई नवीनतम घोषणा देखें।"
+  cs: "V posledních týdnech proběhlo mnoho změn: od různých nových aplikací, které mohou tvoji AI parťáci používat k plnění nejrůznějších úkolů, přes mnoho oprav chyb a vylepšení stability až po další funkce. OpenMates je i nadále ve velmi aktivním vývoji. Podívej se na nejnovější oznámení níže a prohlédni si, co se změnilo."
+  sv: "Många ändringar har gjorts de senaste veckorna: från flera nya appar som dina AI-teamkamrater kan använda för att utföra alla möjliga uppgifter, till många buggfixar, stabilitetsförbättringar och andra funktioner. OpenMates fortsätter att utvecklas mycket aktivt. Se det senaste meddelandet nedan för en snabb genomgång av vad som har ändrats."
+  he: "שינויים רבים בוצעו בשבועות האחרונים: מאפליקציות חדשות ומגוונות שחברי הצוות מבוססי ה-AI שלך יכולים להשתמש בהן כדי לבצע משימות מכל הסוגים, תיקוני באגים רבים ושיפורי יציבות, ותכונות נוספות. OpenMates ממשיכה להיות תחת פיתוח פעיל מאוד. צפה בהכרזה האחרונה למטה לסיור קצר בשינויים."
   verified_by_human: []
 incomplete_signup_deletion_reminder.newsletter:
   context: Newsletter signup paragraph in incomplete signup deletion reminder email
@@ -384,21 +897,97 @@ incomplete_signup_deletion_reminder.newsletter:
     You can also <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">sign up for the OpenMates newsletter</a> to stay up to date on future changes.
   de: >-
     Du kannst dich auch <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">für den OpenMates-Newsletter anmelden</a>, um über zukünftige Änderungen auf dem Laufenden zu bleiben.
+  zh: "你也可以<a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">订阅 OpenMates 时事通讯</a>，了解未来的最新动态。"
+  es: "También puedes <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">suscribirte al boletín de OpenMates</a> para mantenerte al día de futuros cambios."
+  fr: "Tu peux aussi <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">t'inscrire à la newsletter d'OpenMates</a> pour rester au courant des futurs changements."
+  pt: "Também podes <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">subscrever a newsletter do OpenMates</a> para te manteres a par de futuras alterações."
+  ja: "また、<a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMatesニュースレターに登録</a>して、今後の変更に関する最新情報を入手することもできます。"
+  ko: "<a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates 뉴스레터에 가입</a>해서 앞으로의 변경 사항을 계속 확인할 수도 있어."
+  it: "Puoi anche <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">iscriverti alla newsletter di OpenMates</a> per restare aggiornato sui cambiamenti futuri."
+  tr: "Gelecekteki değişikliklerden haberdar olmak için <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates bültenine de kaydolabilirsin</a>."
+  vi: "Bạn cũng có thể <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">đăng ký nhận bản tin OpenMates</a> để cập nhật các thay đổi trong tương lai."
+  id: "Kamu juga dapat <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">mendaftar buletin OpenMates</a> untuk mendapatkan info terbaru tentang perubahan di masa mendatang."
+  pl: "Możesz również <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">zapisać się do newslettera OpenMates</a>, aby być na bieżąco z przyszłymi zmianami."
+  nl: "Je kunt je ook <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">aanmelden voor de OpenMates-nieuwsbrief</a> om op de hoogte te blijven van toekomstige wijzigingen."
+  ar: "يمكنك أيضاً <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">الاشتراك في نشرة OpenMates الإخبارية</a> للبقاء على اطلاع بالتغييرات المستقبلية."
+  th: "คุณยังสามารถ <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">สมัครรับจดหมายข่าวของ OpenMates</a> เพื่อติดตามการเปลี่ยนแปลงในอนาคต"
+  ru: "Ты также можешь <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">подписаться на рассылку OpenMates</a>, чтобы быть в курсе будущих изменений."
+  hi: "भविष्य के बदलावों के बारे में अपडेट रहने के लिए तुम <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates न्यूज़लेटर के लिए साइन अप</a> भी कर सकते हो।"
+  cs: "Můžeš se také <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">přihlásit k odběru newsletteru OpenMates</a>, abys měl přehled o budoucích změnách."
+  sv: "Du kan också <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">anmäla dig till OpenMates nyhetsbrev</a> för att hålla dig uppdaterad om framtida ändringar."
+  he: "ניתן גם <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">להירשם לניוזלטר של OpenMates</a> כדי להישאר מעודכנים בשינויים עתידיים."
   verified_by_human: []
 incomplete_signup_deletion_reminder.video_label:
   context: Label above announcement video in incomplete signup deletion reminder email
   en: "2:50 min update video:"
   de: "2:50 Min. Update-Video:"
+  zh: "2:50 分钟更新视频："
+  es: "Vídeo de actualización de 2:50 min:"
+  fr: "Vidéo de mise à jour (2:50 min) :"
+  pt: "Vídeo de atualização de 2:50 min:"
+  ja: "2:50分のアップデート動画:"
+  ko: "2분 50초 업데이트 영상:"
+  it: "Video di aggiornamento di 2:50 min:"
+  tr: "2:50 dakikalık güncelleme videosu:"
+  vi: "Video cập nhật 2:50 phút:"
+  id: "Video pembaruan 2:50 menit:"
+  pl: "2:50 min wideo z aktualizacją:"
+  nl: "Updatevideo van 2:50 min:"
+  ar: "فيديو تحديث مدته 2:50 دقيقة:"
+  th: "วิดีโออัปเดต 2:50 นาที:"
+  ru: "Видеообновление (2:50 мин):"
+  hi: "2:50 मिनट का अपडेट वीडियो:"
+  cs: "2:50 min video s novinkami:"
+  sv: "2:50 min uppdateringsvideo:"
+  he: "סרטון עדכון של 2:50 דקות:"
   verified_by_human: []
 incomplete_signup_deletion_reminder.image_alt:
   context: Alt text for announcement video thumbnail in incomplete signup deletion reminder email
   en: Watch the latest OpenMates announcement video
   de: Sieh dir das neueste OpenMates-Ankündigungsvideo an
+  zh: 观看最新的 OpenMates 公告视频
+  es: Mira el último vídeo de anuncio de OpenMates
+  fr: "Regarder la dernière vidéo d'annonce d'OpenMates"
+  pt: Vê o vídeo de anúncio mais recente do OpenMates
+  ja: 最新のOpenMatesアナウンス動画を見る
+  ko: 최신 OpenMates 공지 영상 보기
+  it: "Guarda l'ultimo video dell'annuncio di OpenMates"
+  tr: En son OpenMates duyuru videosunu izle
+  vi: Xem video thông báo mới nhất của OpenMates
+  id: Tonton video pengumuman OpenMates terbaru
+  pl: Obejrzyj najnowsze wideo z ogłoszeniem OpenMates
+  nl: Bekijk de nieuwste OpenMates-aankondigingsvideo
+  ar: شاهد أحدث فيديو لإعلانات OpenMates
+  th: ชมวิดีโอประกาศล่าสุดของ OpenMates
+  ru: Посмотреть последнее видео-объявление OpenMates
+  hi: OpenMates की नवीनतम घोषणा का वीडियो देखें
+  cs: Podívej se na nejnovější video s oznámením OpenMates
+  sv: Se det senaste meddelandet från OpenMates via video
+  he: צפה בסרטון ההכרזה האחרון של OpenMates
   verified_by_human: []
 incomplete_signup_deletion_reminder.watch_button:
   context: Announcement video button in incomplete signup deletion reminder email
   en: Watch the announcement
   de: Ankündigung ansehen
+  zh: 观看公告
+  es: Ver el anuncio
+  fr: "Regarder l'annonce"
+  pt: Ver o anúncio
+  ja: アナウンスを見る
+  ko: 공지 영상 보기
+  it: "Guarda l'annuncio"
+  tr: Duyuruyu izle
+  vi: Xem thông báo
+  id: Tonton pengumumannya
+  pl: Obejrzyj ogłoszenie
+  nl: Bekijk de aankondiging
+  ar: شاهد الإعلان
+  th: ชมประกาศ
+  ru: Посмотреть объявление
+  hi: घोषणा देखें
+  cs: Sledovat oznámení
+  sv: Se meddelandet
+  he: צפה בהכרזה
   verified_by_human: []
 incomplete_signup_deletion_reminder.delete_now:
   context: Manual delete account paragraph in incomplete signup deletion reminder email
@@ -406,91 +995,433 @@ incomplete_signup_deletion_reminder.delete_now:
     If you would rather delete your account now, you do not need to wait {wait_time_text} but can easily <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">delete your account here</a>.
   de: >-
     Wenn du dein Konto lieber sofort löschen möchtest, musst du nicht {wait_time_text} warten, sondern kannst dein Konto ganz einfach <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">hier löschen</a>.
+  zh: "如果你想现在就删除账号，无需等待 {wait_time_text}，可以点击这里轻松<a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">删除你的账号</a>。"
+  es: "Si prefieres eliminar tu cuenta ahora, no necesitas esperar {wait_time_text}, sino que puedes <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">eliminar tu cuenta aquí</a> fácilmente."
+  fr: "Si tu préfères supprimer ton compte maintenant, tu n'as pas besoin d'attendre {wait_time_text} et tu peux facilement <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">supprimer ton compte ici</a>."
+  pt: "Se preferires eliminar a tua conta agora, não precisas de esperar {wait_time_text}, podes facilmente <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">eliminar a tua conta aqui</a>."
+  ja: "今すぐアカウントを削除したい場合は、{wait_time_text}待つ必要はありません。こちらから簡単に<a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">アカウントを削除</a>できます。"
+  ko: "지금 바로 계정을 삭제하고 싶다면 {wait_time_text} 동안 기다릴 필요 없이 <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">여기에서 간편하게 계정을 삭제</a>할 수 있어."
+  it: "Se preferisci eliminare il tuo account ora, non devi aspettare {wait_time_text} ma puoi facilmente <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">eliminare il tuo account qui</a>."
+  tr: "Hesabını şimdi silmeyi tercih edersen, {wait_time_text} beklemene gerek yok; <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">hesabını buradan kolayca silebilirsin</a>."
+  vi: "Nếu bạn muốn xóa tài khoản ngay bây giờ, bạn không cần đợi {wait_time_text} mà có thể dễ dàng <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">xóa tài khoản tại đây</a>."
+  id: "Jika kamu lebih memilih untuk menghapus akun kamu sekarang, kamu tidak perlu menunggu {wait_time_text} tetapi dapat dengan mudah <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">menghapus akun kamu di sini</a>."
+  pl: "Jeśli wolisz usunąć swoje konto teraz, nie musisz czekać {wait_time_text}, lecz możesz łatwo <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">usunąć swoje konto tutaj</a>."
+  nl: "Als je je account liever nu al verwijdert, hoef je niet {wait_time_text} te wachten, maar kun je eenvoudig <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">hier je account verwijderen</a>."
+  ar: "إذا كنت تفضل حذف حسابك الآن، فلست بحاجة إلى الانتظار {wait_time_text} ولكن يمكنك بسهولة <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">حذف حسابك من هنا</a>."
+  th: "หากคุณต้องการลบบัญชีตอนนี้เลย คุณไม่จำเป็นต้องรอ {wait_time_text} แต่สามารถ <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">ลบบัญชีของคุณที่นี่</a> ได้อย่างง่ายดาย"
+  ru: "Если ты хочешь удалить свой аккаунт прямо сейчас, тебе не нужно ждать {wait_time_text} — ты можешь легко <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">удалить свой аккаунт здесь</a>."
+  hi: "यदि तुम अपना अकाउंट अभी डिलीट करना चाहते हो, तो तुम्हें {wait_time_text} इंतज़ार करने की ज़रूरत नहीं है, बल्कि तुम आसानी से <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">यहाँ अपना अकाउंट डिलीट कर सकते हो</a>।"
+  cs: "Pokud bys raději smazal svůj účet hned, nemusíš čekat {wait_time_text}, ale můžeš svůj účet snadno <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">smazat zde</a>."
+  sv: "Om du hellre vill radera ditt konto nu behöver du inte vänta {wait_time_text} utan kan enkelt <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">radera ditt konto här</a>."
+  he: "אם תעדיף למחוק את חשבונך כעת, אינך צריך לחכות {wait_time_text} אלא תוכל בקלות <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">למחוק את חשבונך כאן</a>."
   verified_by_human: []
 incomplete_signup_deletion_reminder.signoff:
   context: Signoff in incomplete signup deletion reminder email
   en: Greetings,
   de: Viele Grüße,
+  zh: 祝好，
+  es: Saludos,
+  fr: Salutations,
+  pt: Saudações,
+  ja: よろしくお願いいたします。
+  ko: 그럼,
+  it: Un saluto,
+  tr: Selamlar,
+  vi: Trân trọng,
+  id: Salam,
+  pl: Pozdrawiam,
+  nl: Groeten,
+  ar: مع التحية،
+  th: สวัสดี,
+  ru: С уважением,
+  hi: शुभकामनाएँ,
+  cs: S pozdravem,
+  sv: Hälsningar,
+  he: בברכה,
   verified_by_human: []
 incomplete_signup_deletion_reminder.creator_title:
   context: Sender title in incomplete signup deletion reminder email
   en: Creator of OpenMates
   de: Gründer von OpenMates
+  zh: OpenMates 创始人
+  es: Creador de OpenMates
+  fr: "Créateur d'OpenMates"
+  pt: Criador do OpenMates
+  ja: OpenMates 開発者
+  ko: OpenMates 제작자
+  it: Creatore di OpenMates
+  tr: "OpenMates'in Yaratıcısı"
+  vi: Người sáng lập OpenMates
+  id: Pencipta OpenMates
+  pl: Twórca OpenMates
+  nl: Maker van OpenMates
+  ar: منشئ OpenMates
+  th: ผู้สร้าง OpenMates
+  ru: Создатель OpenMates
+  hi: OpenMates के निर्माता
+  cs: Tvůrce OpenMates
+  sv: Skapare av OpenMates
+  he: היוצר של OpenMates
   verified_by_human: []
 account_deletion_warning_correction.subject:
   context: Subject for correction email after mistaken incomplete-signup deletion warning
   en: "Correction: your OpenMates account will not be deleted"
   de: "Korrektur: Dein OpenMates-Konto wird nicht gelöscht"
+  zh: 更正：你的 OpenMates 账号不会被删除
+  es: "Corrección: tu cuenta de OpenMates no será eliminada"
+  fr: "Correction : ton compte OpenMates ne sera pas supprimé"
+  pt: "Correção: a tua conta OpenMates não será eliminada"
+  ja: 訂正：OpenMatesアカウントは削除されません
+  ko: "정정 안내: OpenMates 계정은 삭제되지 않아"
+  it: "Rettifica: il tuo account OpenMates non verrà eliminato"
+  tr: "Düzeltme: OpenMates hesabın silinmeyecek"
+  vi: "Đính chính: tài khoản OpenMates của bạn sẽ không bị xóa"
+  id: "Koreksi: akun OpenMates kamu tidak akan dihapus"
+  pl: "Sprostowanie: Twoje konto OpenMates nie zostanie usunięte"
+  nl: "Correctie: je OpenMates-account wordt niet verwijderd"
+  ar: "تصحيح: لن يتم حذف حسابك في OpenMates"
+  th: "แก้ไข: บัญชี OpenMates ของคุณจะไม่ถูกลบ"
+  ru: "Исправление: твой аккаунт OpenMates не будет удален"
+  hi: "सुधार: तुम्हारा OpenMates अकाउंट डिलीट नहीं किया जाएगा"
+  cs: "Oprava: tvůj účet OpenMates nebude smazán"
+  sv: "Rättelse: ditt OpenMates-konto kommer inte att raderas"
+  he: "תיקון: חשבון ה-OpenMates שלך לא יימחק"
   verified_by_human: []
 account_deletion_warning_correction.headline:
   context: Headline for correction email after mistaken incomplete-signup deletion warning
   en: Your account will not be deleted
   de: Dein Konto wird nicht gelöscht
+  zh: 你的账号不会被删除
+  es: Tu cuenta no será eliminada
+  fr: Ton compte ne sera pas supprimé
+  pt: A tua conta não será eliminada
+  ja: アカウントは削除されません
+  ko: 계정은 삭제되지 않아
+  it: Il tuo account non verrà eliminato
+  tr: Hesabın silinmeyecek
+  vi: Tài khoản của bạn sẽ không bị xóa
+  id: Akun kamu tidak akan dihapus
+  pl: Twoje konto nie zostanie usunięte
+  nl: Je account wordt niet verwijderd
+  ar: لن يتم حذف حسابك
+  th: บัญชีของคุณจะไม่ถูกลบ
+  ru: Твой аккаунт не будет удален
+  hi: तुम्हारा अकाउंट डिलीट नहीं किया जाएगा
+  cs: Tvůj účet nebude smazán
+  sv: Ditt konto kommer inte att raderas
+  he: חשבונך לא יימחק
   verified_by_human: []
 account_deletion_warning_correction.greeting:
   context: Greeting for correction email after mistaken incomplete-signup deletion warning
   en: Hey{greeting_name},
   de: Hallo{greeting_name},
+  zh: "嘿 {greeting_name}，"
+  es: "Hola{greeting_name},"
+  fr: "Salut{greeting_name},"
+  pt: "Olá{greeting_name},"
+  ja: "こんにちは{greeting_name}、"
+  ko: "안녕{greeting_name},"
+  it: "Ehi{greeting_name},"
+  tr: "Selam{greeting_name},"
+  vi: "Chào {greeting_name},"
+  id: "Halo{greeting_name},"
+  pl: "Hej{greeting_name},"
+  nl: "Hoi{greeting_name},"
+  ar: "مرحباً{greeting_name}،"
+  th: "สวัสดี{greeting_name},"
+  ru: "Привет{greeting_name},"
+  hi: "नमस्ते{greeting_name},"
+  cs: "Ahoj{greeting_name},"
+  sv: "Hej{greeting_name},"
+  he: "היי{greeting_name},"
   verified_by_human: []
 account_deletion_warning_correction.intro:
   context: Intro paragraph for correction email after mistaken incomplete-signup deletion warning
   en: You may have received an incorrect email saying your OpenMates account would be deleted. That warning was sent by mistake.
   de: Du hast möglicherweise eine falsche E-Mail erhalten, in der stand, dass dein OpenMates-Konto gelöscht wird. Diese Warnung wurde versehentlich verschickt.
+  zh: 你可能收到了一封错误的邮件，称你的 OpenMates 账号将被删除。该警告是误发的。
+  es: Es posible que hayas recibido un correo electrónico incorrecto indicando que tu cuenta de OpenMates sería eliminada. Ese aviso se envió por error.
+  fr: Tu as peut-être reçu un e-mail erroné indiquant que ton compte OpenMates allait être supprimé. Cet avertissement a été envoyé par erreur.
+  pt: Poderás ter recebido um e-mail incorreto a dizer que a tua conta OpenMates seria eliminada. Esse aviso foi enviado por engano.
+  ja: OpenMatesアカウントが削除されるという誤ったメールが届いた可能性があります。その警告は誤って送信されたものです。
+  ko: OpenMates 계정이 삭제될 예정이라는 잘못된 이메일을 받았을 수도 있어. 그 경고는 실수로 발송된 거야.
+  it: "Potresti aver ricevuto un'email errata che indicava che il tuo account OpenMates sarebbe stato eliminato. Quell'avviso è stato inviato per errore."
+  tr: OpenMates hesabının silineceğine dair hatalı bir e-posta almış olabilirsin. Bu uyarı yanlışlıkla gönderildi.
+  vi: Có thể bạn đã nhận được một email không chính xác thông báo rằng tài khoản OpenMates của bạn sẽ bị xóa. Cảnh báo đó đã được gửi do nhầm lẫn.
+  id: Kamu mungkin telah menerima email yang salah yang menyatakan bahwa akun OpenMates kamu akan dihapus. Peringatan tersebut dikirim karena kesalahan.
+  pl: Mogłeś otrzymać błędną wiadomość e-mail z informacją, że Twoje konto OpenMates zostanie usunięte. To ostrzeżenie zostało wysłane przez pomyłkę.
+  nl: Je hebt mogelijk een onjuiste e-mail ontvangen waarin stond dat je OpenMates-account verwijderd zou worden. Die waarschuwing is per ongeluk verzonden.
+  ar: ربما تلقيت بريداً إلكترونياً غير صحيح يفيد بأنه سيتم حذف حسابك في OpenMates. لقد تم إرسال هذا التحذير عن طريق الخطأ.
+  th: คุณอาจได้รับอีเมลที่ไม่ถูกต้องซึ่งระบุว่าบัญชี OpenMates ของคุณจะถูกลบ คำเตือนนั้นถูกส่งไปโดยผิดพลาด
+  ru: Возможно, ты получил ошибочное письмо о том, что твой аккаунт OpenMates будет удален. Это предупреждение было отправлено по ошибке.
+  hi: तुम्हें शायद एक गलत ईमेल मिला होगा जिसमें कहा गया था कि तुम्हारा OpenMates अकाउंट डिलीट कर दिया जाएगा। वह चेतावनी गलती से भेजी गई थी।
+  cs: Možná jsi obdržel nesprávný e-mail s informací, že tvůj účet OpenMates bude smazán. Toto upozornění bylo odesláno omylem.
+  sv: Du kan ha fått ett felaktigt e-postmeddelande om att ditt OpenMates-konto skulle raderas. Den varningen skickades av misstag.
+  he: ייתכן שקיבלת אימייל שגוי המציין שחשבון ה-OpenMates שלך יימחק. אזהרה זו נשלחה בטעות.
   verified_by_human: []
 account_deletion_warning_correction.safe_account_message:
   context: Bold safety message for correction email after mistaken incomplete-signup deletion warning
   en: No deletion action is scheduled because your signup was already completed.
   de: Es ist keine Löschung geplant, da deine Registrierung bereits abgeschlossen war.
+  zh: 由于你已完成注册，目前没有安排任何删除操作。
+  es: No hay ninguna acción de eliminación programada porque tu registro ya se había completado.
+  fr: "Aucune action de suppression n'est prévue car ton inscription est déjà terminée."
+  pt: Nenhuma ação de eliminação está agendada porque o teu registo já foi concluído.
+  ja: 登録はすでに完了しているため、削除のアクションは予定されていません。
+  ko: 가입이 이미 완료되었기 때문에 삭제 작업은 예정되어 있지 않아.
+  it: Nessuna azione di eliminazione è programmata perché la tua registrazione è già stata completata.
+  tr: Kayıt işlemin zaten tamamlandığı için herhangi bir silme işlemi planlanmadı.
+  vi: Không có hành động xóa nào được lên lịch vì quá trình đăng ký của bạn đã hoàn tất.
+  id: Tidak ada tindakan penghapusan yang dijadwalkan karena pendaftaran kamu sudah selesai.
+  pl: Żadne działanie związane z usunięciem nie jest zaplanowane, ponieważ proces rejestracji został już zakończony.
+  nl: Er is geen verwijdering gepland omdat je aanmelding al was voltooid.
+  ar: لم يتم تحديد أي إجراء للحذف لأن عملية التسجيل الخاصة بك قد اكتملت بالفعل.
+  th: ไม่มีการกำหนดการลบบัญชีเนื่องจากการสมัครของคุณเสร็จสมบูรณ์แล้ว
+  ru: Удаление не запланировано, так как твоя регистрация уже завершена.
+  hi: डिलीट करने की कोई कार्रवाई निर्धारित नहीं है क्योंकि तुम्हारा साइनअप पहले ही पूरा हो चुका था।
+  cs: Žádné smazání není naplánováno, protože tvá registrace již byla dokončena.
+  sv: Ingen radering är planerad eftersom din registrering redan är slutförd.
+  he: לא מתוכננת שום פעולת מחיקה מכיוון שההרשמה שלך כבר הושלמה.
   verified_by_human: []
 account_deletion_warning_correction.apology:
   context: Apology and gift-card intro for correction email after mistaken incomplete-signup deletion warning
   en: Sorry for the confusion. As an apology, here is a one-time gift card for {credits} credits.
   de: Entschuldige bitte die Verwirrung. Als kleine Entschuldigung erhältst du hier einen einmalig einlösbaren Gutschein über {credits} Credits.
+  zh: "对由此造成的困惑深表歉意。作为补偿，这是一张价值 {credits} 积分的一次性礼品卡。"
+  es: "Sentimos la confusión. Como disculpa, aquí tienes una tarjeta de regalo de un solo uso por {credits} créditos."
+  fr: "Désolé pour la confusion. En guise d'excuse, voici une carte-cadeau unique de {credits} crédits."
+  pt: "Desculpa pela confusão. Como pedido de desculpas, aqui tens um cartão-presente único de {credits} créditos."
+  ja: "混乱を招き申し訳ありません。お詫びとして、{credits}クレジット分の1回限りのギフトカードをお送りします。"
+  ko: "혼란을 드려 미안해. 사과의 의미로 {credits} 크레딧이 담긴 일회용 기프트 카드를 준비했어."
+  it: "Ci scusiamo per la confusione. Per scusarci, ecco una carta regalo una tantum da {credits} crediti."
+  tr: "Karışıklık için özür dileriz. Özür mahiyetinde, işte {credits} kredi değerinde tek seferlik bir hediye kartı."
+  vi: "Rất xin lỗi vì sự nhầm lẫn này. Để tạ lỗi, đây là thẻ quà tặng một lần trị giá {credits} tín dụng."
+  id: "Mohon maaf atas kebingungannya. Sebagai permintaan maaf, ini adalah kartu hadiah sekali pakai senilai {credits} kredit."
+  pl: "Przepraszamy za zamieszanie. W ramach przeprosin przekazujemy jednorazową kartę podarunkową na {credits} kredytów."
+  nl: "Excuses voor de verwarring. Als verontschuldiging is hier een eenmalige cadeaubon voor {credits} credits."
+  ar: "نعتذر عن هذا الارتباك. وكاعتذار، إليك بطاقة هدايا لمرة واحدة بقيمة {credits} رصيد."
+  th: "ขออภัยในความสับสน เพื่อเป็นการขอโทษ นี่คือบัตรของขวัญแบบใช้ครั้งเดียวจำนวน {credits} เครดิต"
+  ru: "Приносим извинения за путаницу. В качестве компенсации дарим тебе подарочную карту на {credits} кредитов."
+  hi: "इस भ्रम के लिए क्षमा करें। माफी के तौर पर, यहाँ {credits} क्रेडिट के लिए एक बार इस्तेमाल होने वाला गिफ्ट कार्ड है।"
+  cs: "Omlouváme se za zmatky. Jako omluvu ti posíláme jednorázový dárkový poukaz na {credits} kreditů."
+  sv: "Vi ber om ursäkt för förvirringen. Som kompensation får du här ett presentkort på {credits} krediter."
+  he: "מצטערים על הבלבול. כהתנצלות, הנה כרטיס מתנה חד-פעמי עבור {credits} קרדיטים."
   verified_by_human: []
 account_deletion_warning_correction.gift_label:
   context: Label above gift-card code in correction email
   en: Your {credits}-credit gift card
   de: Dein Gutschein über {credits} Credits
+  zh: "你的 {credits} 积分礼品卡"
+  es: "Tu tarjeta de regalo de {credits} créditos"
+  fr: "Ta carte-cadeau de {credits} crédits"
+  pt: "O teu cartão-presente de {credits} créditos"
+  ja: "{credits}クレジットのギフトカード"
+  ko: "{credits} 크레딧 기프트 카드"
+  it: "La tua carta regalo da {credits} crediti"
+  tr: "{credits} kredilik hediye kartın"
+  vi: "Thẻ quà tặng {credits} tín dụng của bạn"
+  id: "Kartu hadiah {credits} kredit kamu"
+  pl: "Twoja karta podarunkowa na {credits} kredytów"
+  nl: "Je cadeaubon voor {credits} credits"
+  ar: "بطاقة الهدايا الخاصة بك بقيمة {credits} رصيد"
+  th: "บัตรของขวัญ {credits} เครดิตของคุณ"
+  ru: "Твоя подарочная карта на {credits} кредитов"
+  hi: "तुम्हारा {credits}-क्रेडिट वाला गिफ्ट कार्ड"
+  cs: "Tvůj dárkový poukaz na {credits} kreditů"
+  sv: "Ditt presentkort på {credits} krediter"
+  he: "כרטיס המתנה שלך על סך {credits} קרדיטים"
   verified_by_human: []
 account_deletion_warning_correction.redeem_button:
   context: Button text for redeeming correction gift card
   en: Redeem gift card
   de: Gutschein einlösen
+  zh: 兑换礼品卡
+  es: Canjear tarjeta de regalo
+  fr: Utiliser la carte-cadeau
+  pt: Resgatar cartão-presente
+  ja: ギフトカードを引き換える
+  ko: 기프트 카드 등록하기
+  it: Riscatta carta regalo
+  tr: Hediye kartını kullan
+  vi: Đổi thẻ quà tặng
+  id: Tukarkan kartu hadiah
+  pl: Zrealizuj kartę podarunkową
+  nl: Cadeaubon inwisselen
+  ar: استرداد بطاقة الهدايا
+  th: แลกรับบัตรของขวัญ
+  ru: Активировать подарочную карту
+  hi: गिफ्ट कार्ड रिडीम करें
+  cs: Uplatnit dárkový poukaz
+  sv: Lös in presentkort
+  he: מימוש כרטיס מתנה
   verified_by_human: []
 account_deletion_warning_correction.redeem_instructions:
   context: Instructions for redeeming correction gift card
   en: You can redeem it in OpenMates under Settings > Billing > Redeem gift card.
   de: Du kannst ihn in OpenMates unter Einstellungen > Abrechnung > Gutschein einlösen einlösen.
+  zh: "你可以在 OpenMates 的 设置 > 账单 > 兑换礼品卡 中进行兑换。"
+  es: "Puedes canjearla en OpenMates en Ajustes > Facturación > Canjear tarjeta de regalo."
+  fr: "Tu peux l'utiliser dans OpenMates sous Paramètres > Facturation > Utiliser une carte-cadeau."
+  pt: "Podes resgatá-lo no OpenMates em Definições > Faturação > Resgatar cartão-presente."
+  ja: "OpenMatesの「設定 > 支払い > ギフトカードを引き換える」から引き換えが可能です。"
+  ko: "OpenMates의 설정 > 결제 > 기프트 카드 등록에서 등록할 수 있어."
+  it: "Puoi riscattarla in OpenMates sotto Impostazioni > Fatturazione > Riscatta carta regalo."
+  tr: "Bunu OpenMates'te Ayarlar > Faturalandırma > Hediye kartını kullan kısmından tanımlayabilirsin."
+  vi: "Bạn có thể đổi thẻ trong OpenMates tại mục Cài đặt > Thanh toán > Đổi thẻ quà tặng."
+  id: "Kamu dapat menukarkannya di OpenMates di bawah Pengaturan > Penagihan > Tukarkan kartu hadiah."
+  pl: "Możesz ją zrealizować w OpenMates w sekcji Ustawienia > Rozliczenia > Zrealizuj kartę podarunkową."
+  nl: "Je kunt deze inwisselen in OpenMates onder Instellingen > Facturering > Cadeaubon inwisselen."
+  ar: "يمكنك استردادها في OpenMates ضمن الإعدادات > الفوترة > استرداد بطاقة الهدايا."
+  th: "คุณสามารถแลกรับได้ใน OpenMates ที่ การตั้งค่า > การเรียกเก็บเงิน > แลกรับบัตรของขวัญ"
+  ru: "Ты можешь активировать её в OpenMates в разделе Настройки > Оплата > Активировать подарочную карту."
+  hi: "तुम इसे OpenMates में Settings > Billing > Redeem gift card के अंतर्गत रिडीम कर सकते हो।"
+  cs: "Můžeš ho uplatnit v OpenMates v sekci Nastavení > Fakturace > Uplatnit dárkový poukaz."
+  sv: "Du kan lösa in det i OpenMates under Inställningar > Fakturering > Lös in presentkort."
+  he: "ניתן לממש אותו ב-OpenMates תחת הגדרות > חיוב > מימוש כרטיס מתנה."
   verified_by_human: []
 account_deletion_warning_correction.signoff:
   context: Signoff for correction email after mistaken incomplete-signup deletion warning
   en: Sorry again for the confusion,
   de: Nochmals Entschuldigung für die Verwirrung,
+  zh: 再次对造成的困惑表示抱歉，
+  es: Siento de nuevo la confusión,
+  fr: Encore désolé pour la confusion,
+  pt: Desculpa novamente pela confusão,
+  ja: 混乱を招きましたこと、重ねてお詫び申し上げます。
+  ko: 다시 한번 혼란을 드려 미안해,
+  it: Scusa ancora per la confusione,
+  tr: Karışıklık için tekrar özür dileriz,
+  vi: Một lần nữa xin lỗi vì sự nhầm lẫn này,
+  id: Sekali lagi mohon maaf atas kebingungannya,
+  pl: Jeszcze raz przepraszam za zamieszanie,
+  nl: Nogmaals excuses voor de verwarring,
+  ar: نعتذر مرة أخرى عن هذا الارتباك،
+  th: ขออภัยอีกครั้งในความสับสน,
+  ru: Еще раз извини за путаницу,
+  hi: भ्रम के लिए फिर से क्षमा करें,
+  cs: Ještě jednou se omlouváme za zmatky,
+  sv: Vi ber återigen om ursäkt för förvirringen,
+  he: שוב סליחה על הבלבול,
   verified_by_human: []
 incomplete_signup_account_deleted.subject:
   context: Subject for incomplete signup account deleted confirmation email
   en: Your incomplete OpenMates account has been deleted
   de: Dein unvollständiges OpenMates-Konto wurde gelöscht
+  zh: 你未完成注册的 OpenMates 账号已删除
+  es: Tu cuenta incompleta de OpenMates ha sido eliminada
+  fr: Ton compte OpenMates incomplet a été supprimé
+  pt: A tua conta OpenMates incompleta foi eliminada
+  ja: 未完了のOpenMatesアカウントが削除されました
+  ko: 가입이 완료되지 않은 OpenMates 계정이 삭제되었어
+  it: Il tuo account OpenMates incompleto è stato eliminato
+  tr: Tamamlanmamış OpenMates hesabın silindi
+  vi: Tài khoản OpenMates chưa hoàn tất của bạn đã bị xóa
+  id: Akun OpenMates kamu yang belum lengkap telah dihapus
+  pl: Twoje nieukończone konto OpenMates zostało usunięte
+  nl: Je onvoltooide OpenMates-account is verwijderd
+  ar: تم حذف حسابك غير المكتمل في OpenMates
+  th: บัญชี OpenMates ที่สมัครไม่สมบูรณ์ของคุณถูกลบแล้ว
+  ru: Твой незавершенный аккаунт OpenMates был удален
+  hi: तुम्हारा अधूरा OpenMates अकाउंट डिलीट कर दिया गया है
+  cs: Tvůj nedokončený účet OpenMates byl smazán
+  sv: Ditt ofullständiga OpenMates-konto har raderats
+  he: חשבון ה-OpenMates הלא מושלם שלך נמחק
   verified_by_human: []
 incomplete_signup_account_deleted.header:
   context: Header for incomplete signup account deleted confirmation email
   en: Your OpenMates account was deleted
   de: Dein OpenMates-Konto wurde gelöscht
+  zh: 你的 OpenMates 账号已删除
+  es: Tu cuenta de OpenMates fue eliminada
+  fr: Ton compte OpenMates a été supprimé
+  pt: A tua conta OpenMates foi eliminada
+  ja: OpenMatesアカウントが削除されました
+  ko: OpenMates 계정이 삭제되었어
+  it: Il tuo account OpenMates è stato eliminato
+  tr: OpenMates hesabın silindi
+  vi: Tài khoản OpenMates của bạn đã bị xóa
+  id: Akun OpenMates kamu telah dihapus
+  pl: Twoje konto OpenMates zostało usunięte
+  nl: Je OpenMates-account is verwijderd
+  ar: تم حذف حسابك في OpenMates
+  th: บัญชี OpenMates ของคุณถูกลบแล้ว
+  ru: Твой аккаунт OpenMates был удален
+  hi: तुम्हारा OpenMates अकाउंट डिलीट कर दिया गया
+  cs: Tvůj účet OpenMates byl smazán
+  sv: Ditt OpenMates-konto har raderats
+  he: חשבון ה-OpenMates שלך נמחק
   verified_by_human: []
 incomplete_signup_account_deleted.greeting:
   context: Greeting in incomplete signup account deleted confirmation email
   en: Hey{greeting_name},
   de: Hallo{greeting_name},
+  zh: "嘿 {greeting_name}，"
+  es: "Hola{greeting_name},"
+  fr: "Salut{greeting_name},"
+  pt: "Olá{greeting_name},"
+  ja: "こんにちは{greeting_name}、"
+  ko: "안녕{greeting_name},"
+  it: "Ehi{greeting_name},"
+  tr: "Selam{greeting_name},"
+  vi: "Chào {greeting_name},"
+  id: "Halo{greeting_name},"
+  pl: "Hej{greeting_name},"
+  nl: "Hoi{greeting_name},"
+  ar: "مرحباً{greeting_name}،"
+  th: "สวัสดี{greeting_name},"
+  ru: "Привет{greeting_name},"
+  hi: "नमस्ते{greeting_name},"
+  cs: "Ahoj{greeting_name},"
+  sv: "Hej{greeting_name},"
+  he: "היי{greeting_name},"
   verified_by_human: []
 incomplete_signup_account_deleted.deleted_notice:
   context: Deletion notice in incomplete signup account deleted confirmation email
   en: Your incomplete OpenMates account has now been deleted because the signup process was not completed.
   de: Dein unvollständiges OpenMates-Konto wurde jetzt gelöscht, weil die Registrierung nicht abgeschlossen wurde.
+  zh: 由于注册流程未完成，你未完成注册的 OpenMates 账号现已删除。
+  es: Tu cuenta incompleta de OpenMates ha sido eliminada porque el proceso de registro no se completó.
+  fr: "Ton compte OpenMates incomplet a été supprimé car le processus d'inscription n'a pas été terminé."
+  pt: A tua conta OpenMates incompleta foi agora eliminada porque o processo de registo não foi concluído.
+  ja: 登録プロセスが完了しなかったため、未完了のOpenMatesアカウントは削除されました。
+  ko: 가입 절차가 완료되지 않아 가입 중이던 OpenMates 계정이 삭제되었어.
+  it: Il tuo account OpenMates incompleto è stato eliminato perché il processo di registrazione non è stato completato.
+  tr: Kayıt işlemi tamamlanmadığı için tamamlanmamış OpenMates hesabın silindi.
+  vi: Tài khoản OpenMates chưa hoàn tất của bạn hiện đã bị xóa vì quá trình đăng ký không được hoàn thành.
+  id: Akun OpenMates kamu yang belum lengkap kini telah dihapus karena proses pendaftaran tidak diselesaikan.
+  pl: Twoje nieukończone konto OpenMates zostało usunięte, ponieważ proces rejestracji nie został sfinalizowany.
+  nl: Je onvoltooide OpenMates-account is nu verwijderd omdat het aanmeldingsproces niet is afgerond.
+  ar: تم الآن حذف حسابك غير المكتمل في OpenMates لأن عملية التسجيل لم تكتمل.
+  th: บัญชี OpenMates ที่สมัครไม่สมบูรณ์ของคุณถูกลบแล้วเนื่องจากกระบวนการสมัครไม่เสร็จสมบูรณ์
+  ru: Твой незавершенный аккаунт OpenMates был удален, так как процесс регистрации не был доведен до конца.
+  hi: तुम्हारा अधूरा OpenMates अकाउंट अब डिलीट कर दिया गया है क्योंकि साइनअप प्रक्रिया पूरी नहीं हुई थी।
+  cs: Tvůj nedokončený účet OpenMates byl smazán, protože proces registrace nebyl dokončen.
+  sv: Ditt ofullständiga OpenMates-konto har nu raderats eftersom registreringsprocessen inte slutfördes.
+  he: חשבון ה-OpenMates הלא מושלם שלך נמחק כעת מכיוון שתהליך ההרשמה לא הושלם.
   verified_by_human: []
 incomplete_signup_account_deleted.no_action:
   context: No action required sentence in incomplete signup account deleted confirmation email
   en: No further action is needed.
   de: Du musst nichts weiter tun.
+  zh: 无需进一步操作。
+  es: No es necesario realizar ninguna otra acción.
+  fr: "Aucune autre action n'est requise."
+  pt: Não é necessária mais nenhuma ação.
+  ja: これ以上の対応は必要ありません。
+  ko: 추가로 조치할 사항은 없어.
+  it: Non è richiesta alcuna ulteriore azione.
+  tr: Başka bir işlem yapmana gerek yok.
+  vi: Bạn không cần thực hiện thêm hành động nào.
+  id: Tidak ada tindakan lebih lanjut yang diperlukan.
+  pl: Dalsze działania nie są wymagane.
+  nl: Er is geen verdere actie vereist.
+  ar: لا يلزم اتخاذ أي إجراء آخر.
+  th: ไม่ต้องดำเนินการใดๆ เพิ่มเติม
+  ru: Никаких дальнейших действий не требуется.
+  hi: आगे किसी कार्रवाई की आवश्यकता नहीं है।
+  cs: Žádná další akce není nutná.
+  sv: Ingen ytterligare åtgärd krävs.
+  he: אין צורך בפעולה נוספת.
   verified_by_human: []
 incomplete_signup_account_deleted.signup_again:
   context: Signup again paragraph in incomplete signup account deleted confirmation email
@@ -498,6 +1429,25 @@ incomplete_signup_account_deleted.signup_again:
     If you want to use OpenMates in the future, you can create a new account again on <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a>.
   de: >-
     Wenn du OpenMates in Zukunft nutzen möchtest, kannst du auf <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> wieder ein neues Konto erstellen.
+  zh: "如果你将来想使用 OpenMates，可以在 <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> 上重新创建账号。"
+  es: "Si quieres usar OpenMates en el futuro, puedes volver a crear una cuenta nueva en <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  fr: "Si tu souhaites utiliser OpenMates à l'avenir, tu peux créer un nouveau compte sur <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  pt: "Se quiseres usar o OpenMates no futuro, podes criar uma nova conta em <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  ja: "将来OpenMatesを利用したい場合は、<a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>で再度新しいアカウントを作成できます。"
+  ko: "나중에 OpenMates를 사용하고 싶다면 <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>에서 다시 새 계정을 만들 수 있어."
+  it: "Se desideri utilizzare OpenMates in futuro, puoi creare nuovamente un nuovo account su <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  tr: "Gelecekte OpenMates'i kullanmak istersen, <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> üzerinden tekrar yeni bir hesap oluşturabilirsin."
+  vi: "Nếu bạn muốn sử dụng OpenMates trong tương lai, bạn có thể tạo lại tài khoản mới tại <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  id: "Jika kamu ingin menggunakan OpenMates di masa mendatang, kamu dapat membuat akun baru lagi di <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  pl: "Jeśli zechcesz korzystać z OpenMates w przyszłości, możesz ponownie utworzyć nowe konto na <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  nl: "Als je OpenMates in de toekomst wilt gebruiken, kun je opnieuw een account aanmaken op <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  ar: "إذا كنت ترغب في استخدام OpenMates في المستقبل، يمكنك إنشاء حساب جديد مرة أخرى على <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  th: "หากคุณต้องการใช้ OpenMates ในอนาคต คุณสามารถสร้างบัญชีใหม่ได้ที่ <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>"
+  ru: "Если ты захочешь использовать OpenMates в будущем, ты можешь создать новый аккаунт на <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  hi: "यदि तुम भविष्य में OpenMates का उपयोग करना चाहते हो, तो तुम <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> पर फिर से एक नया अकाउंट बना सकते हो।"
+  cs: "Pokud budeš chtít OpenMates v budoucnu používat, můžeš si znovu vytvořit nový účet na <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  sv: "Om du vill använda OpenMates i framtiden kan du skapa ett nytt konto igen på <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  he: "אם תרצה להשתמש ב-OpenMates בעתיד, תוכל ליצור חשבון חדש שוב ב-<a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
   verified_by_human: []
 incomplete_signup_account_deleted.newsletter:
   context: Newsletter signup paragraph in incomplete signup account deleted confirmation email
@@ -505,16 +1455,73 @@ incomplete_signup_account_deleted.newsletter:
     You can also <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">sign up for the OpenMates newsletter</a> to stay up to date on future changes.
   de: >-
     Du kannst dich auch <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">für den OpenMates-Newsletter anmelden</a>, um über zukünftige Änderungen auf dem Laufenden zu bleiben.
+  zh: "你也可以<a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">订阅 OpenMates 时事通讯</a>，了解未来的最新动态。"
+  es: "También puedes <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">suscribirte al boletín de OpenMates</a> para mantenerte al día de futuros cambios."
+  fr: "Tu peux aussi <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">t'inscrire à la newsletter d'OpenMates</a> pour rester au courant des futurs changements."
+  pt: "Também podes <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">subscrever a newsletter do OpenMates</a> para te manteres a par de futuras alterações."
+  ja: "また、<a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMatesニュースレターに登録</a>して、今後の変更に関する最新情報を入手することもできます。"
+  ko: "<a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates 뉴스레터에 가입</a>해서 앞으로의 변경 사항을 계속 확인할 수도 있어."
+  it: "Puoi anche <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">iscriverti alla newsletter di OpenMates</a> per restare aggiornato sui cambiamenti futuri."
+  tr: "Gelecekteki değişikliklerden haberdar olmak için <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates bültenine de kaydolabilirsin</a>."
+  vi: "Bạn cũng có thể <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">đăng ký nhận bản tin OpenMates</a> để cập nhật các thay đổi trong tương lai."
+  id: "Kamu juga dapat <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">mendaftar buletin OpenMates</a> untuk mendapatkan info terbaru tentang perubahan di masa mendatang."
+  pl: "Możesz również <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">zapisać się do newslettera OpenMates</a>, aby być na bieżąco z przyszłymi zmianami."
+  nl: "Je kunt je ook <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">aanmelden voor de OpenMates-nieuwsbrief</a> om op de hoogte te blijven van toekomstige wijzigingen."
+  ar: "يمكنك أيضاً <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">الاشتراك في نشرة OpenMates الإخبارية</a> للبقاء على اطلاع بالتغييرات المستقبلية."
+  th: "คุณยังสามารถ <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">สมัครรับจดหมายข่าวของ OpenMates</a> เพื่อติดตามการเปลี่ยนแปลงในอนาคต"
+  ru: "Ты также можешь <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">подписаться на рассылку OpenMates</a>, чтобы быть в курсе будущих изменений."
+  hi: "भविष्य के बदलावों के बारे में अपडेट रहने के लिए तुम <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates न्यूज़लेटर के लिए साइन अप</a> भी कर सकते हो।"
+  cs: "Můžeš se také <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">přihlásit k odběru newsletteru OpenMates</a>, abys měl přehled o budoucích změnách."
+  sv: "Du kan också <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">anmäla dig till OpenMates nyhetsbrev</a> för att hålla dig uppdaterad om framtida ändringar."
+  he: "תוכל גם <a href=\"{newsletter_settings_link}\" style=\"color: #4867CD; text-decoration: underline;\">להירשם לניוזלטר של OpenMates</a> כדי להישאר מעודכן בשינויים עתידיים."
   verified_by_human: []
 incomplete_signup_account_deleted.signoff:
   context: Signoff in incomplete signup account deleted confirmation email
   en: Greetings,
   de: Viele Grüße,
+  zh: 祝好，
+  es: Saludos,
+  fr: Salutations,
+  pt: Saudações,
+  ja: よろしくお願いいたします。
+  ko: 그럼,
+  it: Un saluto,
+  tr: Selamlar,
+  vi: Trân trọng,
+  id: Salam,
+  pl: Pozdrawiam,
+  nl: Groeten,
+  ar: مع التحية،
+  th: สวัสดี,
+  ru: С уважением,
+  hi: शुभकामनाएँ,
+  cs: S pozdravem,
+  sv: Hälsningar,
+  he: בברכה,
   verified_by_human: []
 incomplete_signup_account_deleted.creator_title:
   context: Sender title in incomplete signup account deleted confirmation email
   en: Creator of OpenMates
   de: Gründer von OpenMates
+  zh: OpenMates 创始人
+  es: Creador de OpenMates
+  fr: "Créateur d'OpenMates"
+  pt: Criador do OpenMates
+  ja: OpenMates 開発者
+  ko: OpenMates 제작자
+  it: Creatore di OpenMates
+  tr: "OpenMates'in Yaratıcısı"
+  vi: Người sáng lập OpenMates
+  id: Pencipta OpenMates
+  pl: Twórca OpenMates
+  nl: Maker van OpenMates
+  ar: منشئ OpenMates
+  th: ผู้สร้าง OpenMates
+  ru: Создатель OpenMates
+  hi: OpenMates के निर्माता
+  cs: Tvůrce OpenMates
+  sv: Skapare av OpenMates
+  he: היוצר של OpenMates
   verified_by_human: []
 backup_reminder.subject:
   context: Subject line for periodic backup reminder emails
@@ -3398,6 +4405,78 @@ invoice_pdf_attached:
   cs: PDF faktury najdete v příloze tohoto e-mailu, jakož i v nastavení Fakturace na OpenMates.
   sv: Du hittar faktura-PDF:en bifogad i detta e-postmeddelande, samt i dina Faktureringsinställningar på OpenMates.
   he: ניתן למצוא את חשבונית ה-PDF מצורפת למייל זה, וכן בהגדרות החיוב שלך ב-OpenMates.
+  verified_by_human: []
+gift_card_purchase_ready:
+  context: Heading in purchase confirmation email when the purchase created a gift card
+  en: Your gift card is ready
+  de: Deine Geschenkkarte ist bereit
+  fr: Ta carte-cadeau est prête
+  pt: O teu cartão-presente está pronto
+  ja: ギフトカードの準備ができました
+  ko: 기프트 카드가 준비되었어
+  it: La tua carta regalo è pronta
+  tr: Hediye kartın hazır
+  vi: Thẻ quà tặng của bạn đã sẵn sàng
+  id: Kartu hadiah kamu sudah siap
+  pl: Twoja karta podarunkowa jest gotowa
+  nl: Je cadeaubon is klaar
+  ar: بطاقة الهدايا الخاصة بك جاهزة
+  th: บัตรของขวัญของคุณพร้อมแล้ว
+  zh: 你的礼品卡已准备就绪
+  ru: Твоя подарочная карта готова
+  es: Tu tarjeta de regalo está lista
+  hi: तुम्हारा गिफ्ट कार्ड तैयार है
+  cs: Tvoje dárková karta je připravena
+  sv: Ditt presentkort är redo
+  he: כרטיס המתנה שלך מוכן
+  verified_by_human: []
+gift_card_purchase_instruction:
+  context: Instruction in purchase confirmation email for a purchased gift-card code
+  en: Share this code with the recipient. They can redeem it in OpenMates under Settings > Billing > Gift Cards.
+  de: Teile diesen Code mit der empfangenden Person. Der Code kann in OpenMates unter Einstellungen > Abrechnung > Geschenkkarten eingelöst werden.
+  fr: "Partage ce code avec le destinataire. Il pourra l'utiliser dans OpenMates sous Paramètres > Facturation > Cartes-cadeaux."
+  pt: "Partilha este código com o destinatário. Eles podem resgatá-lo no OpenMates em Definições > Faturação > Cartões-presente."
+  ja: "このコードを受け取り相手に共有してください。OpenMatesの「設定 > 支払い > ギフトカード」から引き換えが可能です。"
+  ko: "이 코드를 받는 사람에게 공유해 줘. OpenMates의 설정 > 결제 > 기프트 카드에서 등록할 수 있어."
+  it: "Condividi questo codice con il destinatario. Potrà riscattarlo in OpenMates sotto Impostazioni > Fatturazione > Carte regalo."
+  tr: "Bu kodu alıcıyla paylaş. Alıcı, kodu OpenMates'te Ayarlar > Faturalandırma > Hediye Kartları kısmından kullanabilir."
+  vi: "Hãy chia sẻ mã này với người nhận. Họ có thể đổi mã trong OpenMates tại mục Cài đặt > Thanh toán > Thẻ quà tặng."
+  id: "Bagikan kode ini kepada penerima. Mereka dapat menukarkannya di OpenMates di bawah Pengaturan > Penagihan > Kartu Hadiah."
+  pl: "Udostępnij ten kod odbiorcy. Może on go zrealizować w OpenMates w sekcji Ustawienia > Rozliczenia > Karty podarunkowe."
+  nl: "Deel deze code met de ontvanger. Ze kunnen deze inwisselen in OpenMates onder Instellingen > Facturering > Cadeaubonnen."
+  ar: "شارك هذا الرمز مع المستلم. يمكنهم استرداده في OpenMates ضمن الإعدادات > الفوترة > بطاقات الهدايا."
+  th: "แชร์รหัสนี้กับผู้รับ พวกเขาสามารถแลกรับได้ใน OpenMates ที่ การตั้งค่า > การเรียกเก็บเงิน > บัตรของขวัญ"
+  zh: "请将此代码分享给接收者。他们可以在 OpenMates 的“设置 > 账单 > 礼品卡”中进行兑换。"
+  ru: "Передай этот код получателю. Он сможет активировать его в OpenMates в разделе Настройки > Оплата > Подарочные карты."
+  es: "Comparte este código con el destinatario. Podrá canjearlo en OpenMates en Ajustes > Facturación > Tarjetas de regalo."
+  hi: "यह कोड प्राप्तकर्ता के साथ साझा करें। वे इसे OpenMates में Settings > Billing > Gift Cards के अंतर्गत रिडीम कर सकते हैं।"
+  cs: "Sdílej tento kód s příjemcem. Může ho uplatnit v OpenMates v sekci Nastavení > Fakturace > Dárkové karty."
+  sv: "Dela denna kod med mottagaren. De kan lösa in den i OpenMates under Inställningar > Fakturering > Presentkort."
+  he: "שתף את הקוד הזה עם הנמען. ניתן לממש אותו ב-OpenMates תחת הגדרות > חיוב > כרטיסי מתנה."
+  verified_by_human: []
+gift_card_purchase_credits:
+  context: Credit amount line in purchase confirmation email for a purchased gift-card code
+  en: "Value: {gift_card_credits} credits"
+  de: "Wert: {gift_card_credits} Credits"
+  fr: "Valeur : {gift_card_credits} crédits"
+  pt: "Valor: {gift_card_credits} créditos"
+  ja: "クレジット数: {gift_card_credits} クレジット"
+  ko: "가치: {gift_card_credits} 크레딧"
+  it: "Valore: {gift_card_credits} crediti"
+  tr: "Değer: {gift_card_credits} kredi"
+  vi: "Giá trị: {gift_card_credits} tín dụng"
+  id: "Nilai: {gift_card_credits} kredit"
+  pl: "Wartość: {gift_card_credits} kredytów"
+  nl: "Waarde: {gift_card_credits} credits"
+  ar: "القيمة: {gift_card_credits} رصيد"
+  th: "มูลค่า: {gift_card_credits} เครดิต"
+  zh: "价值：{gift_card_credits} 积分"
+  ru: "Номинал: {gift_card_credits} кредитов"
+  es: "Valor: {gift_card_credits} créditos"
+  hi: "मूल्य: {gift_card_credits} क्रेडिट"
+  cs: "Hodnota: {gift_card_credits} kreditů"
+  sv: "Värde: {gift_card_credits} krediter"
+  he: "ערך: {gift_card_credits} קרדיטים"
   verified_by_human: []
 click_here_for_refund:
   context: Refund instructions text in email body

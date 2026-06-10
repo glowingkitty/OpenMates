@@ -6154,41 +6154,193 @@ newsletter_categories.heading:
   context: Heading for the per-category newsletter toggles section in Settings → Newsletter
   en: What do you want to receive?
   de: Was möchtest du erhalten?
+  zh: 你想接收哪些内容？
+  es: "¿Qué quieres recibir?"
+  fr: "Que souhaites-tu recevoir ?"
+  pt: "O que queres receber?"
+  ru: "Что ты хочешь получать?"
+  ja: 何を受け取りますか？
+  ko: "어떤 소식을 받고 싶나요?"
+  it: "Cosa vuoi ricevere?"
+  tr: "Neler almak istersin?"
+  vi: "Bạn muốn nhận nội dung gì?"
+  id: "Apa yang ingin kamu terima?"
+  pl: "Co chcesz otrzymywać?"
+  nl: "Wat wil je ontvangen?"
+  ar: ما الذي ترغب في تلقيه؟
+  hi: "आप क्या प्राप्त करना चाहते हैं?"
+  th: "คุณต้องการรับข่าวสารประเภทใด?"
+  cs: "Co chceš odebírat?"
+  sv: "Vad vill du få?"
+  he: "מה תרצה לקבל?"
   verified_by_human: []
 newsletter_categories.description:
   context: Short description under the newsletter categories heading
   en: Choose which types of newsletter emails you'd like to get. You can change these anytime.
   de: Wähle aus, welche Newsletter-E-Mails du erhalten möchtest. Du kannst das jederzeit ändern.
+  zh: 选择你想要接收的邮件订阅类型。你可以随时更改这些设置。
+  es: Elige qué tipos de boletines quieres recibir. Puedes cambiarlos en cualquier momento.
+  fr: Choisis les types de newsletters que tu souhaites recevoir. Tu peux modifier ces choix à tout moment.
+  pt: Escolhe que tipos de newsletters gostarias de receber. Podes alterá-los a qualquer momento.
+  ru: Выбери типы рассылок, которые хочешь получать. Это можно изменить в любое время.
+  ja: 受け取りたいニュースレターの種類を選択してください。設定はいつでも変更可能です。
+  ko: 받고 싶은 뉴스레터 유형을 선택하세요. 언제든지 변경할 수 있습니다.
+  it: Scegli quali tipi di newsletter vuoi ricevere. Puoi cambiare queste impostazioni in qualsiasi momento.
+  tr: Hangi tür bülten e-postalarını almak istediğini seç. Bunları istediğin zaman değiştirebilirsin.
+  vi: Chọn loại email bản tin bạn muốn nhận. Bạn có thể thay đổi bất cứ lúc nào.
+  id: Pilih jenis email buletin yang ingin kamu dapatkan. Kamu bisa mengubahnya kapan saja.
+  pl: Wybierz rodzaje newsletterów, które chcesz otrzymywać. Możesz je zmienić w dowolnym momencie.
+  nl: Kies welke soorten nieuwsbrieven je wilt ontvangen. Je kunt dit op elk moment wijzigen.
+  ar: اختر أنواع رسائل النشرة الإخبارية التي ترغب في الحصول عليها. يمكنك تغيير هذه الإعدادات في أي وقت.
+  hi: चुनें कि आप किस प्रकार के न्यूज़लेटर ईमेल प्राप्त करना चाहते हैं। आप इन्हें कभी भी बदल सकते हैं।
+  th: เลือกประเภทอีเมลจดหมายข่าวที่คุณต้องการรับ คุณสามารถเปลี่ยนได้ทุกเมื่อ
+  cs: Vyber si, které typy newsletterů chceš dostávat. Nastavení můžeš kdykoliv změnit.
+  sv: Välj vilka typer av nyhetsbrev du vill få. Du kan ändra dessa när som helst.
+  he: בחר את סוגי הניוזלטר שתרצה לקבל. ניתן לשנות זאת בכל עת.
   verified_by_human: []
 newsletter_categories.updates_and_announcements.title:
   context: Title for the Updates & Announcements newsletter category toggle
   en: Updates & Announcements
   de: Updates & Ankündigungen
+  zh: 更新与公告
+  es: Actualizaciones y anuncios
+  fr: Mises à jour et annonces
+  pt: Atualizações e Anúncios
+  ru: Обновления и анонсы
+  ja: アップデートと重要なお知らせ
+  ko: 업데이트 및 공지 사항
+  it: Aggiornamenti e annunci
+  tr: Güncellemeler ve Duyurular
+  vi: "Cập nhật & Thông báo"
+  id: "Pembaruan & Pengumuman"
+  pl: Aktualizacje i ogłoszenia
+  nl: "Updates & aankondigingen"
+  ar: التحديثات والإعلانات
+  hi: अपडेट और घोषणाएं
+  th: การอัปเดตและประกาศ
+  cs: Novinky a oznámení
+  sv: Uppdateringar och meddelanden
+  he: עדכונים והכרזות
   verified_by_human: []
 newsletter_categories.updates_and_announcements.description:
   context: Description for the Updates & Announcements newsletter category
   en: 1–2 emails per month about new features, OpenMates news, and important changes.
   de: 1–2 E-Mails pro Monat über neue Funktionen, OpenMates-Neuigkeiten und wichtige Änderungen.
+  zh: 每月 1–2 封邮件，包含新功能、OpenMates 新闻和重要变更。
+  es: 1 o 2 correos al mes sobre nuevas funciones, noticias de OpenMates y cambios importantes.
+  fr: "1 à 2 e-mails par mois sur les nouvelles fonctionnalités, les actualités d'OpenMates et les changements importants."
+  pt: 1–2 e-mails por mês sobre novas funcionalidades, notícias do OpenMates e alterações importantes.
+  ru: 1–2 письма в месяц о новых функциях, новостях OpenMates и важных изменениях.
+  ja: 新機能、OpenMatesのニュース、重要な変更に関するメールを月に1〜2通お届けします。
+  ko: 새로운 기능, OpenMates 소식, 중요 변경 사항에 대한 이메일을 월 1~2회 보내드립니다.
+  it: 1–2 email al mese su nuove funzionalità, novità di OpenMates e cambiamenti importanti.
+  tr: Yeni özellikler, OpenMates haberleri ve önemli değişiklikler hakkında ayda 1-2 e-posta.
+  vi: 1–2 email mỗi tháng về các tính năng mới, tin tức OpenMates và các thay đổi quan trọng.
+  id: 1–2 email per bulan tentang fitur baru, berita OpenMates, dan perubahan penting.
+  pl: 1–2 e-maile miesięcznie o nowych funkcjach, nowościach OpenMates i ważnych zmianach.
+  nl: 1–2 e-mails per maand over nieuwe functies, nieuws over OpenMates en belangrijke wijzigingen.
+  ar: رسالة أو رسالتان شهرياً حول الميزات الجديدة، وأخبار OpenMates، والتغييرات الهامة.
+  hi: नई सुविधाओं, OpenMates समाचार और महत्वपूर्ण बदलावों के बारे में प्रति माह 1–2 ईमेल।
+  th: อีเมล 1–2 ฉบับต่อเดือนเกี่ยวกับฟีเจอร์ใหม่ ข่าวสาร OpenMates และการเปลี่ยนแปลงที่สำคัญ
+  cs: 1–2 e-maily měsíčně o nových funkcích, novinkách z OpenMates a důležitých změnách.
+  sv: 1–2 mejl per månad om nya funktioner, nyheter från OpenMates och viktiga ändringar.
+  he: 1–2 אימיילים בחודש על תכונות חדשות, חדשות OpenMates ושינויים חשובים.
   verified_by_human: []
 newsletter_categories.tips_and_tricks.title:
   context: Title for the Tips & Tricks newsletter category toggle
   en: Tips & Tricks
   de: Tipps & Tricks
+  zh: 技巧与提示
+  es: Consejos y trucos
+  fr: Trucs et astuces
+  pt: Dicas e Truques
+  ru: Советы и хитрости
+  ja: ヒントとコツ
+  ko: 팁 및 요령
+  it: Trucchi e consigli
+  tr: İpuçları ve Püf Noktaları
+  vi: "Mẹo & Thủ thuật"
+  id: "Tips & Trik"
+  pl: Porady i wskazówki
+  nl: "Tips & tricks"
+  ar: نصائح وحيل
+  hi: टिप्स और ट्रिक्स
+  th: เคล็ดลับและเทคนิค
+  cs: Tipy a triky
+  sv: Tips och tricks
+  he: טיפים וטריקים
   verified_by_human: []
 newsletter_categories.tips_and_tricks.description:
   context: Description for the Tips & Tricks newsletter category
   en: Occasional tips on how to get more out of OpenMates, with short explainer clips.
   de: Gelegentliche Tipps, wie du mehr aus OpenMates herausholst, mit kurzen Erklär-Clips.
+  zh: 不定期发送关于如何更好地使用 OpenMates 的技巧，并附带简短的说明视频。
+  es: Consejos ocasionales sobre cómo sacar más provecho de OpenMates, con breves vídeos explicativos.
+  fr: "Des conseils occasionnels pour mieux profiter d'OpenMates, avec de courtes vidéos explicatives."
+  pt: Dicas ocasionais sobre como aproveitar melhor o OpenMates, com pequenos vídeos explicativos.
+  ru: Периодические советы о том, как извлечь максимум из OpenMates, с короткими поясняющими роликами.
+  ja: OpenMatesをより活用するためのヒントを、短い解説動画とともに定期的にお届けします。
+  ko: OpenMates 활용 팁과 짧은 설명 영상을 가끔 보내드립니다.
+  it: Suggerimenti occasionali su come ottenere il massimo da OpenMates, con brevi video esplicativi.
+  tr: "Kısa açıklayıcı videolarla OpenMates'ten nasıl daha fazla yararlanabileceğine dair ara sıra ipuçları."
+  vi: Thỉnh thoảng gửi mẹo về cách tận dụng OpenMates hiệu quả hơn, kèm theo các đoạn video giải thích ngắn.
+  id: Tips sesekali tentang cara memaksimalkan OpenMates, dengan klip penjelasan singkat.
+  pl: Okazjonalne porady, jak lepiej wykorzystać OpenMates, z krótkimi filmami objaśniającymi.
+  nl: "Af en toe tips over hoe je meer uit OpenMates kunt halen, met korte uitlegvideo's."
+  ar: نصائح من حين لآخر حول كيفية تحقيق أقصى استفادة من OpenMates، مع مقاطع توضيحية قصيرة.
+  hi: OpenMates का अधिक लाभ उठाने के बारे में कभी-कभार मिलने वाले टिप्स, छोटे व्याख्यात्मक क्लिप के साथ।
+  th: เคล็ดลับเป็นครั้งคราวเกี่ยวกับวิธีใช้งาน OpenMates ให้คุ้มค่าที่สุด พร้อมคลิปอธิบายสั้นๆ
+  cs: Občasné tipy, jak z OpenMates vytěžit maximum, s krátkými ukázkami.
+  sv: Enstaka tips om hur du får ut mer av OpenMates, med korta förklaringsklipp.
+  he: טיפים מדי פעם על איך להפיק יותר מ-OpenMates, בצירוף סרטוני הסבר קצרים.
   verified_by_human: []
 newsletter_categories.daily_inspirations.title:
   context: Title for the Daily Inspirations newsletter category toggle
   en: Daily Inspirations
   de: Tägliche Inspirationen
+  zh: 每日灵感
+  es: Inspiraciones diarias
+  fr: Inspirations quotidiennes
+  pt: Inspirações Diárias
+  ru: Ежедневное вдохновение
+  ja: 今日のインスピレーション
+  ko: 일일 영감
+  it: Ispirazioni quotidiane
+  tr: Günlük İlhamlar
+  vi: Cảm hứng hàng ngày
+  id: Inspirasi Harian
+  pl: Codzienne inspiracje
+  nl: Dagelijkse inspiratie
+  ar: إلهامات يومية
+  hi: दैनिक प्रेरणा
+  th: แรงบันดาลใจรายวัน
+  cs: Denní inspirace
+  sv: Daglig inspiration
+  he: השראות יומיות
   verified_by_human: []
 newsletter_categories.daily_inspirations.description:
   context: Description for the Daily Inspirations newsletter category
   en: A daily email with a curated inspiration based on your interests. Off by default.
   de: Eine tägliche E-Mail mit einer kuratierten Inspiration passend zu deinen Interessen. Standardmäßig aus.
+  zh: 每天一封根据你的兴趣精选的灵感邮件。默认关闭。
+  es: Un correo diario con una inspiración seleccionada según tus intereses. Desactivado por defecto.
+  fr: Un e-mail quotidien avec une inspiration sélectionnée selon tes intérêts. Désactivé par défaut.
+  pt: Um e-mail diário com uma inspiração selecionada com base nos teus interesses. Desativado por padrão.
+  ru: Ежедневное письмо с подборкой идей на основе твоих интересов. По умолчанию выключено.
+  ja: あなたの興味に基づいたインスピレーションを毎日お届けします。デフォルトではオフになっています。
+  ko: 관심사를 바탕으로 엄선된 영감을 매일 이메일로 보내드립니다. 기본적으로 해제되어 있습니다.
+  it: "Un'email quotidiana con un'ispirazione curata in base ai tuoi interessi. Disattivata per impostazione predefinita."
+  tr: İlgi alanlarına göre seçilmiş ilham verici içerikler içeren günlük bir e-posta. Varsayılan olarak kapalıdır.
+  vi: Email hàng ngày với nội dung truyền cảm hứng được chọn lọc dựa trên sở thích của bạn. Mặc định tắt.
+  id: Email harian dengan inspirasi pilihan berdasarkan minatmu. Nonaktif secara default.
+  pl: Codzienny e-mail z wybraną inspiracją opartą na Twoich zainteresowaniach. Domyślnie wyłączone.
+  nl: Een dagelijkse e-mail met geselecteerde inspiratie op basis van je interesses. Standaard uitgeschakeld.
+  ar: رسالة بريد إلكتروني يومية تحتوي على إلهام مختار بعناية بناءً على اهتماماتك. معطلة افتراضياً.
+  hi: आपकी रुचियों के आधार पर चुनी गई प्रेरणा के साथ एक दैनिक ईमेल। डिफ़ॉल्ट रूप से बंद।
+  th: อีเมลรายวันพร้อมแรงบันดาลใจที่คัดสรรมาตามความสนใจของคุณ ปิดไว้เป็นค่าเริ่มต้น
+  cs: Každodenní e-mail s vybranou inspirací podle tvých zájmů. Ve výchozím nastavení vypnuto.
+  sv: Ett dagligt mejl med utvald inspiration baserat på dina intressen. Avstängt som standard.
+  he: אימייל יומי עם השראה שנבחרה עבורך על בסיס תחומי העניין שלך. כבוי כברירת מחדל.
   verified_by_human: []
 newsletter_categories.save:
   context: Save button text for newsletter category preferences

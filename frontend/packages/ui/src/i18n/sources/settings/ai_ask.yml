@@ -331,41 +331,193 @@ ai_ask_settings.follow_up_suggestions_enabled:
   en: Follow-up suggestions enabled.
   de: Folgefragen-Vorschläge aktiviert.
 
+  zh: 后续建议已启用。
+  es: Sugerencias de seguimiento activadas.
+  fr: Suggestions de suivi activées.
+  pt: Sugestões de acompanhamento ativadas.
+  ru: Предложения по уточнению включены.
+  ja: フォローアップの提案を有効にしました。
+  ko: 후속 제안이 활성화되었습니다.
+  tr: Takip önerileri etkinleştirildi.
+  vi: Đã bật gợi ý tiếp theo.
+  id: Saran tindak lanjut diaktifkan.
+  pl: Sugestie pytań pomocniczych włączone.
+  nl: Vervolgsuggesties ingeschakeld.
+  ar: تم تفعيل اقتراحات المتابعة.
+  hi: फ़ॉलो-अप सुझाव सक्षम किए गए।
+  th: เปิดใช้งานคำแนะนำคำถามถัดไปแล้ว
+  it: Suggerimenti di approfondimento attivati.
+  cs: Návrhy doplňujících dotazů zapnuty.
+  sv: Uppföljningsförslag aktiverade.
+  he: הצעות להמשך הופעלו.
 ai_ask_settings.follow_up_suggestions_disabled:
   context: Success toast when follow-up suggestions are disabled
   en: Follow-up suggestions disabled.
   de: Folgefragen-Vorschläge deaktiviert.
 
+  zh: 后续建议已禁用。
+  es: Sugerencias de seguimiento desactivadas.
+  fr: Suggestions de suivi désactivées.
+  pt: Sugestões de acompanhamento desativadas.
+  ru: Предложения по уточнению выключены.
+  ja: フォローアップの提案を無効にしました。
+  ko: 후속 제안이 비활성화되었습니다.
+  tr: Takip önerileri devre dışı bırakıldı.
+  vi: Đã tắt gợi ý tiếp theo.
+  id: Saran tindak lanjut dinonaktifkan.
+  pl: Sugestie pytań pomocniczych wyłączone.
+  nl: Vervolgsuggesties uitgeschakeld.
+  ar: تم تعطيل اقتراحات المتابعة.
+  hi: फ़ॉलो-अप सुझाव अक्षम किए गए।
+  th: ปิดใช้งานคำแนะนำคำถามถัดไปแล้ว
+  it: Suggerimenti di approfondimento disattivati.
+  cs: Návrhy doplňujících dotazů vypnuty.
+  sv: Uppföljningsförslag inaktiverade.
+  he: הצעות להמשך הושבתו.
 ai_ask_settings.follow_up_suggestions_save_error:
   context: Error toast when follow-up suggestions preference cannot be saved
   en: Could not save follow-up suggestions setting.
   de: Einstellung für Folgefragen-Vorschläge konnte nicht gespeichert werden.
 
+  zh: 无法保存后续建议设置。
+  es: No se pudo guardar el ajuste de sugerencias de seguimiento.
+  fr: "Impossible d'enregistrer le paramètre des suggestions de suivi."
+  pt: Não foi possível salvar a configuração de sugestões de acompanhamento.
+  ru: Не удалось сохранить настройку предложений по уточнению.
+  ja: フォローアップの提案設定を保存できませんでした。
+  ko: 후속 제안 설정을 저장할 수 없습니다.
+  tr: Takip önerileri ayarı kaydedilemedi.
+  vi: Không thể lưu cài đặt gợi ý tiếp theo.
+  id: Gagal menyimpan pengaturan saran tindak lanjut.
+  pl: Nie udało się zapisać ustawienia sugestii pytań pomocniczych.
+  nl: Kan instelling voor vervolgsuggesties niet opslaan.
+  ar: تعذر حفظ إعداد اقتراحات المتابعة.
+  hi: फ़ॉलो-अप सुझाव सेटिंग सहेजी नहीं जा सकी।
+  th: ไม่สามารถบันทึกการตั้งค่าคำแนะนำคำถามถัดไปได้
+  it: "Impossibile salvare l'impostazione dei suggerimenti di approfondimento."
+  cs: Nepodařilo se uložit nastavení návrhů doplňujících dotazů.
+  sv: Kunde inte spara inställningen för uppföljningsförslag.
+  he: לא ניתן היה לשמור את הגדרת ההצעות להמשך.
 ai_ask_settings.quick_tips:
   context: Label for quick tips toggle
   en: Quick tips
   de: Kurztipps
 
+  zh: 快捷提示
+  es: Consejos rápidos
+  fr: Astuces rapides
+  pt: Dicas rápidas
+  ru: Быстрые советы
+  ja: クイックチップ
+  ko: 퀵 팁
+  tr: Hızlı ipuçları
+  vi: Mẹo nhanh
+  id: Tips cepat
+  pl: Szybkie wskazówki
+  nl: Snelle tips
+  ar: نصائح سريعة
+  hi: त्वरित सुझाव
+  th: เคล็ดลับด่วน
+  it: Suggerimenti rapidi
+  cs: Rychlé tipy
+  sv: Snabbtips
+  he: טיפים מהירים
 ai_ask_settings.quick_tips_description:
   context: Description for quick tips toggle
   en: Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards.
   de: Zeigt gelegentliche Produkttipps nach Antworten des Assistenten. Deaktiviere dies, wenn OpenMates keine Kurztipp-Karten generieren soll.
 
+  zh: 在助手回复后偶尔显示产品提示。如果你不希望 OpenMates 生成快捷提示卡片，请关闭此选项。
+  es: Muestra consejos ocasionales sobre el producto después de las respuestas del asistente. Desactiva esta opción si no quieres que OpenMates genere tarjetas de consejos rápidos.
+  fr: "Affiche occasionnellement des astuces produit après les réponses de l'assistant. Désactive cette option si tu ne souhaites pas qu'OpenMates génère des fiches d'astuces rapides."
+  pt: Mostra dicas ocasionais do produto após as respostas do assistente. Desativa esta opção se não quiseres que o OpenMates gere cartões de dicas rápidas.
+  ru: Показывает периодические советы по продукту после ответов ассистента. Выключи это, если не хочешь, чтобы OpenMates создавал карточки с быстрыми советами.
+  ja: アシスタントの回答後に、製品のヒントを時々表示します。OpenMatesによるクイックチップカードの生成を希望しない場合は、これをオフにしてください。
+  ko: 어시스턴트 응답 후 가끔 제품 팁을 표시합니다. OpenMates가 퀵 팁 카드를 생성하지 않도록 하려면 이 기능을 끄세요.
+  tr: "Asistan yanıtlarından sonra ara sıra ürün ipuçları gösterir. OpenMates'in hızlı ipucu kartları oluşturmasını istemiyorsan bunu kapat."
+  vi: Hiển thị các mẹo sản phẩm thỉnh thoảng sau khi trợ lý trả lời. Tắt tính năng này nếu bạn không muốn OpenMates tạo các thẻ mẹo nhanh.
+  id: Menampilkan tips produk sesekali setelah asisten membalas. Matikan ini jika kamu tidak ingin OpenMates membuat kartu tips cepat.
+  pl: Wyświetla sporadyczne wskazówki dotyczące produktu po odpowiedziach asystenta. Wyłącz tę opcję, jeśli nie chcesz, aby OpenMates generował karty z szybkimi wskazówkami.
+  nl: Toont af en toe producttips na antwoorden van de assistent. Schakel dit uit als je niet wilt dat OpenMates kaarten met snelle tips genereert.
+  ar: يعرض نصائح عرضية حول المنتج بعد ردود المساعد. قم بإيقاف تشغيل هذا إذا كنت لا تريد أن يقوم OpenMates بإنشاء بطاقات نصائح سريعة.
+  hi: असिस्टेंट के जवाबों के बाद कभी-कभी प्रोडक्ट टिप्स दिखाता है। अगर तुम नहीं चाहते कि OpenMates त्वरित सुझाव कार्ड जनरेट करे, तो इसे बंद कर दो।
+  th: แสดงเคล็ดลับการใช้งานผลิตภัณฑ์เป็นครั้งคราวหลังจากผู้ช่วยตอบกลับ ปิดส่วนนี้หากคุณไม่ต้องการให้ OpenMates สร้างการ์ดเคล็ดลับด่วน
+  it: "Mostra occasionali suggerimenti sul prodotto dopo le risposte dell'assistente. Disattiva questa opzione se non vuoi che OpenMates generi schede di suggerimenti rapidi."
+  cs: Po odpovědích asistenta občas zobrazí tipy k produktu. Vypni tuto možnost, pokud nechceš, aby OpenMates generoval karty s rychlými tipy.
+  sv: Visar tillfälliga produkttips efter assistentens svar. Stäng av detta om du inte vill att OpenMates ska generera snabbtipskort.
+  he: מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים.
 ai_ask_settings.quick_tips_enabled:
   context: Success toast when quick tips are enabled
   en: Quick tips enabled.
   de: Kurztipps aktiviert.
 
+  zh: 快捷提示已启用。
+  es: Consejos rápidos activados.
+  fr: Astuces rapides activées.
+  pt: Dicas rápidas ativadas.
+  ru: Быстрые советы включены.
+  ja: クイックチップを有効にしました。
+  ko: 퀵 팁이 활성화되었습니다.
+  tr: Hızlı ipuçları etkinleştirildi.
+  vi: Đã bật mẹo nhanh.
+  id: Tips cepat diaktifkan.
+  pl: Szybkie wskazówki włączone.
+  nl: Snelle tips ingeschakeld.
+  ar: تم تفعيل النصائح السريعة.
+  hi: त्वरित सुझाव सक्षम किए गए।
+  th: เปิดใช้งานเคล็ดลับด่วนแล้ว
+  it: Suggerimenti rapidi attivati.
+  cs: Rychlé tipy zapnuty.
+  sv: Snabbtips aktiverade.
+  he: הטיפים המהירים הופעלו.
 ai_ask_settings.quick_tips_disabled:
   context: Success toast when quick tips are disabled
   en: Quick tips disabled.
   de: Kurztipps deaktiviert.
 
+  zh: 快捷提示已禁用。
+  es: Consejos rápidos desactivados.
+  fr: Astuces rapides désactivées.
+  pt: Dicas rápidas desativadas.
+  ru: Быстрые советы выключены.
+  ja: クイックチップを無効にしました。
+  ko: 퀵 팁이 비활성화되었습니다.
+  tr: Hızlı ipuçları devre dışı bırakıldı.
+  vi: Đã tắt mẹo nhanh.
+  id: Tips cepat dinonaktifkan.
+  pl: Szybkie wskazówki wyłączone.
+  nl: Snelle tips uitgeschakeld.
+  ar: تم تعطيل النصائح السريعة.
+  hi: त्वरित सुझाव अक्षम किए गए।
+  th: ปิดใช้งานเคล็ดลับด่วนแล้ว
+  it: Suggerimenti rapidi disattivati.
+  cs: Rychlé tipy vypnuty.
+  sv: Snabbtips inaktiverade.
+  he: הטיפים המהירים הושבתו.
 ai_ask_settings.quick_tips_save_error:
   context: Error toast when quick tips preference cannot be saved
   en: Could not save quick tips setting.
   de: Einstellung für Kurztipps konnte nicht gespeichert werden.
 
+  zh: 无法保存快捷提示设置。
+  es: No se pudo guardar el ajuste de consejos rápidos.
+  fr: "Impossible d'enregistrer le paramètre des astuces rapides."
+  pt: Não foi possível salvar a configuração de dicas rápidas.
+  ru: Не удалось сохранить настройку быстрых советов.
+  ja: クイックチップ設定を保存できませんでした。
+  ko: 퀵 팁 설정을 저장할 수 없습니다.
+  tr: Hızlı ipuçları ayarı kaydedilemedi.
+  vi: Không thể lưu cài đặt mẹo nhanh.
+  id: Gagal menyimpan pengaturan tips cepat.
+  pl: Nie udało się zapisać ustawienia szybkich wskazówek.
+  nl: Kan instelling voor snelle tips niet opslaan.
+  ar: تعذر حفظ إعداد النصائح السريعة.
+  hi: त्वरित सुझाव सेटिंग सहेजी नहीं जा सकी।
+  th: ไม่สามารถบันทึกการตั้งค่าเคล็ดลับด่วนได้
+  it: "Impossibile salvare l'impostazione dei suggerimenti rapidi."
+  cs: Nepodařilo se uložit nastavení rychlých tipů.
+  sv: Kunde inte spara inställningen för snabbtips.
+  he: לא ניתן היה לשמור את הגדרת הטיפים המהירים.
 ai_ask_settings.manual_select_note:
   context: Note about manual model selection via @ mention
   en: You can always manually select a model using @mention in the chat.

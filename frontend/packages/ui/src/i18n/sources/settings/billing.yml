@@ -3051,36 +3051,216 @@ bank_transfer_continue_hint:
 get_free_credits:
   context: Button label for opening referral code settings
   en: Get free credits
+  de: Gratis-Guthaben erhalten
+  zh: 获取免费额度
+  es: Consigue créditos gratis
+  fr: Obtiens des crédits gratuits
+  ru: Получить бесплатные кредиты
+  ja: 無料クレジットを獲得
+  ko: 무료 크레딧 받기
+  it: Ottieni crediti gratuiti
+  tr: Ücretsiz kredi kazan
+  vi: Nhận credit miễn phí
+  id: Dapatkan kredit gratis
+  pl: Zdobądź darmowe kredyty
+  nl: Ontvang gratis credits
+  ar: احصل على رصيد مجاني
+  hi: फ्री क्रेडिट पाएं
+  th: รับเครดิตฟรี
+  pt: Ganha créditos grátis
+  cs: Získat kredity zdarma
+  sv: Få gratis krediter
+  he: קבלת קרדיטים בחינם
   verified_by_human: []
 referral_code:
   context: Billing submenu title for the referral program
   en: Referral code
+  de: Empfehlungscode
+  zh: 推荐码
+  es: Código de referido
+  fr: Code de parrainage
+  ru: Реферальный код
+  ja: 紹介コード
+  ko: 추천 코드
+  it: Codice referral
+  tr: Referans kodu
+  vi: Mã giới thiệu
+  id: Kode referral
+  pl: Kod polecający
+  nl: Referralcode
+  ar: رمز الإحالة
+  hi: रेफरल कोड
+  th: รหัสแนะนำ
+  pt: Código de indicação
+  cs: Referenční kód
+  he: קוד הפניה
+  sv: Värvningskod
   verified_by_human: []
 referral_intro:
   context: Referral settings intro. Variables are referrerCredits and referredCredits.
   en: "Share your link with friends. After they make their first eligible purchase, they get {referredCredits} free credits and you get {referrerCredits} free credits."
+  de: "Teile deinen Link mit Freunden. Sobald sie ihren ersten qualifizierten Kauf tätigen, erhalten sie {referredCredits} Gratis-Credits und du erhältst {referrerCredits} Gratis-Credits."
+  zh: "与好友分享你的链接。在他们完成首次符合条件的购买后，他们将获得 {referredCredits} 免费额度，你也将获得 {referrerCredits} 免费额度。"
+  es: "Comparte tu enlace con amigos. Después de que realicen su primera compra elegible, ellos recibirán {referredCredits} créditos gratis y tú recibirás {referrerCredits} créditos gratis."
+  fr: "Partage ton lien avec tes amis. Après leur premier achat éligible, ils reçoivent {referredCredits} crédits gratuits et tu reçois {referrerCredits} crédits gratuits."
+  ru: "Поделись ссылкой с друзьями. После того как они совершат первую подходящую покупку, они получат {referredCredits} бесплатных кредитов, а ты — {referrerCredits}."
+  ja: "友達にリンクをシェアしましょう。友達が最初の対象購入を完了すると、友達に {referredCredits} クレジット、あなたに {referrerCredits} クレジットが無料で付与されます。"
+  ko: "친구에게 링크를 공유하세요. 친구가 첫 적격 구매를 완료하면 친구는 {referredCredits} 무료 크레딧을, 당신은 {referrerCredits} 무료 크레딧을 받게 됩니다."
+  it: "Condividi il tuo link con gli amici. Dopo il loro primo acquisto idoneo, riceveranno {referredCredits} crediti gratuiti e tu ne riceverai {referrerCredits}."
+  tr: "Bağlantını arkadaşlarınla paylaş. İlk uygun satın alımlarını yaptıklarında, onlar {referredCredits} ücretsiz kredi, sen ise {referrerCredits} ücretsiz kredi kazanırsın."
+  vi: "Chia sẻ liên kết của bạn với bạn bè. Sau khi họ thực hiện giao dịch mua hàng hợp lệ đầu tiên, họ sẽ nhận được {referredCredits} credit miễn phí và bạn sẽ nhận được {referrerCredits} credit miễn phí."
+  id: "Bagikan tautanmu kepada teman. Setelah mereka melakukan pembelian pertama yang memenuhi syarat, mereka mendapatkan {referredCredits} kredit gratis dan kamu mendapatkan {referrerCredits} kredit gratis."
+  pl: "Udostępnij swój link znajomym. Gdy dokonają pierwszego kwalifikującego się zakupu, otrzymają {referredCredits} darmowych kredytów, a Ty otrzymasz {referrerCredits} darmowych kredytów."
+  nl: "Deel je link met vrienden. Nadat ze hun eerste in aanmerking komende aankoop hebben gedaan, krijgen zij {referredCredits} gratis credits en jij {referrerCredits} gratis credits."
+  ar: "شارك رابطك مع أصدقائك. بعد قيامهم بأول عملية شراء مؤهلة، سيحصلون على {referredCredits} رصيد مجاني وستحصل أنت على {referrerCredits} رصيد مجاني."
+  hi: "दोस्तों के साथ अपना लिंक साझा करें। उनके पहली पात्र खरीदारी करने के बाद, उन्हें {referredCredits} फ्री क्रेडिट मिलते हैं और आपको {referrerCredits} फ्री क्रेडिट मिलते हैं।"
+  th: "แชร์ลิงก์ของคุณให้เพื่อน หลังจากที่เพื่อนซื้อเครดิตครั้งแรกตามเงื่อนไข เพื่อนจะได้รับ {referredCredits} เครดิตฟรี และคุณจะได้รับ {referrerCredits} เครดิตฟรี"
+  pt: "Partilha o teu link com amigos. Depois de fazerem a primeira compra elegível, eles ganham {referredCredits} créditos grátis e tu ganhas {referrerCredits} créditos grátis."
+  cs: "Sdílej svůj odkaz s přáteli. Jakmile provedou svůj první způsobilý nákup, získají {referredCredits} kreditů zdarma a ty získáš {referrerCredits} kreditů zdarma."
+  he: "שתף את הקישור שלך עם חברים. לאחר שהם יבצעו את הרכישה הראשונה שעומדת בתנאים, הם יקבלו {referredCredits} קרדיטים בחינם ואתה תקבל {referrerCredits} קרדיטים בחינם."
+  sv: "Dela din länk med vänner. När de gör sitt första kvalificerade köp får de {referredCredits} gratis krediter och du får {referrerCredits} gratis krediter."
   verified_by_human: []
 referral_qr_label:
   context: Label above the QR code on the referral code settings page
   en: "Share this referral QR code:"
+  de: "Teile diesen Empfehlungs-QR-Code:"
+  zh: 分享此推荐二维码：
+  es: "Comparte este código QR de referido:"
+  fr: "Partage ce code QR de parrainage :"
+  ru: "Поделись этим реферальным QR-кодом:"
+  ja: "この紹介用QRコードをシェアする:"
+  ko: "추천 QR 코드를 공유하세요:"
+  it: "Condividi questo codice QR referral:"
+  tr: "Bu referans QR kodunu paylaş:"
+  vi: "Chia sẻ mã QR giới thiệu này:"
+  id: "Bagikan kode QR referral ini:"
+  pl: "Udostępnij ten kod QR polecenia:"
+  nl: "Deel deze referral-QR-code:"
+  ar: "شارك رمز QR للإحالة هذا:"
+  hi: "यह रेफरल QR कोड साझा करें:"
+  th: "แชร์ QR code แนะนำนี้:"
+  pt: "Partilha este código QR de indicação:"
+  cs: "Sdílej tento referenční QR kód:"
+  he: "שתף את קוד ה-QR הזה להפניה:"
+  sv: "Dela denna QR-kod för värvning:"
   verified_by_human: []
 referral_progress:
   context: Referral usage progress. Variables are count and max.
   en: "Successful referrals used: {count}/{max}"
+  de: "Erfolgreiche Empfehlungen genutzt: {count}/{max}"
+  zh: "已成功推荐：{count}/{max}"
+  es: "Referidos exitosos usados: {count}/{max}"
+  fr: "Parrainages réussis utilisés : {count}/{max}"
+  ru: "Использовано успешных рефералов: {count}/{max}"
+  ja: "成立した紹介数: {count}/{max}"
+  ko: "성공한 추천 횟수: {count}/{max}"
+  it: "Referral completati: {count}/{max}"
+  tr: "Kullanılan başarılı referanslar: {count}/{max}"
+  vi: "Số lượt giới thiệu thành công đã dùng: {count}/{max}"
+  id: "Referral berhasil digunakan: {count}/{max}"
+  pl: "Wykorzystane udane polecenia: {count}/{max}"
+  nl: "Succesvolle verwijzingen gebruikt: {count}/{max}"
+  ar: "الإحالات الناجحة المستخدمة: {count}/{max}"
+  hi: "सफल रेफरल उपयोग किए गए: {count}/{max}"
+  th: "จำนวนการแนะนำที่สำเร็จ: {count}/{max}"
+  pt: "Indicações bem-sucedidas utilizadas: {count}/{max}"
+  cs: "Využitá úspěšná doporučení: {count}/{max}"
+  he: "הפניות מוצלחות שמומשו: {count}/{max}"
+  sv: "Lyckade värvningar: {count}/{max}"
   verified_by_human: []
 referral_conditions:
   context: Small-print referral terms. Variables are minPurchase, days, and max.
   en: "Conditions: rewards apply only after a referred user makes their first successful credit purchase of {minPurchase} or more within {days} days. Each account can use one referral code once. Each referrer can receive rewards for up to {max} successful referrals. Same payment customer or payment method is not eligible. Referral credits are promotional, non-transferable, non-refundable, and available only while referral budget remains."
+  de: "Bedingungen: Belohnungen gelten erst, wenn ein geworbener Nutzer seinen ersten erfolgreichen Guthabenkauf von mindestens {minPurchase} innerhalb von {days} Tagen tätigt. Jedes Konto kann einen Empfehlungscode einmal verwenden. Jeder Werber kann Belohnungen für bis zu {max} erfolgreiche Empfehlungen erhalten. Derselbe Zahlungskunde oder dieselbe Zahlungsmethode ist nicht berechtigt. Empfehlungs-Credits sind Werbeaktionen, nicht übertragbar, nicht erstattungsfähig und nur verfügbar, solange das Empfehlungsbudget reicht."
+  zh: "条款：奖励仅在受邀用户于 {days} 天内首次成功购买 {minPurchase} 或更多积分后发放。每个账户仅限使用一次推荐码。每位推荐人最多可获得 {max} 次成功推荐奖励。同一付款客户或付款方式不符合资格。推荐积分属于促销性质，不可转让、不可退款，且仅在推荐预算余额充足时提供。"
+  es: "Condiciones: las recompensas se aplican solo después de que un usuario referido realice su primera compra de crédito exitosa de {minPurchase} o más en un plazo de {days} días. Cada cuenta puede usar un código de referido una vez. Cada referente puede recibir recompensas por hasta {max} referidos exitosos. El mismo cliente de pago o método de pago no es elegible. Los créditos de referido son promocionales, no transferibles, no reembolsables y están disponibles solo mientras quede presupuesto de referidos."
+  fr: "Conditions : les récompenses s'appliquent uniquement après qu'un utilisateur parrainé a effectué son premier achat de crédits réussi de {minPurchase} ou plus dans les {days} jours. Chaque compte peut utiliser un code de parrainage une seule fois. Chaque parrain peut recevoir des récompenses pour un maximum de {max} parrainages réussis. Un même client ou mode de paiement n'est pas éligible. Les crédits de parrainage sont promotionnels, non transférables, non remboursables et disponibles uniquement tant que le budget de parrainage subsiste."
+  ru: "Условия: вознаграждения начисляются только после того, как приглашенный пользователь совершит первую успешную покупку кредитов на сумму от {minPurchase} в течение {days} дней. Каждый аккаунт может использовать один реферальный код один раз. Каждый реферер может получить вознаграждение максимум за {max} успешных рефералов. Один и тот же плательщик или способ оплаты не учитываются. Реферальные кредиты являются промо-акционными, не подлежат передаче или возврату и доступны только пока не исчерпан реферальный бюджет."
+  ja: "条件: 紹介されたユーザーが {days} 日以内に {minPurchase} 以上のクレジットを初めて購入した場合にのみ特典が適用されます。各アカウントが使用できる紹介コードは1回のみです。紹介者は最大 {max} 名分まで特典を受け取ることができます。同一の支払い者または支払い方法は対象外です。紹介クレジットはプロモーション用であり、譲渡・返金はできません。また、紹介予算が残っている場合にのみ利用可能です。"
+  ko: "조건: 추천받은 사용자가 {days}일 이내에 {minPurchase} 이상의 첫 크레딧 구매를 성공적으로 완료한 경우에만 보상이 적용됩니다. 각 계정은 하나의 추천 코드를 한 번만 사용할 수 있습니다. 추천인은 최대 {max}명의 성공적인 추천에 대해 보상을 받을 수 있습니다. 동일한 결제 고객 또는 결제 수단은 대상에서 제외됩니다. 추천 크레딧은 프로모션용으로, 타인에게 양도하거나 환불할 수 없으며 추천 예산이 남아 있는 동안에만 제공됩니다."
+  it: "Condizioni: i premi vengono applicati solo dopo che un utente invitato ha effettuato il suo primo acquisto di crediti di almeno {minPurchase} entro {days} giorni. Ogni account può utilizzare un solo codice referral una volta sola. Ogni referente può ricevere premi per un massimo di {max} referral andati a buon fine. Lo stesso cliente o metodo di pagamento non è idoneo. I crediti referral sono promozionali, non trasferibili, non rimborsabili e disponibili solo fino a esaurimento del budget dedicato."
+  tr: "Koşullar: ödüller yalnızca referans verilen kullanıcı {days} gün içinde {minPurchase} veya daha fazla tutarında ilk başarılı kredi satın alımını gerçekleştirdiğinde geçerli olur. Her hesap bir referans kodunu bir kez kullanabilir. Her referans veren en fazla {max} başarılı referans için ödül alabilir. Aynı ödeme müşterisi veya ödeme yöntemi uygun değildir. Referans kredileri promosyon amaçlıdır, devredilemez, iade edilemez ve yalnızca referans bütçesi kaldığı sürece kullanılabilir."
+  vi: "Điều kiện: phần thưởng chỉ áp dụng sau khi người được giới thiệu thực hiện giao dịch mua credit thành công đầu tiên từ {minPurchase} trở lên trong vòng {days} ngày. Mỗi tài khoản chỉ có thể sử dụng một mã giới thiệu một lần. Mỗi người giới thiệu có thể nhận phần thưởng cho tối đa {max} lượt giới thiệu thành công. Cùng một khách hàng thanh toán hoặc phương thức thanh toán sẽ không đủ điều kiện. Credit giới thiệu mang tính chất quảng bá, không thể chuyển nhượng, không thể hoàn lại và chỉ khả dụng khi ngân sách giới thiệu vẫn còn."
+  id: "Ketentuan: hadiah hanya berlaku setelah pengguna yang dirujuk melakukan pembelian kredit pertama yang berhasil sebesar {minPurchase} atau lebih dalam {days} hari. Setiap akun dapat menggunakan satu kode referral satu kali. Setiap perujuk dapat menerima hadiah hingga {max} referral yang berhasil. Pelanggan pembayaran atau metode pembayaran yang sama tidak memenuhi syarat. Kredit referral bersifat promosi, tidak dapat dipindahtangankan, tidak dapat dikembalikan, dan hanya tersedia selama anggaran referral masih ada."
+  pl: "Warunki: nagrody są przyznawane dopiero po dokonaniu przez poleconego użytkownika pierwszego udanego zakupu kredytów o wartości co najmniej {minPurchase} w ciągu {days} dni. Każde konto może użyć jednego kodu polecającego tylko raz. Każdy polecający może otrzymać nagrody za maksymalnie {max} udanych poleceń. Ten sam klient płatności lub ta sama metoda płatności nie kwalifikują się. Kredyty polecające mają charakter promocyjny, są niezbywalne, nie podlegają zwrotowi i są dostępne tylko do wyczerpania budżetu programu poleceń."
+  nl: "Voorwaarden: beloningen zijn alleen van toepassing nadat een verwezen gebruiker zijn eerste succesvolle credit-aankoop van {minPurchase} of meer heeft gedaan binnen {days} dagen. Elk account kan één keer één referralcode gebruiken. Elke verwijzer kan beloningen ontvangen voor maximaal {max} succesvolle verwijzingen. Dezelfde betalende klant of betaalmethode komt niet in aanmerking. Referral-credits zijn promotioneel, niet-overdraagbaar, niet-restitueerbaar en alleen beschikbaar zolang het referral-budget toereikend is."
+  ar: "الشروط: تُطبق المكافآت فقط بعد قيام المستخدم المُحال بأول عملية شراء رصيد ناجحة بقيمة {minPurchase} أو أكثر خلال {days} يومًا. يمكن لكل حساب استخدام رمز إحالة واحد لمرة واحدة. يمكن لكل مُحيل الحصول على مكافآت لما يصل إلى {max} من الإحالات الناجحة. لا يتأهل نفس العميل الدافع أو نفس وسيلة الدفع. أرصدة الإحالة ترويجية، وغير قابلة للتحويل، وغير قابلة للاسترداد، ومتاحة فقط طالما بقيت ميزانية الإحالة."
+  hi: "शर्तें: रिवॉर्ड केवल तभी लागू होते हैं जब रेफ़र किया गया यूज़र {days} दिनों के भीतर {minPurchase} या उससे अधिक की अपनी पहली सफल क्रेडिट खरीदारी करता है। प्रत्येक अकाउंट एक बार एक रेफरल कोड का उपयोग कर सकता है। प्रत्येक रेफरर अधिकतम {max} सफल रेफरल के लिए रिवॉर्ड प्राप्त कर सकता है। समान भुगतान ग्राहक या भुगतान विधि पात्र नहीं है। रेफरल क्रेडिट प्रमोशनल, नॉन-ट्रांसफ़रेबल, नॉन-रिफंडेबल हैं, और केवल तब तक उपलब्ध हैं जब तक रेफरल बजट शेष है।"
+  th: "เงื่อนไข: รางวัลจะมีผลหลังจากผู้ที่ถูกแนะนำซื้อเครดิตครั้งแรกสำเร็จตั้งแต่ {minPurchase} ขึ้นไป ภายใน {days} วัน แต่ละบัญชีสามารถใช้รหัสแนะนำได้เพียงครั้งเดียว ผู้แนะนำแต่ละคนสามารถรับรางวัลได้สูงสุด {max} ครั้ง การใช้ลูกค้าที่ชำระเงินรายเดียวกันหรือวิธีการชำระเงินเดียวกันจะไม่มีสิทธิ์รับรางวัล เครดิตจากการแนะนำเป็นเครดิตส่งเสริมการขาย ไม่สามารถโอนสิทธิ์ได้ ไม่สามารถคืนเงินได้ และมีให้จนกว่างบประมาณการแนะนำจะหมดลง"
+  pt: "Condições: as recompensas aplicam-se apenas após um usuário indicado realizar sua primeira compra de créditos bem-sucedida de {minPurchase} ou mais em até {days} dias. Cada conta pode usar um código de indicação uma vez. Cada indicador pode receber recompensas por até {max} indicações bem-sucedidas. O mesmo cliente ou método de pagamento não é elegível. Os créditos de indicação são promocionais, intransferíveis, não reembolsáveis e estão disponíveis apenas enquanto houver orçamento de indicação."
+  cs: "Podmínky: odměny se připíší až poté, co doporučený uživatel provede svůj první úspěšný nákup kreditů v hodnotě {minPurchase} nebo více během {days} dní. Každý účet může použít jeden referenční kód pouze jednou. Každý doporučující může získat odměnu až za {max} úspěšných doporučení. Stejný zákazník nebo platební metoda nejsou způsobilé. Referenční kredity jsou propagační, nepřenosné, nevratné a dostupné pouze do vyčerpání rozpočtu na doporučení."
+  he: "תנאים: ההטבות חלות רק לאחר שמשתמש מופנה מבצע את רכישת הקרדיטים הראשונה שלו בסך {minPurchase} ומעלה תוך {days} ימים. כל חשבון יכול להשתמש בקוד הפניה אחד פעם אחת בלבד. כל מפנה יכול לקבל הטבות עבור עד {max} הפניות מוצלחות. לקוח או אמצעי תשלום זהים אינם זכאים. קרדיטים מהפניות הם שיווקיים, אינם ניתנים להעברה או להחזר, וזמינים רק כל עוד נותר תקציב להפניות."
+  sv: "Villkor: belöningar delas endast ut efter att en värvad användare gör sitt första lyckade köp av krediter för {minPurchase} eller mer inom {days} dagar. Varje konto kan använda en värvningskod en gång. Varje värvare kan få belöningar för upp till {max} lyckade värvningar. Samma betalningskund eller betalningsmetod är inte kvalificerad. Värvningskrediter är kampanjbaserade, kan inte överföras eller återbetalas, och är endast tillgängliga så länge värvningsbudgeten räcker."
   verified_by_human: []
 referral_unavailable:
   context: Message shown when no referral budget remains or the user reached the referral limit
   en: Referral rewards are not available right now. They may return when a new referral budget is added.
+  de: Empfehlungsbelohnungen sind derzeit nicht verfügbar. Sie kehren möglicherweise zurück, wenn ein neues Empfehlungsbudget hinzugefügt wird.
+  zh: 目前无法获得推荐奖励。当有新的推荐预算加入时，奖励可能会恢复。
+  es: Las recompensas por referidos no están disponibles en este momento. Pueden volver cuando se añada un nuevo presupuesto de referidos.
+  fr: "Les récompenses de parrainage ne sont pas disponibles pour le moment. Elles pourraient revenir lorsqu'un nouveau budget de parrainage sera ajouté."
+  ru: Реферальные вознаграждения сейчас недоступны. Они могут вернуться, когда будет добавлен новый реферальный бюджет.
+  ja: 現在、紹介特典は利用できません。新しい紹介予算が追加されると再開される可能性があります。
+  ko: 현재 추천 보상을 이용할 수 없습니다. 새로운 추천 예산이 추가되면 다시 시작될 수 있습니다.
+  it: I premi referral non sono al momento disponibili. Potrebbero tornare quando verrà aggiunto un nuovo budget per i referral.
+  tr: Referans ödülleri şu anda mevcut değil. Yeni bir referans bütçesi eklendiğinde geri dönebilirler.
+  vi: Phần thưởng giới thiệu hiện không khả dụng. Chúng có thể quay lại khi có ngân sách giới thiệu mới.
+  id: Hadiah referral tidak tersedia saat ini. Hadiah mungkin kembali saat anggaran referral baru ditambahkan.
+  pl: Nagrody za polecenia nie są obecnie dostępne. Mogą powrócić, gdy zostanie dodany nowy budżet na polecenia.
+  nl: Referral-beloningen zijn momenteel niet beschikbaar. Ze kunnen terugkeren wanneer er een nieuw referral-budget wordt toegevoegd.
+  ar: مكافآت الإحالة غير متاحة حاليًا. قد تعود عند إضافة ميزانية إحالة جديدة.
+  hi: रेफरल रिवॉर्ड अभी उपलब्ध नहीं हैं। नया रेफरल बजट जुड़ने पर वे वापस आ सकते हैं।
+  th: ขณะนี้ยังไม่มีรางวัลสำหรับการแนะนำ รางวัลอาจกลับมาอีกครั้งเมื่อมีการเพิ่มงบประมาณการแนะนำใหม่
+  pt: As recompensas de indicação não estão disponíveis no momento. Elas podem retornar quando um novo orçamento de indicação for adicionado.
+  cs: Odměny za doporučení nejsou momentálně k dispozici. Mohou se vrátit, jakmile bude přidán nový rozpočet na doporučení.
+  he: הטבות הפניה אינן זמינות כרגע. ייתכן שהן יחזרו כאשר יתווסף תקציב הפניות חדש.
+  sv: Värvningsbelöningar är inte tillgängliga just nu. De kan komma tillbaka när en ny värvningsbudget läggs till.
   verified_by_human: []
 referral_copied:
   context: Success message after copying referral link
   en: Referral link copied.
+  de: Empfehlungslink kopiert.
+  zh: 推荐链接已复制。
+  es: Enlace de referido copiado.
+  fr: Lien de parrainage copié.
+  ru: Реферальная ссылка скопирована.
+  ja: 紹介リンクをコピーしました。
+  ko: 추천 링크가 복사되었습니다.
+  it: Link referral copiato.
+  tr: Referans bağlantısı kopyalandı.
+  vi: Đã sao chép liên kết giới thiệu.
+  id: Tautan referral disalin.
+  pl: Link polecający skopiowany.
+  nl: Referral-link gekopieerd.
+  ar: تم نسخ رابط الإحالة.
+  hi: रेफरल लिंक कॉपी किया गया।
+  th: คัดลอกลิงก์แนะนำแล้ว
+  pt: Link de indicação copiado.
+  cs: Referenční odkaz zkopírován.
+  he: קישור ההפניה הועתק.
+  sv: Värvningslänk kopierad.
   verified_by_human: []
 referral_copy_failed:
   context: Error message when copying referral link fails
   en: Could not copy referral link.
+  de: Empfehlungslink konnte nicht kopiert werden.
+  zh: 无法复制推荐链接。
+  es: No se pudo copiar el enlace de referido.
+  fr: Impossible de copier le lien de parrainage.
+  ru: Не удалось скопировать реферальную ссылку.
+  ja: 紹介リンクをコピーできませんでした。
+  ko: 추천 링크를 복사할 수 없습니다.
+  it: Impossibile copiare il link referral.
+  tr: Referans bağlantısı kopyalanamadı.
+  vi: Không thể sao chép liên kết giới thiệu.
+  id: Gagal menyalin tautan referral.
+  pl: Nie udało się skopiować linku polecającego.
+  nl: Kon referral-link niet kopiëren.
+  ar: تعذر نسخ رابط الإحالة.
+  hi: रेफरल लिंक कॉपी नहीं किया जा सका।
+  th: ไม่สามารถคัดลอกลิงก์แนะนำได้
+  pt: Não foi possível copiar o link de indicação.
+  cs: Referenční odkaz se nepodařilo zkopírovat.
+  he: לא ניתן היה להעתיק את קישור ההפניה.
+  sv: Kunde inte kopiera värvningslänken.
   verified_by_human: []

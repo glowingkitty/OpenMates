@@ -55,198 +55,825 @@ run:
   context: Skill name and button label for running a code embed in a sandbox
   en: Run
   de: Ausführen
+  zh: 运行
+  fr: Exécuter
+  pt: Executar
+  ru: Запустить
+  ja: 実行
+  ko: 실행
+  it: Esegui
+  tr: Çalıştır
+  vi: Chạy
+  id: Jalankan
+  pl: Uruchom
+  nl: Uitvoeren
+  ar: تشغيل
+  hi: चलाएं
+  th: เรียกใช้งาน
+  es: Ejecutar
+  cs: Spustit
+  sv: Kör
+  he: הפעלה
   verified_by_human: [en, de]
 
 run_code:
   context: Header CTA button label for running a code embed in a sandbox
   en: Run code
   de: Code ausführen
+  zh: 运行代码
+  fr: Exécuter le code
+  pt: Executar código
+  ru: Запустить код
+  ja: コードを実行
+  ko: 코드 실행
+  it: Esegui codice
+  tr: Kodu çalıştır
+  vi: Chạy mã
+  id: Jalankan kode
+  pl: Uruchom kod
+  nl: Code uitvoeren
+  ar: تشغيل الكود
+  hi: कोड चलाएं
+  th: เรียกใช้งานโค้ด
+  es: Ejecutar código
+  cs: Spustit kód
+  sv: Kör kod
+  he: הפעלת קוד
   verified_by_human: [en, de]
 
 run.description:
   context: Description for the Code Run skill
   en: Run code from the current chat in an isolated sandbox.
   de: Führe Code aus dem aktuellen Chat in einer isolierten Sandbox aus.
+  zh: 在隔离的沙箱中运行当前对话中的代码。
+  fr: Exécute le code de la discussion actuelle dans un bac à sable isolé.
+  pt: Executa código do chat atual em um sandbox isolado.
+  ru: Запускай код из текущего чата в изолированной песочнице.
+  ja: 現在のチャットのコードを隔離されたサンドボックスで実行します。
+  ko: 현재 채팅의 코드를 격리된 샌드박스에서 실행합니다.
+  it: Esegui il codice della chat corrente in una sandbox isolata.
+  tr: Mevcut sohbetten kodu izole bir kum havuzunda çalıştır.
+  vi: Chạy mã từ cuộc trò chuyện hiện tại trong một hộp cát (sandbox) biệt lập.
+  id: Jalankan kode dari obrolan saat ini di sandbox terisolasi.
+  pl: Uruchamiaj kod z bieżącego czatu w odizolowanej piaskownicy.
+  nl: Voer code uit de huidige chat uit in een geïsoleerde sandbox.
+  ar: تشغيل الكود من الدردشة الحالية في بيئة معزولة.
+  hi: मौजूदा चैट के कोड को एक अलग सैंडबॉक्स में चलाएं।
+  th: เรียกใช้งานโค้ดจากการแชทปัจจุบันใน Sandbox ที่แยกส่วนไว้
+  es: Ejecuta código del chat actual en un entorno aislado (sandbox).
+  cs: Spouštěj kód z aktuálního chatu v izolovaném sandboxu.
+  sv: Kör kod från den aktuella chatten i en isolerad sandlåda.
+  he: "הפעלת קוד מהצ'אט הנוכחי בארגז חול מבודד."
   verified_by_human: [en, de]
 
 run.output:
   context: Terminal panel title for Code Run
   en: Run output
   de: Ausführungsprotokoll
+  zh: 运行输出
+  fr: "Sortie de l'exécution"
+  pt: Saída da execução
+  ru: Вывод выполнения
+  ja: 実行出力
+  ko: 실행 결과
+  it: Output esecuzione
+  tr: Çalıştırma çıktısı
+  vi: Kết quả chạy mã
+  id: Output jalankan
+  pl: Wynik uruchomienia
+  nl: Uitvoer
+  ar: مخرجات التشغيل
+  hi: रन आउटपुट
+  th: ผลลัพธ์การเรียกใช้งาน
+  es: Salida de la ejecución
+  cs: Výstup spuštění
+  sv: Utdata från körning
+  he: פלט ההפעלה
   verified_by_human: [en, de]
 
 run.again:
   context: Button to run the code again
   en: Run again
   de: Erneut ausführen
+  zh: 再次运行
+  fr: Réexécuter
+  pt: Executar novamente
+  ru: Запустить снова
+  ja: 再実行
+  ko: 다시 실행
+  it: Esegui di nuovo
+  tr: Tekrar çalıştır
+  vi: Chạy lại
+  id: Jalankan lagi
+  pl: Uruchom ponownie
+  nl: Opnieuw uitvoeren
+  ar: إعادة التشغيل
+  hi: फिर से चलाएं
+  th: เรียกใช้งานอีกครั้ง
+  es: Ejecutar de nuevo
+  cs: Spustit znovu
+  sv: Kör igen
+  he: הפעלה חוזרת
   verified_by_human: [en, de]
 
 run.copy_output:
   context: Button to copy only stdout and stderr from Code Run output, excluding status lines
   en: Copy output
   de: Ausgabe kopieren
+  zh: 复制输出
+  fr: Copier la sortie
+  pt: Copiar saída
+  ru: Копировать вывод
+  ja: 出力をコピー
+  ko: 출력 복사
+  it: Copia output
+  tr: Çıktıyı kopyala
+  vi: Sao chép kết quả
+  id: Salin output
+  pl: Kopiuj wynik
+  nl: Uitvoer kopiëren
+  ar: نسخ المخرجات
+  hi: आउटपुट कॉपी करें
+  th: คัดลอกผลลัพธ์
+  es: Copiar salida
+  cs: Kopírovat výstup
+  sv: Kopiera utdata
+  he: העתקת הפלט
   verified_by_human: [en, de]
 
 run.ask_followup:
   context: Button to copy Code Run output and insert it into the message input as a code snippet for asking follow-up questions
   en: Ask follow-up
   de: Nachfrage stellen
+  zh: 追问
+  fr: Question de suivi
+  pt: Fazer pergunta de acompanhamento
+  ru: Задать уточняющий вопрос
+  ja: フォローアップを質問
+  ko: 후속 질문하기
+  it: Chiedi approfondimento
+  tr: Takip sorusu sor
+  vi: Hỏi câu tiếp theo
+  id: Tanya tindak lanjut
+  pl: Zadaj pytanie pomocnicze
+  nl: Vervolgvraag stellen
+  ar: طرح سؤال متابعة
+  hi: फॉलो-अप पूछें
+  th: ถามคำถามเพิ่มเติมจากผลลัพธ์
+  es: Pregunta de seguimiento
+  cs: Doplňující dotaz
+  sv: Ställ följdfråga
+  he: שאלת המשך
   verified_by_human: [en, de]
 
 run.output_copied:
   context: Toast shown after copying Code Run program output
   en: Program output copied to clipboard
   de: Programmausgabe in die Zwischenablage kopiert
+  zh: 程序输出已复制到剪贴板
+  fr: Sortie du programme copiée dans le presse-papiers
+  pt: Saída do programa copiada para a área de transferência
+  ru: Вывод программы скопирован в буфер обмена
+  ja: プログラム出力をクリップボードにコピーしました
+  ko: 프로그램 출력이 클립보드에 복사되었습니다.
+  it: Output del programma copiato negli appunti
+  tr: Program çıktısı panoya kopyalandı
+  vi: Đã sao chép kết quả chương trình vào bộ nhớ tạm
+  id: Output program disalin ke papan klip
+  pl: Wynik programu skopiowano do schowka
+  nl: Programma-uitvoer naar klembord gekopieerd
+  ar: تم نسخ مخرجات البرنامج إلى الحافظة
+  hi: प्रोग्राम आउटपुट क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกผลลัพธ์ของโปรแกรมไปยังคลิปบอร์ดแล้ว
+  es: Salida del programa copiada al portapapeles
+  cs: Výstup programu byl zkopírován do schránky
+  sv: Programutdata har kopierats till urklipp
+  he: פלט התוכנית הועתק ללוח
   verified_by_human: [en, de]
 
 run.followup_inserted:
   context: Toast shown after Code Run output was copied and inserted into the message input as a code snippet
   en: Program output added to the message input
   de: Programmausgabe wurde zum Nachrichtenfeld hinzugefügt
+  zh: 程序输出已添加到消息输入框
+  fr: Sortie du programme ajoutée au message
+  pt: Saída do programa adicionada à mensagem
+  ru: Вывод программы добавлен в поле ввода сообщения
+  ja: プログラム出力をメッセージ入力に追加しました
+  ko: 프로그램 출력이 메시지 입력창에 추가되었습니다.
+  it: "Output del programma aggiunto all'input del messaggio"
+  tr: Program çıktısı mesaj girişine eklendi
+  vi: Đã thêm kết quả chương trình vào ô nhập tin nhắn
+  id: Output program ditambahkan ke input pesan
+  pl: Wynik programu dodano do pola wiadomości
+  nl: Programma-uitvoer toegevoegd aan het berichtveld
+  ar: تمت إضافة مخرجات البرنامج إلى حقل الرسالة
+  hi: मैसेज इनपुट में प्रोग्राम आउटपुट जोड़ा गया
+  th: เพิ่มผลลัพธ์ของโปรแกรมลงในช่องป้อนข้อความแล้ว
+  es: Salida del programa añadida al mensaje
+  cs: Výstup programu byl přidán do pole pro zprávu
+  sv: Programutdata har lagts till i meddelandefältet
+  he: פלט התוכנית נוסף לשדה הקלט
   verified_by_human: [en, de]
 
 run.followup_failed:
   context: Toast shown when Code Run output could not be copied or inserted into the message input
   en: Failed to add program output to the message input
   de: Programmausgabe konnte nicht zum Nachrichtenfeld hinzugefügt werden
+  zh: 无法将程序输出添加到消息输入框
+  fr: "Échec de l'ajout de la sortie du programme au message"
+  pt: Falha ao adicionar a saída do programa à mensagem
+  ru: Не удалось добавить вывод программы в поле ввода сообщения
+  ja: プログラム出力をメッセージ入力に追加できませんでした
+  ko: 프로그램 출력을 메시지 입력창에 추가하지 못했습니다.
+  it: "Impossibile aggiungere l'output del programma all'input del messaggio"
+  tr: Program çıktısı mesaj girişine eklenemedi
+  vi: Không thể thêm kết quả chương trình vào ô nhập tin nhắn
+  id: Gagal menambahkan output program ke input pesan
+  pl: Nie udało się dodać wyniku programu do pola wiadomości
+  nl: Toevoegen van programma-uitvoer aan het berichtveld mislukt
+  ar: فشل إضافة مخرجات البرنامج إلى حقل الرسالة
+  hi: मैसेज इनपुट में प्रोग्राम आउटपुट जोड़ने में विफल रहा
+  th: ไม่สามารถเพิ่มผลลัพธ์ของโปรแกรมลงในช่องป้อนข้อความได้
+  es: Error al añadir la salida del programa al mensaje
+  cs: Nepodařilo se přidat výstup programu do pole pro zprávu
+  sv: Det gick inte att lägga till programutdata i meddelandefältet
+  he: הוספת פלט התוכנית לשדה הקלט נכשלה
   verified_by_human: [en, de]
 
 run.output_copy_failed:
   context: Toast shown when copying Code Run program output fails
   en: Failed to copy program output
   de: Programmausgabe konnte nicht kopiert werden
+  zh: 复制程序输出失败
+  fr: Échec de la copie de la sortie du programme
+  pt: Falha ao copiar a saída do programa
+  ru: Не удалось скопировать вывод программы
+  ja: プログラム出力をコピーできませんでした
+  ko: 프로그램 출력을 복사하지 못했습니다.
+  it: "Impossibile copiare l'output del programma"
+  tr: Program çıktısı kopyalanamadı
+  vi: Không thể sao chép kết quả chương trình
+  id: Gagal menyalin output program
+  pl: Nie udało się skopiować wyniku programu
+  nl: Kopiëren van programma-uitvoer mislukt
+  ar: فشل نسخ مخرجات البرنامج
+  hi: प्रोग्राम आउटपुट कॉपी करने में विफल रहा
+  th: ไม่สามารถคัดลอกผลลัพธ์ของโปรแกรมได้
+  es: Error al copiar la salida del programa
+  cs: Nepodařilo se zkopírovat výstup programu
+  sv: Det gick inte att kopiera programutdata
+  he: העתקת פלט התוכנית נכשלה
   verified_by_human: [en, de]
 
 run.show_output:
   context: Header CTA button label for showing saved code run output
   en: Show output
   de: Ausgabe anzeigen
+  zh: 显示输出
+  fr: Afficher la sortie
+  pt: Mostrar saída
+  ru: Показать вывод
+  ja: 出力を表示
+  ko: 출력 보기
+  it: Mostra output
+  tr: Çıktıyı göster
+  vi: Hiển thị kết quả
+  id: Tampilkan output
+  pl: Pokaż wynik
+  nl: Uitvoer tonen
+  ar: إظهار المخرجات
+  hi: आउटपुट दिखाएं
+  th: แสดงผลลัพธ์
+  es: Mostrar salida
+  cs: Zobrazit výstup
+  sv: Visa utdata
+  he: הצגת הפלט
   verified_by_human: [en, de]
 
 run.hide_output:
   context: Header CTA button label for hiding code run output
   en: Hide output
   de: Ausgabe ausblenden
+  zh: 隐藏输出
+  fr: Masquer la sortie
+  pt: Ocultar saída
+  ru: Скрыть вывод
+  ja: 出力を非表示
+  ko: 출력 숨기기
+  it: Nascondi output
+  tr: Çıktıyı gizle
+  vi: Ẩn kết quả
+  id: Sembunyikan output
+  pl: Ukryj wynik
+  nl: Uitvoer verbergen
+  ar: إخفاء المخرجات
+  hi: आउटपुट छिपाएं
+  th: ซ่อนผลลัพธ์
+  es: Ocultar salida
+  cs: Skrýt výstup
+  sv: Dölj utdata
+  he: הסתרת הפלט
   verified_by_human: [en, de]
 
 run.hide_files:
   context: Header CTA button label for closing Code Run file selection
   en: Hide files
   de: Dateien ausblenden
+  zh: 隐藏文件
+  fr: Masquer les fichiers
+  pt: Ocultar arquivos
+  ru: Скрыть файлы
+  ja: ファイルを非表示
+  ko: 파일 숨기기
+  it: Nascondi file
+  tr: Dosyaları gizle
+  vi: Ẩn tệp
+  id: Sembunyikan file
+  pl: Ukryj pliki
+  nl: Bestanden verbergen
+  ar: إخفاء الملفات
+  hi: फ़ाइलें छिपाएं
+  th: ซ่อนไฟล์
+  es: Ocultar archivos
+  cs: Skrýt soubory
+  sv: Dölj filer
+  he: הסתרת קבצים
   verified_by_human: [en, de]
 
 run.select_files:
   context: Code Run file selection panel title
   en: "Select files to upload & process in E2B sandbox:"
   de: "Dateien zum Hochladen und Verarbeiten in der E2B-Sandbox auswählen:"
+  zh: 选择要上传并在 E2B 沙箱中处理的文件：
+  fr: "Sélectionne les fichiers à téléverser et traiter dans le bac à sable E2B :"
+  pt: "Seleciona os arquivos para carregar e processar no sandbox E2B:"
+  ru: "Выбери файлы для загрузки и обработки в песочнице E2B:"
+  ja: E2Bサンドボックスでアップロード・処理するファイルを選択：
+  ko: "E2B 샌드박스에서 업로드 및 처리할 파일 선택:"
+  it: "Seleziona i file da caricare ed elaborare nella sandbox E2B:"
+  tr: "E2B kum havuzunda yüklenecek ve işlenecek dosyaları seç:"
+  vi: "Chọn tệp để tải lên và xử lý trong hộp cát E2B:"
+  id: "Pilih file untuk diunggah & diproses di sandbox E2B:"
+  pl: "Wybierz pliki do przesłania i przetworzenia w piaskownicy E2B:"
+  nl: "Selecteer bestanden om te uploaden en te verwerken in de E2B-sandbox:"
+  ar: "حدد الملفات لرفعها ومعالجتها في بيئة E2B:"
+  hi: "E2B सैंडबॉक्स में अपलोड और प्रोसेस करने के लिए फ़ाइलें चुनें:"
+  th: "เลือกไฟล์ที่จะอัปโหลดและประมวลผลใน E2B Sandbox:"
+  es: "Selecciona los archivos para subir y procesar en el sandbox de E2B:"
+  cs: "Vyber soubory k nahrání a zpracování v sandboxu E2B:"
+  sv: "Välj filer att ladda upp och bearbeta i E2B-sandlådan:"
+  he: "בחירת קבצים להעלאה ועיבוד בארגז החול של E2B:"
   verified_by_human: [en, de]
 
 run.select_files_description:
   context: Code Run file selection panel subtitle
   en: Choose which current-chat files are copied into the sandbox.
   de: Wähle aus, welche Dateien aus dem aktuellen Chat in die Sandbox kopiert werden.
+  zh: 选择要复制到沙箱中的当前对话文件。
+  fr: Choisis les fichiers de la discussion actuelle à copier dans le bac à sable.
+  pt: Escolhe quais arquivos do chat atual serão copiados para o sandbox.
+  ru: Выбери, какие файлы из текущего чата будут скопированы в песочницу.
+  ja: 現在のチャットからサンドボックスにコピーするファイルを選択してください。
+  ko: 현재 채팅 파일 중 샌드박스로 복사할 파일을 선택하세요.
+  it: Scegli quali file della chat corrente copiare nella sandbox.
+  tr: Mevcut sohbetten hangi dosyaların kum havuzuna kopyalanacağını seç.
+  vi: Chọn các tệp trong cuộc trò chuyện hiện tại để sao chép vào hộp cát.
+  id: Pilih file obrolan saat ini yang akan disalin ke sandbox.
+  pl: Wybierz, które pliki z bieżącego czatu zostaną skopiowane do piaskownicy.
+  nl: Kies welke bestanden uit de huidige chat naar de sandbox worden gekopieerd.
+  ar: اختر ملفات الدردشة الحالية التي سيتم نسخها إلى البيئة المعزولة.
+  hi: चुनें कि मौजूदा चैट की कौन सी फ़ाइलें सैंडबॉक्स में कॉपी की जाएं।
+  th: เลือกไฟล์จากการแชทปัจจุบันที่จะคัดลอกไปยัง Sandbox
+  es: Elige qué archivos del chat actual se copiarán al sandbox.
+  cs: Vyber, které soubory z aktuálního chatu se mají zkopírovat do sandboxu.
+  sv: Välj vilka filer från den aktuella chatten som ska kopieras till sandlådan.
+  he: "בחירת הקבצים מהצ'אט הנוכחי שיועתקו לארגז החול."
   verified_by_human: [en, de]
 
 run.required_file:
   context: Subtitle for the required target code file in Code Run selection
   en: Required target file
   de: Erforderliche Zieldatei
+  zh: 必需的目标文件
+  fr: Fichier cible requis
+  pt: Arquivo de destino obrigatório
+  ru: Обязательный целевой файл
+  ja: 必須のターゲットファイル
+  ko: 필수 대상 파일
+  it: File di destinazione richiesto
+  tr: Gerekli hedef dosya
+  vi: Tệp đích bắt buộc
+  id: File target yang diperlukan
+  pl: Wymagany plik docelowy
+  nl: Vereist doelbestand
+  ar: الملف المستهدف المطلوب
+  hi: आवश्यक टारगेट फ़ाइल
+  th: ไฟล์เป้าหมายที่จำเป็นต้องใช้
+  es: Archivo de destino obligatorio
+  cs: Povinný cílový soubor
+  sv: Obligatorisk målfil
+  he: קובץ יעד נדרש
   verified_by_human: [en, de]
 
 run.select_all:
   context: Button to select all optional Code Run files
   en: Select all
   de: Alle auswählen
+  zh: 全选
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Tümünü seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  es: Seleccionar todo
+  cs: Vybrat vše
+  sv: Markera alla
+  he: בחירת הכל
   verified_by_human: [en, de]
 
 run.unselect_all:
   context: Button to unselect all optional Code Run files
   en: Unselect all
   de: Alle abwählen
+  zh: 取消全选
+  fr: Tout désélectionner
+  pt: Desmarcar tudo
+  ru: Снять выделение со всех
+  ja: すべての選択を解除
+  ko: 모두 선택 해제
+  it: Deseleziona tutto
+  tr: Tümünün seçimini kaldır
+  vi: Bỏ chọn tất cả
+  id: Batal pilih semua
+  pl: Odznacz wszystko
+  nl: Alles deselecteren
+  ar: إلغاء تحديد الكل
+  hi: सभी अनसिलेक्ट करें
+  th: ไม่เลือกทั้งหมด
+  es: Deseleccionar todo
+  cs: Zrušit výběr všeho
+  sv: Avmarkera alla
+  he: ביטול בחירת הכל
   verified_by_human: [en, de]
 
 run.continue:
   context: Button to continue from Code Run file selection to sandbox execution
   en: Continue
   de: Weiter
+  zh: 继续
+  fr: Continuer
+  pt: Continuar
+  ru: Продолжить
+  ja: 続行
+  ko: 계속
+  it: Continua
+  tr: Devam et
+  vi: Tiếp tục
+  id: Lanjutkan
+  pl: Kontynuuj
+  nl: Doorgaan
+  ar: متابعة
+  hi: जारी रखें
+  th: ดำเนินการต่อ
+  es: Continuar
+  cs: Pokračovat
+  sv: Fortsätt
+  he: המשך
   verified_by_human: [en, de]
 
 run.loading_files:
   context: Loading text while Code Run discovers current-chat files
   en: Loading files...
   de: Dateien werden geladen...
+  zh: 正在加载文件...
+  es: Cargando archivos...
+  fr: Chargement des fichiers...
+  pt: Carregando arquivos...
+  ru: Загрузка файлов...
+  ja: ファイルを読み込み中...
+  ko: 파일 로드 중...
+  it: Caricamento file...
+  tr: Dosyalar yükleniyor...
+  vi: Đang tải tệp...
+  id: Memuat file...
+  pl: Wczytywanie plików...
+  nl: Bestanden laden...
+  ar: جاري تحميل الملفات...
+  hi: फ़ाइलें लोड हो रही हैं...
+  th: กำลังโหลดไฟล์...
+  cs: Načítání souborů...
+  sv: Laddar filer...
+  he: טוען קבצים...
   verified_by_human: [en, de]
 
 run.install_python_packages:
   context: Code Run dependency checklist option for Python packages detected from an install command
   en: "Install Python packages: {packages}"
   de: "Python-Pakete installieren: {packages}"
+  zh: "安装 Python 软件包：{packages}"
+  es: "Instalar paquetes de Python: {packages}"
+  fr: "Installer les packages Python : {packages}"
+  pt: "Instalar pacotes Python: {packages}"
+  ru: "Установить Python-пакеты: {packages}"
+  ja: "Pythonパッケージをインストール: {packages}"
+  ko: "Python 패키지 설치: {packages}"
+  it: "Installa pacchetti Python: {packages}"
+  tr: "Python paketlerini yükle: {packages}"
+  vi: "Cài đặt các gói Python: {packages}"
+  id: "Instal paket Python: {packages}"
+  pl: "Zainstaluj pakiety Pythona: {packages}"
+  nl: "Python-pakketten installeren: {packages}"
+  ar: "تثبيت حزم Python: {packages}"
+  hi: "Python पैकेज इंस्टॉल करें: {packages}"
+  th: "ติดตั้งแพ็กเกจ Python: {packages}"
+  cs: "Instalovat balíčky Pythonu: {packages}"
+  sv: "Installera Python-paket: {packages}"
+  he: "התקנת חבילות Python: {packages}"
   verified_by_human: [en, de]
 
 run.install_npm_packages:
   context: Code Run dependency checklist option for npm packages detected from an install command
   en: "Install npm packages: {packages}"
   de: "npm-Pakete installieren: {packages}"
+  zh: "安装 npm 软件包：{packages}"
+  es: "Instalar paquetes de npm: {packages}"
+  fr: "Installer les packages npm : {packages}"
+  pt: "Instalar pacotes npm: {packages}"
+  ru: "Установить npm-пакеты: {packages}"
+  ja: "npmパッケージをインストール: {packages}"
+  ko: "npm 패키지 설치: {packages}"
+  it: "Installa pacchetti npm: {packages}"
+  tr: "npm paketlerini yükle: {packages}"
+  vi: "Cài đặt các gói npm: {packages}"
+  id: "Instal paket npm: {packages}"
+  pl: "Zainstaluj pakiety npm: {packages}"
+  nl: "npm-pakketten installeren: {packages}"
+  ar: "تثبيت حزم npm: {packages}"
+  hi: "npm पैकेज इंस्टॉल करें: {packages}"
+  th: "ติดตั้งแพ็กเกจ npm: {packages}"
+  cs: "Instalovat balíčky npm: {packages}"
+  sv: "Installera npm-paket: {packages}"
+  he: "התקנת חבילות npm: {packages}"
   verified_by_human: [en, de]
 
 run.detected_install_command:
   context: Subtitle for a Code Run dependency option detected from an install command snippet
   en: Detected install command
   de: Erkannter Installationsbefehl
+  zh: 检测到安装命令
+  es: Comando de instalación detectado
+  fr: "Commande d'installation détectée"
+  pt: Comando de instalação detectado
+  ru: Обнаружена команда установки
+  ja: 検出されたインストールコマンド
+  ko: 설치 명령 감지됨
+  it: Comando di installazione rilevato
+  tr: Yükleme komutu algılandı
+  vi: Đã phát hiện lệnh cài đặt
+  id: Perintah instalasi terdeteksi
+  pl: Wykryto polecenie instalacji
+  nl: Installatieopdracht gedetecteerd
+  ar: تم اكتشاف أمر تثبيت
+  hi: इंस्टॉल कमांड का पता चला
+  th: ตรวจพบคำสั่งติดตั้ง
+  cs: Zjištěn instalační příkaz
+  sv: Identifierat installationskommando
+  he: זוהתה פקודת התקנה
   verified_by_human: [en, de]
 
 run.install_detected_package:
   context: Code Run dependency checklist option for a package detected from an import statement
   en: "Install {package}"
   de: "{package} installieren"
+  zh: "安装 {package}"
+  es: "Instalar {package}"
+  fr: "Installer {package}"
+  pt: "Instalar {package}"
+  ru: "Установить {package}"
+  ja: "{package} をインストール"
+  ko: "{package} 설치"
+  it: "Installa {package}"
+  tr: "{package} paketini yükle"
+  vi: "Cài đặt {package}"
+  id: "Instal {package}"
+  pl: "Zainstaluj {package}"
+  nl: "{package} installeren"
+  ar: "تثبيت {package}"
+  hi: "{package} इंस्टॉल करें"
+  th: "ติดตั้ง {package}"
+  cs: "Instalovat {package}"
+  sv: "Installera {package}"
+  he: "התקנת {package}"
   verified_by_human: [en, de]
 
 run.detected_import_latest_release:
   context: Subtitle for a dependency option detected from an import statement, with latest version and release date
   en: "Detected from import {importName} · latest {version} released {releaseDate}"
   de: "Aus Import {importName} erkannt · neueste Version {version}, veröffentlicht am {releaseDate}"
+  zh: "检测自导入 {importName} · 最新版本 {version}，发布于 {releaseDate}"
+  es: "Detectado desde importación {importName} · última {version} publicada el {releaseDate}"
+  fr: "Détecté à partir de l'import {importName} · dernière version {version} publiée le {releaseDate}"
+  pt: "Detectado do import {importName} · última {version} lançada em {releaseDate}"
+  ru: "Обнаружено в импорте {importName} · последняя версия {version} от {releaseDate}"
+  ja: "インポート {importName} から検出 · 最新 {version}（{releaseDate} リリース）"
+  ko: "가져오기 {importName}에서 감지됨 · 최신 버전 {version} ({releaseDate} 출시)"
+  it: "Rilevato dall'importazione {importName} · ultima {version} rilasciata il {releaseDate}"
+  tr: "{importName} içe aktarmasından algılandı · en son {version} {releaseDate} tarihinde yayınlandı"
+  vi: "Phát hiện từ lệnh nhập {importName} · bản mới nhất {version} phát hành {releaseDate}"
+  id: "Terdeteksi dari impor {importName} · versi terbaru {version} dirilis {releaseDate}"
+  pl: "Wykryto z importu {importName} · najnowsza wersja {version} wydana {releaseDate}"
+  nl: "Gedetecteerd via import {importName} · nieuwste {version} uitgebracht op {releaseDate}"
+  ar: "تم الاكتشاف من استيراد {importName} · أحدث إصدار {version} صدر في {releaseDate}"
+  hi: "इंपोर्ट {importName} से पता चला · लेटेस्ट {version} जो {releaseDate} को रिलीज़ हुआ"
+  th: "ตรวจพบจาก import {importName} · เวอร์ชันล่าสุด {version} เผยแพร่เมื่อ {releaseDate}"
+  cs: "Zjištěno z importu {importName} · nejnovější {version} vydána {releaseDate}"
+  sv: "Identifierad från import {importName} · senaste {version} släppt {releaseDate}"
+  he: "זוהה מייבוא {importName} · גרסה אחרונה {version} שוחררה ב-{releaseDate}"
   verified_by_human: [en, de]
 
 run.detected_import_latest:
   context: Subtitle for a dependency option detected from an import statement, with latest version but no release date
   en: "Detected from import {importName} · latest {version}"
   de: "Aus Import {importName} erkannt · neueste Version {version}"
+  zh: "检测自导入 {importName} · 最新版本 {version}"
+  es: "Detectado desde importación {importName} · última {version}"
+  fr: "Détecté à partir de l'import {importName} · dernière version {version}"
+  pt: "Detectado do import {importName} · última {version}"
+  ru: "Обнаружено в импорте {importName} · последняя версия {version}"
+  ja: "インポート {importName} から検出 · 最新 {version}"
+  ko: "가져오기 {importName}에서 감지됨 · 최신 버전 {version}"
+  it: "Rilevato dall'importazione {importName} · ultima {version}"
+  tr: "{importName} içe aktarmasından algılandı · en son {version}"
+  vi: "Phát hiện từ lệnh nhập {importName} · bản mới nhất {version}"
+  id: "Terdeteksi dari impor {importName} · versi terbaru {version}"
+  pl: "Wykryto z importu {importName} · najnowsza wersja {version}"
+  nl: "Gedetecteerd via import {importName} · nieuwste {version}"
+  ar: "تم الاكتشاف من استيراد {importName} · أحدث إصدار {version}"
+  hi: "इंपोर्ट {importName} से पता चला · लेटेस्ट {version}"
+  th: "ตรวจพบจาก import {importName} · เวอร์ชันล่าสุด {version}"
+  cs: "Zjištěno z importu {importName} · nejnovější {version}"
+  sv: "Identifierad från import {importName} · senaste {version}"
+  he: "זוהה מייבוא {importName} · גרסה אחרונה {version}"
   verified_by_human: [en, de]
 
 run.version:
   context: Label for selecting a package version before a Code Run starts
   en: Version
   de: Version
+  zh: 版本名
+  es: Versión
+  fr: Version
+  pt: Versão
+  ru: Версия
+  ja: バージョン
+  ko: 버전
+  it: Versione
+  tr: Sürüm
+  vi: Phiên bản
+  id: Versi
+  pl: Wersja
+  nl: Versie
+  ar: الإصدار
+  hi: वर्जन
+  th: เวอร์ชัน
+  cs: Verze
+  sv: Version
+  he: גרסה
   verified_by_human: [en, de]
 
 run.stop:
   context: Button label for cancelling an active Code Run execution
   en: Stop
   de: Stoppen
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Interrompi
+  tr: Durdur
+  vi: Dừng
+  id: Berhenti
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצור
   verified_by_human: [en, de]
 
 run.cancelling_button:
   context: Disabled button label while Code Run cancellation is being requested
   en: Stopping...
   de: Wird gestoppt...
+  zh: 正在停止...
+  es: Deteniendo...
+  fr: Arrêt en cours...
+  pt: Interrompendo...
+  ru: Остановка...
+  ja: 停止中...
+  ko: 중지 중...
+  it: Interruzione...
+  tr: Durduruluyor...
+  vi: Đang dừng...
+  id: Menghentikan...
+  pl: Zatrzymywanie...
+  nl: Stoppen...
+  ar: جاري الإيقاف...
+  hi: रुक रहा है...
+  th: กำลังหยุด...
+  cs: Zastavování...
+  sv: Stoppar...
+  he: עוצר...
   verified_by_human: [en, de]
 
 run.cancelling:
   context: Terminal status line shown after the user requests Code Run cancellation
   en: Stopping code run...
   de: Code-Ausführung wird gestoppt...
+  zh: 正在停止代码运行...
+  es: Deteniendo ejecución de código...
+  fr: "Arrêt de l'exécution du code..."
+  pt: Interrompendo a execução do código...
+  ru: Остановка выполнения кода...
+  ja: コードの実行を停止しています...
+  ko: 코드 실행 중지 중...
+  it: "Interruzione dell'esecuzione del codice..."
+  tr: Kod çalıştırma durduruluyor...
+  vi: Đang dừng chạy mã...
+  id: Menghentikan eksekusi kode...
+  pl: Zatrzymywanie wykonywania kodu...
+  nl: Code-run stoppen...
+  ar: جاري إيقاف تشغيل الكود...
+  hi: कोड रन रोका जा रहा है...
+  th: กำลังหยุดการรันโค้ด...
+  cs: Zastavování běhu kódu...
+  sv: Stoppar kodkörning...
+  he: עוצר את הרצת הקוד...
   verified_by_human: [en, de]
 
 preview_show:
   context: Header CTA button label for opening a rendered preview of previewable code
   en: Show preview
   de: Vorschau anzeigen
+  zh: 显示预览
+  es: Mostrar vista previa
+  fr: "Afficher l'aperçu"
+  pt: Mostrar prévia
+  ru: Показать превью
+  ja: プレビューを表示
+  ko: 미리보기 표시
+  it: Mostra anteprima
+  tr: Önizlemeyi göster
+  vi: Hiện bản xem trước
+  id: Tampilkan pratinjau
+  pl: Pokaż podgląd
+  nl: Voorbeeld tonen
+  ar: عرض المعاينة
+  hi: प्रिव्यू दिखाएं
+  th: แสดงตัวอย่าง
+  cs: Zobrazit náhled
+  sv: Visa förhandsgranskning
+  he: הצג תצוגה מקדימה
   verified_by_human: [en, de]
 
 preview_hide:
   context: Header CTA button label for closing a rendered preview of previewable code
   en: Hide preview
   de: Vorschau ausblenden
+  zh: 隐藏预览
+  es: Ocultar vista previa
+  fr: "Masquer l'aperçu"
+  pt: Ocultar prévia
+  ru: Скрыть превью
+  ja: プレビューを非表示
+  ko: 미리보기 숨기기
+  it: Nascondi anteprima
+  tr: Önizlemeyi gizle
+  vi: Ẩn bản xem trước
+  id: Sembunyikan pratinjau
+  pl: Ukryj podgląd
+  nl: Voorbeeld verbergen
+  ar: إخفاء المعاينة
+  hi: प्रिव्यू छिपाएं
+  th: ซ่อนตัวอย่าง
+  cs: Skrýt náhled
+  sv: Dölj förhandsgranskning
+  he: הסתר תצוגה מקדימה
   verified_by_human: [en, de]
 
 get_docs.how_to_use.1:

@@ -6,49 +6,49 @@ title:
   context: 'Newsletter announcements/introducing-openmates-v011 — title'
   en: 'v0.11: Code tools, daily inspirations & new media providers'
   de: 'v0.11: Code-Tools, Daily Inspirations & neue Medien-Provider'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: v0.11：代码工具、每日灵感与新媒体提供商
+  es: "v0.11: Herramientas de código, inspiraciones diarias y nuevos proveedores de medios"
+  fr: "v0.11 : Outils de code, inspirations quotidiennes & nouveaux fournisseurs de médias"
+  pt: "v0.11: Ferramentas de código, inspirações diárias e novos provedores de mídia"
+  ru: "v0.11: Инструменты для кода, ежедневное вдохновение и новые медиа-провайдеры"
+  ja: "v0.11: コードツール、デイリーインスピレーション、新しいメディアプロバイダー"
+  ko: "v0.11: 코드 도구, 일일 영감 및 신규 미디어 제공자"
+  it: "v0.11: Strumenti di codice, ispirazioni quotidiane e nuovi provider multimediali"
+  tr: "v0.11: Kod araçları, günlük ilhamlar ve yeni medya sağlayıcıları"
+  vi: "v0.11: Công cụ code, cảm hứng hàng ngày & các nguồn media mới"
+  id: "v0.11: Alat kode, inspirasi harian & penyedia media baru"
+  pl: "v0.11: Narzędzia programistyczne, codzienne inspiracje i nowi dostawcy mediów"
+  nl: "v0.11: Code-tools, dagelijkse inspiratie & nieuwe mediaproviders"
+  ar: "v0.11: أدوات البرمجة، وإلهامات يومية، ومزودو وسائط جدد"
+  hi: "v0.11: कोड टूल्स, दैनिक प्रेरणा और नए मीडिया प्रदाता"
+  th: "v0.11: เครื่องมือเขียนโค้ด, แรงบันดาลใจรายวัน และผู้ให้บริการสื่อใหม่"
+  cs: "v0.11: Nástroje pro kód, denní inspirace a noví poskytovatelé médií"
+  sv: "v0.11: Kodverktyg, daglig inspiration & nya medieleverantörer"
+  he: "v0.11: כלי קוד, השראות יומיות וספקי מדיה חדשים"
   verified_by_human: []
 description:
   context: 'Newsletter announcements/introducing-openmates-v011 — description'
   en: 'Plus a short recap of the v0.10 improvements'
   de: 'Plus eine kurze Zusammenfassung der v0.10-Verbesserungen'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: 以及 v0.10 改进内容的简短回顾
+  es: Además de un breve resumen de las mejoras de la v0.10
+  fr: Plus un court récapitulatif des améliorations de la v0.10
+  pt: E mais um breve resumo das melhorias da v0.10
+  ru: А также краткий обзор улучшений v0.10
+  ja: v0.10の改善点の簡単な振り返りも
+  ko: v0.10 개선 사항에 대한 짧은 요약 포함
+  it: In più, un breve riepilogo dei miglioramenti della v0.10
+  tr: Ayrıca v0.10 iyileştirmelerinin kısa bir özeti
+  vi: Cùng với tóm tắt ngắn gọn về các cải tiến của bản v0.10
+  id: Plus ringkasan singkat peningkatan v0.10
+  pl: Oraz krótkie podsumowanie ulepszeń w wersji 0.10
+  nl: Plus een korte samenvatting van de v0.10-verbeteringen
+  ar: بالإضافة إلى ملخص قصير لتحسينات الإصدار 0.10
+  hi: साथ ही v0.10 के सुधारों का एक संक्षिप्त विवरण
+  th: พร้อมสรุปสั้นๆ เกี่ยวกับการปรับปรุงใน v0.10
+  cs: Plus krátké shrnutí vylepšení ve verzi 0.10
+  sv: Plus en kort sammanfattning av förbättringarna i v0.10
+  he: בנוסף, סיכום קצר של השיפורים בגרסה 0.10
   verified_by_human: []
 message:
   context: 'Newsletter announcements/introducing-openmates-v011 — message'
@@ -170,25 +170,1127 @@ message:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    你好，
+    
+    OpenMates v0.11 现已上线。本次更新在 v0.10 的基础上，增加了多项实用的日常功能：更丰富的每日灵感、代码执行、仓库研究、音乐生成、图像生成服务商改进、更清晰的应用结果以及本地界面字体。
+    
+    # 首先，快速回顾一下 v0.10
+    
+    v0.10 在回答中加入了维基百科链接、消息高亮与评论功能、更完善的公开公告/示例页面、SEPA 银行转账以及账号邮箱修改功能。
+    
+    这些改进让 OpenMates 作为一个日常工作空间变得更加实用：更易于学习、更易于分享，且在账号和支付等基础环节更加稳健。
+    
+    # ✨ v0.11 有哪些新变化
+    
+    ## 1. 扩展的每日灵感
+    
+    每日灵感变得更加丰富多样。它们可以展示公开视频、实用的功能创意，以及你在 OpenMates 中可能想要尝试的具体切入点。
+    
+    我们的目标是让 OpenMates 不再仅仅是一个空荡荡的聊天框，而是一个能帮你发现有用之事的场所：研究课题、理解视频、规划任务、探索工具，或是从示例开始继续操作。
+    
+    ## 2. 代码执行与代码研究改进
+    
+    代码应用迈出了一大步。OpenMates 现在可以在沙箱中运行代码、显示输出、协助仓库搜索，并处理更多与代码相关的后续操作。
+    
+    对于普通用户来说，即使你不是专业开发者，这也非常有用：小脚本、数据清理、文档生成、网页预览、日志解释以及技术问题都变得更具互动性。
+    
+    ## 3. 音乐生成与图像服务商改进
+    
+    v0.11 扩展了生成式媒体工作流，加入了音乐生成功能并改进了图像生成服务商。这意味着 OpenMates 可以直接在对话中支持更多创意任务：快速创作音乐灵感、生成视觉概念、迭代提示词，或者将粗略的想法转化为可供查看和复用的媒体内容。
+    
+    此次更新还改进了生成媒体的展示方式，使结果更易于预览、打开和后续操作。
+    
+    ## 4. 更清晰的应用结果与服务商详情
+    
+    许多应用卡片和嵌入预览现在能显示更好的真实示例、服务商图标、来源信息和更清晰的元数据。这让你更容易理解发生了什么、结果来自哪里，以及使用了哪项应用技能。
+    
+    在日常使用中，这意味着更少的猜测：旅游结果、网页结果、生成的文件、媒体输出和代码结果都将更易于识别和操作。
+    
+    ## 5. 更佳的后续操作展示
+    
+    后续建议功能此前已存在，但现在的展示方式更加整洁且易于使用。它们旨在帮助你继续任务，而无需自己费心思考完美的下一条提示词。
+    
+    ## 6. 本地界面字体
+    
+    你现在可以选择本地界面字体偏好。虽然这是一个小设置，但如果你花大量时间在 OpenMates 中阅读和写作，它就显得尤为重要。
+    
+    ## 7. 稳定性与性能改进
+    
+    我们还对聊天同步、嵌入内容、文件预览和图像结果预览进行了稳定性和性能改进。
+    
+    # 接下来的计划
+    
+    下一步是继续让 OpenMates 变得更易理解、更易使用：提供更好的示例、更清晰的应用流程、更精细的创意与研究工具，并减少聊天体验中的瑕疵。
+    
+    感谢你使用 OpenMates，并在遇到困惑或问题时提供反馈。
+    
+    祝好，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    Hola,
+    
+    OpenMates v0.11 ya está disponible. Esta actualización se basa en las mejoras de la v0.10 y añade funciones prácticas para el día a día: Inspiraciones Diarias más completas, ejecución de código, investigación de repositorios, generación de música, mejoras en los proveedores de generación de imágenes, resultados de aplicaciones más claros y fuentes de interfaz locales.
+    
+    # Primero, un breve resumen de la v0.10
+    
+    La v0.10 añadió enlaces de Wikipedia en las respuestas, destacados y comentarios en los mensajes, mejores páginas de anuncios públicos y ejemplos, transferencias bancarias SEPA y cambios de correo electrónico de la cuenta.
+    
+    Esos cambios hicieron que OpenMates fuera más útil como espacio de trabajo diario: más fácil para aprender, más fácil de compartir y menos frágil en lo que respecta a los aspectos básicos de la cuenta y los pagos.
+    
+    # ✨ Novedades de la v0.11
+    
+    ## 1. Inspiraciones Diarias ampliadas
+    
+    Las Inspiraciones Diarias son ahora más completas y variadas. Pueden mostrar vídeos públicos, ideas de funciones útiles y puntos de partida concretos para cosas que quieras hacer en OpenMates.
+    
+    El objetivo es que OpenMates se sienta menos como una caja de chat vacía y más como un lugar que te ayuda a descubrir cosas útiles que hacer: investigar un tema, entender un vídeo, planificar una tarea, explorar una herramienta o continuar a partir de un ejemplo.
+    
+    ## 2. Mejoras en la ejecución e investigación de código
+    
+    La aplicación de Código ha dado un gran paso adelante. OpenMates ahora puede ejecutar código en un entorno seguro (sandbox), mostrar resultados, ayudar con búsquedas en repositorios y gestionar más acciones de seguimiento relacionadas con el código.
+    
+    Para los usuarios habituales, esto es útil aunque no seas un desarrollador profesional: pequeños scripts, limpieza de datos, generación de documentos, previsualizaciones de sitios web, explicaciones de registros (logs) y preguntas técnicas pueden volverse más interactivos.
+    
+    ## 3. Generación de música y mejoras en los proveedores de imágenes
+    
+    La v0.11 amplía los flujos de trabajo de medios generados con la generación de música y mejoras en los proveedores de generación de imágenes. Esto significa que OpenMates puede admitir más tareas creativas directamente en el chat: crear una idea musical rápida, generar conceptos visuales, iterar sobre prompts o convertir una idea aproximada en contenido multimedia que realmente puedas inspeccionar y reutilizar.
+    
+    El trabajo también mejora la forma en que se presentan los medios generados, para que los resultados sean más fáciles de previsualizar, abrir y continuar.
+    
+    ## 4. Resultados de aplicaciones y detalles de proveedores más claros
+    
+    Muchas tarjetas de aplicaciones y previsualizaciones incrustadas muestran ahora mejores ejemplos reales, logotipos de proveedores, información de origen y metadatos más claros. Esto facilita la comprensión de lo que ha ocurrido, de dónde procede un resultado y qué habilidad de la aplicación se ha utilizado.
+    
+    Para el uso diario, esto significa menos conjeturas: los resultados de viajes, los resultados web, los archivos generados, las salidas multimedia y los resultados de código deberían ser más fáciles de reconocer y de utilizar.
+    
+    ## 5. Mejor presentación de las sugerencias de seguimiento
+    
+    Las sugerencias de seguimiento ya existían, pero ahora su presentación es más limpia y fácil de usar. Están pensadas para ayudarte a continuar una tarea sin tener que pensar tú mismo en el siguiente prompt perfecto.
+    
+    ## 6. Fuentes de interfaz locales
+    
+    Ahora puedes elegir tus preferencias de fuentes de interfaz locales. Es un ajuste pequeño, pero importa si pasas mucho tiempo leyendo y escribiendo en OpenMates.
+    
+    ## 7. Mejoras de estabilidad y rendimiento
+    
+    También ha habido mejoras de estabilidad y rendimiento en la sincronización del chat, los elementos incrustados, las previsualizaciones de archivos y las previsualizaciones de resultados de imágenes.
+    
+    # Lo que viene a continuación
+    
+    El siguiente paso es seguir haciendo que OpenMates sea más fácil de entender y de usar: mejores ejemplos, flujos de aplicaciones más claros, herramientas creativas y de investigación más pulidas y menos asperezas en la experiencia del chat.
+    
+    Gracias por usar OpenMates y por darnos tu opinión cuando algo te parezca confuso o no funcione bien.
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    Salut,
+    
+    OpenMates v0.11 est maintenant disponible. Cette mise à jour s'appuie sur les améliorations de la v0.10 et ajoute des fonctionnalités pratiques au quotidien : des Inspirations Quotidiennes plus riches, l'exécution de code, la recherche de dépôts, la génération de musique, des améliorations des fournisseurs de génération d'images, des résultats d'applications plus clairs et des polices d'interface locales.
+    
+    # D'abord, un bref récapitulatif de la v0.10
+    
+    La v0.10 a ajouté des liens Wikipédia dans les réponses, la mise en évidence de messages et les commentaires, de meilleures pages d'annonces publiques/d'exemples, les virements bancaires SEPA et le changement d'e-mail du compte.
+    
+    Ces changements ont rendu OpenMates plus utile comme espace de travail quotidien : plus facile pour apprendre, plus facile à partager et moins fragile concernant les bases du compte et du paiement.
+    
+    # ✨ Les nouveautés de la v0.11
+    
+    ## 1. Inspirations Quotidiennes enrichies
+    
+    Les Inspirations Quotidiennes sont devenues plus riches et plus variées. Elles peuvent mettre en avant des vidéos publiques, des idées de fonctionnalités utiles et des points de départ concrets pour ce que tu souhaites faire dans OpenMates.
+    
+    L'objectif est qu'OpenMates ressemble moins à une boîte de chatbot vide et plus à un lieu qui t'aide à découvrir des choses utiles à faire : rechercher un sujet, comprendre une vidéo, planifier une tâche, explorer un outil ou continuer à partir d'un exemple.
+    
+    ## 2. Améliorations de l'exécution et de la recherche de code
+    
+    L'application Code a fait un grand pas en avant. OpenMates peut désormais exécuter du code dans un bac à sable (sandbox), afficher les résultats, aider à la recherche de dépôts et gérer davantage d'actions de suivi liées au code.
+    
+    Pour les utilisateurs quotidiens, c'est utile même si tu n'es pas un développeur professionnel : les petits scripts, le nettoyage de données, la génération de documents, les aperçus de sites web, les explications de logs et les questions techniques deviennent plus interactifs.
+    
+    ## 3. Génération de musique et améliorations des fournisseurs d'images
+    
+    La v0.11 étend les flux de travail de médias générés avec la génération de musique et des améliorations concernant les fournisseurs de génération d'images. Cela signifie qu'OpenMates peut prendre en charge plus de tâches créatives directement dans le chat : créer une idée musicale rapide, générer des concepts visuels, itérer sur des prompts ou transformer une idée brute en un média que tu peux réellement inspecter et réutiliser.
+    
+    Ce travail améliore également la présentation des médias générés, afin que les résultats soient plus faciles à prévisualiser, à ouvrir et à utiliser comme base de continuation.
+    
+    ## 4. Résultats d'applications et détails des fournisseurs plus clairs
+    
+    De nombreuses cartes d'applications et aperçus intégrés affichent désormais de meilleurs exemples réels, les logos des fournisseurs, les informations sur les sources et des métadonnées plus claires. Il est ainsi plus facile de comprendre ce qui s'est passé, d'où vient un résultat et quelle compétence d'application a été utilisée.
+    
+    Pour une utilisation quotidienne, cela signifie moins de devinettes : les résultats de voyage, les résultats web, les fichiers générés, les sorties multimédias et les résultats de code devraient être plus faciles à reconnaître et à exploiter.
+    
+    ## 5. Meilleure présentation du suivi
+    
+    Les suggestions de suivi existaient déjà, mais leur présentation est désormais plus propre et plus facile à utiliser. Elles sont destinées à t'aider à poursuivre une tâche sans avoir à réfléchir toi-même au prochain prompt parfait.
+    
+    ## 6. Polices d'interface locales
+    
+    Tu peux désormais choisir tes préférences de polices d'interface locales. C'est un petit réglage, mais il compte si tu passes beaucoup de temps à lire et à écrire dans OpenMates.
+    
+    ## 7. Améliorations de la stabilité et des performances
+    
+    Il y a également eu des améliorations de stabilité et de performance dans la synchronisation du chat, les intégrations, les aperçus de fichiers et les aperçus de résultats d'images.
+    
+    # La suite
+    
+    La prochaine étape consiste à continuer de rendre OpenMates plus facile à comprendre et à utiliser : de meilleurs exemples, des flux d'applications plus clairs, des outils de création et de recherche plus aboutis, et moins d'aspérités dans l'expérience de chat.
+    
+    Merci d'utiliser OpenMates et de nous faire part de tes commentaires lorsque quelque chose semble confus ou cassé.
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Olá,
+    
+    O OpenMates v0.11 já está disponível. Esta atualização baseia-se nas melhorias da v0.10 e adiciona funcionalidades práticas para o dia a dia: Inspirações Diárias mais ricas, execução de código, pesquisa de repositórios, geração de música, melhorias nos fornecedores de geração de imagem, resultados de apps mais claros e fontes de interface locais.
+    
+    # Primeiro, um breve resumo da v0.10
+    
+    A v0.10 adicionou links da Wikipédia nas respostas, destaques e comentários em mensagens, melhores páginas de anúncios públicos/exemplos, transferências bancárias SEPA e alterações de e-mail de conta.
+    
+    Estas alterações tornaram o OpenMates mais útil como um espaço de trabalho diário: mais fácil para aprender, mais fácil de partilhar e menos frágil no que toca ao básico de conta e pagamentos.
+    
+    # ✨ O que há de novo na v0.11
+    
+    ## 1. Inspirações Diárias expandidas
+    
+    As Inspirações Diárias tornaram-se mais ricas e variadas. Podem apresentar vídeos públicos, ideias de funcionalidades úteis e pontos de partida concretos para coisas que possas querer fazer no OpenMates.
+    
+    O objetivo é fazer com que o OpenMates pareça menos uma caixa de chatbot vazia e mais um lugar que te ajuda a descobrir coisas úteis para fazer: pesquisar um tópico, compreender um vídeo, planear uma tarefa, explorar uma ferramenta ou continuar a partir de um exemplo.
+    
+    ## 2. Melhorias na execução e pesquisa de código
+    
+    A app de Código deu um grande passo em frente. O OpenMates agora pode executar código numa sandbox, mostrar resultados, ajudar com pesquisas em repositórios e lidar com mais ações de seguimento relacionadas com código.
+    
+    Para utilizadores comuns, isto é útil mesmo que não sejas um programador profissional: pequenos scripts, limpeza de dados, geração de documentos, pré-visualizações de websites, explicações de logs e questões técnicas podem tornar-se mais interativos.
+    
+    ## 3. Geração de música e melhorias nos fornecedores de imagem
+    
+    A v0.11 expande os fluxos de trabalho de media gerada com geração de música e melhorias nos fornecedores de geração de imagem. Isso significa que o OpenMates pode suportar mais tarefas criativas diretamente no chat: criar uma ideia musical rápida, gerar conceitos visuais, iterar em prompts ou transformar uma ideia bruta em media que podes realmente inspecionar e reutilizar.
+    
+    O trabalho também melhora a forma como a media gerada é apresentada, para que os resultados sejam mais fáceis de pré-visualizar, abrir e continuar.
+    
+    ## 4. Resultados de apps e detalhes de fornecedores mais claros
+    
+    Muitos cartões de apps e pré-visualizações incorporadas mostram agora melhores exemplos reais, logótipos de fornecedores, informações de origem e metadados mais claros. Isto torna mais fácil compreender o que aconteceu, de onde veio um resultado e qual a competência da app que foi utilizada.
+    
+    Para o uso diário, isso significa menos adivinhação: resultados de viagens, resultados web, ficheiros gerados, outputs de media e resultados de código devem ser mais fáceis de reconhecer e utilizar.
+    
+    ## 5. Melhor apresentação de seguimento
+    
+    As sugestões de seguimento já existiam, mas a sua apresentação é agora mais limpa e fácil de usar. Destinam-se a ajudar-te a continuar uma tarefa sem teres de pensar tu próprio no próximo prompt perfeito.
+    
+    ## 6. Fontes de interface locais
+    
+    Agora podes escolher preferências de fontes de interface locais. É uma definição pequena, mas importa se passas muito tempo a ler e a escrever no OpenMates.
+    
+    ## 7. Melhorias de estabilidade e desempenho
+    
+    Houve também melhorias de estabilidade e desempenho na sincronização do chat, incorporações, pré-visualizações de ficheiros e pré-visualizações de resultados de imagem.
+    
+    # O que vem a seguir
+    
+    O próximo passo é continuar a tornar o OpenMates mais fácil de compreender e de usar: melhores exemplos, fluxos de apps mais claros, ferramentas criativas e de pesquisa mais polidas e menos arestas por limar na experiência de chat.
+    
+    Obrigado por usares o OpenMates e por dares feedback quando algo parece confuso ou não funciona.
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Привет!
+    
+    Вышла версия OpenMates v0.11. Это обновление развивает улучшения версии v0.10 и добавляет практичные функции для повседневного использования: более насыщенные «Ежедневные идеи», выполнение кода, поиск по репозиториям, генерацию музыки, улучшения провайдеров генерации изображений, более понятные результаты приложений и локальные шрифты интерфейса.
+    
+    # Сначала краткий обзор v0.10
+    
+    В v0.10 появились ссылки на Википедию в ответах, выделение сообщений и комментарии, улучшенные страницы публичных объявлений и примеров, банковские переводы SEPA и возможность смены email аккаунта.
+    
+    Эти изменения сделали OpenMates более полезным рабочим пространством: стало проще учиться, делиться результатами и надежнее управлять аккаунтом и платежами.
+    
+    # ✨ Что нового в v0.11
+    
+    ## 1. Расширенные «Ежедневные идеи»
+    
+    «Ежедневные идеи» стали насыщеннее и разнообразнее. Теперь они могут предлагать публичные видео, полезные идеи функций и конкретные отправные точки для того, что ты захочешь сделать в OpenMates.
+    
+    Цель — сделать так, чтобы OpenMates меньше напоминал пустое окно чат-бота и больше походил на место, которое помогает находить полезные занятия: изучить тему, понять содержание видео, спланировать задачу, изучить инструмент или продолжить работу на основе примера.
+    
+    ## 2. Выполнение кода и улучшения поиска по коду
+    
+    Приложение «Код» сделало большой шаг вперед. Теперь OpenMates может запускать код в песочнице, показывать результаты выполнения, помогать с поиском по репозиториям и выполнять больше последующих действий, связанных с кодом.
+    
+    Для обычных пользователей это полезно, даже если ты не профессиональный разработчик: небольшие скрипты, очистка данных, генерация документов, предпросмотр сайтов, объяснение логов и технические вопросы станут более интерактивными.
+    
+    ## 3. Генерация музыки и улучшения провайдеров изображений
+    
+    Версия v0.11 расширяет рабочие процессы с медиафайлами, добавляя генерацию музыки и улучшения в работе провайдеров генерации изображений. Это значит, что OpenMates может поддерживать больше творческих задач прямо в чате: создание музыкальных набросков, генерация визуальных концепций, работа над промптами или превращение черновой идеи в медиафайл, который можно просмотреть и использовать.
+    
+    Также улучшено представление сгенерированного контента: результаты теперь проще просматривать, открывать и использовать для дальнейшей работы.
+    
+    ## 4. Более понятные результаты приложений и детали провайдеров
+    
+    Многие карточки приложений и превью теперь содержат более наглядные примеры, логотипы провайдеров, информацию об источниках и более понятные метаданные. Это помогает лучше понять, что произошло, откуда взялся результат и какой навык приложения был использован.
+    
+    В повседневном использовании это означает меньше догадок: результаты поиска путешествий, веб-результаты, сгенерированные файлы, медиа и результаты выполнения кода станет легче распознавать и использовать.
+    
+    ## 5. Улучшенное отображение уточняющих вопросов
+    
+    Предложения по продолжению диалога уже были, но теперь они выглядят чище и удобнее. Они призваны помочь тебе продолжить задачу, не задумываясь над идеальным следующим промптом самостоятельно.
+    
+    ## 6. Локальные шрифты интерфейса
+    
+    Теперь можно выбрать предпочтительные локальные шрифты интерфейса. Это небольшая настройка, но она важна, если ты проводишь много времени за чтением и написанием текстов в OpenMates.
+    
+    ## 7. Улучшения стабильности и производительности
+    
+    Также были внесены улучшения в стабильность и производительность синхронизации чатов, встраиваемых объектов, предпросмотра файлов и изображений.
+    
+    # Что дальше
+    
+    Следующий шаг — продолжать делать OpenMates проще и понятнее: больше качественных примеров, наглядные процессы в приложениях, отточенные инструменты для творчества и исследований, а также устранение шероховатостей в работе чата.
+    
+    Спасибо, что пользуешься OpenMates и оставляешь отзывы, если что-то кажется непонятным или работает не так.
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    こんにちは、
+    
+    OpenMates v0.11 がリリースされました。今回のアップデートは v0.10 の改善を基盤とし、より充実した「今日のインスピレーション」、コード実行、リポジトリ調査、音楽生成、画像生成プロバイダーの改善、より明確なアプリ結果、ローカルインターフェースフォントなど、日常で役立つ実用的な機能を追加しています。
+    
+    # まずは v0.10 の簡単な振り返り
+    
+    v0.10 では、回答内への Wikipedia リンクの追加、メッセージのハイライトとコメント機能、公開アナウンス・サンプルページの改善、SEPA 銀行振込、アカウントメールアドレスの変更機能が追加されました。
+    
+    これらの変更により、OpenMates は日常のワークスペースとしてより使いやすくなりました。学習や共有が容易になり、アカウントや支払いに関する基本機能もより安定しました。
+    
+    # ✨ v0.11 の新機能
+    
+    ## 1. 「今日のインスピレーション」の拡充
+    
+    「今日のインスピレーション」がより豊かで多彩になりました。公開動画や便利な機能のアイデア、OpenMates でやりたいことの具体的な出発点などが表示されるようになります。
+    
+    その目的は、OpenMates を単なる空のチャットボットの入力欄ではなく、トピックの調査、動画の理解、タスクの計画、ツールの探索、あるいはサンプルからの継続など、役立つことを見つける手助けをする場所にすることです。
+    
+    ## 2. コード実行とコード調査の改善
+    
+    コードアプリが大きく進化しました。OpenMates でサンドボックス内でのコード実行、出力の表示、リポジトリ検索のサポート、そしてコード関連のより多くのフォローアップアクションが可能になりました。
+    
+    これはプロの開発者でなくても、日常的な用途で役立ちます。小さなスクリプト、データのクリーンアップ、ドキュメント生成、ウェブサイトのプレビュー、ログの解説、技術的な質問などが、よりインタラクティブになります。
+    
+    ## 3. 音楽生成と画像プロバイダーの改善
+    
+    v0.11 では、音楽生成の追加や画像生成プロバイダーの改善により、生成メディアのワークフローが拡張されました。これにより、短い音楽のアイデア作成、ビジュアルコンセプトの生成、プロンプトの推敲、あるいはラフなアイデアを実際に確認・再利用可能なメディアに変換するなど、よりクリエイティブなタスクをチャット内で直接サポートできるようになります。
+    
+    また、生成されたメディアの表示方法も改善され、結果のプレビュー、表示、およびその後の作業への移行がよりスムーズになりました。
+    
+    ## 4. アプリ結果とプロバイダー詳細の明確化
+    
+    多くのアプリカードや埋め込みプレビューで、より適切な実例、プロバイダーのロゴ、ソース情報、および明確なメタデータが表示されるようになりました。これにより、何が起きたのか、結果がどこから来たのか、どのアプリスキルが使用されたのかを理解しやすくなります。
+    
+    日常的な利用において、推測する必要が減ることを意味します。旅行の検索結果、ウェブ検索結果、生成されたファイル、メディア出力、コードの実行結果などが、より識別しやすく、アクションを起こしやすくなります。
+    
+    ## 5. フォローアップ表示の改善
+    
+    フォローアップの提案機能は以前からありましたが、表示がよりすっきりと使いやすくなりました。自分で完璧な次のプロンプトを考えなくても、タスクを継続できるように設計されています。
+    
+    ## 6. ローカルインターフェースフォント
+    
+    インターフェースのフォント設定をローカルの好みに合わせて選択できるようになりました。小さな設定ですが、OpenMates で読み書きに多くの時間を費やす場合には重要なポイントです。
+    
+    ## 7. 安定性とパフォーマンスの向上
+    
+    チャットの同期、埋め込み、ファイルのプレビュー、画像結果のプレビューにおいて、安定性とパフォーマンスの向上も行われました。
+    
+    # 今後の予定
+    
+    次のステップは、OpenMates をさらに分かりやすく、使いやすくし続けることです。より良いサンプルの提供、アプリフローの明確化、クリエイティブツールや調査ツールの洗練、そしてチャット体験における細かな不備の解消に取り組んでいきます。
+    
+    OpenMates をご利用いただき、また、分かりにくい点や不具合がある際にフィードバックをいただき、ありがとうございます。
+    
+    よろしくお願いいたします。
+    
+    Marco  
+    OpenMates 開発者
+  ko: |
+    안녕하세요,
+    
+    OpenMates v0.11이 출시되었습니다. 이번 업데이트는 v0.10의 개선 사항을 바탕으로 일상적인 실용 기능을 추가했습니다: 더 풍성해진 일일 영감(Daily Inspirations), 코드 실행, 저장소 조사, 음악 생성, 이미지 생성 제공자 개선, 더 명확해진 앱 결과, 그리고 로컬 인터페이스 글꼴 등이 포함됩니다.
+    
+    # 먼저, v0.10 요약
+    
+    v0.10에서는 답변 내 위키백과 링크, 메시지 하이라이트 및 댓글, 개선된 공개 공지/예시 페이지, SEPA 은행 송금, 계정 이메일 변경 기능이 추가되었습니다.
+    
+    이러한 변화를 통해 OpenMates는 일상적인 작업 공간으로서 더 유용해졌습니다. 학습과 공유가 쉬워졌고, 계정 및 결제 관련 기본 기능도 더 안정화되었습니다.
+    
+    # ✨ v0.11의 새로운 기능
+    
+    ## 1. 확장된 일일 영감(Daily Inspirations)
+    
+    일일 영감이 더욱 풍성하고 다양해졌습니다. 이제 공개 동영상, 유용한 기능 아이디어, OpenMates에서 시도해 볼 수 있는 구체적인 시작점들을 제안합니다.
+    
+    목표는 OpenMates가 단순한 빈 챗봇 창이 아니라, 주제 조사, 동영상 이해, 작업 계획, 도구 탐색, 예시 활용 등 유용한 활동을 발견하도록 돕는 공간으로 느껴지게 하는 것입니다.
+    
+    ## 2. 코드 실행 및 코드 조사 개선
+    
+    코드 앱이 크게 발전했습니다. 이제 OpenMates는 샌드박스에서 코드를 실행하고, 결과를 보여주며, 저장소 검색을 돕고, 더 많은 코드 관련 후속 작업을 처리할 수 있습니다.
+    
+    개발자가 아닌 일반 사용자에게도 유용합니다. 간단한 스크립트, 데이터 정리, 문서 생성, 웹사이트 미리보기, 로그 설명, 기술적 질문 등을 더 대화형으로 진행할 수 있습니다.
+    
+    ## 3. 음악 생성 및 이미지 제공자 개선
+    
+    v0.11에서는 음악 생성 기능과 이미지 생성 제공자 개선을 통해 미디어 생성 워크플로우를 확장했습니다. 이제 채팅에서 직접 음악 아이디어를 만들고, 시각적 컨셉을 생성하며, 프롬프트를 반복 수정하거나, 대략적인 아이디어를 실제 확인하고 재사용할 수 있는 미디어로 바꿀 수 있습니다.
+    
+    또한 생성된 미디어의 표시 방식도 개선되어 결과를 더 쉽게 미리보고, 열고, 이어서 작업할 수 있습니다.
+    
+    ## 4. 더 명확해진 앱 결과 및 제공자 상세 정보
+    
+    많은 앱 카드와 임베드 미리보기에 실제 예시, 제공자 로고, 출처 정보 및 더 명확한 메타데이터가 표시됩니다. 이를 통해 어떤 일이 일어났는지, 결과가 어디서 왔는지, 어떤 앱 기능이 사용되었는지 더 쉽게 이해할 수 있습니다.
+    
+    일상적인 사용 시 추측할 필요가 줄어듭니다. 여행 결과, 웹 결과, 생성된 파일, 미디어 출력, 코드 결과 등을 더 쉽게 식별하고 활용할 수 있습니다.
+    
+    ## 5. 개선된 후속 제안 표시
+    
+    후속 제안 기능은 이미 있었지만, 이제 더 깔끔하고 사용하기 편하게 표시됩니다. 완벽한 다음 프롬프트를 직접 고민하지 않고도 작업을 계속 이어갈 수 있도록 돕습니다.
+    
+    ## 6. 로컬 인터페이스 글꼴
+    
+    이제 로컬 인터페이스 글꼴 설정을 선택할 수 있습니다. 작은 설정이지만, OpenMates에서 읽고 쓰는 시간이 많다면 중요한 변화입니다.
+    
+    ## 7. 안정성 및 성능 개선
+    
+    채팅 동기화, 임베드, 파일 미리보기, 이미지 결과 미리보기의 안정성과 성능도 개선되었습니다.
+    
+    # 향후 계획
+    
+    다음 단계는 OpenMates를 계속해서 더 이해하기 쉽고 사용하기 편하게 만드는 것입니다. 더 나은 예시, 명확한 앱 흐름, 더 세련된 창작 및 조사 도구, 그리고 채팅 경험의 사소한 불편함들을 다듬어 나갈 예정입니다.
+    
+    OpenMates를 사용해 주시고, 혼란스럽거나 버그가 있을 때 의견을 주셔서 감사합니다.
+    
+    그럼 이만,
+    
+    Marco  
+    OpenMates 제작자 드림
+  it: |
+    Ciao,
+    
+    OpenMates v0.11 è ora disponibile. Questo aggiornamento si basa sui miglioramenti della v0.10 e aggiunge funzioni pratiche per l'uso quotidiano: Ispirazioni Quotidiane più ricche, esecuzione di codice, ricerca nei repository, generazione di musica, miglioramenti ai provider di generazione immagini, risultati delle app più chiari e font di interfaccia locali.
+    
+    # Innanzitutto, un breve riepilogo della v0.10
+    
+    La v0.10 ha aggiunto link a Wikipedia all'interno delle risposte, evidenziazioni e commenti ai messaggi, migliori pagine di annunci pubblici/esempi, bonifici bancari SEPA e modifiche all'email dell'account.
+    
+    Questi cambiamenti hanno reso OpenMates più utile come spazio di lavoro quotidiano: più facile da cui imparare, più semplice da condividere e più solido per quanto riguarda le basi dell'account e dei pagamenti.
+    
+    # ✨ Cosa c'è di nuovo nella v0.11
+    
+    ## 1. Ispirazioni Quotidiane ampliate
+    
+    Le Ispirazioni Quotidiane sono diventate più ricche e variegate. Possono mostrare video pubblici, idee utili per le funzionalità e punti di partenza concreti per le attività che potresti voler svolgere in OpenMates.
+    
+    L'obiettivo è far sì che OpenMates sembri meno una casella vuota per chatbot e più un luogo che ti aiuta a scoprire cose utili da fare: ricercare un argomento, capire un video, pianificare un'attività, esplorare uno strumento o continuare partendo da un esempio.
+    
+    ## 2. Miglioramenti all'esecuzione e alla ricerca di codice
+    
+    L'app Code ha fatto un grande passo avanti. OpenMates ora può eseguire codice in una sandbox, mostrare gli output, aiutare con le ricerche nei repository e gestire più azioni di follow-up relative al codice.
+    
+    Per gli utenti comuni questo è utile anche se non sei uno sviluppatore professionista: piccoli script, pulizia dei dati, generazione di documenti, anteprime di siti web, spiegazioni di log e domande tecniche possono diventare più interattivi.
+    
+    ## 3. Generazione di musica e miglioramenti ai provider di immagini
+    
+    La v0.11 amplia i flussi di lavoro dei media generati con la generazione di musica e miglioramenti relativi ai provider di generazione immagini. Ciò significa che OpenMates può supportare più attività creative direttamente in chat: creare una rapida idea musicale, generare concetti visivi, iterare sui prompt o trasformare un'idea abbozzata in un contenuto multimediale che puoi effettivamente ispezionare e riutilizzare.
+    
+    Il lavoro migliora anche il modo in cui vengono presentati i media generati, così i risultati sono più facili da visualizzare in anteprima, aprire e da cui proseguire.
+    
+    ## 4. Risultati delle app e dettagli dei provider più chiari
+    
+    Molte schede delle app e anteprime integrate ora mostrano migliori esempi reali, loghi dei provider, informazioni sulle fonti e metadati più chiari. Questo rende più facile capire cosa è successo, da dove proviene un risultato e quale competenza dell'app è stata utilizzata.
+    
+    Per l'uso quotidiano, questo significa meno incertezze: i risultati di viaggio, i risultati web, i file generati, gli output multimediali e i risultati del codice dovrebbero essere più facili da riconoscere e su cui agire.
+    
+    ## 5. Migliore presentazione dei follow-up
+    
+    I suggerimenti di follow-up esistevano già, ma la loro presentazione è ora più pulita e facile da usare. Servono ad aiutarti a continuare un'attività senza dover pensare tu stesso al prossimo prompt perfetto.
+    
+    ## 6. Font di interfaccia locali
+    
+    Ora puoi scegliere le preferenze per i font dell'interfaccia locale. È una piccola impostazione, ma conta se passi molto tempo a leggere e scrivere in OpenMates.
+    
+    ## 7. Miglioramenti della stabilità e delle prestazioni
+    
+    Ci sono stati anche miglioramenti della stabilità e delle prestazioni nella sincronizzazione della chat, negli embed, nelle anteprime dei file e nelle anteprime dei risultati delle immagini.
+    
+    # Cosa succederà ora
+    
+    Il prossimo passo è continuare a rendere OpenMates più facile da capire e da usare: esempi migliori, flussi delle app più chiari, strumenti creativi e di ricerca più rifiniti e meno imperfezioni nell'esperienza di chat.
+    
+    Grazie per usare OpenMates e per fornire feedback quando qualcosa sembra confuso o non funziona.
+    
+    Un saluto,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    Selam,
+    
+    OpenMates v0.11 artık yayında. Bu güncelleme, v0.10 iyileştirmelerinin üzerine inşa ediliyor ve günlük hayata yönelik pratik özellikler ekliyor: daha zengin Günlük İlhamlar, kod yürütme, depo araştırması, müzik oluşturma, görsel oluşturma sağlayıcısı iyileştirmeleri, daha net uygulama sonuçları ve yerel arayüz yazı tipleri.
+    
+    # İlk olarak, kısa bir v0.10 özeti
+    
+    v0.10; yanıtlara Wikipedia bağlantıları, mesaj vurguları ve yorumlar, daha iyi herkese açık duyuru/örnek sayfaları, SEPA banka transferleri ve hesap e-postası değişiklikleri ekledi.
+    
+    Bu değişiklikler OpenMates'i günlük bir çalışma alanı olarak daha kullanışlı hale getirdi: öğrenmesi daha kolay, paylaşması daha kolay ve hesap ile ödeme temelleri konusunda daha sağlam.
+    
+    # ✨ v0.11'de neler yeni
+    
+    ## 1. Genişletilmiş Günlük İlhamlar
+    
+    Günlük İlhamlar daha zengin ve çeşitli hale geldi. Herkese açık videoları, faydalı özellik fikirlerini ve OpenMates'te yapmak isteyebileceğin şeyler için somut başlangıç noktalarını öne çıkarabiliyorlar.
+    
+    Hedefimiz, OpenMates'in boş bir sohbet botu kutusu gibi değil, faydalı şeyler keşfetmene yardımcı olan bir yer gibi hissettirmesi: bir konuyu araştırmak, bir videoyu anlamak, bir görevi planlamak, bir aracı keşfetmek veya bir örnekten devam etmek.
+    
+    ## 2. Kod yürütme ve kod araştırması iyileştirmeleri
+    
+    Kod uygulaması büyük bir adım attı. OpenMates artık bir sandbox (kum havuzu) içinde kod çalıştırabiliyor, çıktıları gösterebiliyor, depo aramalarına yardımcı olabiliyor ve kodla ilgili daha fazla takip işlemini gerçekleştirebiliyor.
+    
+    Günlük kullanıcılar için bu, profesyonel bir yazılımcı olmasan bile faydalıdır: küçük betikler, veri temizleme, belge oluşturma, web sitesi önizlemeleri, log açıklamaları ve teknik sorular daha etkileşimli hale gelebilir.
+    
+    ## 3. Müzik oluşturma ve görsel sağlayıcı iyileştirmeleri
+    
+    v0.11, müzik oluşturma ve görsel oluşturma sağlayıcılarındaki iyileştirmelerle oluşturulan medya iş akışlarını genişletiyor. Bu, OpenMates'in doğrudan sohbet içinde daha fazla yaratıcı görevi destekleyebileceği anlamına geliyor: hızlı bir müzik fikri oluşturmak, görsel konseptler üretmek, istemler (prompt) üzerinde denemeler yapmak veya kaba bir fikri gerçekten inceleyebileceğin ve yeniden kullanabileceğin bir medyaya dönüştürmek.
+    
+    Bu çalışma aynı zamanda oluşturulan medyanın sunumunu da iyileştiriyor, böylece sonuçları önizlemek, açmak ve onlardan devam etmek daha kolay hale geliyor.
+    
+    ## 4. Daha net uygulama sonuçları ve sağlayıcı ayrıntıları
+    
+    Birçok uygulama kartı ve yerleştirme önizlemesi artık daha iyi gerçek örnekler, sağlayıcı logoları, kaynak bilgileri ve daha net meta veriler gösteriyor. Bu; ne olduğunu, bir sonucun nereden geldiğini ve hangi uygulama yeteneğinin kullanıldığını anlamayı kolaylaştırıyor.
+    
+    Günlük kullanım için bu, daha az tahmin yürütmek anlamına geliyor: seyahat sonuçları, web sonuçları, oluşturulan dosyalar, medya çıktıları ve kod sonuçlarının tanınması ve üzerinde işlem yapılması daha kolay olmalı.
+    
+    ## 5. Daha iyi takip sorusu sunumu
+    
+    Takip önerileri zaten vardı ancak sunumları artık daha temiz ve kullanımı daha kolay. Bunlar, bir sonraki mükemmel istemi kendin düşünmek zorunda kalmadan bir göreve devam etmene yardımcı olmayı amaçlıyor.
+    
+    ## 6. Yerel arayüz yazı tipleri
+    
+    Artık yerel arayüz yazı tipi tercihlerini seçebilirsin. Küçük bir ayar olsa da OpenMates'te okuma ve yazma için çok zaman harcıyorsan önem taşıyor.
+    
+    ## 7. Kararlılık ve performans iyileştirmeleri
+    
+    Sohbet senkronizasyonu, yerleştirmeler, dosya önizlemeleri ve görsel sonucu önizlemelerinde de kararlılık ve performans iyileştirmeleri yapıldı.
+    
+    # Sırada ne var
+    
+    Bir sonraki adım, OpenMates'i anlaşılması ve kullanılması daha kolay hale getirmeye devam etmek: daha iyi örnekler, daha net uygulama akışları, daha gelişmiş yaratıcı ve araştırma araçları ve sohbet deneyimindeki pürüzlerin giderilmesi.
+    
+    OpenMates'i kullandığın ve bir şeyler kafa karıştırıcı veya bozuk geldiğinde geri bildirim verdiğin için teşekkürler.
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Chào bạn,
+    
+    OpenMates v0.11 đã chính thức ra mắt. Bản cập nhật này kế thừa những cải tiến từ v0.10 và bổ sung các tính năng thực tế hàng ngày: Cảm hứng hàng ngày (Daily Inspirations) phong phú hơn, thực thi mã, nghiên cứu kho lưu trữ, tạo nhạc, cải thiện nhà cung cấp tạo hình ảnh, kết quả ứng dụng rõ ràng hơn và phông chữ giao diện cục bộ.
+    
+    # Trước tiên, hãy cùng điểm lại nhanh v0.10
+    
+    v0.10 đã thêm các liên kết Wikipedia trong câu trả lời, làm nổi bật tin nhắn và bình luận, các trang thông báo/ví dụ công khai tốt hơn, chuyển khoản ngân hàng SEPA và thay đổi email tài khoản.
+    
+    Những thay đổi đó giúp OpenMates trở nên hữu ích hơn như một không gian làm việc hàng ngày: dễ học hỏi hơn, dễ chia sẻ hơn và ổn định hơn trong các vấn đề cơ bản về tài khoản và thanh toán.
+    
+    # ✨ Có gì mới trong v0.11
+    
+    ## 1. Mở rộng Cảm hứng hàng ngày (Daily Inspirations)
+    
+    Daily Inspirations giờ đây phong phú và đa dạng hơn. Chúng có thể hiển thị các video công khai, các ý tưởng tính năng hữu ích và các điểm khởi đầu cụ thể cho những việc bạn muốn thực hiện trong OpenMates.
+    
+    Mục tiêu là làm cho OpenMates bớt giống một khung chatbot trống rỗng và giống một nơi giúp bạn khám phá những điều hữu ích: nghiên cứu một chủ đề, hiểu một video, lập kế hoạch cho một nhiệm vụ, khám phá một công cụ hoặc tiếp tục từ một ví dụ.
+    
+    ## 2. Cải tiến thực thi mã và nghiên cứu mã
+    
+    Ứng dụng Code đã có một bước tiến lớn. OpenMates hiện có thể chạy mã trong môi trường sandbox, hiển thị kết quả, hỗ trợ tìm kiếm kho lưu trữ và xử lý nhiều hành động tiếp theo liên quan đến mã.
+    
+    Đối với người dùng thông thường, điều này vẫn hữu ích ngay cả khi bạn không phải là lập trình viên chuyên nghiệp: các đoạn mã nhỏ, dọn dẹp dữ liệu, tạo tài liệu, xem trước trang web, giải thích nhật ký (log) và các câu hỏi kỹ thuật có thể trở nên tương tác hơn.
+    
+    ## 3. Tạo nhạc và cải thiện nhà cung cấp hình ảnh
+    
+    v0.11 mở rộng quy trình làm việc với phương tiện được tạo (generated-media) bằng tính năng tạo nhạc và các cải tiến xoay quanh nhà cung cấp tạo hình ảnh. Điều đó có nghĩa là OpenMates có thể hỗ trợ nhiều tác vụ sáng tạo hơn trực tiếp trong cuộc trò chuyện: tạo một ý tưởng âm nhạc nhanh chóng, tạo các khái niệm hình ảnh, tinh chỉnh các câu lệnh (prompt) hoặc biến một ý tưởng thô thành phương tiện mà bạn thực sự có thể kiểm tra và tái sử dụng.
+    
+    Bản cập nhật này cũng cải thiện cách hiển thị phương tiện được tạo, giúp kết quả dễ dàng xem trước, mở và tiếp tục thực hiện hơn.
+    
+    ## 4. Kết quả ứng dụng và chi tiết nhà cung cấp rõ ràng hơn
+    
+    Nhiều thẻ ứng dụng và bản xem trước nhúng hiện hiển thị các ví dụ thực tế tốt hơn, logo nhà cung cấp, thông tin nguồn và siêu dữ liệu (metadata) rõ ràng hơn. Điều này giúp bạn dễ dàng hiểu chuyện gì đã xảy ra, kết quả đến từ đâu và kỹ năng ứng dụng nào đã được sử dụng.
+    
+    Đối với việc sử dụng hàng ngày, điều đó có nghĩa là ít phải đoán mò hơn: các kết quả du lịch, kết quả web, tệp được tạo, đầu ra phương tiện và kết quả mã sẽ dễ nhận biết và xử lý hơn.
+    
+    ## 5. Hiển thị các bước tiếp theo tốt hơn
+    
+    Các gợi ý tiếp theo (follow-up) đã có sẵn, nhưng cách hiển thị của chúng giờ đây gọn gàng và dễ sử dụng hơn. Chúng nhằm giúp bạn tiếp tục một nhiệm vụ mà không cần phải tự mình nghĩ ra câu lệnh tiếp theo hoàn hảo.
+    
+    ## 6. Phông chữ giao diện cục bộ
+    
+    Giờ đây bạn có thể chọn tùy chọn phông chữ giao diện cục bộ. Đây là một cài đặt nhỏ, nhưng nó quan trọng nếu bạn dành nhiều thời gian để đọc và viết trong OpenMates.
+    
+    ## 7. Cải thiện độ ổn định và hiệu suất
+    
+    Ngoài ra còn có các cải thiện về độ ổn định và hiệu suất trong việc đồng bộ hóa trò chuyện, nhúng, xem trước tệp và xem trước kết quả hình ảnh.
+    
+    # Điều gì tiếp theo
+    
+    Bước tiếp theo là tiếp tục làm cho OpenMates dễ hiểu và dễ sử dụng hơn: các ví dụ tốt hơn, luồng ứng dụng rõ ràng hơn, các công cụ sáng tạo và nghiên cứu trau chuốt hơn, và ít lỗi nhỏ hơn trong trải nghiệm trò chuyện.
+    
+    Cảm ơn bạn đã sử dụng OpenMates và đã phản hồi khi có điều gì đó gây khó hiểu hoặc bị lỗi.
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng lập OpenMates
+  id: |
+    Halo,
+    
+    OpenMates v0.11 kini telah hadir. Pembaruan ini melanjutkan peningkatan dari v0.10 dan menambahkan fitur praktis sehari-hari: Inspirasi Harian yang lebih kaya, eksekusi kode, riset repositori, pembuatan musik, peningkatan penyedia pembuatan gambar, hasil aplikasi yang lebih jelas, dan font antarmuka lokal.
+    
+    # Pertama, rekap singkat v0.10
+    
+    v0.10 menambahkan tautan Wikipedia di dalam jawaban, sorotan dan komentar pesan, halaman pengumuman/contoh publik yang lebih baik, transfer bank SEPA, dan perubahan email akun.
+    
+    Perubahan tersebut membuat OpenMates lebih berguna sebagai ruang kerja harian: lebih mudah untuk dipelajari, lebih mudah dibagikan, dan lebih stabil dalam hal dasar-dasar akun dan pembayaran.
+    
+    # ✨ Apa yang baru di v0.11
+    
+    ## 1. Inspirasi Harian yang Diperluas
+    
+    Inspirasi Harian menjadi lebih kaya dan bervariasi. Fitur ini dapat menampilkan video publik, ide fitur yang berguna, dan titik awal konkret untuk hal-hal yang mungkin ingin kamu lakukan di OpenMates.
+    
+    Tujuannya adalah agar OpenMates tidak terasa seperti kotak chatbot kosong, melainkan tempat yang membantumu menemukan hal-hal berguna untuk dilakukan: meriset topik, memahami video, merencanakan tugas, menjelajahi alat, atau melanjutkan dari sebuah contoh.
+    
+    ## 2. Peningkatan eksekusi kode dan riset kode
+    
+    Aplikasi Kode mengalami kemajuan besar. OpenMates kini dapat menjalankan kode di dalam sandbox, menampilkan output, membantu pencarian repositori, dan menangani lebih banyak tindakan lanjutan terkait kode.
+    
+    Bagi pengguna sehari-hari, ini berguna meskipun kamu bukan pengembang profesional: skrip kecil, pembersihan data, pembuatan dokumen, pratinjau situs web, penjelasan log, dan pertanyaan teknis dapat menjadi lebih interaktif.
+    
+    ## 3. Pembuatan musik dan peningkatan penyedia gambar
+    
+    v0.11 memperluas alur kerja media yang dihasilkan dengan pembuatan musik dan peningkatan di sekitar penyedia pembuatan gambar. Artinya, OpenMates dapat mendukung lebih banyak tugas kreatif langsung di dalam chat: membuat ide musik cepat, menghasilkan konsep visual, melakukan iterasi pada prompt, atau mengubah ide kasar menjadi media yang benar-benar dapat kamu periksa dan gunakan kembali.
+    
+    Pembaruan ini juga meningkatkan cara penyajian media yang dihasilkan, sehingga hasilnya lebih mudah dipratinjau, dibuka, dan dilanjutkan.
+    
+    ## 4. Hasil aplikasi dan detail penyedia yang lebih jelas
+    
+    Banyak kartu aplikasi dan pratinjau sematan kini menampilkan contoh nyata yang lebih baik, logo penyedia, informasi sumber, dan metadata yang lebih jelas. Ini memudahkan untuk memahami apa yang terjadi, dari mana asal hasilnya, dan keahlian aplikasi mana yang digunakan.
+    
+    Untuk penggunaan sehari-hari, ini berarti lebih sedikit menebak-nebak: hasil perjalanan, hasil web, file yang dihasilkan, output media, dan hasil kode akan lebih mudah dikenali dan ditindaklanjuti.
+    
+    ## 5. Penyajian tindak lanjut yang lebih baik
+    
+    Saran tindak lanjut sudah ada sebelumnya, tetapi penyajiannya kini lebih bersih dan lebih mudah digunakan. Fitur ini dimaksudkan untuk membantumu melanjutkan tugas tanpa harus memikirkan prompt berikutnya yang sempurna sendiri.
+    
+    ## 6. Font antarmuka lokal
+    
+    Kamu sekarang dapat memilih preferensi font antarmuka lokal. Ini adalah pengaturan kecil, tetapi penting jika kamu menghabiskan banyak waktu membaca dan menulis di OpenMates.
+    
+    ## 7. Peningkatan stabilitas dan performa
+    
+    Ada juga peningkatan stabilitas dan performa pada sinkronisasi chat, sematan, pratinjau file, dan pratinjau hasil gambar.
+    
+    # Apa selanjutnya
+    
+    Langkah selanjutnya adalah terus membuat OpenMates lebih mudah dipahami dan digunakan: contoh yang lebih baik, alur aplikasi yang lebih jelas, alat kreatif dan riset yang lebih terpoles, serta mengurangi hambatan dalam pengalaman chat.
+    
+    Terima kasih telah menggunakan OpenMates dan telah memberikan masukan saat ada sesuatu yang terasa membingungkan atau rusak.
+    
+    Salam,
+    
+    Marco  
+    Pembuat OpenMates
+  pl: |
+    Cześć,
+    
+    OpenMates v0.11 jest już dostępny. Ta aktualizacja bazuje na ulepszeniach z wersji v0.10 i dodaje praktyczne funkcje codziennego użytku: bogatsze Codzienne Inspiracje, wykonywanie kodu, przeszukiwanie repozytoriów, generowanie muzyki, ulepszenia dostawców generowania obrazów, czytelniejsze wyniki aplikacji oraz lokalne czcionki interfejsu.
+    
+    # Na początek krótkie podsumowanie v0.10
+    
+    W v0.10 dodaliśmy linki do Wikipedii w odpowiedziach, wyróżnienia i komentarze do wiadomości, lepsze strony publicznych ogłoszeń/przykładów, przelewy bankowe SEPA oraz możliwość zmiany adresu e-mail konta.
+    
+    Te zmiany sprawiły, że OpenMates stał się bardziej użyteczny jako codzienne miejsce pracy: łatwiejszy do nauki, prostszy w udostępnianiu i bardziej stabilny w kwestiach podstawowych, takich jak konto i płatności.
+    
+    # ✨ Co nowego w v0.11
+    
+    ## 1. Rozszerzone Codzienne Inspiracje
+    
+    Codzienne Inspiracje stały się bogatsze i bardziej różnorodne. Mogą teraz wyświetlać publiczne filmy, pomysły na przydatne funkcje i konkretne punkty wyjścia dla rzeczy, które możesz chcieć zrobić w OpenMates.
+    
+    Celem jest sprawienie, by OpenMates mniej przypominał puste okno czatu, a bardziej miejsce, które pomaga odkrywać przydatne zajęcia: zgłębianie tematu, zrozumienie wideo, planowanie zadań, odkrywanie narzędzi czy kontynuowanie pracy na podstawie przykładu.
+    
+    ## 2. Wykonywanie kodu i ulepszenia w przeszukiwaniu kodu
+    
+    Aplikacja Code zrobiła duży krok naprzód. OpenMates może teraz uruchamiać kod w piaskownicy (sandbox), wyświetlać wyniki, pomagać w przeszukiwaniu repozytoriów i obsługiwać więcej działań następczych związanych z kodem.
+    
+    Dla zwykłych użytkowników jest to przydatne, nawet jeśli nie są profesjonalnymi programistami: małe skrypty, czyszczenie danych, generowanie dokumentów, podgląd stron internetowych, wyjaśnianie logów i pytania techniczne mogą stać się bardziej interaktywne.
+    
+    ## 3. Generowanie muzyki i ulepszenia dostawców obrazów
+    
+    Wersja v0.11 rozszerza procesy pracy z mediami o generowanie muzyki i ulepszenia u dostawców generowania obrazów. Oznacza to, że OpenMates może wspierać więcej kreatywnych zadań bezpośrednio w czacie: tworzenie szybkich pomysłów muzycznych, generowanie koncepcji wizualnych, iterowanie promptów czy zamianę surowego pomysłu w multimedia, które możesz sprawdzić i wykorzystać.
+    
+    Prace te poprawiły również sposób prezentacji wygenerowanych mediów, dzięki czemu wyniki są łatwiejsze do podglądu, otwierania i dalszej obróbki.
+    
+    ## 4. Czytelniejsze wyniki aplikacji i szczegóły dostawców
+    
+    Wiele kart aplikacji i podglądów osadzonych treści pokazuje teraz lepsze, rzeczywiste przykłady, logo dostawców, informacje o źródłach i czytelniejsze metadane. Ułatwia to zrozumienie, co się stało, skąd pochodzi wynik i która funkcja aplikacji została użyta.
+    
+    W codziennym użytkowaniu oznacza to mniej zgadywania: wyniki wyszukiwania podróży, wyniki z sieci, wygenerowane pliki, multimedia i wyniki kodu powinny być łatwiejsze do rozpoznania i podjęcia dalszych działań.
+    
+    ## 5. Lepsza prezentacja sugestii kontynuacji
+    
+    Sugestie kontynuacji (follow-up) już istniały, ale ich prezentacja jest teraz czystsza i łatwiejsza w użyciu. Mają one pomóc Ci kontynuować zadanie bez konieczności samodzielnego wymyślania idealnego kolejnego promptu.
+    
+    ## 6. Lokalne czcionki interfejsu
+    
+    Możesz teraz wybrać preferencje dotyczące lokalnych czcionek interfejsu. To małe ustawienie, ale ma znaczenie, jeśli spędzasz dużo czasu na czytaniu i pisaniu w OpenMates.
+    
+    ## 7. Poprawa stabilności i wydajności
+    
+    Wprowadzono również poprawki stabilności i wydajności w synchronizacji czatu, osadzonych treściach, podglądach plików i podglądach wyników obrazów.
+    
+    # Co dalej
+    
+    Następnym krokiem jest dalsze ułatwianie zrozumienia i obsługi OpenMates: lepsze przykłady, jaśniejsze procesy w aplikacjach, bardziej dopracowane narzędzia kreatywne i badawcze oraz mniej niedociągnięć w samym czacie.
+    
+    Dziękuję za korzystanie z OpenMates i za przesyłanie opinii, gdy coś wydaje się niejasne lub nie działa poprawnie.
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Hoi,
+    
+    OpenMates v0.11 is nu live. Deze update bouwt voort op de verbeteringen van v0.10 en voegt praktische dagelijkse functies toe: rijkere Dagelijkse Inspiraties, code-uitvoering, repository-onderzoek, muziekgeneratie, verbeteringen voor aanbieders van beeldgeneratie, duidelijkere app-resultaten en lokale interface-lettertypen.
+    
+    # Eerst een korte terugblik op v0.10
+    
+    v0.10 voegde Wikipedia-links toe in antwoorden, berichtmarkeringen en opmerkingen, betere openbare aankondigings-/voorbeeldpagina's, SEPA-bankoverschrijvingen en wijzigingen in het e-mailadres van accounts.
+    
+    Die wijzigingen maakten OpenMates nuttiger als dagelijkse werkplek: makkelijker om van te leren, makkelijker om te delen en minder kwetsbaar wat betreft de basis van accounts en betalingen.
+    
+    # ✨ Wat is er nieuw in v0.11
+    
+    ## 1. Uitgebreide Dagelijkse Inspiraties
+    
+    Dagelijkse Inspiraties zijn rijker en gevarieerder geworden. Ze kunnen openbare video's, nuttige functie-ideeën en concrete startpunten tonen voor dingen die je in OpenMates wilt doen.
+    
+    Het doel is om OpenMates minder te laten voelen als een leeg chatbot-venster en meer als een plek die je helpt nuttige dingen te ontdekken: een onderwerp onderzoeken, een video begrijpen, een taak plannen, een tool verkennen of verdergaan vanuit een voorbeeld.
+    
+    ## 2. Verbeteringen in code-uitvoering en code-onderzoek
+    
+    De Code-app heeft een grote stap voorwaarts gemaakt. OpenMates kan nu code uitvoeren in een sandbox, resultaten tonen, helpen bij het doorzoeken van repositories en meer code-gerelateerde vervolgacties afhandelen.
+    
+    Voor dagelijkse gebruikers is dit nuttig, zelfs als je geen professionele ontwikkelaar bent: kleine scripts, het opschonen van gegevens, het genereren van documenten, website-previews, uitleg van logs en technische vragen kunnen interactiever worden.
+    
+    ## 3. Muziekgeneratie en verbeteringen voor beeldaanbieders
+    
+    v0.11 breidt workflows voor gegenereerde media uit met muziekgeneratie en verbeteringen rond aanbieders van beeldgeneratie. Dat betekent dat OpenMates meer creatieve taken direct in de chat kan ondersteunen: een snel muziekidee maken, visuele concepten genereren, prompts verfijnen of een ruw idee omzetten in media die je daadwerkelijk kunt bekijken en hergebruiken.
+    
+    Het werk verbetert ook de manier waarop gegenereerde media worden gepresenteerd, zodat resultaten makkelijker te bekijken, te openen en te vervolgen zijn.
+    
+    ## 4. Duidelijkere app-resultaten en details van aanbieders
+    
+    Veel app-kaarten en embed-previews tonen nu betere echte voorbeelden, logo's van aanbieders, broninformatie en duidelijkere metadata. Dit maakt het makkelijker om te begrijpen wat er is gebeurd, waar een resultaat vandaan kwam en welke app-vaardigheid is gebruikt.
+    
+    Voor dagelijks gebruik betekent dat minder gissen: reisresultaten, webresultaten, gegenereerde bestanden, media-outputs en coderesultaten zouden makkelijker te herkennen en te gebruiken moeten zijn.
+    
+    ## 5. Betere presentatie van vervolgstappen
+    
+    Suggesties voor vervolgstappen bestonden al, maar de presentatie ervan is nu strakker en gebruiksvriendelijker. Ze zijn bedoeld om je te helpen een taak voort te zetten zonder dat je zelf de perfecte volgende prompt hoeft te bedenken.
+    
+    ## 6. Lokale interface-lettertypen
+    
+    Je kunt nu voorkeuren voor lokale interface-lettertypen kiezen. Het is een kleine instelling, maar het is belangrijk als je veel tijd besteedt aan lezen en schrijven in OpenMates.
+    
+    ## 7. Stabiliteits- en prestatieverbeteringen
+    
+    Er zijn ook stabiliteits- en prestatieverbeteringen doorgevoerd in chatsynchronisatie, embeds, bestandsvoorbeelden en voorbeelden van afbeeldingsresultaten.
+    
+    # Wat volgt er nu
+    
+    De volgende stap is om OpenMates steeds begrijpelijker en gebruiksvriendelijker te maken: betere voorbeelden, duidelijkere app-flows, meer verfijnde creatieve en onderzoekstools, en minder ruwe kantjes in de chatervaring.
+    
+    Bedankt voor het gebruiken van OpenMates en voor het geven van feedback wanneer iets verwarrend aanvoelt of niet werkt.
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    أهلاً بك،
+    
+    أصبح الإصدار v0.11 من OpenMates متاحاً الآن. يبني هذا التحديث على تحسينات الإصدار v0.10 ويضيف ميزات عملية يومية: إلهامات يومية أغنى، تنفيذ الأكواد، البحث في المستودعات، توليد الموسيقى، تحسينات لمزودي توليد الصور، نتائج تطبيقات أوضح، وخطوط واجهة محلية.
+    
+    # أولاً، ملخص سريع للإصدار v0.10
+    
+    أضاف الإصدار v0.10 روابط ويكيبيديا داخل الإجابات، وتمييز الرسائل والتعليقات، وصفحات إعلانات/أمثلة عامة أفضل، وتحويلات SEPA البنكية، وتغيير البريد الإلكتروني للحساب.
+    
+    جعلت هذه التغييرات OpenMates أكثر فائدة كمساحة عمل يومية: أسهل في التعلم، أسهل في المشاركة، وأكثر استقراراً فيما يخص أساسيات الحساب والدفع.
+    
+    # ✨ ما الجديد في الإصدار v0.11
+    
+    ## 1. إلهامات يومية موسعة
+    
+    أصبحت الإلهامات اليومية أغنى وأكثر تنوعاً. يمكنها الآن عرض فيديوهات عامة، وأفكار ميزات مفيدة، ونقاط بداية ملموسة لأشياء قد ترغب في القيام بها في OpenMates.
+    
+    الهدف هو جعل OpenMates يبدو أقل كصندوق دردشة فارغ وأكثر كمكان يساعدك على اكتشاف أشياء مفيدة للقيام بها: البحث في موضوع ما، فهم فيديو، التخطيط لمهمة، استكشاف أداة، أو المتابعة من مثال سابق.
+    
+    ## 2. تحسينات تنفيذ الأكواد والبحث البرمجي
+    
+    خطا تطبيق الكود خطوة كبيرة للأمام. يمكن لـ OpenMates الآن تشغيل الأكواد في بيئة معزولة (sandbox)، وعرض المخرجات، والمساعدة في البحث في المستودعات، والتعامل مع المزيد من إجراءات المتابعة المتعلقة بالكود.
+    
+    بالنسبة للمستخدمين العاديين، هذا مفيد حتى لو لم تكن مطوراً محترفاً: السكربتات الصغيرة، تنظيف البيانات، إنشاء المستندات، معاينة المواقع، شرح سجلات الأخطاء (logs)، والأسئلة التقنية يمكن أن تصبح أكثر تفاعلية.
+    
+    ## 3. توليد الموسيقى وتحسينات مزودي الصور
+    
+    يوسع الإصدار v0.11 سير عمل الوسائط المولدة مع توليد الموسيقى وتحسينات حول مزودي توليد الصور. هذا يعني أن OpenMates يمكنه دعم المزيد من المهام الإبداعية مباشرة في الدردشة: إنشاء فكرة موسيقية سريعة، توليد مفاهيم بصرية، تكرار الأوامر (prompts)، أو تحويل فكرة أولية إلى وسائط يمكنك فحصها وإعادة استخدامها.
+    
+    كما يحسن هذا العمل كيفية عرض الوسائط المولدة، بحيث يسهل معاينة النتائج وفتحها والمتابعة منها.
+    
+    ## 4. نتائج تطبيقات وتفاصيل مزودين أوضح
+    
+    تعرض العديد من بطاقات التطبيقات ومعاينات التضمين الآن أمثلة حقيقية أفضل، وشعارات المزودين، ومعلومات المصدر، وبيانات وصفية (metadata) أوضح. هذا يسهل فهم ما حدث، ومن أين أتت النتيجة، وأي مهارة تطبيق تم استخدامها.
+    
+    للاستخدام اليومي، يعني هذا تخميناً أقل: نتائج السفر، نتائج الويب، الملفات المولدة، مخرجات الوسائط، ونتائج الأكواد يجب أن تكون أسهل في التعرف عليها والتعامل معها.
+    
+    ## 5. عرض أفضل لاقتراحات المتابعة
+    
+    كانت اقتراحات المتابعة موجودة بالفعل، لكن عرضها الآن أصبح أكثر ترتيباً وسهولة في الاستخدام. تهدف لمساعدتك على إكمال المهمة دون الحاجة للتفكير في الأمر التالي المثالي بنفسك.
+    
+    ## 6. خطوط واجهة محلية
+    
+    يمكنك الآن اختيار تفضيلات خطوط الواجهة المحلية. إنه إعداد صغير، لكنه مهم إذا كنت تقضي الكثير من الوقت في القراءة والكتابة في OpenMates.
+    
+    ## 7. تحسينات في الاستقرار والأداء
+    
+    كانت هناك أيضاً تحسينات في الاستقرار والأداء في مزامنة الدردشة، والتضمينات، ومعاينات الملفات، ومعاينات نتائج الصور.
+    
+    # ما التالي
+    
+    الخطوة التالية هي الاستمرار في جعل OpenMates أسهل في الفهم والاستخدام: أمثلة أفضل، تدفقات تطبيقات أوضح، أدوات إبداعية وبحثية أكثر صقلاً، وتقليل العقبات في تجربة الدردشة.
+    
+    شكراً لاستخدامك OpenMates ولتقديم ملاحظاتك عندما تشعر أن شيئاً ما محير أو معطل.
+    
+    تحياتي،
+    
+    ماركو  
+    مبتكر OpenMates
+  hi: |
+    नमस्ते,
+    
+    OpenMates v0.11 अब लाइव है। यह अपडेट v0.10 के सुधारों पर आधारित है और इसमें व्यावहारिक रोज़मर्रा के फीचर्स जोड़े गए हैं: समृद्ध डेली इंस्पिरेशन (Daily Inspirations), कोड एक्जीक्यूशन, रिपॉजिटरी रिसर्च, म्यूजिक जनरेशन, इमेज-जनरेशन प्रोवाइडर में सुधार, स्पष्ट ऐप परिणाम और लोकल इंटरफ़ेस फोंट।
+    
+    # सबसे पहले, v0.10 का एक त्वरित रिकैप
+    
+    v0.10 में जवाबों के अंदर विकिपीडिया लिंक, मैसेज हाइलाइट्स और कमेंट्स, बेहतर सार्वजनिक घोषणा/उदाहरण पेज, SEPA बैंक ट्रांसफर और अकाउंट ईमेल परिवर्तन जोड़े गए थे।
+    
+    इन बदलावों ने OpenMates को दैनिक वर्कस्पेस के रूप में अधिक उपयोगी बना दिया: इससे सीखना आसान हो गया, शेयर करना आसान हो गया, और अकाउंट और पेमेंट की बुनियादी चीज़ें अधिक स्थिर हो गईं।
+    
+    # ✨ v0.11 में नया क्या है
+    
+    ## 1. विस्तारित डेली इंस्पिरेशन (Daily Inspirations)
+    
+    डेली इंस्पिरेशन अब और भी समृद्ध और विविध हो गए हैं। वे सार्वजनिक वीडियो, उपयोगी फीचर विचार और उन चीज़ों के लिए ठोस शुरुआती बिंदु दिखा सकते हैं जो आप OpenMates में करना चाहते हैं।
+    
+    लक्ष्य OpenMates को एक खाली चैटबॉट बॉक्स के बजाय एक ऐसी जगह बनाना है जो आपको उपयोगी चीज़ें खोजने में मदद करे: किसी विषय पर शोध करना, वीडियो समझना, किसी कार्य की योजना बनाना, किसी टूल को एक्सप्लोर करना, या किसी उदाहरण से आगे बढ़ना।
+    
+    ## 2. कोड एक्जीक्यूशन और कोड रिसर्च में सुधार
+    
+    कोड ऐप ने एक बड़ा कदम आगे बढ़ाया है। OpenMates अब सैंडबॉक्स में कोड चला सकता है, आउटपुट दिखा सकता है, रिपॉजिटरी सर्च में मदद कर सकता है और कोड से संबंधित अधिक फॉलो-अप कार्यों को संभाल सकता है।
+    
+    रोज़मर्रा के उपयोगकर्ताओं के लिए यह उपयोगी है भले ही आप एक पेशेवर डेवलपर न हों: छोटे स्क्रिप्ट, डेटा क्लीनअप, डॉक्यूमेंट जनरेशन, वेबसाइट प्रीव्यू, लॉग स्पष्टीकरण और तकनीकी प्रश्न अधिक इंटरैक्टिव हो सकते हैं।
+    
+    ## 3. म्यूजिक जनरेशन और इमेज प्रोवाइडर में सुधार
+    
+    v0.11 म्यूजिक जनरेशन और इमेज-जनरेशन प्रोवाइडर्स के सुधारों के साथ जनरेटेड-मीडिया वर्कफ़्लो का विस्तार करता है। इसका मतलब है कि OpenMates सीधे चैट में अधिक रचनात्मक कार्यों का समर्थन कर सकता है: एक त्वरित म्यूजिक आइडिया बनाना, विजुअल कॉन्सेप्ट्स जनरेट करना, प्रॉम्प्ट्स पर काम करना, या एक कच्चे विचार को ऐसे मीडिया में बदलना जिसे आप वास्तव में देख और पुन: उपयोग कर सकें।
+    
+    यह काम जनरेट किए गए मीडिया को पेश करने के तरीके में भी सुधार करता है, ताकि परिणामों को प्रीव्यू करना, खोलना और उनसे आगे बढ़ना आसान हो।
+    
+    ## 4. स्पष्ट ऐप परिणाम और प्रोवाइडर विवरण
+    
+    कई ऐप कार्ड और एम्बेड प्रीव्यू अब बेहतर वास्तविक उदाहरण, प्रोवाइडर लोगो, स्रोत जानकारी और स्पष्ट मेटाडेटा दिखाते हैं। इससे यह समझना आसान हो जाता है कि क्या हुआ, परिणाम कहाँ से आया और किस ऐप स्किल का उपयोग किया गया था।
+    
+    दैनिक उपयोग के लिए, इसका मतलब है कम अनुमान लगाना: यात्रा परिणाम, वेब परिणाम, जनरेट की गई फाइलें, मीडिया आउटपुट और कोड परिणाम पहचानना और उन पर कार्रवाई करना आसान होना चाहिए।
+    
+    ## 5. बेहतर फॉलो-अप प्रेजेंटेशन
+    
+    फॉलो-अप सुझाव पहले से मौजूद थे, लेकिन उनकी प्रस्तुति अब अधिक साफ और उपयोग में आसान है। इनका उद्देश्य आपको स्वयं सही अगले प्रॉम्प्ट के बारे में सोचे बिना किसी कार्य को जारी रखने में मदद करना है।
+    
+    ## 6. लोकल इंटरफ़ेस फोंट
+    
+    अब आप लोकल इंटरफ़ेस फोंट प्राथमिकताएं चुन सकते हैं। यह एक छोटी सी सेटिंग है, लेकिन अगर आप OpenMates में पढ़ने और लिखने में बहुत समय बिताते हैं तो यह मायने रखती है।
+    
+    ## 7. स्थिरता और प्रदर्शन में सुधार
+    
+    चैट सिंक, एम्बेड, फाइल प्रीव्यू और इमेज रिजल्ट प्रीव्यू में स्थिरता और प्रदर्शन में भी सुधार किए गए हैं।
+    
+    # आगे क्या है
+    
+    अगला कदम OpenMates को समझने और उपयोग करने में और भी आसान बनाना है: बेहतर उदाहरण, स्पष्ट ऐप फ्लो, अधिक परिष्कृत रचनात्मक और शोध उपकरण, और चैट अनुभव में कम कमियां।
+    
+    OpenMates का उपयोग करने और कुछ भ्रमित करने वाला या खराब होने पर फीडबैक देने के लिए धन्यवाद।
+    
+    सादर,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    สวัสดีครับ,
+    
+    OpenMates v0.11 เปิดใช้งานแล้ว การอัปเดตนี้ต่อยอดจากการปรับปรุงในเวอร์ชัน 0.10 และเพิ่มฟีเจอร์ที่ใช้งานได้จริงในทุกๆ วัน: Daily Inspirations ที่หลากหลายขึ้น, การรันโค้ด (code execution), การค้นหาใน repository, การสร้างเพลง, การปรับปรุงผู้ให้บริการสร้างรูปภาพ, ผลลัพธ์ของแอปที่ชัดเจนขึ้น และฟอนต์อินเทอร์เฟซในเครื่อง
+    
+    # เริ่มต้นด้วยการสรุปสั้นๆ ของ v0.10
+    
+    v0.10 ได้เพิ่มลิงก์ Wikipedia ในคำตอบ, การไฮไลต์ข้อความและคอมเมนต์, หน้าประกาศสาธารณะ/ตัวอย่างที่ดียิ่งขึ้น, การโอนเงินผ่านธนาคาร SEPA และการเปลี่ยนอีเมลบัญชี
+    
+    การเปลี่ยนแปลงเหล่านี้ทำให้ OpenMates มีประโยชน์มากขึ้นในฐานะพื้นที่ทำงานประจำวัน: เรียนรู้ได้ง่ายขึ้น แชร์ได้ง่ายขึ้น และมีความเสถียรมากขึ้นในส่วนของบัญชีและการชำระเงินพื้นฐาน
+    
+    # ✨ มีอะไรใหม่ใน v0.11
+    
+    ## 1. Daily Inspirations ที่ครอบคลุมมากขึ้น
+    
+    Daily Inspirations มีความหลากหลายและน่าสนใจยิ่งขึ้น โดยสามารถแสดงวิดีโอสาธารณะ ไอเดียฟีเจอร์ที่มีประโยชน์ และจุดเริ่มต้นที่เป็นรูปธรรมสำหรับสิ่งที่คุณอาจต้องการทำใน OpenMates
+    
+    เป้าหมายคือการทำให้ OpenMates ไม่ได้เป็นเพียงกล่องแชทบอทที่ว่างเปล่า แต่เป็นสถานที่ที่ช่วยให้คุณค้นพบสิ่งที่มีประโยชน์: ค้นคว้าหัวข้อต่างๆ, ทำความเข้าใจวิดีโอ, วางแผนงาน, สำรวจเครื่องมือ หรือทำต่อจากตัวอย่างที่มีให้
+    
+    ## 2. การปรับปรุงการรันโค้ดและการค้นคว้าโค้ด
+    
+    แอป Code ก้าวไปอีกขั้น ตอนนี้ OpenMates สามารถรันโค้ดใน sandbox, แสดงผลลัพธ์, ช่วยค้นหาใน repository และจัดการการดำเนินการต่อเนื่องที่เกี่ยวข้องกับโค้ดได้มากขึ้น
+    
+    สำหรับผู้ใช้ทั่วไป สิ่งนี้มีประโยชน์แม้ว่าคุณจะไม่ใช่นักพัฒนามืออาชีพ: สคริปต์ขนาดเล็ก, การล้างข้อมูล (data cleanup), การสร้างเอกสาร, การดูตัวอย่างเว็บไซต์, การอธิบาย log และคำถามทางเทคนิคจะมีความโต้ตอบได้มากขึ้น
+    
+    ## 3. การสร้างเพลงและการปรับปรุงผู้ให้บริการรูปภาพ
+    
+    v0.11 ขยายเวิร์กโฟลว์การสร้างสื่อด้วยการสร้างเพลงและการปรับปรุงเกี่ยวกับผู้ให้บริการสร้างรูปภาพ นั่นหมายความว่า OpenMates สามารถรองรับงานสร้างสรรค์ได้มากขึ้นโดยตรงในแชท: การสร้างไอเดียเพลงสั้นๆ, การสร้างคอนเซปต์ภาพ, การปรับแต่ง prompt หรือการเปลี่ยนไอเดียคร่าวๆ ให้เป็นสื่อที่คุณสามารถตรวจสอบและนำไปใช้ต่อได้จริง
+    
+    นอกจากนี้ยังมีการปรับปรุงวิธีการแสดงผลสื่อที่สร้างขึ้น เพื่อให้ดูตัวอย่าง เปิด และทำงานต่อได้ง่ายขึ้น
+    
+    ## 4. ผลลัพธ์ของแอปและรายละเอียดผู้ให้บริการที่ชัดเจนขึ้น
+    
+    การ์ดแอปและตัวอย่างการฝัง (embed) จำนวนมากแสดงตัวอย่างจริง, โลโก้ผู้ให้บริการ, ข้อมูลแหล่งที่มา และ metadata ที่ชัดเจนขึ้น สิ่งนี้ช่วยให้เข้าใจได้ง่ายขึ้นว่าเกิดอะไรขึ้น ผลลัพธ์มาจากไหน และใช้ทักษะของแอปใด
+    
+    สำหรับการใช้งานประจำวัน นั่นหมายถึงการคาดเดาที่น้อยลง: ผลลัพธ์การเดินทาง, ผลลัพธ์จากเว็บ, ไฟล์ที่สร้างขึ้น, ผลลัพธ์สื่อ และผลลัพธ์โค้ดควรจะจดจำและนำไปใช้งานต่อได้ง่ายขึ้น
+    
+    ## 5. การแสดงผลคำแนะนำต่อเนื่องที่ดีขึ้น
+    
+    คำแนะนำสำหรับการดำเนินการต่อ (Follow-up suggestions) มีอยู่แล้ว แต่ตอนนี้การแสดงผลดูสะอาดตาและใช้งานง่ายขึ้น สิ่งนี้มีไว้เพื่อช่วยให้คุณทำงานต่อได้โดยไม่ต้องคิดหา prompt ถัดไปที่สมบูรณ์แบบด้วยตัวเอง
+    
+    ## 6. ฟอนต์อินเทอร์เฟซในเครื่อง
+    
+    ตอนนี้คุณสามารถเลือกการตั้งค่าฟอนต์อินเทอร์เฟซในเครื่องได้แล้ว แม้จะเป็นการตั้งค่าเล็กๆ แต่ก็สำคัญหากคุณใช้เวลาส่วนใหญ่ในการอ่านและเขียนใน OpenMates
+    
+    ## 7. การปรับปรุงความเสถียรและประสิทธิภาพ
+    
+    นอกจากนี้ยังมีการปรับปรุงความเสถียรและประสิทธิภาพในการซิงค์แชท, การฝัง (embeds), การดูตัวอย่างไฟล์ และการดูตัวอย่างผลลัพธ์รูปภาพ
+    
+    # สิ่งที่จะเกิดขึ้นต่อไป
+    
+    ขั้นตอนต่อไปคือการทำให้ OpenMates เข้าใจง่ายและใช้งานง่ายขึ้นอย่างต่อเนื่อง: ตัวอย่างที่ดีขึ้น, ขั้นตอนการทำงานของแอปที่ชัดเจนขึ้น, เครื่องมือสร้างสรรค์และการค้นคว้าที่ขัดเกลามากขึ้น และลดข้อบกพร่องในประสบการณ์การแชท
+    
+    ขอบคุณที่ใช้งาน OpenMates และขอบคุณสำหรับคำแนะนำเมื่อมีบางอย่างที่ดูสับสนหรือใช้งานไม่ได้
+    
+    สวัสดีครับ,
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    Ahoj,
+    
+    OpenMates v0.11 je nyní k dispozici. Tato aktualizace staví na vylepšeních verze v0.10 a přidává praktické funkce pro každý den: bohatší Denní inspirace, spouštění kódu, průzkum repozitářů, generování hudby, vylepšení poskytovatelů generování obrázků, přehlednější výsledky aplikací a lokální písma rozhraní.
+    
+    # Nejdříve rychlá rekapitulace v0.10
+    
+    Verze v0.10 přidala odkazy na Wikipedii přímo v odpovědích, zvýraznění zpráv a komentáře, lepší stránky s veřejnými oznámeními/příklady, bankovní převody SEPA a změny e-mailu účtu.
+    
+    Díky těmto změnám se OpenMates stal užitečnějším každodenním pracovním prostorem: lépe se z něj učí, snáze se sdílí a je stabilnější v základech týkajících se účtu a plateb.
+    
+    # ✨ Co je nového ve v0.11
+    
+    ## 1. Rozšířené Denní inspirace
+    
+    Denní inspirace jsou nyní bohatší a rozmanitější. Mohou zobrazovat veřejná videa, užitečné nápady na funkce a konkrétní výchozí body pro věci, které bys mohl chtít v OpenMates dělat.
+    
+    Cílem je, aby OpenMates nepůsobil jen jako prázdné okno chatbotu, ale spíše jako místo, které ti pomůže objevovat užitečné činnosti: prozkoumat téma, pochopit video, naplánovat úkol, prozkoumat nástroj nebo navázat na příklad.
+    
+    ## 2. Spouštění kódu a vylepšení průzkumu kódu
+    
+    Aplikace Kód udělala velký krok vpřed. OpenMates nyní dokáže spouštět kód v sandboxu, zobrazovat výstupy, pomáhat s vyhledáváním v repozitářích a zvládat více následných akcí souvisejících s kódem.
+    
+    Pro běžné uživatele je to užitečné, i když nejsi profesionální vývojář: malé skripty, čištění dat, generování dokumentů, náhledy webových stránek, vysvětlování logů a technické dotazy mohou být nyní interaktivnější.
+    
+    ## 3. Generování hudby a vylepšení poskytovatelů obrázků
+    
+    Verze v0.11 rozšiřuje pracovní postupy s generovanými médii o generování hudby a vylepšení u poskytovatelů generování obrázků. To znamená, že OpenMates může podporovat více kreativních úkolů přímo v chatu: vytvoření rychlého hudebního nápadu, generování vizuálních konceptů, iterování promptů nebo přeměnu hrubého nápadu v média, která si můžeš skutečně prohlédnout a znovu použít.
+    
+    Tato práce také vylepšuje způsob prezentace generovaných médií, takže výsledky lze snáze prohlížet, otevírat a navazovat na ně.
+    
+    ## 4. Přehlednější výsledky aplikací a podrobnosti o poskytovatelích
+    
+    Mnoho karet aplikací a náhledů vloženého obsahu nyní zobrazuje lepší reálné příklady, loga poskytovatelů, informace o zdrojích a jasnější metadata. Díky tomu je snazší pochopit, co se stalo, odkud výsledek pochází a která dovednost aplikace byla použita.
+    
+    Pro každodenní použití to znamená méně hádání: výsledky cestování, webové výsledky, generované soubory, mediální výstupy a výsledky kódu by měly být snadněji rozpoznatelné a použitelné.
+    
+    ## 5. Lepší prezentace následných kroků
+    
+    Návrhy následných kroků již existovaly, ale jejich prezentace je nyní čistší a snadněji se používá. Mají ti pomoci pokračovat v úkolu, aniž bys musel sám vymýšlet dokonalý další prompt.
+    
+    ## 6. Lokální písma rozhraní
+    
+    Nyní si můžeš zvolit preference lokálních písem rozhraní. Je to malé nastavení, ale záleží na něm, pokud v OpenMates trávíš hodně času čtením a psaním.
+    
+    ## 7. Vylepšení stability a výkonu
+    
+    Došlo také k vylepšení stability a výkonu v synchronizaci chatu, vloženém obsahu, náhledech souborů a náhledech výsledků obrázků.
+    
+    # Co přijde příště
+    
+    Dalším krokem je i nadále činit OpenMates srozumitelnějším a snadněji použitelným: lepší příklady, jasnější toky aplikací, propracovanější kreativní a výzkumné nástroje a méně nedostatků v chatu.
+    
+    Díky, že používáš OpenMates a že nám dáváš zpětnou vazbu, když ti něco připadá matoucí nebo nefunguje.
+    
+    S pozdravem,
+    
+    Marco  
+    Tvůrce OpenMates
+  sv: |
+    Hej,
+    
+    OpenMates v0.11 är nu live. Den här uppdateringen bygger vidare på förbättringarna i v0.10 och lägger till praktiska vardagsfunktioner: rikare Daily Inspirations, kodexekvering, sökning i kodförråd, musikgenerering, förbättringar för bildgenereringsleverantörer, tydligare app-resultat och lokala gränssnittstypsnitt.
+    
+    # Först en snabb sammanfattning av v0.10
+    
+    v0.10 lade till Wikipedia-länkar i svar, meddelandemarkeringar och kommentarer, bättre sidor för offentliga meddelanden/exempel, SEPA-banköverföringar och ändring av e-postadress för konton.
+    
+    Dessa ändringar gjorde OpenMates mer användbart som en daglig arbetsyta: enklare att lära sig av, enklare att dela och stabilare kring konto- och betalningsgrunder.
+    
+    # ✨ Vad är nytt i v0.11
+    
+    ## 1. Utökade Daily Inspirations
+    
+    Daily Inspirations har blivit rikare och mer varierade. De kan lyfta fram offentliga videor, användbara funktionsidéer och konkreta startpunkter för saker du vill göra i OpenMates.
+    
+    Målet är att OpenMates ska kännas mindre som en tom chattbox och mer som en plats som hjälper dig att upptäcka användbara saker att göra: utforska ett ämne, förstå en video, planera en uppgift, utforska ett verktyg eller fortsätta från ett exempel.
+    
+    ## 2. Förbättringar av kodexekvering och kodforskning
+    
+    Kod-appen har tagit ett stort steg framåt. OpenMates kan nu köra kod i en sandlåda, visa utdata, hjälpa till med sökningar i kodförråd och hantera fler kodrelaterade uppföljningsåtgärder.
+    
+    För vardagliga användare är detta användbart även om du inte är en professionell utvecklare: små skript, datarensning, dokumentgenerering, förhandsvisningar av webbplatser, loggförklaringar och tekniska frågor kan bli mer interaktiva.
+    
+    ## 3. Musikgenerering och förbättringar av bildleverantörer
+    
+    v0.11 utökar arbetsflöden för genererad media med musikgenerering och förbättringar kring bildgenereringsleverantörer. Det innebär att OpenMates kan stödja fler kreativa uppgifter direkt i chatten: skapa en snabb musikidé, generera visuella koncept, iterera på prompter eller förvandla en grov idé till media som du faktiskt kan granska och återanvända.
+    
+    Arbetet förbättrar också hur genererad media presenteras, så att resultat blir enklare att förhandsvisa, öppna och fortsätta ifrån.
+    
+    ## 4. Tydligare app-resultat och leverantörsinformation
+    
+    Många app-kort och inbäddade förhandsvisningar visar nu bättre verkliga exempel, leverantörslogotyper, källinformation och tydligare metadata. Detta gör det lättare att förstå vad som hände, varifrån ett resultat kom och vilken app-färdighet som användes.
+    
+    För daglig användning innebär det mindre gissande: rese-resultat, webbresultat, genererade filer, mediautdata och kodresultat bör vara lättare att känna igen och agera på.
+    
+    ## 5. Bättre presentation av uppföljningar
+    
+    Uppföljningsförslag fanns redan, men deras presentation är nu renare och enklare att använda. De är tänkta att hjälpa dig att fortsätta en uppgift utan att du själv behöver komma på den perfekta nästa prompten.
+    
+    ## 6. Lokala gränssnittstypsnitt
+    
+    Du kan nu välja preferenser för lokala gränssnittstypsnitt. Det är en liten inställning, men den spelar roll om du spenderar mycket tid på att läsa och skriva i OpenMates.
+    
+    ## 7. Stabilitets- och prestandaförbättringar
+    
+    Det gjordes även stabilitets- och prestandaförbättringar i chattsynkronisering, inbäddningar, filförhandsvisningar och förhandsvisningar av bildresultat.
+    
+    # Vad händer härnäst
+    
+    Nästa steg är att fortsätta göra OpenMates enklare att förstå och använda: bättre exempel, tydligare app-flöden, mer polerade kreativa verktyg och forskningsverktyg, samt färre ojämnheter i chattupplevelsen.
+    
+    Tack för att du använder OpenMates och för att du ger feedback när något känns förvirrande eller trasigt.
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    היי,
+    
+    OpenMates v0.11 זמינה כעת. העדכון הזה מתבסס על השיפורים של גרסה 0.10 ומוסיף תכונות יומיומיות פרקטיות: השראות יומיות עשירות יותר, הרצת קוד, מחקר מאגרי קוד (repositories), יצירת מוזיקה, שיפורים בספקי יצירת תמונות, תוצאות אפליקציה ברורות יותר וגופני ממשק מקומיים.
+    
+    # ראשית, סיכום קצר של גרסה 0.10
+    
+    גרסה 0.10 הוסיפה קישורי ויקיפדיה בתוך תשובות, הדגשות והערות להודעות, דפי הכרזות ודוגמאות ציבוריים טובים יותר, העברות בנקאיות ב-SEPA ושינוי אימייל בחשבון.
+    
+    השינויים האלו הפכו את OpenMates לסביבת עבודה יומיומית שימושית יותר: קל יותר ללמוד ממנה, קל יותר לשתף, ופחות רגישה בכל הנוגע לבסיס של ניהול חשבון ותשלומים.
+    
+    # ✨ מה חדש בגרסה 0.11
+    
+    ## 1. השראות יומיות מורחבות
+    
+    ההשראות היומיות הפכו לעשירות ומגוונות יותר. הן יכולות להציג סרטונים ציבוריים, רעיונות לתכונות שימושיות ונקודות פתיחה קונקרטיות לדברים שאולי תרצו לעשות ב-OpenMates.
+    
+    המטרה היא לגרום ל-OpenMates להרגיש פחות כמו תיבת צ'אטבוט ריקה ויותר כמו מקום שעוזר לכם לגלות דברים שימושיים לעשות: לחקור נושא, להבין סרטון, לתכנן משימה, לחקור כלי או להמשיך מתוך דוגמה.
+    
+    ## 2. הרצת קוד ושיפורים במחקר קוד
+    
+    אפליקציית הקוד עשתה צעד גדול קדימה. OpenMates יכולה כעת להריץ קוד בתוך ארגז חול (sandbox), להציג פלטים, לסייע בחיפושים במאגרי קוד ולטפל בפעולות המשך נוספות הקשורות לקוד.
+    
+    עבור משתמשים יומיומיים זה שימושי גם אם אינכם מפתחים מקצועיים: סקריפטים קטנים, ניקוי נתונים, יצירת מסמכים, תצוגה מקדימה של אתרים, הסברי לוגים ושאלות טכניות יכולים להפוך לאינטראקטיביים יותר.
+    
+    ## 3. יצירת מוזיקה ושיפורים בספקי תמונות
+    
+    גרסה 0.11 מרחיבה את תהליכי העבודה של מדיה גנרטיבית עם יצירת מוזיקה ושיפורים סביב ספקי יצירת תמונות. זה אומר ש-OpenMates יכולה לתמוך ביותר משימות יצירתיות ישירות בצ'אט: יצירת רעיון מוזיקלי מהיר, הפקת קונספטים ויזואליים, סבבי שיפור של פרומפטים, או הפיכת רעיון גולמי למדיה שבאמת אפשר לבחון ולהשתמש בה שוב.
+    
+    העבודה גם משפרת את האופן שבו המדיה שנוצרה מוצגת, כך שקל יותר לצפות בתוצאות בתצוגה מקדימה, לפתוח אותן ולהמשיך מהן.
+    
+    ## 4. תוצאות אפליקציה ופרטי ספקים ברורים יותר
+    
+    כרטיסי אפליקציה ותצוגות מקדימות מוטמעות רבות מציגים כעת דוגמאות אמיתיות טובות יותר, לוגואים של ספקים, מידע על מקורות ומטא-דאטה ברור יותר. זה מקל על ההבנה של מה קרה, מאיפה הגיעה התוצאה ובאיזו מיומנות אפליקציה נעשה שימוש.
+    
+    לשימוש יומיומי, זה אומר פחות ניחושים: תוצאות נסיעות, תוצאות מהרשת, קבצים שנוצרו, פלטי מדיה ותוצאות קוד אמורים להיות קלים יותר לזיהוי ולפעולה.
+    
+    ## 5. תצוגה טובה יותר של הצעות המשך
+    
+    הצעות המשך כבר היו קיימות, אך התצוגה שלהן כעת נקייה וקלה יותר לשימוש. הן נועדו לעזור לכם להמשיך במשימה מבלי שתצטרכו לחשוב בעצמכם על הפרומפט הבא המושלם.
+    
+    ## 6. גופני ממשק מקומיים
+    
+    כעת ניתן לבחור העדפות גופני ממשק מקומיים. זו הגדרה קטנה, אבל היא משמעותית אם אתם מבלים זמן רב בקריאה וכתיבה ב-OpenMates.
+    
+    ## 7. שיפורי יציבות וביצועים
+    
+    בוצעו גם שיפורי יציבות וביצועים בסנכרון הצ'אט, בהטמעות, בתצוגות מקדימות של קבצים ובתצוגות מקדימות של תוצאות תמונה.
+    
+    # מה הלאה
+    
+    השלב הבא הוא להמשיך להפוך את OpenMates לקלה יותר להבנה ולשימוש: דוגמאות טובות יותר, זרימות אפליקציה ברורות יותר, כלי יצירה ומחקר מלוטשים יותר, ופחות "פינות חדות" בחוויית הצ'אט.
+    
+    תודה שאתם משתמשים ב-OpenMates ותודה על המשוב כשמשהו מרגיש מבלבל או שבור.
+    
+    בברכה,
+    
+    מרקו  
+    יוצר OpenMates
   verified_by_human: []
 email_body:
   context: 'Newsletter announcements/introducing-openmates-v011 — email_body'
@@ -314,23 +1416,1139 @@ email_body:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    你好，
+    
+    OpenMates v0.11 现已上线。此更新在 v0.10 的改进基础上，增加了实用的日常功能：更丰富的每日灵感、代码执行、仓库研究、音乐生成、图像生成提供商改进、更清晰的应用结果以及本地界面字体。
+    
+    [cta]
+    
+    # 首先，快速回顾一下 v0.10
+    
+    v0.10 在回答中加入了维基百科链接、消息高亮和评论、更好的公开公告/示例页面、SEPA 银行转账以及账户邮箱更改功能。
+    
+    这些变化使 OpenMates 作为一个日常工作空间变得更加实用：更易于学习、更易于分享，并且在账户和支付基础功能方面更加稳健。
+    
+    # ✨ v0.11 有哪些新功能
+    
+    ## 1. 扩展的每日灵感
+    
+    每日灵感变得更加丰富多样。它们可以展示公开视频、实用的功能创意，以及你在 OpenMates 中可能想要尝试的具体切入点。
+    
+    我们的目标是让 OpenMates 感觉不再像是一个空荡荡的聊天框，而更像是一个能帮助你发现有用之事的地方：研究课题、理解视频、规划任务、探索工具或从示例开始继续操作。
+    
+    ## 2. 代码执行和代码研究改进
+    
+    代码应用迈出了一大步。OpenMates 现在可以在沙盒中运行代码、显示输出、协助仓库搜索，并处理更多与代码相关的后续操作。
+    
+    对于普通用户来说，即使你不是专业开发人员，这也非常有用：小脚本、数据清理、文档生成、网站预览、日志解释和技术问题都可以变得更具互动性。
+    
+    ## 3. 音乐生成和图像提供商改进
+    
+    v0.11 通过音乐生成和图像生成提供商的改进，扩展了生成式媒体工作流。这意味着 OpenMates 可以直接在聊天中支持更多创意任务：快速制作音乐创意、生成视觉概念、迭代提示词，或者将粗略的想法转化为你可以实际检查和重用的媒体。
+    
+    这项工作还改进了生成媒体的呈现方式，使结果更易于预览、打开和继续操作。
+    
+    ## 4. 更清晰的应用结果和提供商详情
+    
+    许多应用卡片和嵌入预览现在显示了更好的真实示例、提供商图标、来源信息和更清晰的元数据。这使得理解发生了什么、结果来自哪里以及使用了哪项应用技能变得更加容易。
+    
+    对于日常使用，这意味着更少的猜测：旅游结果、网页结果、生成的文件、媒体输出和代码结果应该更容易识别和处理。
+    
+    ## 5. 更好的后续建议呈现
+    
+    后续建议功能此前已经存在，但现在的呈现方式更加简洁且易于使用。它们旨在帮助你继续任务，而无需你自己去构思完美的下一个提示词。
+    
+    ## 6. 本地界面字体
+    
+    你现在可以选择本地界面字体偏好。这是一个很小的设置，但如果你花大量时间在 OpenMates 中阅读和写作，它就很重要。
+    
+    ## 7. 稳定性和性能改进
+    
+    聊天同步、嵌入、文件预览和图像结果预览方面的稳定性和性能也得到了提升。
+    
+    # 下一步计划
+    
+    下一步是继续让 OpenMates 变得更易于理解和使用：更好的示例、更清晰的应用流程、更完善的创意和研究工具，以及更流畅的聊天体验。
+    
+    感谢你使用 OpenMates，并在感到困惑或发现问题时提供反馈。
+    
+    祝好，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    Hola,
+    
+    OpenMates v0.11 ya está disponible. Esta actualización se basa en las mejoras de la v0.10 y añade funciones prácticas para el día a día: Inspiraciones Diarias más completas, ejecución de código, investigación de repositorios, generación de música, mejoras en los proveedores de generación de imágenes, resultados de aplicaciones más claros y fuentes de interfaz locales.
+    
+    [cta]
+    
+    # Primero, un breve resumen de la v0.10
+    
+    La v0.10 añadió enlaces de Wikipedia dentro de las respuestas, destacados y comentarios en los mensajes, mejores páginas de anuncios públicos y ejemplos, transferencias bancarias SEPA y cambios de correo electrónico de la cuenta.
+    
+    Esos cambios hicieron que OpenMates fuera más útil como espacio de trabajo diario: más fácil para aprender, más fácil de compartir y menos frágil en lo que respecta a los aspectos básicos de la cuenta y los pagos.
+    
+    # ✨ Novedades de la v0.11
+    
+    ## 1. Inspiraciones Diarias ampliadas
+    
+    Las Inspiraciones Diarias son ahora más completas y variadas. Pueden mostrar vídeos públicos, ideas de funciones útiles y puntos de partida concretos para cosas que quieras hacer en OpenMates.
+    
+    El objetivo es que OpenMates se sienta menos como una caja de chatbot vacía y más como un lugar que te ayuda a descubrir cosas útiles que hacer: investigar un tema, entender un vídeo, planificar una tarea, explorar una herramienta o continuar a partir de un ejemplo.
+    
+    ## 2. Mejoras en la ejecución e investigación de código
+    
+    La aplicación de Código ha dado un gran paso adelante. OpenMates ahora puede ejecutar código en un entorno seguro (sandbox), mostrar resultados, ayudar con búsquedas en repositorios y gestionar más acciones de seguimiento relacionadas con el código.
+    
+    Para los usuarios habituales, esto es útil incluso si no eres un desarrollador profesional: pequeños scripts, limpieza de datos, generación de documentos, previsualizaciones de sitios web, explicaciones de registros (logs) y preguntas técnicas pueden volverse más interactivos.
+    
+    ## 3. Generación de música y mejoras en los proveedores de imágenes
+    
+    La v0.11 amplía los flujos de trabajo de medios generados con la generación de música y mejoras en los proveedores de generación de imágenes. Esto significa que OpenMates puede admitir más tareas creativas directamente en el chat: crear una idea musical rápida, generar conceptos visuales, iterar sobre prompts o convertir una idea aproximada en contenido multimedia que realmente puedas inspeccionar y reutilizar.
+    
+    Este trabajo también mejora la forma en que se presentan los medios generados, para que los resultados sean más fáciles de previsualizar, abrir y continuar.
+    
+    ## 4. Resultados de aplicaciones y detalles de proveedores más claros
+    
+    Muchas tarjetas de aplicaciones y previsualizaciones incrustadas muestran ahora mejores ejemplos reales, logotipos de proveedores, información de origen y metadatos más claros. Esto facilita la comprensión de lo que ha ocurrido, de dónde procede un resultado y qué habilidad de la aplicación se ha utilizado.
+    
+    Para el uso diario, esto significa menos conjeturas: los resultados de viajes, los resultados web, los archivos generados, las salidas multimedia y los resultados de código deberían ser más fáciles de reconocer y de utilizar.
+    
+    ## 5. Mejor presentación de las acciones de seguimiento
+    
+    Las sugerencias de seguimiento ya existían, pero su presentación es ahora más limpia y fácil de usar. Están pensadas para ayudarte a continuar una tarea sin tener que pensar tú mismo en el siguiente prompt perfecto.
+    
+    ## 6. Fuentes de interfaz locales
+    
+    Ahora puedes elegir tus preferencias de fuentes de interfaz locales. Es un ajuste pequeño, pero importa si pasas mucho tiempo leyendo y escribiendo en OpenMates.
+    
+    ## 7. Mejoras de estabilidad y rendimiento
+    
+    También ha habido mejoras de estabilidad y rendimiento en la sincronización del chat, los elementos incrustados, las previsualizaciones de archivos y las previsualizaciones de resultados de imágenes.
+    
+    # Próximos pasos
+    
+    El siguiente paso es seguir haciendo que OpenMates sea más fácil de entender y de usar: mejores ejemplos, flujos de aplicaciones más claros, herramientas creativas y de investigación más pulidas y menos asperezas en la experiencia del chat.
+    
+    Gracias por usar OpenMates y por darnos tu opinión cuando algo te parezca confuso o no funcione bien.
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    Salut,
+    
+    OpenMates v0.10 visait principalement à rendre le produit plus utile au quotidien : des réponses plus claires, des discussions plus fluides, plus d'applications et de fournisseurs, et de meilleures façons d'apprendre et d'avancer dans tes tâches.
+    
+    [cta]
+    
+    # ✨ Les points forts
+    
+    ## 1. Des liens Wikipédia directement dans les réponses
+    
+    OpenMates peut désormais mettre en évidence des sujets Wikipédia pertinents directement dans les réponses de l'assistant. Lorsqu'un concept mérite d'être approfondi, tu peux cliquer sur le terme surligné et en apprendre davantage rapidement sans quitter le fil de la discussion.
+    
+    C'est particulièrement utile pour l'apprentissage, la recherche, la planification de voyages, les questions d'histoire, les sujets scientifiques ou tout ce qui peut t'entraîner dans une spirale de découvertes.
+    
+    ## 2. Surlignage de messages et commentaires
+    
+    Tu peux désormais surligner des parties des messages de l'assistant et y ajouter des notes. Cela rend les réponses longues bien plus utiles : enregistre le paragraphe important, marque un élément à revoir plus tard ou ajoute un commentaire à côté d'une affirmation ou d'une recommandation spécifique.
+    
+    ## 3. Nouvelles applications et compétences
+    
+    OpenMates a acquis des compétences d'application plus utiles dans les catégories du quotidien. Les recherches de voyage sont devenues plus pratiques avec les liaisons ferroviaires et les liens de réservation, les Événements ont gagné des sources plus pertinentes, le Code comprend mieux les dépôts, et plusieurs types d'intégrations sont devenus plus clairs et interactifs.
+    
+    Au lieu de répondre uniquement à partir de la mémoire du modèle, OpenMates peut de plus en plus utiliser des outils dédiés : rechercher, comparer, résumer, créer des fichiers, inspecter les sources et afficher des résultats structurés directement dans le chat.
+    
+    ## 4. Plus de fournisseurs pour des résultats concrets
+    
+    La v0.10 a ajouté et amélioré des fournisseurs en coulisses, par exemple pour les voyages, les événements, les paiements et la sécurité du contenu. C'est important car une compétence n'est utile que si le résultat est actuel, sourcé et suffisamment précis pour être exploité.
+    
+    Pour les utilisateurs, l'effet visible est simple : des fiches plus riches, une meilleure attribution des sources, plus de liens directs et moins de réponses génériques lorsqu'un fournisseur peut renvoyer des données réelles.
+    
+    ## 5. Meilleures intégrations et aperçus
+    
+    Les intégrations sont devenues plus utiles dans toute l'application. Les résultats de recherche, les liens de réservation, les fichiers générés, les sorties de code, les images et les exemples publics bénéficient d'aperçus plus clairs et de vues plein écran, pour que tu puisses inspecter les résultats sans perdre le contexte de la conversation.
+    
+    ## 6. Des exemples et des pages publiques plus utiles
+    
+    Les annonces, les conseils, les pages juridiques et les exemples de discussions sont devenus de véritables pages de chat publiques. Cela permet de partager plus facilement ce qu'OpenMates peut faire et de rouvrir des exemples utiles plus tard.
+    
+    ## 7. Inscription et options de paiement simplifiées
+    
+    OpenMates a également ajouté les virements bancaires SEPA via Revolut Business, amélioré le paiement Stripe pour les utilisateurs hors UE et ajouté la modification de l'e-mail du compte. Ce ne sont pas des fonctionnalités spectaculaires, mais elles rendent les bases plus solides quand tu veux vraiment utiliser le produit.
+    
+    # Ce que cela signifie pour l'utilisation quotidienne
+    
+    OpenMates devrait maintenant ressembler davantage à un espace de travail utile : les réponses peuvent contenir des liens d'apprentissage, tu peux marquer et revenir sur des parties importantes, plus de compétences d'application peuvent renvoyer des résultats structurés réels, et les exemples publics sont plus faciles à partager.
+    
+    Comme toujours, une grande partie du travail a également porté sur la correction de bugs invisibles et l'amélioration de la fiabilité — en particulier concernant la synchronisation chiffrée du chat, les intégrations, l'inscription et le comportement sur Safari.
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Olá,
+    
+    O OpenMates v0.11 já está disponível. Esta atualização baseia-se nas melhorias da v0.10 e adiciona funcionalidades práticas para o dia a dia: Inspirações Diárias mais ricas, execução de código, pesquisa em repositórios, geração de música, melhorias nos provedores de geração de imagem, resultados de apps mais claros e fontes de interface locais.
+    
+    [cta]
+    
+    # Primeiro, um rápido resumo da v0.10
+    
+    A v0.10 adicionou links da Wikipédia dentro das respostas, destaques e comentários em mensagens, melhores páginas de anúncios públicos/exemplos, transferências bancárias SEPA e alterações de e-mail da conta.
+    
+    Essas mudanças tornaram o OpenMates mais útil como um espaço de trabalho diário: mais fácil para aprender, mais fácil de compartilhar e menos frágil no que toca ao básico da conta e pagamentos.
+    
+    # ✨ O que há de novo na v0.11
+    
+    ## 1. Inspirações Diárias Expandidas
+    
+    As Inspirações Diárias tornaram-se mais ricas e variadas. Podem mostrar vídeos públicos, ideias de funcionalidades úteis e pontos de partida concretos para coisas que possas querer fazer no OpenMates.
+    
+    O objetivo é fazer com que o OpenMates pareça menos uma caixa de chatbot vazia e mais um lugar que te ajuda a descobrir coisas úteis para fazer: pesquisar um tópico, entender um vídeo, planejar uma tarefa, explorar uma ferramenta ou continuar a partir de um exemplo.
+    
+    ## 2. Melhorias na execução e pesquisa de código
+    
+    A app de Código deu um grande passo em frente. O OpenMates agora pode executar código numa sandbox, mostrar resultados, ajudar com pesquisas em repositórios e lidar com mais ações de acompanhamento relacionadas com código.
+    
+    Para utilizadores comuns, isto é útil mesmo que não sejas um programador profissional: pequenos scripts, limpeza de dados, geração de documentos, pré-visualizações de websites, explicações de logs e questões técnicas podem tornar-se mais interativos.
+    
+    ## 3. Geração de música e melhorias nos provedores de imagem
+    
+    A v0.11 expande os fluxos de trabalho de media gerada com geração de música e melhorias nos provedores de geração de imagem. Isso significa que o OpenMates pode suportar mais tarefas criativas diretamente no chat: criar uma ideia musical rápida, gerar conceitos visuais, iterar em prompts ou transformar uma ideia bruta em media que podes realmente inspecionar e reutilizar.
+    
+    O trabalho também melhora a forma como a media gerada é apresentada, para que os resultados sejam mais fáceis de pré-visualizar, abrir e dar continuidade.
+    
+    ## 4. Resultados de apps e detalhes de provedores mais claros
+    
+    Muitos cartões de apps e pré-visualizações incorporadas mostram agora melhores exemplos reais, logótipos de provedores, informações de origem e metadados mais claros. Isto torna mais fácil entender o que aconteceu, de onde veio um resultado e qual a competência da app que foi utilizada.
+    
+    Para o uso diário, isso significa menos adivinhação: resultados de viagens, resultados web, ficheiros gerados, outputs de media e resultados de código devem ser mais fáceis de reconhecer e utilizar.
+    
+    ## 5. Melhor apresentação de acompanhamento
+    
+    As sugestões de acompanhamento já existiam, mas a sua apresentação é agora mais limpa e fácil de usar. Elas servem para te ajudar a continuar uma tarefa sem teres de pensar sozinho no próximo prompt perfeito.
+    
+    ## 6. Fontes de interface locais
+    
+    Agora podes escolher preferências de fontes de interface locais. É uma pequena definição, mas faz diferença se passas muito tempo a ler e a escrever no OpenMates.
+    
+    ## 7. Estabilidade e desempenho superficiais
+    
+    Houve também melhorias de estabilidade e desempenho na sincronização do chat, incorporações, pré-visualizações de ficheiros e pré-visualizações de resultados de imagem.
+    
+    # O que vem a seguir
+    
+    O próximo passo é continuar a tornar o OpenMates mais fácil de entender e de usar: melhores exemplos, fluxos de apps mais claros, ferramentas criativas e de pesquisa mais polidas e menos arestas por limar na experiência de chat.
+    
+    Obrigado por usares o OpenMates e por dares feedback quando algo parece confuso ou não funciona bem.
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Привет!
+    
+    Вышла версия OpenMates v0.11. Это обновление развивает улучшения версии v0.10 и добавляет практичные функции для повседневного использования: более насыщенные «Ежедневные идеи», выполнение кода, поиск по репозиториям, генерацию музыки, улучшения провайдеров генерации изображений, более понятные результаты приложений и локальные шрифты интерфейса.
+    
+    [cta]
+    
+    # Сначала краткий обзор v0.10
+    
+    В v0.10 появились ссылки на Википедию в ответах, выделение сообщений и комментарии, улучшенные страницы публичных анонсов и примеров, банковские переводы SEPA и возможность смены почты аккаунта.
+    
+    Эти изменения сделали OpenMates полезнее как рабочее пространство на каждый день: стало проще учиться, легче делиться результатами, а базовые функции аккаунта и оплаты стали надежнее.
+    
+    # ✨ Что нового в v0.11
+    
+    ## 1. Расширенные «Ежедневные идеи»
+    
+    «Ежедневные идеи» стали насыщеннее и разнообразнее. Теперь там могут появляться публичные видео, идеи полезных функций и конкретные отправные точки для задач, которые ты захочешь выполнить в OpenMates.
+    
+    Цель — сделать так, чтобы OpenMates ощущался не просто как пустое окно чат-бота, а как место, помогающее находить полезные занятия: изучить тему, разобраться в видео, спланировать задачу, освоить инструмент или продолжить работу на основе примера.
+    
+    ## 2. Выполнение кода и улучшения в поиске кода
+    
+    Приложение «Код» сделало большой шаг вперед. Теперь OpenMates может запускать код в песочнице, показывать результаты, помогать с поиском по репозиториям и выполнять больше последующих действий, связанных с кодом.
+    
+    Для обычных пользователей это полезно, даже если ты не профессиональный разработчик: небольшие скрипты, очистка данных, создание документов, предпросмотр сайтов, объяснение логов и технические вопросы станут более интерактивными.
+    
+    ## 3. Генерация музыки и улучшения провайдеров изображений
+    
+    Версия v0.11 расширяет возможности работы с медиаконтентом: добавлена генерация музыки и улучшена работа с провайдерами генерации изображений. Это значит, что OpenMates теперь поддерживает больше творческих задач прямо в чате: создание музыкальных набросков, генерацию визуальных концептов, доработку промптов или превращение черновой идеи в медиафайл, который можно просмотреть и использовать.
+    
+    Также улучшено представление созданного контента: результаты проще просматривать, открывать и использовать для дальнейшей работы.
+    
+    ## 4. Более понятные результаты приложений и данные о провайдерах
+    
+    Многие карточки приложений и окна предпросмотра теперь показывают наглядные примеры, логотипы провайдеров, информацию об источниках и более четкие метаданные. Это упрощает понимание того, что произошло, откуда взялся результат и какой навык приложения был использован.
+    
+    В повседневном использовании это избавит от лишних догадок: результаты поиска путешествий, веб-поиска, созданные файлы, медиа и результаты выполнения кода станет легче распознавать и использовать.
+    
+    ## 5. Улучшенное отображение предложений
+    
+    Предложения для продолжения диалога уже были, но теперь они выглядят аккуратнее и ими удобнее пользоваться. Они призваны помочь тебе продолжить задачу, не задумываясь над идеальным следующим промптом.
+    
+    ## 6. Локальные шрифты интерфейса
+    
+    Теперь можно выбрать предпочтительные локальные шрифты интерфейса. Это небольшая настройка, но она важна, если ты проводишь много времени за чтением и письмом в OpenMates.
+    
+    ## 7. Стабильность и производительность
+    
+    Также была повышена стабильность и производительность синхронизации чатов, встраиваемых объектов, предпросмотра файлов и изображений.
+    
+    # Что дальше
+    
+    Наш следующий шаг — продолжать делать OpenMates проще и понятнее: больше качественных примеров, наглядные рабочие процессы приложений, отточенные инструменты для творчества и исследований, а также устранение шероховатостей в работе чата.
+    
+    Спасибо, что пользуешься OpenMates и делишься отзывами, когда что-то кажется непонятным или работает не так.
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    こんにちは、
+    
+    OpenMates v0.11をリリースしました。このアップデートはv0.10の改善をベースに、より充実した「今日のインスピレーション」、コード実行、リポジトリ調査、音楽生成、画像生成プロバイダーの改善、より明確なアプリ結果、ローカルインターフェースフォントなど、日常で役立つ実用的な機能を追加しています。
+    
+    [cta]
+    
+    # まずはv0.10の簡単な振り返り
+    
+    v0.10では、回答内へのWikipediaリンクの追加、メッセージのハイライトとコメント機能、公開アナウンス/サンプルページの改善、SEPA銀行振込、アカウントメールアドレスの変更機能が追加されました。
+    
+    これらの変更により、OpenMatesは日常のワークスペースとしてより使いやすくなりました。学習や共有が容易になり、アカウントや支払いの基本機能もより安定しました。
+    
+    # ✨ v0.11の新機能
+    
+    ## 1. 「今日のインスピレーション」の拡充
+    
+    「今日のインスピレーション」がより豊かで多様になりました。公開動画や便利な機能のアイデア、OpenMatesでやりたいことの具体的なきっかけを提案します。
+    
+    目標は、OpenMatesを単なる空のチャットボットボックスではなく、トピックの調査、動画の理解、タスクの計画、ツールの探索、サンプルからの継続など、役立つことを見つける手助けをする場所にすることです。
+    
+    ## 2. コード実行とコード調査の改善
+    
+    コードアプリが大きく進化しました。OpenMatesはサンドボックス内でコードを実行し、出力を表示し、リポジトリの検索を支援し、より多くのコード関連のフォローアップアクションを処理できるようになりました。
+    
+    これはプロの開発者でなくても、日常的なユーザーにとって有用です。小さなスクリプト、データのクリーンアップ、ドキュメント生成、ウェブサイトのプレビュー、ログの解説、技術的な質問などが、よりインタラクティブになります。
+    
+    ## 3. 音楽生成と画像プロバイダーの改善
+    
+    v0.11では、音楽生成の追加と画像生成プロバイダーの改善により、生成メディアのワークフローが拡張されました。これにより、OpenMatesはチャット内で直接、より多くのクリエイティブなタスクをサポートできるようになります。短い音楽のアイデア作成、ビジュアルコンセプトの生成、プロンプトの推敲、あるいは大まかなアイデアを実際に確認・再利用可能なメディアに変換することなどが可能です。
+    
+    また、生成されたメディアの表示方法も改善され、結果のプレビュー、表示、およびその後の作業がよりスムーズになりました。
+    
+    ## 4. アプリ結果とプロバイダー詳細の明確化
+    
+    多くのアプリカードや埋め込みプレビューで、より適切な実例、プロバイダーのロゴ、ソース情報、明確なメタデータが表示されるようになりました。これにより、何が起こったのか、結果がどこから来たのか、どのアプリスキルが使用されたのかを理解しやすくなります。
+    
+    日常的な利用において、推測の手間が減ることを意味します。旅行の結果、ウェブの検索結果、生成されたファイル、メディア出力、コードの結果などが、より識別しやすく、アクションを起こしやすくなります。
+    
+    ## 5. フォローアップ表示の改善
+    
+    フォローアップの提案機能は以前からありましたが、表示がよりすっきりと使いやすくなりました。これは、次に最適なプロンプトを自分で考えることなく、タスクを継続できるようにするためのものです。
+    
+    ## 6. ローカルインターフェースフォント
+    
+    ローカルインターフェースのフォント設定を選択できるようになりました。小さな設定ですが、OpenMatesで読み書きに多くの時間を費やす場合には重要です。
+    
+    ## 7. 安定性とパフォーマンスの向上
+    
+    チャットの同期、埋め込み、ファイルのプレビュー、画像結果のプレビューにおいて、安定性とパフォーマンスの向上も行われました。
+    
+    # 今後の予定
+    
+    次のステップは、OpenMatesをさらに分かりやすく、使いやすくし続けることです。より良いサンプル、明確なアプリフロー、洗練されたクリエイティブ・調査ツール、そしてチャット体験における細かな不備の解消に取り組んでいきます。
+    
+    OpenMatesをご利用いただき、また、不明な点や不具合があった際にフィードバックをいただきありがとうございます。
+    
+    よろしくお願いいたします。
+    
+    Marco  
+    OpenMates 開発者
+  ko: |
+    안녕하세요,
+    
+    OpenMates v0.11이 출시되었습니다. 이번 업데이트는 v0.10의 개선 사항을 바탕으로 일상에서 유용하게 쓸 수 있는 기능들을 추가했습니다. 더 풍부해진 '오늘의 영감(Daily Inspirations)', 코드 실행, 저장소 조사, 음악 생성, 이미지 생성 제공자 개선, 더 명확해진 앱 결과, 그리고 로컬 인터페이스 폰트 등이 포함됩니다.
+    
+    [cta]
+    
+    # 먼저, v0.10의 주요 내용을 간단히 되짚어 보겠습니다
+    
+    v0.10에서는 답변 내 위키백과 링크, 메시지 하이라이트 및 댓글, 개선된 공개 공지/예시 페이지, SEPA 은행 송금, 계정 이메일 변경 기능이 추가되었습니다.
+    
+    이러한 변화를 통해 OpenMates는 일상적인 워크스페이스로서 더 유용해졌습니다. 학습과 공유가 쉬워졌고, 계정 및 결제 관련 기본 기능도 더욱 견고해졌습니다.
+    
+    # ✨ v0.11의 새로운 기능
+    
+    ## 1. 확장된 '오늘의 영감'
+    
+    '오늘의 영감'이 더욱 풍부하고 다양해졌습니다. 공개 동영상, 유용한 기능 아이디어, 그리고 OpenMates에서 시도해 볼 수 있는 구체적인 시작점들을 제안합니다.
+    
+    OpenMates가 단순한 빈 챗봇 창이 아니라, 주제 조사, 영상 이해, 작업 계획, 도구 탐색, 예시 활용 등 유용한 활동을 발견하도록 돕는 공간이 되는 것이 목표입니다.
+    
+    ## 2. 코드 실행 및 코드 조사 개선
+    
+    코드 앱이 크게 발전했습니다. 이제 OpenMates는 샌드박스 환경에서 코드를 실행하고, 결과를 보여주며, 저장소 검색을 돕고, 더 많은 코드 관련 후속 작업을 처리할 수 있습니다.
+    
+    전문 개발자가 아니더라도 일상적인 사용자에게 유용합니다. 간단한 스크립트, 데이터 정리, 문서 생성, 웹사이트 미리보기, 로그 설명, 기술적 질문 등을 더 대화형으로 진행할 수 있습니다.
+    
+    ## 3. 음악 생성 및 이미지 제공자 개선
+    
+    v0.11에서는 음악 생성 기능과 이미지 생성 제공자 개선을 통해 생성형 미디어 워크플로우를 확장했습니다. 이제 채팅창에서 바로 음악 아이디어 만들기, 시각적 컨셉 생성, 프롬프트 반복 수정, 아이디어를 실제 확인 및 재사용 가능한 미디어로 변환하는 등 더 창의적인 작업을 지원합니다.
+    
+    또한 생성된 미디어의 표시 방식이 개선되어 결과를 더 쉽게 미리 보고, 열고, 다음 작업으로 이어갈 수 있습니다.
+    
+    ## 4. 더 명확해진 앱 결과 및 제공자 정보
+    
+    많은 앱 카드와 임베드 미리보기에 실제 예시, 제공자 로고, 출처 정보 및 명확한 메타데이터가 표시됩니다. 이를 통해 어떤 작업이 수행되었는지, 결과가 어디서 왔는지, 어떤 앱 기능이 사용되었는지 더 쉽게 파악할 수 있습니다.
+    
+    일상적인 사용 시 추측할 필요가 줄어듭니다. 여행 결과, 웹 검색 결과, 생성된 파일, 미디어 출력, 코드 결과 등을 더 쉽게 식별하고 활용할 수 있습니다.
+    
+    ## 5. 개선된 후속 작업 제안
+    
+    후속 작업 제안 기능은 기존에도 있었지만, 이제 더 깔끔하고 사용하기 편해졌습니다. 완벽한 다음 프롬프트를 직접 고민하지 않고도 작업을 계속 이어갈 수 있도록 돕습니다.
+    
+    ## 6. 로컬 인터페이스 폰트
+    
+    이제 로컬 인터페이스 폰트 설정을 선택할 수 있습니다. 작은 설정이지만, OpenMates에서 읽고 쓰는 시간이 많다면 중요한 차이를 만들어 줄 것입니다.
+    
+    ## 7. 안정성 및 성능 개선
+    
+    채팅 동기화, 임베드, 파일 미리보기, 이미지 결과 미리보기 등의 안정성과 성능이 개선되었습니다.
+    
+    # 향후 계획
+    
+    다음 단계는 OpenMates를 계속해서 더 이해하기 쉽고 사용하기 편하게 만드는 것입니다. 더 나은 예시, 명확한 앱 흐름, 더 정교해진 창작 및 조사 도구, 그리고 더 매끄러운 채팅 경험을 제공할 예정입니다.
+    
+    OpenMates를 이용해 주시고, 혼란스럽거나 불편한 점에 대해 피드백을 주셔서 감사합니다.
+    
+    감사합니다,
+    
+    Marco  
+    OpenMates 제작자
+  it: |
+    Ehi,
+    
+    OpenMates v0.11 è ora disponibile. Questo aggiornamento si basa sui miglioramenti della v0.10 e aggiunge funzionalità pratiche per l'uso quotidiano: Ispirazioni Quotidiane più ricche, esecuzione di codice, ricerca nei repository, generazione di musica, miglioramenti ai provider di generazione immagini, risultati delle app più chiari e font di interfaccia locali.
+    
+    [cta]
+    
+    # Innanzitutto, un rapido riepilogo della v0.10
+    
+    La v0.10 ha aggiunto link a Wikipedia all'interno delle risposte, evidenziazioni e commenti ai messaggi, migliori pagine di annunci pubblici/esempi, bonifici bancari SEPA e modifiche all'email dell'account.
+    
+    Questi cambiamenti hanno reso OpenMates più utile come spazio di lavoro quotidiano: più facile per imparare, più facile da condividere e più solido per quanto riguarda le basi dell'account e dei pagamenti.
+    
+    # ✨ Cosa c'è di nuovo nella v0.11
+    
+    ## 1. Ispirazioni Quotidiane ampliate
+    
+    Le Ispirazioni Quotidiane sono diventate più ricche e variegate. Possono mostrare video pubblici, idee utili per le funzionalità e punti di partenza concreti per le attività che potresti voler svolgere in OpenMates.
+    
+    L'obiettivo è far sì che OpenMates sembri meno una casella di chatbot vuota e più un luogo che ti aiuta a scoprire cose utili da fare: ricercare un argomento, capire un video, pianificare un'attività, esplorare uno strumento o continuare da un esempio.
+    
+    ## 2. Miglioramenti all'esecuzione e alla ricerca di codice
+    
+    L'app Code ha fatto un grande passo avanti. OpenMates può ora eseguire codice in una sandbox, mostrare gli output, aiutare con le ricerche nei repository e gestire più azioni di follow-up relative al codice.
+    
+    Per gli utenti comuni questo è utile anche se non sei uno sviluppatore professionista: piccoli script, pulizia dei dati, generazione di documenti, anteprime di siti web, spiegazioni di log e domande tecniche possono diventare più interattivi.
+    
+    ## 3. Generazione di musica e miglioramenti ai provider di immagini
+    
+    La v0.11 amplia i flussi di lavoro dei media generati con la generazione di musica e miglioramenti ai provider di generazione immagini. Ciò significa che OpenMates può supportare più attività creative direttamente in chat: creare una rapida idea musicale, generare concetti visivi, iterare sui prompt o trasformare un'idea grezza in un contenuto multimediale che puoi effettivamente ispezionare e riutilizzare.
+    
+    Il lavoro migliora anche il modo in cui vengono presentati i media generati, così i risultati sono più facili da visualizzare in anteprima, aprire e da cui proseguire.
+    
+    ## 4. Risultati delle app e dettagli dei provider più chiari
+    
+    Molte schede delle app e anteprime incorporate ora mostrano esempi reali migliori, loghi dei provider, informazioni sulle fonti e metadati più chiari. Questo rende più facile capire cosa è successo, da dove proviene un risultato e quale competenza dell'app è stata utilizzata.
+    
+    Per l'uso quotidiano, questo significa meno incertezze: i risultati di viaggio, i risultati web, i file generati, gli output multimediali e i risultati del codice dovrebbero essere più facili da riconoscere e su cui agire.
+    
+    ## 5. Migliore presentazione dei follow-up
+    
+    I suggerimenti di follow-up esistevano già, ma la loro presentazione è ora più pulita e facile da usare. Servono ad aiutarti a continuare un'attività senza dover pensare tu stesso al prompt successivo perfetto.
+    
+    ## 6. Font di interfaccia locali
+    
+    Ora puoi scegliere le preferenze per i font dell'interfaccia locale. È una piccola impostazione, ma conta se passi molto tempo a leggere e scrivere in OpenMates.
+    
+    ## 7. Miglioramenti della stabilità e delle prestazioni
+    
+    Ci sono stati anche miglioramenti della stabilità e delle prestazioni nella sincronizzazione della chat, negli embed, nelle anteprime dei file e nelle anteprime dei risultati delle immagini.
+    
+    # Cosa accadrà in seguito
+    
+    Il prossimo passo è continuare a rendere OpenMates più facile da capire e da usare: esempi migliori, flussi delle app più chiari, strumenti creativi e di ricerca più rifiniti e meno spigolosità nell'esperienza di chat.
+    
+    Grazie per usare OpenMates e per fornire feedback quando qualcosa sembra confuso o non funziona.
+    
+    Saluti,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    Selam,
+    
+    OpenMates v0.11 artık yayında. Bu güncelleme, v0.10 iyileştirmelerinin üzerine inşa ediliyor ve pratik günlük özellikler ekliyor: daha zengin Günlük İlhamlar, kod yürütme, depo araştırması, müzik oluşturma, görsel oluşturma sağlayıcısı iyileştirmeleri, daha net uygulama sonuçları ve yerel arayüz yazı tipleri.
+    
+    [cta]
+    
+    # İlk olarak, kısa bir v0.10 özeti
+    
+    v0.10; cevapların içine Wikipedia bağlantıları, mesaj vurguları ve yorumlar, daha iyi genel duyuru/örnek sayfaları, SEPA banka transferleri ve hesap e-postası değişiklikleri ekledi.
+    
+    Bu değişiklikler OpenMates'i günlük bir çalışma alanı olarak daha kullanışlı hale getirdi: öğrenmesi daha kolay, paylaşması daha kolay ve hesap ile ödeme temelleri konusunda daha sağlam.
+    
+    # ✨ v0.11'deki yenilikler
+    
+    ## 1. Genişletilmiş Günlük İlhamlar
+    
+    Günlük İlhamlar daha zengin ve daha çeşitli hale geldi. Herkese açık videoları, faydalı özellik fikirlerini ve OpenMates'te yapmak isteyebileceğin şeyler için somut başlangıç noktalarını ortaya çıkarabilirler.
+    
+    Amaç, OpenMates'in boş bir sohbet robotu kutusu gibi değil, yararlı şeyler keşfetmene yardımcı olan bir yer gibi hissettirmesini sağlamak: bir konuyu araştırmak, bir videoyu anlamak, bir görevi planlamak, bir aracı keşfetmek veya bir örnekten devam etmek.
+    
+    ## 2. Kod yürütme ve kod araştırması iyileştirmeleri
+    
+    Kod uygulaması büyük bir adım attı. OpenMates artık bir sandbox (korumalı alan) içinde kod çalıştırabilir, çıktıları gösterebilir, depo aramalarına yardımcı olabilir ve kodla ilgili daha fazla takip işlemini gerçekleştirebilir.
+    
+    Profesyonel bir geliştirici olmasan bile bu, günlük kullanıcılar için yararlıdır: küçük betikler, veri temizleme, belge oluşturma, web sitesi önizlemeleri, log açıklamaları ve teknik sorular daha etkileşimli hale gelebilir.
+    
+    ## 3. Müzik oluşturma ve görsel sağlayıcı iyileştirmeleri
+    
+    v0.11, müzik oluşturma ve görsel oluşturma sağlayıcıları etrafındaki iyileştirmelerle oluşturulan medya iş akışlarını genişletiyor. Bu, OpenMates'in doğrudan sohbette daha fazla yaratıcı görevi destekleyebileceği anlamına gelir: hızlı bir müzik fikri oluşturmak, görsel konseptler üretmek, istemler (prompts) üzerinde yineleme yapmak veya kaba bir fikri gerçekten inceleyebileceğin ve yeniden kullanabileceğin bir medyaya dönüştürmek.
+    
+    Bu çalışma aynı zamanda oluşturulan medyanın sunulma şeklini de iyileştiriyor, böylece sonuçları önizlemek, açmak ve onlardan devam etmek daha kolay hale geliyor.
+    
+    ## 4. Daha net uygulama sonuçları ve sağlayıcı ayrıntıları
+    
+    Birçok uygulama kartı ve yerleştirme önizlemesi artık daha iyi gerçek örnekler, sağlayıcı logoları, kaynak bilgileri ve daha net meta veriler gösteriyor. Bu, ne olduğunu, bir sonucun nereden geldiğini ve hangi uygulama becerisinin kullanıldığını anlamayı kolaylaştırır.
+    
+    Günlük kullanım için bu, daha az tahmin yürütmek anlamına gelir: seyahat sonuçları, web sonuçları, oluşturulan dosyalar, medya çıktıları ve kod sonuçlarının tanınması ve üzerinde işlem yapılması daha kolay olmalıdır.
+    
+    ## 5. Daha iyi takip sunumu
+    
+    Takip önerileri zaten vardı, ancak sunumları artık daha temiz ve kullanımı daha kolay. Mükemmel bir sonraki istemi kendin düşünmek zorunda kalmadan bir göreve devam etmene yardımcı olmayı amaçlıyorlar.
+    
+    ## 6. Yerel arayüz yazı tipleri
+    
+    Artık yerel arayüz yazı tipi tercihlerini seçebilirsin. Küçük bir ayar, ancak OpenMates'te okumak ve yazmak için çok zaman harcıyorsan önemlidir.
+    
+    ## 7. Kararlılık ve performans iyileştirmeleri
+    
+    Sohbet senkronizasyonu, yerleştirmeler, dosya önizlemeleri ve görsel sonucu önizlemelerinde de kararlılık ve performans iyileştirmeleri yapıldı.
+    
+    # Sırada ne var
+    
+    Bir sonraki adım, OpenMates'i anlamayı ve kullanmayı daha kolay hale getirmeye devam etmek: daha iyi örnekler, daha net uygulama akışları, daha gösterişli yaratıcı ve araştırma araçları ve sohbet deneyimindeki pürüzlerin azaltılması.
+    
+    OpenMates'i kullandığın ve bir şeyler kafa karıştırıcı veya bozuk geldiğinde geri bildirim verdiğin için teşekkürler.
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Chào bạn,
+    
+    OpenMates v0.11 đã chính thức ra mắt. Bản cập nhật này tiếp nối những cải tiến từ v0.10 và bổ sung các tính năng thực tế hàng ngày: Cảm hứng hàng ngày (Daily Inspirations) phong phú hơn, thực thi mã, nghiên cứu kho lưu trữ, tạo nhạc, cải thiện nhà cung cấp tạo hình ảnh, kết quả ứng dụng rõ ràng hơn và phông chữ giao diện cục bộ.
+    
+    [cta]
+    
+    # Trước tiên, hãy cùng điểm lại nhanh v0.10
+    
+    v0.10 đã thêm các liên kết Wikipedia bên trong câu trả lời, làm nổi bật tin nhắn và bình luận, các trang thông báo/ví dụ công khai tốt hơn, chuyển khoản ngân hàng SEPA và thay đổi email tài khoản.
+    
+    Những thay đổi này giúp OpenMates trở nên hữu ích hơn như một không gian làm việc hàng ngày: dễ học hỏi hơn, dễ chia sẻ hơn và ổn định hơn về các vấn đề cơ bản liên quan đến tài khoản và thanh toán.
+    
+    # ✨ Có gì mới trong v0.11
+    
+    ## 1. Mở rộng Cảm hứng hàng ngày (Daily Inspirations)
+    
+    Cảm hứng hàng ngày trở nên phong phú và đa dạng hơn. Chúng có thể hiển thị các video công khai, các ý tưởng tính năng hữu ích và các điểm bắt đầu cụ thể cho những việc bạn có thể muốn thực hiện trong OpenMates.
+    
+    Mục tiêu là làm cho OpenMates bớt giống một khung chatbot trống rỗng và giống một nơi giúp bạn khám phá những điều hữu ích để làm hơn: nghiên cứu một chủ đề, hiểu một video, lập kế hoạch cho một nhiệm vụ, khám phá một công cụ hoặc tiếp tục từ một ví dụ.
+    
+    ## 2. Cải tiến thực thi mã và nghiên cứu mã
+    
+    Ứng dụng Code đã có một bước tiến lớn. OpenMates hiện có thể chạy mã trong môi trường thử nghiệm (sandbox), hiển thị kết quả đầu ra, hỗ trợ tìm kiếm kho lưu trữ và xử lý nhiều hành động tiếp theo liên quan đến mã hơn.
+    
+    Đối với người dùng thông thường, điều này vẫn hữu ích ngay cả khi bạn không phải là lập trình viên chuyên nghiệp: các đoạn mã nhỏ, dọn dẹp dữ liệu, tạo tài liệu, xem trước trang web, giải thích nhật ký (log) và các câu hỏi kỹ thuật có thể trở nên tương tác hơn.
+    
+    ## 3. Tạo nhạc và cải thiện nhà cung cấp hình ảnh
+    
+    v0.11 mở rộng quy trình làm việc với phương tiện được tạo ra bằng tính năng tạo nhạc và các cải tiến xung quanh các nhà cung cấp tạo hình ảnh. Điều đó có nghĩa là OpenMates có thể hỗ trợ nhiều tác vụ sáng tạo hơn trực tiếp trong đoạn chat: tạo ý tưởng âm nhạc nhanh, tạo các khái niệm hình ảnh, tinh chỉnh các câu lệnh (prompt) hoặc biến một ý tưởng thô thành phương tiện mà bạn thực sự có thể kiểm tra và tái sử dụng.
+    
+    Bản cập nhật cũng cải thiện cách trình bày các phương tiện được tạo ra, giúp kết quả dễ dàng xem trước, mở và tiếp tục thực hiện hơn.
+    
+    ## 4. Kết quả ứng dụng và chi tiết nhà cung cấp rõ ràng hơn
+    
+    Nhiều thẻ ứng dụng và bản xem trước nhúng hiện hiển thị các ví dụ thực tế tốt hơn, logo nhà cung cấp, thông tin nguồn và siêu dữ liệu rõ ràng hơn. Điều này giúp bạn dễ dàng hiểu chuyện gì đã xảy ra, kết quả đến từ đâu và kỹ năng ứng dụng nào đã được sử dụng.
+    
+    Đối với việc sử dụng hàng ngày, điều đó có nghĩa là ít phải đoán hơn: các kết quả du lịch, kết quả web, tệp được tạo, đầu ra phương tiện và kết quả mã sẽ dễ nhận biết và xử lý hơn.
+    
+    ## 5. Trình bày các bước tiếp theo tốt hơn
+    
+    Các gợi ý tiếp theo đã tồn tại từ trước, nhưng cách trình bày của chúng hiện đã gọn gàng và dễ sử dụng hơn. Chúng nhằm giúp bạn tiếp tục một nhiệm vụ mà không cần phải tự mình nghĩ ra câu lệnh tiếp theo hoàn hảo.
+    
+    ## 6. Phông chữ giao diện cục bộ
+    
+    Giờ đây bạn có thể chọn tùy chọn phông chữ giao diện cục bộ. Đây là một cài đặt nhỏ, nhưng nó quan trọng nếu bạn dành nhiều thời gian để đọc và viết trong OpenMates.
+    
+    ## 7. Cải thiện độ ổn định và hiệu suất
+    
+    Ngoài ra còn có các cải thiện về độ ổn định và hiệu suất trong việc đồng bộ hóa đoạn chat, các bản nhúng, xem trước tệp và xem trước kết quả hình ảnh.
+    
+    # Điều gì sẽ diễn ra tiếp theo
+    
+    Bước tiếp theo là tiếp tục làm cho OpenMates dễ hiểu và dễ sử dụng hơn: các ví dụ tốt hơn, luồng ứng dụng rõ ràng hơn, các công cụ sáng tạo và nghiên cứu trau chuốt hơn, và giảm bớt những điểm chưa hoàn thiện trong trải nghiệm chat.
+    
+    Cảm ơn bạn đã sử dụng OpenMates và đã phản hồi khi có điều gì đó gây nhầm lẫn hoặc bị lỗi.
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng lập OpenMates
+  id: |
+    Halo,
+    
+    OpenMates v0.11 kini telah hadir. Pembaruan ini melanjutkan peningkatan dari v0.10 dan menambahkan fitur praktis sehari-hari: Inspirasi Harian yang lebih kaya, eksekusi kode, riset repositori, pembuatan musik, peningkatan penyedia pembuatan gambar, hasil aplikasi yang lebih jelas, dan font antarmuka lokal.
+    
+    [cta]
+    
+    # Pertama, rekap singkat v0.10
+    
+    v0.10 menambahkan tautan Wikipedia di dalam jawaban, sorotan pesan dan komentar, halaman pengumuman/contoh publik yang lebih baik, transfer bank SEPA, dan perubahan email akun.
+    
+    Perubahan tersebut membuat OpenMates lebih berguna sebagai ruang kerja harian: lebih mudah untuk dipelajari, lebih mudah dibagikan, dan lebih stabil dalam hal dasar-dasar akun dan pembayaran.
+    
+    # ✨ Apa yang baru di v0.11
+    
+    ## 1. Inspirasi Harian yang Diperluas
+    
+    Inspirasi Harian menjadi lebih kaya dan bervariasi. Fitur ini dapat menampilkan video publik, ide fitur yang berguna, dan titik awal konkret untuk hal-hal yang mungkin ingin kamu lakukan di OpenMates.
+    
+    Tujuannya adalah agar OpenMates tidak terasa seperti kotak chatbot kosong, melainkan tempat yang membantumu menemukan hal-hal berguna untuk dilakukan: meriset topik, memahami video, merencanakan tugas, menjelajahi alat, atau melanjutkan dari sebuah contoh.
+    
+    ## 2. Peningkatan eksekusi kode dan riset kode
+    
+    Aplikasi Kode mengalami kemajuan besar. OpenMates kini dapat menjalankan kode dalam sandbox, menampilkan output, membantu pencarian repositori, dan menangani lebih banyak tindakan lanjutan terkait kode.
+    
+    Bagi pengguna sehari-hari, ini berguna meskipun kamu bukan pengembang profesional: skrip kecil, pembersihan data, pembuatan dokumen, pratinjau situs web, penjelasan log, dan pertanyaan teknis bisa menjadi lebih interaktif.
+    
+    ## 3. Pembuatan musik dan peningkatan penyedia gambar
+    
+    v0.11 memperluas alur kerja media yang dihasilkan dengan pembuatan musik dan peningkatan pada penyedia pembuatan gambar. Artinya, OpenMates dapat mendukung lebih banyak tugas kreatif langsung di chat: membuat ide musik cepat, menghasilkan konsep visual, mengulangi perintah (prompt), atau mengubah ide kasar menjadi media yang benar-benar bisa kamu periksa dan gunakan kembali.
+    
+    Pembaruan ini juga meningkatkan cara penyajian media yang dihasilkan, sehingga hasilnya lebih mudah dipratinjau, dibuka, dan dilanjutkan.
+    
+    ## 4. Hasil aplikasi dan detail penyedia yang lebih jelas
+    
+    Banyak kartu aplikasi dan pratinjau sematan kini menampilkan contoh nyata yang lebih baik, logo penyedia, informasi sumber, dan metadata yang lebih jelas. Ini memudahkan untuk memahami apa yang terjadi, dari mana hasil berasal, dan keterampilan aplikasi mana yang digunakan.
+    
+    Untuk penggunaan sehari-hari, ini berarti lebih sedikit tebakan: hasil perjalanan, hasil web, file yang dihasilkan, output media, dan hasil kode akan lebih mudah dikenali dan ditindaklanjuti.
+    
+    ## 5. Penyajian tindak lanjut yang lebih baik
+    
+    Saran tindak lanjut sudah ada sebelumnya, tetapi penyajiannya kini lebih bersih dan lebih mudah digunakan. Fitur ini dimaksudkan untuk membantumu melanjutkan tugas tanpa harus memikirkan perintah selanjutnya yang sempurna sendiri.
+    
+    ## 6. Font antarmuka lokal
+    
+    Kamu sekarang dapat memilih preferensi font antarmuka lokal. Ini adalah pengaturan kecil, tetapi penting jika kamu menghabiskan banyak waktu membaca dan menulis di OpenMates.
+    
+    ## 7. Peningkatan stabilitas dan performa
+    
+    Ada juga peningkatan stabilitas dan performa pada sinkronisasi chat, sematan, pratinjau file, dan pratinjau hasil gambar.
+    
+    # Apa selanjutnya
+    
+    Langkah selanjutnya adalah terus membuat OpenMates lebih mudah dipahami dan digunakan: contoh yang lebih baik, alur aplikasi yang lebih jelas, alat kreatif dan riset yang lebih terpoles, serta mengurangi kendala dalam pengalaman chat.
+    
+    Terima kasih telah menggunakan OpenMates dan telah memberikan masukan saat ada sesuatu yang terasa membingungkan atau rusak.
+    
+    Salam,
+    
+    Marco  
+    Pencipta OpenMates
+  pl: |
+    Cześć,
+    
+    OpenMates v0.11 jest już dostępny. Ta aktualizacja bazuje na ulepszeniach z wersji v0.10 i dodaje praktyczne funkcje codziennego użytku: bogatsze Codzienne Inspiracje, wykonywanie kodu, przeszukiwanie repozytoriów, generowanie muzyki, ulepszenia dostawców generowania obrazów, czytelniejsze wyniki aplikacji oraz lokalne czcionki interfejsu.
+    
+    [cta]
+    
+    # Najpierw krótkie podsumowanie v0.10
+    
+    Wersja v0.10 dodała linki do Wikipedii w odpowiedziach, wyróżnienia i komentarze do wiadomości, lepsze strony publicznych ogłoszeń/przykładów, przelewy bankowe SEPA oraz możliwość zmiany adresu e-mail konta.
+    
+    Te zmiany sprawiły, że OpenMates stał się bardziej użyteczny jako codzienne miejsce pracy: łatwiejszy do nauki, łatwiejszy do udostępniania i bardziej stabilny w kwestiach podstawowych, takich jak konto i płatności.
+    
+    # ✨ Co nowego w v0.11
+    
+    ## 1. Rozszerzone Codzienne Inspiracje
+    
+    Codzienne Inspiracje stały się bogatsze i bardziej zróżnicowane. Mogą teraz wyświetlać publiczne filmy, przydatne pomysły na funkcje i konkretne punkty wyjścia dla rzeczy, które możesz chcieć zrobić w OpenMates.
+    
+    Celem jest sprawienie, by OpenMates mniej przypominał puste okno czatu, a bardziej miejsce, które pomaga odkrywać przydatne zajęcia: zgłębianie tematu, zrozumienie wideo, planowanie zadania, odkrywanie narzędzi czy kontynuowanie pracy na podstawie przykładu.
+    
+    ## 2. Wykonywanie kodu i ulepszenia w przeszukiwaniu kodu
+    
+    Aplikacja Code zrobiła duży krok naprzód. OpenMates może teraz uruchamiać kod w piaskownicy (sandbox), wyświetlać wyniki, pomagać w przeszukiwaniu repozytoriów i obsługiwać więcej działań następczych związanych z kodem.
+    
+    Dla codziennych użytkowników jest to przydatne, nawet jeśli nie jesteś profesjonalnym programistą: małe skrypty, czyszczenie danych, generowanie dokumentów, podglądy stron internetowych, wyjaśnianie logów i pytania techniczne mogą stać się bardziej interaktywne.
+    
+    ## 3. Generowanie muzyki i ulepszenia dostawców obrazów
+    
+    Wersja v0.11 rozszerza procesy pracy z generowanymi mediami o generowanie muzyki oraz ulepszenia u dostawców generowania obrazów. Oznacza to, że OpenMates może wspierać więcej kreatywnych zadań bezpośrednio w czacie: tworzenie szybkich pomysłów muzycznych, generowanie koncepcji wizualnych, iterowanie nad promptami czy zamianę surowego pomysłu w multimedia, które możesz sprawdzić i wykorzystać.
+    
+    Prace te poprawiły również sposób prezentacji generowanych mediów, dzięki czemu wyniki są łatwiejsze do podglądu, otwierania i dalszej obróbki.
+    
+    ## 4. Czytelniejsze wyniki aplikacji i szczegóły dostawców
+    
+    Wiele kart aplikacji i podglądów osadzonych treści pokazuje teraz lepsze, rzeczywiste przykłady, logo dostawców, informacje o źródłach i czytelniejsze metadane. Ułatwia to zrozumienie, co się stało, skąd pochodzi wynik i która umiejętność aplikacji została użyta.
+    
+    W codziennym użytkowaniu oznacza to mniej zgadywania: wyniki podróży, wyniki wyszukiwania, wygenerowane pliki, multimedia i wyniki kodu powinny być łatwiejsze do rozpoznania i podjęcia dalszych działań.
+    
+    ## 5. Lepsza prezentacja sugestii kontynuacji
+    
+    Sugestie kontynuacji (follow-up) już istniały, ale ich prezentacja jest teraz czystsza i łatwiejsza w użyciu. Mają one pomóc Ci kontynuować zadanie bez konieczności samodzielnego wymyślania idealnego kolejnego promptu.
+    
+    ## 6. Lokalne czcionki interfejsu
+    
+    Możesz teraz wybrać preferencje lokalnych czcionek interfejsu. To małe ustawienie, ale ma znaczenie, jeśli spędzasz dużo czasu na czytaniu i pisaniu w OpenMates.
+    
+    ## 7. Poprawa stabilności i wydajności
+    
+    Wprowadzono również poprawki stabilności i wydajności w synchronizacji czatu, osadzonych treściach, podglądach plików i podglądach wyników obrazów.
+    
+    # Co dalej
+    
+    Następnym krokiem jest dalsze ułatwianie zrozumienia i obsługi OpenMates: lepsze przykłady, czytelniejsze przepływy aplikacji, bardziej dopracowane narzędzia kreatywne i badawcze oraz mniej niedociągnięć w samym czacie.
+    
+    Dziękujemy za korzystanie z OpenMates i za przesyłanie opinii, gdy coś wydaje się niejasne lub nie działa poprawnie.
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Hoi,
+    
+    OpenMates v0.10 draaide vooral om het product nuttiger te maken in alledaagse situaties: duidelijkere antwoorden, soepelere chats, meer apps en providers, en betere manieren om te leren en dingen gedaan te krijgen.
+    
+    [cta]
+    
+    # ✨ De hoogtepunten
+    
+    ## 1. Wikipedia-links direct in de antwoorden
+    
+    OpenMates kan nu relevante Wikipedia-onderwerpen direct in de antwoorden van de assistent markeren. Wanneer een concept de moeite waard is om verder te verkennen, kun je op de gemarkeerde term klikken en snel meer leren zonder de chat te verlaten.
+    
+    Dit is vooral handig voor leren, onderzoek, reisplanning, geschiedenisvragen, wetenschappelijke onderwerpen, of alles waarbij het antwoord een nieuw 'rabbit hole' opent.
+    
+    ## 2. Berichten markeren en opmerkingen toevoegen
+    
+    Je kunt nu delen van assistent-berichten markeren en er aantekeningen bij maken. Dit maakt langere antwoorden veel nuttiger: bewaar die ene belangrijke alinea, markeer iets waar je later op terug wilt komen, of plaats een opmerking bij een specifieke bewering of aanbeveling.
+    
+    ## 3. Nieuwe apps en app-vaardigheden
+    
+    OpenMates heeft meer nuttige app-vaardigheden gekregen in alledaagse categorieën. Zoekopdrachten voor reizen zijn praktischer geworden met treinverbindingen en boekingslinks, Events heeft nuttigere bronnen gekregen, Code is beter geworden in het begrijpen van repositories, en verschillende embed-types zijn duidelijker en actiegerichter geworden.
+    
+    In plaats van alleen te antwoorden vanuit het geheugen van het model, kan OpenMates steeds vaker specifieke tools gebruiken: zoeken, vergelijken, samenvatten, bestanden maken, bronmateriaal inspecteren en gestructureerde resultaten direct in de chat tonen.
+    
+    ## 4. Meer providers voor resultaten uit de echte wereld
+    
+    v0.10 heeft achter de schermen providers toegevoegd en verbeterd, bijvoorbeeld voor reizen, evenementen, betalingen en inhoudsbeveiliging. Dit is belangrijk omdat een vaardigheid pas echt nuttig is als het resultaat actueel is, onderbouwd door bronnen en specifiek genoeg om te gebruiken.
+    
+    Voor gebruikers is het zichtbare effect simpel: rijkere kaarten, betere bronvermelding, meer directe links en minder generieke antwoorden wanneer een provider echte data kan teruggeven.
+    
+    ## 5. Betere embeds en voorvertoningen
+    
+    Embeds zijn overal in de app nuttiger geworden. Zoekresultaten, boekingslinks, gegenereerde bestanden, code-outputs, afbeeldingen en openbare voorbeelden hebben nu duidelijkere voorvertoningen en fullscreen-weergaven, zodat je resultaten kunt bekijken zonder de context van het gesprek te verliezen.
+    
+    ## 6. Nuttigere voorbeelden en openbare pagina's
+    
+    Aankondigingen, tips, juridische pagina's en voorbeeldchats zijn nu volwaardige openbare chatpagina's. Dat maakt het makkelijker om te delen wat OpenMates kan en om nuttige voorbeelden later opnieuw te openen.
+    
+    ## 7. Soepelere aanmeld- en betalingsopties
+    
+    OpenMates heeft ook SEPA-bankoverschrijvingen via Revolut Business toegevoegd, de Stripe-checkout verbeterd voor gebruikers buiten de EU, en de mogelijkheid toegevoegd om je e-mailadres te wijzigen. Dit zijn geen flitsende functies, maar ze maken de basis minder kwetsbaar wanneer je het product daadwerkelijk wilt gebruiken.
+    
+    # Wat dit betekent voor dagelijks gebruik
+    
+    OpenMates zou nu meer als een nuttige werkplek moeten aanvoelen: antwoorden kunnen links bevatten om te leren, je kunt belangrijke delen markeren en later terugkijken, meer app-vaardigheden kunnen echte gestructureerde resultaten teruggeven, en openbare voorbeelden zijn makkelijker te delen.
+    
+    Zoals altijd bestond een groot deel van het werk uit onzichtbare bugfixes en verbeteringen aan de betrouwbaarheid — vooral rond versleutelde chatsynchronisatie, embeds, aanmelden en het gedrag in Safari.
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    أهلاً بك،
+    
+    إصدار OpenMates v0.11 متاح الآن. يبني هذا التحديث على تحسينات الإصدار v0.10 ويضيف ميزات عملية يومية: إلهامات يومية أغنى، تنفيذ الأكواد، البحث في المستودعات، توليد الموسيقى، تحسينات لمزودي توليد الصور، نتائج تطبيقات أوضح، وخطوط واجهة محلية.
+    
+    [cta]
+    
+    # أولاً، ملخص سريع للإصدار v0.10
+    
+    أضاف الإصدار v0.10 روابط ويكيبيديا داخل الإجابات، وتمييز الرسائل والتعليقات، وصفحات إعلانات وأمثلة عامة أفضل، وتحويلات SEPA البنكية، وتغيير بريد الحساب الإلكتروني.
+    
+    جعلت هذه التغييرات OpenMates أكثر فائدة كمساحة عمل يومية: أسهل للتعلم، أسهل للمشاركة، وأقل عرضة للمشاكل في أساسيات الحساب والدفع.
+    
+    # ✨ ما الجديد في الإصدار v0.11
+    
+    ## 1. إلهامات يومية موسعة
+    
+    أصبحت "الإلهامات اليومية" أغنى وأكثر تنوعاً. يمكنها الآن عرض فيديوهات عامة، وأفكار لميزات مفيدة، ونقاط انطلاق ملموسة لأشياء قد ترغب في القيام بها في OpenMates.
+    
+    الهدف هو جعل OpenMates يبدو أقل كصندوق دردشة فارغ وأكثر كمكان يساعدك على اكتشاف أشياء مفيدة للقيام بها: البحث في موضوع ما، فهم فيديو، التخطيط لمهمة، استكشاف أداة، أو المتابعة من مثال سابق.
+    
+    ## 2. تحسينات تنفيذ الأكواد والبحث البرمجي
+    
+    خطى تطبيق "الكود" خطوة كبيرة للأمام. يمكن لـ OpenMates الآن تشغيل الأكواد في بيئة معزولة (sandbox)، وعرض المخرجات، والمساعدة في البحث في المستودعات، والتعامل مع المزيد من إجراءات المتابعة المتعلقة بالكود.
+    
+    بالنسبة للمستخدمين العاديين، هذا مفيد حتى لو لم تكن مطوراً محترفاً: السكربتات الصغيرة، تنظيف البيانات، توليد المستندات، معاينة المواقع، شرح السجلات (logs)، والأسئلة التقنية يمكن أن تصبح أكثر تفاعلية.
+    
+    ## 3. توليد الموسيقى وتحسينات مزودي الصور
+    
+    يوسع الإصدار v0.11 سير عمل الوسائط المولدة عبر توليد الموسيقى وتحسينات لمزودي توليد الصور. هذا يعني أن OpenMates يمكنه دعم المزيد من المهام الإبداعية مباشرة في الدردشة: إنشاء فكرة موسيقية سريعة، توليد مفاهيم بصرية، تكرار الأوامر (prompts)، أو تحويل فكرة أولية إلى وسائط يمكنك فحصها وإعادة استخدامها.
+    
+    كما يحسن هذا العمل كيفية عرض الوسائط المولدة، بحيث تصبح النتائج أسهل في المعاينة والفتح والمتابعة.
+    
+    ## 4. نتائج تطبيقات أوضح وتفاصيل المزودين
+    
+    تعرض العديد من بطاقات التطبيقات ومعاينات التضمين الآن أمثلة واقعية أفضل، وشعارات المزودين، ومعلومات المصدر، وبيانات وصفية أوضح. هذا يسهل فهم ما حدث، ومن أين أتت النتيجة، وأي مهارة تطبيق تم استخدامها.
+    
+    للاستخدام اليومي، يعني هذا تخميناً أقل: نتائج السفر، نتائج الويب، الملفات المولدة، مخرجات الوسائط، ونتائج الأكواد يجب أن تكون أسهل في التعرف عليها والتعامل معها.
+    
+    ## 5. عرض أفضل للمتابعة
+    
+    كانت اقتراحات المتابعة موجودة بالفعل، لكن عرضها الآن أصبح أكثر ترتيباً وسهولة في الاستخدام. تهدف لمساعدتك على مواصلة المهمة دون الحاجة للتفكير في الأمر (prompt) التالي المثالي بنفسك.
+    
+    ## 6. خطوط الواجهة المحلية
+    
+    يمكنك الآن اختيار تفضيلات خطوط الواجهة المحلية. إنه إعداد صغير، لكنه مهم إذا كنت تقضي وقتاً طويلاً في القراءة والكتابة في OpenMates.
+    
+    ## 7. تحسينات الاستقرار والأداء
+    
+    كانت هناك أيضاً تحسينات في الاستقرار والأداء في مزامنة الدردشة، والتضمينات، ومعاينات الملفات، ومعاينات نتائج الصور.
+    
+    # ما الخطوة التالية
+    
+    الخطوة التالية هي الاستمرار في جعل OpenMates أسهل في الفهم والاستخدام: أمثلة أفضل، تدفقات تطبيقات أوضح، أدوات إبداعية وبحثية أكثر صقلاً، وتقليل العيوب في تجربة الدردشة.
+    
+    شكراً لاستخدامك OpenMates ولتقديم ملاحظاتك عندما يبدو شيء ما مربكاً أو معطلاً.
+    
+    مع التحية،
+    
+    ماركو  
+    مؤسس OpenMates
+  hi: |
+    नमस्ते,
+    
+    OpenMates v0.11 अब लाइव है। यह अपडेट v0.10 के सुधारों पर आधारित है और इसमें व्यावहारिक रोज़मर्रा के फीचर्स जोड़े गए हैं: बेहतर डेली इंस्पिरेशन (Daily Inspirations), कोड निष्पादन (code execution), रिपॉजिटरी रिसर्च, म्यूजिक जनरेशन, इमेज-जनरेशन प्रोवाइडर में सुधार, स्पष्ट ऐप परिणाम और लोकल इंटरफ़ेस फोंट।
+    
+    [cta]
+    
+    # पहले, v0.10 का एक त्वरित रिकैप
+    
+    v0.10 में जवाबों के अंदर विकिपीडिया लिंक, मैसेज हाइलाइट्स और कमेंट्स, बेहतर सार्वजनिक घोषणा/उदाहरण पेज, SEPA बैंक ट्रांसफर और अकाउंट ईमेल में बदलाव जोड़े गए थे।
+    
+    इन बदलावों ने OpenMates को दैनिक कार्यक्षेत्र के रूप में अधिक उपयोगी बना दिया: इससे सीखना और साझा करना आसान हो गया, और अकाउंट और पेमेंट की बुनियादी चीज़ें अधिक स्थिर हो गईं।
+    
+    # ✨ v0.11 में नया क्या है
+    
+    ## 1. विस्तारित डेली इंस्पिरेशन (Daily Inspirations)
+    
+    डेली इंस्पिरेशन अब और भी समृद्ध और विविध हो गए हैं। वे सार्वजनिक वीडियो, उपयोगी फीचर विचार और उन चीज़ों के लिए ठोस शुरुआती बिंदु दिखा सकते हैं जो तुम OpenMates में करना चाहते हो।
+    
+    लक्ष्य OpenMates को एक खाली चैटबॉट बॉक्स के बजाय एक ऐसी जगह बनाना है जो तुम्हें उपयोगी चीज़ें खोजने में मदद करे: किसी विषय पर शोध करना, वीडियो समझना, किसी कार्य की योजना बनाना, किसी टूल को एक्सप्लोर करना, या किसी उदाहरण से आगे बढ़ना।
+    
+    ## 2. कोड निष्पादन और कोड रिसर्च में सुधार
+    
+    कोड ऐप ने एक बड़ा कदम आगे बढ़ाया है। OpenMates अब सैंडबॉक्स में कोड चला सकता है, आउटपुट दिखा सकता है, रिपॉजिटरी सर्च में मदद कर सकता है और कोड से संबंधित अधिक फॉलो-अप कार्यों को संभाल सकता है।
+    
+    रोज़मर्रा के उपयोगकर्ताओं के लिए यह तब भी उपयोगी है जब तुम एक पेशेवर डेवलपर नहीं हो: छोटे स्क्रिप्ट, डेटा क्लीनअप, डॉक्यूमेंट जनरेशन, वेबसाइट प्रिव्यू, लॉग स्पष्टीकरण और तकनीकी प्रश्न अधिक इंटरैक्टिव हो सकते हैं।
+    
+    ## 3. म्यूजिक जनरेशन और इमेज प्रोवाइडर में सुधार
+    
+    v0.11 म्यूजिक जनरेशन और इमेज-जनरेशन प्रोवाइडर्स के सुधारों के साथ जनरेटेड-मीडिया वर्कफ़्लो का विस्तार करता है। इसका मतलब है कि OpenMates सीधे चैट में अधिक रचनात्मक कार्यों का समर्थन कर सकता है: एक त्वरित म्यूजिक आइडिया बनाना, विजुअल कॉन्सेप्ट्स जनरेट करना, प्रॉम्प्ट्स पर काम करना, या एक कच्चे विचार को ऐसे मीडिया में बदलना जिसे तुम वास्तव में देख और पुन: उपयोग कर सको।
+    
+    यह काम जनरेट किए गए मीडिया को पेश करने के तरीके में भी सुधार करता है, ताकि परिणामों को देखना, खोलना और उनसे आगे बढ़ना आसान हो।
+    
+    ## 4. स्पष्ट ऐप परिणाम और प्रोवाइडर विवरण
+    
+    कई ऐप कार्ड और एम्बेड प्रिव्यू अब बेहतर वास्तविक उदाहरण, प्रोवाइडर लोगो, स्रोत जानकारी और स्पष्ट मेटाडेटा दिखाते हैं। इससे यह समझना आसान हो जाता है कि क्या हुआ, परिणाम कहाँ से आया और किस ऐप स्किल का उपयोग किया गया था।
+    
+    दैनिक उपयोग के लिए, इसका मतलब है कम अंदाज़ा लगाना: यात्रा परिणाम, वेब परिणाम, जनरेट की गई फाइलें, मीडिया आउटपुट और कोड परिणाम पहचानना और उन पर कार्रवाई करना आसान होना चाहिए।
+    
+    ## 5. बेहतर फॉलो-अप प्रस्तुति
+    
+    फॉलो-अप सुझाव पहले से मौजूद थे, लेकिन उनकी प्रस्तुति अब अधिक साफ और उपयोग में आसान है। वे तुम्हें बिना खुद सही अगला प्रॉम्प्ट सोचे किसी कार्य को जारी रखने में मदद करने के लिए हैं।
+    
+    ## 6. लोकल इंटरफ़ेस फोंट
+    
+    अब तुम लोकल इंटरफ़ेस फोंट प्राथमिकताएं चुन सकते हो। यह एक छोटी सेटिंग है, लेकिन अगर तुम OpenMates में पढ़ने और लिखने में बहुत समय बिताते हो तो यह मायने रखती है।
+    
+    ## 7. स्थिरता और प्रदर्शन में सुधार
+    
+    चैट सिंक, एम्बेड, फाइल प्रिव्यू और इमेज रिजल्ट प्रिव्यू में स्थिरता और प्रदर्शन में भी सुधार किए गए हैं।
+    
+    # आगे क्या है
+    
+    अगला कदम OpenMates को समझने और उपयोग करने में और भी आसान बनाना है: बेहतर उदाहरण, स्पष्ट ऐप फ्लो, अधिक परिष्कृत रचनात्मक और शोध उपकरण, और चैट अनुभव में कम कमियां।
+    
+    OpenMates का उपयोग करने और कुछ भ्रमित करने वाला या खराब होने पर फीडबैक देने के लिए धन्यवाद।
+    
+    शुभकामनाएँ,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    สวัสดี,
+    
+    OpenMates v0.11 เปิดใช้งานแล้ว การอัปเดตนี้ต่อยอดจากการปรับปรุงในเวอร์ชัน 0.10 และเพิ่มฟีเจอร์ที่ใช้งานได้จริงในทุกๆ วัน: แรงบันดาลใจรายวัน (Daily Inspirations) ที่หลากหลายขึ้น, การรันโค้ด, การค้นหาในคลังเก็บโค้ด, การสร้างเพลง, การปรับปรุงผู้ให้บริการสร้างรูปภาพ, ผลลัพธ์ของแอปที่ชัดเจนขึ้น และฟอนต์อินเทอร์เฟซในเครื่อง
+    
+    [cta]
+    
+    # ก่อนอื่น สรุปสั้นๆ เกี่ยวกับ v0.10
+    
+    v0.10 ได้เพิ่มลิงก์ Wikipedia ในคำตอบ, การไฮไลต์ข้อความและคอมเมนต์, หน้าประกาศสาธารณะ/ตัวอย่างที่ดีขึ้น, การโอนเงินผ่านธนาคาร SEPA และการเปลี่ยนอีเมลบัญชี
+    
+    การเปลี่ยนแปลงเหล่านั้นทำให้ OpenMates มีประโยชน์มากขึ้นในฐานะพื้นที่ทำงานประจำวัน: เรียนรู้ได้ง่ายขึ้น แชร์ได้ง่ายขึ้น และมีความเสถียรมากขึ้นในส่วนพื้นฐานของบัญชีและการชำระเงิน
+    
+    # ✨ มีอะไรใหม่ใน v0.11
+    
+    ## 1. ขยายขอบเขตแรงบันดาลใจรายวัน (Daily Inspirations)
+    
+    แรงบันดาลใจรายวันมีความหลากหลายและน่าสนใจยิ่งขึ้น โดยสามารถแสดงวิดีโอสาธารณะ, ไอเดียฟีเจอร์ที่มีประโยชน์ และจุดเริ่มต้นที่เป็นรูปธรรมสำหรับสิ่งที่คุณอาจต้องการทำใน OpenMates
+    
+    เป้าหมายคือเพื่อให้ OpenMates ไม่ได้เป็นเพียงแค่กล่องแชทบอทที่ว่างเปล่า แต่เป็นสถานที่ที่ช่วยให้คุณค้นพบสิ่งที่มีประโยชน์ที่ควรทำ: ค้นคว้าหัวข้อต่างๆ, ทำความเข้าใจวิดีโอ, วางแผนงาน, สำรวจเครื่องมือ หรือต่อยอดจากตัวอย่าง
+    
+    ## 2. การปรับปรุงการรันโค้ดและการค้นคว้าโค้ด
+    
+    แอป Code ก้าวไปอีกขั้น ตอนนี้ OpenMates สามารถรันโค้ดใน Sandbox, แสดงผลลัพธ์, ช่วยค้นหาในคลังเก็บโค้ด และจัดการการดำเนินการต่อเนื่องที่เกี่ยวข้องกับโค้ดได้มากขึ้น
+    
+    สำหรับผู้ใช้ทั่วไป สิ่งนี้มีประโยชน์แม้ว่าคุณจะไม่ใช่โปรแกรมเมอร์มืออาชีพ: สคริปต์ขนาดเล็ก, การล้างข้อมูล, การสร้างเอกสาร, การดูตัวอย่างเว็บไซต์, การอธิบาย Log และคำถามทางเทคนิคจะมีความโต้ตอบได้มากขึ้น
+    
+    ## 3. การสร้างเพลงและการปรับปรุงผู้ให้บริการรูปภาพ
+    
+    v0.11 ขยายเวิร์กโฟลว์การสร้างสื่อด้วยการสร้างเพลงและการปรับปรุงเกี่ยวกับผู้ให้บริการสร้างรูปภาพ นั่นหมายความว่า OpenMates สามารถรองรับงานสร้างสรรค์ได้มากขึ้นโดยตรงในแชท: การสร้างไอเดียเพลงสั้นๆ, การสร้างคอนเซปต์ภาพ, การปรับแต่ง Prompt หรือการเปลี่ยนไอเดียคร่าวๆ ให้เป็นสื่อที่คุณสามารถตรวจสอบและนำไปใช้ต่อได้จริง
+    
+    งานนี้ยังปรับปรุงวิธีการแสดงผลสื่อที่สร้างขึ้น เพื่อให้ดูตัวอย่าง เปิด และทำงานต่อได้ง่ายขึ้น
+    
+    ## 4. ผลลัพธ์ของแอปและรายละเอียดผู้ให้บริการที่ชัดเจนขึ้น
+    
+    การ์ดแอปและตัวอย่างการฝัง (embed) จำนวนมากตอนนี้แสดงตัวอย่างจริง, โลโก้ผู้ให้บริการ, ข้อมูลแหล่งที่มา และ Metadata ที่ชัดเจนขึ้น สิ่งนี้ช่วยให้เข้าใจได้ง่ายขึ้นว่าเกิดอะไรขึ้น ผลลัพธ์มาจากไหน และใช้ทักษะของแอปใด
+    
+    สำหรับการใช้งานประจำวัน นั่นหมายถึงการคาดเดาที่น้อยลง: ผลลัพธ์การเดินทาง, ผลลัพธ์จากเว็บ, ไฟล์ที่สร้างขึ้น, สื่อที่ส่งออกมา และผลลัพธ์ของโค้ดควรจะจดจำและนำไปใช้งานต่อได้ง่ายขึ้น
+    
+    ## 5. การนำเสนอคำถามต่อเนื่องที่ดีขึ้น
+    
+    คำแนะนำสำหรับการดำเนินการต่อเนื่องมีอยู่แล้ว แต่การนำเสนอในตอนนี้ดูสะอาดตาและใช้งานง่ายขึ้น สิ่งเหล่านี้มีไว้เพื่อช่วยให้คุณทำงานต่อได้โดยไม่ต้องคิดหา Prompt ถัดไปที่สมบูรณ์แบบด้วยตัวเอง
+    
+    ## 6. ฟอนต์อินเทอร์เฟซในเครื่อง
+    
+    ตอนนี้คุณสามารถเลือกการตั้งค่าฟอนต์อินเทอร์เฟซในเครื่องได้แล้ว แม้จะเป็นการตั้งค่าเล็กๆ แต่ก็สำคัญหากคุณใช้เวลาส่วนใหญ่ในการอ่านและเขียนใน OpenMates
+    
+    ## 7. การปรับปรุงความเสถียรและประสิทธิภาพ
+    
+    นอกจากนี้ยังมีการปรับปรุงความเสถียรและประสิทธิภาพในการซิงค์แชท, การฝัง (embed), การดูตัวอย่างไฟล์ และการดูตัวอย่างผลลัพธ์รูปภาพ
+    
+    # สิ่งที่จะเกิดขึ้นต่อไป
+    
+    ขั้นตอนต่อไปคือการทำให้ OpenMates เข้าใจและใช้งานได้ง่ายขึ้นอย่างต่อเนื่อง: ตัวอย่างที่ดีขึ้น, ขั้นตอนการทำงานของแอปที่ชัดเจนขึ้น, เครื่องมือสร้างสรรค์และการค้นคว้าที่ขัดเกลามากขึ้น และลดจุดบกพร่องในประสบการณ์การแชท
+    
+    ขอบคุณที่ใช้ OpenMates และขอบคุณสำหรับคำแนะนำเมื่อมีบางอย่างที่ดูสับสนหรือใช้งานไม่ได้
+    
+    สวัสดี,
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    Ahoj,
+    
+    OpenMates v0.11 je nyní k dispozici. Tato aktualizace staví na vylepšeních z verze v0.10 a přidává praktické funkce pro každý den: bohatší Denní inspirace, spouštění kódu, průzkum repozitářů, generování hudby, vylepšení poskytovatelů generování obrázků, přehlednější výsledky aplikací a lokální písma rozhraní.
+    
+    [cta]
+    
+    # Nejdříve rychlá rekapitulace v0.10
+    
+    Verze v0.10 přidala odkazy na Wikipedii přímo v odpovědích, zvýrazňování zpráv a komentáře, lepší stránky s veřejnými oznámeními a příklady, bankovní převody SEPA a změny e-mailu u účtu.
+    
+    Tyto změny udělaly z OpenMates užitečnější pracovní prostor pro každý den: lépe se z něj učí, snáze se sdílí a základy kolem účtu a plateb jsou stabilnější.
+    
+    # ✨ Co je nového ve v0.11
+    
+    ## 1. Rozšířené Denní inspirace
+    
+    Denní inspirace jsou nyní bohatší a rozmanitější. Mohou zobrazovat veřejná videa, užitečné nápady na funkce a konkrétní výchozí body pro věci, které chceš v OpenMates dělat.
+    
+    Cílem je, aby OpenMates nepůsobil jen jako prázdné okno chatbotu, ale spíše jako místo, které ti pomůže objevovat užitečné věci: prozkoumat téma, pochopit video, naplánovat úkol, prozkoumat nástroj nebo navázat na příklad.
+    
+    ## 2. Spouštění kódu a vylepšení průzkumu kódu
+    
+    Aplikace Kód udělala velký krok vpřed. OpenMates nyní umí spouštět kód v sandboxu, zobrazovat výstupy, pomáhat s vyhledáváním v repozitářích a zvládat více následných akcí souvisejících s kódem.
+    
+    Pro běžné uživatele je to užitečné, i když nejsi profesionální vývojář: malé skripty, čištění dat, generování dokumentů, náhledy webových stránek, vysvětlování logů a technické dotazy mohou být nyní interaktivnější.
+    
+    ## 3. Generování hudby a vylepšení poskytovatelů obrázků
+    
+    v0.11 rozšiřuje pracovní postupy pro generovaná média o generování hudby a vylepšení u poskytovatelů generování obrázků. To znamená, že OpenMates dokáže podpořit více kreativních úkolů přímo v chatu: vytvoření rychlého hudebního nápadu, generování vizuálních konceptů, ladění promptů nebo přeměnu hrubého nápadu v média, která si můžeš prohlédnout a znovu použít.
+    
+    Tato práce také zlepšuje způsob prezentace generovaných médií, takže výsledky lze snáze prohlížet, otevírat a dále s nimi pracovat.
+    
+    ## 4. Přehlednější výsledky aplikací a podrobnosti o poskytovatelích
+    
+    Mnoho karet aplikací a náhledů vloženého obsahu nyní zobrazuje lepší reálné příklady, loga poskytovatelů, informace o zdroji a srozumitelnější metadata. Díky tomu je snazší pochopit, co se stalo, odkud výsledek pochází a která dovednost aplikace byla použita.
+    
+    Pro každodenní použití to znamená méně hádání: výsledky cestování, webové výsledky, generované soubory, mediální výstupy a výsledky kódu by mělo být snazší rozpoznat a pracovat s nimi.
+    
+    ## 5. Lepší prezentace následných kroků
+    
+    Návrhy na následné kroky už existovaly, ale jejich prezentace je nyní čistší a snadněji se používá. Mají ti pomoci pokračovat v úkolu, aniž bys musel sám vymýšlet dokonalý další prompt.
+    
+    ## 6. Lokální písma rozhraní
+    
+    Nyní si můžeš vybrat preference lokálních písem rozhraní. Je to malé nastavení, ale záleží na něm, pokud v OpenMates trávíš hodně času čtením a psaním.
+    
+    ## 7. Vylepšení stability a výkonu
+    
+    Došlo také k vylepšení stability a výkonu v synchronizaci chatu, vloženém obsahu, náhledech souborů a náhledech výsledků obrázků.
+    
+    # Co přijde dál
+    
+    Dalším krokem je pokračovat v tom, aby byl OpenMates srozumitelnější a snadněji použitelný: lepší příklady, jasnější toky aplikací, vyladěnější kreativní a výzkumné nástroje a méně nedostatků v chatu.
+    
+    Díky, že používáš OpenMates a že nám dáváš zpětnou vazbu, když ti něco připadá matoucí nebo nefunguje.
+    
+    Zdraví,
+    
+    Marco  
+    Tvůrce OpenMates
+  sv: |
+    Hej,
+    
+    OpenMates v0.10 handlade mest om att göra produkten mer användbar i vardagliga situationer: tydligare svar, smidigare chattar, fler appar och leverantörer, samt bättre sätt att lära sig och få saker gjorda.
+    
+    [cta]
+    
+    # ✨ Höjdpunkterna
+    
+    ## 1. Wikipedia-länkar direkt i svaren
+    
+    OpenMates kan nu markera relevanta Wikipedia-ämnen direkt i assistentens svar. När ett koncept är värt att utforska vidare kan du klicka på den markerade termen och snabbt lära dig mer utan att lämna chattflödet.
+    
+    Detta är särskilt användbart för lärande, research, reseplanering, historiska frågor, vetenskapliga ämnen eller vad som helst där svaret öppnar upp ett nytt "kaninhål".
+    
+    ## 2. Markeringar och kommentarer i meddelanden
+    
+    Du kan nu markera delar av assistentens meddelanden och föra anteckningar om dem. Detta gör längre svar mycket mer användbara: spara det viktiga stycket, markera något du vill återkomma till eller lämna en kommentar intill ett specifikt påstående eller en rekommendation.
+    
+    ## 3. Nya appar och app-färdigheter
+    
+    OpenMates har fått mer användbara app-färdigheter inom vardagliga kategorier. Resesökningar blev mer praktiska med tågförbindelser och bokningslänkar, Events fick mer användbara evenemangskällor, Code blev bättre på att förstå kodförråd (repositories) och flera typer av inbäddningar blev tydligare och enklare att interagera med.
+    
+    Istället för att bara svara utifrån modellens minne kan OpenMates i allt högre grad använda dedikerade verktyg: söka, jämföra, sammanfatta, skapa filer, granska källmaterial och visa strukturerade resultat direkt i chatten.
+    
+    ## 4. Fler leverantörer för resultat från verkligheten
+    
+    v0.10 lade till och förbättrade leverantörer bakom kulisserna, till exempel för resor, evenemang, betalningar och innehållssäkerhet. Detta är viktigt eftersom en färdighet bara är användbar när resultatet är aktuellt, källbaserat och tillräckligt specifikt för att användas.
+    
+    För användare är den synliga effekten enkel: rikare kort, bättre källhänvisning, fler direktlänkar och färre generiska svar när en leverantör kan returnera faktiska data.
+    
+    ## 5. Bättre inbäddningar och förhandsvisningar
+    
+    Inbäddningar blev mer användbara i hela appen. Sökresultat, bokningslänkar, genererade filer, kodutdata, bilder och offentliga exempel fick tydligare förhandsvisningar och helskärmsvyer, så att du kan granska resultat utan att tappa konversationens sammanhang.
+    
+    ## 6. Mer användbara exempel och offentliga sidor
+    
+    Meddelanden, tips, juridiska sidor och exempelchattar blev riktiga offentliga chattsidor. Det gör det enklare att dela vad OpenMates kan göra och att öppna användbara exempel igen senare.
+    
+    ## 7. Smidigare registrering och betalningsalternativ
+    
+    OpenMates lade även till SEPA-banköverföringar via Revolut Business, förbättrade Stripe-utcheckningen för användare utanför EU och lade till möjligheten att byta e-postadress för kontot. Det här är inga flashiga funktioner, men de gör grunderna mindre bräckliga när du faktiskt vill använda produkten.
+    
+    # Vad detta innebär för vardaglig användning
+    
+    OpenMates bör kännas mer som en användbar arbetsyta nu: svar kan innehålla länkar för lärande, du kan markera och återkomma till viktiga delar, fler app-färdigheter kan returnera riktiga strukturerade resultat och offentliga exempel är enklare att dela.
+    
+    Som alltid bestod en stor del av arbetet också av osynliga buggfixar och förbättringar av tillförlitligheten – särskilt kring krypterad chattsynkronisering, inbäddningar, registrering och beteende i Safari.
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    היי,
+    
+    גרסה 0.11 של OpenMates זמינה כעת. עדכון זה מתבסס על השיפורים של גרסה 0.10 ומוסיף תכונות יומיומיות פרקטיות: "השראות יומיות" עשירות יותר, הרצת קוד, מחקר מאגרי קוד (repositories), יצירת מוזיקה, שיפורים בספקי יצירת תמונות, תוצאות אפליקציה ברורות יותר וגופני ממשק מקומיים.
+    
+    [cta]
+    
+    # ראשית, סיכום קצר של גרסה 0.10
+    
+    גרסה 0.10 הוסיפה קישורי ויקיפדיה בתוך תשובות, הדגשות והערות להודעות, דפי הודעות פומביות ודוגמאות משופרים, העברות בנקאיות מסוג SEPA ושינוי אימייל בחשבון.
+    
+    השינויים הללו הפכו את OpenMates לסביבת עבודה יומיומית שימושית יותר: קל יותר ללמוד ממנה, קל יותר לשתף, ופחות "שבירה" בכל הנוגע ליסודות החשבון והתשלומים.
+    
+    # ✨ מה חדש בגרסה 0.11
+    
+    ## 1. "השראות יומיות" מורחבות
+    
+    ה"השראות היומיות" הפכו לעשירות ומגוונות יותר. הן יכולות להציג סרטונים ציבוריים, רעיונות לתכונות שימושיות ונקודות פתיחה קונקרטיות לדברים שאולי תרצו לעשות ב-OpenMates.
+    
+    המטרה היא לגרום ל-OpenMates להרגיש פחות כמו תיבת צ'אטבוט ריקה ויותר כמו מקום שעוזר לכם לגלות דברים שימושיים לעשות: לחקור נושא, להבין סרטון, לתכנן משימה, לחקור כלי או להמשיך מתוך דוגמה.
+    
+    ## 2. הרצת קוד ושיפורים במחקר קוד
+    
+    אפליקציית הקוד עשתה צעד גדול קדימה. OpenMates יכולה כעת להריץ קוד ב"ארגז חול" (sandbox), להציג פלטים, לסייע בחיפושים במאגרי קוד ולטפל בפעולות המשך נוספות הקשורות לקוד.
+    
+    עבור משתמשים יומיומיים זה שימושי גם אם אינכם מפתחים מקצועיים: סקריפטים קטנים, ניקוי נתונים, יצירת מסמכים, תצוגה מקדימה של אתרים, הסברי לוגים ושאלות טכניות יכולים להפוך לאינטראקטיביים יותר.
+    
+    ## 3. יצירת מוזיקה ושיפורים בספקי תמונות
+    
+    גרסה 0.11 מרחיבה את תהליכי העבודה של מדיה גנרטיבית עם יצירת מוזיקה ושיפורים סביב ספקי יצירת תמונות. המשמעות היא ש-OpenMates יכולה לתמוך ביותר משימות יצירתיות ישירות בצ'אט: יצירת רעיון מוזיקלי מהיר, הפקת קונספטים ויזואליים, סבבי שיפור של פרומפטים (prompts) או הפיכת רעיון גולמי למדיה שניתן לבחון ולהשתמש בה שוב.
+    
+    העבודה גם משפרת את האופן שבו מדיה שנוצרה מוצגת, כך שקל יותר לצפות בתוצאות בתצוגה מקדימה, לפתוח אותן ולהמשיך מהן הלאה.
+    
+    ## 4. תוצאות אפליקציה ופרטי ספקים ברורים יותר
+    
+    כרטיסי אפליקציה ותצוגות מקדימות מוטמעות רבות מציגים כעת דוגמאות אמיתיות טובות יותר, לוגואים של ספקים, מידע על המקור ומטא-דאטה ברור יותר. זה מקל על ההבנה של מה קרה, מאיפה הגיעה התוצאה ובאיזו מיומנות אפליקציה נעשה שימוש.
+    
+    לשימוש יומיומי, זה אומר פחות ניחושים: תוצאות נסיעות, תוצאות מהרשת, קבצים שנוצרו, פלטי מדיה ותוצאות קוד אמורים להיות קלים יותר לזיהוי ולפעולה.
+    
+    ## 5. תצוגה טובה יותר של הצעות המשך
+    
+    הצעות להמשך כבר היו קיימות, אך התצוגה שלהן כעת נקייה וקלה יותר לשימוש. הן נועדו לעזור לכם להמשיך במשימה מבלי שתצטרכו לחשוב בעצמכם על הפרומפט הבא המושלם.
+    
+    ## 6. גופני ממשק מקומיים
+    
+    כעת ניתן לבחור העדפות גופנים מקומיות לממשק. זוהי הגדרה קטנה, אך היא משמעותית אם אתם מבלים זמן רב בקריאה וכתיבה ב-OpenMates.
+    
+    ## 7. שיפורי יציבות וביצועים
+    
+    בוצעו גם שיפורי יציבות וביצועים בסנכרון הצ'אט, בהטמעות (embeds), בתצוגה מקדימה של קבצים ובתצוגה מקדימה של תוצאות תמונה.
+    
+    # מה הלאה
+    
+    השלב הבא הוא להמשיך להפוך את OpenMates לקלה יותר להבנה ולשימוש: דוגמאות טובות יותר, זרימות אפליקציה ברורות יותר, כלי יצירה ומחקר מלוטשים יותר ופחות "פינות חדות" בחוויית הצ'אט.
+    
+    תודה שאתם משתמשים ב-OpenMates ועל המשוב כשמשהו מרגיש מבלבל או שבור.
+    
+    בברכה,
+    
+    מרקו  
+    יוצר OpenMates
   verified_by_human: []
