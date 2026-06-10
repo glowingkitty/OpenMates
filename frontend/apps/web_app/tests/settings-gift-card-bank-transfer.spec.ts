@@ -116,10 +116,12 @@ test('settings gift cards: bank transfer order is created as gift-card purchase'
 	await loginToTestAccount(page, log, screenshot);
 
 	await page.evaluate(() => {
-		window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: 'billing/gift-cards/buy/payment' } }));
+		window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: 'billing/gift-cards/buy' } }));
 	});
 
 	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'billing/gift-cards/buy', { timeout: 10000 });
+	await page.getByTestId('menu-item').filter({ hasText: '21.000' }).click();
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'billing/gift-cards/buy/payment', { timeout: 10000 });
 
 	const limitedRefundHeading = page.getByText(/Limited refund/i);
