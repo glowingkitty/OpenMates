@@ -140,7 +140,7 @@ test('admin can open and save Free testing credits budget settings', async ({ pa
 
 	await expect(page.getByText('Free testing credits are active for new signups.')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('50,000')).toBeVisible();
-	await expect(page.getByText('Never')).toBeVisible();
+	await expect(page.getByTestId('free-testing-budget-settings').getByText('Never')).toBeVisible();
 	expect(budgetApi.getLastPutBody()).toMatchObject({
 		enabled: true,
 		total_budget_credits: 50000,

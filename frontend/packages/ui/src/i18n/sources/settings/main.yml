@@ -2760,6 +2760,10 @@ server.free_testing_budget.title:
   context: Admin Server settings page title for configuring the Free testing credits signup promotion
   en: Free testing credits
   verified_by_human: []
+server.free_testing_credits:
+  context: Admin Server settings route title alias for the Free testing credits signup promotion
+  en: Free testing credits
+  verified_by_human: []
 server.free_testing_budget.subtitle:
   context: Subtitle for admin Free testing credits budget settings menu item
   en: Configure the signup testing credit budget
