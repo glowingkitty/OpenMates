@@ -1222,8 +1222,6 @@ export async function handleSend(
         existingChatHasUsableKey = true;
       } else if (chatKeyManager.getKeySync(chatIdToUse)) {
         existingChatHasUsableKey = true;
-      } else if (existingChatCheck.encrypted_chat_key) {
-        existingChatHasUsableKey = !!(await chatKeyManager.getKey(chatIdToUse));
       }
 
       const isDraftOnlyChatMissingKey =
