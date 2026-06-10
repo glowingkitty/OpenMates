@@ -723,7 +723,7 @@ struct ChatView: View {
     private var chatFloatingActions: some View {
         HStack(spacing: .spacing2) {
             HStack(spacing: .spacing2) {
-                chatFloatingAction(icon: "share", label: AppStrings.share) {
+                chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
                     onShareChat?()
                 }
                 chatFloatingAction(icon: "bug", label: AppStrings.report) {
@@ -740,7 +740,12 @@ struct ChatView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func chatFloatingAction(icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private func chatFloatingAction(
+        icon: String,
+        label: String,
+        accessibilityIdentifier: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Icon(icon, size: 22)
                 .foregroundStyle(LinearGradient.primary)
@@ -751,6 +756,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
     }
 
     // MARK: - Streaming banner

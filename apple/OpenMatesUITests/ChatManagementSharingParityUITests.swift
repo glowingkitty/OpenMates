@@ -7,6 +7,8 @@ import XCTest
 
 @MainActor
 final class ChatManagementSharingParityUITests: XCTestCase {
+    private let fixtureShareURL = "https://app.dev.openmates.org/s/Abc123XY#testKey"
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -34,6 +36,38 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Public chat management identifiers")
     }
 
+    func testChatSharePreviewGeneratesLinkQRCodeAndOpensSystemShareSheet() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-share"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-share"
+        app.launchEnvironment["UI_TEST_CHAT_SHARE_URL"] = fixtureShareURL
+        app.launch()
+
+        XCTAssertTrue(
+            app.otherElements["chat-share-preview"].waitForExistence(timeout: 10),
+            "Expected native chat share preview. Visible UI: \(visibleStateLabels(in: app))"
+        )
+
+        let generateButton = app.buttons["share-generate-link"]
+        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        generateButton.tap()
+
+        let generatedLink = app.staticTexts["share-short-link-url"]
+        XCTAssertTrue(generatedLink.waitForExistence(timeout: 5))
+        XCTAssertEqual(generatedLink.label, fixtureShareURL)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-qr-code").waitForExistence(timeout: 5))
+
+        let nativeShareButton = app.buttons["share-native-sheet-button"]
+        XCTAssertTrue(nativeShareButton.waitForExistence(timeout: 5))
+        nativeShareButton.tap()
+
+        XCTAssertTrue(
+            waitForSystemShareSheet(in: app, timeout: 8),
+            "Expected iOS system share sheet after tapping native share button. Visible UI: \(visibleStateLabels(in: app))"
+        )
+        attachScreenshot(name: "Native chat share sheet")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -46,6 +80,25 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         let textFields = elementSummaries(app.textFields.allElementsBoundByIndex, prefix: "textField")
         let staticTexts = elementSummaries(app.staticTexts.allElementsBoundByIndex, prefix: "text")
         return (buttons + textFields + staticTexts).prefix(30).joined(separator: " | ")
+    }
+
+    private func waitForSystemShareSheet(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if app.sheets.firstMatch.exists { return true }
+            if app.buttons["Copy"].exists || app.buttons["Add to Reading List"].exists { return true }
+            if app.otherElements.matching(NSPredicate(format: "label CONTAINS[c] %@", "Activity")).firstMatch.exists {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return false
+    }
+
+    private func accessibilityElement(in app: XCUIApplication, identifier: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .firstMatch
     }
 
     private func elementSummaries(_ elements: [XCUIElement], prefix: String) -> [String] {

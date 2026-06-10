@@ -25,9 +25,18 @@ struct DevPreviewRootView: View {
             DevChatOpeningPreviewView()
         case .chatOpeningRecording:
             DevChatOpeningPreviewView(forceRecordingOverlay: true)
+        case .chatShare:
+            DevChatSharePreviewView()
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
+    }
+}
+
+struct DevChatSharePreviewView: View {
+    var body: some View {
+        ChatShareView(chatId: "ui-test-chat-share")
+            .accessibilityIdentifier("chat-share-preview")
     }
 }
 

@@ -17,6 +17,7 @@ struct DevPreviewLaunchConfiguration: Equatable {
     enum Surface: String {
         case chatOpening = "chat-opening"
         case chatOpeningRecording = "chat-opening-recording"
+        case chatShare = "chat-share"
         case embeds
     }
 
@@ -63,7 +64,7 @@ struct DevPreviewLaunchConfiguration: Equatable {
                   let surface = Surface(rawValue: parts[1]) else {
                 return nil
             }
-            if surface == .chatOpening || surface == .chatOpeningRecording {
+            if surface == .chatOpening || surface == .chatOpeningRecording || surface == .chatShare {
                 return DevPreviewLaunchConfiguration(surface: surface, appSlug: .web)
             }
             let app = parts.dropFirst(2).first.flatMap(DevEmbedPreviewApp.init(rawValue:))
@@ -78,6 +79,10 @@ struct DevPreviewLaunchConfiguration: Equatable {
 
         if url.path.hasPrefix("/dev/preview/chat-opening") {
             return DevPreviewLaunchConfiguration(surface: .chatOpening, appSlug: .web)
+        }
+
+        if url.path.hasPrefix("/dev/preview/chat-share") {
+            return DevPreviewLaunchConfiguration(surface: .chatShare, appSlug: .web)
         }
 
         if url.path.hasPrefix("/dev/preview/embeds") {
