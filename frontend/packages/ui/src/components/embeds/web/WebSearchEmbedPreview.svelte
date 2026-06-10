@@ -443,9 +443,11 @@
         <!-- Finished state: show favicons and remaining count, or "0 results found" -->
         <div class="ds-search-results-info">
           {#if flatResults.length === 0}
-            <!-- Search completed but returned zero preview results — the query is already shown above. -->
+            <!-- Search completed but returned zero preview results. -->
             <span class="no-results-text" data-testid="search-no-results-message">
-              {$text('embeds.search_no_results')}
+              {query
+                ? $text('embeds.search_no_results_for_query').replace('{query}', query)
+                : $text('embeds.search_no_results')}
             </span>
           {:else}
             <!-- Favicons row -->
