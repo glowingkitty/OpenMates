@@ -555,7 +555,14 @@ async function sendMessage(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	stepLabel: string = 'msg'
 ): Promise<void> {
-	const messageField = page.getByTestId('message-field').last();
+	const currentChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+	const currentChatInput = currentChatId
+		? page.locator(`[data-action="message-input"][data-current-chat-id="${currentChatId}"]`).last()
+		: null;
+	const inputScope = currentChatInput && await currentChatInput.isVisible({ timeout: 1000 }).catch(() => false)
+		? currentChatInput
+		: page;
+	const messageField = inputScope.getByTestId('message-field').last();
 	const messageEditor = messageField.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	const userMessages = page.getByTestId('message-user');
@@ -610,14 +617,15 @@ async function sendMessage(
 				fieldRect: { x: fieldRect.x, y: fieldRect.y, width: fieldRect.width, height: fieldRect.height }
 			};
 		});
-		logCheckpoint('Send did not persist user message after click; captured composer diagnostics.', {
+		const lastSendDebugAfterClick = await page.evaluate(() => {
+			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+		});
+		logCheckpoint(`Send did not persist user message after click; diagnostics=${JSON.stringify({
 			userCountBeforeSend,
 			userCountAfterClick: await locatorCount(userMessages),
-			lastSendDebug: await page.evaluate(() => {
-				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
-			}),
+			lastSendDebug: lastSendDebugAfterClick,
 			diagnostics: diagnosticsBeforeSynthetic
-		});
+		})}`);
 
 		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
@@ -638,13 +646,14 @@ async function sendMessage(
 			.toBeTruthy()
 			.catch(() => undefined);
 		const userCountAfterSynthetic = await locatorCount(userMessages);
-		logCheckpoint('Synthetic custom-send-message diagnostic completed.', {
+		const lastSendDebugAfterSynthetic = await page.evaluate(() => {
+			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+		});
+		logCheckpoint(`Synthetic custom-send-message diagnostic completed; diagnostics=${JSON.stringify({
 			syntheticDispatchResult,
 			userCountAfterSynthetic,
-			lastSendDebug: await page.evaluate(() => {
-				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
-			})
-		});
+			lastSendDebug: lastSendDebugAfterSynthetic
+		})}`);
 		if (
 			await userMessagePersisted(
 				userMessages,

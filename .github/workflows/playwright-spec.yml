@@ -125,21 +125,29 @@ jobs:
         if: always()
         run: |
           if [ -f test-results/playwright.json ]; then
-            python3 -c "
+            python3 - <<'PY'
           import json
-          data = json.load(open('test-results/playwright.json'))
+          from pathlib import Path
+
+          path = Path('test-results/playwright.json')
+          try:
+            data = json.loads(path.read_text() or '{}')
+          except json.JSONDecodeError as exc:
+            print(f'WARNING: could not parse Playwright JSON: {exc}')
+            raise SystemExit(0)
+
           for suite in data.get('suites', []):
             for spec in suite.get('specs', []):
               for test in spec.get('tests', []):
                 results = test.get('results', [])
                 last = results[-1] if results else {}
                 status = last.get('status', '?')
-                print(f'{status}: {spec.get(\"title\", \"?\")}')
+                print(f'{status}: {spec.get("title", "?")}')
           errors = data.get('errors', [])
           if errors:
             for e in errors:
-              print(f'ERROR: {e.get(\"message\",\"\")[:200]}')
-          "
+              print(f'ERROR: {e.get("message","")[:200]}')
+          PY
           fi
       - name: Update OTP key if changed by test
         if: always()
