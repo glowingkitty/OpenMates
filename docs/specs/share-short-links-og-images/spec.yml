@@ -322,9 +322,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "GitHub Actions Playwright run 27298912012 via python3 scripts/run_tests.py --spec share-chat-flow.spec.ts"
+        timestamp: "2026-06-10T18:57:20Z"
 
   - id: T-E2E-002
     type: playwright

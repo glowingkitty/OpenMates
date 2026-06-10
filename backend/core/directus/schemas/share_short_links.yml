@@ -13,8 +13,7 @@ share_short_links:
     token:
       type: string
       note: "[Indexed, Unique] Public lookup token used in /s/<token>. Does not decrypt the share URL."
-      options:
-        unique: true
+      unique: true
 
     encrypted_url:
       type: text
