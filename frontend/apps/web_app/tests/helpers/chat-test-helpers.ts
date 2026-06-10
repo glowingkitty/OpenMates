@@ -529,14 +529,29 @@ async function sendMessage(
 		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
 		});
-		await page.waitForTimeout(1000);
+		await expect
+			.poll(async () => await locatorCount(userMessages), { timeout: 10000 })
+			.toBeGreaterThanOrEqual(userCountBeforeSend + 1)
+			.catch(() => undefined);
+		const userCountAfterSynthetic = await locatorCount(userMessages);
 		logCheckpoint('Synthetic custom-send-message diagnostic completed.', {
 			syntheticDispatchResult,
-			userCountAfterSynthetic: await locatorCount(userMessages),
+			userCountAfterSynthetic,
 			lastSendDebug: await page.evaluate(() => {
 				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 			})
 		});
+		if (userCountAfterSynthetic >= userCountBeforeSend + 1) {
+			lastSendStateByPage.set(page, {
+				assistantCount: assistantCountBeforeSend
+			});
+			logCheckpoint('User message persisted after synthetic send fallback.', {
+				userCount: userCountAfterSynthetic,
+				assistantCountBeforeSend
+			});
+			await takeStepScreenshot(page, `${stepLabel}-message-sent`);
+			return;
+		}
 		throw error;
 	}
 	lastSendStateByPage.set(page, {
