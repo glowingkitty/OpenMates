@@ -98,12 +98,16 @@ def test_scaffold_normalizes_home_category_label(tmp_path: Path) -> None:
     assert "category: general_knowledge" in result.stdout
 
 
-def test_current_example_chats_pass_audit() -> None:
+def test_current_example_chats_pass_audit(tmp_path: Path) -> None:
     audit_script = REPO_ROOT / "scripts" / "audit_example_chats.py"
     spec = importlib.util.spec_from_file_location("audit_example_chats", audit_script)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    if not module.REGISTRY_PATH.exists():
+        registry_path = tmp_path / "embedRegistry.generated.ts"
+        registry_path.write_text("", encoding="utf-8")
+        module.REGISTRY_PATH = registry_path
 
     assert module.audit() == []
