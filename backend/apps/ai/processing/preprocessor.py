@@ -35,7 +35,7 @@ from backend.core.api.app.utils.override_parser import UserOverrides
 # This replaces the previous hardcoded keyword-based detection in china_sensitivity.py
 
 # Import model selector for intelligent model selection based on leaderboard rankings
-from backend.apps.ai.utils.model_selector import ModelSelector
+from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL, ModelSelector
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
@@ -2228,16 +2228,18 @@ async def handle_preprocessing(
                         f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
                     )
             else:
-                # Could not resolve provider - this will fail billing preflight, but let it proceed
-                # so the error message is clear about the missing provider
                 logger.warning(
                     f"{log_prefix} USER_OVERRIDE: Could not resolve provider for model '{override_model_id}'. "
-                    f"Model not found in any provider configuration. This will likely fail billing validation."
+                    f"Model not found in any provider configuration. Falling back to {DEFAULT_FALLBACK_MODEL}."
                 )
-                selected_llm_for_main_id = override_model_id
-                selected_llm_for_main_name = override_model_id
+                selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
+                fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
+                selected_llm_for_main_name = (
+                    config_manager.get_model_display_name(fallback_model_id, fallback_provider)
+                    or fallback_model_id
+                )
                 model_override_applied = True
-                model_selection_reason = f"User override (unresolved provider): {override_model_id}"
+                model_selection_reason = f"Unresolved user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
 
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "

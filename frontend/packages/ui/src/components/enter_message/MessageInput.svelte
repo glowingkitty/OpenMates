@@ -2215,13 +2215,14 @@
                 .run();
         } else if (result.type === 'model') {
             // Use the custom AI model mention node for visual display
-            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
+            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id:provider
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
                 .setAIModelMention({
                     modelId: result.id,
+                    modelProvider: (result as import('./services/mentionSearchService').ModelMentionResult).providerId,
                     displayName: result.mentionDisplayName
                 })
                 .insertContent(' ')

@@ -794,8 +794,9 @@ function serializeParagraph(node: TipTapNode): string {
         "[Serializer] Found aiModelMention node, modelId:",
         child.attrs?.modelId,
       );
+      const modelProvider = child.attrs?.modelProvider;
       serializedParts.push({
-        content: `@ai-model:${child.attrs?.modelId || ""}`,
+        content: `@ai-model:${child.attrs?.modelId || ""}${modelProvider ? `:${modelProvider}` : ""}`,
         isBlockEmbed: false,
       });
     } else if (child.type === "mate") {

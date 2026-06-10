@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/components/enter_message/extensions/AIModelMentionNode.ts
 //
 // TipTap extension for AI model mentions.
-// Displays a friendly model name to the user but serializes to @ai-model:id for backend.
+// Displays a friendly model name to the user but serializes to @ai-model:id:provider for backend.
 // IMPORTANT: Display names use hyphens instead of spaces (e.g., "@Claude-Haiku-4.5")
 // for reliable parsing when the text is serialized back to the backend.
 
@@ -25,10 +25,12 @@ declare module "@tiptap/core" {
       /**
        * Insert an AI model mention node
        * @param options.modelId - The full model ID (e.g., 'claude-opus-4-5-20251101')
+       * @param options.modelProvider - The provider/server ID (e.g., 'anthropic')
        * @param options.displayName - The human-readable name (e.g., 'Claude 4.5 Opus')
        */
       setAIModelMention: (options: {
         modelId: string;
+        modelProvider?: string;
         displayName: string;
       }) => ReturnType;
     };
@@ -55,6 +57,9 @@ export const AIModelMentionNode = Node.create<AIModelMentionNodeOptions>({
       modelId: {
         default: null,
       },
+      modelProvider: {
+        default: null,
+      },
       displayName: {
         default: null,
       },
@@ -75,6 +80,7 @@ export const AIModelMentionNode = Node.create<AIModelMentionNodeOptions>({
       mergeAttributes(HTMLAttributes, {
         "data-type": "ai-model-mention",
         "data-model-id": HTMLAttributes.modelId,
+        "data-model-provider": HTMLAttributes.modelProvider,
         class: "ai-model-mention",
       }),
       // Use hyphens instead of spaces for reliable parsing

@@ -36,6 +36,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
+from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
@@ -1258,17 +1259,27 @@ async def _async_process_ai_skill_ask_task(
                     raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
 
                 full_model_id: str = preprocessing_result.selected_main_llm_model_id
-                # Expected format: "provider/model_name" (e.g., "openai/gpt-5"). Never assume a default provider.
-                if "/" in full_model_id:
-                    provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
-                else:
-                    raise RuntimeError(
-                        f"Model id '{full_model_id}' must include a provider prefix (format 'provider/model')."
-                    )
 
                 # Validate provider pricing exists via local worker ConfigManager only.
                 if not celery_config.config_manager:
                     raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
+
+                # Expected format: "provider/model_name" (e.g., "openai/gpt-5").
+                # If a stale client/config emits a raw model id, recover to a billable fallback
+                # instead of dropping the user request before any response can stream.
+                if "/" not in full_model_id:
+                    resolved_provider = celery_config.config_manager.find_provider_for_model(full_model_id)
+                    if resolved_provider:
+                        full_model_id = f"{resolved_provider}/{full_model_id}"
+                    else:
+                        logger.warning(
+                            f"[Task ID: {task_id}] Billing preflight received unresolved model id "
+                            f"'{full_model_id}'. Falling back to {DEFAULT_FALLBACK_MODEL}."
+                        )
+                        full_model_id = DEFAULT_FALLBACK_MODEL
+
+                provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
+                preprocessing_result.selected_main_llm_model_id = full_model_id
 
                 provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
                 if not provider_pricing_cfg:
@@ -1278,10 +1289,19 @@ async def _async_process_ai_skill_ask_task(
 
                 model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
                 if not model_pricing_details:
-                    raise RuntimeError(
-                        f"Pricing details missing for model '{model_suffix}' under provider '{provider_prefix}'. "
-                        f"Add the model with a 'pricing' section to '/app/backend/providers/{provider_prefix}.yml'."
+                    logger.warning(
+                        f"[Task ID: {task_id}] Pricing details missing for model '{model_suffix}' "
+                        f"under provider '{provider_prefix}'. Falling back to {DEFAULT_FALLBACK_MODEL}."
                     )
+                    provider_prefix, model_suffix = DEFAULT_FALLBACK_MODEL.split("/", 1)
+                    provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
+                    model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
+                    if not provider_pricing_cfg or not model_pricing_details:
+                        raise RuntimeError(
+                            f"Pricing details missing for fallback model '{DEFAULT_FALLBACK_MODEL}'. "
+                            "Billing preflight cannot safely continue."
+                        )
+                    preprocessing_result.selected_main_llm_model_id = DEFAULT_FALLBACK_MODEL
 
                 logger.info(
                     f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."

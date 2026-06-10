@@ -362,12 +362,14 @@ function parseMentions(text: string): any[] {
       case "ai-model": {
         // @ai-model:model_id or @ai-model:model_id:provider
         const modelId = part1;
+        const modelProvider = part2;
         const model = modelsMetadata.find((m) => m.id === modelId);
         const displayName = model?.name || modelId;
         result.push({
           type: "aiModelMention",
           attrs: {
             modelId: modelId,
+            modelProvider: modelProvider,
             displayName: displayName,
           },
         });
