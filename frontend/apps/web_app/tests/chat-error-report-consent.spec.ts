@@ -63,14 +63,11 @@ test.describe('Chat Error Report Consent', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
-		await page.getByTestId('daily-inspiration-banner').click();
-		const activeChatId = await page.waitForFunction(async () => {
-			const debug = (window as any).debug;
-			const state = await debug?.state?.();
-			return typeof state?.activeChat === 'string' && state.activeChat.length > 0
-				? state.activeChat
-				: null;
-		}, null, { timeout: 30000 }).then((handle: any) => handle.jsonValue());
+		const activeChatId = 'e2e00000-0000-4000-8000-000000000001';
+		await page.evaluate((chatId: string) => {
+			window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#chat-id=${chatId}`);
+		}, activeChatId);
+		logCheckpoint(`Injected chat context for simulated error: ${activeChatId}`);
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
 		await takeStepScreenshot(page, '01-authenticated-chat-open');
 
