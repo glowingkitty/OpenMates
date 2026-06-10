@@ -244,6 +244,21 @@ async function waitForNewAssistantMessage(
 	return newCount - 1;
 }
 
+async function waitForAssistantTurnSettled(page: any, log: any): Promise<void> {
+	const stopButton = page.getByTestId('stop-processing-button');
+	await expect(stopButton)
+		.not.toBeVisible({ timeout: 30000 })
+		.catch(() => log('WARNING: stop-processing-button remained visible before next turn.'));
+
+	const processingEmbeds = page.locator(
+		'[data-testid="message-assistant"] [data-testid="embed-preview"][data-status="processing"]'
+	);
+	await expect
+		.poll(async () => await processingEmbeds.count().catch(() => 0), { timeout: 45000 })
+		.toBe(0);
+	log('Assistant turn settled: no visible processing assistant embeds.');
+}
+
 // ─── Setup ───────────────────────────────────────────────────────────────────
 
 function setupPageListeners(page: any) {
@@ -337,6 +352,7 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	).toBe('de');
 
 	log('Turn 1 verified: AI responded in German.');
+	await waitForAssistantTurnSettled(page, log);
 
 	// ══════════════════════════════════════════════════════════════════════
 	// STEP 3: Send a follow-up in English → expect English response
