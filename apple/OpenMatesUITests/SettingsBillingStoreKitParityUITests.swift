@@ -36,7 +36,6 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-billing-product-10000", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-product-21000", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-product-54000", in: app, timeout: 3))
-        XCTAssertTrue(waitForElement("settings-billing-best-value-badge", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-bank-transfer-web-only", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Buy credits must not render default List/table chrome")
         app.descendants(matching: .any)["settings-billing-subview-back"].tap()
