@@ -85,13 +85,18 @@ jobs:
           }
           trap cleanup_heartbeat EXIT
 
-          npx playwright test "tests/${{ github.event.inputs.spec }}" \
+          timeout --kill-after=30s 390s \
+            npx playwright test "tests/${{ github.event.inputs.spec }}" \
             --reporter=json \
             > $GITHUB_WORKSPACE/test-results/playwright.json
           pw_status=$?
 
           cleanup_heartbeat
           trap - EXIT
+          if [ "$pw_status" -eq 124 ]; then
+            echo "Playwright exceeded the workflow timeout wrapper; preserving artifacts and reporting as failure."
+            exit 1
+          fi
           if [ "$pw_status" -ge 128 ]; then
             echo "Playwright exited with signal-style status ${pw_status}; preserving artifacts and reporting as failure."
             exit 1
