@@ -1,6 +1,6 @@
 id: apple-settings-billing-parity
 title: Apple Full Settings And Subsettings Web Spec Parity
-status: approved
+status: implementing
 
 goal: >
   Recreate the web app's full settings and subsettings coverage in Apple so
@@ -305,9 +305,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-c579
+        timestamp: "2026-06-10"
   - id: T-UNIT-002
     type: unit
     file: apple/OpenMatesTests/SettingsBillingParityTests.swift
