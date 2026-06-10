@@ -151,6 +151,156 @@ run.output:
   he: פלט ההפעלה
   verified_by_human: [en, de]
 
+run.view_code:
+  context: Breadcrumb action inside the Code Run overlay that closes output/selection and returns to the source code view
+  en: View code
+  de: Code anzeigen
+  zh: View code
+  fr: View code
+  pt: View code
+  ru: View code
+  ja: View code
+  ko: View code
+  it: View code
+  tr: View code
+  vi: View code
+  id: View code
+  pl: View code
+  nl: View code
+  ar: View code
+  hi: View code
+  th: View code
+  es: View code
+  cs: View code
+  sv: View code
+  he: View code
+  verified_by_human: [en, de]
+
+run.upload_execute:
+  context: Main prompt in the Code Run selection overlay before executing code in E2B
+  en: "Upload to E2B & execute:"
+  de: "Zu E2B hochladen und ausführen:"
+  zh: "Upload to E2B & execute:"
+  fr: "Upload to E2B & execute:"
+  pt: "Upload to E2B & execute:"
+  ru: "Upload to E2B & execute:"
+  ja: "Upload to E2B & execute:"
+  ko: "Upload to E2B & execute:"
+  it: "Upload to E2B & execute:"
+  tr: "Upload to E2B & execute:"
+  vi: "Upload to E2B & execute:"
+  id: "Upload to E2B & execute:"
+  pl: "Upload to E2B & execute:"
+  nl: "Upload to E2B & execute:"
+  ar: "Upload to E2B & execute:"
+  hi: "Upload to E2B & execute:"
+  th: "Upload to E2B & execute:"
+  es: "Upload to E2B & execute:"
+  cs: "Upload to E2B & execute:"
+  sv: "Upload to E2B & execute:"
+  he: "Upload to E2B & execute:"
+  verified_by_human: [en, de]
+
+run.cost_per_minute:
+  context: Cost note shown under the Code Run upload prompt
+  en: "Cost: 5 credits per minute"
+  de: "Kosten: 5 Credits pro Minute"
+  zh: "Cost: 5 credits per minute"
+  fr: "Cost: 5 credits per minute"
+  pt: "Cost: 5 credits per minute"
+  ru: "Cost: 5 credits per minute"
+  ja: "Cost: 5 credits per minute"
+  ko: "Cost: 5 credits per minute"
+  it: "Cost: 5 credits per minute"
+  tr: "Cost: 5 credits per minute"
+  vi: "Cost: 5 credits per minute"
+  id: "Cost: 5 credits per minute"
+  pl: "Cost: 5 credits per minute"
+  nl: "Cost: 5 credits per minute"
+  ar: "Cost: 5 credits per minute"
+  hi: "Cost: 5 credits per minute"
+  th: "Cost: 5 credits per minute"
+  es: "Cost: 5 credits per minute"
+  cs: "Cost: 5 credits per minute"
+  sv: "Cost: 5 credits per minute"
+  he: "Cost: 5 credits per minute"
+  verified_by_human: [en, de]
+
+run.files:
+  context: Section heading for files included in a Code Run
+  en: Files
+  de: Dateien
+  zh: Files
+  fr: Files
+  pt: Files
+  ru: Files
+  ja: Files
+  ko: Files
+  it: Files
+  tr: Files
+  vi: Files
+  id: Files
+  pl: Files
+  nl: Files
+  ar: Files
+  hi: Files
+  th: Files
+  es: Files
+  cs: Files
+  sv: Files
+  he: Files
+  verified_by_human: [en, de]
+
+run.packages:
+  context: Section heading for package installs included in a Code Run
+  en: Packages
+  de: Pakete
+  zh: Packages
+  fr: Packages
+  pt: Packages
+  ru: Packages
+  ja: Packages
+  ko: Packages
+  it: Packages
+  tr: Packages
+  vi: Packages
+  id: Packages
+  pl: Packages
+  nl: Packages
+  ar: Packages
+  hi: Packages
+  th: Packages
+  es: Packages
+  cs: Packages
+  sv: Packages
+  he: Packages
+  verified_by_human: [en, de]
+
+run.no_packages:
+  context: Empty state under the packages heading when Code Run has no detected packages to install
+  en: No packages detected
+  de: Keine Pakete erkannt
+  zh: No packages detected
+  fr: No packages detected
+  pt: No packages detected
+  ru: No packages detected
+  ja: No packages detected
+  ko: No packages detected
+  it: No packages detected
+  tr: No packages detected
+  vi: No packages detected
+  id: No packages detected
+  pl: No packages detected
+  nl: No packages detected
+  ar: No packages detected
+  hi: No packages detected
+  th: No packages detected
+  es: No packages detected
+  cs: No packages detected
+  sv: No packages detected
+  he: No packages detected
+  verified_by_human: [en, de]
+
 run.again:
   context: Button to run the code again
   en: Run again

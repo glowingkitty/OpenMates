@@ -248,6 +248,15 @@ async function waitForCodeRunSuccess(fullscreenOverlay: any, expectedOutput: str
 	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
 }
 
+async function expectCodeRunOverlaySurface(fullscreenOverlay: any, expectedBackground: string) {
+	const overlay = fullscreenOverlay.getByTestId('code-run-overlay');
+	await expect(overlay).toBeVisible({ timeout: 15000 });
+	const backgroundColor = await overlay.evaluate((node: HTMLElement) => getComputedStyle(node).backgroundColor);
+	expect(backgroundColor).toBe(expectedBackground);
+	await expect(fullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
+	return overlay;
+}
+
 async function waitForCodeRunCancelled(fullscreenOverlay: any, log: any) {
 	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
 	await expect(terminal).toBeVisible({ timeout: 15000 });
@@ -608,28 +617,39 @@ test('generated Python code embed can run in E2B sandbox', async ({ page, contex
   await expect(runButton).toBeVisible({ timeout: 10000 });
   await runButton.click();
 
-  const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
-  await expect(fileSelection).toBeVisible({ timeout: 15000 });
-  await expect(fileSelection).toContainText('Select files to upload & process in E2B sandbox:');
-  await expect(fileSelection).toContainText('code_run_helper.py');
+   const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
+   await expect(fileSelection).toBeVisible({ timeout: 15000 });
+   await expectCodeRunOverlaySurface(fullscreenOverlay, 'rgb(25, 25, 25)');
+   await expect(fullscreenOverlay.getByTestId('code-run-view-code')).toBeVisible({ timeout: 10000 });
+   await expect(fileSelection).toContainText('Upload to E2B & execute:');
+   await expect(fileSelection).toContainText('Cost: 5 credits per minute');
+   await expect(fileSelection).toContainText('Files');
+   await expect(fileSelection).toContainText('Packages');
+   await expect(fileSelection).toContainText('code_run_helper.py');
+   await expect(fullscreenOverlay.getByRole('button', { name: 'Hide output' })).toHaveCount(0);
 
-  const requiredCheckbox = fileSelection.getByTestId('code-run-required-file-checkbox').first();
-  await expect(requiredCheckbox).toBeChecked();
-  await expect(requiredCheckbox).toBeDisabled();
+   const requiredToggle = fileSelection.getByTestId('code-run-required-file-toggle').first();
+   await expect(requiredToggle).toHaveAttribute('aria-checked', 'true');
+   await expect(requiredToggle).toHaveAttribute('aria-disabled', 'true');
 
-  const optionalCheckbox = fileSelection.getByTestId('code-run-optional-file-checkbox').first();
-  await expect(optionalCheckbox).toBeChecked();
-  await fileSelection.getByRole('button', { name: 'Unselect all' }).click();
-  await expect(optionalCheckbox).not.toBeChecked();
-  await screenshot(page, 'file-selection');
+   const optionalToggle = fileSelection.getByTestId('code-run-optional-file-toggle').first();
+   await expect(optionalToggle).toHaveAttribute('aria-checked', 'true');
+   await fileSelection.getByRole('button', { name: 'Unselect all' }).click();
+   await expect(optionalToggle).toHaveAttribute('aria-checked', 'false');
+   await screenshot(page, 'file-selection');
 
-  await fileSelection.getByRole('button', { name: 'Continue' }).click();
+   await fileSelection.getByTestId('code-run-continue').click();
 
-  await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
-  await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
+   await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
+   await expectCodeRunOverlaySurface(fullscreenOverlay, 'rgb(36, 36, 36)');
+   await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
 	await screenshot(page, 'run-complete');
 
-	const askFollowupButton = fullscreenOverlay.getByRole('button', { name: 'Ask follow-up' });
+	const terminalActions = fullscreenOverlay.getByTestId('code-run-terminal-actions');
+	await expect(terminalActions).toBeVisible({ timeout: 10000 });
+	await expect(terminalActions).toContainText('Copy output');
+	await expect(terminalActions).toContainText('Run again');
+	const askFollowupButton = fullscreenOverlay.getByTestId('code-run-action-ask-followup');
 	await expect(askFollowupButton).toBeVisible({ timeout: 10000 });
 	await expect(askFollowupButton).toBeEnabled({ timeout: 10000 });
 	await askFollowupButton.click();

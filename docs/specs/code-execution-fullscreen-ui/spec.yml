@@ -1,0 +1,532 @@
+id: code-execution-fullscreen-ui
+title: Code Execution Fullscreen Embed UI Parity
+status: implementing
+
+goal: >
+  Redesign the code-code fullscreen Code Run UI on web and Apple so the pre-run
+  file/package selection and post-run terminal output match the provided Figma
+  design. The new overlay replaces the current split-panel selection and output
+  controls, removes the `Hide output` CTA, and uses a `View code` breadcrumb to
+  close the overlay and return to the fullscreen code view.
+
+scope:
+  in:
+    - Update the web code-code fullscreen embed Code Run file/package selection UI.
+    - Update the web code-code fullscreen embed Code Run terminal output UI.
+    - Update the Apple native code-code fullscreen embed Code Run terminal UI and supporting selection state where implemented.
+    - Use the settings-style breadcrumb, section headers, and toggles for selection rows.
+    - Use the existing button CTA styling from `buttons.css` with the `play.svg` icon for the Continue/Run action.
+    - Render the Code Run container as an overlay on top of the code block, with rounded edges and drop shadow.
+    - Use `var(--color-grey-100)` for the selection overlay background and `#242424` for executing/output overlay background.
+    - List `Ask followup`, `Copy output`, and `Run again` as terminal-style text commands below terminal output, default `#BCBCBC`, hover/active `#FFFFFF`.
+    - Preserve existing Code Run behavior, billing, dependency selection, output persistence, cancellation, and follow-up/copy/run-again actions.
+    - Keep fullscreen code navigation, PII visibility controls, syntax highlighting, and version timeline behavior intact.
+  out:
+    - Backend Code Run API, E2B provider, billing, or encryption changes.
+    - New application-preview runtime behavior for code-application embeds.
+    - Changing non-Code Run preview/render mode for markdown or HTML code embeds.
+    - Redesigning the global fullscreen embed shell outside the code execution overlay.
+    - Pixel-perfect matching of the Figma screenshot at all breakpoints before rendered web inspection; browser-computed web output remains the source of truth for Apple parity.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"code execution fullscreen embed UI\" --state all --limit 10` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/specs/application-embeds/spec.yml
+    - docs/specs/code-run-cli-app-skill/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - apple/AGENTS.md
+  code_patterns:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsSectionHeading.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsConsentToggle.svelte
+    - frontend/packages/ui/src/components/Toggle.svelte
+    - frontend/packages/ui/src/components/Button.svelte
+    - frontend/packages/ui/src/styles/buttons.css
+    - frontend/packages/ui/static/icons/play.svg
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/OMButtonStyles.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+  tests:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/OMButtonStyles.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  parity_expectations:
+    - Apple code-code fullscreen Code Run output uses the browser-rendered web overlay as the visual source of truth.
+    - Apple uses custom OpenMates primitives and generated tokens where available, not default native product controls.
+    - Apple keeps native safe-area/text-rasterization differences classified as intentional only when they do not obscure the product UI.
+  verification:
+    - Remote Mac `xcodebuild` build for `OpenMates_iOS` after the native changes are committed and pushed.
+    - Remote Mac simulator screenshot or UI test evidence for the code-code fullscreen Code Run output overlay.
+  intentional_native_differences:
+    - SwiftUI text rasterization, scroll physics, and safe-area insets may differ from web when the visual hierarchy, colors, spacing, and actions remain equivalent.
+
+clarification:
+  rounds:
+    - question: >
+        Should the new overlay menu be open by default only after Code Run
+        finishes, or should it also be open by default in the pre-run files and
+        packages selection state as shown in the top Figma frames?
+      answer: >
+        When the user clicks `Run code`, the current file and package selection
+        view should be replaced by the new design. The same design direction also
+        replaces the current code execution output view.
+    - question: >
+        What should the `View code` breadcrumb do in both states: close the
+        overlay and reveal the full code block, or navigate from terminal output
+        back to the file and package selection overlay?
+      answer: >
+        `View code` closes the overlay, like the current `Hide output` button.
+        The `Hide output` button must be removed.
+  vision_summary: >
+    Code Run should no longer feel like a separate split-panel utility bolted on
+    to code fullscreen. Clicking `Run code` opens a polished overlay over the
+    code block for file/package selection; executing or completed runs reuse the
+    same overlay placement with a dark terminal surface. `View code` is the only
+    visible close path inside the overlay content and returns to the underlying
+    fullscreen source code.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User opens the redesigned file and package selection overlay
+    given:
+      - Alice opens a finished Python code-code embed in fullscreen on the web app.
+      - The code embed supports Code Run and has one required target file plus optional related files or package suggestions.
+    when:
+      - Alice clicks `Run code`.
+    then:
+      - The current split-pane file/package selection panel is not shown.
+      - A rounded overlay with drop shadow appears on top of the code block.
+      - The underlying code remains visible behind the overlay on desktop and is not duplicated as a side-by-side split panel.
+      - The overlay background is `var(--color-grey-100)`.
+      - The overlay includes a `View code` breadcrumb row at the top.
+      - The overlay uses settings-style section headers for `Files` and `Packages`.
+      - Each selectable file or package row uses the settings toggle visual style.
+      - Required files are visibly included and cannot be accidentally disabled.
+      - The Continue/Run CTA uses the existing orange button styling and the `play.svg` icon.
+
+  - id: S-2
+    title: User closes selection through View code
+    given:
+      - Alice has the redesigned Code Run selection overlay open.
+    when:
+      - Alice clicks `View code`.
+    then:
+      - The overlay closes.
+      - The fullscreen code block returns to its normal source-code view.
+      - No `Hide output`, `Cancel`, or duplicate close button is shown inside the selection overlay.
+      - Alice can click `Run code` again to reopen selection without losing current code content or PII visibility state.
+
+  - id: S-3
+    title: User starts execution and sees the redesigned terminal overlay
+    given:
+      - Alice has selected the intended files and packages in the redesigned overlay.
+    when:
+      - Alice clicks the Continue/Run CTA and Code Run starts.
+    then:
+      - The selection overlay transitions to the terminal overlay in the same overlay position over the code block.
+      - The terminal overlay background changes to `#242424`.
+      - The terminal output uses the same terminal-style monospace font currently used for output text.
+      - The terminal content keeps stdout, stderr, and status colors readable against `#242424`.
+      - Active execution still exposes a stop/cancel affordance without reintroducing the old header action bar.
+      - The code block remains available by clicking `View code`, which closes the overlay.
+
+  - id: S-4
+    title: Finished output shows terminal-style follow-up actions below output
+    given:
+      - Alice has a finished Code Run output in the terminal overlay.
+    when:
+      - Alice reads the output.
+    then:
+      - "`Ask followup`, `Copy output`, and `Run again` are listed below the actual terminal output."
+      - The action labels are rendered as terminal-style text commands using the terminal output font.
+      - The action labels are `#BCBCBC` by default.
+      - Hover, keyboard focus, and active/click states change the action label color to `#FFFFFF`.
+      - Disabled actions remain visually disabled and cannot be activated.
+      - Copy output, ask follow-up, and run again preserve the current behavior and telemetry/logging.
+
+  - id: S-5
+    title: Saved output uses the redesigned overlay after reload
+    given:
+      - Alice previously ran a code-code embed and the encrypted Code Run output sidecar was persisted.
+    when:
+      - Alice reloads the chat and opens the code-code embed fullscreen.
+    then:
+      - The source code remains the default fullscreen view.
+      - The header CTA offers the saved output entry point without using the removed `Hide output` label.
+      - Opening saved output shows the redesigned terminal overlay.
+      - "`View code` closes the saved-output overlay and returns to source code."
+
+  - id: S-6
+    title: Apple code execution fullscreen matches the redesigned web overlay
+    given:
+      - Alice opens an equivalent code-code embed fullscreen in the Apple app.
+      - The embed has Code Run output or a Code Run view model state available.
+    when:
+      - Alice opens the Code Run output surface.
+    then:
+      - Apple renders a rounded, shadowed terminal overlay above the code source instead of the previous split output panel.
+      - Apple uses `#242424` for the terminal overlay background.
+      - Apple lists `Ask followup`, `Copy output`, and `Run again` as terminal-style text commands below the output when those actions are available.
+      - Apple uses a `View code` breadcrumb to close the overlay and return to source code.
+      - Apple does not introduce default native product controls for this overlay.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web Code Run file/package selection is redesigned as the Figma-style overlay and no longer uses the old split-pane panel.
+  - id: AC-2
+    scenario: S-2
+    text: "`View code` closes the Code Run overlay in every pre-run and post-run state, replacing `Hide output`."
+  - id: AC-3
+    scenario: S-3
+    text: Web Code Run execution/output uses the dark terminal overlay over the code block while preserving execution behavior.
+  - id: AC-4
+    scenario: S-4
+    text: Finished output actions are terminal-style text commands below output with default and hover/active colors matching the design.
+  - id: AC-5
+    scenario: S-5
+    text: Persisted Code Run output after reload opens in the redesigned overlay and keeps source code as the default fullscreen view.
+  - id: AC-6
+    scenario: S-6
+    text: Apple code-code fullscreen Code Run output matches the redesigned web overlay within native parity constraints.
+
+contracts:
+  api:
+    - route: none
+      request: No API contract changes are expected.
+      response: Existing Code Run start/status/cancel/stream and encrypted output sidecar APIs must keep their current behavior.
+      errors:
+        - Existing Code Run errors remain visible in the terminal overlay.
+  data:
+    - No schema changes are expected.
+    - Existing `code_run_outputs` sidecars remain the durable source for saved terminal output.
+    - Existing file/package candidate state remains client-local until a run starts.
+  ui_states:
+    - Source code fullscreen default state.
+    - Selection overlay loading state.
+    - Selection overlay with files only.
+    - Selection overlay with files and packages.
+    - Selection overlay validation/error state.
+    - Executing terminal overlay with streaming status/stdout/stderr.
+    - Finished terminal overlay with terminal-style action commands.
+    - Failed, timed out, cancelled, and manually stopped terminal states.
+    - Saved output terminal overlay after reload.
+    - Compact/mobile overlay and regular/desktop overlay.
+  accessibility:
+    - "`View code`, Continue/Run, toggles, Stop, Ask followup, Copy output, and Run again are keyboard accessible."
+    - Action text commands expose button semantics despite terminal styling.
+    - Overlay state changes announce terminal output through the existing live region or equivalent native accessibility behavior.
+    - Focus remains inside the overlay while it is open and returns to the relevant fullscreen control when closed where feasible.
+  privacy_security:
+    - No terminal output, selected files, package names, or code content are logged beyond existing sanitized Code Run diagnostics.
+    - PII masking/reveal behavior for source code remains unchanged when opening and closing the overlay.
+    - Apple and web screenshots or fixtures added for tests must use synthetic public code/output only.
+
+tests:
+  - id: T-WEB-CODE-RUN-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    command: python3 scripts/run_tests.py --spec code-generation-multiturn.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - Clicking `Run code` opens `data-testid="code-run-file-selection"` as an overlay over the source code, not a split-pane panel.
+      - The selection overlay contains `View code`, settings-style `Files` and `Packages` headings, toggles, and a play-icon Continue/Run CTA.
+      - Clicking `View code` closes the overlay and returns to source code.
+      - Starting execution shows `data-testid="code-run-terminal"` with `#242424` background and no old header action bar.
+      - Finished output lists `Ask followup`, `Copy output`, and `Run again` below the output as terminal-style actions.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-SAVED-OUTPUT-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec file-attachment-code-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - Saved Code Run output remains available after reload.
+      - Opening saved output uses the redesigned terminal overlay.
+      - Source code is the default fullscreen view after reload.
+      - "`Hide output` text is not present."
+      - "`View code` closes the terminal overlay."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-EMBED-SHOWCASE
+    type: playwright
+    file: frontend/apps/web_app/tests/embed-showcase.spec.ts
+    command: python3 scripts/run_tests.py --spec embed-showcase.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-3
+    assertions:
+      - Code embed fullscreen preview fixtures render without component load errors.
+      - No raw JSON, `undefined`, `null`, or `[object Object]` artifacts appear after the UI redesign.
+      - Added preview variants for selection/output overlays render in the dev preview showcase if implementation adds static overlay fixtures.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-LINT-FRONTEND
+    type: lint
+    file: frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    command: ./scripts/lint_changed.sh
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - Svelte and TypeScript checks pass for touched frontend files.
+      - No generated i18n JSON files are edited manually.
+      - No forbidden CSS selector changes are required in tests.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-BUILD-APPLE
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build
+    covers:
+      - AC-6
+    assertions:
+      - The Apple app compiles after Code Run overlay renderer changes.
+      - New strings go through i18n/AppStrings and not hardcoded Swift UI text.
+      - No default native product controls are introduced in the touched overlay.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-CODE-RUN-PARITY
+    type: manual
+    file: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    command: python3 scripts/apple_remote.py repo xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/EmbedRenderingParityUITests
+    covers:
+      - AC-6
+    assertions:
+      - Apple renders a code-code fullscreen Code Run output fixture or live state with the redesigned overlay.
+      - The terminal overlay background, rounded corners, shadow, `View code` breadcrumb, and terminal action list match the web contract materially.
+      - Screenshot or UI-test evidence is sanitized and does not include private account data.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Code Run currently lives inside `CodeEmbedFullscreen.svelte` with `runSelectionOpen`, `runPanelOpen`, and `outputPaneActive` controlling a split layout.
+    - The web output panel currently renders `.code-run-selection` and `.code-run-terminal` inside `.preview-panel` at 70% width.
+    - Settings visual primitives exist as reusable Svelte components, but some may need small props or local wrapper usage for dark overlay contrast.
+    - Apple Code Run output currently uses `CodeRunTerminalView` inside a split HStack and old terminal buttons in the header.
+  architecture: >
+    Keep Code Run state and backend service calls unchanged. Refactor the web
+    fullscreen layout so Code Run selection and terminal states render through a
+    single overlay layer above the source code instead of activating the split
+    preview panel. Mirror the resulting browser-computed web overlay in Apple by
+    updating the native code renderer to place a terminal overlay over the code
+    source and restyle actions as terminal commands.
+  data_flow:
+    - User opens code-code embed fullscreen and sees source code by default.
+    - User clicks `Run code`, which prepares candidates and opens the selection overlay.
+    - User toggles optional files/packages and clicks Continue/Run.
+    - Existing Code Run service starts execution, streams events, and persists encrypted output sidecars.
+    - Terminal overlay renders live or saved output and terminal-style actions.
+    - User clicks `View code`, which closes selection/output overlay and returns to source code without clearing saved output.
+  affected_files:
+    - path: frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+      reason: Main web selection/output overlay redesign.
+    - path: frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+      reason: Add static preview variants for selection and output overlay states if feasible.
+    - path: frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+      reason: Add or adjust visible strings such as `View code` only if no existing key can be reused.
+    - path: frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+      reason: Update Code Run E2E assertions for new overlay contract.
+    - path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+      reason: Update saved-output assertions for new overlay contract.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      reason: Main Apple Code Run terminal overlay parity.
+    - path: apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      reason: Add typed accessors for any reused/new strings.
+    - path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      reason: Add or update native parity evidence for code-run output overlay.
+  verification_strategy:
+    - Run `python3 scripts/spec_validate.py docs/specs/code-execution-fullscreen-ui/spec.yml` after spec edits.
+    - Run red-phase Playwright tests before implementation/deploy where required.
+    - Deploy web changes to dev before Playwright green verification.
+    - Run remote Mac Apple build/test after commit/push for Apple parity.
+    - Run `python3 scripts/spec_verify.py docs/specs/code-execution-fullscreen-ui/spec.yml` before marking verified.
+
+tasks:
+  - id: TASK-1
+    title: Add web red-phase coverage for the new Code Run overlay contract
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+      - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    verification:
+      - T-WEB-CODE-RUN-E2E
+      - T-WEB-SAVED-OUTPUT-E2E
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement web Code Run selection and terminal overlays
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+      - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    verification:
+      - T-LINT-FRONTEND
+      - T-WEB-CODE-RUN-E2E
+      - T-WEB-SAVED-OUTPUT-E2E
+      - T-WEB-EMBED-SHOWCASE
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Implement Apple Code Run terminal overlay parity
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    verification:
+      - T-BUILD-APPLE
+      - T-APPLE-CODE-RUN-PARITY
+    independently_deployable: true
+
+risks:
+  - Existing Code Run E2E tests may be long-running and require deployed dev infrastructure, so red/green evidence can take longer than the UI implementation.
+  - Reusing settings components inside a dark overlay may require small component props or wrapper styling to preserve contrast without forking the settings design system.
+  - Apple currently appears to have output-state support but less visible pre-run selection support; Apple parity for selection may require additional native state plumbing if not already exposed.
+  - The Figma screenshot shows static output content and does not define every active/cancel/error state, so implementation must preserve existing behavior while applying the design language.
+
+open_questions:
+  - Should Apple include the redesigned pre-run files/packages selection in the same first implementation if native selection is not currently exposed, or is terminal-output parity enough for v1 Apple?
+  - Should the active execution Stop action appear as a terminal-style command below output, or remain as a distinct active-run control until execution finishes?

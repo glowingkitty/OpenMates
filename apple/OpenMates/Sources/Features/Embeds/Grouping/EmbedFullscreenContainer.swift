@@ -170,7 +170,8 @@ struct EmbedFullscreenContainer: View {
            isCodeRunnable,
            let payload = embed.codePayload,
            let chatId,
-           !chatId.isEmpty {
+           !chatId.isEmpty,
+           !codeRunViewModel.isPanelOpen {
             return EmbedHeaderCTA(title: codeRunViewModel.ctaTitle, accessibilityIdentifier: "embed-run-button") {
                 runCode(embed, payload: payload)
             }

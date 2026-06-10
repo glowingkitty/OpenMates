@@ -11,13 +11,17 @@
         name?: string;
         ariaLabel?: string;
         id?: string;
+        testId?: string;
+        presentationOnly?: boolean;
     }
     let { 
         checked = $bindable(false),
         disabled = false,
         name = '',
         ariaLabel = '',
-        id = ''
+        id = '',
+        testId = undefined,
+        presentationOnly = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -32,18 +36,29 @@
     }
 </script>
 
-<label class="toggle" class:disabled>
-    <input
-        type="checkbox"
-        {id}
-        {name}
-        {disabled}
-        checked={checked}
-        onchange={handleChange}
-        aria-label={ariaLabel}
-    />
-    <span class="slider"></span>
-</label>
+{#if presentationOnly}
+    <span class="toggle" class:disabled data-testid={testId} aria-hidden="true">
+        <span class="presentation-input" class:checked></span>
+        <span class="slider"></span>
+    </span>
+{:else}
+    <label
+        class="toggle"
+        class:disabled
+        data-testid={testId}
+    >
+        <input
+            type="checkbox"
+            {id}
+            {name}
+            {disabled}
+            checked={checked}
+            onchange={handleChange}
+            aria-label={ariaLabel}
+        />
+        <span class="slider"></span>
+    </label>
+{/if}
 
 <style>
     .toggle {
@@ -62,6 +77,13 @@
     }
 
     input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .presentation-input {
+        position: absolute;
         opacity: 0;
         width: 0;
         height: 0;
@@ -92,11 +114,13 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
-    input:checked + .slider {
+    input:checked + .slider,
+    .presentation-input.checked + .slider {
         background: var(--color-primary);
     }
 
-    input:checked + .slider:before {
+    input:checked + .slider:before,
+    .presentation-input.checked + .slider:before {
         transform: translateX(20px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }

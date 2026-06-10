@@ -325,7 +325,9 @@ enum AppStrings {
     static var codeRun: String { L("app_skills.code.run") }
     static var codeRunCode: String { L("app_skills.code.run_code") }
     static var codeRunOutput: String { L("app_skills.code.run.output") }
+    static var codeRunViewCode: String { L("app_skills.code.run.view_code") }
     static var codeRunAgain: String { L("app_skills.code.run.again") }
+    static var codeRunAskFollowup: String { L("app_skills.code.run.ask_followup") }
     static var codeRunCopyOutput: String { L("app_skills.code.run.copy_output") }
     static var codeRunOutputCopied: String { L("app_skills.code.run.output_copied") }
     static var codeRunOutputCopyFailed: String { L("app_skills.code.run.output_copy_failed") }
