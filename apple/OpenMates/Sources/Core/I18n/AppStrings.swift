@@ -150,6 +150,14 @@ enum AppStrings {
     static var installed: String { L("settings.app_store.installed") }
     static var searchApps: String { L("settings.app_store.search_apps") }
     static var apps: String { L("settings.apps") }
+    static var allAppsFilterAll: String { L("settings.app_store.all_apps.filter_all") }
+    static var allAppsFilterSettingsMemories: String { L("settings.app_store.all_apps.filter_settings_memories") }
+    static var allAppsFilterFocusModes: String { L("settings.app_store.all_apps.filter_focus_modes") }
+    static var allAppsFilterSkills: String { L("settings.app_store.all_apps.filter_skills") }
+    static var allAppsSortNewest: String { L("settings.app_store.all_apps.sort_by_newest") }
+    static var allAppsSortName: String { L("settings.app_store.all_apps.sort_by_name_asc") }
+    static var appStoreSkills: String { L("settings.app_store.skills.title") }
+    static var appStoreFocusModes: String { L("settings.app_store.focus_modes.title") }
 
     // MARK: - Settings - Security
     static var passkeys: String { L("settings.passkeys") }
