@@ -1198,18 +1198,56 @@ export async function handleSend(
       );
     }
 
-    // Check if we're using an existing draft chat
+    // Check whether this ID already has a local chat record. ActiveChat stores a
+    // temporary new-chat ID in draft state before the chat/key exists; that must
+    // not be treated as an existing draft chat.
+    let existingChatCheck: import("../../../types/chat").Chat | null =
+      await chatDB.getChat(chatIdToUse);
+    if (!existingChatCheck) {
+      try {
+        const { incognitoChatService } =
+          await import("../../../services/incognitoChatService");
+        existingChatCheck = await incognitoChatService.getChat(chatIdToUse);
+      } catch (incognitoLookupError) {
+        console.debug(
+          "[handleSend] Incognito chat lookup failed while checking draft chat existence:",
+          incognitoLookupError,
+        );
+      }
+    }
+
+    let existingChatHasUsableKey = false;
+    if (existingChatCheck) {
+      if (existingChatCheck.is_incognito || isPublicChat(chatIdToUse)) {
+        existingChatHasUsableKey = true;
+      } else if (chatKeyManager.getKeySync(chatIdToUse)) {
+        existingChatHasUsableKey = true;
+      } else if (existingChatCheck.encrypted_chat_key) {
+        existingChatHasUsableKey = !!(await chatKeyManager.getKey(chatIdToUse));
+      }
+
+      const isDraftOnlyChatMissingKey =
+        !existingChatHasUsableKey &&
+        draftState.currentChatId === chatIdToUse &&
+        (existingChatCheck.messages_v ?? 0) === 0;
+      if (isDraftOnlyChatMissingKey) {
+        console.warn(
+          `[handleSend] Draft chat ${chatIdToUse} exists without a usable key; treating it as new chat creation`,
+        );
+        existingChatCheck = null;
+      }
+    }
+
     const isUsingDraftChat = Boolean(
-      draftState.currentChatId && chatIdToUse === draftState.currentChatId,
+      draftState.currentChatId &&
+        chatIdToUse === draftState.currentChatId &&
+        existingChatCheck &&
+        existingChatHasUsableKey,
     );
 
-    // Check if we're dealing with a temporary chat ID (not a real chat in the database)
-    // This happens when a temporaryChatId was set in ActiveChat but the chat doesn't actually exist in DB
-    // We need to check the database to determine if this is a real chat or temporary
-    const existingChatCheck = isUsingDraftChat
-      ? null
-      : await chatDB.getChat(chatIdToUse);
-    const isTemporaryChat = !isUsingDraftChat && !existingChatCheck && !isNewChatCreation;
+    // Check if we're dealing with a temporary chat ID (not a real chat in local storage)
+    // This happens when ActiveChat pre-allocates a temporaryChatId for the new-chat UI.
+    const isTemporaryChat = !existingChatCheck && !isNewChatCreation;
     if (isTemporaryChat) {
       // For temporary chats, we need to create a new chat
       isNewChatCreation = true;
