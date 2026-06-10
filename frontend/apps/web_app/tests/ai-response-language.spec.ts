@@ -250,6 +250,27 @@ async function waitForAssistantTurnSettled(page: any, log: any): Promise<void> {
 		.not.toBeVisible({ timeout: 30000 })
 		.catch(() => log('WARNING: stop-processing-button remained visible before next turn.'));
 
+	const chatHeaderTitle = page.getByTestId('chat-header-title');
+	await expect(chatHeaderTitle).toBeVisible({ timeout: 60000 });
+	await expect
+		.poll(
+			async () => {
+				const title = ((await chatHeaderTitle.textContent().catch(() => '')) ?? '')
+					.trim()
+					.toLowerCase();
+				return Boolean(
+					title &&
+						!title.includes('untitled') &&
+						!title.includes('creating') &&
+						!title.includes('new chat')
+				);
+			},
+			{ timeout: 60000 }
+		)
+		.toBeTruthy();
+	await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 60000 });
+	log('Assistant turn metadata settled: generated title and summary are visible.');
+
 	const processingEmbeds = page.locator(
 		'[data-testid="message-assistant"] [data-testid="embed-preview"][data-status="processing"]'
 	);
