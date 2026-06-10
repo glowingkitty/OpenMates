@@ -70,6 +70,23 @@ REQUIRED_EMBED_SHOWCASE_APPS = {
     "weather",
     "web",
 }
+EMBED_REGISTRY_FIXTURE_ALIASES = {
+    # Same native renderer/fixture as the standard image generation card.
+    "app:images:generate_draft": {"images-generate"},
+    # Native fixture IDs intentionally use shorter display-route names than the
+    # generated app-skill registry keys.
+    "app:travel:search_connections": {"travel-search"},
+    "app:travel:search_stays": {"travel-stays"},
+    "app:travel:get_flight": {"travel-get-flight"},
+    # Child embed renderers are covered through standalone and grouped fixtures.
+    "image": {"images-upload"},
+    "images-image-result": {"images-result", "images-search"},
+    "maps-place": {"maps-search"},
+}
+EMBED_REGISTRY_RENDERER_ONLY_KEYS = {
+    # Focus-mode activation is a direct message embed, not an app showcase route.
+    "focus-mode-activation",
+}
 ALLOWED_SEVERITIES = {"fail", "warn"}
 PRIVATE_VALUE_PATTERNS = [
     re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE),
@@ -233,8 +250,48 @@ def _extract_swift_enum_cases(source: str, enum_name: str) -> set[str]:
     return cases
 
 
+def _extract_swift_enum_raw_value_to_case(source: str, enum_name: str) -> dict[str, str]:
+    match = re.search(rf"enum {re.escape(enum_name)}[^{{]*{{(?P<body>.*?)^}}", source, flags=re.DOTALL | re.MULTILINE)
+    if not match:
+        return {}
+    raw_to_case: dict[str, str] = {}
+    for line in match.group("body").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("case "):
+            continue
+        for entry in stripped.removeprefix("case ").split(","):
+            entry = entry.strip()
+            if not entry or entry.startswith("."):
+                continue
+            case_name = entry.split("=")[0].strip().split()[0]
+            if not case_name:
+                continue
+            raw_match = re.search(r'=\s*"([^"]+)"', entry)
+            raw_to_case[raw_match.group(1) if raw_match else case_name] = case_name
+    return raw_to_case
+
+
 def _extract_apple_fixture_skill_ids(source: str) -> set[str]:
     return set(re.findall(r"return skill\(id:\s*\"([^\"]+)\"", source))
+
+
+def _has_apple_embed_registry_coverage(
+    registry_key: str,
+    *,
+    apple_fixture_skill_ids: set[str],
+    embed_type_cases_by_raw_value: dict[str, str],
+    content_view_source: str,
+) -> bool:
+    fixture_hint = registry_key.replace("app:", "").replace(":", "-").replace("_", "-")
+    fixture_ids = {fixture_hint} | EMBED_REGISTRY_FIXTURE_ALIASES.get(registry_key, set())
+    if fixture_ids & apple_fixture_skill_ids:
+        return True
+
+    case_name = embed_type_cases_by_raw_value.get(registry_key)
+    if registry_key in EMBED_REGISTRY_RENDERER_ONLY_KEYS and case_name and f".{case_name}" in content_view_source:
+        return True
+
+    return False
 
 
 def audit_embeds() -> tuple[list[str], list[str]]:
@@ -251,6 +308,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     fullscreen_keys = _extract_ts_object_keys(registry_source, "EMBED_FULLSCREEN_COMPONENTS")
     registry_keys = preview_keys | fullscreen_keys
     apple_types = _extract_swift_enum_raw_values(embed_models_source, "EmbedType")
+    apple_type_cases_by_raw_value = _extract_swift_enum_raw_value_to_case(embed_models_source, "EmbedType")
     showcase_apps = _extract_showcase_apps(showcase_source)
     apple_apps = _extract_swift_enum_raw_values(fixtures_source, "DevEmbedPreviewApp")
     apple_fixture_skill_ids = _extract_apple_fixture_skill_ids(fixtures_source)
@@ -280,8 +338,12 @@ def audit_embeds() -> tuple[list[str], list[str]]:
             errors.append(f"Apple DevEmbedPreviewFixtures.skills missing switch coverage for app: {app}")
 
     for registry_key in sorted(registry_keys):
-        fixture_hint = registry_key.replace("app:", "").replace(":", "-").replace("_", "-")
-        if fixture_hint not in apple_fixture_skill_ids and registry_key not in content_view_source:
+        if not _has_apple_embed_registry_coverage(
+            registry_key,
+            apple_fixture_skill_ids=apple_fixture_skill_ids,
+            embed_type_cases_by_raw_value=apple_type_cases_by_raw_value,
+            content_view_source=content_view_source,
+        ):
             warnings.append(f"no direct Apple debug fixture id found for registry key: {registry_key}")
 
     forbidden_controls = ["Form {", "List {", "NavigationLink {", ".navigationTitle(", ".toolbar {"]
