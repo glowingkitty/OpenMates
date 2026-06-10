@@ -48,6 +48,7 @@ REWRITABLE_UPSTREAM_CONTENT_TYPES = {
 HTML_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>\b(?:src|href|action)\s*=\s*[\"'])/(?!/|p/)(?P<path>[^\"']+)")
 QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"']+)")
 CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
+UPSTREAM_PATH_SEGMENT_SAFE_CHARS = "@"
 
 
 @dataclass(frozen=True)
@@ -173,7 +174,7 @@ def _select_upstream_base_url(session: dict[str, Any], path: str) -> str | None:
 
 def _upstream_url(upstream_base_url: str, path: str, *, query_string: str = "") -> str:
     base = upstream_base_url.rstrip("/")
-    normalized_path = "/".join(quote(part) for part in path.strip("/").split("/") if part)
+    normalized_path = "/".join(quote(part, safe=UPSTREAM_PATH_SEGMENT_SAFE_CHARS) for part in path.strip("/").split("/") if part)
     upstream_url = f"{base}/{normalized_path}" if normalized_path else f"{base}/"
     return f"{upstream_url}?{query_string}" if query_string else upstream_url
 

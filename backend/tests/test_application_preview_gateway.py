@@ -21,6 +21,7 @@ from backend.core.api.app.routes.application_preview_gateway import (
     GatewayUpstreamResponse,
     build_preview_gateway_response,
     redact_preview_gateway_tokens,
+    _upstream_url,
     validate_preview_gateway_access,
 )
 from backend.tests.test_application_preview_config import FakeCache, _user
@@ -107,6 +108,10 @@ def test_redact_preview_gateway_tokens_removes_path_secret() -> None:
     assert "token-def" not in redacted
     assert "/p/session-1/<REDACTED_PREVIEW_TOKEN>/src/main.js" in redacted
     assert "/p/session-2/<REDACTED_PREVIEW_TOKEN>/" in redacted
+
+
+def test_gateway_preserves_vite_virtual_module_paths() -> None:
+    assert _upstream_url("https://sandbox.example", "@vite/client") == "https://sandbox.example/@vite/client"
 
 
 @pytest.mark.anyio

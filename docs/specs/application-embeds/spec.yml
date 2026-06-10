@@ -532,6 +532,7 @@ tests:
       - preview gateway accepts only the hashed short-lived path token for the matching session
       - preview gateway rejects stopped, expired, missing, and wrong-token sessions
       - preview gateway token redaction removes path secrets from logs and debug output
+      - preview gateway preserves Vite virtual module paths such as /@vite/client when forwarding to the sandbox
       - raw E2B URLs and traffic tokens are never returned in client payloads
     red_phase:
       required: true
@@ -547,8 +548,8 @@ tests:
       evidence:
         status: passed
         run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway.py"
-        timestamp: "2026-06-07T20:19:47Z"
-        notes: "4 tests passed for hashed path token URLs, gateway session/token validation, stopped/expired rejection, and token redaction."
+        timestamp: "2026-06-10T10:09:00Z"
+        notes: "7 tests passed for hashed path token URLs, gateway session/token validation, stopped/expired rejection, token redaction, root-relative asset rewrites, module import rewrites, and preserving Vite /@vite/client virtual module paths."
 
   - id: T-PYTEST-APP-GATEWAY-SKELETON-001
     type: pytest
