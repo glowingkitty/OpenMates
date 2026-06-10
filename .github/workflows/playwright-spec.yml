@@ -84,8 +84,11 @@ jobs:
           done &
           heartbeat_pid=$!
 
-          wait "$pw_pid"
-          pw_status=$?
+          if wait "$pw_pid"; then
+            pw_status=0
+          else
+            pw_status=$?
+          fi
           kill "$heartbeat_pid" 2>/dev/null || true
           wait "$heartbeat_pid" 2>/dev/null || true
           if [ "$pw_status" -ge 128 ]; then
