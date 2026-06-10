@@ -288,9 +288,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "GitHub Actions vitest run 27291510012"
+        timestamp: "2026-06-10T16:49:37Z"
 
   - id: T-E2E-001
     type: playwright
