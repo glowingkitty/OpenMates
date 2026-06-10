@@ -16,7 +16,8 @@ final class RemindersPublicContentParityUITests: XCTestCase {
         app.launchEnvironment["UI_TEST_SHELL_METRICS"] = "1"
         app.launch()
 
-        let publicChatRow = app.descendants(matching: .any)["chat-item-wrapper"]
+        let publicChatRows = app.buttons.matching(identifier: "chat-item-wrapper")
+        let publicChatRow = publicChatRows.firstMatch
         if !publicChatRow.waitForExistence(timeout: 5) {
             let sidebarToggle = app.buttons["sidebar-toggle"]
             if sidebarToggle.waitForExistence(timeout: 3) {
