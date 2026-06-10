@@ -554,6 +554,7 @@ struct SettingsView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("settings-destination-back")
 
                             identityBlock
                                 .frame(height: identityHeight)
