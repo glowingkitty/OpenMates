@@ -64,7 +64,7 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
     private func openAccountSubpage(row: String, page: String, in app: XCUIApplication) {
         XCTAssertTrue(waitForElement(row, in: app, timeout: 8), "Expected row \(row)")
         app.descendants(matching: .any)[row].tap()
-        XCTAssertTrue(waitForElement(page, in: app, timeout: 8), "Expected page \(page)")
+        XCTAssertTrue(waitForElement("settings-account-subpage-back", in: app, timeout: 8), "Expected page \(page)")
     }
 
     private func returnToAccountPage(in app: XCUIApplication) {
