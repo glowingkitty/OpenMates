@@ -39,6 +39,9 @@
         buildShortUrl,
     } from '../../../services/shortUrlEncryption';
     // PII detection service is dynamically imported where needed (restorePIIInText in community share)
+
+    const OG_METADATA_TITLE_WAIT_MS = 5000;
+    const OG_METADATA_TITLE_POLL_MS = 250;
     
     // Define interface for embed context to avoid 'any'
     interface EmbedContext {
@@ -956,11 +959,21 @@
             
             // Get the chat from IndexedDB to decrypt title and summary
             const { chatDB } = await import('../../../services/db');
-            const chat = await chatDB.getChat(currentChatId);
+            let chat = await chatDB.getChat(currentChatId);
             
             if (!chat) {
                 console.warn('[SettingsShare] Chat not found for OG metadata update');
                 return;
+            }
+
+            const titleDeadline = Date.now() + OG_METADATA_TITLE_WAIT_MS;
+            while (!chat.encrypted_title && !chat.title && Date.now() < titleDeadline) {
+                await new Promise((resolve) => setTimeout(resolve, OG_METADATA_TITLE_POLL_MS));
+                chat = await chatDB.getChat(currentChatId);
+                if (!chat) {
+                    console.warn('[SettingsShare] Chat disappeared while waiting for title metadata');
+                    return;
+                }
             }
             
             // Decrypt title and summary using chat key
@@ -982,6 +995,8 @@
                 if (!title) {
                     console.warn(`[SettingsShare] Failed to decrypt title for OG metadata update: chat_id=${currentChatId} field=encrypted_title`);
                 }
+            } else if (chat.title) {
+                title = chat.title;
             }
             
             // Decrypt summary
