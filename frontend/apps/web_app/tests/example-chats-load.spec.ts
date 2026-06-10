@@ -125,6 +125,31 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-us-egg-prices-deep'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		const userMessage = page.getByTestId('user-message-content').filter({
+			hasText: 'Why did US egg prices stay high after avian flu eased?'
+		});
+		await expect(userMessage).toBeVisible({ timeout: 15000 });
+		await expect(
+			userMessage,
+			'Deep research example should demonstrate auto-selection, not @focus forcing.'
+		).not.toContainText('@focus:');
+
+		const carousel = page.getByTestId('sub-chats-carousel');
+		await expect(carousel).toBeVisible({ timeout: 15000 });
+		await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(3);
+	});
+
 	test('sidebar example chats show newest first and append older results after show more', async ({
 		page
 	}: {
