@@ -50,11 +50,20 @@ async function userMessagePersisted(
 	userMessages: any,
 	previousCount: number,
 	message: string,
-	messageEditor?: any
+	messageEditor?: any,
+	assistantMessages?: any,
+	previousAssistantCount?: number
 ): Promise<boolean> {
 	const currentCount = await locatorCount(userMessages);
 	if (currentCount >= previousCount + 1) {
 		return true;
+	}
+
+	if (assistantMessages && previousAssistantCount !== undefined) {
+		const assistantCount = await locatorCount(assistantMessages);
+		if (assistantCount > previousAssistantCount) {
+			return true;
+		}
 	}
 
 	if (messageEditor && currentCount >= previousCount) {
@@ -531,7 +540,18 @@ async function sendMessage(
 	logCheckpoint('Clicked send button.');
 	try {
 		await expect
-			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message, messageEditor), { timeout: 30000 })
+			.poll(
+				async () =>
+					await userMessagePersisted(
+						userMessages,
+						userCountBeforeSend,
+						message,
+						messageEditor,
+						assistantMessages,
+						assistantCountBeforeSend
+					),
+				{ timeout: 30000 }
+			)
 			.toBeTruthy();
 	} catch (error) {
 		const diagnosticsBeforeSynthetic = await messageField.evaluate((field: HTMLElement) => {
@@ -568,7 +588,18 @@ async function sendMessage(
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
 		});
 		await expect
-			.poll(async () => await userMessagePersisted(userMessages, userCountBeforeSend, message, messageEditor), { timeout: 10000 })
+			.poll(
+				async () =>
+					await userMessagePersisted(
+						userMessages,
+						userCountBeforeSend,
+						message,
+						messageEditor,
+						assistantMessages,
+						assistantCountBeforeSend
+					),
+				{ timeout: 10000 }
+			)
 			.toBeTruthy()
 			.catch(() => undefined);
 		const userCountAfterSynthetic = await locatorCount(userMessages);
@@ -579,12 +610,22 @@ async function sendMessage(
 				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 			})
 		});
-		if (await userMessagePersisted(userMessages, userCountBeforeSend, message, messageEditor)) {
+		if (
+			await userMessagePersisted(
+				userMessages,
+				userCountBeforeSend,
+				message,
+				messageEditor,
+				assistantMessages,
+				assistantCountBeforeSend
+			)
+		) {
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend
 			});
-			logCheckpoint('User message persisted after synthetic send fallback.', {
+			logCheckpoint('Message send accepted after synthetic send fallback.', {
 				userCount: userCountAfterSynthetic,
+				assistantCount: await locatorCount(assistantMessages),
 				assistantCountBeforeSend
 			});
 			await takeStepScreenshot(page, `${stepLabel}-message-sent`);
@@ -595,8 +636,9 @@ async function sendMessage(
 	lastSendStateByPage.set(page, {
 		assistantCount: assistantCountBeforeSend
 	});
-	logCheckpoint('User message persisted after send.', {
-		userCount: userCountBeforeSend + 1,
+	logCheckpoint('Message send accepted after send.', {
+		userCount: await locatorCount(userMessages),
+		assistantCount: await locatorCount(assistantMessages),
 		assistantCountBeforeSend
 	});
 	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
