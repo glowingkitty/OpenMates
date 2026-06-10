@@ -19,6 +19,7 @@ import audit_opencode_automation_budget  # noqa: E402
 import audit_playwright_determinism  # noqa: E402
 import audit_sensitive_logging  # noqa: E402
 import code_quality_guard  # noqa: E402
+import run_provider_contracts  # noqa: E402
 
 
 def test_playwright_audit_blocks_css_locator_and_timeout(tmp_path, monkeypatch) -> None:
@@ -250,3 +251,55 @@ def test_code_quality_guard_does_not_full_scan_legacy_spec_lines(monkeypatch) ->
     monkeypatch.setattr(code_quality_guard, "_staged_file_line_count", lambda _path: 10)
 
     assert code_quality_guard.main() == 0
+
+
+def test_provider_contract_notification_dispatches_once(tmp_path, monkeypatch) -> None:
+    """Broken provider contracts should send one admin email and persist state."""
+
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(request, timeout):
+        calls.append((request, timeout))
+        return FakeResponse()
+
+    state_path = tmp_path / "provider-contracts-email-state.json"
+    monkeypatch.setattr(run_provider_contracts, "EMAIL_STATE_PATH", state_path)
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+    monkeypatch.setattr(run_provider_contracts.urllib.request, "urlopen", fake_urlopen)
+
+    broken = [{"provider": "doctolib", "failed": 2, "errors": []}]
+
+    assert run_provider_contracts._notify_broken_providers("2026-06-10", broken) == "dispatched"
+    assert len(calls) == 1
+    assert state_path.exists()
+
+
+def test_provider_contract_notification_skips_duplicate_same_day(tmp_path, monkeypatch) -> None:
+    """Manual reruns must not spam duplicate provider-health emails."""
+
+    state_path = tmp_path / "provider-contracts-email-state.json"
+    state_path.write_text(
+        '{"date":"2026-06-10","broken_fingerprint":"doctolib"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(run_provider_contracts, "EMAIL_STATE_PATH", state_path)
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-token")
+
+    def fail_urlopen(*_args, **_kwargs):
+        raise AssertionError("duplicate notification should not dispatch")
+
+    monkeypatch.setattr(run_provider_contracts.urllib.request, "urlopen", fail_urlopen)
+
+    broken = [{"provider": "doctolib", "failed": 2, "errors": []}]
+
+    assert run_provider_contracts._notify_broken_providers("2026-06-10", broken) == "already_notified"

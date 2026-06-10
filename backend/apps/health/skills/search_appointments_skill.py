@@ -657,7 +657,7 @@ async def _search_doctors(
     max_doctors: int,
 ) -> List[Dict[str, Any]]:
     """
-    POST /phs_proxy/raw?page=N to search for doctors.
+    POST /patient-health-search/api/v1/hcp/search?page=N to search for doctors.
 
     Returns up to max_doctors provider dicts. Each provider includes:
     - name, firstName, title, gender, type (PERSON/ORGANIZATION)
@@ -684,13 +684,13 @@ async def _search_doctors(
             payload["filters"]["telehealth"] = True
         if language:
             payload["filters"]["languages"] = [language]
-        # NOTE: Do NOT pass 'availabilitiesBefore' to /phs_proxy/raw.
+        # NOTE: Do NOT pass 'availabilitiesBefore' to the provider search.
         # Empirically, that filter causes Doctolib to return 0 results regardless
         # of actual availability. The days_ahead window is already applied per-doctor
         # via the 'limit' parameter in _fetch_availability() → /search/availabilities.json.
         # days_ahead is intentionally unused in this search phase.
 
-        url = f"{DOCTOLIB_BASE_URL}/phs_proxy/raw?page={page}"
+        url = f"{DOCTOLIB_BASE_URL}/patient-health-search/api/v1/hcp/search?page={page}"
         logger.debug(
             "[health:search_appointments] Fetching doctor page %d: %s", page, url
         )

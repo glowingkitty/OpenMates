@@ -16,8 +16,9 @@ What it does:
   2. Copies the JSON report back to
      `test-results/provider-contracts-YYYY-MM-DD.json` on the host.
   3. Collapses the report into a short per-provider summary table and, if any
-     provider failed, writes `test-results/provider-contracts-broken.json`
-     which the daily meeting agenda picks up as a Top-Priority item.
+     provider failed, writes `test-results/provider-contracts-broken.json`,
+     writes a nightly report for the daily meeting, and dispatches one admin
+     email per day for the same broken-provider set.
 
 Exit code: 0 = all passed/skipped, 1 = at least one provider failed.
 
@@ -30,8 +31,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import urllib.request
 from datetime import date
 from pathlib import Path
 
@@ -44,6 +47,8 @@ REPORT_DIR = PROJECT_ROOT / "test-results"
 CONTAINER = "app-ai-worker"
 CONTAINER_TESTS_PATH = "/app/backend/tests/provider_contracts"
 CONTAINER_REPORT_PATH = "/tmp/provider-contracts.json"
+EMAIL_STATE_PATH = REPORT_DIR / "provider-contracts-email-state.json"
+INTERNAL_API_URL = os.getenv("INTERNAL_API_URL", "http://localhost:8000")
 
 
 def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -136,6 +141,116 @@ def _print_table(per_provider: dict) -> None:
     print()
 
 
+def _load_env_value(name: str) -> str:
+    value = os.getenv(name, "")
+    if value:
+        return value
+    env_path = PROJECT_ROOT / ".env"
+    if not env_path.is_file():
+        return ""
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or not stripped.startswith(f"{name}="):
+            continue
+        return stripped.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
+def _broken_fingerprint(broken: list[dict]) -> str:
+    return ",".join(sorted(str(row.get("provider", "")) for row in broken))
+
+
+def _already_notified_today(today: str, broken: list[dict]) -> bool:
+    if not EMAIL_STATE_PATH.exists():
+        return False
+    try:
+        state = json.loads(EMAIL_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return (
+        state.get("date") == today
+        and state.get("broken_fingerprint") == _broken_fingerprint(broken)
+    )
+
+
+def _write_email_state(today: str, broken: list[dict]) -> None:
+    EMAIL_STATE_PATH.write_text(
+        json.dumps(
+            {
+                "date": today,
+                "broken_fingerprint": _broken_fingerprint(broken),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _format_broken_provider_summary(broken: list[dict]) -> str:
+    lines = [
+        "Provider contract probes found broken reverse-engineered providers in the last daily run.",
+        "",
+    ]
+    for row in broken:
+        provider = row.get("provider", "unknown")
+        failed = row.get("failed", 0)
+        lines.append(f"- {provider}: {failed} failing probe(s)")
+        for error in row.get("errors", [])[:3]:
+            test = error.get("test", "unknown test")
+            detail = str(error.get("error", "")).replace("\n", " ")[:220]
+            lines.append(f"  {test}: {detail}")
+    lines.append("")
+    lines.append("Artifacts: test-results/provider-contracts-broken.json and logs/nightly-reports/provider-contracts.json")
+    return "\n".join(lines)
+
+
+def _notify_broken_providers(today: str, broken: list[dict]) -> str:
+    """Dispatch one non-fatal admin email per day for the same broken set."""
+    if os.getenv("PROVIDER_CONTRACT_EMAILS_DISABLED", "").lower() in {"1", "true", "yes"}:
+        return "disabled"
+    if _already_notified_today(today, broken):
+        return "already_notified"
+
+    internal_token = _load_env_value("INTERNAL_API_SHARED_TOKEN")
+    if not internal_token:
+        print(
+            "[provider-contracts] NOTE: INTERNAL_API_SHARED_TOKEN not set; "
+            "skipping provider health email notification.",
+            file=sys.stderr,
+        )
+        return "missing_token"
+
+    payload = {
+        "job_type": "provider-contracts",
+        "job_name": "Provider contract health check",
+        "status": "failed",
+        "context_summary": _format_broken_provider_summary(broken),
+        "exit_code": 1,
+    }
+
+    try:
+        request = urllib.request.Request(
+            f"{INTERNAL_API_URL.rstrip('/')}/internal/dispatch-cron-session-email",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "X-Internal-Service-Token": internal_token,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response.read()
+        _write_email_state(today, broken)
+        print("[provider-contracts] provider health email notification dispatched")
+        return "dispatched"
+    except Exception as exc:
+        print(
+            f"[provider-contracts] WARNING: provider health email notification failed: {exc}",
+            file=sys.stderr,
+        )
+        return "error"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -189,6 +304,7 @@ def main() -> int:
             f"[provider-contracts] {len(broken)} provider(s) BROKEN — "
             f"see {broken_path.relative_to(PROJECT_ROOT)}"
         )
+        _notify_broken_providers(today, broken)
         return 1
 
     if broken_path.exists():
