@@ -63,8 +63,6 @@
     import TfaAppReminderTopContent from './steps/tfaappreminder/TfaAppReminderTopContent.svelte';
     import SettingsTopContent from './steps/settings/SettingsTopContent.svelte';
     import MateSettingsTopContent from './steps/matesettings/MateSettingsTopContent.svelte';
-    import CreditsTopContent from './steps/credits/CreditsTopContent.svelte';
-    import PaymentTopContent from './steps/payment/PaymentTopContent.svelte';
     import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
@@ -76,8 +74,6 @@
     import TfaAppReminderBottomContent from './steps/tfaappreminder/TfaAppReminderBottomContent.svelte';
     import SettingsBottomContent from './steps/settings/SettingsBottomContent.svelte';
     import MateSettingsBottomContent from './steps/matesettings/MateSettingsBottomContent.svelte';
-    import CreditsBottomContent from './steps/credits/CreditsBottomContent.svelte';
-    import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
     import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
     import RecoveryKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
 
@@ -1544,47 +1540,6 @@
                                         <SettingsTopContent />
                                     {:else if currentStep === STEP_MATE_SETTINGS}
                                         <MateSettingsTopContent />
-                                    {:else if currentStep === STEP_CREDITS}
-                                        <CreditsTopContent on:step={handleStep} />
-                                    {:else if currentStep === STEP_PAYMENT}
-                                        <PaymentTopContent
-                                            credits_amount={selectedCreditsAmount}
-                                            price={selectedPrice}
-                                            currency={selectedCurrency}
-                                            isGift={isGiftFlow}
-                                            isGiftCardRedemption={isGiftCardRedemption}
-                                            showSuccess={isGiftCardRedemption || paymentState === 'success'}
-                                            purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
-                                            purchasedPrice={isGiftCardRedemption ? 0 : null}
-                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            oncomplete={handleAutoTopUpComplete}
-                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
-                                            on:consentGiven={handleRefundConsent}
-                                            on:complete={handleAutoTopUpComplete}
-                                            on:paymentFormVisibility={handlePaymentFormVisibilityChange}
-                                            on:openRefundInfo={handleOpenRefundInfo}
-                                            on:payment={handlePaymentSubmission}
-                                            on:paymentStateChange={handlePaymentStateChange}
-                                            on:step={handleStep}
-                                        />
-                                    {:else if currentStep === STEP_AUTO_TOP_UP}
-                                        <PaymentTopContent
-                                            credits_amount={selectedCreditsAmount}
-                                            price={selectedPrice}
-                                            currency={selectedCurrency}
-                                            isGiftCardRedemption={isGiftCardRedemption}
-                                            showSuccess={true}
-                                            purchasedCredits={selectedCreditsAmount}
-                                            purchasedPrice={isGiftCardRedemption ? 0 : selectedPrice}
-                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            paymentMethodSaveError={isGiftCardRedemption ? null : paymentMethodSaveError}
-                                            oncomplete={handleAutoTopUpComplete}
-                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
-                                            on:paymentMethodStatusUpdate={(event) => {
-                                                paymentMethodSaved = event.detail.saved;
-                                                paymentMethodSaveError = event.detail.error;
-                                            }}
-                                        />
                                     {/if}
                                 </div>
                             {/key}
@@ -1658,24 +1613,6 @@
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
-                                            />
-                                        {:else if currentStep === STEP_CREDITS}
-                                            <CreditsBottomContent
-                                                on:step={handleStep}
-                                                on:uploading={handleImageUploading}
-                                                on:selectedApp={handleSelectedApp}
-                                            />
-                                        {:else if currentStep === STEP_PAYMENT}
-                                            <PaymentBottomContent />
-                                        {:else if currentStep === STEP_AUTO_TOP_UP}
-                                            <PaymentBottomContent
-                                                purchasedCredits={selectedCreditsAmount}
-                                                purchasedPrice={selectedPrice}
-                                                currency={selectedCurrency}
-                                                paymentMethodSaved={paymentMethodSaved}
-                                                paymentMethodSaveError={paymentMethodSaveError}
-                                                oncomplete={handleAutoTopUpComplete}
-                                                onactivate-subscription={handleActivateSubscription}
                                             />
                                         {/if}
                                     {/if}
