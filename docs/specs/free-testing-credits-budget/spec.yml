@@ -345,9 +345,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27272270433"
+        timestamp: "2026-06-10"
   - id: T-PLAYWRIGHT-002
     type: playwright
     file: frontend/apps/web_app/tests/server-free-testing-budget.spec.ts
@@ -373,9 +373,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27272118284"
+        timestamp: "2026-06-10"
   - id: T-VITEST-001
     type: vitest
     file: frontend/packages/ui/src/components/signup/signupFlow.test.ts
@@ -446,9 +446,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27272385166"
+        timestamp: "2026-06-10"
 
 implementation_plan:
   existing_patterns:
