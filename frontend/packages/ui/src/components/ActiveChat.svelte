@@ -5977,6 +5977,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
     }
 
+    async function handleNewChatCreationCancelled(event: CustomEvent) {
+        const { chatId, text } = event.detail as { chatId?: string | null; text?: string };
+        const cancelledChatId = chatId || currentChat?.chat_id || temporaryChatId || null;
+
+        if (cancelledChatId) {
+            try {
+                await chatDB.deleteChat(cancelledChatId);
+                chatListCache.removeChat(cancelledChatId);
+                window.dispatchEvent(new CustomEvent('localChatListChanged', {
+                    detail: { chat_id: cancelledChatId }
+                }));
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to delete cancelled new chat locally:', err);
+            }
+        }
+
+        await handleNewChatClick();
+        await tick();
+
+        if (text && messageInputFieldRef?.setSuggestionText) {
+            messageInputFieldRef.setSuggestionText(text);
+            messageInputFieldRef.focus();
+        }
+    }
+
     /**
      * Handler for messages change event from ChatHistory
      * Controls welcome message visibility
@@ -11401,6 +11426,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <MessageInput
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
+                                    isNewChatContext={showWelcome && !currentChat?.chat_id}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
                                     activeFocusId={!showWelcome ? activeFocusId : null}
@@ -11427,6 +11453,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
+                                    on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}

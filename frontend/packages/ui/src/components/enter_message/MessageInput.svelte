@@ -185,6 +185,8 @@
         placeholderText?: string;
         /** Treat the field as a CTA that starts a fresh chat instead of composing a reply. */
         startNewChatOnClick?: boolean;
+        /** True when this composer is attached to the empty new-chat screen. */
+        isNewChatContext?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
         inlineCompact?: boolean;
     }
@@ -205,6 +207,7 @@
         onIncognitoPillDeactivate = undefined,
         placeholderText = undefined,
         startNewChatOnClick = false,
+        isNewChatContext = false,
         inlineCompact = false
     }: Props = $props();
 
@@ -503,7 +506,9 @@
     let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
     let awaitingAITaskStart = $state(false); // Optimistic stop button immediately after send
     let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
+    let cancelRequestedChatId = $state<string | null>(null);
     let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
+    let pendingNewChatDraftRestore = $state<{ chatId: string | null; text: string } | null>(null);
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
@@ -2864,6 +2869,7 @@
             activeAITaskId = null;
             awaitingAITaskStart = false;
             cancelRequestedWhileAwaiting = false;
+            cancelRequestedChatId = null;
             if (awaitingAITaskTimeoutId) {
                 clearTimeout(awaitingAITaskTimeoutId);
                 awaitingAITaskTimeoutId = null;
@@ -2875,15 +2881,27 @@
         console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
 
-        // If the user clicked stop before we had a task id, cancel as soon as it's known
-        if (cancelRequestedWhileAwaiting && activeAITaskId) {
-            const taskId = activeAITaskId;
-            console.info('[MessageInput] Cancelling AI task that started after user requested stop:', taskId);
+        const requestedChatTaskId = cancelRequestedChatId && chatSyncService
+            ? chatSyncService.getActiveAITaskIdForChat(cancelRequestedChatId)
+            : null;
+
+        // If the user clicked stop before we had a task id, cancel as soon as it's known.
+        // The current composer may already be back on a fresh temporary chat, so keep
+        // checking the original chat id captured at stop time.
+        const taskIdToCancel = activeAITaskId || requestedChatTaskId;
+        if (cancelRequestedWhileAwaiting && taskIdToCancel) {
+            const chatIdForCancel = activeAITaskId ? currentChatId : cancelRequestedChatId;
+            console.info('[MessageInput] Cancelling AI task that started after user requested stop:', taskIdToCancel);
             // Clear UI immediately
             cancelRequestedWhileAwaiting = false;
+            cancelRequestedChatId = null;
             awaitingAITaskStart = false;
             activeAITaskId = null;
-            void chatSyncService.sendCancelAiTask(taskId, currentChatId ?? undefined);
+            void chatSyncService.sendCancelAiTask(taskIdToCancel, chatIdForCancel ?? undefined);
+        }
+
+        if (activeAITaskId) {
+            pendingNewChatDraftRestore = null;
         }
     }
 
@@ -2904,6 +2922,7 @@
             updateActiveAITaskStatus();
             // Clear queued message text when task ends
             queuedMessageText = null;
+            pendingNewChatDraftRestore = null;
         }
     }
 
@@ -2917,10 +2936,15 @@
         if (!activeAITaskId && awaitingAITaskStart) {
             console.info('[MessageInput] Stop clicked before task id is known; will cancel as soon as task starts');
             cancelRequestedWhileAwaiting = true;
+            cancelRequestedChatId = currentChatId ?? null;
             awaitingAITaskStart = false; // Hide button immediately
             if (awaitingAITaskTimeoutId) {
                 clearTimeout(awaitingAITaskTimeoutId);
                 awaitingAITaskTimeoutId = null;
+            }
+            if (pendingNewChatDraftRestore) {
+                dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
+                pendingNewChatDraftRestore = null;
             }
             return;
         }
@@ -4013,6 +4037,12 @@
         if (editor && !editor.isDestroyed) {
             flushHeavyParsing(editor);
         }
+        pendingNewChatDraftRestore = isNewChatContext && editor && !editor.isDestroyed
+            ? {
+                chatId: currentChatId ?? null,
+                text: editor.getText()
+            }
+            : null;
         // Optimistically show stop button immediately after sending
         awaitingAITaskStart = true;
         cancelRequestedWhileAwaiting = false;
@@ -4025,6 +4055,7 @@
                 console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
                 awaitingAITaskStart = false;
                 cancelRequestedWhileAwaiting = false;
+                cancelRequestedChatId = null;
             }
             awaitingAITaskTimeoutId = null;
         }, 15000);
