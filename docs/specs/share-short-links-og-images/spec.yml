@@ -311,6 +311,7 @@ tests:
       - network-unavailable share creation falls back to a long `/share/chat/` URL
       - password-protected chat preview metadata uses the generic protected OG title
       - non-password chat preview metadata uses the chat title and summary
+      - non-password chat preview metadata points to a generated PNG OG image
     red_phase:
       required: true
       expected: fail

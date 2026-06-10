@@ -42,6 +42,15 @@ const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
+const EXPECTED_CHAT_OG_TITLE = 'Capital of France';
+const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'Paris';
+
+function metaContent(html: string, selector: string): string {
+	const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const regex = new RegExp(`<meta[^>]+(?:property|name)="${escapedSelector}"[^>]+content="([^"]*)"`, 'i');
+	const match = html.match(regex);
+	return match?.[1] ?? '';
+}
 
 // ─── Test ────────────────────────────────────────────────────────────────────
 
@@ -179,6 +188,44 @@ test('creates and shares a chat link with QR code and short link', async ({
 	const shortLinkUrl = (await shortLinkCopy.getByTestId('share-short-link-url').innerText()).trim();
 	expect(shortLinkUrl).toMatch(/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/);
 	logCheckpoint('Generated link is already a durable short link.');
+
+	const crawlerUrl = new URL(shortLinkUrl, page.url());
+	crawlerUrl.hash = '';
+	let crawlerHtml = '';
+	await expect
+		.poll(
+			async () => {
+				const response = await page.request.get(crawlerUrl.toString());
+				crawlerHtml = await response.text();
+				return metaContent(crawlerHtml, 'og:title');
+			},
+			{ timeout: 30000, intervals: [1000, 2000, 3000, 5000] }
+		)
+		.toBe(EXPECTED_CHAT_OG_TITLE);
+
+	const ogDescription = metaContent(crawlerHtml, 'og:description');
+	const ogImage = metaContent(crawlerHtml, 'og:image');
+	await docAssert('share-link-has-chat-og-metadata', async () => {
+		expect(ogDescription).toContain(EXPECTED_CHAT_OG_DESCRIPTION_TERM);
+		expect(ogImage).toContain('/v1/share/short-url/');
+		expect(ogImage).toContain('/og-image.png');
+	});
+	logCheckpoint('Short link crawler metadata uses chat title, summary, and generated OG image.', {
+		ogTitle: EXPECTED_CHAT_OG_TITLE,
+		ogDescription,
+		ogImage
+	});
+
+	const ogImageResponse = await page.request.get(ogImage);
+	await docAssert('share-link-og-image-is-generated-png', async () => {
+		expect(ogImageResponse.ok()).toBe(true);
+		expect(ogImageResponse.headers()['content-type']).toContain('image/png');
+		const imageBytes = await ogImageResponse.body();
+		expect(imageBytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+		expect(imageBytes.length).toBeGreaterThan(1000);
+	});
+	logCheckpoint('Generated OG image URL returns PNG data.');
+
 	await takeStepScreenshot(page, 'short-link-generated');
 	await docCheckpoint(page, {
 		id: 'short-link-generated',

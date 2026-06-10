@@ -264,6 +264,38 @@ async def test_short_url_metadata_uses_shared_chat_title_and_summary():
 
 
 @pytest.mark.asyncio
+async def test_short_url_og_image_generates_png_for_shared_chat_metadata():
+    directus = FakeDirectusService()
+    directus.short_links.append(
+        {
+            "token": "Abc123XY",
+            "encrypted_url": "opaque-ciphertext",
+            "content_type": "chat",
+            "content_id": "chat-1",
+            "password_protected": False,
+            "expires_at": None,
+            "revoked_at": None,
+        }
+    )
+
+    get_og_image = getattr(
+        share_routes.get_short_url_og_image,
+        "__wrapped__",
+        share_routes.get_short_url_og_image,
+    )
+    response = await get_og_image(
+        request=None,
+        token="Abc123XY",
+        directus_service=directus,
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response.media_type == "image/png"
+    assert response.body.startswith(b"\x89PNG\r\n\x1a\n")
+    assert len(response.body) > 1000
+
+
+@pytest.mark.asyncio
 async def test_password_protected_short_url_metadata_hides_chat_metadata():
     directus = FakeDirectusService()
     directus.short_links.append(
