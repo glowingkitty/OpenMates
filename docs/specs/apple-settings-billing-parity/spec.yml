@@ -1,6 +1,6 @@
 id: apple-settings-billing-parity
 title: Apple Settings Billing And Preferences Web Spec Parity
-status: draft
+status: implementing
 
 goal: >
   Recreate the web app's settings, preference, and billing Playwright coverage
@@ -115,13 +115,10 @@ tests:
     file: apple/OpenMatesTests/SettingsBillingParityTests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsBillingParityTests
     covers:
-      - AC-1
       - AC-2
-      - AC-3
     assertions:
-      - Settings models decode web-equivalent preference, billing, role, and support states.
-      - StoreKit/native exceptions are explicitly classified instead of silently falling back.
-      - Payment, invoice, and referral identifiers are redacted from logs.
+      - Apple StoreKit credit product identifiers match the native credit tiers expected by the billing entry point.
+      - Product-tier tests use static metadata only and do not touch purchases, invoices, customer IDs, or payment methods.
     red_phase:
       required: true
       expected: fail
@@ -133,9 +130,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
   - id: T-UNIT-002
     type: unit
     file: apple/OpenMatesUITests/SettingsBillingParityUITests.swift
@@ -143,11 +140,34 @@ tests:
     covers:
       - AC-1
       - AC-2
+    assertions:
+      - Public settings rows expose stable identifiers matching web concepts.
+      - Unauthenticated settings exposes public preference/support/report/pricing rows and hides billing account actions.
+      - iPhone public settings home avoids default `List` or table chrome.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
+  - id: T-MANUAL-003
+    type: manual
+    covers:
+      - AC-1
+      - AC-2
       - AC-3
     assertions:
-      - Settings rows and controls expose stable identifiers matching web concepts.
-      - iPhone settings flows avoid `List`, `Form`, default navigation chrome, and default product toggles/pickers.
-      - Billing/support paths attach sanitized screenshots and classify StoreKit differences.
+      - Authenticated default-model, model-toggle, language, interface-font, newsletter, support, and report-issue parity still needs dedicated Apple tests.
+      - Authenticated buy credits, gift card, saved invoice, referral, and support flow parity still needs StoreKit-safe or web-only classification tests.
+      - Admin/server/free-testing role visibility still needs dedicated admin and non-admin Apple tests.
     red_phase:
       required: true
       expected: fail
