@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
+import { WebSocketServer } from "ws";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -112,6 +113,96 @@ async function withCodeRunMockApi<T>(
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+async function withCodeRunStreamingMockApi<T>(
+  run: (params: { apiUrl: string; tempHome: string; getStats: () => { rejected: number; accepted: number } }) => T | Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-stream-${Date.now()}`);
+  const stateDir = join(tempHome, ".openmates");
+  const refreshToken = "raw-refresh-token";
+  const stats = { rejected: 0, accepted: 0 };
+  mkdirSync(stateDir, { recursive: true });
+  const writeSession = (apiUrl: string) => writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "old-ws-token",
+    cookies: { auth_refresh_token: refreshToken },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        writeJson(response, { success: true, ws_token: "bad-ws-token" });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/run") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              execution_id: "exec-stream",
+              status: "queued",
+              target_filename: "hello.py",
+              files: ["hello.py"],
+              status_path: "/v1/code/run/exec-stream",
+              stream_path: "/v1/code/run/exec-stream/stream",
+              credits_per_minute: 5,
+            }],
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/code/run/exec-stream") {
+        writeJson(response, { status: "finished", exit_code: 0 });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  server.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const token = url.searchParams.get("token");
+    if (token !== refreshToken) {
+      stats.rejected += 1;
+      socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    stats.accepted += 1;
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      setImmediate(() => {
+        ws.send(JSON.stringify({ type: "code_run_event", payload: { kind: "stdout", text: "STREAM_FALLBACK_OK\n" } }));
+        ws.send(JSON.stringify({ type: "code_run_update", payload: { status: "finished", exit_code: 0 } }));
+        setTimeout(() => ws.close(), 10);
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeSession(apiUrl);
+  try {
+    return await run({ apiUrl, tempHome, getStats: () => stats });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
   }
 }
 
@@ -307,6 +398,19 @@ describe("apps code run command variants", () => {
       assert.equal(body.requests[0].chat_id, "chat-1");
       assert.equal(body.requests[0].target_embed_id, "embed-1");
       assert.deepEqual(body.requests[0].files, []);
+    });
+  });
+
+  it("retries Code Run streaming with the refresh token when ws_token auth is rejected", async () => {
+    await withCodeRunStreamingMockApi(async ({ apiUrl, tempHome, getStats }) => {
+      await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--language", "python",
+        "--filename", "hello.py",
+        "--code", "print('hello')\n",
+      ], { HOME: tempHome });
+      assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
     });
   });
 });

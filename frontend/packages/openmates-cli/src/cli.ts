@@ -1351,7 +1351,7 @@ async function handleCodeRun(
     throw new Error("Code Run did not return an execution id.");
   }
 
-  const streamAuth = apiKey ? null : client.getCodeRunStreamAuth();
+  const streamAuth = apiKey ? null : await client.getCodeRunStreamAuth();
   let finalStatus: Record<string, unknown>;
   if (streamAuth && result.stream_path) {
     const url = buildCodeRunStreamUrl({
@@ -1360,7 +1360,18 @@ async function handleCodeRun(
       sessionId: streamAuth.sessionId,
       token: streamAuth.token,
     });
-    finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
+    try {
+      finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
+    } catch (err) {
+      if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
+      const fallbackUrl = buildCodeRunStreamUrl({
+        apiUrl: client.apiUrl,
+        executionId: result.execution_id,
+        sessionId: streamAuth.sessionId,
+        token: streamAuth.fallbackToken,
+      });
+      finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
+    }
   } else {
     finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
   }

@@ -2639,12 +2639,14 @@ export class OpenMatesClient {
     return this.resolveAsyncSkillResponse(response.data, headers);
   }
 
-  getCodeRunStreamAuth(): { sessionId: string; token: string } | null {
+  async getCodeRunStreamAuth(): Promise<{ sessionId: string; token: string; fallbackToken?: string } | null> {
     const session = this.session;
     if (!session) return null;
+    await this.refreshWsToken();
     const token = session.wsToken || session.cookies.auth_refresh_token;
     if (!token) return null;
-    return { sessionId: session.sessionId, token };
+    const fallbackToken = session.cookies.auth_refresh_token;
+    return { sessionId: session.sessionId, token, fallbackToken };
   }
 
   async getCodeRunStatus(path: string, apiKey?: string): Promise<Record<string, unknown>> {
