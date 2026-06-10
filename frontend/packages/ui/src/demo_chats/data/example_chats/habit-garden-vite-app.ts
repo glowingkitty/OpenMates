@@ -12,7 +12,7 @@ export const habitGardenViteAppChat: ExampleChat = {
   title: "example_chats.habit_garden_vite_app.title",
   summary: "example_chats.habit_garden_vite_app.summary",
   icon: "leaf",
-  category: "general_knowledge",
+  category: "software_development",
   keywords: ["habit tracker", "Vite app", "application preview", "localStorage", "garden visualization"],
   follow_up_suggestions: [],
   messages: [
@@ -27,7 +27,7 @@ export const habitGardenViteAppChat: ExampleChat = {
         "role": "assistant",
         "content": "example_chats.habit_garden_vite_app.message_2",
         "created_at": 1780927664,
-        "category": "life_coach_psychology",
+        "category": "software_development",
         "model_name": "Gemini 3.1 Pro"
     }
 ],
