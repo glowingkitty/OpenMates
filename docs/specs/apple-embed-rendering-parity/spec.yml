@@ -1,6 +1,6 @@
 id: apple-embed-rendering-parity
 title: Apple Embed Preview And Fullscreen Rendering Parity
-status: approved
+status: implementing
 
 goal: >
   Create a repeatable parity workflow that proves Apple embed previews and
@@ -282,9 +282,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27242649356"
+        timestamp: "2026-06-09T23:35:15Z"
 
   - id: T-LINT-EMBED-CONTRACTS
     type: lint
@@ -308,9 +308,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_with_warnings
+        run_id: "local-a27b"
+        timestamp: "2026-06-10T00:19:27Z"
 
   - id: T-LINT-APPLE-EMBED-AUDIT
     type: lint
@@ -335,9 +335,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17"
+        timestamp: "2026-06-10T00:18:02Z"
 
   - id: T-BUILD-APPLE-EMBEDS
     type: build
@@ -360,9 +360,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests iPhone 17 attachments /tmp/opencode/native-embed-parity-attachments-20260610021445"
+        timestamp: "2026-06-10T00:18:02Z"
 
   - id: T-APPLE-EMBED-UITESTS
     type: manual
@@ -384,9 +384,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: partial_pass_no_blocking_top_level_drift
+        run_id: "/tmp/opencode/embed-parity-contact-sheets/native-iphone-apps-e71d0ff.png"
+        timestamp: "2026-06-10T00:19:27Z"
 
   - id: T-MANUAL-AGENT-REVIEW
     type: manual
