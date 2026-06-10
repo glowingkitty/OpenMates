@@ -43,6 +43,7 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
+	waitForChatReady,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -337,6 +338,13 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	).toBe('de');
 
 	log('Turn 1 verified: AI responded in German.');
+	log('Reloading the persisted chat before turn 2 to reset transient composer send state.');
+	await page.reload();
+	await page.waitForLoadState('load');
+	await waitForChatReady(page, log);
+	await expect
+		.poll(async () => await assistantMessages.count().catch(() => 0), { timeout: 30000 })
+		.toBeGreaterThanOrEqual(1);
 
 	// ══════════════════════════════════════════════════════════════════════
 	// STEP 3: Send a follow-up in English → expect English response
