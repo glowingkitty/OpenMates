@@ -229,6 +229,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        # The sender must receive this chat's AI stream even if a separate
+        # set_active_chat acknowledgement is delayed by last_opened persistence.
+        manager.set_active_chat(user_id, device_fingerprint_hash, chat_id)
+
         # ---------------------------------------------------------------------------
         # IS_FORK FAST PATH
         # ---------------------------------------------------------------------------
