@@ -867,7 +867,12 @@ final class ChatViewModel: ObservableObject {
                 ChatKeyManager.shared.setKey(parentKey, for: child.id)
             }
             let createdAt = ISO8601DateFormatter().string(from: Date())
-            let encryptedContent = parentKey.flatMap { try? CryptoManager.shared.encryptContent(child.prompt, key: $0) }
+            let encryptedContent: String?
+            if let parentKey {
+                encryptedContent = try? await CryptoManager.shared.encryptContent(child.prompt, key: parentKey)
+            } else {
+                encryptedContent = nil
+            }
             let childChat = Chat(
                 id: child.id,
                 title: child.title ?? child.prompt,
@@ -2471,8 +2476,16 @@ final class ChatSendPipeline {
             ),
             uniquingKeysWith: { _, new in new }
         )
-        let activeFocusId = chat.activeFocusId ?? chat.encryptedActiveFocusId.flatMap {
-            try? crypto.decryptContent(base64String: $0, key: keyMaterial.key)
+        let activeFocusId: String?
+        if let inMemoryActiveFocusId = chat.activeFocusId {
+            activeFocusId = inMemoryActiveFocusId
+        } else if let encryptedActiveFocusId = chat.encryptedActiveFocusId {
+            activeFocusId = try? await crypto.decryptContent(
+                base64String: encryptedActiveFocusId,
+                key: keyMaterial.key
+            )
+        } else {
+            activeFocusId = nil
         }
         if let activeFocusId, !activeFocusId.isEmpty {
             outboundPayload.merge(
