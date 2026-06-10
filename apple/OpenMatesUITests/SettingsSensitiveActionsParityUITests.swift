@@ -18,7 +18,7 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
         openSettingsAccountPage(in: app)
 
         for identifier in sensitiveAccountRows {
-            XCTAssertTrue(waitForElement(identifier, in: app, timeout: 5), "Expected sensitive row \(identifier)")
+            XCTAssertTrue(waitForButton(identifier, in: app, timeout: 5), "Expected sensitive row \(identifier)")
         }
         XCTAssertFalse(app.tables.firstMatch.exists, "Account settings must not render default List/table chrome")
 
@@ -56,21 +56,33 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
         app.buttons["settings-button"].tap()
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
-        XCTAssertTrue(waitForElement("settings-account-row", in: app, timeout: 8))
-        app.descendants(matching: .any)["settings-account-row"].tap()
+        XCTAssertTrue(waitForButton("settings-account-row", in: app, timeout: 8))
+        app.buttons["settings-account-row"].tap()
         XCTAssertTrue(waitForElement("settings-account-page", in: app, timeout: 8))
     }
 
     private func openAccountSubpage(row: String, page: String, in app: XCUIApplication) {
-        XCTAssertTrue(waitForElement(row, in: app, timeout: 8), "Expected row \(row)")
-        app.descendants(matching: .any)[row].tap()
-        XCTAssertTrue(waitForElement("settings-account-subpage-back", in: app, timeout: 8), "Expected page \(page)")
+        XCTAssertTrue(waitForButton(row, in: app, timeout: 8), "Expected row \(row)")
+        app.buttons[row].tap()
+        XCTAssertTrue(waitForButton("settings-account-subpage-back", in: app, timeout: 8), "Expected page \(page)")
     }
 
     private func returnToAccountPage(in app: XCUIApplication) {
-        XCTAssertTrue(waitForElement("settings-account-subpage-back", in: app, timeout: 5))
-        app.descendants(matching: .any)["settings-account-subpage-back"].tap()
+        XCTAssertTrue(waitForButton("settings-account-subpage-back", in: app, timeout: 5))
+        app.buttons["settings-account-subpage-back"].tap()
         XCTAssertTrue(waitForElement("settings-account-page", in: app, timeout: 5))
+    }
+
+    private func waitForButton(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let button = app.buttons[identifier]
+        if button.waitForExistence(timeout: timeout) { return true }
+
+        let scrollView = app.scrollViews.firstMatch
+        for _ in 0..<8 where scrollView.exists {
+            scrollView.swipeUp()
+            if button.waitForExistence(timeout: 1) { return true }
+        }
+        return false
     }
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
