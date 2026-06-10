@@ -1,6 +1,6 @@
 id: apple-reminders-public-content-parity
 title: Apple Reminders Daily Inspiration And Public Content Web Spec Parity
-status: draft
+status: implementing
 
 goal: >
   Recreate web reminder, daily inspiration, demo/example chat, and public/legal
@@ -117,13 +117,12 @@ tests:
     file: apple/OpenMatesTests/RemindersPublicContentParityTests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/RemindersPublicContentParityTests
     covers:
-      - AC-1
       - AC-2
       - AC-3
     assertions:
-      - Reminder, daily inspiration, demo chat, and public chat models decode web-compatible states.
-      - Notification, widget, and App Intent native boundaries are explicitly classified.
-      - Private reminder/chat identifiers are redacted from artifacts.
+      - Daily inspiration payloads decode web-compatible public fixture states.
+      - Demo/public chat payloads decode read-only fixture states.
+      - Public chat categories classify native groups without private chat identifiers.
     red_phase:
       required: true
       expected: fail
@@ -135,21 +134,43 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
   - id: T-UNIT-002
     type: unit
     file: apple/OpenMatesUITests/RemindersPublicContentParityUITests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/RemindersPublicContentParityUITests
     covers:
+      - AC-3
+    assertions:
+      - Public unauthenticated chat entries are reachable through native UI.
+      - Opening a public chat shows native chat content with assistant messages and no default `List` or table chrome.
+      - Screenshots contain only public fixture content.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
+  - id: T-MANUAL-003
+    type: manual
+    covers:
       - AC-1
       - AC-2
       - AC-3
     assertions:
-      - Reminder and public content flows are reachable through native UI.
-      - OS-owned notification prompts are isolated from OpenMates product UI assertions.
-      - Screenshots contain only synthetic or public fixture content.
+      - Reminder create/edit/repeat/cancel/settings/skill-output parity still needs dedicated Apple tests with simulator-safe notification handling.
+      - Daily inspiration start-chat, demo replay, example load, and example clone parity still need dedicated Apple UI tests.
+      - Legal chat and shared-chat link read-only parity still need dedicated public fixture tests; SEO-only web assertions remain excluded.
     red_phase:
       required: true
       expected: fail
