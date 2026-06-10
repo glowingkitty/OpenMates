@@ -1,0 +1,184 @@
+id: apple-settings-billing-parity
+title: Apple Settings Billing And Preferences Web Spec Parity
+status: draft
+
+goal: >
+  Recreate the web app's settings, preference, and billing Playwright coverage
+  in Apple so users can manage model, language, interface, newsletter, support,
+  reporting, credits, invoices, referrals, and payment-related states with native
+  OpenMates UI and documented StoreKit differences.
+
+scope:
+  in:
+    - Settings page parity for AI/model, default model, interface font, language, newsletter, support, report issue, debug logging, and server/admin visibility states.
+    - Billing parity for credits, gift cards, saved invoices, referrals, and support flows with native StoreKit exceptions where required.
+    - Stable Apple accessibility identifiers aligned to web `data-testid` values for settings rows, controls, success/error messages, and dialogs.
+  out:
+    - Replacing App Store required purchase flows with web Stripe UI.
+    - Changing server-side pricing, invoice, referral, free-testing, or admin authorization logic.
+    - Committing payment data, invoices, customer ids, private emails, hostnames, or screenshots with private financial information.
+
+context_discovery:
+  docs:
+    - apple/AGENTS.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/apple/web-spec-recreation-gap-audit.md
+  code_patterns:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - scripts/apple_remote.py
+  tests:
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - frontend/apps/web_app/tests/model-toggle-settings.spec.ts
+    - frontend/apps/web_app/tests/interface-font-settings.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/apps/web_app/tests/newsletter-flow.spec.ts
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-gift-card-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/apps/web_app/tests/server-free-testing-budget.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/Views/*.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    - apple/OpenMatesTests/SettingsBillingParityTests.swift
+  parity_expectations:
+    - Settings product UI must use `OMSettingsPage`, `OMSettingsRow`, `OMToggle`, `OMDropdown`, `OMSegmentedControl`, and related OpenMates primitives.
+    - Native purchase flows may route through StoreKit, but entry points, account state, success/error states, and support fallbacks must match web intent.
+    - Admin-only/free-testing controls must be hidden from non-admin accounts in Apple just as they are hidden in web.
+  verification:
+    - Remote Mac `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`.
+    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingParityUITests`.
+    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/SettingsBillingParityUITests` for settings layout evidence.
+  intentional_native_differences:
+    - StoreKit purchase sheets and App Store account prompts are OS-owned and may differ from web Stripe/bank-transfer screens.
+    - Apple may deep-link to web support pages only when the native surface cannot legally or technically complete the payment action.
+
+scenarios:
+  - id: S-1
+    title: User preferences match web settings behavior
+    given:
+      - A logged-in user opens Apple settings.
+    when:
+      - The user changes default model, model toggles, interface font, language, and newsletter preferences.
+    then:
+      - Apple persists and displays the same selected states as web.
+      - Success/error messaging and disabled/loading states are equivalent.
+      - Layout uses OpenMates settings primitives on iPhone and iPad.
+  - id: S-2
+    title: Billing and support states match web intent
+    given:
+      - A logged-in test account has deterministic billing fixtures or StoreKit test products.
+    when:
+      - The user opens buy credits, gift card, saved invoice, referral, pricing, and support paths.
+    then:
+      - Apple shows equivalent account state, invoice/referral/support copy, purchase availability, and failure handling.
+      - Native StoreKit-only screens are documented as intentional native differences.
+  - id: S-3
+    title: Admin and server-only controls respect role visibility
+    given:
+      - Admin and non-admin test users are available.
+    when:
+      - Each user opens settings surfaces that web specs guard with role checks.
+    then:
+      - Non-admin users cannot see or invoke admin/server/free-testing controls.
+      - Admin users can open seeded admin controls where native support is intended.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple settings preference tests recreate web default model, model toggle, language, interface, newsletter, report issue, and support states.
+  - id: AC-2
+    scenario: S-2
+    text: Apple billing tests recreate web account and purchase intent states with documented StoreKit or web-only differences.
+  - id: AC-3
+    scenario: S-3
+    text: Apple role visibility tests prove admin/server/free-testing controls are unavailable to non-admin users.
+
+tests:
+  - id: T-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/SettingsBillingParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsBillingParityTests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Settings models decode web-equivalent preference, billing, role, and support states.
+      - StoreKit/native exceptions are explicitly classified instead of silently falling back.
+      - Payment, invoice, and referral identifiers are redacted from logs.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+  - id: T-UNIT-002
+    type: unit
+    file: apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingParityUITests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Settings rows and controls expose stable identifiers matching web concepts.
+      - iPhone settings flows avoid `List`, `Form`, default navigation chrome, and default product toggles/pickers.
+      - Billing/support paths attach sanitized screenshots and classify StoreKit differences.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+
+tasks:
+  - id: TASK-1
+    title: Add native settings and billing parity tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+      - apple/OpenMatesTests/SettingsBillingParityTests.swift
+    verification:
+      - T-UNIT-001
+      - T-UNIT-002
+    independently_deployable: true

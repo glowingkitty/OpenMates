@@ -35,6 +35,9 @@ REQUIRED_IDENTIFIERS = {
     "embed-preview": REPO_ROOT / "apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift",
 }
 
+ACCESSIBILITY_ID_RE = re.compile(r"accessibilityIdentifier\(\s*([^\n]+?)\s*\)")
+STRING_LITERAL_RE = re.compile(r'"([^"]+)"')
+
 
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
@@ -90,7 +93,13 @@ def audit_chat_loading() -> list[str]:
 def audit_chat_flow_identifiers() -> list[str]:
     failures: list[str] = []
     for identifier, path in REQUIRED_IDENTIFIERS.items():
-        if f'.accessibilityIdentifier("{identifier}")' not in read(path):
+        source = read(path)
+        identifiers = {
+            match
+            for call in ACCESSIBILITY_ID_RE.findall(source)
+            for match in STRING_LITERAL_RE.findall(call)
+        }
+        if identifier not in identifiers:
             failures.append(fail(f"Missing Apple accessibilityIdentifier matching web data-testid '{identifier}' in {path.relative_to(REPO_ROOT)}"))
     return failures
 

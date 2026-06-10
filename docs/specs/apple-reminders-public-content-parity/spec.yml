@@ -1,0 +1,186 @@
+id: apple-reminders-public-content-parity
+title: Apple Reminders Daily Inspiration And Public Content Web Spec Parity
+status: draft
+
+goal: >
+  Recreate web reminder, daily inspiration, demo/example chat, and public/legal
+  content coverage in Apple so native entry points, notification boundaries, and
+  read-only content states match web where they are part of the product contract.
+
+scope:
+  in:
+    - Native parity for reminder create/edit/repeat/cancel/same-chat/new-chat/settings flows and reminder skill outputs.
+    - Native parity for daily inspiration chat entry, demo/example chat loading, public chat list, legal chat, and public/shared read-only states.
+    - Remote Mac verification for iPhone and, where layout differs, iPad simulators.
+  out:
+    - SEO-only web assertions, docs screenshot generation, and web reachability smoke tests.
+    - Changing backend reminder scheduling, public chat publishing, or notification delivery contracts.
+    - Committing private notification tokens, reminder ids, chat ids, emails, hostnames, or private screenshots.
+
+context_discovery:
+  docs:
+    - apple/AGENTS.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/apple/notifications-parity.md
+    - docs/architecture/apple/web-spec-recreation-gap-audit.md
+  code_patterns:
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Core/Intents/ReminderIntents.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/LegalChatView.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - scripts/apple_background_notification_simulator_test.py
+    - scripts/apple_remote.py
+  tests:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    - frontend/apps/web_app/tests/reminder-redesign.spec.ts
+    - frontend/apps/web_app/tests/reminder-repeating-and-cancel.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/skill-reminder-set.spec.ts
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    - frontend/apps/web_app/tests/chat-replay-demo-mode.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/ReminderView.swift
+    - apple/OpenMates/Sources/Core/Intents/ReminderIntents.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/LegalChatView.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - apple/OpenMatesUITests/RemindersPublicContentParityUITests.swift
+    - apple/OpenMatesTests/RemindersPublicContentParityTests.swift
+  parity_expectations:
+    - Reminder product UI uses OpenMates primitives while notification permission prompts remain OS-owned.
+    - Public/demo/legal chat content respects read-only and clone boundaries matching web.
+    - Widget or App Intent behavior is covered only where it is the native counterpart to web reminder/daily inspiration behavior.
+  verification:
+    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/RemindersPublicContentParityUITests`.
+    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/RemindersPublicContentParityTests`.
+    - Simulator notification helper evidence from `scripts/apple_background_notification_simulator_test.py` when reminder notification behavior is tested.
+  intentional_native_differences:
+    - Notification permission sheets and delivered notification chrome are OS-owned.
+    - Widgets and App Intents are native-only surfaces but must preserve web-equivalent reminder/daily inspiration data semantics.
+
+scenarios:
+  - id: S-1
+    title: Reminder creation and lifecycle match web
+    given:
+      - A test user has notification permissions handled through simulator-safe setup.
+    when:
+      - The user creates reminders from a new chat, same chat, repeated schedule, email path, settings button, and reminder skill output.
+    then:
+      - Apple shows the same success, validation, scheduled, repeated, cancelled, and chat-link states as web.
+      - Native scheduling payloads match backend contracts and do not leak private identifiers.
+  - id: S-2
+    title: Daily inspiration and demo/example chats match web entry states
+    given:
+      - Demo/example chat fixtures are available without private account data.
+    when:
+      - The user opens daily inspiration, demo replay, example chat load, and clone flows.
+    then:
+      - Apple shows equivalent entry cards, chat replay/read-only boundaries, clone behavior, and loaded message structure.
+  - id: S-3
+    title: Public and legal chat surfaces respect web boundaries
+    given:
+      - Public/shared/legal chat fixtures are available.
+    when:
+      - The user opens public chat list, legal chat, or shared chat links in Apple.
+    then:
+      - Apple renders read-only content and action availability equivalent to web.
+      - Unsupported SEO-only web behavior is explicitly excluded from native parity.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple reminder tests recreate web reminder creation, scheduling, repeat, cancel, settings, and skill output behavior.
+  - id: AC-2
+    scenario: S-2
+    text: Apple daily inspiration and demo/example chat tests recreate web entry, replay, load, and clone behavior.
+  - id: AC-3
+    scenario: S-3
+    text: Apple public/legal/shared chat tests recreate web read-only boundaries and document SEO-only exclusions.
+
+tests:
+  - id: T-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/RemindersPublicContentParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/RemindersPublicContentParityTests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Reminder, daily inspiration, demo chat, and public chat models decode web-compatible states.
+      - Notification, widget, and App Intent native boundaries are explicitly classified.
+      - Private reminder/chat identifiers are redacted from artifacts.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+  - id: T-UNIT-002
+    type: unit
+    file: apple/OpenMatesUITests/RemindersPublicContentParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/RemindersPublicContentParityUITests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Reminder and public content flows are reachable through native UI.
+      - OS-owned notification prompts are isolated from OpenMates product UI assertions.
+      - Screenshots contain only synthetic or public fixture content.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+
+tasks:
+  - id: TASK-1
+    title: Add reminder public content Apple parity tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMatesUITests/RemindersPublicContentParityUITests.swift
+      - apple/OpenMatesTests/RemindersPublicContentParityTests.swift
+    verification:
+      - T-UNIT-001
+      - T-UNIT-002
+    independently_deployable: true

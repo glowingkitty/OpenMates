@@ -1,0 +1,221 @@
+id: apple-chat-management-sharing-parity
+title: Apple Chat Management Sharing And Interaction Web Spec Parity
+status: draft
+
+goal: >
+  Recreate the web app's chat management, sharing, import/export, highlighting,
+  privacy, and interaction Playwright coverage in Apple so native chat operations
+  remain behaviorally compatible with web and cross-device sync.
+
+scope:
+  in:
+    - Native parity for chat search, context actions, hide/show, pin/sort, show more, recent dedupe, stop new chat draft, fork/explain in new chat, copy message, import/export, share chat, share embed, public/shared chat open, webhook/deeplink entry points, incognito, PII detection, paste classification, highlights, follow-up suggestions, interactive questions, and projects if product-required on Apple.
+    - Cross-surface sync checks where Apple actions must appear in web and web-created states must appear in Apple.
+    - Stable accessibility identifiers for chat list rows, menus, dialogs, banners, message actions, share controls, and highlighted text states.
+  out:
+    - Changing backend sharing, import/export, webhook, encryption, or project data contracts.
+    - Treating web-only SEO/docs/dev-smoke specs as native product parity requirements.
+    - Committing share URLs, encryption keys, webhook secrets, project ids, private chat content, or raw screenshots with private data.
+
+context_discovery:
+  docs:
+    - apple/AGENTS.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-sub-chat-focus-parity/spec.yml
+    - docs/architecture/apple/web-spec-recreation-gap-audit.md
+  code_patterns:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_remote.py
+  tests:
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+    - frontend/apps/web_app/tests/copy-message-flow.spec.ts
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/*.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+  parity_expectations:
+    - Apple chat management must preserve encrypted chat/key semantics and web sync contracts.
+    - App-owned menus, dialogs, share overlays, and action sheets use OpenMates custom UI unless invoking the OS-owned share sheet or file importer/exporter.
+    - "`scripts/apple_chat_parity_audit.py` must pass, including shared identifiers like `chat-item-wrapper`."
+  verification:
+    - "`python3 scripts/apple_chat_parity_audit.py` on Linux."
+    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatManagementSharingParityUITests`.
+    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatManagementSharingParityTests`.
+  intentional_native_differences:
+    - The system share sheet and file import/export panels are OS-owned.
+    - If Projects remain web-only, this spec must record that as an approved product decision before verification.
+
+scenarios:
+  - id: S-1
+    title: Chat list and context actions match web
+    given:
+      - A seeded account has visible, hidden, pinned, unread, and older chats.
+    when:
+      - Apple opens chat search, context menus, hide/show, pin/unpin, mark read, delete, and show-more flows.
+    then:
+      - Visible state, ordering, grouping, and synced backend effects match web.
+      - Required controls expose stable identifiers and custom OpenMates chrome.
+  - id: S-2
+    title: Message interactions and privacy affordances match web
+    given:
+      - A seeded chat has copyable messages, highlights, follow-up suggestions, PII warnings, incognito state, and pasteable content.
+    when:
+      - The user copies, highlights, follows up, toggles incognito, pastes rich content, and accepts/rejects PII states.
+    then:
+      - Apple produces equivalent visible states and send payloads without leaking raw JSON or private data.
+  - id: S-3
+    title: Share import export and deeplink flows match web contracts
+    given:
+      - Test fixtures provide shareable chats, shareable embeds, import files, export requests, and webhook/deeplink URLs.
+    when:
+      - Apple opens, creates, imports, exports, or follows those links through native UI.
+    then:
+      - Web can open Apple-created shared artifacts where supported.
+      - Apple can open web-created shared artifacts and deeplink messages with the same read-only or editable boundaries.
+      - Secrets and private URLs remain out of committed evidence.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple chat list/search/context-action tests recreate web chat management behavior and pass the deterministic chat parity audit.
+  - id: AC-2
+    scenario: S-2
+    text: Apple message interaction tests recreate web copy, highlight, follow-up, PII, incognito, and paste-classification behavior.
+  - id: AC-3
+    scenario: S-3
+    text: Apple share/import/export/deeplink tests recreate web sharing and entry-point behavior without leaking secrets.
+
+tests:
+  - id: T-LINT-001
+    type: lint
+    file: scripts/apple_chat_parity_audit.py
+    command: python3 scripts/apple_chat_parity_audit.py
+    covers:
+      - AC-1
+    assertions:
+      - Chat identifier and structural parity guardrails pass.
+      - No forbidden default product controls are added to chat management surfaces.
+      - Web-to-Apple constants remain aligned for chat management surfaces covered by the audit.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_currently
+        run_id: session-3725
+        timestamp: "2026-06-10"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+  - id: T-UNIT-002
+    type: unit
+    file: apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatManagementSharingParityTests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Chat action, privacy, share, import, export, and deeplink payloads match web contracts.
+      - Share URLs and encryption keys are redacted from logs and fixtures.
+      - Unsupported or web-only surfaces are explicitly classified.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+  - id: T-UNIT-003
+    type: unit
+    file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatManagementSharingParityUITests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Chat management, message action, and share/import/export flows are reachable and visible in native UI.
+      - OS-owned share/file panels are used only at OS-owned boundaries.
+      - Screenshots and attachments are synthetic or sanitized.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+
+tasks:
+  - id: TASK-1
+    title: Recreate chat management and sharing specs in Apple XCTest
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+      - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+      - scripts/apple_chat_parity_audit.py
+    verification:
+      - T-LINT-001
+      - T-UNIT-002
+      - T-UNIT-003
+    independently_deployable: true
