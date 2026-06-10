@@ -397,13 +397,11 @@ private protocol TitledChoice {
 }
 
 @MainActor
-private enum SettingsAllAppsFilter: String, CaseIterable, Identifiable, TitledChoice {
+private enum SettingsAllAppsFilter: String, CaseIterable, TitledChoice {
     case all
     case settingsMemories
     case focusModes
     case skills
-
-    var id: String { rawValue }
 
     var title: String {
         switch self {
@@ -434,11 +432,9 @@ private enum SettingsAllAppsFilter: String, CaseIterable, Identifiable, TitledCh
 }
 
 @MainActor
-private enum SettingsAllAppsSortMode: String, CaseIterable, Identifiable, TitledChoice {
+private enum SettingsAllAppsSortMode: String, CaseIterable, TitledChoice {
     case newest
     case name
-
-    var id: String { rawValue }
 
     var title: String {
         switch self {
@@ -544,14 +540,14 @@ private struct SettingsAllAppsNativeView: View {
         .accessibilityIdentifier("settings-all-apps-sort")
     }
 
-    private func horizontalChoiceRow<Option: TitledChoice & Identifiable & Equatable>(
+    private func horizontalChoiceRow<Option: TitledChoice & Equatable>(
         _ options: [Option],
         selected: Option,
         onSelect: @escaping (Option) -> Void
     ) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: .spacing3) {
-                ForEach(options) { option in
+                ForEach(options, id: \.accessibilityIdentifier) { option in
                     Button {
                         onSelect(option)
                     } label: {
