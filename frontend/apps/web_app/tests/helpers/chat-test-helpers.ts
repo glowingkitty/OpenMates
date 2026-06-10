@@ -36,12 +36,14 @@ async function locatorCount(locator: any): Promise<number> {
 	return locator.count().catch(() => 0);
 }
 
-function visibleMessageAnchor(message: string): string {
-	return message
+function visibleMessageAnchors(message: string): string[] {
+	const normalized = message
 		.replace(/<<<TEST_(?:MOCK|RECORD):[^>]+>>>/g, '')
 		.replace(/\s+/g, ' ')
-		.trim()
-		.slice(0, 80);
+		.trim();
+	const withoutFirstWord = normalized.split(' ').slice(1).join(' ');
+	return [normalized.slice(0, 80), withoutFirstWord.slice(0, 80)]
+		.filter((anchor) => anchor.length >= 20);
 }
 
 async function userMessagePersisted(userMessages: any, previousCount: number, message: string): Promise<boolean> {
@@ -50,13 +52,14 @@ async function userMessagePersisted(userMessages: any, previousCount: number, me
 		return true;
 	}
 
-	const anchor = visibleMessageAnchor(message);
-	if (!anchor || currentCount === 0) {
+	const anchors = visibleMessageAnchors(message);
+	if (anchors.length === 0 || currentCount === 0) {
 		return false;
 	}
 
 	const lastVisibleText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
-	return (lastVisibleText ?? '').replace(/\s+/g, ' ').includes(anchor);
+	const normalizedVisibleText = (lastVisibleText ?? '').replace(/\s+/g, ' ');
+	return anchors.some((anchor) => normalizedVisibleText.includes(anchor));
 }
 
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
