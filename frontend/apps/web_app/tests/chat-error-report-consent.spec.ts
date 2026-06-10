@@ -64,22 +64,25 @@ test.describe('Chat Error Report Consent', () => {
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
 		await page.getByTestId('daily-inspiration-banner').click();
-		await page.waitForFunction(async () => {
+		const activeChatId = await page.waitForFunction(async () => {
 			const debug = (window as any).debug;
 			const state = await debug?.state?.();
-			return typeof state?.activeChat === 'string' && state.activeChat.length > 0;
-		}, null, { timeout: 30000 });
+			return typeof state?.activeChat === 'string' && state.activeChat.length > 0
+				? state.activeChat
+				: null;
+		}, null, { timeout: 30000 }).then((handle: any) => handle.jsonValue());
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
 		await takeStepScreenshot(page, '01-authenticated-chat-open');
 
-		const simulated = await page.evaluate(async () => {
+		const simulated = await page.evaluate(async (chatId: string) => {
 			const debug = (window as any).debug;
 			if (!debug?.simulateChatError) throw new Error('window.debug.simulateChatError is unavailable');
 			return debug.simulateChatError({
+				chatId,
 				source: 'e2e-simulated-chat-error',
 				message: 'E2E simulated chat failure details',
 			});
-		});
+		}, activeChatId);
 		expect(simulated?.source).toBe('e2e-simulated-chat-error');
 		expect(simulated?.chatId, 'simulated chat error should include active chat context').toBeTruthy();
 		logCheckpoint(`Triggered simulated chat error for chat ${simulated?.chatId ?? 'unknown'}.`);
