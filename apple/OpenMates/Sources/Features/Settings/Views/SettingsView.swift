@@ -301,8 +301,11 @@ struct SettingsView: View {
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
 
-                    if isAuthenticated {
+                    if isAuthenticated || BillingUITestFixture.enabled {
                         row(.billing, AppStrings.settingsBilling, icon: "billing")
+                    }
+
+                    if isAuthenticated {
                         row(.notifications, AppStrings.settingsNotifications, icon: "notifications")
                         row(.shared, AppStrings.settingsShared, icon: "shared")
                     }
