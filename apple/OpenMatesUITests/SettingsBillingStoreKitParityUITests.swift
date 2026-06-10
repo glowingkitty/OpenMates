@@ -38,7 +38,7 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-billing-product-54000", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-bank-transfer-web-only", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Buy credits must not render default List/table chrome")
-        app.descendants(matching: .any)["settings-billing-subview-back"].tap()
+        returnToBillingHub(in: app)
 
         XCTAssertTrue(waitForElement("settings-billing-auto-topup-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-billing-auto-topup-row"].tap()
@@ -48,7 +48,7 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-billing-monthly-toggle", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-monthly-package", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Auto top-up must not render default List/table chrome")
-        app.descendants(matching: .any)["settings-billing-subview-back"].tap()
+        returnToBillingHub(in: app)
 
         XCTAssertTrue(waitForElement("settings-billing-invoices-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-billing-invoices-row"].tap()
@@ -58,6 +58,13 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Invoices must not render default List/table chrome")
 
         attachScreenshot(name: "Billing StoreKit fixture surfaces")
+    }
+
+    private func returnToBillingHub(in app: XCUIApplication) {
+        app.descendants(matching: .any)["settings-destination-back"].tap()
+        XCTAssertTrue(waitForElement("settings-billing-row", in: app, timeout: 5))
+        app.descendants(matching: .any)["settings-billing-row"].tap()
+        XCTAssertTrue(waitForElement("settings-billing-hub", in: app, timeout: 5))
     }
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
