@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -1242,6 +1243,10 @@ class ResolveShortUrlResponse(BaseModel):
     encrypted_url: str = Field(..., description="The encrypted share URL blob")
 
 
+class ShortUrlStorageUnavailable(Exception):
+    """Raised when durable short-link storage is temporarily unavailable."""
+
+
 def _short_url_image_path(token: str) -> str:
     return f"/v1/share/short-url/{token}/og-image.png"
 
@@ -1295,11 +1300,24 @@ async def _create_directus_item(directus_service: DirectusService, collection: s
     if isinstance(created, tuple):
         success, item = created
         if not success:
-            raise HTTPException(status_code=500, detail="Failed to store short URL")
+            raise ShortUrlStorageUnavailable(str(item))
         return item or payload
     if isinstance(created, dict):
         return created
-    raise HTTPException(status_code=500, detail="Failed to store short URL")
+    raise ShortUrlStorageUnavailable(f"Unexpected Directus create_item result: {type(created).__name__}")
+
+
+async def _store_short_url_cache_fallback(
+    payload: CreateShortUrlRequest,
+    cache_service: CacheService,
+    now: int,
+) -> Optional[int]:
+    """Store a non-durable short link when the durable CMS collection is unavailable."""
+    ttl_seconds = payload.ttl_seconds or cache_config.SHORT_URL_MAX_TTL
+    stored = await cache_service.store_short_url(payload.token, payload.encrypted_url, ttl_seconds)
+    if not stored:
+        raise HTTPException(status_code=500, detail="Failed to store short URL")
+    return now + ttl_seconds
 
 
 async def _decrypt_shared_metadata(
@@ -1508,6 +1526,7 @@ async def create_short_url(
     payload: CreateShortUrlRequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
     Create a durable short URL entry.
@@ -1549,22 +1568,30 @@ async def create_short_url(
         hashed_user_id = await _verify_short_link_target(payload, current_user, directus_service)
         now = int(time.time())
         expires_at = now + payload.ttl_seconds if payload.ttl_seconds else None
-        await _create_directus_item(
-            directus_service,
-            SHORT_URL_COLLECTION,
-            {
-                "token": payload.token,
-                "encrypted_url": payload.encrypted_url,
-                "content_type": payload.content_type,
-                "content_id": payload.content_id,
-                "hashed_user_id": hashed_user_id,
-                "password_protected": payload.password_protected,
-                "expires_at": expires_at,
-                "revoked_at": None,
-                "created_at": now,
-                "updated_at": now,
-            },
-        )
+        try:
+            await _create_directus_item(
+                directus_service,
+                SHORT_URL_COLLECTION,
+                {
+                    "token": payload.token,
+                    "encrypted_url": payload.encrypted_url,
+                    "content_type": payload.content_type,
+                    "content_id": payload.content_id,
+                    "hashed_user_id": hashed_user_id,
+                    "password_protected": payload.password_protected,
+                    "expires_at": expires_at,
+                    "revoked_at": None,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            )
+        except ShortUrlStorageUnavailable as exc:
+            logger.warning(
+                "Durable short URL storage unavailable; using cache fallback for token=%s: %s",
+                payload.token,
+                exc,
+            )
+            expires_at = await _store_short_url_cache_fallback(payload, cache_service, now)
         logger.info(
             "Short URL created: token=%s, content_type=%s, content_id=%s, expires_at=%s, user=%s",
             payload.token,

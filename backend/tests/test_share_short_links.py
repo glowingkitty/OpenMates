@@ -122,6 +122,24 @@ class FakeDirectusService:
         return True, row
 
 
+class FailingCreateDirectusService(FakeDirectusService):
+    async def create_item(self, collection: str, payload: dict, **_kwargs):
+        assert collection == "share_short_links"
+        return False, {"status_code": 403, "text": "permission denied"}
+
+
+class FakeCacheService:
+    def __init__(self) -> None:
+        self.short_links: dict[str, dict] = {}
+
+    async def store_short_url(self, token: str, encrypted_url: str, ttl_seconds: int) -> bool:
+        self.short_links[token] = {
+            "encrypted_url": encrypted_url,
+            "ttl_seconds": ttl_seconds,
+        }
+        return True
+
+
 class FakeEncryptionService:
     async def decrypt(self, value: str, key_name: str):
         assert key_name == "shared-content-metadata"
@@ -157,6 +175,35 @@ async def test_create_short_url_stores_no_expiration_as_null():
     assert directus.short_links[0]["content_type"] == "chat"
     assert directus.short_links[0]["content_id"] == "chat-1"
     assert directus.short_links[0]["password_protected"] is False
+
+
+@pytest.mark.asyncio
+async def test_create_short_url_uses_cache_fallback_when_durable_storage_is_unavailable():
+    directus = FailingCreateDirectusService()
+    cache = FakeCacheService()
+    payload = share_routes.CreateShortUrlRequest(
+        token="Abc123XY",
+        encrypted_url="opaque-ciphertext",
+        content_type="chat",
+        content_id="chat-1",
+        password_protected=False,
+        ttl_seconds=None,
+    )
+
+    response = await create_short_url(
+        request=None,
+        payload=payload,
+        current_user=FakeUser(),
+        directus_service=directus,
+        cache_service=cache,
+    )
+
+    assert response["success"] is True
+    assert isinstance(response["expires_at"], int)
+    assert cache.short_links["Abc123XY"] == {
+        "encrypted_url": "opaque-ciphertext",
+        "ttl_seconds": share_routes.cache_config.SHORT_URL_MAX_TTL,
+    }
 
 
 @pytest.mark.asyncio
