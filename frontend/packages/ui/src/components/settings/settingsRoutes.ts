@@ -115,6 +115,7 @@ import SettingsServer from "./SettingsServer.svelte";
 import SettingsSoftwareUpdate from "./server/SettingsSoftwareUpdate.svelte";
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
+import SettingsFreeTestingCreditsBudget from "./server/SettingsFreeTestingCreditsBudget.svelte";
 import SettingsTests from "./server/SettingsTests.svelte";
 import SettingsLogs from "./SettingsLogs.svelte";
 
@@ -236,6 +237,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/software-update": SettingsSoftwareUpdate,
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
+  "server/free-testing-credits": SettingsFreeTestingCreditsBudget,
   "server/tests": SettingsTests,
   // Admin logs viewer
   logs: SettingsLogs,
