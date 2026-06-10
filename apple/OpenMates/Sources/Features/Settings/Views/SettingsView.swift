@@ -1093,6 +1093,7 @@ struct SettingsAccountSubPage: View {
                     OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
                         destination = nil
                     }
+                    .accessibilityIdentifier("settings-account-subpage-back")
                     Text(dest.title)
                         .font(.omH3)
                         .fontWeight(.semibold)
@@ -1107,6 +1108,7 @@ struct SettingsAccountSubPage: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color.grey0)
+            .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: .spacing8) {
@@ -1114,48 +1116,62 @@ struct SettingsAccountSubPage: View {
                         OMSettingsRow(title: AppStrings.username, icon: "user", iconGradient: .primary) {
                             destination = .username
                         }
+                        .accessibilityIdentifier("settings-account-username-row")
                         OMSettingsRow(title: AppStrings.email, icon: "mail", iconGradient: .appMail) {
                             destination = .email
                         }
+                        .accessibilityIdentifier("settings-account-email-row")
                         OMSettingsRow(title: AppStrings.profilePicture, icon: "image", iconGradient: .appPhotos) {
                             destination = .profilePicture
                         }
+                        .accessibilityIdentifier("settings-account-profile-picture-row")
                         OMSettingsRow(title: AppStrings.usage, icon: "usage", iconGradient: .appFinance) {
                             destination = .usage
                         }
+                        .accessibilityIdentifier("settings-account-usage-row")
                         OMSettingsRow(title: AppStrings.storage, icon: "cloud", iconGradient: .appFiles) {
                             destination = .storage
                         }
+                        .accessibilityIdentifier("settings-account-storage-row")
                         OMSettingsRow(title: AppStrings.chats, icon: "chat", iconGradient: .appMessages) {
                             destination = .chats
                         }
+                        .accessibilityIdentifier("settings-account-chats-row")
                         OMSettingsRow(title: AppStrings.importChats, icon: "download", iconGradient: .appDocs) {
                             destination = .importChats
                         }
+                        .accessibilityIdentifier("settings-account-import-chats-row")
                         OMSettingsRow(title: AppStrings.exportData, icon: "upload", iconGradient: .appDocs) {
                             destination = .exportData
                         }
+                        .accessibilityIdentifier("settings-account-export-data-row")
                     }
 
                     OMSettingsSection(AppStrings.settingsSecurity) {
                         OMSettingsRow(title: AppStrings.passkeys, icon: "passkey", iconGradient: .appSecrets) {
                             destination = .passkeys
                         }
+                        .accessibilityIdentifier("settings-account-passkeys-row")
                         OMSettingsRow(title: AppStrings.password, icon: "lock", iconGradient: .appSecrets) {
                             destination = .password
                         }
+                        .accessibilityIdentifier("settings-account-password-row")
                         OMSettingsRow(title: AppStrings.twoFactorAuth, icon: "tfas", iconGradient: .appSecrets) {
                             destination = .twoFactor
                         }
+                        .accessibilityIdentifier("settings-account-2fa-row")
                         OMSettingsRow(title: AppStrings.recoveryKey, icon: "secret", iconGradient: .appSecrets) {
                             destination = .recoveryKey
                         }
+                        .accessibilityIdentifier("settings-account-recovery-key-row")
                         OMSettingsRow(title: AppStrings.activeSessions, icon: "desktop", iconGradient: .appCode) {
                             destination = .sessions
                         }
+                        .accessibilityIdentifier("settings-account-sessions-row")
                         OMSettingsRow(title: AppStrings.pairNewDevice, icon: "dummyqr", iconGradient: .primary) {
                             destination = .pairDevice
                         }
+                        .accessibilityIdentifier("settings-account-pair-device-row")
                     }
 
                     OMSettingsSection {
@@ -1164,6 +1180,7 @@ struct SettingsAccountSubPage: View {
                             icon: "delete",
                             isDestructive: true
                         ) { destination = .deleteAccount }
+                        .accessibilityIdentifier("settings-account-delete-row")
                     }
                 }
                 .padding(.horizontal, .spacing8)
@@ -1197,6 +1214,26 @@ struct SettingsAccountSubPage: View {
             case .recoveryKey: return AppStrings.recoveryKey
             case .sessions: return AppStrings.activeSessions
             case .pairDevice: return AppStrings.pairNewDevice
+            }
+        }
+
+        var pageAccessibilityIdentifier: String {
+            switch self {
+            case .username: return "settings-account-username-page"
+            case .email: return "settings-account-email-page"
+            case .profilePicture: return "settings-account-profile-picture-page"
+            case .usage: return "settings-account-usage-page"
+            case .storage: return "settings-account-storage-page"
+            case .chats: return "settings-account-chats-page"
+            case .importChats: return "settings-account-import-chats-page"
+            case .exportData: return "settings-account-export-data-page"
+            case .deleteAccount: return "settings-account-delete-page"
+            case .passkeys: return "settings-account-passkeys-page"
+            case .password: return "settings-account-password-page"
+            case .twoFactor: return "settings-account-2fa-page"
+            case .recoveryKey: return "settings-account-recovery-key-page"
+            case .sessions: return "settings-account-sessions-page"
+            case .pairDevice: return "settings-account-pair-device-page"
             }
         }
 
@@ -1253,6 +1290,7 @@ struct SettingsDeleteAccountView: View {
                             .textContentType(.password)
                             .textFieldStyle(OMTextFieldStyle())
                             .accessibleInput(AppStrings.enterPassword, hint: LocalizationManager.shared.text("auth.enter_account_password"))
+                            .accessibilityIdentifier("delete-account-password-input")
 
                         TextField(AppStrings.deleteAccountConfirmText, text: $confirmText)
                             .textFieldStyle(OMTextFieldStyle())
@@ -1261,6 +1299,7 @@ struct SettingsDeleteAccountView: View {
                             .textInputAutocapitalization(.never)
                             #endif
                             .accessibleInput(AppStrings.deleteAccountConfirmText, hint: LocalizationManager.shared.text("settings.type_delete_confirm_hint"))
+                            .accessibilityIdentifier("delete-account-confirm-input")
                     }
                     .padding(.spacing6)
                 }
@@ -1289,6 +1328,7 @@ struct SettingsDeleteAccountView: View {
                 .buttonStyle(.plain)
                 .disabled(!canDelete || isDeleting)
                 .accessibleButton(AppStrings.permanentlyDeleteAccount, hint: LocalizationManager.shared.text("settings.delete_account_hint"))
+                .accessibilityIdentifier("delete-account-final-button")
 
                 if let error {
                     Text(error)

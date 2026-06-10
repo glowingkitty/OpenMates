@@ -9,11 +9,16 @@ import XCTest
 
 @MainActor
 enum RealAccountUITestSupport {
-    static func launchApp(preferPasswordLogin: Bool = true) -> XCUIApplication {
+    static func launchApp(preferPasswordLogin: Bool = true, disableAuthCache: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
+        var launchArguments: [String] = []
         if preferPasswordLogin {
-            app.launchArguments = ["--ui-test-prefer-password-login"]
+            launchArguments.append("--ui-test-prefer-password-login")
         }
+        if disableAuthCache {
+            launchArguments.append("--ui-test-disable-auth-cache")
+        }
+        app.launchArguments = launchArguments
         app.launch()
         return app
     }
@@ -239,6 +244,22 @@ struct RealAccountTestCredentials {
               let otpKey = environment["OPENMATES_TEST_ACCOUNT_OTP_KEY"], !otpKey.isEmpty
         else {
             throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT_EMAIL/PASSWORD/OTP_KEY")
+        }
+        return RealAccountTestCredentials(email: email, password: password, otpKey: otpKey)
+    }
+
+    static func fromReservedSlot(_ slot: Int) throws -> RealAccountTestCredentials {
+        guard (14...20).contains(slot) else {
+            throw XCTSkip("Reserved Apple account slot must be 14-20")
+        }
+
+        let environment = ProcessInfo.processInfo.environment
+        let prefix = "OPENMATES_TEST_ACCOUNT_\(slot)"
+        guard let email = environment["\(prefix)_EMAIL"], !email.isEmpty,
+              let password = environment["\(prefix)_PASSWORD"], !password.isEmpty,
+              let otpKey = environment["\(prefix)_OTP_KEY"], !otpKey.isEmpty
+        else {
+            throw XCTSkip("Missing reserved credentials for slot \(slot)")
         }
         return RealAccountTestCredentials(email: email, password: password, otpKey: otpKey)
     }
