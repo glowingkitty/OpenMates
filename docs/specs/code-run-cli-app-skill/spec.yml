@@ -1,0 +1,601 @@
+id: code-run-cli-app-skill
+title: Code Run CLI App Skill
+status: approved
+
+goal: >
+  Let terminal users execute inline code, local files, and client-downloaded
+  repository or raw-file code through the existing `openmates apps code run`
+  app-skill command while preserving the Code Run security boundary: OpenMates
+  servers validate and forward code as data only, and only the isolated E2B
+  sandbox executes untrusted code.
+
+scope:
+  in:
+    - Direct CLI Code Run through the existing app-skill command shape `openmates apps code run`.
+    - Direct runs from inline code, local files/directories, raw file URLs, and GitHub repository/blob/tree URLs materialized client-side by the CLI.
+    - Chat-bound runs that target an existing chat code embed using `chat_id` and `target_embed_id`.
+    - Canonical app-skill API endpoint `POST /v1/apps/code/skills/run` for CLI/API callers.
+    - Reuse of existing Code Run E2B execution, billing, rate limits, dependency validation, cancellation/status/streaming primitives, and internet-enabled default.
+    - Direct-run output returned to the CLI without creating a chat, code embed, embed key, or encrypted Code Run output sidecar.
+    - Chat-bound output persisted to encrypted `code_run_outputs` sidecars when an embed key exists, matching web fullscreen behavior.
+    - Tests proving OpenMates API/backend hosts never execute, import, clone, shell out, lint, format, or package-install user code outside E2B.
+  out:
+    - Adding a new top-level `openmates code run` command in v1.
+    - Backend cloning Git repositories or fetching arbitrary user-provided code URLs.
+    - Running full Git worktrees with hidden files by default.
+    - Persisting direct-run source code or output into chats unless the user explicitly uses chat-bound mode.
+    - Replacing the existing web fullscreen `/v1/code/run` route.
+    - Building a browser-like visual IDE or terminal session in the CLI.
+    - Supporting private Git repository authentication in v1.
+    - Supporting arbitrary binary project assets in direct runs beyond explicit bounded file payloads.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"code run CLI\" --state all --limit 10` found no direct Code Run CLI issue; closest adjacent issues were #447 agentic coding planning/permissions and #453 Electronics PCB support."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/standards/cli.md
+    - docs/architecture/apps/cli-package.md
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/messaging/embeds.md
+    - docs/specs/application-embeds/spec.yml
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts:handleApps uses canonical `openmates apps <app> <skill>` execution and `--input` JSON.
+    - frontend/packages/openmates-cli/src/client.ts:OpenMatesClient.runSkill posts to `/v1/apps/{app}/skills/{skill}` and resolves async task responses.
+    - backend/core/api/app/routes/apps_api.py:register_app_and_skill_routes registers dynamic app-skill GET/POST endpoints and custom app routes such as audio transcribe.
+    - backend/core/api/app/routes/apps_api.py:_register_audio_custom_routes keeps a special skill at canonical `/v1/apps/audio/skills/transcribe` when extra server context is required.
+    - backend/apps/code/app.yml declares `code.run`, pricing, tool schema, and current `api_config.expose_post: false` catalog-only behavior.
+    - backend/apps/code/skills/run_code_skill.py currently returns `requires_web_app_route` and is not executable from CLI.
+    - backend/core/api/app/routes/code_execution.py implements `/v1/code/run` start/prepare/status/cancel/stream and validates dependency manifests before E2B execution.
+    - backend/apps/code/tasks/run_code_task.py runs the actual E2B task.
+    - backend/shared/providers/e2b_code_runner.py is the provider boundary where code is written and executed inside E2B.
+    - frontend/packages/ui/src/services/codeRunService.ts is the browser client for the existing web Code Run route.
+    - frontend/packages/ui/src/services/db/codeRunOutputs.ts stores encrypted Code Run output sidecars for chat-bound output.
+  tests:
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This spec targets the Node.js CLI, backend app-skill API, and existing web Code Run route/service. The Apple app has no CLI counterpart and does not execute direct terminal commands.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should CLI Code Run use the existing app-skill system or a new command/system?
+      answer: Use the existing app-skill CLI pattern; do not invent a new system.
+    - question: What should work from a user perspective?
+      answer: Users should give the CLI actual code and links to code files to execute, including files from Git repositories.
+    - question: Where should untrusted code execute?
+      answer: "It must be rock-solid security-wise: impossible to trigger untrusted code execution on OpenMates servers; only the E2B VM executes code."
+    - question: What happens when Code Run is invoked directly instead of through a chat?
+      answer: No embed is created, no embed key exists, no encrypted output is persisted; output is returned to the user. Chat-bound runs may persist encrypted output.
+    - question: Should internet be enabled by default?
+      answer: Yes. Internet should default on in E2B instances, matching the existing web Code Run default. CLI can provide `--no-internet` as an opt-out.
+  vision_summary: >
+    Code Run should become a first-class CLI app skill using the existing
+    `openmates apps code run` command and `/v1/apps/code/skills/run` API shape.
+    Direct CLI runs package inline/local/repository code client-side and return
+    terminal output only; chat-bound runs target existing encrypted code embeds
+    and may persist encrypted output sidecars. The trust boundary is strict:
+    OpenMates servers validate and forward code as inert data, while E2B is the
+    only place user code or dependency installation executes.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Direct inline code run returns terminal output only
+    given:
+      - Alice is logged in through the OpenMates CLI.
+      - Alice has at least 5 credits.
+    when:
+      - Alice runs `openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'`.
+    then:
+      - The CLI sends one app-skill request to `POST /v1/apps/code/skills/run` using the standard app-skill command path.
+      - The backend validates the file payload and starts an E2B execution with internet enabled by default.
+      - The backend never executes, imports, shells out, lints, formats, package-installs, clones, or fetches Alice's code on an OpenMates host.
+      - The CLI prints `Hello from CLI` and the final exit status.
+      - No chat, message, code embed, embed key, or `code_run_outputs` sidecar is created.
+
+  - id: S-2
+    title: Direct local file run packages files client-side
+    given:
+      - Alice has a local project containing `app.py`, `requirements.txt`, and `data/sample.csv`.
+    when:
+      - Alice runs `openmates apps code run --entry app.py --file app.py --file requirements.txt --file data/sample.csv`.
+    then:
+      - The CLI reads the selected local files, normalizes them to safe relative sandbox paths, enforces file/count/size limits, and sends bounded file payloads to the app-skill endpoint.
+      - The backend validates path and dependency-manifest safety, stores only transient execution state, and forwards the payload to E2B.
+      - Dependency installation runs only inside E2B.
+      - The CLI returns terminal output and exit status without durable chat persistence.
+
+  - id: S-3
+    title: Direct repository or raw URL run downloads code client-side
+    given:
+      - Alice wants to run a public GitHub example without cloning it manually.
+    when:
+      - Alice runs `openmates apps code run --repo https://github.com/org/repo --entry examples/hello.py --include examples/hello.py --include requirements.txt`.
+    then:
+      - The CLI materializes the selected public repository files client-side using safe HTTP/GitHub archive/blob/tree retrieval.
+      - The CLI applies include/exclude filters, path normalization, file/count/size limits, and secret warnings before upload.
+      - The backend receives only file payloads; it does not clone the repository or fetch user-provided URLs.
+      - The E2B sandbox executes `examples/hello.py` with internet enabled unless Alice passed `--no-internet`.
+
+  - id: S-4
+    title: Chat-bound run persists encrypted output sidecar
+    given:
+      - Alice has an existing non-incognito chat containing a finished `code-code` embed.
+      - The CLI can resolve the chat and embed metadata needed for a chat-bound run.
+    when:
+      - Alice runs `openmates apps code run --chat <CHAT_ID> --target-embed <EMBED_ID>`.
+    then:
+      - The request targets the existing chat/embed Code Run path and reuses the same access checks as web fullscreen.
+      - If server cache lacks decrypted code content, the CLI resends decrypted code content from local sync cache only after resolving the embed key client-side.
+      - The run output is encrypted and persisted as a `code_run_outputs` sidecar associated with the target embed.
+      - Web and CLI chat views can later show the saved output.
+
+  - id: S-5
+    title: Internet access defaults on and can be disabled explicitly
+    given:
+      - Alice runs a direct or chat-bound Code Run without specifying internet flags.
+    when:
+      - The backend starts the E2B sandbox.
+    then:
+      - "`enable_internet` defaults to true and the E2B provider receives the existing internet-enabled default."
+    and:
+      - When Alice passes `--no-internet`, the request sets `enable_internet` false and the provider receives `allow_internet_access: false` and public traffic disabled.
+
+  - id: S-6
+    title: Unsafe direct-run inputs are rejected before execution
+    given:
+      - Alice accidentally includes an absolute path, parent directory traversal, too many files, oversized content, suspicious secrets, or unsupported dependency manifest entries.
+    when:
+      - Alice runs a direct Code Run command.
+    then:
+      - The CLI rejects local path and size violations before upload when possible.
+      - The backend independently rejects unsafe paths, oversized payloads, malformed base64, unsupported dependency manifests, and direct-run payloads that would exceed configured limits.
+      - No E2B task is started for rejected payloads.
+      - Human-readable mode prints actionable errors to stderr; `--json` returns structured error information without raw stack traces.
+
+  - id: S-7
+    title: Existing web fullscreen Code Run behavior remains unchanged
+    given:
+      - Alice opens a code embed fullscreen in the web app.
+    when:
+      - Alice clicks Run.
+    then:
+      - The web app continues to use `/v1/code/run` and existing streaming/status/cancel behavior.
+      - Output preview persistence from `code_run_outputs` still works after reload.
+      - The new app-skill endpoint does not regress web E2E Code Run coverage.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Direct inline Code Run works through `openmates apps code run`, returns terminal output and exit status, and creates no durable chat/embed/output-sidecar records.
+  - id: AC-2
+    scenario: S-2
+    text: Direct local file Code Run packages selected files client-side, enforces CLI-side limits, and executes only in E2B.
+  - id: AC-3
+    scenario: S-3
+    text: Repository/raw URL Code Run downloads files client-side and never causes OpenMates backend hosts to clone repositories or fetch arbitrary user-provided URLs.
+  - id: AC-4
+    scenario: S-4
+    text: Chat-bound CLI Code Run can target an existing chat/embed and persist encrypted output sidecars when an embed key exists.
+  - id: AC-5
+    scenario: S-5
+    text: "Internet access defaults to enabled for E2B Code Run and can be disabled with `--no-internet` or `enable_internet: false`."
+  - id: AC-6
+    scenario: S-6
+    text: Unsafe direct-run paths, payloads, dependency manifests, and over-limit inputs are rejected before any E2B execution starts.
+  - id: AC-7
+    scenario: S-7
+    text: Existing web `/v1/code/run` behavior and Code Run preview persistence remain green.
+  - id: AC-8
+    scenario: S-1
+    text: "`POST /v1/apps/code/skills/run` is the canonical API endpoint for CLI/API Code Run, and CLI does not introduce a new top-level execution command in v1."
+
+contracts:
+  api:
+    - route: POST /v1/apps/code/skills/run
+      auth: session cookie or Bearer API key, matching existing app-skill routes when safe
+      request: >
+        { requests: [{ mode?: "direct"|"chat_bound", entry_path?: string,
+        files?: [{ path: string, content_base64: string, language?: string,
+        mime_type?: string, is_target?: boolean }], chat_id?: string,
+        target_embed_id?: string, selected_embed_ids?: string[],
+        dependency_installs?: [{ ecosystem: "python"|"npm", packages: string[] }],
+        enable_internet?: boolean }] }
+      response: >
+        { success: true, data: { results: [{ execution_id: string,
+        status: finished|failed|timeout|cancelled, output: string,
+        exit_code?: number, target_filename: string, files: string[],
+        credits_per_minute: number, persisted_output?: boolean }] } }
+      errors:
+        - 400 for invalid paths, base64, missing entry file, unsafe dependency manifests, unsupported file types, or over-limit payloads.
+        - 401 for unauthenticated calls.
+        - 402 for insufficient credits.
+        - 409 for chat-bound cache miss requiring client-resubmitted decrypted code content.
+        - 429 for per-user/provider run capacity or start-rate limits.
+    - route: POST /v1/code/run
+      behavior: Existing web fullscreen endpoint remains supported and may call the same shared service as the app-skill endpoint.
+  cli:
+    - command: openmates apps code run --language python --filename hello.py --code 'print("Hello")'
+      behavior: Creates one direct file payload named `hello.py`, runs it, and prints output.
+    - command: openmates apps code run --entry app.py --file app.py --file requirements.txt --file data/sample.csv
+      behavior: Reads selected local files client-side, uploads bounded payloads, and runs `app.py`.
+    - command: openmates apps code run --repo https://github.com/org/repo --entry examples/hello.py --include examples/hello.py --include requirements.txt
+      behavior: Downloads selected public repo files client-side before upload; backend never fetches the repo URL.
+    - command: openmates apps code run --entry main.py --url https://raw.githubusercontent.com/org/repo/main/main.py
+      behavior: Downloads the raw file client-side and runs it as `main.py` unless a filename/path override is provided.
+    - command: openmates apps code run --chat <CHAT_ID> --target-embed <EMBED_ID>
+      behavior: Performs a chat-bound run and can persist encrypted output sidecar.
+    - flag: --no-internet
+      behavior: Sets `enable_internet` false; absence of the flag keeps internet enabled.
+    - flag: --json
+      behavior: Writes structured result JSON to stdout and progress/status to stderr only.
+  data:
+    - Direct runs do not create chat, message, embed, embed key, or durable `code_run_outputs` records.
+    - Direct-run execution records are transient Redis/task state only and expire with the existing Code Run TTL.
+    - Chat-bound runs may create/update encrypted `code_run_outputs` sidecar records only when an embed key exists and the authenticated user has access.
+    - CLI-downloaded repository/raw files are uploaded as bounded file payloads, not as URLs for backend fetching.
+  privacy_security:
+    - OpenMates API/backend hosts must treat direct-run source as untrusted data and must not execute, import, shell out, compile, lint, format, run package managers, clone repositories, or fetch user-provided code URLs.
+    - E2B is the only execution environment for user code and dependency installation.
+    - Backend path validation rejects absolute paths, parent traversal, home paths, Windows drive roots, NUL bytes, and paths outside the sandbox work directory.
+    - Backend dependency validation continues to reject package scripts, Git/HTTP/file/workspace dependencies, shell metacharacter install snippets, and unsupported manifests.
+    - CLI warns or rejects likely secrets before upload where deterministic detection exists; backend independently rejects obvious secret patterns before execution.
+    - Logs must not include full source code, full terminal output, raw URLs with tokens, or local filesystem paths beyond sanitized basenames/relative paths.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_code_run_app_skill.py
+    command: python3 -m pytest backend/tests/test_code_run_app_skill.py
+    covers:
+      - AC-1
+      - AC-3
+      - AC-5
+      - AC-6
+      - AC-8
+    assertions:
+      - POST `/v1/apps/code/skills/run` accepts standard `requests` direct payloads.
+      - Direct payloads start shared Code Run execution without requiring `chat_id` or `target_embed_id`.
+      - Direct payloads do not call Directus embed creation, embed-key creation, or code_run_outputs persistence.
+      - "`enable_internet` defaults true and `enable_internet: false` is preserved."
+      - Invalid absolute/traversal paths, oversized payloads, malformed base64, and unsafe dependency manifests return 400 before task enqueue.
+      - Backend URL/repo fields are rejected or ignored as unsupported direct backend fetch inputs.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_e2b_code_runner.py
+    command: python3 -m pytest backend/tests/test_e2b_code_runner.py
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - Existing E2B provider network-control tests still pass.
+      - Dependency command planning remains deterministic and uses safe package-manager flags.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+    command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-6
+    assertions:
+      - CLI direct inline flags build a standard `requests` payload with one target file.
+      - CLI local file flags normalize relative paths, reject absolute/traversal paths, and enforce size/count limits before network calls.
+      - CLI repo/blob/raw URL helpers download or materialize files client-side and return file payloads, not backend-fetch URLs.
+      - "`--no-internet` sets `enable_internet` false and default remains true."
+      - "`--json` result shape remains machine-readable."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
+    covers:
+      - AC-8
+    assertions:
+      - CLI help lists `apps code run` examples and flags without adding a new top-level `code run` command.
+      - Existing app-skill command and schema behavior remain compatible.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec file-attachment-code-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - Web code fullscreen can run an uploaded Python code embed.
+      - Code Run terminal output appears.
+      - Code embed preview shows saved output by default after execution.
+      - Code embed preview still shows saved output after chat reload.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27224731282"
+        timestamp: "2026-06-09T17:46:46Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - "`openmates apps <app> <skill>` is the canonical CLI app-skill execution path."
+    - "`OpenMatesClient.runSkill()` posts standard app-skill payloads to `/v1/apps/{app}/skills/{skill}`."
+    - Audio transcription uses a custom app-skill POST route at the canonical skill URL when generic dispatch needs extra server context.
+    - Existing web Code Run uses `/v1/code/run` with E2B execution, billing, active-run limits, internet default, dependency validation, status, cancel, and stream endpoints.
+    - Code Run output sidecars are encrypted/persisted only when there is a chat-bound embed key.
+  architecture: >
+    Add Code Run direct execution as a canonical app-skill endpoint rather than a
+    new CLI subsystem. The CLI materializes inline/local/repository/raw code into
+    bounded file payloads and sends them to `/v1/apps/code/skills/run`. The API
+    validates those payloads and calls shared Code Run start logic that enqueues
+    E2B execution without any OpenMates-host code execution. Chat-bound runs reuse
+    the existing embed access path and can persist encrypted output sidecars;
+    direct runs return output only and leave no durable chat/embed records.
+  data_flow:
+    - User invokes `openmates apps code run` with inline code, local files, repo/blob/raw URL inputs, or chat/embed target flags.
+    - CLI validates flags, normalizes paths, downloads repository/raw files client-side if requested, enforces limits, and builds a standard app-skill `requests` payload.
+    - CLI calls `OpenMatesClient.runSkill()` against `/v1/apps/code/skills/run`.
+    - Backend authenticates, checks credits and rate limits, validates paths/base64/manifests/secrets/limits, and creates transient execution state.
+    - Worker writes payload files into E2B and executes the target path inside E2B only.
+    - Direct-run status/output is returned to CLI and not persisted as chat data.
+    - Chat-bound status/output can be encrypted into `code_run_outputs` and synchronized to clients.
+  affected_files:
+    - path: backend/apps/code/app.yml
+      reason: Update `code.run` schema/help metadata for direct and chat-bound app-skill usage.
+    - path: backend/apps/code/skills/run_code_skill.py
+      reason: Replace catalog-only stub with a thin shared-service adapter or keep metadata-only if the custom route owns execution.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: Register custom `POST /v1/apps/code/skills/run` if generic dispatch cannot inject required Code Run services safely.
+    - path: backend/core/api/app/routes/code_execution.py
+      reason: Extract shared Code Run start/validation service used by both web route and app-skill route.
+    - path: backend/apps/code/tasks/run_code_task.py
+      reason: Ensure direct-run metadata/output can return to CLI without requiring chat/embed persistence.
+    - path: backend/shared/providers/e2b_code_runner.py
+      reason: Preserve E2B-only execution and existing internet control behavior.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add `apps code run` ergonomic flags and help examples while retaining generic app-skill command routing.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add SDK helpers only if needed for direct Code Run payload construction/result polling; keep `runSkill()` as transport.
+    - path: frontend/packages/openmates-cli/src/codeRunInput.ts
+      reason: New focused helper for CLI-side local/repo/raw URL materialization, path normalization, and payload validation.
+    - path: frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+      reason: Unit coverage for direct-run input materialization/security limits.
+    - path: backend/tests/test_code_run_app_skill.py
+      reason: Backend route/security/regression coverage.
+    - path: docs/architecture/apps/cli-package.md
+      reason: Document `apps code run` after implementation.
+    - path: docs/architecture/apps/cli-feature-parity.md
+      reason: Update Code Run parity matrix after implementation.
+    - path: docs/architecture/messaging/embeds.md
+      reason: Clarify direct Code Run has no embed/output sidecar, chat-bound Code Run does.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/code-run-cli-app-skill/spec.yml
+    - python3 -m pytest backend/tests/test_code_run_app_skill.py
+    - python3 -m pytest backend/tests/test_e2b_code_runner.py
+    - node --test --experimental-strip-types frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+    - cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
+    - python3 scripts/run_tests.py --spec file-attachment-code-flow.spec.ts
+
+tasks:
+  - id: TASK-1
+    title: Add test-first direct-run app-skill contracts
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-5
+        - AC-6
+        - AC-8
+    expected_files:
+      - backend/tests/test_code_run_app_skill.py
+      - frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-PYTEST-001
+      - T-CLI-001
+      - T-CLI-002
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Extract shared backend Code Run start service
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+        - S-5
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+        - AC-5
+        - AC-7
+    expected_files:
+      - backend/core/api/app/routes/code_execution.py
+      - backend/apps/code/tasks/run_code_task.py
+      - backend/tests/test_code_run_app_skill.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Expose canonical Code Run app-skill route
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+        - AC-8
+    expected_files:
+      - backend/core/api/app/routes/apps_api.py
+      - backend/apps/code/app.yml
+      - backend/apps/code/skills/run_code_skill.py
+      - backend/tests/test_code_run_app_skill.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add CLI direct-run input materialization
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-5
+        - AC-6
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/codeRunInput.ts
+      - frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-CLI-001
+      - T-CLI-002
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Verify chat-bound and web parity
+    covers:
+      scenarios:
+        - S-4
+        - S-7
+      acceptance_criteria:
+        - AC-4
+        - AC-7
+    expected_files:
+      - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+      - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+      - frontend/packages/ui/src/services/db/codeRunOutputs.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: true
+
+  - id: TASK-6
+    title: Update docs and example-chat unblock plan
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-4
+    expected_files:
+      - docs/architecture/apps/cli-package.md
+      - docs/architecture/apps/cli-feature-parity.md
+      - docs/architecture/messaging/embeds.md
+      - frontend/packages/ui/src/demo_chats/data/example_chats/python-squares-code-run.ts
+    verification:
+      - T-CLI-001
+    independently_deployable: true
+
+risks:
+  - Direct-run output could be accidentally persisted if implementation reuses chat-bound sidecar code without an explicit mode check.
+  - Backend URL/repo fetching would create SSRF and internal-network risk; v1 forbids it.
+  - Local directory mode could upload more than the user intended; require explicit include/exclude defaults and dry-run-style file listing before upload for large selections.
+  - Dependency manifests can trigger package-manager behavior; keep existing manifest restrictions and `--ignore-scripts` behavior.
+  - CLI test accounts may lack credits for live direct-run verification; contract tests should mock backend/E2B where possible and reserve live dev checks for a paid/credited account.
+open_questions:
+  - Should v1 include `--dir` directory traversal, or ship only `--file`, `--url`, and `--repo` with explicit `--include` paths first?
+  - Should direct runs stream output live to CLI, or is polling until final output acceptable for v1?
+  - Should API-key callers be allowed to run direct Code Run, or should v1 require session-authenticated CLI only until external API billing/abuse controls are reviewed?
