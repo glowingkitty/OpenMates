@@ -571,7 +571,7 @@ async function sendMessage(
 	const assistantCountBeforeSend = await locatorCount(assistantMessages);
 
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.insertText(message);
 	logCheckpoint(`Typed message: "${message}"`);
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
