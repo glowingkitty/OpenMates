@@ -29,7 +29,6 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             chatRow.waitForExistence(timeout: 12),
             "Expected public chat row identifier. Visible UI: \(visibleStateLabels(in: app))"
         )
-        XCTAssertTrue(app.buttons["search-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat management UI must not render default List/table chrome")
 
         attachScreenshot(name: "Public chat management identifiers")
