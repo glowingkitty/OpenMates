@@ -1,6 +1,6 @@
 id: apple-skill-application-parity
 title: Apple Skill Application And Code Execution Web Spec Parity
-status: draft
+status: implementing
 
 goal: >
   Recreate the web app's skill, application preview, file/PDF/image, and code
@@ -136,9 +136,9 @@ tests:
       - AC-2
       - AC-3
     assertions:
-      - Skill/application/code/PDF/image fixture models decode web payloads and statuses.
-      - Unsupported native runtime states are classified with user-visible copy and no silent fallback.
-      - Renderer payloads redact provider secrets, files, hostnames, and raw JSON.
+      - Synthetic code, application, code-docs, composite search, PDF, image, and generated-media fixtures decode web-compatible payloads and statuses.
+      - Composite app-skill fixtures preserve parent/child embed relationships.
+      - File/media fixtures avoid private URLs, secrets, private files, and provider calls.
     red_phase:
       required: true
       expected: fail
@@ -150,9 +150,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-e282-5496b0f
+        timestamp: "2026-06-10"
   - id: T-UNIT-002
     type: unit
     file: apple/OpenMatesUITests/SkillApplicationParityUITests.swift
@@ -162,9 +162,34 @@ tests:
       - AC-2
       - AC-3
     assertions:
-      - Skill/application/code/PDF/image states are visible in native UI with required identifiers.
-      - Run/action controls either work as web equivalents or show explicit unsupported states.
+      - Code, application, docs, image, PDF, and generated-video debug preview sections are visible with required identifiers.
+      - Preview galleries avoid default `List` or table chrome.
+      - Visible debug-preview text avoids raw app-skill payload fragments, private URLs, secrets, API keys, and private files.
       - Screenshots and attachments use synthetic fixtures only.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282-5496b0f
+        timestamp: "2026-06-10"
+  - id: T-MANUAL-003
+    type: manual
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Skill-specific renderer detail parity beyond debug fixture visibility still needs per-provider Apple UI tests.
+      - Application preview start/stop/status and code-run terminal/source/action parity still need supported-runtime tests or explicit unsupported-state UI tests.
+      - File upload, PDF load/reload, generated image/video safety failures, and provider error/retry states still need deterministic simulator-safe fixtures.
     red_phase:
       required: true
       expected: fail
