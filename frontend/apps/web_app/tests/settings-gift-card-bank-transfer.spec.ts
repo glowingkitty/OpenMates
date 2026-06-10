@@ -16,6 +16,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	setToggleChecked,
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -120,6 +121,13 @@ test('settings gift cards: bank transfer order is created as gift-card purchase'
 
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'billing/gift-cards/buy/payment', { timeout: 10000 });
+
+	const limitedRefundHeading = page.getByText(/Limited refund/i);
+	if (await limitedRefundHeading.isVisible({ timeout: 5000 }).catch(() => false)) {
+		const consentToggle = page.locator('#limited-refund-consent-toggle');
+		await setToggleChecked(consentToggle, true);
+		await expect(limitedRefundHeading).toBeHidden({ timeout: 5000 });
+	}
 
 	const bankTransferButton = page.getByTestId('switch-to-bank-transfer');
 	await expect(bankTransferButton).toBeVisible({ timeout: 15000 });
