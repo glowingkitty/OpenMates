@@ -1,6 +1,6 @@
 id: apple-auth-security-parity
 title: Apple Auth Recovery And Security Web Spec Parity
-status: draft
+status: implementing
 
 goal: >
   Recreate the web app's auth, recovery, and security Playwright coverage in
@@ -118,12 +118,11 @@ tests:
     file: apple/OpenMatesTests/AuthSecurityParityTests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/AuthSecurityParityTests
     covers:
-      - AC-2
-      - AC-3
+      - AC-1
     assertions:
-      - Auth/recovery payloads decode web-compatible success and error states.
-      - Secret-bearing values are redacted from logs and test attachments.
-      - Session/API-key models preserve backend identifiers and display metadata without exposing tokens.
+      - Auth flow reset clears account-specific and sensitive lookup state.
+      - Switching to another account preserves mode while clearing account-specific state.
+      - The test uses synthetic values only and does not persist credentials, recovery materials, or private account data.
     red_phase:
       required: true
       expected: fail
@@ -135,21 +134,42 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
   - id: T-UNIT-002
     type: unit
     file: apple/OpenMatesUITests/AuthSecurityParityUITests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/AuthSecurityParityUITests
     covers:
       - AC-1
+    assertions:
+      - Unauthenticated auth entry exposes native login and signup tabs.
+      - The test starts from a clean simulator app container before auth flows.
+      - Screenshots contain only unauthenticated UI and no account data.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
+  - id: T-MANUAL-003
+    type: manual
+    covers:
       - AC-2
       - AC-3
     assertions:
-      - Signup, login, 2FA reconnect, recovery, and unauthenticated entry states are reachable through native UI.
-      - The test starts from a clean simulator app container before auth flows.
-      - Screenshots contain only synthetic or sanitized account data.
+      - Recovery key, backup code, and account recovery parity still need dedicated Apple tests with sanitized fixtures.
+      - Change email, session management, API-key management, and security messaging still need dedicated Apple tests.
+      - Raw recovery materials, API keys, session identifiers, private emails, and screenshots with private data must remain out of committed evidence.
     red_phase:
       required: true
       expected: fail
