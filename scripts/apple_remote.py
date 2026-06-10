@@ -36,6 +36,230 @@ DESTRUCTIVE_TOKENS = {
     "git reset --hard",
     "git clean",
 }
+XCODE_CACHE_TARGETS = {
+    "derived-data": "~/Library/Developer/Xcode/DerivedData",
+    "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
+    "swiftpm-cache": "~/Library/Caches/org.swift.swiftpm",
+    "simulator-caches": "~/Library/Developer/CoreSimulator/Caches",
+    "device-support": "~/Library/Developer/Xcode/iOS DeviceSupport",
+}
+
+
+DEVICE_STATUS_SCRIPT = r'''
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+fd, path = tempfile.mkstemp(suffix=".json")
+os.close(fd)
+try:
+    result = subprocess.run(
+        ["xcrun", "devicectl", "list", "devices", "--json-output", path],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    print(f"devicectl_exit={result.returncode}")
+    if result.returncode != 0:
+        print("device_status=devicectl_failed")
+        sys.exit(result.returncode)
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+finally:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+devices = data.get("result", {}).get("devices", []) if isinstance(data, dict) else []
+wired = [d for d in devices if d.get("connectionProperties", {}).get("transportType") == "wired"]
+print(f"devices={len(devices)}")
+print(f"wired_devices={len(wired)}")
+for index, device in enumerate(wired, 1):
+    properties = device.get("deviceProperties", {})
+    connection = device.get("connectionProperties", {})
+    print(f"wired_{index}_pairing={connection.get('pairingState', 'unknown')}")
+    print(f"wired_{index}_developer_mode={properties.get('developerModeStatus', 'unknown')}")
+    print(f"wired_{index}_os={properties.get('osVersionNumber', properties.get('osVersion', 'unknown'))}")
+sys.exit(0 if wired else 3)
+'''
+
+
+INSTALL_IOS_DEVICE_SCRIPT = r'''
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+
+configuration = sys.argv[1]
+allow_provisioning_updates = sys.argv[2] == "1"
+
+
+def print_tail(label, text, device_id, app_path=None, limit=160):
+    print(f"{label}=failed")
+    sanitized = text.replace(device_id, "<device-id>")
+    if app_path:
+        sanitized = sanitized.replace(app_path, "<app-bundle>")
+    for line in sanitized.splitlines()[-limit:]:
+        print(line)
+
+
+fd, path = tempfile.mkstemp(suffix=".json")
+os.close(fd)
+try:
+    subprocess.run(
+        ["xcrun", "devicectl", "list", "devices", "--json-output", path],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+finally:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+devices = data.get("result", {}).get("devices", []) if isinstance(data, dict) else []
+wired = [d for d in devices if d.get("connectionProperties", {}).get("transportType") == "wired"]
+if not wired:
+    print("install_status=no_wired_device")
+    sys.exit(3)
+
+device_id = wired[0].get("identifier")
+if not device_id:
+    print("install_status=no_device_identifier")
+    sys.exit(4)
+
+derived = tempfile.mkdtemp(prefix="openmates-device-build-")
+build_cmd = [
+    "xcodebuild",
+    "-project",
+    "apple/OpenMates.xcodeproj",
+    "-scheme",
+    "OpenMates_iOS",
+    "-configuration",
+    configuration,
+    "-destination",
+    f"id={device_id}",
+    "-derivedDataPath",
+    derived,
+]
+if allow_provisioning_updates:
+    build_cmd.append("-allowProvisioningUpdates")
+build_cmd.append("build")
+
+print("build_status=started")
+build = subprocess.run(build_cmd, capture_output=True, text=True, timeout=1800)
+if build.returncode != 0:
+    print_tail("build_status", build.stdout + build.stderr, device_id)
+    sys.exit(build.returncode)
+
+products = pathlib.Path(derived) / "Build" / "Products" / f"{configuration}-iphoneos"
+apps = [path for path in products.glob("*.app") if path.name == "OpenMates.app"]
+if not apps:
+    apps = [path for path in products.glob("*.app") if not path.name.endswith("Extension.app")]
+if not apps:
+    print("install_status=no_app_bundle")
+    sys.exit(5)
+
+app = str(apps[0])
+print("build_status=passed")
+print("install_status=started")
+install = subprocess.run(
+    ["xcrun", "devicectl", "device", "install", "app", "--device", device_id, app],
+    capture_output=True,
+    text=True,
+    timeout=300,
+)
+if install.returncode != 0:
+    print_tail("install_status", install.stdout + install.stderr, device_id, app, limit=100)
+    sys.exit(install.returncode)
+
+print("install_status=passed")
+for line in (install.stdout + install.stderr).replace(device_id, "<device-id>").replace(app, "<app-bundle>").splitlines()[-20:]:
+    print(line)
+'''
+
+
+XCODE_CACHE_REPORT_SCRIPT = r'''
+import os
+import subprocess
+from pathlib import Path
+
+paths = {
+    "derived-data": "~/Library/Developer/Xcode/DerivedData",
+    "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
+    "swiftpm-cache": "~/Library/Caches/org.swift.swiftpm",
+    "simulator-caches": "~/Library/Developer/CoreSimulator/Caches",
+    "archives": "~/Library/Developer/Xcode/Archives",
+    "device-support": "~/Library/Developer/Xcode/iOS DeviceSupport",
+}
+
+
+def size_mb(path):
+    expanded = Path(os.path.expanduser(path))
+    if not expanded.exists():
+        return None
+    result = subprocess.run(["du", "-sk", str(expanded)], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.split()[0]) // 1024
+
+
+disk = subprocess.run(["df", "-H", os.path.expanduser("~")], capture_output=True, text=True, check=False)
+print("disk_usage_home_start")
+for line in disk.stdout.splitlines():
+    print(line)
+print("disk_usage_home_end")
+for label, path in paths.items():
+    value = size_mb(path)
+    print(f"cache_{label}_mb={value if value is not None else 'missing'}")
+'''
+
+
+XCODE_CACHE_CLEAN_SCRIPT = r'''
+import os
+import shutil
+import sys
+from pathlib import Path
+
+targets = {
+    "derived-data": "~/Library/Developer/Xcode/DerivedData",
+    "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
+    "swiftpm-cache": "~/Library/Caches/org.swift.swiftpm",
+    "simulator-caches": "~/Library/Developer/CoreSimulator/Caches",
+    "device-support": "~/Library/Developer/Xcode/iOS DeviceSupport",
+}
+
+requested = sys.argv[1:]
+if not requested:
+    print("clean_status=no_targets")
+    sys.exit(2)
+
+for target in requested:
+    if target not in targets:
+        print(f"clean_status=unknown_target:{target}")
+        sys.exit(2)
+
+for target in requested:
+    path = Path(os.path.expanduser(targets[target]))
+    if not path.exists():
+        print(f"clean_{target}=missing")
+        continue
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+    print(f"clean_{target}=removed")
+print("clean_status=passed")
+'''
 
 
 class AppleRemoteError(RuntimeError):
@@ -140,6 +364,7 @@ def redact_output(text: str, config: RemoteConfig) -> str:
         if value:
             redacted = redacted.replace(value, f"<{REMOTE_LABEL}>")
     redacted = re.sub(r"/Users/[^\s:'\"]+", f"<{REMOTE_LABEL}-path>", redacted)
+    redacted = re.sub(r"/var/folders/[^\s:'\"]+", f"<{REMOTE_LABEL}-tmp>", redacted)
     return redacted
 
 
@@ -220,6 +445,31 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
     return shell_join(parts)
 
 
+def device_status_command() -> str:
+    return shell_join(["python3", "-c", DEVICE_STATUS_SCRIPT])
+
+
+def install_ios_device_command(configuration: str, allow_provisioning_updates: bool) -> str:
+    return shell_join([
+        "python3",
+        "-c",
+        INSTALL_IOS_DEVICE_SCRIPT,
+        configuration,
+        "1" if allow_provisioning_updates else "0",
+    ])
+
+
+def xcode_cache_report_command() -> str:
+    return shell_join(["python3", "-c", XCODE_CACHE_REPORT_SCRIPT])
+
+
+def xcode_cache_clean_command(targets: Sequence[str]) -> str:
+    unknown = sorted(set(targets) - set(XCODE_CACHE_TARGETS))
+    if unknown:
+        raise AppleRemoteError(f"Unknown Xcode cache target(s): {', '.join(unknown)}")
+    return shell_join(["python3", "-c", XCODE_CACHE_CLEAN_SCRIPT, *targets])
+
+
 def print_status(config: RemoteConfig, *, runner: CommandRunner = default_runner) -> int:
     print(f"remote={REMOTE_LABEL}")
     print(f"source={config.source}")
@@ -249,11 +499,23 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser.add_argument("--simulator", default="iPhone 17")
     test_parser.add_argument("--only-testing")
 
+    device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
+    device_parser.set_defaults(_uses_repo=True)
+
+    install_parser = subparsers.add_parser("install-ios-device", help="Build and install OpenMates_iOS to a wired iPhone")
+    install_parser.add_argument("--configuration", default="Debug", choices=["Debug", "Release"])
+    install_parser.add_argument("--allow-provisioning-updates", action="store_true")
+
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
 
     cleanup_parser = subparsers.add_parser("cleanup", help="Shutdown booted simulators after verification")
     cleanup_parser.add_argument("--simulator", default="booted")
+
+    subparsers.add_parser("xcode-cache-report", help="Report sanitized Xcode cache sizes on the Mac")
+
+    cache_clean_parser = subparsers.add_parser("xcode-cache-clean", help="Remove selected Xcode caches on the Mac")
+    cache_clean_parser.add_argument("targets", nargs="+", choices=sorted(XCODE_CACHE_TARGETS))
 
     return parser
 
@@ -279,6 +541,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_remote(config, repo_command(config, ["bash", "-lc", build_ios_command(args.simulator)]))
         if args.command == "test-ios":
             return run_remote(config, repo_command(config, ["bash", "-lc", test_ios_command(args.simulator, args.only_testing)]))
+        if args.command == "device-status":
+            return run_remote(config, repo_command(config, ["bash", "-lc", device_status_command()]))
+        if args.command == "install-ios-device":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    install_ios_device_command(args.configuration, args.allow_provisioning_updates),
+                ]),
+            )
         if args.command == "simctl":
             simctl_args = strip_command_separator(args.simctl_args)
             if not simctl_args:
@@ -288,6 +561,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_remote(
                 config,
                 shell_join(["xcrun", "simctl", "shutdown", args.simulator]),
+                allow_destructive=True,
+            )
+        if args.command == "xcode-cache-report":
+            return run_remote(config, shell_join(["bash", "-lc", xcode_cache_report_command()]))
+        if args.command == "xcode-cache-clean":
+            if not args.allow_destructive:
+                raise AppleRemoteError("xcode-cache-clean requires --allow-destructive")
+            return run_remote(
+                config,
+                shell_join(["bash", "-lc", xcode_cache_clean_command(args.targets)]),
                 allow_destructive=True,
             )
         raise AppleRemoteError(f"Unsupported command: {args.command}")

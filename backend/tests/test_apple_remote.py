@@ -77,6 +77,16 @@ def test_redacts_generic_macos_home_paths() -> None:
     assert "<macos-peer-path>" in redacted
 
 
+def test_redacts_macos_temporary_build_paths() -> None:
+    config = apple_remote.RemoteConfig(target="operator@macos-peer.example.invalid", repo_path=None, source="test")
+    temp_path = "/var/folders/aa/bb/T/openmates-device-build-example/Build/Products/OpenMates.app"
+
+    redacted = apple_remote.redact_output(f"build path: {temp_path}", config)
+
+    assert temp_path not in redacted
+    assert "<macos-peer-tmp>" in redacted
+
+
 def test_refuses_destructive_remote_command_without_flag() -> None:
     config = apple_remote.RemoteConfig(target="operator@macos-peer.example.invalid", repo_path=None, source="test")
 
@@ -122,3 +132,35 @@ def test_cleanup_allows_simulator_shutdown_command() -> None:
 
     assert exit_code == 0
     assert commands[0][-1] == "xcrun simctl shutdown booted"
+
+
+def test_install_ios_device_command_uses_configuration_and_provisioning_flag() -> None:
+    command = apple_remote.install_ios_device_command("Debug", allow_provisioning_updates=True)
+
+    assert "OpenMates_iOS" in command
+    assert "Debug" in command
+    assert " 1" in command
+
+
+def test_xcode_cache_clean_rejects_unknown_target() -> None:
+    try:
+        apple_remote.xcode_cache_clean_command(["derived-data", "unknown-cache"])
+    except apple_remote.AppleRemoteError as exc:
+        assert "unknown-cache" in str(exc)
+    else:
+        raise AssertionError("Expected AppleRemoteError")
+
+
+def test_xcode_cache_clean_command_allows_known_targets() -> None:
+    command = apple_remote.xcode_cache_clean_command(["derived-data", "swiftpm-cache", "device-support"])
+
+    assert "derived-data" in command
+    assert "swiftpm-cache" in command
+    assert "device-support" in command
+
+
+def test_device_status_command_uses_devicectl() -> None:
+    command = apple_remote.device_status_command()
+
+    assert "devicectl" in command
+    assert "wired_devices" in command
