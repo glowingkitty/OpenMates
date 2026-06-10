@@ -62,10 +62,15 @@ async function waitForAdminStatus(page: any, expected: boolean): Promise<any> {
 }
 
 test('self-hosted install starts, signs up a user, and promotes admin', async ({ page, request }) => {
- test.slow();
- test.setTimeout(180000);
+	test.slow();
+	test.setTimeout(180000);
+	const installEnvPath = path.join(SELFHOST_INSTALL_PATH, '.env');
+	test.skip(
+		!fs.existsSync(installEnvPath),
+		`self-hosted install fixture is not provisioned at ${installEnvPath}`
+	);
 
- const firstInviteCode = readInstallEnv('SELF_HOST_FIRST_INVITE_CODE');
+	const firstInviteCode = readInstallEnv('SELF_HOST_FIRST_INVITE_CODE');
  expect(firstInviteCode, 'first signup invite code should be generated during install').toMatch(
   /^[0-9]{4}-[0-9]{4}-[0-9]{4}$/
  );

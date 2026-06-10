@@ -23,6 +23,15 @@ def fake_request(method="GET", path="/"):
     return Request({"type": "http", "method": method, "path": path, "headers": [], "client": ("127.0.0.1", 12345)})
 
 
+@pytest.fixture(autouse=True)
+def official_cloud_request_domain(monkeypatch):
+    monkeypatch.setattr(
+        payments,
+        "validate_request_domain",
+        lambda _request: ("openmates.org", False, "production"),
+    )
+
+
 class FakeBankTransferCache:
     def __init__(self, order=None):
         self.order = order
@@ -152,3 +161,39 @@ async def test_gift_card_purchase_status_rejects_credit_purchase_order():
         )
 
     assert exc_info.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_gift_card_bank_transfer_routes_reject_self_hosted(monkeypatch):
+    monkeypatch.setattr(
+        payments,
+        "validate_request_domain",
+        lambda _request: (None, True, "self_hosted"),
+    )
+
+    with pytest.raises(HTTPException) as create_exc:
+        await payments.create_gift_card_bank_transfer_order(
+            request=fake_request("POST", "/v1/payments/create-gift-card-bank-transfer-order"),
+            order_data=payments.CreateBankTransferOrderRequest(
+                credits_amount=21000,
+                currency="eur",
+                email_encryption_key="email-key",
+            ),
+            payment_service=SimpleNamespace(),
+            cache_service=SimpleNamespace(),
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+            current_user=SimpleNamespace(id="user-1"),
+        )
+
+    with pytest.raises(HTTPException) as status_exc:
+        await payments.get_gift_card_purchase_status(
+            request=fake_request("GET", "/v1/payments/gift-card-purchase-status/bt_done"),
+            order_id="bt_done",
+            cache_service=FakeBankTransferCache(),
+            directus_service=FakeDirectus(),
+            current_user=SimpleNamespace(id="user-1"),
+        )
+
+    assert create_exc.value.status_code == 404
+    assert status_exc.value.status_code == 404
