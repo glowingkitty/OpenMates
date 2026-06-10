@@ -354,8 +354,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_guest_public_settings_submenus_smoke
-        run_id: apple-remote-iphone17-c579-settings-full-guest-submenus
+        status: passed
+        run_id: apple-remote-iphone17-5352-settings-full
         timestamp: "2026-06-10"
   - id: T-UI-002
     type: unit
@@ -409,8 +409,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_app_store_skill_focus_drilldown_smoke
-        run_id: apple-remote-iphone17-c579-settings-apps-drilldown
+        status: passed
+        run_id: apple-remote-iphone17-5352-settings-apps
         timestamp: "2026-06-10"
   - id: T-UI-004
     type: unit
@@ -434,8 +434,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_sensitive_settings_fixture_smoke
-        run_id: apple-remote-iphone17-c579-settings-sensitive-fixture
+        status: passed
+        run_id: apple-remote-iphone17-5352-settings-sensitive
         timestamp: "2026-06-10"
   - id: T-UI-005
     type: unit
@@ -458,8 +458,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_billing_storekit_fixture_smoke
-        run_id: apple-remote-iphone17-c579-settings-billing-storekit
+        status: passed
+        run_id: apple-remote-iphone17-5352-settings-billing-storekit
         timestamp: "2026-06-10"
   - id: T-UI-006
     type: unit
@@ -486,9 +486,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-ipad-pro-13-m5-5352-settings-ipad-layout
+        timestamp: "2026-06-10"
 
 implementation_plan:
   existing_patterns:
