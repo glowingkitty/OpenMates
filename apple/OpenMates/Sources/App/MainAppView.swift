@@ -2133,8 +2133,8 @@ struct MainAppView: View {
         guard let existing = chatStore.chat(for: payload.chatId) else { return }
         await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: existing.encryptedChatKey)
         guard let key = ChatKeyManager.shared.key(for: payload.chatId),
-              let encryptedFocusId = try? CryptoManager.shared.encryptContent(payload.focusId, key: key) else {
-            NativeSyncPerfLog.warning("phase=focusModeActivated chat=\(payload.chatId.prefix(8)) reason=missingKey")
+              let encryptedFocusId = try? await CryptoManager.shared.encryptContent(payload.focusId, key: key) else {
+            NativeSyncPerfLog.warning("phase=focusModeActivated reason=missingKey")
             return
         }
         let updated = Chat(
