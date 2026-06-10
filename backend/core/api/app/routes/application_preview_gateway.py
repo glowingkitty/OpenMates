@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 from backend.core.api.app.routes.application_preview import (
+    application_preview_host_key,
     application_preview_session_key,
     get_cache_service,
     hash_preview_gateway_token,
@@ -28,7 +29,8 @@ from backend.core.api.app.routes.application_preview import (
 router = APIRouter(tags=["Application Preview Gateway"])
 
 TERMINAL_PREVIEW_STATUSES = {"stopped", "failed", "timeout", "cancelled"}
-PREVIEW_GATEWAY_TOKEN_PATTERN = re.compile(r"(/p/[^/]+)/([^/]+)(?=/|$)")
+LEGACY_PREVIEW_GATEWAY_TOKEN_PATTERN = re.compile(r"(/p/[^/]+)/([^/]+)(?=/|$)")
+HOST_PREVIEW_GATEWAY_TOKEN_PATTERN = re.compile(r"(/t)/([^/]+)(?=/|$)")
 BLOCKED_UPSTREAM_HEADERS = {
     "connection",
     "content-encoding",
@@ -68,6 +70,7 @@ async def validate_preview_gateway_access(
     preview_token: str,
     *,
     now: float,
+    preview_host: str | None = None,
 ) -> dict[str, Any]:
     client = await cache_service.client
     raw = await client.get(application_preview_session_key(session_id))
@@ -82,12 +85,45 @@ async def validate_preview_gateway_access(
         raise HTTPException(status_code=403, detail="Preview session is no longer active")
     if now > float(data.get("idle_deadline") or 0) or now > float(data.get("hard_deadline") or 0):
         raise HTTPException(status_code=403, detail="Preview session is expired")
+    if preview_host is not None and data.get("preview_host") != normalize_preview_host_header(preview_host):
+        raise HTTPException(status_code=403, detail="Invalid or expired preview session")
 
     return data
 
 
+async def validate_preview_gateway_host_access(
+    cache_service: Any,
+    preview_host: str,
+    preview_token: str,
+    *,
+    now: float,
+) -> dict[str, Any]:
+    normalized_host = normalize_preview_host_header(preview_host)
+    client = await cache_service.client
+    raw_session_id = await client.get(application_preview_host_key(normalized_host))
+    if not raw_session_id:
+        raise HTTPException(status_code=403, detail="Invalid or expired preview session")
+
+    session_id = raw_session_id.decode("utf-8") if isinstance(raw_session_id, bytes) else str(raw_session_id)
+    return await validate_preview_gateway_access(
+        cache_service,
+        session_id,
+        preview_token,
+        now=now,
+        preview_host=normalized_host,
+    )
+
+
+def normalize_preview_host_header(value: str) -> str:
+    host = (value or "").split(",", 1)[0].strip().lower().rstrip(".")
+    if not host or "/" in host or "@" in host:
+        raise HTTPException(status_code=403, detail="Invalid or expired preview session")
+    return host
+
+
 def redact_preview_gateway_tokens(value: str) -> str:
-    return PREVIEW_GATEWAY_TOKEN_PATTERN.sub(r"\1/<REDACTED_PREVIEW_TOKEN>", value)
+    redacted = LEGACY_PREVIEW_GATEWAY_TOKEN_PATTERN.sub(r"\1/<REDACTED_PREVIEW_TOKEN>", value)
+    return HOST_PREVIEW_GATEWAY_TOKEN_PATTERN.sub(r"\1/<REDACTED_PREVIEW_TOKEN>", redacted)
 
 
 def preview_gateway_security_headers() -> dict[str, str]:
@@ -110,9 +146,10 @@ async def build_preview_gateway_response(
     query_string: str = "",
     body: bytes | None = None,
     request_headers: dict[str, str] | None = None,
+    preview_host: str | None = None,
     upstream_fetch: Any | None = None,
 ) -> Response:
-    session = await validate_preview_gateway_access(cache_service, session_id, preview_token, now=now)
+    session = await validate_preview_gateway_access(cache_service, session_id, preview_token, now=now, preview_host=preview_host)
     upstream_base_url = _select_upstream_base_url(session, path)
     if not isinstance(upstream_base_url, str) or not upstream_base_url.strip():
         return JSONResponse(
@@ -139,6 +176,7 @@ async def build_preview_gateway_response(
             response_headers,
             session_id=session_id,
             preview_token=preview_token,
+            preview_host=preview_host,
         ),
         status_code=upstream.status_code,
         headers={**response_headers, **preview_gateway_security_headers()},
@@ -205,6 +243,7 @@ def _rewrite_root_relative_preview_references(
     *,
     session_id: str,
     preview_token: str,
+    preview_host: str | None = None,
 ) -> bytes:
     content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
     if content_type not in REWRITABLE_UPSTREAM_CONTENT_TYPES:
@@ -215,7 +254,7 @@ def _rewrite_root_relative_preview_references(
     except UnicodeDecodeError:
         return body
 
-    signed_prefix = f"/p/{session_id}/{preview_token}"
+    signed_prefix = f"/t/{preview_token}" if preview_host else f"/p/{session_id}/{preview_token}"
 
     def rewrite_match(match: re.Match[str]) -> str:
         return f"{match.group('prefix')}{signed_prefix}/{match.group('path')}"
@@ -228,6 +267,33 @@ def _rewrite_root_relative_preview_references(
     else:
         text = QUOTED_ROOT_PATH_PATTERN.sub(rewrite_match, text)
     return text.encode("utf-8")
+
+
+@router.api_route("/t/{preview_token}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+async def application_preview_host_gateway(
+    request: Request,
+    preview_token: str,
+    path: str = "",
+    cache_service: Any = Depends(get_cache_service),
+) -> Response:
+    session = await validate_preview_gateway_host_access(
+        cache_service,
+        request.headers.get("host", ""),
+        preview_token,
+        now=time.time(),
+    )
+    return await build_preview_gateway_response(
+        cache_service,
+        str(session.get("session_id") or ""),
+        preview_token,
+        path,
+        now=time.time(),
+        method=request.method,
+        query_string=request.url.query,
+        body=await request.body(),
+        request_headers=dict(request.headers),
+        preview_host=request.headers.get("host", ""),
+    )
 
 
 @router.api_route("/p/{session_id}/{preview_token}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])

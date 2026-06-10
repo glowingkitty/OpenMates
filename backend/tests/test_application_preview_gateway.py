@@ -22,6 +22,7 @@ from backend.core.api.app.routes.application_preview_gateway import (
     build_preview_gateway_response,
     redact_preview_gateway_tokens,
     _upstream_url,
+    validate_preview_gateway_host_access,
     validate_preview_gateway_access,
 )
 from backend.tests.test_application_preview_config import FakeCache, _user
@@ -39,11 +40,13 @@ async def test_create_session_returns_path_token_url_but_stores_only_hash() -> N
         preview_origin="https://openmatesusercontent.org",
         now=2_000.0,
         preview_token="token-abc",
+        preview_host_label="preview-testhost",
     )
 
-    assert response.preview_url == "https://openmatesusercontent.org/p/session-1/token-abc/"
+    assert response.preview_url == "https://preview-testhost.openmatesusercontent.org/t/token-abc/"
 
     stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    assert stored["preview_host"] == "preview-testhost.openmatesusercontent.org"
     assert stored["preview_token_hash"]
     assert "token-abc" not in json.dumps(stored)
 
@@ -60,12 +63,35 @@ async def test_gateway_access_accepts_matching_active_token() -> None:
         preview_origin="https://openmatesusercontent.org",
         now=2_000.0,
         preview_token="token-abc",
+        preview_host_label="preview-testhost",
     )
 
-    session = await validate_preview_gateway_access(cache, "session-1", "token-abc", now=2_030.0)
+    session = await validate_preview_gateway_host_access(cache, "preview-testhost.openmatesusercontent.org", "token-abc", now=2_030.0)
 
     assert session["session_id"] == "session-1"
     assert session["application_embed_id"] == "app-embed-1"
+    assert session["preview_host"] == "preview-testhost.openmatesusercontent.org"
+
+
+@pytest.mark.anyio
+async def test_gateway_access_rejects_matching_token_on_wrong_host() -> None:
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+        preview_host_label="preview-testhost",
+    )
+
+    with pytest.raises(HTTPException) as wrong_host:
+        await validate_preview_gateway_host_access(cache, "preview-other.openmatesusercontent.org", "token-abc", now=2_030.0)
+
+    assert wrong_host.value.status_code == 403
 
 
 @pytest.mark.anyio
@@ -101,13 +127,13 @@ async def test_gateway_access_rejects_wrong_stopped_and_expired_tokens() -> None
 
 def test_redact_preview_gateway_tokens_removes_path_secret() -> None:
     redacted = redact_preview_gateway_tokens(
-        "GET /p/session-1/token-abc/src/main.js and https://openmatesusercontent.org/p/session-2/token-def/"
+        "GET /p/session-1/token-abc/src/main.js and https://preview-test.openmatesusercontent.org/t/token-def/src/App.js"
     )
 
     assert "token-abc" not in redacted
     assert "token-def" not in redacted
     assert "/p/session-1/<REDACTED_PREVIEW_TOKEN>/src/main.js" in redacted
-    assert "/p/session-2/<REDACTED_PREVIEW_TOKEN>/" in redacted
+    assert "/t/<REDACTED_PREVIEW_TOKEN>/src/App.js" in redacted
 
 
 def test_gateway_preserves_vite_virtual_module_paths() -> None:
@@ -126,6 +152,7 @@ async def test_gateway_rewrites_root_relative_html_assets_to_signed_path() -> No
         preview_origin="https://openmatesusercontent.org",
         now=2_000.0,
         preview_token="token-abc",
+        preview_host_label="preview-testhost",
     )
     stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
@@ -144,12 +171,13 @@ async def test_gateway_rewrites_root_relative_html_assets_to_signed_path() -> No
         "token-abc",
         "",
         now=2_030.0,
+        preview_host="preview-testhost.openmatesusercontent.org",
         upstream_fetch=upstream_fetch,
     )
 
     body = response.body.decode("utf-8")
-    assert 'href="/p/session-1/token-abc/src/style.css"' in body
-    assert 'src="/p/session-1/token-abc/src/main.js"' in body
+    assert 'href="/t/token-abc/src/style.css"' in body
+    assert 'src="/t/token-abc/src/main.js"' in body
 
 
 @pytest.mark.anyio
@@ -164,6 +192,7 @@ async def test_gateway_strips_vite_hmr_client_from_html() -> None:
         preview_origin="https://openmatesusercontent.org",
         now=2_000.0,
         preview_token="token-abc",
+        preview_host_label="preview-testhost",
     )
     stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
@@ -182,12 +211,13 @@ async def test_gateway_strips_vite_hmr_client_from_html() -> None:
         "token-abc",
         "",
         now=2_030.0,
+        preview_host="preview-testhost.openmatesusercontent.org",
         upstream_fetch=upstream_fetch,
     )
 
     body = response.body.decode("utf-8")
     assert "@vite/client" not in body
-    assert 'src="/p/session-1/token-abc/src/main.js"' in body
+    assert 'src="/t/token-abc/src/main.js"' in body
 
 
 @pytest.mark.anyio
@@ -202,6 +232,7 @@ async def test_gateway_rewrites_root_relative_module_imports_to_signed_path() ->
         preview_origin="https://openmatesusercontent.org",
         now=2_000.0,
         preview_token="token-abc",
+        preview_host_label="preview-testhost",
     )
     stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
@@ -220,9 +251,10 @@ async def test_gateway_rewrites_root_relative_module_imports_to_signed_path() ->
         "token-abc",
         "src/main.js",
         now=2_030.0,
+        preview_host="preview-testhost.openmatesusercontent.org",
         upstream_fetch=upstream_fetch,
     )
 
     body = response.body.decode("utf-8")
-    assert '"/p/session-1/token-abc/src/style.css"' in body
-    assert '"/p/session-1/token-abc/src/App.js"' in body
+    assert '"/t/token-abc/src/style.css"' in body
+    assert '"/t/token-abc/src/App.js"' in body

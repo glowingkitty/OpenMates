@@ -32,10 +32,15 @@ http://:8008 {
 	}
 }
 
-openmatesusercontent.org {
+*.openmatesusercontent.org {
 	# User-content origin for generated application previews.
-	# Only the signed preview gateway is exposed here; OpenMates API/auth routes
-	# stay on api.openmates.org so app cookies are never sent to previews.
+	# Each preview session gets a unique ps-* hostname. Only the signed preview
+	# gateway is exposed here; OpenMates API/auth routes stay on api.openmates.org
+	# so app cookies are never sent to previews.
+	tls {
+		dns gandi {env.GANDI_BEARER_TOKEN}
+	}
+
 	log {
 		output file /var/log/caddy/openmatesusercontent.org.log {
 			roll_size 100mb
@@ -55,7 +60,7 @@ openmatesusercontent.org {
 		-Server
 	}
 
-	@preview_gateway path /p/*
+	@preview_gateway path /t/*
 
 	handle @preview_gateway {
 		reverse_proxy localhost:8000 {

@@ -22,6 +22,7 @@ from backend.core.api.app.routes.application_preview import (
     ApplicationPreviewConfigError,
     ApplicationPreviewStartRequest,
     APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
+    application_preview_host_key,
     application_preview_session_key,
     build_application_preview_status_response,
     build_application_preview_worker_payload_from_shared_context,
@@ -366,16 +367,19 @@ async def test_create_preview_session_stores_viewer_owned_queued_record() -> Non
         current_user=_user("alice-user"),
         preview_origin="https://openmatesusercontent.org",
         now=2_000.0,
+        preview_host_label="preview-testhost",
     )
 
     assert response.session_id == "session-1"
     assert response.status == "queued"
-    assert response.preview_url.startswith("https://openmatesusercontent.org/p/session-1/")
+    assert response.preview_url.startswith("https://preview-testhost.openmatesusercontent.org/t/")
     assert response.credits_per_minute == 5
 
     key = application_preview_session_key("session-1")
     stored = json.loads((await cache.redis.get(key)).decode("utf-8"))
     assert cache.redis.ttls[key] == APPLICATION_PREVIEW_SESSION_TTL_SECONDS
+    assert stored["preview_host"] == "preview-testhost.openmatesusercontent.org"
+    assert (await cache.redis.get(application_preview_host_key("preview-testhost.openmatesusercontent.org"))).decode("utf-8") == "session-1"
     assert stored["viewer_user_id_hash"] == hashlib.sha256(b"alice-user").hexdigest()
     assert stored["preview_token_hash"]
     assert "preview_url" not in stored
@@ -402,9 +406,10 @@ async def test_create_preview_session_dispatches_worker_payload_after_record_cre
         task_sender=fake_sender,
         now=2_000.0,
         preview_token="token-abc",
+        preview_host_label="preview-testhost",
     )
 
-    assert response.preview_url == "https://openmatesusercontent.org/p/session-1/token-abc/"
+    assert response.preview_url == "https://preview-testhost.openmatesusercontent.org/t/token-abc/"
     assert calls == [
         {
             "name": "code.run_application_preview",
@@ -489,7 +494,8 @@ async def test_start_application_preview_route_resolves_payload_and_dispatches_w
     )
 
     assert response.status == "queued"
-    assert response.preview_url.startswith("https://openmatesusercontent.org/p/")
+    assert response.preview_url.startswith("https://preview-")
+    assert ".openmatesusercontent.org/t/" in response.preview_url
     assert len(calls) == 1
     assert calls[0]["name"] == "code.run_application_preview"
     assert calls[0]["queue"] == "app_code"

@@ -14,7 +14,7 @@ scope:
     - Add a structured backend application artifact builder as the primary creation path for generated runnable apps.
     - Use existing code-code embeds as child source files and existing image/file embeds as optional application assets.
     - Add E2B-backed live preview sessions as the v1 cross-platform runtime for generated React, Svelte, static JavaScript, and fullstack applications.
-    - Route all live previews through an OpenMates preview gateway on an env-configured user-content origin.
+    - Route all live previews through an OpenMates preview gateway on env-configured wildcard-capable user-content origins.
     - Require a separate preview origin such as https://openmatesusercontent.org for OpenMates Cloud and an operator-provided equivalent for self-hosting.
     - Bill preview runtime credits to the authenticated viewer who starts or resumes a preview session, including shared-chat recipients.
     - Keep application source, manifests, and assets encrypted as normal embeds at rest.
@@ -82,7 +82,7 @@ clarification:
       answer: >
         Full DOM caching is deferred from v1 because it risks storage growth,
         private data capture, stale state, and complex replay semantics. A
-        lightweight screenshot thumbnail is in scope for v1 and should be shown
+        lightweight real screenshot thumbnail is in scope for v1 and should be shown
         in the application preview and fullscreen with a play button overlay.
         The durable source of truth remains the application manifest plus child
         embeds, not the rendered DOM.
@@ -99,12 +99,14 @@ clarification:
         that a separate SKU is required.
     - question: How should preview gateway traffic be authorized on the separate user-content origin?
       answer: >
-        Use a short-lived signed path token in the preview URL, for example
-        /p/<session_id>/<token>/. The token is scoped to one preview session,
-        stored server-side only as a hash, expires with the active session
-        timeout or 30-minute hard cap, and is revoked on Stop. It authorizes only
-        sandbox proxy traffic on the preview gateway; normal start/status/stop
-        APIs still require OpenMates authentication.
+        Use a unique per-session user-content hostname plus a short-lived signed
+        path token in the preview URL, for example
+        https://preview-<random>.openmatesusercontent.org/t/<token>/. The token is
+        scoped to one preview session and one generated hostname, stored
+        server-side only as a hash, expires with the active session timeout or
+        30-minute hard cap, and is revoked on Stop. It authorizes only sandbox
+        proxy traffic on the preview gateway; normal start/status/stop APIs
+        still require OpenMates authentication.
     - question: How should the initial generated-app screenshot run be billed, and what artifact shape should the assistant emit?
       answer: >
         The first minute of the initial creator auto-start screenshot run is free,
@@ -172,17 +174,17 @@ scenarios:
     title: Start a cross-platform live preview
     given:
       - Alice has an application embed with E2B preview support.
-      - APPLICATION_PREVIEW_ORIGIN is configured as https://openmatesusercontent.org.
+      - APPLICATION_PREVIEW_ORIGIN is configured as a wildcard-capable base origin such as https://openmatesusercontent.org.
     when:
       - Alice opens the generated application preview, or clicks Resume on a stopped or timed-out screenshot thumbnail.
     then:
       - OpenMates shows a credit estimate before or during preview startup.
       - The backend creates an E2B sandbox and writes the selected application files and assets into it.
       - The backend starts the configured frontend or fullstack development server.
-      - The fullscreen iframe loads a URL under the configured preview origin.
+      - The fullscreen iframe loads a URL under a unique per-session subdomain of the configured preview origin.
       - Alice can open the same preview in a new browser window.
       - Opening the auto-started preview before its one-minute timeout extends the active idle timeout to 5 minutes, but does not make the first minute billable.
-      - The preview URL contains a short-lived signed path token scoped to Alice's preview session.
+      - The preview URL contains a short-lived signed path token scoped to Alice's preview session and hostname.
       - The raw E2B URL and traffic access token are not exposed to the client.
 
   - id: S-3
@@ -235,6 +237,7 @@ scenarios:
       - Alice opens the Habit Garden application embed fullscreen and clicks Start preview.
     then:
       - The API starts a viewer-owned application preview session using the dev user-content origin.
+      - The preview URL uses a unique per-session hostname under dev.openmatesusercontent.org rather than a shared path on the base origin.
       - E2B starts the generated Vite application with server.allowedHosts covering the exact E2B sandbox host.
       - The iframe loads Habit Garden application content through the preview gateway without showing Vite's Blocked request page.
       - The iframe preserves same-origin semantics for the user-content origin so Vite module scripts and generated app JavaScript do not execute from origin null.
@@ -323,7 +326,7 @@ acceptance_criteria:
     text: Newly generated application embeds auto-start exactly one creator-owned preview after assistant completion for real screenshot capture, while normal rendering, shared chats, example chats, and unauthenticated views never auto-start a sandbox.
   - id: AC-3
     scenario: S-2
-    text: Live previews load only through APPLICATION_PREVIEW_ORIGIN using a short-lived signed path token and never expose raw E2B URLs or traffic access tokens to clients.
+    text: Live previews load only through a unique per-session subdomain of APPLICATION_PREVIEW_ORIGIN using a short-lived signed path token and never expose raw E2B URLs or traffic access tokens to clients.
   - id: AC-4
     scenario: S-3
     text: E2B preview sessions can run frontend-only and fullstack applications, including a FastAPI backend with generated sample or ephemeral SQLite data.
@@ -344,7 +347,7 @@ acceptance_criteria:
     text: Auto-started unopened preview sessions stop after 1 minute, opened preview sessions use a 5-minute idle timeout, all sessions keep a 30-minute hard duration limit, and persistent compact logs/status remain after stop.
   - id: AC-10
     scenario: S-8
-    text: Full rendered DOM snapshots are not stored in v1; durable state is the encrypted application manifest, child embeds, preview logs, and lightweight screenshot thumbnail only.
+    text: Full rendered DOM snapshots are not stored in v1; durable state is the encrypted application manifest, child embeds, preview logs, and lightweight real screenshot thumbnail only.
   - id: AC-11
     scenario: S-2
     text: Application previews can be opened both embedded in fullscreen and in a separate window using the same authorized preview session.
@@ -353,7 +356,7 @@ acceptance_criteria:
     text: Privacy policy and provider disclosures explain that E2B receives generated application files and runtime inputs when the creator auto-starts a free first-minute screenshot preview or when a viewer explicitly starts or resumes a live preview.
   - id: AC-13
     scenario: S-1
-    text: Application embed preview and fullscreen show a screenshot thumbnail or placeholder with a play/Resume overlay after the auto-start screenshot run stops or times out.
+    text: Application embed preview and fullscreen show a real screenshot thumbnail or placeholder with a play/Resume overlay after the auto-start screenshot run stops or times out.
   - id: AC-14
     scenario: S-8
     text: The latest successful real preview screenshot is stored as a lightweight encrypted thumbnail and remains available after the E2B session stops; synthetic placeholder thumbnails are never persisted as screenshots.
@@ -383,14 +386,46 @@ acceptance_criteria:
     text: Every billed application preview session creates a user-visible usage entry tied to the authenticated user, chat, application embed, and preview session.
 
 contracts:
+  artifact_examples:
+    - name: minimal generated application YAML
+      value: |-
+        openmates_application:
+          schema_version: 1
+          metadata:
+            title: Habit Garden
+            summary: A habit tracker with streak cards and weekly progress.
+            icon: sprout
+          preview:
+            entrypoints:
+              - name: frontend
+                command: npm run dev
+                port: 5173
+              - name: api
+                command: uvicorn backend.main:app
+                port: 8000
+                route_prefix: /api
+          files:
+            - path: package.json
+              content: |-
+                { "scripts": { "dev": "vite --host 0.0.0.0" } }
+            - path: src/App.jsx
+              content: |-
+                export default function App() {
+                  return <main>Habit Garden</main>;
+                }
+            - path: backend/main.py
+              content: |-
+                from fastapi import FastAPI
+                app = FastAPI()
   api:
     - route: internal application artifact builder
-      request: "{ name: string, framework?: string, runtime: node|web|python, files: [{ path: string, language?: string, content: string, role?: string }], entrypoints: [{ name: string, command: string, port: number }], assets?: [...] }"
+      request: "{ openmates_application: { schema_version: 1, metadata: { title: string, summary: string, icon: lucide_icon_name }, preview: { entrypoints: [{ name: string, command: string, port: number, route_prefix?: string }] }, files: [{ path: string, content: string }], assets?: [...] } }"
       response: "{ application_embed_id: string, child_embed_ids: string[], embed_reference: string }"
       errors:
         - validation error when required manifest files, source files, or entrypoints are missing.
         - validation error when paths are unsafe, duplicated, absolute, or outside the project root.
         - validation error when file content appears to include secrets or OpenMates credentials.
+        - validation error when assistant-supplied file_count, file role, or file language fields are present instead of backend-derived values.
         - explicit typed failure when any child or parent embed cannot be created.
     - route: POST /v1/applications/{application_embed_id}/preview/start
       request: "{ chat_id: string, shared_context?: string, requested_runtime?: string }"
@@ -413,56 +448,62 @@ contracts:
       errors:
         - 401 when unauthenticated.
         - 403 when the viewer does not own the preview session.
-    - route: ALL https://<APPLICATION_PREVIEW_ORIGIN>/p/{session_id}/{path...}
-      request: browser or WKWebView preview traffic under /p/{session_id}/{preview_token}/{path...}.
+    - route: ALL https://<preview_session_host>/t/{preview_token}/{path...}
+      request: first browser or WKWebView preview traffic under a unique per-session host and /t/{preview_token}/{path...}.
       response: proxied application response from the correct E2B sandbox port.
       errors:
         - 403 when the signed preview session is invalid, expired, or belongs to another viewer.
         - 404 when the preview session or route does not exist.
         - 502 when the E2B sandbox is unavailable.
   data:
-    - The structured artifact builder is the primary source of application embeds; it produces child file embeds and parent application manifests from a validated payload instead of parsing assistant Markdown.
-    - Application embed content includes type=application, name, framework, runtime, entrypoints, file_refs, asset_refs, database mode, version_number, preview_capabilities, and latest_screenshot_ref when available.
-    - file_refs map logical file paths to child code-code embed IDs and include role metadata such as source, config, dependency_manifest, backend, seed, or asset.
+    - The structured artifact builder is the primary source of application embeds; it produces child file embeds and parent application manifests from a validated minimal YAML payload instead of parsing assistant Markdown.
+    - The assistant artifact metadata is limited to title, summary, and a Lucide icon; file_count, framework, runtime, file language, and file role are derived by backend normalization from files and preview entrypoints.
+    - Application embed content includes type=application, name, summary, icon, derived framework, derived runtime, entrypoints, file_refs, asset_refs, database mode, version_number, preview_capabilities, and latest_screenshot_ref when available.
+    - file_refs map logical file paths to child code-code embed IDs and include backend-derived role metadata such as source, config, dependency_manifest, backend, seed, or asset.
     - asset_refs map logical asset paths to child image/file embed IDs.
-    - Preview sessions are ephemeral server-side records keyed by session_id and viewer user hash, with application_embed_id, chat_id hash, sandbox_id, E2B exposed ports, status, created_at, updated_at, idle deadline, hard deadline, and billing state.
+    - Child code embed language is inferred from the normalized file path extension, with a backend-only fallback for extensionless or ambiguous paths.
+    - Preview sessions are ephemeral server-side records keyed by session_id and preview_host, with viewer user hash, application_embed_id, chat_id hash, sandbox_id, E2B exposed ports, status, created_at, updated_at, idle deadline, hard deadline, and billing state.
     - A preview session belongs to exactly one authenticated viewer. Shared recipients get their own session_id, sandbox_id, logs, ephemeral filesystem, and ephemeral database state.
-    - Preview gateway tokens are generated per session and stored only as hashes, never in plaintext session records or logs.
-    - Creator auto-start sessions begin with a 1-minute idle deadline for screenshot capture and are marked auto_started=true in server session metadata.
-    - Opening an auto-started session promotes it to an interactive session with a 5-minute idle deadline after the last authenticated viewer heartbeat or foreground preview activity.
+    - Preview gateway tokens and preview host labels are generated per session; tokens are stored only as hashes, never in plaintext session records or logs.
+    - Creator auto-start sessions begin with a 1-minute idle deadline for screenshot capture, are marked auto_started=true in server session metadata, and include free_initial_seconds=60.
+    - Opening an auto-started session promotes it to an interactive session with a 5-minute idle deadline after the last authenticated viewer heartbeat or foreground preview activity, while preserving the free first minute for billing calculation.
     - Explicit Start/Resume sessions begin with the 5-minute interactive idle deadline.
     - The default hard deadline is 30 minutes after sandbox startup, after which the viewer must explicitly restart a new billed preview session.
     - Preview logs are compact text events capped by size and retained short-term like Code Run outputs.
-    - latest_screenshot_ref points to a lightweight encrypted image/file embed or sidecar generated from the latest successful preview state.
+    - latest_screenshot_ref points to a lightweight encrypted image/file embed or sidecar generated from a real screenshot of the latest successful preview state.
+    - Real screenshot capture must first use E2B screenshot/browser capabilities after the preview gateway URL is reachable; if unavailable, the implementation may use a documented browser helper or desktop sandbox fallback, but must not store synthetic generated images as screenshots.
     - Full rendered DOM snapshots are not stored in v1.
     - Parser-inferred application parents are marked by backend provenance as fallback-created for logs/debugging, but the client rendering contract is identical to structured-created application parents.
   ui_states:
-    - Application preview card shows app name, framework/runtime, file count, asset count, preview status, and screenshot thumbnail or placeholder.
-    - Application fullscreen has Preview, Files, Logs, Data, and Settings/Info areas where appropriate.
+    - Application preview card shows app name, summary, derived file count, preview status, and a real screenshot thumbnail or placeholder.
+    - Application fullscreen follows the updated application embed design: a header, a Files section using the SettingsSectionHeading visual style, a clickable folder/file tree on the left, code embed cards that open code fullscreen, and a right preview container with rounded edges, drop shadow, screenshot/placeholder, Start test server CTA, cost, and auto-shutdown text.
     - Screenshot thumbnails show a play or Resume button overlay when no live preview is running; clicking the overlay starts or resumes a preview session.
-    - The creator's just-generated application may show an auto-starting state while the one-minute screenshot run is queued/starting/running.
+    - The creator's just-generated application may show an auto-starting state while the free one-minute screenshot run is queued/starting/running.
     - Start preview, Resume preview, Stop preview, Restart preview, Open in new window, and Copy preview URL actions are visible according to session state and permissions.
     - Missing preview-origin setup shows an actionable self-host/cloud configuration message.
     - Preview startup shows queued, installing dependencies, starting server, running, failed, stopping, and stopped states.
     - Timed-out preview states distinguish idle timeout from hard duration limit and let the viewer start a new billed session when credits allow.
   privacy_security:
     - APPLICATION_PREVIEW_ORIGIN must be a separate origin that does not receive OpenMates app auth cookies.
-    - Cloud production uses https://openmatesusercontent.org and Cloud dev uses https://dev.openmatesusercontent.org; each environment must have its own equivalent origin.
+    - Cloud production uses wildcard hosts under https://openmatesusercontent.org and Cloud dev uses wildcard hosts under https://dev.openmatesusercontent.org; each environment must have its own equivalent wildcard-capable origin.
     - Live preview controls must be disabled if the configured origin is absent, invalid, or matches the app/API auth origin.
     - Generated application code must never run on app.openmates.org or any OpenMates origin that holds auth, localStorage, IndexedDB, or service workers.
     - Preview iframes use sandboxing, no-referrer, and a restrictive allow/permissions policy by default.
     - E2B traffic access tokens, raw sandbox URLs, and provider credentials are server-only.
     - Shared-chat recipients, example/demo chats, unauthenticated users, and users who merely render an existing application embed must never trigger creator auto-start billing.
-    - Preview gateway path tokens are scoped to one session, expire with the session idle/hard deadline, are revoked on stop, and authorize only sandbox proxy traffic.
-    - Logs and debug output must redact preview gateway tokens from /p/{session_id}/{preview_token}/ URLs.
+    - Preview gateway path tokens are scoped to one session and one generated hostname, expire with the session idle/hard deadline, are revoked on stop, and authorize only sandbox proxy traffic.
+    - Logs and debug output must redact preview gateway tokens from /t/{preview_token}/ URLs and legacy /p/{session_id}/{preview_token}/ URLs.
     - Generated apps receive no OpenMates user secrets, provider API keys, vault keys, production DB credentials, or plaintext chat content beyond the selected generated files/assets needed to run the preview.
-    - E2B provider disclosure must state that generated application files, runtime inputs, and execution logs are sent to E2B only when the viewer explicitly starts a preview.
+    - The artifact parser rejects or redacts likely secrets before child code embeds are created, so the LLM cannot persist real API keys into application files by accident.
+    - E2B provider disclosure must state that generated application files, runtime inputs, and execution logs are sent to E2B when the creator creates an app that triggers a free screenshot preview, or when a viewer explicitly starts/resumes a preview.
   billing:
     - Preview billing is charged to the authenticated viewer who starts the preview session.
     - Shared-chat recipients are billed for their own preview sessions and never charge the application creator.
     - Application previews reuse the existing Code Run pricing of 5 credits per started minute of E2B runtime.
     - Preview sessions require enough credits for at least the minimum billable interval before sandbox creation.
-    - Billing begins no earlier than sandbox file upload/startup and stops when the sandbox is stopped, killed, failed, timed out, or cancelled.
+    - The first 60 seconds of the initial creator auto-start screenshot session are free, even if the creator opens the preview during that first minute.
+    - Billing for the initial creator auto-start session begins only after free_initial_seconds has elapsed; later explicit Start, Resume, or Restart sessions are billable from sandbox file upload/startup.
+    - Billing stops when the sandbox is stopped, killed, failed, timed out, or cancelled.
     - The UI displays current or estimated credits per minute before or during preview startup.
     - Usage history records application preview charges under app_id=code and skill_id=application_preview with chat_id, application_embed_id, preview_session_id, charged_minutes, and duration_seconds metadata.
   runtime:
@@ -490,8 +531,9 @@ tests:
       - preview status and stop helpers hide sessions from other viewers
       - shared recipients receive a distinct sandbox/session from the creator
       - preview billing uses the configured 5 credits per started minute rate
-      - auto-started unopened preview sessions use a 1-minute screenshot deadline and stop/bill if not opened
-      - opening an auto-started preview promotes it to the 5-minute interactive idle timeout
+      - auto-started unopened preview sessions use a 1-minute screenshot deadline and do not bill the first minute
+      - opening an auto-started preview promotes it to the 5-minute interactive idle timeout while keeping the first minute free
+      - auto-start billing charges only runtime after free_initial_seconds has elapsed
       - explicit previews do not wait on the auto-stop deadline
       - stop, 5-minute idle timeout, and 30-minute hard timeout paths release sandbox and billing state
       - the latest available screenshot URL and capture timestamp remain on the preview session after Stop
@@ -521,7 +563,9 @@ tests:
       - AC-4
       - AC-8
     assertions:
-      - application manifest file_refs resolve to child code embeds with logical paths and roles
+      - minimal openmates_application YAML parses into metadata, preview entrypoints, and files
+      - assistant-supplied file_count, file role, and file language fields are rejected in favor of backend-derived values
+      - application manifest file_refs resolve to child code embeds with logical paths and backend-derived roles/languages
       - preview entrypoints are copied into the worker payload
       - missing children, non-application parent embeds, and secret-like child content are rejected before worker dispatch
     red_phase:
@@ -549,10 +593,11 @@ tests:
       - AC-3
       - AC-8
     assertions:
-      - preview gateway validates session access before proxying
-      - preview gateway accepts only the hashed short-lived path token for the matching session
-      - preview gateway rejects stopped, expired, missing, and wrong-token sessions
-      - preview gateway token redaction removes path secrets from logs and debug output
+      - preview start returns a unique preview-* user-content hostname with a /t/{preview_token}/ path
+      - preview gateway validates host-scoped session access before proxying
+      - preview gateway accepts only the hashed short-lived path token for the matching session and generated hostname
+      - preview gateway rejects stopped, expired, missing, wrong-token, and wrong-host sessions
+      - preview gateway token redaction removes /t/{preview_token} and legacy /p/{session_id}/{preview_token} path secrets from logs and debug output
       - preview gateway preserves Vite virtual module paths such as /@vite/client when forwarding to the sandbox
       - preview gateway strips Vite's injected HMR client from proxied HTML while preserving the generated app entrypoint
       - raw E2B URLs and traffic tokens are never returned in client payloads
@@ -569,9 +614,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:python3 -m pytest backend/tests/test_application_preview_gateway.py"
+        run_id: "local:python3 -m pytest backend/tests/test_application_preview_config.py backend/tests/test_application_preview_gateway.py backend/tests/test_application_preview_gateway_proxy.py -q"
         timestamp: "2026-06-10T10:26:00Z"
-        notes: "8 tests passed for hashed path token URLs, gateway session/token validation, stopped/expired rejection, token redaction, root-relative asset rewrites, stripping Vite HMR client HTML, module import rewrites, and preserving Vite /@vite/client virtual module paths."
+        notes: "40 focused preview backend tests passed for per-session preview-* preview URLs, host-to-session indexing, host-scoped token validation, wrong-host rejection, /t/{token} redaction and root-relative rewrites, legacy /p token redaction compatibility, stripping Vite HMR client HTML, module import rewrites, and preserving Vite /@vite/client virtual module paths."
 
   - id: T-PYTEST-APP-GATEWAY-SKELETON-001
     type: pytest
@@ -697,9 +742,10 @@ tests:
       - AC-9
       - AC-13
     assertions:
-      - application preview worker updates queued sessions to running with sandbox id, upstream URL, ports, and billable start time
+      - application preview worker updates queued sessions to running with sandbox id, upstream URL, ports, and billable start time after any free initial seconds
       - worker appends compact status events for starting and running states
       - provider/planning failures mark the session failed without leaking preview tokens or secret-like file content
+      - worker captures and stores real preview screenshots only; synthetic generated placeholder thumbnails are not persisted as screenshots
     red_phase:
       required: true
       expected: fail
@@ -725,7 +771,9 @@ tests:
       - AC-18
       - AC-19
     assertions:
+      - structured application artifacts use the minimal YAML contract with title, summary, icon, entrypoints, and path/content files
       - structured application artifacts create child code embeds and exactly one parent application embed through a backend-owned builder path
+      - backend derives file count, file language, and file role from paths and entrypoints
       - unsafe or incomplete structured application artifacts are rejected without creating a parent embed
       - Markdown/code-fence fallback creates at most one parent application embed after a runnable manifest is detected
       - fallback inference does not create an application parent for incomplete file sets
@@ -764,6 +812,7 @@ tests:
       - application embed renders a screenshot thumbnail or placeholder with a play button overlay
       - rendering an existing, shared, example, or unauthenticated application embed does not call preview start APIs
       - creator-only auto-start after assistant completion calls the preview start API once for the new application embed
+      - generated application UI derives file count from file_refs and never depends on assistant-provided file_count
       - clicking the play or Resume overlay starts a new explicit preview session after the screenshot run stops or times out
       - missing preview origin disables live preview controls
       - application content model omits rendered DOM snapshots
@@ -801,10 +850,10 @@ tests:
       - AC-14
     assertions:
       - a generated application appears as one application embed with child files
-      - the application embed shows a screenshot thumbnail or preview placeholder with a play overlay
+      - the application embed shows a real screenshot thumbnail or preview placeholder with a play overlay
       - creator-owned generated application auto-starts an E2B-backed preview after assistant completion
-      - auto-started preview captures a screenshot and stops after the one-minute unopened timeout
-      - opening the auto-started preview extends the idle timeout to the interactive five-minute window
+      - auto-started preview captures a real screenshot and stops after the one-minute unopened timeout
+      - opening the auto-started preview extends the idle timeout to the interactive five-minute window while the first minute remains free
       - preview iframe URL uses the configured user-content origin
       - React/Svelte frontend preview loads successfully
       - latest screenshot thumbnail remains visible after stopping the preview
@@ -870,7 +919,7 @@ tests:
     assertions:
       - unauthenticated visitor opening the Habit Garden example cannot start a preview and is routed to signup/login
       - authenticated user opening the Habit Garden example can start a live E2B preview
-      - preview iframe URL uses https://dev.openmatesusercontent.org and never exposes e2b.app
+      - preview iframe URL uses a unique preview-* subdomain under https://dev.openmatesusercontent.org and never exposes e2b.app
       - iframe content does not show Vite's Blocked request page and renders Habit Garden content
       - preview iframe sandbox includes allow-same-origin so module scripts do not execute from origin null
       - Habit Garden's Plant Habit button runs generated JavaScript and renders the new habit
@@ -958,34 +1007,43 @@ implementation_plan:
   architecture: >
     Add application as a direct Code app embed type and treat it as a project
     manifest that references child source and asset embeds. The AI pipeline's
-    primary runnable-app path is a structured application artifact builder that
-    validates a typed payload, creates child code/file embeds, and creates one
-    parent application embed from the same backend-owned operation. Markdown and
-    code-fence inference remains as a compatibility fallback only. Add an E2B
-    application preview service separate from Code Run terminal execution.
-    Preview sessions are viewer-scoped, billed to the starter, exposed only
-    through a user-content preview gateway, and stopped by explicit controls,
-    idle heartbeat, and hard duration limits.
+    primary runnable-app path is a metadata-first structured application artifact
+    builder that validates minimal YAML, derives file metadata server-side,
+    creates child code/file embeds, and creates one parent application embed from
+    the same backend-owned operation. Markdown and code-fence inference remains
+    as a compatibility fallback only. Add an E2B application preview service
+    separate from Code Run terminal execution. Preview sessions are viewer-scoped,
+    billed to the starter except for the first minute of the initial creator
+    auto-start screenshot run, exposed only through a user-content preview
+    gateway, and stopped by explicit controls, idle heartbeat, and hard duration
+    limits.
   data_flow:
-    - Assistant emits or invokes a structured generated-application artifact containing manifest metadata, entrypoints, and file payloads.
-    - Backend validates the artifact and creates child code-code embeds plus one parent code-application embed in a controlled operation.
+    - Preprocessor/main-processor detects that the user wants an application and injects generated-application artifact instructions.
+    - Assistant emits a minimal openmates_application YAML artifact containing title, summary, icon, preview entrypoints, and path/content file payloads.
+    - Backend safe-loads and validates the YAML artifact, rejects assistant-supplied file_count/role/language metadata, derives file roles/languages/counts from paths and entrypoints, and creates child code-code embeds plus one parent code-application embed in a controlled operation.
     - If no structured artifact is emitted, stream parsing can infer a parent application embed from already-created child code embeds only after a runnable manifest is complete.
-    - User opens application fullscreen and clicks Start preview.
+    - Creator-only auto-start starts one free first-minute screenshot run after assistant completion; other viewers or later sessions require explicit Start/Resume/Restart.
+    - User opens application fullscreen and clicks Start preview or resumes an existing stopped preview.
     - Frontend calls the application preview start API with chat ID and application embed ID.
     - Backend checks auth, embed access, preview-origin config, credits, and concurrency limits.
     - Worker resolves/decrypts required child embeds using existing embed access patterns and writes files/assets into a new E2B sandbox.
     - Worker installs dependencies from allowlisted manifests, starts frontend/backend commands, records exposed ports, and returns a preview gateway URL.
+    - Worker waits for the preview gateway URL to become reachable and captures a real screenshot using E2B screenshot/browser capabilities or a documented browser helper fallback; synthetic generated thumbnails are never stored as screenshots.
     - Browser iframe or Apple WKWebView loads the preview gateway URL on APPLICATION_PREVIEW_ORIGIN.
     - Preview gateway validates session and proxies HTTP/WebSocket traffic to the correct E2B port while injecting provider access server-side.
     - Follow-up diffs update child embeds and active sandbox files; the dev server hot reloads or restarts.
-    - Stop/idle/hard-timeout kills or stops the sandbox, finalizes billing, and leaves compact logs/status.
+    - Stop/idle/hard-timeout kills or stops the sandbox, finalizes billing after subtracting any free first-minute auto-start allowance, and leaves compact logs/status.
   affected_files:
     - path: backend/apps/code/app.yml
       reason: Register application embed type and preview metadata under the Code app.
     - path: backend/apps/ai/tasks/stream_consumer.py
-      reason: Use structured application artifact creation as the primary generated-app path and keep manifest inference as fallback.
+      reason: Use minimal YAML structured application artifact creation as the primary generated-app path and keep manifest inference as fallback.
+    - path: backend/apps/ai/processing/preprocessor.py
+      reason: Detect application-creation intent and request generated-application artifact instructions for the main processor.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Inject application artifact output instructions only when the preprocessor selected generated-app creation.
     - path: backend/core/api/app/services/embed_service.py
-      reason: Provide the backend-owned application artifact builder that creates child and parent embeds consistently.
+      reason: Provide the backend-owned application artifact builder that parses minimal YAML, derives file metadata, and creates child and parent embeds consistently.
     - path: backend/shared/python_schemas/embed_schemas.py
       reason: Add application embed content schema and preview session schema if central schema coverage exists there.
     - path: backend/core/api/app/routes/application_preview.py
@@ -993,9 +1051,9 @@ implementation_plan:
     - path: backend/core/api/app/routes/application_preview_gateway.py
       reason: Add preview-origin gateway/proxy routes for HTTP and WebSocket traffic.
     - path: backend/apps/code/tasks/run_application_preview_task.py
-      reason: Start and monitor E2B application preview sandboxes.
+      reason: Start and monitor E2B application preview sandboxes, capture real screenshots, and apply free first-minute auto-start billing.
     - path: backend/shared/providers/e2b_application_preview.py
-      reason: Provider wrapper for E2B app-preview lifecycle, port exposure, and cleanup.
+      reason: Provider wrapper for E2B app-preview lifecycle, port exposure, real screenshot capture, and cleanup.
     - path: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
       reason: Render the application preview card.
     - path: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
@@ -1026,7 +1084,7 @@ implementation_plan:
 
 tasks:
   - id: TASK-0
-    title: Add structured application artifact builder
+    title: Add minimal YAML application artifact builder
     covers:
       scenarios:
         - S-1
@@ -1035,6 +1093,8 @@ tasks:
         - AC-18
         - AC-19
     expected_files:
+      - backend/apps/ai/processing/preprocessor.py
+      - backend/apps/ai/processing/main_processor.py
       - backend/apps/ai/tasks/stream_consumer.py
       - backend/core/api/app/services/embed_service.py
       - backend/tests/test_code_block_detection.py
@@ -1090,7 +1150,7 @@ tasks:
     independently_deployable: false
 
   - id: TASK-3
-    title: Implement E2B application preview worker and gateway
+    title: Implement E2B application preview worker, gateway, and real screenshots
     covers:
       scenarios:
         - S-2
@@ -1110,6 +1170,7 @@ tasks:
       - backend/shared/providers/e2b_application_preview.py
       - backend/core/api/app/routes/application_preview_gateway.py
       - backend/tests/test_application_preview_gateway.py
+      - backend/tests/test_run_application_preview_task.py
     verification:
       - T-PYTEST-APP-GATEWAY-TOKEN-001
       - T-PYTEST-APP-GATEWAY-SKELETON-001
@@ -1118,8 +1179,33 @@ tasks:
       - T-PYTEST-APP-WORKER-LIFECYCLE-001
     independently_deployable: false
 
+  - id: TASK-3A
+    title: Correct auto-start screenshot billing
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-8
+      acceptance_criteria:
+        - AC-2
+        - AC-9
+        - AC-17
+        - AC-22
+    expected_files:
+      - backend/core/api/app/routes/application_preview.py
+      - backend/apps/code/tasks/run_application_preview_task.py
+      - backend/tests/test_application_preview_config.py
+      - backend/tests/test_run_application_preview_task.py
+      - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+      - frontend/packages/ui/src/i18n/sources/embeds.yml
+    verification:
+      - T-PYTEST-APP-PREVIEW-001
+      - T-PYTEST-APP-PREVIEW-USAGE-001
+      - T-E2E-APP-PREVIEW-001
+    independently_deployable: true
+
   - id: TASK-4
-    title: Build frontend application preview workspace
+    title: Build redesigned frontend application preview workspace
     covers:
       scenarios:
         - S-2

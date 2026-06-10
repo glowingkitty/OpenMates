@@ -22,8 +22,8 @@ EXPECTED_PORTS = {
     8000: "api (FastAPI gateway)",
 }
 USER_CONTENT_DOMAINS = {
-    "dev": "dev.openmatesusercontent.org",
-    "prod": "openmatesusercontent.org",
+    "dev": "*.dev.openmatesusercontent.org",
+    "prod": "*.openmatesusercontent.org",
 }
 
 # FastAPI router prefixes registered in backend/core/api/main.py.
@@ -158,10 +158,15 @@ def validate_user_content_gateway(content: str, *, server_type: str) -> list[str
     if not block:
         return [f"Missing {expected_domain} site block for application preview gateway"]
 
-    if "/p/*" not in parse_caddyfile_paths(block):
-        issues.append(f"{expected_domain} must expose only the signed /p/* preview gateway")
+    paths = parse_caddyfile_paths(block)
+    if "/t/*" not in paths:
+        issues.append(f"{expected_domain} must expose the signed /t/* preview gateway")
+    if "/p/*" in paths:
+        issues.append(f"{expected_domain} must not expose legacy shared-origin /p/* preview paths")
     if "reverse_proxy localhost:8000" not in block:
-        issues.append(f"{expected_domain} /p/* must reverse_proxy to localhost:8000")
+        issues.append(f"{expected_domain} /t/* must reverse_proxy to localhost:8000")
+    if "dns gandi {env.GANDI_BEARER_TOKEN}" not in block:
+        issues.append(f"{expected_domain} must use Gandi DNS-01 TLS for wildcard certificates")
     if re.search(r'\bpath\s+[^\n]*?/v1(?:/|\*|\s|$)', block):
         issues.append(f"{expected_domain} must not expose /v1/* API routes")
     if "X-Frame-Options" in block:
@@ -338,7 +343,7 @@ def main():
             print(f"  {RED}!!{RESET}  {issue}")
             issues.append(issue)
     else:
-        print(f"  {GREEN}OK{RESET}  {expected_user_content_domain} exposes signed /p/* gateway only")
+        print(f"  {GREEN}OK{RESET}  {expected_user_content_domain} exposes signed /t/* wildcard gateway only")
 
     print()
 

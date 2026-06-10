@@ -102,13 +102,13 @@ test.describe('Habit Garden example application preview', () => {
 
 		const payload = await response.json();
 		expect(payload.session_id).toBeTruthy();
-		expect(payload.preview_url).toContain('https://dev.openmatesusercontent.org/p/');
+		expect(payload.preview_url).toMatch(/^https:\/\/preview-[a-f0-9]{12}\.dev\.openmatesusercontent\.org\/t\//);
 		expect(payload.preview_url).not.toContain('e2b.dev');
 		expect(payload.preview_url).not.toContain('e2b.app');
 
 		const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
 		await expect(iframe).toBeVisible({ timeout: 180_000 });
-		await expect(iframe).toHaveAttribute('src', /https:\/\/dev\.openmatesusercontent\.org\/p\//, { timeout: 10_000 });
+		await expect(iframe).toHaveAttribute('src', /^https:\/\/preview-[a-f0-9]{12}\.dev\.openmatesusercontent\.org\/t\//, { timeout: 10_000 });
 		await expect(iframe).toHaveAttribute('sandbox', /allow-same-origin/, { timeout: 10_000 });
 		const frame = await iframe.contentFrame();
 		expect(frame, 'application preview iframe should have a frame context').toBeTruthy();

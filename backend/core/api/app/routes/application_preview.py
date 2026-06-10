@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import secrets
 import time
 import uuid
@@ -38,6 +39,7 @@ APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS = 30 * 60
 APPLICATION_PREVIEW_SESSION_TTL_SECONDS = APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS + 10 * 60
 LOCAL_PREVIEW_HOSTS = {"localhost", "127.0.0.1", "::1"}
 CLIENT_CONTENT_REQUIRED_CODE = "client_content_required"
+PREVIEW_HOST_LABEL_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 PayloadResolver = Callable[[str, Any, Any, Any, Any, Any], Awaitable[dict[str, Any]]]
 
 
@@ -365,6 +367,10 @@ def application_preview_session_key(session_id: str) -> str:
     return f"application_preview_session:{session_id}"
 
 
+def application_preview_host_key(preview_host: str) -> str:
+    return f"application_preview_host:{preview_host.lower()}"
+
+
 def calculate_preview_charge_credits(duration_seconds: float) -> int:
     if duration_seconds <= 0:
         return 0
@@ -378,6 +384,10 @@ def hash_preview_gateway_token(preview_token: str) -> str:
 
 def generate_preview_gateway_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def generate_preview_host_label() -> str:
+    return f"preview-{secrets.token_hex(6)}"
 
 
 def build_preview_session_record(
@@ -420,11 +430,33 @@ def application_preview_url(preview_origin: str, session_id: str, path: str = ""
     return application_preview_url_with_token(preview_origin, session_id, "", path)
 
 
-def application_preview_url_with_token(preview_origin: str, session_id: str, preview_token: str, path: str = "") -> str:
+def application_preview_url_with_token(
+    preview_origin: str,
+    session_id: str,
+    preview_token: str,
+    path: str = "",
+    *,
+    preview_host_label: str | None = None,
+) -> str:
     normalized_path = path.strip("/")
     token_segment = f"/{preview_token.strip('/')}" if preview_token else ""
     suffix = f"/{normalized_path}" if normalized_path else "/"
-    return f"{preview_origin}/p/{session_id}{token_segment}{suffix}"
+    preview_host = build_application_preview_host(preview_origin, preview_host_label or generate_preview_host_label())
+    scheme = urlparse(preview_origin).scheme
+    return f"{scheme}://{preview_host}/t{token_segment}{suffix}"
+
+
+def build_application_preview_host(preview_origin: str, preview_host_label: str) -> str:
+    parsed = urlparse(preview_origin)
+    hostname = (parsed.hostname or "").lower()
+    label = preview_host_label.strip().lower()
+    if not hostname or not PREVIEW_HOST_LABEL_PATTERN.fullmatch(label):
+        raise ApplicationPreviewConfigError("Preview host labels must be DNS-safe labels.")
+
+    preview_hostname = f"{label}.{hostname}"
+    port = _safe_port(parsed, "APPLICATION_PREVIEW_ORIGIN")
+    default_port = 443 if parsed.scheme == "https" else 80
+    return preview_hostname if port in {None, default_port} else f"{preview_hostname}:{port}"
 
 
 async def create_application_preview_session(
@@ -437,6 +469,7 @@ async def create_application_preview_session(
     preview_origin: str,
     now: float,
     preview_token: str | None = None,
+    preview_host_label: str | None = None,
 ) -> ApplicationPreviewStartResponse:
     if getattr(current_user, "credits", 0) < APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to start application preview")
@@ -451,10 +484,13 @@ async def create_application_preview_session(
         source_message_id=body.source_message_id,
     )
     token = preview_token or generate_preview_gateway_token()
-    preview_url = application_preview_url_with_token(preview_origin, session_id, token)
+    host_label = preview_host_label or generate_preview_host_label()
+    preview_host = build_application_preview_host(preview_origin, host_label)
+    preview_url = application_preview_url_with_token(preview_origin, session_id, token, preview_host_label=host_label)
     record.update(
         {
             "preview_token_hash": hash_preview_gateway_token(token),
+            "preview_host": preview_host,
             "requested_runtime": body.requested_runtime,
             "uses_client_shared_context": bool(body.shared_context),
             "events": [{"kind": "status", "text": "Queued application preview...", "timestamp": now}],
@@ -465,6 +501,11 @@ async def create_application_preview_session(
     await client.set(
         application_preview_session_key(session_id),
         json.dumps(record),
+        ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
+    )
+    await client.set(
+        application_preview_host_key(preview_host),
+        session_id,
         ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS,
     )
     return ApplicationPreviewStartResponse(session_id=session_id, preview_url=preview_url, status="queued")
@@ -482,6 +523,7 @@ async def create_application_preview_session_and_dispatch(
     task_sender: Any,
     now: float,
     preview_token: str | None = None,
+    preview_host_label: str | None = None,
 ) -> ApplicationPreviewStartResponse:
     response = await create_application_preview_session(
         cache_service=cache_service,
@@ -492,6 +534,7 @@ async def create_application_preview_session_and_dispatch(
         preview_origin=preview_origin,
         now=now,
         preview_token=preview_token,
+        preview_host_label=preview_host_label,
     )
     task_sender("code.run_application_preview", args=[session_id, worker_payload], queue="app_code")
     return response
