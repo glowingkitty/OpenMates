@@ -32,10 +32,13 @@ import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
+import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectionEmbedPreview.svelte";
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
@@ -43,6 +46,7 @@ import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchE
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
+import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
@@ -50,6 +54,7 @@ import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMe
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
+import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -1327,6 +1332,24 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "travel" && skillId === "price_calendar") {
+        const component = mount(TravelPriceCalendarEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            status: status as "processing" | "finished" | "error",
+            results,
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "travel" && skillId === "search_stays") {
         const component = mount(TravelStaysEmbedPreview, {
           target,
@@ -1424,7 +1447,10 @@ export class GroupRenderer implements EmbedRenderer {
       // Handle reminder.set-reminder skill
       if (
         appId === "reminder" &&
-        (skillId === "set_reminder" || skillId === "set-reminder")
+        (skillId === "set_reminder" ||
+          skillId === "set-reminder" ||
+          skillId === "list-reminders" ||
+          skillId === "cancel-reminder")
       ) {
         const component = mount(ReminderEmbedPreview, {
           target,
@@ -1478,6 +1504,54 @@ export class GroupRenderer implements EmbedRenderer {
             onFullscreen: handleFullscreen,
             inputEmbedIds:
               inputEmbedIdsGroup.length > 0 ? inputEmbedIdsGroup : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "music" && skillId === "generate") {
+        const component = mount(MusicGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            prompt: decodedContent?.prompt || "",
+            mode: decodedContent?.mode || "background",
+            model: decodedContent?.model || "",
+            durationSeconds: decodedContent?.duration_seconds,
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "videos" && skillId === "generate") {
+        const component = mount(VideoGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            prompt: decodedContent?.prompt || "",
+            model: decodedContent?.model || "",
+            durationSeconds: decodedContent?.duration_seconds,
+            resolution: decodedContent?.resolution || "",
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
           },
         });
         mountedComponents.set(target, component);
@@ -1616,6 +1690,25 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "nutrition" && skillId === "search_recipes") {
+        const component = mount(NutritionSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "REWE",
+            status: status as "processing" | "finished" | "error",
+            results,
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       // Handle electronics.search_components skill
       if (appId === "electronics" && skillId === "search_components") {
         const component = mount(ElectronicsSearchEmbedPreview, {
@@ -1648,6 +1741,31 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "weather" && skillId === "forecast") {
+        const component = mount(WeatherForecastEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            locationName:
+              decodedContent?.location?.name || decodedContent?.location_name || "",
+            provider: provider || "Weather",
+            status: status as
+              | "processing"
+              | "finished"
+              | "error"
+              | "cancelled",
+            results,
+            taskId,
+            skillTaskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },

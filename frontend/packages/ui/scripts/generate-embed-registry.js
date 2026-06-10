@@ -859,29 +859,23 @@ function main() {
   );
   const appSkillRendererSource = readFileSync(appSkillRendererPath, "utf-8");
 
-  // Extract routing blocks. Two patterns:
-  // 1. appId === "x" && skillId === "y"
-  // 2. appId === "x" && (skillId === "y" || skillId === "z")
-  const registeredRoutes = new Set();
-
-  // Pattern 1: direct appId && skillId
-  const routingPattern1 = /appId\s*===\s*"([^"]+)"\s*&&\s*skillId\s*===\s*"([^"]+)"/g;
-  let routeMatch;
-  while ((routeMatch = routingPattern1.exec(appSkillRendererSource)) !== null) {
-    registeredRoutes.add(`${routeMatch[1]}:${routeMatch[2]}`);
-  }
-
-  // Pattern 2: appId === "x" && (skillId === "y" || skillId === "z")
-  // Also catches: appId === "x" && \n (...skillId === "y" || skillId === "z")
-  const routingPattern2 =
-    /appId\s*===\s*"([^"]+)"\s*&&\s*\n?\s*\(?(?:skillId\s*===\s*"([^"]+)"(?:\s*\|\|\s*skillId\s*===\s*"([^"]+)")*)/g;
-  while ((routeMatch = routingPattern2.exec(appSkillRendererSource)) !== null) {
-    const appId = routeMatch[1];
-    // Capture all skillId alternatives from the match
-    for (let i = 2; i < routeMatch.length; i++) {
-      if (routeMatch[i]) registeredRoutes.add(`${appId}:${routeMatch[i]}`);
+  const extractAppSkillRoutes = (source) => {
+    const routes = new Set();
+    const conditionPattern = /appId\s*===\s*"([^"]+)"\s*&&\s*([\s\S]*?)\)\s*\{/g;
+    let routeMatch;
+    while ((routeMatch = conditionPattern.exec(source)) !== null) {
+      const appId = routeMatch[1];
+      const condition = routeMatch[2];
+      const skillPattern = /skillId\s*===\s*"([^"]+)"/g;
+      let skillMatch;
+      while ((skillMatch = skillPattern.exec(condition)) !== null) {
+        routes.add(`${appId}:${skillMatch[1]}`);
+      }
     }
-  }
+    return routes;
+  };
+
+  const registeredRoutes = extractAppSkillRoutes(appSkillRendererSource);
 
   // Also extract CHILD_TYPE_OVERRIDES from AppSkillUseRenderer — skills routed
   // via child type override (e.g. travel:get_flight → flight) don't need a
@@ -923,6 +917,37 @@ function main() {
       `[generate-embed-registry] ✓ All ${expectedRoutes.length} app-skill-use types have AppSkillUseRenderer routing`,
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Validate app-skill-use group routing. Any skill that has a specialized
+  // single-embed AppSkillUseRenderer route must have an equivalent specialized
+  // GroupRenderer route. Otherwise grouped results silently fall back to the
+  // legacy text card even though standalone embeds render correctly.
+  // -------------------------------------------------------------------------
+  const groupRegisteredRoutes = extractAppSkillRoutes(groupRendererSource);
+  const specializedExpectedRoutes = expectedRoutes.filter((r) =>
+    registeredRoutes.has(r),
+  );
+  const missingGroupRoutes = specializedExpectedRoutes.filter(
+    (r) => !groupRegisteredRoutes.has(r),
+  );
+  if (missingGroupRoutes.length > 0) {
+    console.error(
+      `\n[generate-embed-registry] ERROR: GroupRenderer app-skill-use routing is missing ${missingGroupRoutes.length} specialized route(s):`,
+    );
+    for (const route of missingGroupRoutes) {
+      console.error(
+        `  - "${route}" (add matching mountAppSkillUsePreview routing in GroupRenderer.ts)`,
+      );
+    }
+    console.error(
+      `\nStandalone app-skill embeds with specialized previews must render the same preview inside app-skill-use groups.\n`,
+    );
+    process.exit(1);
+  }
+  console.log(
+    `[generate-embed-registry] ✓ All ${specializedExpectedRoutes.length} specialized app-skill-use routes have GroupRenderer routing`,
+  );
 
   // -------------------------------------------------------------------------
   // Validate text renderers — fail if an embed type has no text renderer
