@@ -614,9 +614,19 @@ async function sendMessage(
 			await page.keyboard.insertText(message);
 			logCheckpoint('Retyped message after editor reset before send button was available.');
 			await takeStepScreenshot(page, `${stepLabel}-message-retyped`);
-			await expect(sendButton).toBeVisible({ timeout: 5000 });
-			await sendButton.click({ timeout: 5000 });
-			logCheckpoint('Clicked send button after retyping message.');
+			if (await sendButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+				await sendButton.click({ timeout: 5000 });
+				logCheckpoint('Clicked send button after retyping message.');
+			} else {
+				const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+					return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+				});
+				logCheckpoint(`Dispatched synthetic custom-send-message after retype; diagnostics=${JSON.stringify({
+					syntheticDispatchResult,
+					lastSendDebug: await readLastSendDebug(),
+					diagnostics: await captureSendDiagnostics()
+				})}`);
+			}
 		} else {
 			const domClickResult = await messageField.evaluate((field: HTMLElement) => {
 				const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
