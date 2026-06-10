@@ -210,6 +210,18 @@ function extractEmbedIdFromText(content: unknown): string | null {
 	return null;
 }
 
+function readEmbedContent(embedData: any): Record<string, unknown> {
+	const rawContent = embedData?.content || embedData?.data || {};
+	if (typeof rawContent === 'string') {
+		try {
+			return JSON.parse(rawContent);
+		} catch {
+			return {};
+		}
+	}
+	return rawContent && typeof rawContent === 'object' ? rawContent : {};
+}
+
 function clearCliSyncCache(): void {
 	if (fs.existsSync(CLI_SYNC_CACHE_FILE)) {
 		fs.unlinkSync(CLI_SYNC_CACHE_FILE);
@@ -399,17 +411,28 @@ test.describe('CLI Images', () => {
 
 		let embedData: any;
 		// Image generation is async — the embed may still be processing.
-		// Poll until the embed transitions to an image/generate type.
+		// Poll until the decrypted embed content contains image-generation metadata.
 		for (let _attempt = 0; _attempt < 8; _attempt++) {
 			if (embedResult.code === 0) {
 				try {
 					embedData = JSON.parse(embedResult.stdout);
-					const currentType = String(embedData.embed_type || embedData.type || '');
-					if (currentType.match(/image|generate/i)) {
+					const currentEnvelopeType = String(embedData.embed_type || embedData.type || '');
+					const currentContent = readEmbedContent(embedData);
+					const currentContentType = String(currentContent.type || '');
+					const currentAppId = String(currentContent.app_id || '');
+					const currentSkillId = String(currentContent.skill_id || '');
+					if (
+						currentEnvelopeType === 'app_skill_use'
+						&& currentContentType.match(/image/i)
+						&& currentAppId === 'images'
+						&& currentSkillId.match(/generate/i)
+					) {
 						break;
 					}
 					logCheckpoint(
-						`Embed type is "${currentType}" (attempt ${_attempt + 1}/8) — waiting for image generation...`
+						`Embed metadata is envelope="${currentEnvelopeType}", content="${currentContentType}", ` +
+						`app="${currentAppId}", skill="${currentSkillId}" ` +
+						`(attempt ${_attempt + 1}/8) — waiting for image generation...`
 					);
 				} catch (_error) {
 					embedData = undefined;
@@ -437,13 +460,21 @@ test.describe('CLI Images', () => {
 		const resolvedId = String(embedData.embed_id || embedData.id || '');
 		expect(resolvedId.length).toBeGreaterThan(0);
 
-		// The decrypted content should contain the generation prompt
-		const _embedContent = embedData.content || embedData.data || {};
-		const embedType = String(embedData.embed_type || embedData.type || '');
-		logCheckpoint(`Embed type: ${embedType}`);
+		// The decrypted content should contain image-generation metadata.
+		const embedContent = readEmbedContent(embedData);
+		const embedEnvelopeType = String(embedData.embed_type || embedData.type || '');
+		const embedContentType = String(embedContent.type || '');
+		const embedAppId = String(embedContent.app_id || '');
+		const embedSkillId = String(embedContent.skill_id || '');
+		logCheckpoint(
+			`Embed metadata: envelope="${embedEnvelopeType}", content="${embedContentType}", app="${embedAppId}", skill="${embedSkillId}"`
+		);
 
-		// verify it's an image embed type
-		expect(embedType).toMatch(/image|generate/i);
+		// Skill embeds use the stable app_skill_use envelope; image specifics live in decrypted content.
+		expect(embedEnvelopeType).toBe('app_skill_use');
+		expect(embedContentType).toMatch(/image/i);
+		expect(embedAppId).toBe('images');
+		expect(embedSkillId).toMatch(/generate/i);
 
 		logCheckpoint('Image embed successfully decrypted via zero-knowledge pipeline!');
 		await takeScreenshot(page, 'embed-decrypted');
