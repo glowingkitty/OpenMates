@@ -221,7 +221,13 @@
         on:closeSettings={() => dispatch('closeSettings')}
     />
 {:else if routeInfo.type === 'settings_memories_category'}
-    <AppSettingsMemoriesCategory appId={routeInfo.appId} categoryId={routeInfo.categoryId} on:openSettings={handleOpenSettings} />
+    <AppSettingsMemoriesCategory
+        appId={routeInfo.appId}
+        categoryId={routeInfo.categoryId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
 {:else if createRouteInfo}
     {@const route = createRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
