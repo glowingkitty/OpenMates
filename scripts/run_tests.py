@@ -5046,15 +5046,22 @@ class TestOrchestrator:
 
         minimum = int(os.getenv("OPENMATES_E2E_CREDIT_MINIMUM", str(E2E_CREDIT_GUARD_DEFAULT_MINIMUM)))
         target = int(os.getenv("OPENMATES_E2E_CREDIT_TARGET", str(E2E_CREDIT_GUARD_DEFAULT_TARGET)))
-        script_path = "/app/backend/scripts/top_up_test_account_credits.py"
+        script_path = PROJECT_ROOT / "backend" / "scripts" / "top_up_test_account_credits.py"
+        try:
+            script_source = script_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            detail = f"credit guard script unavailable: {exc}"
+            _log(f"E2E credit guard failed: {detail}", "ERROR")
+            return f"E2E credit guard failed: {detail}"
+
         proc = subprocess.run(
             [
-                "docker", "exec", "-i", "api", "python", script_path,
-                "--accounts-json", "-",
+                "docker", "exec", "-i", "api", "python", "-",
+                "--accounts-json", json.dumps(accounts),
                 "--minimum", str(minimum),
                 "--target", str(target),
             ],
-            input=json.dumps(accounts),
+            input=script_source,
             capture_output=True,
             text=True,
             timeout=180,
