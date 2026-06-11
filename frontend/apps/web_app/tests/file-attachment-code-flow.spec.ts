@@ -81,6 +81,19 @@ async function attachFiles(
 	logCheckpoint('Files attached via setInputFiles().');
 }
 
+async function openEmbedFullscreen(page: any, embed: any): Promise<any> {
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	await embed.scrollIntoViewIfNeeded();
+	await embed.click();
+	if (await fullscreenOverlay.isVisible({ timeout: 5000 }).catch(() => false)) {
+		return fullscreenOverlay;
+	}
+
+	await embed.click();
+	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
+	return fullscreenOverlay;
+}
+
 test('uploaded Python file renders as code embed without JSON leakage', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -178,9 +191,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	);
 	await expect(chatCodeEmbed).toBeVisible({ timeout: 20000 });
 
-	await chatCodeEmbed.click();
-	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
-	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
+	const fullscreenOverlay = await openEmbedFullscreen(page, chatCodeEmbed);
 	await fullscreenOverlay.getByTestId('embed-run-button').click();
 
 	const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
@@ -225,9 +236,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(reloadedCodeEmbed).toBeVisible({ timeout: 30000 });
 	await expect(reloadedCodeEmbed).toContainText('Hello, World!', { timeout: 30000 });
 	await expect(reloadedCodeEmbed).not.toContainText('def greet');
-	await reloadedCodeEmbed.click();
-	const reloadedFullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
-	await expect(reloadedFullscreenOverlay).toBeVisible({ timeout: 15000 });
+	const reloadedFullscreenOverlay = await openEmbedFullscreen(page, reloadedCodeEmbed);
 	await expect(reloadedFullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
 	await reloadedFullscreenOverlay.getByTestId('embed-run-button').click();
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toBeVisible({ timeout: 10000 });
