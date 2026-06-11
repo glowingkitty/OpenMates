@@ -1025,6 +1025,10 @@ struct SettingsInterfaceSubPage: View {
                 .padding(.vertical, .spacing6)
                 .background(Color.grey0)
 
+                Color.clear
+                    .frame(height: 0)
+                    .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
+
                 dest.view
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
