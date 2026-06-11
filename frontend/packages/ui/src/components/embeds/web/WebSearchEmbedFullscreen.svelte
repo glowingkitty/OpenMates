@@ -86,6 +86,32 @@
     onShowChat?: () => void;
   }
 
+  type EmbedIdsValue = string | string[] | undefined;
+
+  function normalizeEmbedIds(value: unknown): EmbedIdsValue {
+    if (Array.isArray(value)) {
+      const ids = value.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+      return ids.length > 0 ? ids : undefined;
+    }
+
+    if (typeof value !== 'string') return undefined;
+
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '[]' || trimmed === 'null' || trimmed === 'undefined') return undefined;
+
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return normalizeEmbedIds(parsed);
+      } catch {
+        // Fall through to legacy pipe-separated parsing below.
+      }
+    }
+
+    const ids = trimmed.split('|').map((id) => id.trim()).filter(Boolean);
+    return ids.length > 0 ? ids : undefined;
+  }
+
   let {
     data,
     onClose,
@@ -101,14 +127,14 @@
 
   // Extract fields from data prop
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
-  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let embedIds = $derived(normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids));
   let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   // Local reactive state for streaming updates
   let localQuery = $state("");
   let localProvider = $state("Brave Search");
-  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
-  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
+  let embedIdsOverride = $state<EmbedIdsValue | null>(null);
+  let embedIdsValue = $derived(embedIdsOverride === null ? embedIds : embedIdsOverride);
   let localStatus = $state<"processing" | "finished" | "error" | "cancelled">(
     "finished",
   );
@@ -278,7 +304,7 @@
     const c = data.decodedContent;
     if (typeof c.query === "string") localQuery = c.query;
     if (typeof c.provider === "string") localProvider = c.provider;
-    if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
+    if ('embed_ids' in c) embedIdsOverride = normalizeEmbedIds(c.embed_ids);
     if (typeof c.error === "string") localErrorMessage = c.error;
   }
 </script>
@@ -357,7 +383,7 @@
       />
     {:else}
       <WebsiteEmbedFullscreen
-        data={{ decodedContent: nav.result }}
+        data={{ decodedContent: nav.result, highlightQuoteText: data.highlightQuoteText }}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
         hasPreviousEmbed={nav.hasPrevious}
