@@ -37,10 +37,15 @@
     let chatExamples = $derived(getExampleChatsForContentEmbed(appId, contentTypeId));
 
     function openExampleChat(chat: Chat) {
-        activeChatStore.setActiveChat(chat.chat_id);
+        const shouldCloseSettings = get(isMobileView);
+        if (shouldCloseSettings) {
+            activeChatStore.setActiveChat(chat.chat_id);
+        } else {
+            activeChatStore.setWithoutHashUpdate(chat.chat_id);
+        }
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
-        if (get(isMobileView)) {
+        if (shouldCloseSettings) {
             dispatch('closeSettings');
         }
     }

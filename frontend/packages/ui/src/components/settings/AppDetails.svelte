@@ -83,7 +83,7 @@
 
     function contentToAppMetadata(content: ContentEmbedCatalogItem, appId: string, app: AppMetadata): AppMetadata {
         return {
-            id: content.contentTypeId,
+            id: appId,
             name: content.name,
             description: content.description,
             icon_image: `${content.icon || appId}.svg`,
