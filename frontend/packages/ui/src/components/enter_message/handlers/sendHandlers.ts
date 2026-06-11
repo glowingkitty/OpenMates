@@ -37,6 +37,7 @@ import {
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
+import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -1256,12 +1257,13 @@ export async function handleSend(
       }
     }
 
-    const isUsingDraftChat = Boolean(
-      draftState.currentChatId &&
-        chatIdToUse === draftState.currentChatId &&
-        existingChatCheck &&
-        existingChatHasUsableKey,
-    );
+    const isUsingDraftChat = shouldDispatchDraftChatAsNewChat({
+      currentChatId,
+      draftChatId: draftState.currentChatId,
+      chatIdToUse,
+      existingChat: existingChatCheck,
+      existingChatHasUsableKey,
+    });
 
     // Check if we're dealing with a temporary chat ID (not a real chat in local storage)
     // This happens when ActiveChat pre-allocates a temporaryChatId for the new-chat UI.

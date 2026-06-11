@@ -42,7 +42,7 @@
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
     /** Image results array (for preview thumbnails) */
-    results?: ImageResult[];
+    results?: unknown;
     /** JSON fallback for TOON transports that flatten nested arrays poorly */
     previewResultsJson?: string;
     /** Task ID for cancellation */
@@ -76,7 +76,7 @@
     localQuery       = queryProp       || '';
     localProvider    = providerProp    || 'Brave';
     localStatus      = statusProp      || 'processing';
-    localResults     = resultsProp.length > 0 ? resultsProp : parsePreviewResultsJson(previewResultsJsonProp);
+    localResults     = normalizePreviewResults(resultsProp, previewResultsJsonProp);
     localTaskId      = taskIdProp;
   });
 
@@ -139,6 +139,13 @@
     }
   }
 
+  function normalizePreviewResults(resultsValue: unknown, fallbackJson: unknown): ImageResult[] {
+    if (Array.isArray(resultsValue) && resultsValue.length > 0) {
+      return resultsValue as ImageResult[];
+    }
+    return parsePreviewResultsJson(fallbackJson);
+  }
+
   /**
    * Handle embed data updates from server (processing -> finished transition).
    * UnifiedEmbedPreview calls this when an embedUpdated event arrives.
@@ -155,9 +162,12 @@
       const c = data.decodedContent as Record<string, unknown>;
       if (c.query)    localQuery    = c.query    as string;
       if (c.provider) localProvider = c.provider as string;
-      const previewResults = c.results || c.preview_results || c.preview_thumbnails || parsePreviewResultsJson(c.preview_results_json);
-      if (Array.isArray(previewResults) && (previewResults as unknown[]).length > 0) {
-        localResults = previewResults as ImageResult[];
+      const previewResults = normalizePreviewResults(
+        c.results || c.preview_results || c.preview_thumbnails,
+        c.preview_results_json
+      );
+      if (previewResults.length > 0) {
+        localResults = previewResults;
       }
     }
   }
