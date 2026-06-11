@@ -417,6 +417,8 @@ enum AppStrings {
     static var report: String { L("common.report") }
     static var send: String { L("common.send") }
     static var share: String { L("common.share") }
+    static var shareChat: String { L("settings.share.share_chat") }
+    static var sharingChatStatus: String { L("settings.share.sharing_chat_status") }
     static var pin: String { L("common.pin") }
     static var unpin: String { L("common.unpin") }
     static var archive: String { L("common.archive") }

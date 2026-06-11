@@ -160,6 +160,11 @@ chats:
       nullable: true
       note: "[Vault-Encrypted] Chat encryption key for community-shared chats, encrypted with shared vault key (shared-content-metadata). Only populated when share_with_community = true. Server can decrypt for demo chat approval. This allows admins to approve demo chats without needing to open the chat first."
 
+    encrypted_shared_short_url:
+      type: text
+      nullable: true
+      note: "[Client-Encrypted] Full durable short share URL, encrypted with the chat key. Includes the fragment shortKey, so it must never be stored in plaintext server metadata. Used by owners to reopen the share UI and copy the existing share link / QR code."
+
     encrypted_settings_memories_suggestions:
       type: text
       nullable: true

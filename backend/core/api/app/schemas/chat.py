@@ -104,6 +104,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_follow_up_request_suggestions: Optional[str] = None  # Encrypted array of 6 follow-up suggestions (encrypted as base64 string with chat-specific key)
     encrypted_top_recommended_apps_for_chat: Optional[str] = None  # Encrypted array of recommended app IDs for this chat
     encrypted_quick_tip_slugs: Optional[str] = None  # Encrypted array of selected product quick tip slugs
+    encrypted_shared_short_url: Optional[str] = None  # Encrypted owner share URL for reopening copy/QR UI
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
     pinned: Optional[bool] = None  # Whether this chat is pinned

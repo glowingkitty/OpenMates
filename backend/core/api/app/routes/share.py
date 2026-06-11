@@ -62,6 +62,7 @@ class ShareChatMetadataUpdate(BaseModel):
     share_highlights: Optional[bool] = None  # Whether shared chat viewers may receive encrypted highlights/comments
     share_with_community: Optional[bool] = None  # Whether to email the share link to admin for community consideration
     share_link: Optional[str] = None  # Full share link with encryption key (for community sharing email)
+    encrypted_shared_short_url: Optional[str] = None  # Client-encrypted /s/<token>#<shortKey> for owner share UI reuse
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -638,6 +639,12 @@ async def update_share_metadata(
                 key_name=shared_vault_key
             )
             updates["shared_encrypted_follow_up_suggestions"] = encrypted_follow_ups
+
+        payload_fields_set = getattr(payload, "model_fields_set", None)
+        if payload_fields_set is None:
+            payload_fields_set = getattr(payload, "__fields_set__", set())
+        if "encrypted_shared_short_url" in payload_fields_set:
+            updates["encrypted_shared_short_url"] = payload.encrypted_shared_short_url
         
         # Update sharing status: set is_shared=true and is_private=false when sharing
         if payload.is_shared is not None:
@@ -667,7 +674,7 @@ async def update_share_metadata(
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private,share_pii,share_highlights'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights'
             }
             updated_item = await directus_service.update_item(
                 "chats",
@@ -826,10 +833,39 @@ async def unshare_chat(
             "is_shared": False,
             "share_with_community": False,
             "shared_encrypted_title": None,
-            "shared_encrypted_summary": None
+            "shared_encrypted_summary": None,
+            "shared_encrypted_category": None,
+            "shared_encrypted_icon": None,
+            "shared_encrypted_follow_up_suggestions": None,
+            "encrypted_shared_short_url": None,
         }
         
         await directus_service.update_item("chats", chat_id, updates)
+        try:
+            now = int(time.time())
+            short_links = await directus_service.get_items(
+                SHORT_URL_COLLECTION,
+                params={
+                    "filter[content_type][_eq]": "chat",
+                    "filter[content_id][_eq]": chat_id,
+                    "filter[revoked_at][_null]": True,
+                    "fields": "id",
+                    "limit": -1,
+                },
+                admin_required=True,
+            )
+            for short_link in short_links or []:
+                short_link_id = short_link.get("id")
+                if short_link_id:
+                    await directus_service.update_item(
+                        SHORT_URL_COLLECTION,
+                        short_link_id,
+                        {"revoked_at": now, "updated_at": now},
+                        admin_required=True,
+                    )
+        except Exception as exc:
+            logger.error("Failed to revoke short links for unshared chat %s: %s", chat_id, exc, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to revoke short links")
         logger.info(f"Unshared chat {chat_id}")
         
         return {"success": True, "chat_id": chat_id}
@@ -1441,7 +1477,7 @@ def _load_og_font(size: int, bold: bool = False) -> Any:
     return ImageFont.load_default()
 
 
-def _draw_lock_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, int, int]) -> None:
+def _draw_lock_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:
     shackle_width = int(size * 0.56)
     shackle_height = int(size * 0.44)
     body_width = int(size * 0.68)
@@ -1461,6 +1497,31 @@ def _draw_lock_icon(draw: Any, center_x: int, center_y: int, size: int, color: t
     draw.rounded_rectangle((body_left, body_top, body_right, body_bottom), radius=size // 12, fill=color)
 
 
+def _draw_chat_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:
+    bubble_width = int(size * 0.92)
+    bubble_height = int(size * 0.66)
+    left = center_x - bubble_width // 2
+    top = center_y - bubble_height // 2
+    right = center_x + bubble_width // 2
+    bottom = center_y + bubble_height // 2
+    radius = max(10, size // 7)
+    stroke = max(5, size // 15)
+    draw.rounded_rectangle((left, top, right, bottom), radius=radius, outline=color, width=stroke)
+    tail = [
+        (right - int(size * 0.22), bottom - stroke),
+        (right - int(size * 0.08), bottom + int(size * 0.18)),
+        (right - int(size * 0.36), bottom - stroke),
+    ]
+    draw.line(tail, fill=color, width=stroke, joint="curve")
+
+
+def _draw_og_icon(draw: Any, center_x: int, center_y: int, size: int, metadata: Dict[str, Any], color: tuple[int, ...]) -> None:
+    if metadata.get("password_protected"):
+        _draw_lock_icon(draw, center_x, center_y, size, color)
+        return
+    _draw_chat_icon(draw, center_x, center_y, size, color)
+
+
 def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     import io
     from PIL import Image, ImageDraw
@@ -1478,44 +1539,51 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
             vertical = 0.92 + 0.08 * (1 - y / OG_IMAGE_HEIGHT)
             pixels[x, y] = tuple(max(0, min(255, int(component * vertical))) for component in color)
 
-    draw = ImageDraw.Draw(image)
-    white = (255, 255, 255)
-    soft_white = (255, 255, 255, 210)
-    title_font = _load_og_font(64, bold=True)
-    summary_font = _load_og_font(31)
+    image = image.convert("RGBA")
+    overlay = Image.new("RGBA", (OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    white = (255, 255, 255, 255)
+    soft_white = (255, 255, 255, 220)
+    muted_white = (255, 255, 255, 92)
+    title_font = _load_og_font(78, bold=True)
+    summary_font = _load_og_font(36)
     brand_font = _load_og_font(28, bold=True)
 
-    draw.ellipse((92, 110, 292, 310), fill=(255, 255, 255, 45), outline=(255, 255, 255, 80), width=3)
-    draw.ellipse((908, 318, 1130, 540), fill=(255, 255, 255, 42), outline=(255, 255, 255, 78), width=3)
-
     icon_center_x = OG_IMAGE_WIDTH // 2
-    icon_center_y = 158
-    draw.ellipse((icon_center_x - 54, icon_center_y - 54, icon_center_x + 54, icon_center_y + 54), fill=(255, 255, 255, 40), outline=(255, 255, 255, 90), width=2)
-    if metadata.get("password_protected"):
-        _draw_lock_icon(draw, icon_center_x, icon_center_y, 78, white)
-    else:
-        icon_font = _load_og_font(52, bold=True)
-        icon_label = str(metadata.get("icon") or "chat")[:1].upper()
-        bbox = draw.textbbox((0, 0), icon_label, font=icon_font)
-        draw.text((icon_center_x - (bbox[2] - bbox[0]) / 2, icon_center_y - (bbox[3] - bbox[1]) / 2 - 4), icon_label, fill=white, font=icon_font)
+    icon_center_y = 128
+
+    # ChatHeader.svelte uses large decorative side icons when no image bubbles
+    # are available. Keep this path server-side only; do not fetch arbitrary
+    # external image URLs from crawler-triggered requests.
+    _draw_og_icon(draw, 145, 332, 190, metadata, muted_white)
+    _draw_og_icon(draw, OG_IMAGE_WIDTH - 145, 332, 190, metadata, muted_white)
+
+    draw.ellipse(
+        (icon_center_x - 60, icon_center_y - 60, icon_center_x + 60, icon_center_y + 60),
+        fill=(255, 255, 255, 38),
+        outline=(255, 255, 255, 105),
+        width=3,
+    )
+    _draw_og_icon(draw, icon_center_x, icon_center_y, 82, metadata, white)
 
     title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 900, 2)
-    y = 245
+    y = 220
     for line in title_lines:
         bbox = draw.textbbox((0, 0), line, font=title_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=white, font=title_font)
-        y += 76
+        y += 88
 
-    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 840, 3)
-    y += 14
+    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 820, 3)
+    y += 18
     for line in summary_lines:
         bbox = draw.textbbox((0, 0), line, font=summary_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
-        y += 42
+        y += 48
 
     draw.text((54, OG_IMAGE_HEIGHT - 68), "OpenMates", fill=white, font=brand_font)
+    image = Image.alpha_composite(image, overlay)
     buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
+    image.convert("RGB").save(buffer, format="PNG")
     return buffer.getvalue()
 
 

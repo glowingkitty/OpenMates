@@ -134,6 +134,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
 	await generateLinkButton.click();
 	logCheckpoint('Clicked "Share chat" button.');
+	await expect(page.getByTestId('share-generation-status')).toContainText(/Sharing chat/i, {
+		timeout: 1000
+	});
 
 	// ── Step 9: Verify link generated step ────────────────────────────────
 	const copyLinkButton = page.locator('[data-testid="share-copy-link"]');
@@ -235,6 +238,16 @@ test('creates and shares a chat link with QR code and short link', async ({
 		screenshot: 'docs/images/user-guide/sharing/short-link-generated.jpg'
 	});
 
+	await page.keyboard.press('Escape');
+	await expect(copyLinkButton).not.toBeVisible({ timeout: 5000 });
+	await shareButton.click();
+	await expect(copyLinkButton).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('[data-testid="share-short-link-url"]')).toHaveText(shortLinkUrl, {
+		timeout: 5000
+	});
+	await expect(qrCode).toBeVisible({ timeout: 5000 });
+	logCheckpoint('Reopening share panel restored existing short link and QR code directly.');
+
 	// ── Step 13: Test copy link ───────────────────────────────────────────
 	await copyLinkButton.click();
 	// The copied state adds a .copied class
@@ -257,11 +270,37 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await durationOptions.nth(1).click(); // 1 minute
 	logCheckpoint('Selected 1-minute expiration.');
 
+	await page.route('**/v1/share/short-url', async (route: any) => {
+		if (route.request().method() !== 'POST') {
+			await route.continue();
+			return;
+		}
+
+		await page.waitForTimeout(7000);
+		try {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ success: true, expires_at: null })
+			});
+		} catch (_error) {
+			// The app aborts this request after 5 seconds and falls back to the long link.
+		}
+	});
+
 	await generateLinkButton.click();
 	logCheckpoint('Clicked "Share chat" with expiration.');
+	await expect(page.getByTestId('share-generation-status')).toContainText(/Sharing chat/i, {
+		timeout: 1000
+	});
 
 	// Verify link regenerated
 	await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('share-short-link-error')).toContainText(/took too long/i, {
+		timeout: 8000
+	});
+	await expect(page.locator('[data-share-url-kind="long"]')).toBeVisible({ timeout: 5000 });
+	await page.unroute('**/v1/share/short-url');
 
 	// Verify expiration info
 	const expirationInfo = page.locator('[data-testid="share-expiration-info"]');

@@ -16,6 +16,7 @@ scope:
     - No-expiration short links by default, unless the user selects a share expiration.
     - Chat-specific OG title, description, and generated image for non-password-protected shared chats.
     - Generic password-protected OG title and lock-image preview for password-protected shared chats.
+    - Reopening the share UI for an already-shared owned chat restores the encrypted short URL and QR code directly.
     - Playwright coverage for shared chat creation and shared embed creation using short links.
   out:
     - Custom short domain rollout beyond preserving existing `VITE_SHORT_URL_DOMAIN` support.
@@ -105,6 +106,18 @@ scenarios:
       - The copied link and QR code use the long `/share/...#key=...` URL.
       - The UI indicates that a long offline link was used because short-link creation needs a network connection.
 
+  - id: S-8
+    title: Owner reopens share UI for an already-shared chat
+    given:
+      - Alice previously shared an owned encrypted chat and received `/s/<token>#<shortKey>`.
+      - The full short URL was stored as `encrypted_shared_short_url` encrypted with the chat key.
+    when:
+      - Alice opens the share settings for the same chat again.
+    then:
+      - The share panel opens directly on the generated-link step.
+      - The copy button and QR code use the same stored short URL.
+      - The `#shortKey` fragment is never stored in plaintext server metadata.
+
   - id: S-2
     title: Owner shares a chat with explicit expiration
     given:
@@ -188,6 +201,9 @@ acceptance_criteria:
   - id: AC-8
     scenario: S-7
     text: Offline share generation falls back to the locally generated long URL for copy and QR surfaces.
+  - id: AC-9
+    scenario: S-8
+    text: Already-shared owned chats restore the encrypted stored short URL and show copy/QR immediately on reopening the share UI.
 
 contracts:
   api:
@@ -218,16 +234,19 @@ contracts:
   data:
     - Add a durable `share_short_links` collection/table with token, encrypted_url, content_type, content_id, owner hash, password_protected, expires_at, revoked_at, created_at, and updated_at.
     - Store only opaque encrypted_url; the server must not store the fragment secret or decrypted long URL.
+    - Store the owner-facing full short URL, including `#shortKey`, only as `encrypted_shared_short_url` encrypted with the chat key.
     - Short-link records for no-expiration shares use null expires_at.
     - Expired, revoked, unshared, or deleted target content must not reveal private metadata.
   ui_states:
     - Share generated success shows/copies the short URL.
+    - Already-shared chats with `encrypted_shared_short_url` skip the configuration step and show copy/QR immediately.
     - QR code uses the short URL.
     - If durable short-link creation fails because the browser is offline or the API is unreachable, the UI visibly falls back to the long URL.
     - If durable short-link creation fails for validation or permission reasons, the UI shows a visible error and does not silently copy the long URL.
     - The long URL may be kept only in memory as the encrypted resolver target, not displayed as the primary share output.
   privacy_security:
     - URL fragment secrets are never sent to backend routes or included in OG HTML.
+    - The owner-facing stored short URL includes a fragment secret and must remain client-encrypted at rest.
     - Password-protected shares never expose chat title, summary, category, icon, or preview images in crawler-visible metadata.
     - Non-password OG metadata is limited to title, summary, category, icon, and future explicitly shared preview images from the owner-controlled share metadata path.
     - The resolver must not distinguish missing/private/unshared targets in user-facing error copy beyond generic invalid or expired states.
@@ -303,6 +322,7 @@ tests:
       - AC-3
       - AC-4
       - AC-5
+      - AC-9
     assertions:
       - generated chat copy link text starts with `/s/` or same-origin `/s/` URL
       - generated chat copy link does not include `/share/chat/`
@@ -312,6 +332,7 @@ tests:
       - password-protected chat preview metadata uses the generic protected OG title
       - non-password chat preview metadata uses the chat title and summary
       - non-password chat preview metadata points to a generated PNG OG image
+      - reopening the share panel for the same chat restores the existing short link and QR code directly
     red_phase:
       required: true
       expected: fail

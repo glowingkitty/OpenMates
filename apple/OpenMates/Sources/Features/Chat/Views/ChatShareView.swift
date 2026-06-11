@@ -120,12 +120,20 @@ struct ChatShareView: View {
                     }
 
                     Button(action: generateLink) {
-                        Text(isGenerating ? AppStrings.loading : "Generate Link")
+                        Text(isGenerating ? AppStrings.sharingChatStatus : AppStrings.shareChat)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(OMPrimaryButtonStyle())
                     .disabled(isGenerating || (usePassword && password.isEmpty))
                     .accessibilityIdentifier("share-generate-link")
+
+                    if isGenerating {
+                        Text(AppStrings.sharingChatStatus)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .accessibilityIdentifier("share-generation-status")
+                    }
 
                     if let error {
                         Text(error).font(.omXs).foregroundStyle(Color.error)
@@ -144,6 +152,7 @@ struct ChatShareView: View {
         Task {
             do {
                 if let fixtureURL = ProcessInfo.processInfo.environment["UI_TEST_CHAT_SHARE_URL"], !fixtureURL.isEmpty {
+                    try? await Task.sleep(nanoseconds: 300_000_000)
                     shareLink = fixtureURL
                     isGenerating = false
                     return

@@ -110,6 +110,9 @@
     let generatedSharePasswordProtected = $state(false);
     let isLinkGenerated = $state(false);
     let isCopied = $state(false);
+    let isPrimaryShareLinkGenerating = $state(false);
+    let restoredSharedLinkChatId = $state<string | null>(null);
+    let autoRestoreSuppressedChatId = $state<string | null>(null);
 
     // QR code SVG content
     let qrCodeSvg = $state('');
@@ -133,6 +136,7 @@
     let shortLinkExpiresAt = $state(0);
     let shortLinkCountdown = $state('');
     let shortLinkCountdownInterval: ReturnType<typeof setInterval> | null = null;
+    const PRIMARY_SHORT_LINK_TIMEOUT_MS = 5000;
 
     // Viewport dimensions for responsive QR code sizing
     let viewportWidth = $state(0);
@@ -211,12 +215,19 @@
 
             // onFullscreen is a no-op in the share preview — there is no active chat to
             // dispatch the fullscreen event to from within the settings panel.
-            return await embedPreviewRegistry.resolve({
+            const resolvedPreview = await embedPreviewRegistry.resolve({
                 embedId,
                 embedData: embedData as unknown as Record<string, unknown>,
                 decodedContent: decodedContent as Record<string, unknown>,
                 onFullscreen: () => {},
             });
+            if (!resolvedPreview) {
+                return null;
+            }
+            return {
+                component: resolvedPreview.component as Component,
+                props: resolvedPreview.props,
+            };
         } catch (error) {
             console.error('[SettingsShare] Error loading embed preview:', error);
             return null;
@@ -350,6 +361,9 @@
                     !!message.encrypted_pii_mappings
                 );
                 console.debug('[SettingsShare] Loaded currentChat:', chatId, chat ? 'found' : 'not found', 'isLinkGenerated:', isLinkGenerated);
+                if (chat) {
+                    void restoreExistingSharedLink(chat, chatId);
+                }
             } catch (error) {
                 console.error('[SettingsShare] Error loading currentChat:', error);
                 currentChat = null;
@@ -410,6 +424,16 @@
      * For owned chats: uses configured settings (password, expiration)
      */
     async function generateLink() {
+        if (isPrimaryShareLinkGenerating) return;
+        isPrimaryShareLinkGenerating = true;
+        try {
+            await generateLinkInternal();
+        } finally {
+            isPrimaryShareLinkGenerating = false;
+        }
+    }
+
+    async function generateLinkInternal() {
         resetShortLinkState();
         // Handle embed sharing
         if (isEmbedSharing) {
@@ -613,7 +637,10 @@
             // Mark chat as shared in IndexedDB (only for owned chats)
             // Don't mark shared chats as shared since user doesn't own them
             if (isOwnedByUser && !isPublicChatType) {
-                await markChatAsShared(currentChatId);
+                await markChatAsShared(
+                    currentChatId,
+                    shareLinkResult.usedLongFallback ? null : generatedLink
+                );
                 
                 // Queue OG metadata update to server (retry if offline)
                 // Only update OG metadata for chats the user owns
@@ -640,9 +667,18 @@
             return { url: longShareLink, usedLongFallback: false };
         }
 
+        let didTimeout = false;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
         try {
             const { token, shortKey } = generateShortUrlParts();
             const encryptedBlob = await encryptShareUrl(longShareLink, token, shortKey);
+            const controller = new AbortController();
+            timeoutId = setTimeout(() => {
+                didTimeout = true;
+                controller.abort();
+            }, PRIMARY_SHORT_LINK_TIMEOUT_MS);
+
             const response = await fetch(getApiEndpoint('/v1/share/short-url'), {
                 method: 'POST',
                 headers: {
@@ -659,6 +695,7 @@
                     ttl_seconds: ttlSeconds > 0 ? ttlSeconds : null,
                 }),
                 credentials: 'include',
+                signal: controller.signal,
             });
 
             if (!response.ok) {
@@ -678,15 +715,21 @@
         } catch (error) {
             if (typeof navigator !== 'undefined' && navigator.onLine === false) {
                 console.warn('[SettingsShare] Offline while creating short link; using long share URL fallback');
-                shortLinkError = 'Short link unavailable while offline. Copy and QR code use the long encrypted link.';
+                shortLinkError = $text('settings.share.short_link_fallback_offline');
                 return { url: longShareLink, usedLongFallback: true };
             }
-            if (error instanceof TypeError) {
-                console.warn('[SettingsShare] Network error while creating short link; using long share URL fallback:', error);
-                shortLinkError = 'Short link unavailable. Copy and QR code use the long encrypted link.';
+            if (didTimeout || (error instanceof Error && error.name === 'AbortError') || error instanceof TypeError) {
+                console.warn('[SettingsShare] Short link unavailable; using long share URL fallback:', error);
+                shortLinkError = didTimeout
+                    ? $text('settings.share.short_link_fallback_timeout')
+                    : $text('settings.share.short_link_fallback_unavailable');
                 return { url: longShareLink, usedLongFallback: true };
             }
             throw error;
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         }
     }
     
@@ -869,7 +912,7 @@
      * Mark chat as shared in IndexedDB
      * Sets is_shared = true locally, which will be synced to server
      */
-    async function markChatAsShared(chatId: string) {
+    async function markChatAsShared(chatId: string, sharedShortUrl?: string | null) {
         if (!chatId) return;
         
         try {
@@ -881,6 +924,20 @@
                 const profile = await userDB.getUserProfile();
                 const currentUserId = profile?.user_id;
 
+                let encryptedSharedShortUrl = sharedShortUrl === undefined
+                    ? chat.encrypted_shared_short_url
+                    : null;
+                if (sharedShortUrl) {
+                    const { chatKeyManager } = await import('../../../services/encryption/ChatKeyManager');
+                    const chatKey = chatKeyManager.getKeySync(chatId);
+                    if (chatKey) {
+                        const { encryptWithChatKey } = await import('../../../services/cryptoService');
+                        encryptedSharedShortUrl = await encryptWithChatKey(sharedShortUrl, chatKey);
+                    } else {
+                        console.warn('[SettingsShare] Chat key unavailable; cannot persist encrypted short URL for:', chatId);
+                    }
+                }
+
                 // Update chat with is_shared = true and is_private = false
                 await chatDB.updateChat({
                     ...chat,
@@ -888,6 +945,7 @@
                     is_private: false,
                     share_pii: includeSensitiveData,
                     share_highlights: shareHighlights,
+                    encrypted_shared_short_url: encryptedSharedShortUrl,
                     user_id: chat.user_id || currentUserId || undefined
                 });
                 console.debug('[SettingsShare] Marked chat as shared in IndexedDB:', chatId, 'user_id:', chat.user_id || currentUserId);
@@ -899,6 +957,64 @@
             }
         } catch (error) {
             console.error('[SettingsShare] Error marking chat as shared:', error);
+        }
+    }
+
+    async function restoreExistingSharedLink(chat: ChatInterface, chatId: string) {
+        if (
+            isEmbedSharing ||
+            isLinkGenerated ||
+            isPrimaryShareLinkGenerating ||
+            restoredSharedLinkChatId === chatId ||
+            autoRestoreSuppressedChatId === chatId ||
+            !chat.is_shared ||
+            !chat.encrypted_shared_short_url
+        ) {
+            return;
+        }
+
+        try {
+            const { chatKeyManager } = await import('../../../services/encryption/ChatKeyManager');
+            const chatKey = chatKeyManager.getKeySync(chatId);
+            if (!chatKey) {
+                return;
+            }
+
+            const { decryptWithChatKey } = await import('../../../services/cryptoService');
+            const restoredUrl = await decryptWithChatKey(
+                chat.encrypted_shared_short_url,
+                chatKey,
+                { chatId, fieldName: 'encrypted_shared_short_url' }
+            );
+            if (!restoredUrl) {
+                return;
+            }
+
+            generatedLink = restoredUrl;
+            generatedLongLink = '';
+            generatedShareContentType = 'chat';
+            generatedShareContentId = chatId;
+            generatedSharePasswordProtected = false;
+            sharedChatId = chatId;
+            isLinkGenerated = true;
+            isConfigurationStep = false;
+            restoredSharedLinkChatId = chatId;
+
+            if (/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/.test(restoredUrl)) {
+                shortLinkUrl = restoredUrl;
+                isShortLinkGenerated = true;
+            }
+            generateQRCode(restoredUrl);
+            if ($authStore.isAuthenticated) {
+                void queueOGMetadataUpdate({
+                    syncShareSettings: false,
+                    syncShareStatus: false,
+                    syncStoredShortUrl: false,
+                    syncCommunityShare: false,
+                });
+            }
+        } catch (error) {
+            console.warn('[SettingsShare] Failed to restore existing shared URL:', error);
         }
     }
     
@@ -971,8 +1087,17 @@
      * 3. Server encrypts with shared vault key and stores in shared_encrypted_title and shared_encrypted_summary
      * 4. Also sends is_shared = true to mark the chat as shared on the server
      */
-    async function queueOGMetadataUpdate() {
+    async function queueOGMetadataUpdate(options: {
+        syncShareSettings?: boolean;
+        syncShareStatus?: boolean;
+        syncStoredShortUrl?: boolean;
+        syncCommunityShare?: boolean;
+    } = {}) {
         if (!currentChatId) return;
+        const syncShareSettings = options.syncShareSettings ?? true;
+        const syncShareStatus = options.syncShareStatus ?? true;
+        const syncStoredShortUrl = options.syncStoredShortUrl ?? true;
+        const syncCommunityShare = options.syncCommunityShare ?? true;
         
         try {
             console.debug('[SettingsShare] Starting OG metadata update for chat:', currentChatId);
@@ -986,12 +1111,19 @@
                 return;
             }
 
-            const titleDeadline = Date.now() + OG_METADATA_TITLE_WAIT_MS;
-            while (!chat.encrypted_title && !chat.title && Date.now() < titleDeadline) {
+            const metadataDeadline = Date.now() + OG_METADATA_TITLE_WAIT_MS;
+            while (
+                (
+                    (!chat.encrypted_title && !chat.title) ||
+                    !chat.encrypted_category ||
+                    !chat.encrypted_icon
+                ) &&
+                Date.now() < metadataDeadline
+            ) {
                 await new Promise((resolve) => setTimeout(resolve, OG_METADATA_TITLE_POLL_MS));
                 chat = await chatDB.getChat(currentChatId);
                 if (!chat) {
-                    console.warn('[SettingsShare] Chat disappeared while waiting for title metadata');
+                    console.warn('[SettingsShare] Chat disappeared while waiting for share metadata');
                     return;
                 }
             }
@@ -1062,8 +1194,8 @@
             // If sharing with community, decrypt all messages and embeds locally
             // and send plaintext to server (zero-knowledge architecture)
             
-            // Always send is_shared = true when sharing (even if no title/summary)
-            // This ensures the server marks the chat as shared
+            // Active generation sends is_shared=true. Passive restore refreshes only
+            // crawler metadata so a stale client cannot re-share an unshared chat.
             // If community sharing is enabled, include the full share link for admin review
             try {
                 const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
@@ -1080,22 +1212,29 @@
                         category: category || null,
                         icon: icon || null,
                         follow_up_suggestions: followUpSuggestions || null,
-                        is_shared: true,  // Mark chat as shared on server
-                        share_pii: includeSensitiveData,
-                        share_highlights: shareHighlights,
-                        share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,
-                        share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined
+                        ...(syncShareStatus ? { is_shared: true } : {}),
+                        ...(syncStoredShortUrl ? { encrypted_shared_short_url: chat.encrypted_shared_short_url || null } : {}),
+                        ...(syncShareSettings ? {
+                            share_pii: includeSensitiveData,
+                            share_highlights: shareHighlights,
+                        } : {}),
+                        ...(syncCommunityShare ? {
+                            share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,
+                            share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined,
+                        } : {})
                     }),
                     credentials: 'include' // Include cookies for authentication
                 });
                 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                    console.warn('[SettingsShare] Failed to update OG metadata, queueing for retry:', errorData);
+                    console.warn('[SettingsShare] Failed to update OG metadata:', errorData);
                     
                     // Queue for retry if offline or server error
                     // Network errors will be caught in the catch block
-                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                    if (syncShareStatus) {
+                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                    }
                     return;
                 }
                 
@@ -1103,14 +1242,18 @@
                 if (data.success) {
                     console.debug('[SettingsShare] Successfully updated OG metadata and sharing status for chat:', currentChatId);
                 } else {
-                    console.warn('[SettingsShare] OG metadata update returned success=false, queueing for retry:', data);
+                    console.warn('[SettingsShare] OG metadata update returned success=false:', data);
                     // Queue for retry even if server returned success=false
-                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                    if (syncShareStatus) {
+                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                    }
                 }
             } catch (fetchError) {
                 // Network error (offline, timeout, etc.) - queue for retry
-                console.debug('[SettingsShare] Network error sending OG metadata update, queueing for retry:', fetchError);
-                await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                console.debug('[SettingsShare] Network error sending OG metadata update:', fetchError);
+                if (syncShareStatus) {
+                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                }
             }
         } catch (error) {
             console.error('[SettingsShare] Error queueing OG metadata update:', error);
@@ -1123,6 +1266,7 @@
      * Allows user to change settings and regenerate link
      */
     function backToConfiguration() {
+        autoRestoreSuppressedChatId = displayChatId || currentChatId;
         isConfigurationStep = true;
         resetGeneratedState();
     }
@@ -1470,6 +1614,7 @@
         qrCodeSvg = '';
         isCopied = false;
         sharedChatId = null; // Clear shared chat ID when resetting
+        restoredSharedLinkChatId = null;
         resetShortLinkState();
     }
     
@@ -1495,7 +1640,12 @@
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
     
     // Can generate link if we have either a chat ID or an embed context
-    let canGenerateLink = $derived((currentChatId || (isEmbedSharing && embedContext)) && isPasswordValid && !isCheckingChatOwnership);
+    let canGenerateLink = $derived(
+        (currentChatId || (isEmbedSharing && embedContext)) &&
+        isPasswordValid &&
+        !isCheckingChatOwnership &&
+        !isPrimaryShareLinkGenerating
+    );
     
     // Display chat ID: use sharedChatId if link is generated (to keep it stable), otherwise use currentChatId
     // This ensures the displayed chat and QR code remain unchanged when user switches chats
@@ -1601,12 +1751,21 @@
             onclick={generateLink}
             disabled={!canGenerateLink}
         >
-            {#if isEmbedSharing}
+            {#if isPrimaryShareLinkGenerating && isEmbedSharing}
+                {$text('settings.share.sharing_embed_status')}
+            {:else if isPrimaryShareLinkGenerating}
+                {$text('settings.share.sharing_chat_status')}
+            {:else if isEmbedSharing}
                 {$text('settings.share.share_embed')}
             {:else}
                 {$text('settings.share.share_chat')}
             {/if}
         </button>
+        {#if isPrimaryShareLinkGenerating}
+            <p class="share-generation-status" data-testid="share-generation-status" aria-live="polite">
+                {isEmbedSharing ? $text('settings.share.sharing_embed_status') : $text('settings.share.sharing_chat_status')}
+            </p>
+        {/if}
 
         <!-- Optional Share Settings Section -->
         <div class="share-options-section">
@@ -1810,7 +1969,11 @@
             {/if}
         </div>
 
-        <div class="generated-link-section" transition:slide={{ duration: 300, easing: cubicOut }}>
+        <div
+            class="generated-link-section"
+            data-share-url-kind={isShortLinkGenerated ? 'short' : 'long'}
+            transition:slide={{ duration: 300, easing: cubicOut }}
+        >
             <!-- Copy Link Button -->
             <button
                 class="copy-link-button"
@@ -1860,7 +2023,7 @@
                         </button>
 
                         {#if shortLinkError}
-                            <p class="short-link-error">{shortLinkError}</p>
+                            <p class="short-link-error" data-testid="share-short-link-error">{shortLinkError}</p>
                         {/if}
                     {:else}
                         <!-- Generated short link -->
@@ -2152,6 +2315,13 @@
         width: calc(100% - 40px);
         margin: var(--spacing-10) var(--spacing-10);
         margin-bottom: var(--spacing-10);
+    }
+
+    .share-generation-status {
+        margin: calc(-1 * var(--spacing-6)) var(--spacing-10) var(--spacing-8);
+        color: var(--color-grey-70);
+        font-size: var(--font-size-small);
+        text-align: center;
     }
     
     /* Expire time info */

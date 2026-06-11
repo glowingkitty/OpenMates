@@ -8,6 +8,8 @@ exercise the route functions directly with small fakes instead of a live CMS.
 
 import hashlib
 import importlib
+import io
+from pathlib import Path
 import sys
 import types
 
@@ -104,22 +106,36 @@ class FakeDirectusService:
         self.chat = FakeChatMethods()
         self.embed = FakeEmbedMethods()
         self.short_links: list[dict] = []
+        self.updated_items: list[tuple[str, str, dict]] = []
 
     async def get_items(self, collection: str, params: dict | None = None, **_kwargs):
         if collection != "share_short_links":
             return []
 
-        token = (params or {}).get("filter[token][_eq]")
+        params = params or {}
+        token = params.get("filter[token][_eq]")
         rows = self.short_links
         if token:
             rows = [row for row in rows if row["token"] == token]
-        return rows[:1]
+        content_type = params.get("filter[content_type][_eq]")
+        if content_type:
+            rows = [row for row in rows if row.get("content_type") == content_type]
+        content_id = params.get("filter[content_id][_eq]")
+        if content_id:
+            rows = [row for row in rows if row.get("content_id") == content_id]
+        if params.get("filter[revoked_at][_null]") is True:
+            rows = [row for row in rows if row.get("revoked_at") is None]
+        return rows if params.get("limit") == -1 else rows[:1]
 
     async def create_item(self, collection: str, payload: dict, **_kwargs):
         assert collection == "share_short_links"
         row = {"id": f"short-{len(self.short_links) + 1}", **payload}
         self.short_links.append(row)
         return True, row
+
+    async def update_item(self, collection: str, item_id: str, payload: dict, **_kwargs):
+        self.updated_items.append((collection, item_id, payload))
+        return {"id": item_id, **payload}
 
 
 class FailingCreateDirectusService(FakeDirectusService):
@@ -141,6 +157,10 @@ class FakeCacheService:
 
 
 class FakeEncryptionService:
+    async def encrypt(self, value: str, key_name: str):
+        assert key_name == "shared-content-metadata"
+        return f"enc:{value}", "key-version"
+
     async def decrypt(self, value: str, key_name: str):
         assert key_name == "shared-content-metadata"
         return {
@@ -293,6 +313,85 @@ async def test_short_url_og_image_generates_png_for_shared_chat_metadata():
     assert response.media_type == "image/png"
     assert response.body.startswith(b"\x89PNG\r\n\x1a\n")
     assert len(response.body) > 1000
+    from PIL import Image
+
+    image = Image.open(io.BytesIO(response.body))
+    assert image.size == (share_routes.OG_IMAGE_WIDTH, share_routes.OG_IMAGE_HEIGHT)
+
+
+def test_chat_metadata_field_list_includes_shared_preview_category_icon_and_stored_url():
+    chat_methods_source = Path("backend/core/api/app/services/directus/chat_methods.py").read_text()
+
+    assert "shared_encrypted_category" in chat_methods_source
+    assert "shared_encrypted_icon" in chat_methods_source
+    assert "encrypted_shared_short_url" in chat_methods_source
+
+
+@pytest.mark.asyncio
+async def test_share_metadata_update_can_clear_encrypted_shared_short_url():
+    directus = FakeDirectusService()
+    update_metadata = getattr(
+        share_routes.update_share_metadata,
+        "__wrapped__",
+        share_routes.update_share_metadata,
+    )
+    payload = share_routes.ShareChatMetadataUpdate(
+        chat_id="chat-1",
+        title="Paris travel plan",
+        encrypted_shared_short_url=None,
+    )
+
+    response = await update_metadata(
+        request=None,
+        payload=payload,
+        current_user=FakeUser(),
+        directus_service=directus,
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response == {"success": True, "chat_id": "chat-1"}
+    assert directus.updated_items[0][0:2] == ("chats", "chat-1")
+    assert directus.updated_items[0][2]["encrypted_shared_short_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_unshare_chat_clears_metadata_and_revokes_short_links():
+    directus = FakeDirectusService()
+    directus.short_links.append(
+        {
+            "id": "short-1",
+            "token": "Abc123XY",
+            "content_type": "chat",
+            "content_id": "chat-1",
+            "revoked_at": None,
+        }
+    )
+    unshare = getattr(
+        share_routes.unshare_chat,
+        "__wrapped__",
+        share_routes.unshare_chat,
+    )
+
+    response = await unshare(
+        payload=share_routes.UnshareChatRequest(chat_id="chat-1"),
+        request=None,
+        current_user=FakeUser(),
+        directus_service=directus,
+    )
+
+    assert response == {"success": True, "chat_id": "chat-1"}
+    chat_update = directus.updated_items[0][2]
+    assert chat_update["is_private"] is True
+    assert chat_update["is_shared"] is False
+    assert chat_update["shared_encrypted_title"] is None
+    assert chat_update["shared_encrypted_summary"] is None
+    assert chat_update["shared_encrypted_category"] is None
+    assert chat_update["shared_encrypted_icon"] is None
+    assert chat_update["encrypted_shared_short_url"] is None
+    short_link_update = directus.updated_items[1]
+    assert short_link_update[0:2] == (share_routes.SHORT_URL_COLLECTION, "short-1")
+    assert isinstance(short_link_update[2]["revoked_at"], int)
+    assert short_link_update[2]["updated_at"] == short_link_update[2]["revoked_at"]
 
 
 @pytest.mark.asyncio
