@@ -57,9 +57,7 @@ async def _load_remotion_embed_content(embed_id: str, current_user: Any, cache_s
     vault_key_id = getattr(current_user, "vault_key_id", None)
     if not vault_key_id:
         raise HTTPException(status_code=401, detail="Missing vault key")
-    cached = await cache_service.get_embed_from_cache(embed_id, getattr(current_user, "id", None))
-    if not cached:
-        cached = await cache_service.get_embed_from_cache(embed_id)
+    cached = await cache_service.get_embed_from_cache(embed_id)
     if not isinstance(cached, dict):
         raise HTTPException(status_code=404, detail="Embed not found")
     encrypted_content = cached.get("encrypted_content")
