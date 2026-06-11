@@ -132,6 +132,8 @@
 		C0FFEE000000000000030004 /* SettingsInterfaceLanguageParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000030001 /* SettingsInterfaceLanguageParityUITests.swift */; };
 		C0FFEE000000000000031002 /* RemotionVideoCreateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000031001 /* RemotionVideoCreateRenderer.swift */; };
 		C0FFEE000000000000031003 /* RemotionVideoCreateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000031001 /* RemotionVideoCreateRenderer.swift */; };
+		C0FFEE000000000000032002 /* AppStrings+RemotionVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */; };
+		C0FFEE000000000000032003 /* AppStrings+RemotionVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
 		30B0859F19D08233DE184B42 /* TravelPriceCalendarEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85945164CEE92FF9FAEA451C /* TravelPriceCalendarEmbedRenderer.swift */; };
 		31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224ACCD58377D1F4497661CC /* BackgroundChatSender.swift */; };
@@ -743,6 +745,7 @@
 		C0FFEE000000000000029001 /* SettingsSensitiveActionsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSensitiveActionsParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000030001 /* SettingsInterfaceLanguageParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsInterfaceLanguageParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000031001 /* RemotionVideoCreateRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotionVideoCreateRenderer.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppStrings+RemotionVideo.swift"; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000002003 /* OpenMatesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C204366C8F557707BFA41C6D /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
@@ -1314,6 +1317,7 @@
 		CE71C13D38D011E9E3B0F1B2 /* I18n */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */,
 				607F21F81D207D06EE2F1CE0 /* AppStrings.swift */,
 				E3E5B4C637AE20A63F92E6E1 /* LocalizationManager.swift */,
 				D0F65AEA0691444C7CBB0E3D /* LocalizedText.swift */,
@@ -1834,6 +1838,7 @@
 				2A8DC57BE463B192545BA0FE /* AnyCodable.swift in Sources */,
 				454F20C52BBB54599E116814 /* AppIconView.swift in Sources */,
 				27550AFEBA4EF276941F7D1B /* AppSkillUseRenderer.swift in Sources */,
+				C0FFEE000000000000032002 /* AppStrings+RemotionVideo.swift in Sources */,
 				D692E81F39F51A97A2574ABE /* AppStrings.swift in Sources */,
 				904B5E9DC63A0799F6489909 /* AskOpenMatesIntent.swift in Sources */,
 				AF35A14428770C7ADC84EC38 /* AttachmentPicker.swift in Sources */,
@@ -2038,6 +2043,7 @@
 				BD0E54CD04F65577115EB74E /* AnyCodable.swift in Sources */,
 				72567565DCCBB3F6FAEB861E /* AppIconView.swift in Sources */,
 				B78663335B6655D98AF7E2F2 /* AppSkillUseRenderer.swift in Sources */,
+				C0FFEE000000000000032003 /* AppStrings+RemotionVideo.swift in Sources */,
 				A7D2FA22A16115CF70FDA83F /* AppStrings.swift in Sources */,
 				079E4E6D7181F2A3A9076D00 /* AskOpenMatesIntent.swift in Sources */,
 				E872AF90AD71048157C38163 /* AttachmentPicker.swift in Sources */,
