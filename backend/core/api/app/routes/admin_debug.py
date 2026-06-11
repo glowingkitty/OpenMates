@@ -226,6 +226,11 @@ class IssueListItem(BaseModel):
     is_from_admin: bool = False
     reported_by_user_id: Optional[str] = None
     linear_issue_identifier: Optional[str] = None
+    agent_action: Optional[str] = None
+    agent_status: Optional[str] = None
+    agent_session_title: Optional[str] = None
+    agent_error: Optional[str] = None
+    agent_started_at: Optional[str] = None
 
 
 class IssuesListResponse(BaseModel):
@@ -252,6 +257,11 @@ class IssueDetailResponse(BaseModel):
     is_from_admin: bool = False
     reported_by_user_id: Optional[str] = None
     linear_issue_identifier: Optional[str] = None
+    agent_action: Optional[str] = None
+    agent_status: Optional[str] = None
+    agent_session_title: Optional[str] = None
+    agent_error: Optional[str] = None
+    agent_started_at: Optional[str] = None
     full_report: Optional[Dict[str, Any]] = None
     # Screenshot verification (added to support E2E verification that the
     # screenshot attach flow and S3 upload worked end-to-end).
@@ -470,7 +480,7 @@ async def list_issues(
                 }
         elif "_or" in filters and filters["_or"]:
             params["filter"] = {"_or": filters["_or"]}
-        
+
         # Fetch issues
         issues = await directus_service.get_items("issues", params, no_cache=True, admin_required=True)
         
@@ -514,6 +524,11 @@ async def list_issues(
                 is_from_admin=issue.get("is_from_admin", False) or False,
                 reported_by_user_id=issue.get("reported_by_user_id"),
                 linear_issue_identifier=issue.get("linear_issue_identifier"),
+                agent_action=issue.get("agent_action"),
+                agent_status=issue.get("agent_status"),
+                agent_session_title=issue.get("agent_session_title"),
+                agent_error=issue.get("agent_error"),
+                agent_started_at=issue.get("agent_started_at"),
             ))
         
         return IssuesListResponse(
@@ -683,6 +698,11 @@ async def get_issue_detail(
             is_from_admin=issue.get("is_from_admin", False) or False,
             reported_by_user_id=issue.get("reported_by_user_id"),
             linear_issue_identifier=issue.get("linear_issue_identifier"),
+            agent_action=issue.get("agent_action"),
+            agent_status=issue.get("agent_status"),
+            agent_session_title=issue.get("agent_session_title"),
+            agent_error=issue.get("agent_error"),
+            agent_started_at=issue.get("agent_started_at"),
             full_report=full_report,
             has_screenshot=has_screenshot,
             screenshot_presigned_url=screenshot_presigned_url,
