@@ -112,6 +112,7 @@ async function selectInsideMessage(
 					if (!selection) return null;
 					selection.removeAllRanges();
 					selection.addRange(range);
+					document.dispatchEvent(new Event('selectionchange'));
 					const r = range.getBoundingClientRect();
 					return { x: r.x, y: r.y, width: r.width, height: r.height };
 				}

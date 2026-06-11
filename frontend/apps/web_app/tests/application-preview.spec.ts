@@ -78,7 +78,8 @@ test('generated application embed starts explicit isolated live preview', async 
 	const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
 	await expect(iframe).toBeVisible({ timeout: 180_000 });
 	const iframeSrc = await iframe.getAttribute('src');
-	expect(iframeSrc).toContain('/p/');
+	expect(iframeSrc).toContain('/t/');
+	expect(iframeSrc).toContain('.openmatesusercontent.org');
 	expect(iframeSrc).not.toContain('e2b.dev');
 
 	await expect(fullscreenOverlay.getByTestId('application-open-preview-window')).toBeVisible({ timeout: 10_000 });

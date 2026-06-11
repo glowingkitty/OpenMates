@@ -50,6 +50,7 @@ async function openUsableComposer(page: any): Promise<void> {
 	await editor.click();
 	await page.keyboard.type(' ');
 	await page.keyboard.press('Backspace');
+	await expect(page.getByTestId('action-buttons').first()).toBeVisible({ timeout: 20000 });
 }
 
 async function attachFiles(page: any, filePaths: string[]): Promise<void> {

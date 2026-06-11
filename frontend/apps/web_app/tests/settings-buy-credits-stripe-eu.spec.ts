@@ -48,7 +48,8 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	fillStripeCardDetails,
-	getTestAccount
+	getTestAccount,
+	setToggleChecked
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -185,6 +186,11 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 		log('Clicked Add Payment Method button.');
 	} else {
 		log('No saved cards — payment form shown directly.');
+	}
+	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	if (await consentToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await setToggleChecked(consentToggle, true);
+		log('Accepted limited refund consent.');
 	}
 	await screenshot(page, 'payment-screen');
 

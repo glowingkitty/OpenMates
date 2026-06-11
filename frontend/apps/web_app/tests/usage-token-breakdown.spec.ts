@@ -39,8 +39,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	withMockMarker
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const {
@@ -65,7 +64,7 @@ test.describe('Usage Token Breakdown', () => {
 		attachNetworkListeners(page, testInfo);
 	});
 
-	test('receipt-style breakdown: sub-items sum to total input', async ({ page }, testInfo) => {
+	test('receipt-style breakdown: sub-items sum to total input', async ({ page }) => {
 		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
 		const logStep = createSignupLogger('USAGE_TOKENS');
 		const takeScreenshot = createStepScreenshotter(logStep, { filenamePrefix: 'usage-token-breakdown' });
@@ -129,16 +128,31 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Clicked first usage entry (drill into chat entries)');
 		await takeScreenshot(page, 'chat-entries-list');
 
-		// Wait for chat entries to load, then click the first entry to see detail
+		// Wait for chat entries to load, then open the entry that exposes token details.
+		// Usage history can include non-AI rows without token data, so try visible buttons
+		// until the receipt-style token rows are present.
 		await page.waitForTimeout(2000);
-		const firstChatEntry = settingsMenu.locator('button.detail-entry.clickable').first();
-		await expect(firstChatEntry).toBeVisible({ timeout: 10000 });
-		await firstChatEntry.click();
-		logStep('Clicked first chat entry to see detail view');
-
-		// Wait for usage detail view to appear
 		const usageDetailView = page.getByTestId('usage-detail-view');
-		await expect(usageDetailView).toBeVisible({ timeout: 10000 });
+		const chatEntryButtons = settingsMenu.getByRole('button');
+		await expect(chatEntryButtons.first()).toBeVisible({ timeout: 10000 });
+		const buttonCount = await chatEntryButtons.count();
+		let openedTokenEntry = false;
+		for (let index = 0; index < buttonCount; index += 1) {
+			const button = chatEntryButtons.nth(index);
+			const label = ((await button.textContent().catch(() => '')) ?? '').trim();
+			if (/^back$/i.test(label)) continue;
+			await button.click();
+			await expect(usageDetailView).toBeVisible({ timeout: 10000 });
+			if (await page.getByTestId('usage-input-tokens').isVisible({ timeout: 3000 }).catch(() => false)) {
+				openedTokenEntry = true;
+				break;
+			}
+			const backButton = usageDetailView.getByRole('button', { name: /back/i });
+			await backButton.click();
+			await page.waitForTimeout(500);
+		}
+		expect(openedTokenEntry, 'Expected at least one chat usage entry with token breakdown').toBe(true);
+		logStep('Clicked chat entry with token breakdown to see detail view');
 		logStep('Usage detail view is visible');
 		await takeScreenshot(page, 'usage-detail-view');
 

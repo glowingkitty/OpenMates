@@ -304,6 +304,16 @@ class TestQuickTips:
         ]
         assert select_hardcoded_quick_tip_slug(history) == "shorter-chats-equal-better-responses"
 
+    def test_travel_context_selects_travel_tip(self):
+        history = [
+            {
+                "role": "user",
+                "content": "Give one concise sentence about planning food, transit, and local events for a weekend trip.",
+            }
+        ]
+        assert select_hardcoded_quick_tip_slug(history, ["travel"]) == "travel-can-add-local-context"
+        assert select_hardcoded_quick_tip_slug(history, ["web"]) is None
+
     def test_unknown_llm_slug_is_dropped(self):
         class Logger:
             def warning(self, *args, **kwargs):

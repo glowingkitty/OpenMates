@@ -647,7 +647,7 @@ async def handle_postprocessing(
     if not quick_tips_enabled:
         quick_tip_slugs = []
     else:
-        hardcoded_quick_tip_slug = select_hardcoded_quick_tip_slug(message_history)
+        hardcoded_quick_tip_slug = select_hardcoded_quick_tip_slug(message_history, available_app_ids)
         if hardcoded_quick_tip_slug:
             quick_tip_slugs = [hardcoded_quick_tip_slug]
             logger.info(

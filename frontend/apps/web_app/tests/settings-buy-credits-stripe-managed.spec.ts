@@ -50,7 +50,8 @@ const {
 	assertNoMissingTranslations,
 	checkEmailQuota,
 	createEmailClient,
-	getTestAccount
+	getTestAccount,
+	setToggleChecked
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -198,6 +199,11 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	if (hasAddBtn) {
 		await addPaymentMethodBtn.click();
 		log('Clicked Add Payment Method to open checkout.');
+	}
+	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	if (await consentToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await setToggleChecked(consentToggle, true);
+		log('Accepted limited refund consent.');
 	}
 
 	// If the "switch to non-EU card" button is present (user has EU saved cards),

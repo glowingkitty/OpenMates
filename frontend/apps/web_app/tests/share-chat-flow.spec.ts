@@ -42,7 +42,6 @@ const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
-const EXPECTED_CHAT_OG_TITLE = 'Capital of France';
 const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'Paris';
 
 function metaContent(html: string, selector: string): string {
@@ -128,6 +127,8 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 7: Verify chat preview is shown ──────────────────────────────
 	const chatPreview = page.locator('[data-testid="share-chat-preview"]');
 	await expect(chatPreview).toBeVisible({ timeout: 10000 });
+	const expectedChatOgTitle = (await chatPreview.getByTestId('chat-title').textContent())?.trim();
+	expect(expectedChatOgTitle).toBeTruthy();
 	logCheckpoint('Chat preview is visible in share panel.');
 
 	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
@@ -201,7 +202,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 			},
 			{ timeout: 30000, intervals: [1000, 2000, 3000, 5000] }
 		)
-		.toBe(EXPECTED_CHAT_OG_TITLE);
+		.toBe(expectedChatOgTitle);
 
 	const ogDescription = metaContent(crawlerHtml, 'og:description');
 	const ogImage = metaContent(crawlerHtml, 'og:image');
@@ -211,7 +212,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 		expect(ogImage).toContain('/og-image.png');
 	});
 	logCheckpoint('Short link crawler metadata uses chat title, summary, and generated OG image.', {
-		ogTitle: EXPECTED_CHAT_OG_TITLE,
+		ogTitle: expectedChatOgTitle,
 		ogDescription,
 		ogImage
 	});

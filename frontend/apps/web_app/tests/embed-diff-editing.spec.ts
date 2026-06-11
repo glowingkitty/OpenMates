@@ -88,7 +88,15 @@ async function waitForFinishedCodeEmbed(
 /**
  * Wait for streaming to complete (typing indicator disappears).
  */
-async function waitForStreamingComplete(page: any, log: any) {
+async function waitForStreamingComplete(page: any, log: any, previousAssistantCount?: number) {
+	if (previousAssistantCount !== undefined) {
+		await expect
+			.poll(async () => await getAssistantMessageCount(page), {
+				timeout: 120000,
+				intervals: [1000, 2000, 5000]
+			})
+			.toBeGreaterThan(previousAssistantCount);
+	}
 	const typingIndicator = page.getByTestId('typing-indicator');
 	await expect(typingIndicator).not.toBeVisible({ timeout: 120000 });
 	log('Streaming completed.');
@@ -135,7 +143,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await sendMessage(page, turn1Prompt, log);
 		log('Turn 1 sent — waiting for code embed...');
 
-		await waitForStreamingComplete(page, log);
+		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for the code embed in the first assistant message
 		const embedId = await waitForFinishedCodeEmbed(page, 0, log);
@@ -148,7 +156,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await sendMessage(page, turn2Prompt, log);
 		log('Turn 2 sent — waiting for diff application...');
 
-		await waitForStreamingComplete(page, log);
+		await waitForStreamingComplete(page, log, 1);
 		await screenshot(page, '04-turn2-response');
 
 		// Verify: the embed should still exist with the same embed_id
@@ -223,7 +231,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		// Turn 1: Generate a table
 		const turn1Prompt = 'Create a comparison table of 3 programming languages (Python, JavaScript, Rust) with columns: Language, Typing, Speed, Use Case. Use a markdown table.';
 		await sendMessage(page, turn1Prompt, log);
-		await waitForStreamingComplete(page, log);
+		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for sheet embed
 		const targetMessage = page.getByTestId('message-assistant').first();
@@ -247,7 +255,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		// Turn 2: Add a row
 		const turn2Prompt = 'Add Go to the table with typing: Static, speed: Fast, use case: Systems/Cloud.';
 		await sendMessage(page, turn2Prompt, log);
-		await waitForStreamingComplete(page, log);
+		await waitForStreamingComplete(page, log, 1);
 		await screenshot(page, '04-sheet-after-diff');
 
 		// Verify table still exists
@@ -277,7 +285,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		// Turn 1: Generate a document
 		const turn1Prompt = 'Write a short cover letter document for a software engineer position at a startup. Title it "Cover Letter - Software Engineer". Keep it to 3 paragraphs.';
 		await sendMessage(page, turn1Prompt, log);
-		await waitForStreamingComplete(page, log);
+		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for document embed
 		const targetMessage = page.getByTestId('message-assistant').first();
@@ -301,7 +309,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		// Turn 2: Modify the document
 		const turn2Prompt = 'Change the title from "Cover Letter - Software Engineer" to "Application - Senior Engineer" and update the first paragraph to mention 8 years of experience instead of generic language.';
 		await sendMessage(page, turn2Prompt, log);
-		await waitForStreamingComplete(page, log);
+		await waitForStreamingComplete(page, log, 1);
 		await expect(
 			page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="processing"]')
 		).toHaveCount(0, { timeout: 90000 });

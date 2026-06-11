@@ -32,7 +32,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -72,7 +72,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
-	await page.waitForURL(/chat/);
+	await waitForChatReady(page, log);
 	log('Login successful.');
 	await page.waitForTimeout(5000);
 }

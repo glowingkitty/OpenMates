@@ -669,6 +669,26 @@ async function sendMessage(
 			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
 		});
 	};
+	const sendAlreadyInProgress = async () => {
+		const stopButtonVisible = await page
+			.getByTestId('stop-processing-button')
+			.isVisible({ timeout: 500 })
+			.catch(() => false);
+		if (stopButtonVisible) return true;
+
+		const lastSendDebug = await readLastSendDebug();
+		const debug = typeof lastSendDebug === 'object' && lastSendDebug !== null
+			? lastSendDebug as { step?: unknown; timestamp?: unknown }
+			: null;
+		const step = debug?.step;
+		const timestamp = typeof debug?.timestamp === 'string' ? Date.parse(debug.timestamp) : 0;
+		const isFreshDebugStep = timestamp > 0 && Date.now() - timestamp < 10_000;
+		return typeof step === 'string' && [
+			'send_invoked',
+			'send_guard_acquired',
+			'local_message_dispatch_started'
+		].includes(step) && isFreshDebugStep;
+	};
 	try {
 		await expect(sendButton).toBeVisible({ timeout: 5000 });
 		await sendButton.click({ timeout: 5000 });
@@ -681,7 +701,9 @@ async function sendMessage(
 			lastSendDebug: lastSendDebugAfterClickAttempt,
 			diagnostics: diagnosticsBeforeFallback
 		})}`);
-		if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
+		if (await sendAlreadyInProgress()) {
+			logCheckpoint('Send appears to be in progress; skipping duplicate fallback dispatch.');
+		} else if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
 			await messageEditor.click();
 			await page.keyboard.insertText(message);
 			logCheckpoint('Retyped message after editor reset before send button was available.');
@@ -743,34 +765,52 @@ async function sendMessage(
 			lastSendDebug: lastSendDebugAfterClick,
 			diagnostics: diagnosticsBeforeSynthetic
 		})}`);
+		if (await sendAlreadyInProgress()) {
+			logCheckpoint('Send is still in progress after initial persistence wait; waiting without synthetic dispatch.');
+			await expect
+				.poll(
+					async () =>
+						await userMessagePersisted(
+							userMessages,
+							userCountBeforeSend,
+							message,
+							messageEditor,
+							assistantMessages,
+							assistantCountBeforeSend
+						),
+					{ timeout: 90000, intervals: [1000, 2000, 5000] }
+				)
+				.toBeTruthy();
+		} else {
 
-		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
-		});
-		await expect
-			.poll(
-				async () =>
-					await userMessagePersisted(
-						userMessages,
-						userCountBeforeSend,
-						message,
-						messageEditor,
-						assistantMessages,
-						assistantCountBeforeSend
-					),
-				{ timeout: 10000 }
-			)
-			.toBeTruthy()
-			.catch(() => undefined);
-		const userCountAfterSynthetic = await locatorCount(userMessages);
-		const lastSendDebugAfterSynthetic = await page.evaluate(() => {
-			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
-		});
-		logCheckpoint(`Synthetic custom-send-message diagnostic completed; diagnostics=${JSON.stringify({
-			syntheticDispatchResult,
-			userCountAfterSynthetic,
-			lastSendDebug: lastSendDebugAfterSynthetic
-		})}`);
+			const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+				return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+			});
+			await expect
+				.poll(
+					async () =>
+						await userMessagePersisted(
+							userMessages,
+							userCountBeforeSend,
+							message,
+							messageEditor,
+							assistantMessages,
+							assistantCountBeforeSend
+						),
+					{ timeout: 10000 }
+				)
+				.toBeTruthy()
+				.catch(() => undefined);
+			const userCountAfterSynthetic = await locatorCount(userMessages);
+			const lastSendDebugAfterSynthetic = await page.evaluate(() => {
+				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+			});
+			logCheckpoint(`Synthetic custom-send-message diagnostic completed; diagnostics=${JSON.stringify({
+				syntheticDispatchResult,
+				userCountAfterSynthetic,
+				lastSendDebug: lastSendDebugAfterSynthetic
+			})}`);
+		}
 		if (
 			await userMessagePersisted(
 				userMessages,
@@ -794,7 +834,7 @@ async function sendMessage(
 				assistantLastText: assistantLastTextBeforeSend
 			});
 			logCheckpoint('Message send accepted after synthetic send fallback.', {
-				userCount: userCountAfterSynthetic,
+				userCount: await locatorCount(userMessages),
 				assistantCount: await locatorCount(assistantMessages),
 				assistantCountBeforeSend
 			});
