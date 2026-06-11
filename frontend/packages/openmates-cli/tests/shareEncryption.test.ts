@@ -204,6 +204,10 @@ describe("deriveWebOrigin", () => {
     assert.equal(deriveWebOrigin("https://api.openmates.org"), "https://openmates.org");
   });
 
+  it("maps self-hosted api subdomains to app subdomains", () => {
+    assert.equal(deriveWebOrigin("https://api.example.com"), "https://app.example.com");
+  });
+
   it("handles dev subdomain", () => {
     assert.equal(deriveWebOrigin("https://api.dev.openmates.org"), "https://app.dev.openmates.org");
   });

@@ -27,6 +27,10 @@ export interface ServerConfig {
   installMode?: "image" | "source";
   /** OpenMates image tag used by image-mode installs, e.g. v0.11.0-alpha.0. */
   imageTag?: string;
+  /** API URL regular CLI commands should default to for this self-host install. */
+  apiUrl?: string;
+  /** Web app URL used for pair-login and share links for this self-host install. */
+  appUrl?: string;
 }
 
 // ---------------------------------------------------------------------------

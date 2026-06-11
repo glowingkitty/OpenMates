@@ -136,12 +136,16 @@ describe("ServerConfig", () => {
         installPath: "/tmp/test-openmates",
         installedAt: Date.now(),
         composeProfile: "core",
+        apiUrl: "http://localhost:8000",
+        appUrl: "http://localhost:5173",
       };
       saveServerConfig(config);
       const loaded = loadServerConfig();
       assert.ok(loaded);
       assert.equal(loaded.installPath, config.installPath);
       assert.equal(loaded.composeProfile, "core");
+      assert.equal(loaded.apiUrl, "http://localhost:8000");
+      assert.equal(loaded.appUrl, "http://localhost:5173");
     });
   });
 

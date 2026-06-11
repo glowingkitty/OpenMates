@@ -20,6 +20,7 @@ const originalApiUrl = process.env.OPENMATES_API_URL;
 const tempHome = mkdtempSync(join(tmpdir(), "openmates-cli-client-"));
 const stateDir = join(tempHome, ".openmates");
 const sessionPath = join(stateDir, "session.json");
+const serverConfigPath = join(stateDir, "server.json");
 const sessionApiUrl = "https://api.dev.openmates.org";
 
 process.env.HOME = tempHome;
@@ -78,6 +79,7 @@ after(() => {
 describe("OpenMatesClient session API URL", () => {
   beforeEach(() => {
     writeLegacySession();
+    rmSync(serverConfigPath, { force: true });
   });
 
   it("uses the persisted session API URL when no override is set", () => {
@@ -88,6 +90,21 @@ describe("OpenMatesClient session API URL", () => {
   it("keeps explicit API URL overrides higher priority than the persisted session", () => {
     const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:8000" });
     assert.strictEqual(client.apiUrl, "http://127.0.0.1:8000");
+  });
+
+  it("uses installed self-host server API when no override or session exists", () => {
+    rmSync(sessionPath, { force: true });
+    writeFileSync(serverConfigPath, `${JSON.stringify({
+      installPath: "/tmp/openmates-self-host",
+      installedAt: Date.now(),
+      composeProfile: "core",
+      installMode: "image",
+      apiUrl: "http://localhost:8000",
+      appUrl: "http://localhost:5173",
+    })}\n`);
+
+    const client = OpenMatesClient.load();
+    assert.strictEqual(client.apiUrl, "http://localhost:8000");
   });
 
   it("persists rotated auth cookies and ws tokens after whoami", async () => {

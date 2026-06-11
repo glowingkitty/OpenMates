@@ -39,9 +39,10 @@ The CLI derives the web app URL from the API URL so pair-auth lands on the match
 | --- | --- |
 | Production | _(none)_ |
 | Dev server | `OPENMATES_API_URL=https://api.dev.openmates.org` |
-| Self-hosted | `OPENMATES_API_URL=https://api.example.com OPENMATES_APP_URL=https://example.com` |
+| Installed self-hosted server | _(none after `openmates server install`)_ |
+| Remote self-hosted server | `OPENMATES_API_URL=https://api.example.com` |
 
-You can also pass `--api-url <url>` per command. App-skill execution can use your logged-in session, `--api-key <key>`, or `OPENMATES_API_KEY`.
+After `openmates server install`, fresh CLI commands default to that self-hosted server (`http://localhost:8000`) unless you already have a saved login session, set `OPENMATES_API_URL`, or pass `--api-url <url>`. App-skill execution can use your logged-in session, `--api-key <key>`, or `OPENMATES_API_KEY`.
 
 ## Safety Limits
 

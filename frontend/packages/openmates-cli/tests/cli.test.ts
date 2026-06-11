@@ -271,11 +271,19 @@ describe("deriveAppUrl", () => {
     );
   });
 
-  it("falls back to production for unknown API URLs", () => {
+  it("maps self-hosted api subdomains to matching app subdomains", () => {
     reset();
     assert.strictEqual(
       deriveAppUrl("https://api.custom-instance.example.com"),
-      "https://openmates.org",
+      "https://app.custom-instance.example.com",
+    );
+  });
+
+  it("uses the same origin for self-hosted API URLs without an api subdomain", () => {
+    reset();
+    assert.strictEqual(
+      deriveAppUrl("https://openmates.example.com/api"),
+      "https://openmates.example.com",
     );
   });
 
