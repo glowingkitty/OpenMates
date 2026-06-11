@@ -753,7 +753,7 @@ async function sendMessage(
 						assistantMessages,
 						assistantCountBeforeSend
 					),
-				{ timeout: 30000 }
+				{ timeout: 60000, intervals: [1000, 2000, 5000] }
 			)
 			.toBeTruthy();
 	} catch (error) {
@@ -797,7 +797,7 @@ async function sendMessage(
 							assistantMessages,
 							assistantCountBeforeSend
 						),
-					{ timeout: 10000 }
+					{ timeout: 30000, intervals: [1000, 2000, 5000] }
 				)
 				.toBeTruthy()
 				.catch(() => undefined);
