@@ -103,7 +103,9 @@ fi
 # This must fail closed. A config that cannot adapt or validate can prevent
 # Caddy from starting, so never offer an interactive override here.
 echo -e "${BLUE}[1/3] Validating Caddyfile syntax...${NC}"
-if ! caddy adapt --config "$CADDYFILE_PATH" --adapter caddyfile >/tmp/openmates-caddy-adapted.json; then
+ADAPTED_CADDYFILE="$(mktemp /tmp/openmates-caddy-adapted.XXXXXX.json)"
+trap 'rm -f "$ADAPTED_CADDYFILE"' EXIT
+if ! caddy adapt --config "$CADDYFILE_PATH" --adapter caddyfile >"$ADAPTED_CADDYFILE"; then
     echo -e "${RED}✗ Caddyfile adaptation failed${NC}"
     echo -e "${YELLOW}The installed Caddy binary cannot load this config or one of its modules.${NC}"
     echo -e "${YELLOW}Nothing was copied to $SYSTEM_CADDYFILE and Caddy was not reloaded.${NC}"

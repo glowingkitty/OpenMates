@@ -160,3 +160,4 @@ def test_check_mode_runs_without_root_and_does_not_copy_or_reload(tmp_path: Path
     assert "Skipping caddy validate in non-root check mode" in result.stdout
     assert system_caddyfile.read_text(encoding="utf-8") == "previous working config\n"
     assert not (tmp_path / "restart-count").exists()
+    assert "/tmp/openmates-caddy-adapted.json" not in APPLY_SCRIPT.read_text(encoding="utf-8")
