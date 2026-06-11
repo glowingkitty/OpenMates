@@ -169,10 +169,15 @@ def _build_root_source(component_path: str) -> str:
     import_path = "./" + component_path.removeprefix("src/").rsplit(".", 1)[0]
     return (
         "import React from 'react';\n"
-        "import { Composition } from 'remotion';\n"
-        f"import {{ ProductAnnouncement }} from '{import_path}';\n\n"
-        "const Component = ProductAnnouncement;\n\n"
+        "import { Composition, registerRoot } from 'remotion';\n"
+        f"import * as UserModule from '{import_path}';\n\n"
+        "const Component = UserModule.default ?? UserModule.RemotionVideo ?? UserModule.ProductAnnouncement ?? "
+        "Object.values(UserModule).find((value) => typeof value === 'function');\n\n"
+        "if (!Component) {\n"
+        "  throw new Error('Remotion source must export a React component');\n"
+        "}\n\n"
         "export const RemotionRoot = () => (\n"
         "  <Composition id=\"Main\" component={Component} durationInFrames={150} fps={30} width={1920} height={1080} />\n"
         ");\n"
+        "\nregisterRoot(RemotionRoot);\n"
     )
