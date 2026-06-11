@@ -34,8 +34,8 @@ context_discovery:
     - docs/contributing/guides/testing.md
     - docs/architecture/apple/parity-matrix.md
     - docs/architecture/apple/web-spec-recreation-gap-audit.md
-    - docs/cli/settings.md
-    - docs/architecture/apps/cli-feature-parity.md
+    - docs/user-guide/cli/settings.md
+    - docs/architecture/platforms/cli-feature-parity.md
     - docs/architecture/core/account-recovery.md
   code_patterns:
     - frontend/packages/ui/src/components/settings/settingsRoutes.ts

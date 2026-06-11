@@ -35,8 +35,8 @@ context_discovery:
   docs:
     - docs/contributing/guides/spec-driven-development.md
     - docs/contributing/standards/cli.md
-    - docs/architecture/apps/cli-package.md
-    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/platforms/cli-feature-parity.md
     - docs/architecture/messaging/embeds.md
     - docs/specs/application-embeds/spec.yml
     - docs/specs/cli-sub-chat-deep-research/spec.yml
@@ -512,9 +512,9 @@ implementation_plan:
       reason: Unit coverage for direct-run input materialization/security limits.
     - path: backend/tests/test_code_run_app_skill.py
       reason: Backend route/security/regression coverage.
-    - path: docs/architecture/apps/cli-package.md
+    - path: docs/architecture/platforms/cli-package.md
       reason: Document `apps code run` after implementation.
-    - path: docs/architecture/apps/cli-feature-parity.md
+    - path: docs/architecture/platforms/cli-feature-parity.md
       reason: Update Code Run parity matrix after implementation.
     - path: docs/architecture/messaging/embeds.md
       reason: Clarify direct Code Run has no embed/output sidecar, chat-bound Code Run does.
@@ -655,8 +655,8 @@ tasks:
         - AC-3
         - AC-4
     expected_files:
-      - docs/architecture/apps/cli-package.md
-      - docs/architecture/apps/cli-feature-parity.md
+      - docs/architecture/platforms/cli-package.md
+      - docs/architecture/platforms/cli-feature-parity.md
       - docs/architecture/messaging/embeds.md
       - frontend/packages/ui/src/demo_chats/data/example_chats/python-squares-code-run.ts
     verification:

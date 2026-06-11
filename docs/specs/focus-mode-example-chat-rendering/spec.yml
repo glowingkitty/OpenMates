@@ -1,0 +1,374 @@
+id: focus-mode-example-chat-rendering
+title: Focus Mode Example Chat Rendering
+status: approved
+
+goal: >
+  Make hardcoded focus-mode example chats faithfully reproduce the original shared
+  conversations in the web app, including focus-mode activation embeds, user-message
+  website embeds, sub-chat summaries, sub-chat message histories, and return-to-parent
+  navigation.
+
+scope:
+  in:
+    - Fix the static example-chat extraction and/or data contract so focus-mode activation embeds appear in focus-mode example chats.
+    - Fix website attachment rendering in example user messages such as `example-framework-store-reputation-check`.
+    - Ensure Deep research example sub-chats include their full assistant responses, summaries, embeds, and visible parent navigation.
+    - Add deterministic validation so future example-chat imports cannot silently omit referenced embeds or sub-chat assistant messages.
+    - Add Playwright coverage for the two reported dev examples on `app.dev.openmates.org`.
+  out:
+    - Changing runtime focus-mode activation behavior for normal live chats unless investigation proves the current bug is caused there.
+    - Reworking the sub-chat visual design beyond the missing content/navigation states.
+    - Changing focus-mode IDs or app-store focus-mode metadata.
+    - Creating new example chats beyond repairing the reported focus-mode examples.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with 401 bad credentials."
+    - "`gh issue list --repo glowingkitty/OpenMates --search \"focus mode example chat sub-chat activation embed\" --state all --limit 20 --json number,title,state,labels,updatedAt,url` returned `[]`."
+  docs:
+    - docs/architecture/apps/focus-modes-implementation.md
+    - docs/architecture/messaging/message-parsing.md
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/extract-shared-chat.mjs
+  tests:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+  findings:
+    - "`us-egg-prices-deep-research.ts` sets `active_focus_id: \"web-research\"` and links `web.research`, but its root `embeds` array is empty and none of its messages include a `focus_mode_activation` / `focus-mode-activation` embed reference."
+    - "Each `us-egg-prices-deep-research` sub-chat currently contains exactly one user message and no assistant message, so clicking sub-chat cards can only render the first user prompt."
+    - "The source YAML contains sub-chat summaries, but `ChatMessage.svelte` only sets `previewSummary` from decrypted `encrypted_chat_summary`, not from cleartext static `chat.chat_summary`, so hardcoded example sub-chat cards omit summaries."
+    - "`framework_store_reputation_check.yml` user message stores a fenced JSON blob for embed `d36f6802-aad0-4fbe-90b4-5f80b3c6f2da`; the parser renders it as text instead of resolving it as `[!](embed:<ref>)` or another supported embed link."
+    - "`framework-store-reputation-check.ts` has the website embed content with `type: web-website`, but the content lacks `embed_ref`; therefore `registerExampleChatEmbedRefs()` cannot register a markdown embed ref for it."
+    - "`ChatHistory.svelte` has a static parent lookup using `getStaticExampleChat(activeId)?.parent_id`, so parent navigation should work if the active sub-chat is recognized as an example chat; the implementation must verify why it is not visible on dev."
+    - "`scripts/create-example-chat-from-share.mjs` validates markdown embed refs but does not validate focus activation embed presence for `active_focus_id`, and it allows sub-chats with only a first user message."
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This spec targets web-only static example-chat rendering and extraction tooling. Apple example chat parity may later consume the corrected public example content, but no Apple UI file is directly changed by this fix.
+  verification:
+    - Apple not affected for this web/example data repair.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should the repair synthesize missing focus-mode activation embeds for historical hardcoded examples, or only re-extract from source shares after the runtime/CLI path stores them correctly?
+      answer: Fix the CLI first, then create new real chats in openmates-cli with the same input prompts for each reported focus mode. Validate the created chats fulfill the requirements, then make them example chats, replace the old ones, deploy, and confirm the web app renders the parent chats and sub-chats correctly.
+  vision_summary: >
+    Focus-mode example chats should be production-quality demonstrations, not partial
+    screenshots of the final parent answer. The reported examples must show the same
+    key affordances users see in real chats: activation card, rich website embed,
+    sub-chat cards with summaries, full child transcripts, and a clear path back to
+    the parent chat.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Focus-mode example opens with activation affordance
+    given:
+      - A visitor opens `https://app.dev.openmates.org/#chat-id=example-us-egg-prices-deep`.
+      - The example has `metadata.active_focus_id` set to `web-research`.
+    when:
+      - The chat history renders the first assistant turn.
+    then:
+      - A focus-mode activation embed/card is visible for Deep research.
+      - The active focus toggle still reflects the active focus mode.
+      - No raw `focus_mode_activation` JSON leaks as plain text.
+
+  - id: S-2
+    title: Website attachment in user message renders as an embed
+    given:
+      - A visitor opens `https://app.dev.openmates.org/#chat-id=example-framework-store-reputation-check`.
+      - The first user message references `https://frame.work` through embed `d36f6802-aad0-4fbe-90b4-5f80b3c6f2da`.
+    when:
+      - The user message is rendered.
+    then:
+      - The website appears as a standard website/embed preview in the user message.
+      - The raw fenced JSON object is not visible as message text.
+      - The focus-mode activation embed/card for Check reputation is visible.
+
+  - id: S-3
+    title: Deep research sub-chat cards show useful summaries
+    given:
+      - The Deep research parent example has three static sub-chats.
+    when:
+      - The parent assistant message renders its sub-chat carousel.
+    then:
+      - Each sub-chat card has a translated title.
+      - Each sub-chat card displays the static sub-chat summary from the example data.
+      - The card status does not incorrectly imply unfinished work when the static sub-chat has a completed assistant answer.
+
+  - id: S-4
+    title: Clicking a static sub-chat opens the full child transcript
+    given:
+      - A visitor is viewing `example-us-egg-prices-deep`.
+      - The parent assistant response shows sub-chat cards.
+    when:
+      - The visitor clicks a sub-chat card.
+    then:
+      - The active chat changes to the static sub-chat ID.
+      - The sub-chat renders its user prompt and assistant response(s), not only the first user prompt.
+      - Any embeds referenced by the sub-chat assistant response render through the normal example embed store path.
+      - A visible control lets the visitor return to `example-us-egg-prices-deep`.
+
+  - id: S-5
+    title: Example-chat generation catches incomplete focus-mode examples
+    given:
+      - A developer runs the example-chat creation or validation tooling for a focus-mode-linked example.
+    when:
+      - The extracted chat has `active_focus_id` but no activation embed, or sub-chats without assistant messages, or user-message embed JSON without resolvable markdown references.
+    then:
+      - The tool fails with a clear actionable error unless the developer passes an explicit documented override.
+      - The error names the chat, missing contract, and suggested repair.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Focus-mode example chats with `active_focus_id` render a focus-mode activation embed/card and never leak raw activation JSON.
+  - id: AC-2
+    scenario: S-2
+    text: Website attachments embedded in example user messages render as embed previews instead of fenced JSON.
+  - id: AC-3
+    scenario: S-3
+    text: Static sub-chat preview cards use cleartext example `chat_summary` as a fallback when encrypted summary fields are absent.
+  - id: AC-4
+    scenario: S-4
+    text: Static sub-chat data includes complete child transcripts and renders all child messages/embeds when opened directly or from a parent card.
+  - id: AC-5
+    scenario: S-4
+    text: Static sub-chat views show a return-to-parent control with the parent title.
+  - id: AC-6
+    scenario: S-5
+    text: Deterministic tooling prevents future focus-mode example imports from omitting activation embeds, child assistant messages, or resolvable embed references.
+
+contracts:
+  data:
+    - "Focus-mode example chats with `metadata.active_focus_id` must include a renderable activation embed either as extracted message content plus embed data or as a deterministic static-example render artifact derived from metadata."
+    - "Example message content must reference embeds through supported markdown links such as `[!](embed:<embed_ref>)` or another parser-supported form; raw fenced JSON is not acceptable for renderable user attachments."
+    - "Every embed referenced by example message content must exist in the example embed store and be resolvable by `registerExampleChatEmbedRefs()`."
+    - "Static `ExampleSubChat` records must include complete user and assistant message history when the source sub-chat completed successfully."
+    - "Static `Chat` records may use cleartext `title`, `chat_summary`, `category`, and `icon`; UI code must use these fields as fallbacks when encrypted fields are absent."
+  ui_states:
+    - Parent example chat shows focus activation card, final assistant answer, sub-chat cards, and follow-up affordances without requiring authentication.
+    - Sub-chat cards show title, summary, category/icon styling, and status.
+    - Static sub-chat route shows a parent-return control and full transcript.
+    - User-message website embeds render with the existing unified embed preview, not as code blocks.
+  tooling:
+    - "`scripts/create-example-chat-from-share.mjs` or a companion validation script validates focus-mode example contracts before writing files."
+    - Extraction/validation errors are deterministic and can run without contacting private production data when given checked-in fixtures.
+  privacy_security:
+    - Hardcoded example chats remain public-safe and sanitized.
+    - No private user IDs, raw share keys, vault keys, or account identifiers are committed.
+    - Website preview data in examples must remain static/public and must not fetch third-party resources directly from the client outside existing proxy/embed behavior.
+
+tests:
+  - id: T-UNIT-001
+    type: unit
+    file: scripts/tests/test_example_chat_focus_mode_contract.py
+    command: python3 -m pytest scripts/tests/test_example_chat_focus_mode_contract.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-6
+    assertions:
+      - Focus-mode-linked examples with active_focus_id have a renderable activation embed contract.
+      - Referenced embed links resolve to checked-in example embeds.
+      - Website attachments are not represented only as fenced JSON in user-visible source messages.
+      - Completed static sub-chats contain assistant responses.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    command: python3 scripts/run_tests.py --spec focus-mode-example-chats.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - "`example-us-egg-prices-deep` shows a Deep research activation embed and three summarized sub-chat cards."
+      - Opening a Deep research sub-chat shows an assistant response and a back-to-parent control.
+      - "`example-framework-store-reputation-check` shows a Check reputation activation embed and a rendered website preview for `https://frame.work` in the user message."
+      - Neither reported example leaks raw embed JSON as visible message text.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts:getExampleChatMessages
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts:registerExampleChatEmbedRefs
+    - frontend/packages/ui/src/components/ChatMessage.svelte:loadSubChats
+    - frontend/packages/ui/src/components/ChatHistory.svelte:checkParentChat
+    - scripts/create-example-chat-from-share.mjs:validateExtractedChat
+  architecture: >
+    Treat hardcoded example chats as first-class static reproductions of shared
+    chats. Repair the checked-in source data where it is incomplete, then harden
+    the generation/validation path so future extracted focus-mode examples must
+    preserve focus activation, user attachments, and child chat histories.
+  data_flow:
+    - The CLI creates new source chats from the same prompts for the reported focus modes after CLI parity is fixed.
+    - The generated source chats are validated for activation embeds, user attachments, sub-chat summaries, full sub-chat transcripts, and parent navigation expectations.
+    - Example chat data and i18n source define root chat messages, embeds, sub-chats, and metadata.
+    - "`exampleChatStore` converts static records to runtime `Chat` and `Message` objects and registers embed refs."
+    - "`ChatMessage` renders parent assistant messages and static sub-chat cards."
+    - "`ChatHistory` detects static sub-chat parent metadata and shows return navigation."
+    - Playwright opens live dev hash routes and verifies the rendered contract after deployment.
+  affected_files:
+    - path: scripts/create-example-chat-from-share.mjs
+      reason: Add validation and/or normalization for focus-mode example contracts.
+    - path: scripts/extract-shared-chat.mjs
+      reason: Inspect or fix extraction of sub-chat messages/embeds and focus activation artifacts if source payload contains them.
+    - path: scripts/tests/test_example_chat_focus_mode_contract.py
+      reason: Deterministic regression guard for checked-in example chat completeness.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+      reason: Add missing activation embed contract and full sub-chat messages/embeds.
+    - path: frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+      reason: Add translated/static source keys for missing sub-chat assistant messages and any repaired content.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+      reason: Add resolvable embed_ref or corrected website embed metadata for the user message attachment.
+    - path: frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+      reason: Replace raw fenced JSON attachment text with parser-supported embed syntax for every locale/source value.
+    - path: frontend/packages/ui/src/components/ChatMessage.svelte
+      reason: Use static example sub-chat `chat_summary` fallback and verify card completion status.
+    - path: frontend/packages/ui/src/components/ChatHistory.svelte
+      reason: Verify/fix static sub-chat parent-return detection.
+    - path: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      reason: Live dev regression test for the reported examples.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/focus-mode-example-chat-rendering/spec.yml
+    - python3 -m pytest scripts/tests/test_example_chat_focus_mode_contract.py
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/client.test.ts
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/ws.test.ts
+    - Create new real chats through openmates-cli for Deep research and Check reputation using the existing example prompts.
+    - Validate the new CLI-created chats meet this spec before replacing checked-in examples.
+    - cd frontend/packages/ui && npm run build:translations
+    - python3 scripts/run_tests.py --spec focus-mode-example-chats.spec.ts
+    - Deploy to dev and wait for Vercel Ready before Playwright green verification.
+
+tasks:
+  - id: TASK-1
+    title: Add deterministic example-chat focus-mode contract test
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - scripts/tests/test_example_chat_focus_mode_contract.py
+      - scripts/create-example-chat-from-share.mjs
+    verification:
+      - T-UNIT-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Repair static focus-mode example data
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+      - frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+    verification:
+      - T-UNIT-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Fix static sub-chat UI fallbacks and navigation
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/ChatMessage.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add live dev Playwright regression for reported examples
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+risks:
+  - Re-extracting from dev shares may reproduce incomplete data if the original share endpoint or CLI capture path omitted focus activation/sub-chat assistant messages.
+  - Synthesizing activation embeds from metadata may differ slightly from real runtime activation-card timing/state unless the UI treats static examples as already activated.
+  - Updating every locale source entry mechanically for the Framework embed syntax may require translation rebuild and careful generated-file handling.
+  - The repository currently has many unrelated uncommitted changes; implementation must avoid touching unrelated files.
+
+open_questions:
+  - id: OQ-1
+    question: Should missing activation embeds in historical examples be synthesized from static metadata, or should the source shared chats be regenerated/re-extracted only after confirming CLI/web runtime parity stores activation embeds correctly?
+  - id: OQ-2
+    question: Should sub-chat completion status for static examples be inferred from presence of assistant messages rather than timestamp deltas?

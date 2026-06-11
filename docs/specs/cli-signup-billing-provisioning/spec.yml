@@ -36,12 +36,12 @@ context_discovery:
   docs:
     - docs/contributing/guides/spec-driven-development.md
     - docs/contributing/guides/testing.md
-    - docs/architecture/apps/cli-feature-parity.md
-    - docs/architecture/apps/cli-package.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/platforms/cli-package.md
     - docs/architecture/core/signup-and-auth.md
     - docs/specs/e2e-credential-isolation/spec.yml
     - docs/specs/self-host-signup-mode/spec.yml
-    - docs/cli/settings.md
+    - docs/user-guide/cli/settings.md
     - docs/user-guide/gift-cards.md
     - docs/user-guide/pricing.md
   code_patterns:
@@ -819,11 +819,11 @@ implementation_plan:
       reason: Route the CLI-created account login spec to the reserved credential slot.
     - path: scripts/run_tests.py
       reason: Dispatch the CLI-created account login spec with the reserved credential slot.
-    - path: docs/architecture/apps/cli-feature-parity.md
+    - path: docs/architecture/platforms/cli-feature-parity.md
       reason: Update intentional web-only boundaries and new CLI parity levels.
-    - path: docs/architecture/apps/cli-package.md
+    - path: docs/architecture/platforms/cli-package.md
       reason: Update CLI auth/security/billing command architecture.
-    - path: docs/cli/settings.md
+    - path: docs/user-guide/cli/settings.md
       reason: Document billing/security commands.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/cli-signup-billing-provisioning/spec.yml
@@ -965,9 +965,9 @@ tasks:
         - AC-12
         - AC-13
     expected_files:
-      - docs/architecture/apps/cli-feature-parity.md
-      - docs/architecture/apps/cli-package.md
-      - docs/cli/settings.md
+      - docs/architecture/platforms/cli-feature-parity.md
+      - docs/architecture/platforms/cli-package.md
+      - docs/user-guide/cli/settings.md
     verification:
       - python3 scripts/spec_validate.py docs/specs/cli-signup-billing-provisioning/spec.yml
     independently_deployable: false

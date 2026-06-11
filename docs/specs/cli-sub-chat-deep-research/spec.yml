@@ -30,8 +30,8 @@ context_discovery:
     - "gh search found no direct sub-chat/focus-mode-example issue; closest adjacent issues include #442 multi-step chat plan view and #447 agentic coding planning/permissions."
     - "GitHub MCP issue search returned 401 bad credentials; `gh issue list --repo glowingkitty/OpenMates --search \"subchat OR sub-chat OR focus mode OR example chat\" --state all --limit 10` was used instead."
   docs:
-    - docs/architecture/apps/cli-feature-parity.md
-    - docs/architecture/apps/cli-package.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/platforms/cli-package.md
     - docs/contributing/standards/cli.md
     - docs/contributing/guides/spec-driven-development.md
   code_patterns:

@@ -31,8 +31,8 @@ context_discovery:
     - none found for "self-host Docker GHCR images compose update pipeline" using gh fallback; GitHub MCP returned 401.
   docs:
     - docs/self-hosting/setup.md
-    - docs/cli/server-management.md
-    - docs/architecture/apps/cli-package.md
+    - docs/user-guide/cli/server-management.md
+    - docs/architecture/platforms/cli-package.md
     - docs/architecture/infrastructure/auto-deploy.md
     - docs/specs/self-host-signup-mode/spec.yml
   code_patterns:
@@ -370,7 +370,7 @@ implementation_plan:
       reason: Keep pull-based update behavior compatible with image mode if sidecar update endpoints remain active.
     - path: docs/self-hosting/setup.md
       reason: Document image default, source fallback, download size, and update behavior.
-    - path: docs/cli/server-management.md
+    - path: docs/user-guide/cli/server-management.md
       reason: Document install modes and update behavior.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/self-host-ghcr-images/spec.yml
@@ -439,7 +439,7 @@ tasks:
       acceptance_criteria: [AC-7, AC-11, AC-12]
     expected_files:
       - docs/self-hosting/setup.md
-      - docs/cli/server-management.md
+      - docs/user-guide/cli/server-management.md
       - docs/specs/self-host-ghcr-images/spec.yml
     verification: [T-SELFHOST-TIMING]
     independently_deployable: false

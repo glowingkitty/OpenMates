@@ -27,7 +27,7 @@ scope:
 context_discovery:
   docs:
     - docs/self-hosting/setup.md
-    - docs/cli/server-management.md
+    - docs/user-guide/cli/server-management.md
   code_patterns:
     - frontend/packages/openmates-cli/src/server.ts
     - setup.sh
@@ -256,7 +256,7 @@ implementation_plan:
       reason: Check public npm CLI and current-branch install behavior.
     - path: docs/self-hosting/setup.md
       reason: Document signup modes and admin promotion.
-    - path: docs/cli/server-management.md
+    - path: docs/user-guide/cli/server-management.md
       reason: Document make-admin flow.
   verification_strategy:
     - bash -n setup.sh
@@ -316,7 +316,7 @@ tasks:
       acceptance_criteria: [AC-10]
     expected_files:
       - docs/self-hosting/setup.md
-      - docs/cli/server-management.md
+      - docs/user-guide/cli/server-management.md
       - docs/specs/self-host-signup-mode/spec.yml
     verification: [T-DOCS-001]
     independently_deployable: true

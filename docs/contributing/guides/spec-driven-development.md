@@ -74,13 +74,17 @@ For full specs:
 7. Present the spec to the user and wait for approval.
 8. Use `plan-from-spec` and `tasks-from-spec` to fill `implementation_plan` and
    `tasks` inside the same `spec.yml`.
-9. Write or update the tests listed in `spec.yml` before feature code.
-10. Run the listed red-phase tests and record evidence in `spec.yml`.
+9. Write or update the tests listed in `spec.yml` before feature code. For new
+   functionality, list CLI evidence first, web Playwright evidence second, and
+   Apple remote evidence third when the Apple app has a counterpart.
+10. Run the listed red-phase tests in the same order and record evidence in
+    `spec.yml`.
 11. Implement one small requirement slice at a time.
 12. Deploy before Playwright green-phase verification because Playwright specs
     run against `app.dev.openmates.org`.
-13. Run green-phase tests, record evidence in `spec.yml`, and run
-    `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml`.
+13. Run green-phase tests in CLI → web → Apple order, record evidence in
+    `spec.yml`, and run `python3 scripts/spec_verify.py
+    docs/specs/<slug>/spec.yml`.
 
 Implementation must not begin before the user approves the full spec unless the
 user explicitly instructs OpenCode to skip the spec gate.
@@ -95,9 +99,31 @@ that explicitly so future agents do not have to rediscover it.
 The section should list affected Swift files or `none`, parity expectations,
 required native tests or manual Mac verification, and any intentional native
 differences. When runtime verification is required, prefer XcodeBuildMCP on a
-Mac; if the active session runs on Linux and a trusted Mac is available, use the
-remote Mac verification flow in `apple/AGENTS.md` and keep private connection
-details out of the spec.
+Mac; if the active session runs on Linux, use the redacted remote wrapper in
+`scripts/apple_remote.py` and keep private connection details out of the spec.
+At minimum, record `python3 scripts/apple_remote.py status` plus `build-ios` or
+`test-ios` evidence, or a sanitized failure class such as `ssh_failed`,
+`project_not_found`, or `xcode_build_failed`.
+
+## New Functionality Verification Order
+
+Every new functionality spec must define the verification ladder before
+implementation starts:
+
+1. **OpenMates CLI first:** a CLI command or CLI contract test that exercises the
+   shared backend/API/WebSocket behavior without browser or native UI state.
+2. **Web app second:** a Playwright `*.spec.ts` run through
+   `python3 scripts/run_tests.py --spec <name>.spec.ts` after the CLI proof is
+   green.
+3. **Apple app third:** `python3 scripts/apple_remote.py test-ios` when a
+   targeted native test exists, otherwise `python3 scripts/apple_remote.py
+   build-ios`, after CLI and web evidence are green. Use `Apple not affected`
+   only when the spec confirms there is no native counterpart.
+
+Skip the CLI-first requirement only for clearly browser-only changes, such as
+selectors, layout/screenshot diffs, pointer-event overlays, or Svelte-only
+rendering. Skip Apple verification only when there is no Apple counterpart or
+when `scripts/apple_remote.py` records a sanitized access/build failure.
 
 ## Playwright Red And Green Phases
 
@@ -260,6 +286,10 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
     - python3 scripts/spec_verify.py docs/specs/teams-v1/spec.yml
+  verification_order:
+    - CLI or backend contract first
+    - Web Playwright second when applicable
+    - Apple remote test/build third when applicable
 
 tasks:
   - id: TASK-1
