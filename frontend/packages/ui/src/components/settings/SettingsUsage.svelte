@@ -1914,7 +1914,7 @@ Usage Settings - View usage statistics and export usage data
         {@const ChatIcon = isOverviewIncognito ? null : getLucideIcon(chatIconName)}
         {@const chatTitle = isOverviewIncognito ? $text('settings.usage.incognito_chat') : (chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat')}
         
-        <div class="usage-detail-view">
+        <div class="usage-detail-view" data-testid="usage-detail-view">
             <button 
                 class="back-button"
                 onclick={() => {
