@@ -312,10 +312,31 @@ function extractEmbedRefsFromEmbeds(embeds) {
 }
 
 function sanitizeEmbedContent(content) {
-  return String(content || '')
-    .split('\n')
-    .filter((line) => !/^(vault_key_id|user_id):\s*/.test(line))
-    .join('\n');
+  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys):\s*/;
+  const blockFieldPattern = /^(files|screenshots):\s*/;
+  const publicLines = [];
+  let skippingPrivateBlock = false;
+
+  for (const line of String(content || '').split('\n')) {
+    if (privateFieldPattern.test(line)) {
+      skippingPrivateBlock = false;
+      continue;
+    }
+    if (blockFieldPattern.test(line)) {
+      skippingPrivateBlock = true;
+      continue;
+    }
+    if (skippingPrivateBlock) {
+      if (/^\S/.test(line)) {
+        skippingPrivateBlock = false;
+      } else {
+        continue;
+      }
+    }
+    publicLines.push(line);
+  }
+
+  return publicLines.join('\n');
 }
 
 function validateExtractedChat(chat) {

@@ -117,11 +117,6 @@ message_2:
     
     To help me give you more specific commands or tool suggestions, tell me what kind of issue you are tackling tonight: logic error, crash, environment/dependency issue, or performance bottleneck.
 
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
-    ```
-    
-    
   de: |
     Based on your [coding setup preferences](/#settings/app_store/code/settings_memories/coding_setup) for a keyboard-first, **terminal-based** workflow with **low AI intervention**, here is a structured approach for your debugging session tonight. 
     

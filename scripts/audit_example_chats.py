@@ -44,6 +44,9 @@ FOCUS_ACTIVATION_TYPE = "focus-mode-activation"
 PUBLIC_SAFETY_PATTERNS = [
     ("vault_wrapped_aes_key", "contains a vault-wrapped encryption key"),
     ("vault:v1:", "contains a vault key reference"),
+    ("aes_key:", "contains a raw AES key"),
+    ("aes_nonce:", "contains a raw AES nonce"),
+    ("s3_base_url:", "contains a private S3 base URL"),
     ("dev-openmates-chatfiles", "references the private dev chatfiles bucket"),
     ("chatfiles/", "references a private chatfiles object key"),
     ("s3_key:", "references a private S3 object key"),
