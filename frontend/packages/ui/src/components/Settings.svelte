@@ -205,14 +205,14 @@ changes to the documentation (to keep the documentation up to date).
                         }
                     }
                 }
-             }
+            }
 
             // Add durable content detail routes generated from embed metadata.
             for (const content of CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId)) {
                 const contentRoute = `app_store/${appId}/content/${content.contentTypeId}`;
                 views[contentRoute] = AppDetailsWrapper;
             }
-             
+
             // Add focus mode detail routes
             if (app.focus_modes && app.focus_modes.length > 0) {
                 for (const focusMode of app.focus_modes) {
