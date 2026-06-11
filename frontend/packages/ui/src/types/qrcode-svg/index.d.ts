@@ -1,4 +1,4 @@
-// frontend/packages/ui/src/types/qrcode-svg.d.ts
+// frontend/packages/ui/src/types/qrcode-svg/index.d.ts
 //
 // Type declarations for qrcode-svg, which ships without TypeScript types.
 // The library is used only to generate local SVG strings for QR codes in UI
