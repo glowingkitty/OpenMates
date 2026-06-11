@@ -30,6 +30,9 @@ def test_remotion_render_plan_writes_safe_project_files() -> None:
     assert "UserModule.ProductAnnouncement" in root
     assert plan.install_commands[0].startswith("sudo apt-get update")
     assert "libnspr4" in plan.install_commands[0]
+    assert "@remotion/player" not in next(file.content for file in plan.files if file.path == "package.json")
+    assert "--max-old-space-size=256" in plan.install_commands[1]
+    assert "--omit=optional" in plan.install_commands[1]
     assert "--concurrency=1" in plan.render_command
     assert "--disable-dev-shm-usage" in plan.render_command
     assert "width={1280}" in root

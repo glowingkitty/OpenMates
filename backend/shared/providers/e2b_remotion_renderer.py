@@ -24,7 +24,6 @@ REMOTION_PACKAGE_JSON = {
     "scripts": {"render": "remotion render src/Root.tsx Main out/openmates-remotion.mp4"},
     "dependencies": {
         "@remotion/cli": "latest",
-        "@remotion/player": "latest",
         "remotion": "latest",
         "react": "latest",
         "react-dom": "latest",
@@ -84,7 +83,10 @@ def plan_remotion_render(*, source: str, filename: str | None = None, enable_int
     ]
     return RemotionRenderPlan(
         files=files,
-        install_commands=[REMOTION_CHROME_DEPS_INSTALL, "npm install --ignore-scripts --no-audit --no-fund"],
+        install_commands=[
+            REMOTION_CHROME_DEPS_INSTALL,
+            "NODE_OPTIONS=--max-old-space-size=256 npm install --ignore-scripts --no-audit --no-fund --omit=optional",
+        ],
         render_command=f"npm exec remotion render src/Root.tsx Main {REMOTION_RENDER_OUTPUT} {REMOTION_RENDER_FLAGS}",
         output_path=REMOTION_RENDER_OUTPUT,
         thumbnail_command=f"npm exec remotion still src/Root.tsx Main {REMOTION_THUMBNAIL_OUTPUT} --frame=0 {REMOTION_RENDER_FLAGS}",
@@ -109,11 +111,11 @@ def render_remotion_in_e2b(*, source: str, filename: str | None, api_key: str, e
         sandbox.files.write_files([{"path": file.path, "data": file.content} for file in plan.files])
         sandbox.commands.run("mkdir -p out", timeout=30)
         for command in plan.install_commands:
-            install_result = sandbox.commands.run(command, timeout=300)
+            install_result = _run_sandbox_command(sandbox, command, label="install", timeout=300)
             logs.append(_safe_log_text(install_result))
-        render_result = sandbox.commands.run(plan.render_command, timeout=900)
+        render_result = _run_sandbox_command(sandbox, plan.render_command, label="render", timeout=900)
         logs.append(_safe_log_text(render_result))
-        thumbnail_result = sandbox.commands.run(plan.thumbnail_command, timeout=120)
+        thumbnail_result = _run_sandbox_command(sandbox, plan.thumbnail_command, label="thumbnail", timeout=120)
         logs.append(_safe_log_text(thumbnail_result))
         return RemotionRenderResult(
             video_bytes=_read_sandbox_file_bytes(sandbox, plan.output_path),
@@ -140,6 +142,13 @@ def kill_remotion_sandbox_in_e2b(*, sandbox_id: str, api_key: str) -> bool:
     if not api_key.strip():
         raise RuntimeError("E2B API key is not configured")
     return bool(Sandbox.kill(sandbox_id=sandbox_id, api_key=api_key))
+
+
+def _run_sandbox_command(sandbox: object, command: str, *, label: str, timeout: int) -> object:
+    try:
+        return sandbox.commands.run(command, timeout=timeout)  # type: ignore[attr-defined]
+    except Exception as exc:
+        raise RuntimeError(f"Remotion E2B {label} command failed: {command}: {exc}") from exc
 
 
 def _read_sandbox_file_bytes(sandbox: object, path: str) -> bytes:
