@@ -83,7 +83,7 @@ CLI login derives and stores the email encryption key after pair-auth by decrypt
 
 **Server management:** `install`, `start`, `stop`, `restart`, `status`, `logs`, `update`, `reset`, `make-admin`, `uninstall` -- manages self-hosted instances via Docker Compose. No login required.
 
-All commands support `--json` for machine-readable output and `--api-url` to override the API endpoint.
+All commands support `--json` for machine-readable output and `--api-url` to override the API endpoint. Without an explicit override, API target priority is: `--api-url`, `OPENMATES_API_URL`, saved login session, installed self-host server config, then the OpenMates cloud API.
 
 ### Security Boundaries
 
@@ -99,7 +99,7 @@ npm run build                        # Production build via tsup (ESM)
 npm test                             # Full test suite
 ```
 
-Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_API_URL` env var. App URL auto-derived for pair-auth.
+Connect to dev server: `--api-url https://api.dev.openmates.org` or `OPENMATES_API_URL` env var. App URL auto-derived for pair-auth; self-hosted `api.example.com` maps to `app.example.com` unless `OPENMATES_APP_URL` is set.
 
 ### Key Files
 

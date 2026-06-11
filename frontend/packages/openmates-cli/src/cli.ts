@@ -5339,7 +5339,7 @@ Commands:
 
 Flags:
   --json          Output raw JSON instead of formatted output
-  --api-url <url> Override API base URL (default: https://api.openmates.org)
+  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
 }

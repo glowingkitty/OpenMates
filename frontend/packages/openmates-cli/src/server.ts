@@ -237,6 +237,17 @@ function setEnvIfEmpty(content: string, name: string, value: string): string {
   return getEnvVar(content, name) ? content : setEnvVar(content, name, value);
 }
 
+function firstCsvValue(value: string): string {
+  return value.split(",").map((item) => item.trim()).find(Boolean) ?? "";
+}
+
+function deriveSelfHostCliUrls(envContent: string): { apiUrl: string; appUrl: string } {
+  return {
+    apiUrl: firstCsvValue(getEnvVar(envContent, "VITE_API_URL")) || "http://localhost:8000",
+    appUrl: firstCsvValue(getEnvVar(envContent, "PRODUCTION_URL")) || "http://localhost:5173",
+  };
+}
+
 async function fetchText(url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -546,6 +557,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     const imageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
     console.error(`Preparing OpenMates image-mode install at ${installPath}...`);
     await writeImageModeRuntimeFiles(installPath, imageTag);
+    const cliUrls = deriveSelfHostCliUrls(readFileSync(join(installPath, ".env"), "utf-8"));
     try {
       exec("docker network create openmates", installPath);
     } catch {
@@ -558,6 +570,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       composeProfile: "core",
       installMode: "image",
       imageTag,
+      ...cliUrls,
     });
 
     if (flags.json === true) {
@@ -571,6 +584,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       console.log("  2. Open http://localhost:5173");
       if (firstInvite) console.log(`  3. Sign up with invite code: ${firstInvite}`);
       console.log("  4. After signup, make yourself admin: openmates server make-admin your@email.com");
+      console.log(`\nCLI default API: ${cliUrls.apiUrl}`);
       console.log("\nOptional: edit .env first to add LLM provider API keys. Source builds are available with --from-source.");
     }
     return;
@@ -623,11 +637,14 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   }
 
   // Save config
+  const envPath = join(installPath, ".env");
+  const cliUrls = deriveSelfHostCliUrls(existsSync(envPath) ? readFileSync(envPath, "utf-8") : "");
   saveServerConfig({
     installPath,
     installedAt: Date.now(),
     composeProfile: "core",
     installMode: "source",
+    ...cliUrls,
   });
 
   if (flags.json === true) {
@@ -638,6 +655,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     console.log("  1. Run: openmates server start");
     console.log("  2. Open http://localhost:5173");
     console.log("  3. After signup, make yourself admin: openmates server make-admin your@email.com");
+    console.log(`\nCLI default API: ${cliUrls.apiUrl}`);
     console.log("\nOptional: edit .env first to add LLM provider API keys. Without keys, the web app and backend still start, but AI model processing is unavailable.");
   }
 }

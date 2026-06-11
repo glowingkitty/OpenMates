@@ -43,6 +43,7 @@ import {
   clearSyncCache,
   isSyncCacheFresh,
 } from "./storage.js";
+import { loadServerConfig } from "./serverConfig.js";
 import {
   OpenMatesWsClient,
   type AppSettingsMemoriesRequestEvent,
@@ -834,11 +835,27 @@ interface TaskStatusResponse {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_API_URL =
-  process.env.OPENMATES_API_URL ?? "https://api.openmates.org";
+const CLOUD_API_URL = "https://api.openmates.org";
+const DEFAULT_API_URL = process.env.OPENMATES_API_URL ?? CLOUD_API_URL;
 const SETTINGS_GET_RATE_LIMIT_RETRY_MS = 61_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
 const SKILL_TASK_POLL_TIMEOUT_MS = 300_000;
+
+function normalizeOrigin(url: URL): string {
+  url.pathname = "";
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+function isLocalHost(hostname: string): boolean {
+  return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
+function loadDefaultServerApiUrl(): string | null {
+  const config = loadServerConfig();
+  return config?.apiUrl?.replace(/\/$/, "") ?? null;
+}
 
 /**
  * Derive the web app URL from the API URL so the pair token is always looked
@@ -849,16 +866,30 @@ export function deriveAppUrl(apiUrl: string): string {
   if (process.env.OPENMATES_APP_URL) {
     return process.env.OPENMATES_APP_URL.replace(/\/$/, "");
   }
-  if (apiUrl.includes("api.dev.openmates.org")) {
-    return "https://app.dev.openmates.org";
+
+  const serverAppUrl = loadServerConfig()?.appUrl;
+  if (serverAppUrl && apiUrl.replace(/\/$/, "") === loadDefaultServerApiUrl()) {
+    return serverAppUrl.replace(/\/$/, "");
   }
-  if (apiUrl.includes("api.openmates.org")) {
+
+  try {
+    const url = new URL(apiUrl);
+    if (url.hostname === "api.dev.openmates.org") {
+      return "https://app.dev.openmates.org";
+    }
+    if (url.hostname === "api.openmates.org") {
+      return "https://openmates.org";
+    }
+    if (isLocalHost(url.hostname)) {
+      return "http://localhost:5173";
+    }
+    if (url.hostname.startsWith("api.")) {
+      url.hostname = `app.${url.hostname.slice(4)}`;
+    }
+    return normalizeOrigin(url);
+  } catch {
     return "https://openmates.org";
   }
-  if (apiUrl.includes("localhost")) {
-    return "http://localhost:5173";
-  }
-  return "https://openmates.org";
 }
 
 const CLI_DEVICE_NAME_PREFIX = "OpenMates CLI";
@@ -892,6 +923,7 @@ export class OpenMatesClient {
       options.apiUrl ??
       process.env.OPENMATES_API_URL ??
       diskSession?.apiUrl ??
+      loadDefaultServerApiUrl() ??
       DEFAULT_API_URL
     ).replace(/\/$/, "");
     this.session = diskSession;

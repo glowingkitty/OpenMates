@@ -12,11 +12,14 @@ export {};
 const { test, expect } = require('@playwright/test');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
 const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
 
 const SELFHOST_API_URL = process.env.SELFHOST_API_URL || 'http://localhost:8000';
+const SELFHOST_APP_URL = process.env.SELFHOST_APP_URL || 'http://localhost:5173';
 const SELFHOST_INSTALL_PATH = process.env.SELFHOST_INSTALL_PATH || '/tmp/openmates-selfhost';
 
 test.describe.configure({ retries: 0 });
@@ -26,6 +29,44 @@ function readInstallEnv(name: string): string {
  const content = fs.readFileSync(envPath, 'utf-8');
  const line = content.split('\n').find((entry: string) => entry.startsWith(`${name}=`));
  return line ? line.slice(name.length + 1).trim() : '';
+}
+
+function assertCliDefaultsToInstalledSelfHost(): void {
+ const serverConfigPath = path.join(os.homedir(), '.openmates', 'server.json');
+ expect(fs.existsSync(serverConfigPath), 'server install should persist ~/.openmates/server.json').toBe(true);
+
+ const serverConfig = JSON.parse(fs.readFileSync(serverConfigPath, 'utf-8'));
+ expect(serverConfig.installPath).toBe(SELFHOST_INSTALL_PATH);
+ expect(serverConfig.apiUrl).toBe(SELFHOST_API_URL);
+ expect(serverConfig.appUrl).toBe(SELFHOST_APP_URL);
+
+ const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-selfhost-cli-'));
+ try {
+  const tempStateDir = path.join(tempHome, '.openmates');
+  fs.mkdirSync(tempStateDir, { recursive: true });
+  fs.copyFileSync(serverConfigPath, path.join(tempStateDir, 'server.json'));
+
+  const repoRoot = path.resolve(process.cwd(), '../../..');
+  const cliIndexUrl = pathToFileURL(path.join(repoRoot, 'frontend/packages/openmates-cli/dist/index.js')).href;
+  const script = `
+    import { OpenMatesClient, deriveAppUrl } from ${JSON.stringify(cliIndexUrl)};
+    const client = OpenMatesClient.load();
+    console.log(JSON.stringify({ apiUrl: client.apiUrl, appUrl: deriveAppUrl(client.apiUrl) }));
+  `;
+  const env = { ...process.env, HOME: tempHome, USERPROFILE: tempHome };
+  delete env.OPENMATES_API_URL;
+  delete env.OPENMATES_APP_URL;
+
+  const output = execFileSync(process.execPath, ['--input-type=module', '-e', script], {
+   encoding: 'utf-8',
+   env
+  });
+  const detected = JSON.parse(output);
+  expect(detected.apiUrl).toBe(SELFHOST_API_URL);
+  expect(detected.appUrl).toBe(SELFHOST_APP_URL);
+ } finally {
+  fs.rmSync(tempHome, { recursive: true, force: true });
+ }
 }
 
 async function getBrowserSession(page: any): Promise<any> {
@@ -71,11 +112,13 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 	);
 
 	const firstInviteCode = readInstallEnv('SELF_HOST_FIRST_INVITE_CODE');
- expect(firstInviteCode, 'first signup invite code should be generated during install').toMatch(
-  /^[0-9]{4}-[0-9]{4}-[0-9]{4}$/
- );
+  expect(firstInviteCode, 'first signup invite code should be generated during install').toMatch(
+   /^[0-9]{4}-[0-9]{4}-[0-9]{4}$/
+  );
 
- const signupEmail = `selfhost-${Date.now()}@example.test`;
+ assertCliDefaultsToInstalledSelfHost();
+
+  const signupEmail = `selfhost-${Date.now()}@example.test`;
  const signupUsername = `selfhost_${Date.now().toString(36).slice(-8)}`;
  const signupPassword = 'SelfHostSmoke!234Secure';
 
