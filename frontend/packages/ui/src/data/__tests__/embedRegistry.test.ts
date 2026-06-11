@@ -468,8 +468,14 @@ describe("Embed Registry — content catalog", () => {
     const missing: string[] = [];
 
     for (const item of CONTENT_EMBED_CATALOG) {
-      if (!EMBED_METADATA[item.registryKey]) {
-        missing.push(`[${item.id}] missing EMBED_METADATA['${item.registryKey}']`);
+      const metadataKey = EMBED_METADATA[item.registryKey]
+        ? item.registryKey
+        : item.source === "child" && item.skillId
+          ? `app:${item.appId}:${item.skillId}`
+          : item.frontendType;
+
+      if (!EMBED_METADATA[metadataKey]) {
+        missing.push(`[${item.id}] missing EMBED_METADATA['${metadataKey}']`);
       }
       if (!EMBED_PREVIEW_COMPONENTS[item.registryKey]) {
         missing.push(`[${item.id}] missing preview for '${item.registryKey}'`);

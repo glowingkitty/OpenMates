@@ -15,12 +15,16 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DIR = REPO_ROOT / "frontend/packages/ui/src/demo_chats/data/example_chats"
 EXAMPLE_I18N_DIR = REPO_ROOT / "frontend/packages/ui/src/i18n/sources/example_chats"
 MATES_YML = REPO_ROOT / "frontend/packages/ui/src/i18n/sources/mates.yml"
 REGISTRY_PATH = REPO_ROOT / "frontend/packages/ui/src/data/embedRegistry.generated.ts"
+SHARED_EMBED_TYPES_PATH = REPO_ROOT / "shared/config/embed_types.yml"
+APP_DIR = REPO_ROOT / "backend/apps"
 
 SPECIAL_CATEGORIES = {"openmates_official"}
 GENERIC_PREVIEW_KEYS = {
@@ -81,22 +85,27 @@ def load_registry_keys() -> set[str]:
 
 
 def load_content_catalog() -> dict[str, dict[str, str]]:
-    source = REGISTRY_PATH.read_text(encoding="utf-8")
-    match = re.search(r"export const CONTENT_EMBED_CATALOG:[\s\S]*?= \[(?P<body>[\s\S]*?)\n\];", source)
-    if not match:
-        return {}
-
     catalog: dict[str, dict[str, str]] = {}
-    for item in re.finditer(r"\{(?P<body>[\s\S]*?)\n\s*\}", match.group("body")):
-        body = item.group("body")
-        catalog_id = parse_ts_string_field(body, "id")
-        if not catalog_id:
-            continue
-        catalog[catalog_id] = {
-            key: value
-            for key in ("registryKey", "frontendType", "backendType", "skillId")
-            if (value := parse_ts_string_field(body, key))
-        }
+    for path in [SHARED_EMBED_TYPES_PATH, *sorted(APP_DIR.glob("*/app.yml"))]:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for embed_type in data.get("embed_types", []):
+            content_catalog = embed_type.get("content_catalog") or {}
+            if not content_catalog.get("enabled"):
+                continue
+            app_id = embed_type.get("app_id") or path.parent.name
+            content_type_id = content_catalog.get("content_type_id") or embed_type.get("id")
+            catalog_id = f"{app_id}.{content_type_id}"
+            registry_key = (
+                f"app:{app_id}:{embed_type.get('skill_id')}"
+                if embed_type.get("category") == "app-skill-use" and content_catalog.get("source", "self") != "child"
+                else embed_type.get("child_frontend_type") or embed_type.get("frontend_type") or embed_type.get("id")
+            )
+            catalog[catalog_id] = {
+                "registryKey": registry_key,
+                "frontendType": embed_type.get("child_frontend_type") or embed_type.get("frontend_type") or "",
+                "backendType": embed_type.get("child_type") or embed_type.get("backend_type") or "",
+                "skillId": embed_type.get("skill_id") or "",
+            }
     return catalog
 
 
