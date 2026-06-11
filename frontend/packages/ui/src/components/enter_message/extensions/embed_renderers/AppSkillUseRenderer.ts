@@ -1914,6 +1914,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent?.preview_thumbnails ||
       [];
     const previewResultsJson = decodedContent?.preview_results_json || "";
+    const childEmbedIds = this.normalizeEmbedIds(
+      decodedContent?.embed_ids || embedData?.embed_ids,
+    );
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1949,6 +1952,25 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         },
       });
       mountedComponents.set(content, component);
+      if (
+        status === "finished" &&
+        !this.hasImagePreviewResults(results, previewResultsJson) &&
+        childEmbedIds.length > 0
+      ) {
+        void this.hydrateImagesSearchPreviewFromChildren({
+          attrs,
+          content,
+          component,
+          embedData,
+          decodedContent,
+          childEmbedIds,
+          query,
+          provider,
+          status,
+          taskId,
+          handleFullscreen,
+        });
+      }
       console.debug(
         "[AppSkillUseRenderer] Mounted ImagesSearchEmbedPreview component",
       );
@@ -1959,6 +1981,104 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
+  }
+
+  private normalizeEmbedIds(rawEmbedIds: unknown): string[] {
+    if (typeof rawEmbedIds === "string") {
+      return rawEmbedIds.split("|").map((id) => id.trim()).filter(Boolean);
+    }
+    if (Array.isArray(rawEmbedIds)) {
+      return rawEmbedIds.filter(
+        (id): id is string => typeof id === "string" && id.trim().length > 0,
+      );
+    }
+    return [];
+  }
+
+  private hasImagePreviewResults(results: unknown, previewResultsJson: unknown): boolean {
+    if (Array.isArray(results) && results.some((result) => {
+      const item = result as Record<string, unknown>;
+      return !!(item.image_url || item.thumbnail_url);
+    })) {
+      return true;
+    }
+    if (typeof previewResultsJson !== "string" || !previewResultsJson.trim()) {
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(previewResultsJson) as unknown;
+      return Array.isArray(parsed) && parsed.some((result) => {
+        const item = result as Record<string, unknown>;
+        return !!(item.image_url || item.thumbnail_url);
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  private async hydrateImagesSearchPreviewFromChildren(params: {
+    attrs: EmbedNodeAttributes;
+    content: HTMLElement;
+    component: ReturnType<typeof mount>;
+    embedData: any;
+    decodedContent: any;
+    childEmbedIds: string[];
+    query: string;
+    provider: string;
+    status: string;
+    taskId: string;
+    handleFullscreen: () => void;
+  }): Promise<void> {
+    const hydratedResults = await Promise.all(
+      params.childEmbedIds.slice(0, 10).map(async (embedId) => {
+        try {
+          const childEmbed = await resolveEmbed(embedId);
+          const childContent = childEmbed?.content
+            ? await decodeToonContent(childEmbed.content)
+            : null;
+          if (!childContent?.image_url && !childContent?.thumbnail_url) {
+            return null;
+          }
+          return childContent;
+        } catch (error) {
+          console.debug(
+            "[AppSkillUseRenderer] Failed to hydrate image search child preview:",
+            embedId,
+            error,
+          );
+          return null;
+        }
+      }),
+    );
+    const results = hydratedResults.filter(Boolean);
+    if (results.length === 0 || mountedComponents.get(params.content) !== params.component) {
+      return;
+    }
+
+    try {
+      unmount(params.component);
+    } catch (error) {
+      console.warn(
+        "[AppSkillUseRenderer] Error unmounting images search preview before hydration:",
+        error,
+      );
+    }
+    params.content.innerHTML = "";
+    const component = mount(ImagesSearchEmbedPreview, {
+      target: params.content,
+      props: {
+        id: params.attrs.contentRef?.replace("embed:", "") || "",
+        query: params.query,
+        provider: params.provider,
+        status: params.status as "processing" | "finished" | "error",
+        results,
+        previewResultsJson: "",
+        taskId: params.taskId,
+        isMobile: false,
+        onFullscreen: params.handleFullscreen,
+      },
+    });
+    mountedComponents.set(params.content, component);
   }
 
   /**
