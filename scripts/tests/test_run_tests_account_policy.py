@@ -60,6 +60,19 @@ def test_batch_size_is_capped_to_normal_account_pool():
     assert plan[13] == (1, "regular-13.spec.ts", 1)
 
 
+def test_hourly_dev_specs_exist():
+    run_tests = load_run_tests_module()
+    tests_dir = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
+
+    missing_specs = [
+        spec_name
+        for spec_name in run_tests.HOURLY_DEV_SPECS
+        if not (tests_dir / spec_name).is_file()
+    ]
+
+    assert missing_specs == []
+
+
 def test_dispatch_run_matching_uses_unique_token():
     run_tests = load_run_tests_module()
 
