@@ -2676,28 +2676,28 @@ ai.skill.ask.model.mistral_small_latest:
   verified_by_human: []
 
 ai.skill.ask.model.mistral_medium_latest:
-  context: Display name for the Mistral Medium AI model, shown as the settings page title when navigating directly to this model
-  en: Mistral Medium
-  de: Mistral Medium
-  zh: Mistral Medium
-  es: Mistral Medium
-  fr: Mistral Medium
-  pt: Mistral Medium
-  ru: Mistral Medium
-  ja: Mistral Medium
-  ko: Mistral Medium
-  it: Mistral Medium
-  tr: Mistral Medium
-  vi: Mistral Medium
-  id: Mistral Medium
-  pl: Mistral Medium
-  nl: Mistral Medium
-  ar: Mistral Medium
-  hi: Mistral Medium
-  th: Mistral Medium
-  cs: Mistral Medium
-  sv: Mistral Medium
-  he: Mistral Medium
+  context: Display name for the Mistral Medium 3.5 AI model, shown as the settings page title when navigating directly to this model
+  en: Mistral Medium 3.5
+  de: Mistral Medium 3.5
+  zh: Mistral Medium 3.5
+  es: Mistral Medium 3.5
+  fr: Mistral Medium 3.5
+  pt: Mistral Medium 3.5
+  ru: Mistral Medium 3.5
+  ja: Mistral Medium 3.5
+  ko: Mistral Medium 3.5
+  it: Mistral Medium 3.5
+  tr: Mistral Medium 3.5
+  vi: Mistral Medium 3.5
+  id: Mistral Medium 3.5
+  pl: Mistral Medium 3.5
+  nl: Mistral Medium 3.5
+  ar: Mistral Medium 3.5
+  hi: Mistral Medium 3.5
+  th: Mistral Medium 3.5
+  cs: Mistral Medium 3.5
+  sv: Mistral Medium 3.5
+  he: Mistral Medium 3.5
   verified_by_human: []
 
 ai.skill.ask.model.ministral_8b_2512:

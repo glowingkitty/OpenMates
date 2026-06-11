@@ -148,9 +148,9 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
   { id: "zai-glm-4.7", name: "GLM 4.7" },
-  { id: "mistral-medium-latest", name: "Mistral Medium" },
-  { id: "mistral-small-2506", name: "Mistral Small 3.2" },
-  { id: "mistral-small-latest", name: "Mistral Small 4" },
+  { id: "mistral-medium-latest", name: "Mistral Medium 3.5", providerId: "mistral" },
+  { id: "mistral-small-2506", name: "Mistral Small 3.2", providerId: "mistral" },
+  { id: "mistral-small-latest", name: "Mistral Small 4", providerId: "mistral" },
   { id: "devstral-2512", name: "Devstral 2" },
 ];
 
