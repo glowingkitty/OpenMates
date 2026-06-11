@@ -1513,16 +1513,14 @@ def _wrap_text(draw: Any, text: str, font: Any, max_width: int, max_lines: int) 
 def _load_og_font(size: int, bold: bool = False) -> Any:
     from PIL import ImageFont
 
-    font_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-    for path in (
-        f"/usr/share/fonts/truetype/dejavu/{font_name}",
-        f"/usr/local/share/fonts/{font_name}",
-    ):
+    font_name = "LexendDeca-Bold.ttf" if bold else "LexendDeca-Regular.ttf"
+    fonts_dir = os.path.join(os.path.dirname(__file__), "..", "services", "fonts")
+    for path in (os.path.abspath(os.path.join(fonts_dir, font_name)),):
         try:
             return ImageFont.truetype(path, size=size)
-        except Exception:
-            continue
-    return ImageFont.load_default()
+        except Exception as exc:
+            logger.warning("Failed to load Lexend Deca OG font %s: %s", path, exc)
+    raise RuntimeError(f"Lexend Deca OG font is unavailable: {font_name}")
 
 
 def _draw_lock_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:

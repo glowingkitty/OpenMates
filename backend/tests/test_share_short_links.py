@@ -357,6 +357,19 @@ def test_short_url_og_image_renders_safe_header_image_bubbles(monkeypatch):
     assert right_pixel[2] > right_pixel[0]
 
 
+def test_short_url_og_image_uses_packaged_lexend_deca_font():
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = share_routes._load_og_font(44, bold=True)
+    assert isinstance(font, ImageFont.FreeTypeFont)
+
+    image = Image.new("RGB", (500, 120), "white")
+    draw = ImageDraw.Draw(image)
+    bbox = draw.textbbox((0, 0), "OpenMates", font=font)
+    assert bbox[2] - bbox[0] > 180
+    assert bbox[3] - bbox[1] > 25
+
+
 def test_chat_metadata_field_list_includes_shared_preview_fields_and_stored_url():
     chat_methods_source = Path("backend/core/api/app/services/directus/chat_methods.py").read_text()
 
