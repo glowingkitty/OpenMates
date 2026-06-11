@@ -550,7 +550,14 @@ focuses:
   - id: check_security
     name_translation_key: code.check_security
     description_translation_key: code.check_security.description
+    process_translation_key: focus_modes.code_check_security.process
+    systemprompt_translation_key: focus_modes.code_check_security.systemprompt
     stage: development
+    preprocessor_hint: >
+      Select when the user asks to audit server, proxy, deployment, Docker,
+      or infrastructure configuration for security issues, public exposure,
+      missing hardening, or credential leaks. Do not select for general code
+      review unless configuration security is the main request.
 
 marketing_discovery:
   skills:

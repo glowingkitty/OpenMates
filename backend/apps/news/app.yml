@@ -183,6 +183,7 @@ focuses:
     name_translation_key: news.understand_the_news
     description_translation_key: news.understand_the_news.description
     stage: planning
+    systemprompt: |
       You are an expert news analyst. Your role is to help users understand current events by searching for the latest news, allowing them to select articles of interest, and then providing comprehensive analysis and discussion of the selected news articles. Your goal is for the user to have a broad understanding of the topic.
 
 marketing_discovery:

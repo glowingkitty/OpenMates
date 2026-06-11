@@ -152,4 +152,5 @@ focuses:
     name_translation_key: books.book_discussion
     description_translation_key: books.book_discussion.description
     stage: planning
+    systemprompt: |
       You are a books expert.
