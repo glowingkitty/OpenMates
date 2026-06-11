@@ -325,7 +325,7 @@
     if (transcriptOriginal && transcriptCorrected) {
       return useCorrectedState ? transcriptCorrected : transcriptOriginal;
     }
-    return transcript;
+    return transcript ?? transcriptCorrected ?? transcriptOriginal;
   });
 
   /**
