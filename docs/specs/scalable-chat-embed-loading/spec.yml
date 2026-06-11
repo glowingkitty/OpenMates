@@ -1,6 +1,6 @@
 id: scalable-chat-embed-loading
 title: Scalable Chat And Embed Loading
-status: implementing
+status: verified
 
 goal: >
   Make owner chats and shared chats open reliably and quickly regardless of total
@@ -353,8 +353,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
-        timestamp: "2026-06-08T13:03:22Z"
+        run_id: "27381345815; python3 scripts/run_tests.py --suite vitest; 364/364 passed on 507806478"
+        timestamp: "2026-06-11T22:27:27Z"
 
   - id: T-VITEST-EMBED-PREVIEW-METADATA
     type: vitest
@@ -380,8 +380,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
-        timestamp: "2026-06-08T13:03:22Z"
+        run_id: "27381345815; python3 scripts/run_tests.py --suite vitest; 364/364 passed on 507806478"
+        timestamp: "2026-06-11T22:27:27Z"
 
   - id: T-PYTEST-EMBED-PREVIEW-AUDIT
     type: pytest
@@ -406,8 +406,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 scripts/audit_embed_preview_hydration.py; python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py; 3 passed"
-        timestamp: "2026-06-11T21:24:04Z"
+        run_id: "python3 scripts/audit_embed_preview_hydration.py; python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; 14 passed"
+        timestamp: "2026-06-11T22:25:58Z"
 
   - id: T-VITEST-DEEP-LINK
     type: vitest
@@ -432,8 +432,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
-        timestamp: "2026-06-08T13:03:22Z"
+        run_id: "27381345815; python3 scripts/run_tests.py --suite vitest; 364/364 passed on 507806478"
+        timestamp: "2026-06-11T22:27:27Z"
 
   - id: T-PYTEST-SHARE-WINDOW
     type: pytest
@@ -457,8 +457,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 -m pytest backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; share window coverage included in 9 passed"
-        timestamp: "2026-06-08T12:17:48Z"
+        run_id: "python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; share window coverage included in 14 passed"
+        timestamp: "2026-06-11T22:25:58Z"
 
   - id: T-PYTEST-COMPRESSION-WINDOW
     type: pytest
@@ -482,8 +482,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 -m pytest backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; compression window coverage included in 9 passed"
-        timestamp: "2026-06-08T12:17:48Z"
+        run_id: "python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; compression window coverage included in 14 passed"
+        timestamp: "2026-06-11T22:25:58Z"
 
   - id: T-E2E-LARGE-CHAT-LOAD
     type: playwright

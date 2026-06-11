@@ -6,7 +6,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  limitLegacyPreviewChildIds,
   shouldHydrateCarouselSlide,
 } from '../embedPreviewHydration';
 
@@ -27,9 +26,9 @@ describe('embed preview hydration bounds', () => {
     expect(hydrated).toEqual([0, 1, 4]);
   });
 
-  it('caps legacy child embed preview hydration', () => {
-    const childIds = ['child-1', '', 'child-2', 'child-3', 'child-4'];
+  it('does not expose helpers for preview-time child hydration', async () => {
+    const helpers = await import('../embedPreviewHydration');
 
-    expect(limitLegacyPreviewChildIds(childIds, 3)).toEqual(['child-1', 'child-2', 'child-3']);
+    expect(Object.keys(helpers)).not.toContain('limitLegacyPreviewChildIds');
   });
 });
