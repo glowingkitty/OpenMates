@@ -381,12 +381,52 @@ async def test_chat_og_metadata_includes_header_image_bubbles():
 
     assert response["category"] == "general_knowledge"
     assert response["icon"] == "map"
+    assert response["image"] == "/v1/share/chat/chat-1/og-image.png"
     assert response["image_bubbles"] == [
         {
             "imageUrl": "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg",
             "title": "One",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_direct_chat_og_image_generates_png_for_shared_chat_metadata(monkeypatch):
+    monkeypatch.setattr(share_routes, "_load_safe_og_bubble_image", lambda _url: None)
+    get_og_image = getattr(
+        share_routes.get_chat_og_image,
+        "__wrapped__",
+        share_routes.get_chat_og_image,
+    )
+
+    response = await get_og_image(
+        request=None,
+        chat_id="chat-1",
+        directus_service=FakeDirectusService(),
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response.media_type == "image/png"
+    assert response.body.startswith(b"\x89PNG\r\n\x1a\n")
+    assert len(response.body) > 1000
+
+
+def test_og_icon_uses_stored_lucide_icon_before_fallback(monkeypatch):
+    from PIL import Image, ImageDraw
+
+    used_icons = []
+
+    def fake_draw_lucide_icon(_draw, _center_x, _center_y, _size, icon, _color):
+        used_icons.append(icon)
+        return True
+
+    monkeypatch.setattr(share_routes, "_draw_lucide_icon", fake_draw_lucide_icon)
+    image = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+
+    share_routes._draw_og_icon(draw, 100, 100, 90, {"icon": "map"}, (255, 255, 255, 255))
+
+    assert used_icons == ["map"]
 
 
 def test_short_url_og_image_uses_packaged_lexend_deca_font():

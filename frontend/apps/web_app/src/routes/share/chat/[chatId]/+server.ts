@@ -66,6 +66,11 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 
 	const siteUrl = url.origin;
 	const shareUrl = `${siteUrl}/share/chat/${chatId}`;
+	const absoluteOgImage = ogImage.startsWith('http')
+		? ogImage
+		: ogImage.startsWith('/v1/')
+			? `${backendUrl}${ogImage}`
+			: `${siteUrl}${ogImage}`;
 
 	// Generate HTML with OG tags
 	const html = `<!DOCTYPE html>
@@ -81,7 +86,9 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     <meta property="og:url" content="${shareUrl}">
     <meta property="og:title" content="${ogTitle}">
     <meta property="og:description" content="${ogDescription}">
-    <meta property="og:image" content="${siteUrl}${ogImage}">
+    <meta property="og:image" content="${absoluteOgImage}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
@@ -89,7 +96,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     <meta property="twitter:url" content="${shareUrl}">
     <meta name="twitter:title" content="${ogTitle}">
     <meta name="twitter:description" content="${ogDescription}">
-    <meta name="twitter:image" content="${siteUrl}${ogImage}">
+    <meta name="twitter:image" content="${absoluteOgImage}">
 
     <!-- Redirect to main app so SvelteKit boots and can client-side navigate to the share page -->
     <script>

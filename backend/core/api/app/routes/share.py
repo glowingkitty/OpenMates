@@ -463,129 +463,8 @@ async def get_og_metadata(
     - Returns consistent fallback for non-existent/private chats
     """
     try:
-        # Fetch chat metadata
-        logger.debug(f"Fetching OG metadata for chat {chat_id}")
-        chat = await directus_service.chat.get_chat_metadata(chat_id)
-
-        if not chat:
-            # Chat doesn't exist - return fallback
-            logger.warning(f"Chat {chat_id} not found for OG metadata, returning fallback")
-            return {
-                "title": "Shared Chat - OpenMates",
-                "description": "View this shared conversation on OpenMates",
-                "image": "/og-images/default-chat.png",
-                "category": None
-            }
-
-        # Log what we received from Directus
-        logger.debug(f"Chat {chat_id} metadata retrieved: "
-                    f"is_private={chat.get('is_private')}, is_shared={chat.get('is_shared')}, "
-                    f"has_shared_encrypted_title={bool(chat.get('shared_encrypted_title'))}, "
-                    f"has_shared_encrypted_summary={bool(chat.get('shared_encrypted_summary'))}")
-
-        # Check if chat is private
-        is_private = chat.get("is_private", False)
-        if is_private:
-            # Chat is private - return fallback
-            logger.info(f"Chat {chat_id} is private, returning fallback OG metadata")
-            return {
-                "title": "Shared Chat - OpenMates",
-                "description": "View this shared conversation on OpenMates",
-                "image": "/og-images/default-chat.png",
-                "category": None
-            }
-
-        # Chat exists and is shared - decrypt metadata
-        shared_encrypted_title = chat.get("shared_encrypted_title")
-        shared_encrypted_summary = chat.get("shared_encrypted_summary")
-        shared_encrypted_category = chat.get("shared_encrypted_category")
-        shared_encrypted_icon = chat.get("shared_encrypted_icon")
-        shared_encrypted_image_bubbles = chat.get("shared_encrypted_image_bubbles")
-
-        # Log what we received to help debug OG tag issues
-        logger.debug(
-            f"OG metadata for chat {chat_id}: "
-            f"has_shared_encrypted_title={bool(shared_encrypted_title)}, "
-            f"has_shared_encrypted_summary={bool(shared_encrypted_summary)}, "
-            f"is_private={chat.get('is_private', False)}, "
-            f"is_shared={chat.get('is_shared', False)}"
-        )
-
-        title = "Shared Chat - OpenMates"  # Fallback
-        description = "View this shared conversation on OpenMates"  # Fallback
-
-        # Decrypt title if available
-        if shared_encrypted_title:
-            try:
-                title = await encryption_service.decrypt(
-                    shared_encrypted_title,
-                    key_name="shared-content-metadata"
-                )
-                logger.info(
-                    f"Decrypted title for chat {chat_id} "
-                    f"(length={len(title) if isinstance(title, str) else 0})"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt shared_encrypted_title for chat {chat_id}: {e}")
-        else:
-            logger.warning(f"No shared_encrypted_title found for chat {chat_id} - using fallback")
-
-        # Decrypt summary if available
-        if shared_encrypted_summary:
-            try:
-                description = await encryption_service.decrypt(
-                    shared_encrypted_summary,
-                    key_name="shared-content-metadata"
-                )
-                logger.info(
-                    f"Decrypted summary for chat {chat_id} "
-                    f"(length={len(description) if isinstance(description, str) else 0})"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt shared_encrypted_summary for chat {chat_id}: {e}")
-        else:
-            logger.warning(f"No shared_encrypted_summary found for chat {chat_id} - using fallback")
-
-        category = None
-        icon = None
-        image_bubbles: List[Any] = []
-
-        if shared_encrypted_category:
-            try:
-                category = await encryption_service.decrypt(
-                    shared_encrypted_category,
-                    key_name="shared-content-metadata"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt shared_encrypted_category for chat {chat_id}: {e}")
-
-        if shared_encrypted_icon:
-            try:
-                icon = await encryption_service.decrypt(
-                    shared_encrypted_icon,
-                    key_name="shared-content-metadata"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt shared_encrypted_icon for chat {chat_id}: {e}")
-
-        decrypted_image_bubbles = await _decrypt_shared_json_metadata(
-            shared_encrypted_image_bubbles,
-            encryption_service,
-        )
-        if isinstance(decrypted_image_bubbles, list):
-            image_bubbles = decrypted_image_bubbles[:2]
-
-        # Determine OG image based on category (fallback to default for now)
-        og_image = "/og-images/default-chat.png"
-
-        return {
-            "title": title,
-            "description": description,
-            "image": og_image,
-            "category": category,
-            "icon": icon,
-            "image_bubbles": image_bubbles,
-        }
+        logger.debug("Fetching OG metadata for chat %s", chat_id)
+        return await _build_shared_chat_metadata(chat_id, directus_service, encryption_service)
 
     except Exception as e:
         logger.error(f"Error fetching OG metadata for chat {chat_id}: {e}", exc_info=True)
@@ -593,9 +472,29 @@ async def get_og_metadata(
         return {
             "title": "Shared Chat - OpenMates",
             "description": "View this shared conversation on OpenMates",
-            "image": "/og-images/default-chat.png",
-            "category": None
+            "image": _shared_chat_image_path(chat_id),
+            "category": None,
+            "icon": None,
+            "image_bubbles": [],
         }
+
+
+@router.get("/chat/{chat_id}/og-image.png")
+@limiter.limit("60/minute")
+async def get_chat_og_image(
+    request: Request,
+    chat_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Response:
+    """Generate a PNG social preview image for a direct shared-chat URL."""
+    metadata = await _build_shared_chat_metadata(chat_id, directus_service, encryption_service)
+    png = _render_short_url_og_png(metadata)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 @router.post("/chat/metadata")
 @limiter.limit("30/minute")  # Prevent abuse of metadata updates
@@ -1339,6 +1238,10 @@ def _short_url_image_path(token: str) -> str:
     return f"/v1/share/short-url/{token}/og-image.png"
 
 
+def _shared_chat_image_path(chat_id: str) -> str:
+    return f"/v1/share/chat/{chat_id}/og-image.png"
+
+
 async def _get_short_link_record(token: str, directus_service: DirectusService) -> Optional[Dict[str, Any]]:
     items = await directus_service.get_items(
         SHORT_URL_COLLECTION,
@@ -1439,6 +1342,46 @@ async def _decrypt_shared_json_metadata(
         return None
 
 
+async def _build_shared_chat_metadata(
+    chat_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    image_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    fallback = {
+        "title": DEFAULT_CHAT_TITLE,
+        "description": DEFAULT_CHAT_DESCRIPTION,
+        "image": image_path or _shared_chat_image_path(chat_id),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": None,
+        "icon": None,
+        "image_bubbles": [],
+    }
+    chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if not chat or chat.get("is_private", False):
+        return fallback
+
+    title = await _decrypt_shared_metadata(chat.get("shared_encrypted_title"), DEFAULT_CHAT_TITLE, encryption_service)
+    summary = await _decrypt_shared_metadata(chat.get("shared_encrypted_summary"), DEFAULT_CHAT_DESCRIPTION, encryption_service)
+    category = await _decrypt_shared_metadata(chat.get("shared_encrypted_category"), "general_knowledge", encryption_service)
+    icon = await _decrypt_shared_metadata(chat.get("shared_encrypted_icon"), "chat", encryption_service)
+    image_bubbles = await _decrypt_shared_json_metadata(chat.get("shared_encrypted_image_bubbles"), encryption_service)
+    if not isinstance(image_bubbles, list):
+        image_bubbles = []
+
+    return {
+        "title": title,
+        "description": summary,
+        "image": image_path or _shared_chat_image_path(chat_id),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": category,
+        "icon": icon,
+        "image_bubbles": image_bubbles[:2],
+    }
+
+
 async def _build_short_url_metadata(
     token: str,
     directus_service: DirectusService,
@@ -1487,27 +1430,12 @@ async def _build_short_url_metadata(
             "image_bubbles": [],
         }
 
-    chat = await directus_service.chat.get_chat_metadata(record.get("content_id"), admin_required=True)
-    if not chat or chat.get("is_private", False):
-        return fallback
-
-    title = await _decrypt_shared_metadata(chat.get("shared_encrypted_title"), DEFAULT_CHAT_TITLE, encryption_service)
-    summary = await _decrypt_shared_metadata(chat.get("shared_encrypted_summary"), DEFAULT_CHAT_DESCRIPTION, encryption_service)
-    category = await _decrypt_shared_metadata(chat.get("shared_encrypted_category"), "general_knowledge", encryption_service)
-    icon = await _decrypt_shared_metadata(chat.get("shared_encrypted_icon"), "chat", encryption_service)
-    image_bubbles = await _decrypt_shared_json_metadata(chat.get("shared_encrypted_image_bubbles"), encryption_service)
-    if not isinstance(image_bubbles, list):
-        image_bubbles = []
-    return {
-        "title": title,
-        "description": summary,
-        "image": _short_url_image_path(token),
-        "content_type": "chat",
-        "password_protected": False,
-        "category": category,
-        "icon": icon,
-        "image_bubbles": image_bubbles[:2],
-    }
+    return await _build_shared_chat_metadata(
+        record.get("content_id"),
+        directus_service,
+        encryption_service,
+        image_path=_short_url_image_path(token),
+    )
 
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
@@ -1623,13 +1551,61 @@ def _draw_film_icon(draw: Any, center_x: int, center_y: int, size: int, color: t
     draw.line((left + int(size * 0.23), mid_y, right - int(size * 0.23), mid_y), fill=color, width=stroke)
 
 
+def _draw_lucide_polyline(draw: Any, points: List[tuple[float, float]], color: tuple[int, ...], stroke: int) -> None:
+    draw.line(points, fill=color, width=stroke, joint="curve")
+
+
+def _draw_lucide_icon(draw: Any, center_x: int, center_y: int, size: int, icon: str, color: tuple[int, ...]) -> bool:
+    normalized_icon = icon.strip().lower().replace("_", "-")
+    left = center_x - size / 2
+    top = center_y - size / 2
+    scale = size / 24
+    stroke = max(5, int(size * 0.075))
+
+    def p(x: float, y: float) -> tuple[float, float]:
+        return (left + x * scale, top + y * scale)
+
+    if normalized_icon in {"message-square", "message-circle", "chat"}:
+        draw.rounded_rectangle((*p(3, 4), *p(21, 18)), radius=int(3 * scale), outline=color, width=stroke)
+        _draw_lucide_polyline(draw, [p(8, 18), p(8, 22), p(13, 18)], color, stroke)
+        return True
+
+    if normalized_icon in {"shield", "shield-check"}:
+        shield_points = [p(12, 2.5), p(20, 6), p(20, 12), p(18, 17), p(12, 21.5), p(6, 17), p(4, 12), p(4, 6), p(12, 2.5)]
+        _draw_lucide_polyline(draw, shield_points, color, stroke)
+        if normalized_icon == "shield-check":
+            _draw_lucide_polyline(draw, [p(8.8, 12.2), p(11.2, 14.6), p(15.7, 9.7)], color, stroke)
+        return True
+
+    if normalized_icon == "map":
+        _draw_lucide_polyline(draw, [p(3, 6), p(9, 3), p(15, 6), p(21, 3), p(21, 18), p(15, 21), p(9, 18), p(3, 21), p(3, 6)], color, stroke)
+        _draw_lucide_polyline(draw, [p(9, 3), p(9, 18)], color, stroke)
+        _draw_lucide_polyline(draw, [p(15, 6), p(15, 21)], color, stroke)
+        return True
+
+    if normalized_icon in {"help-circle", "circle-help"}:
+        draw.ellipse((*p(3, 3), *p(21, 21)), outline=color, width=stroke)
+        _draw_lucide_polyline(draw, [p(9.1, 9), p(9.1, 8.2), p(10, 7.2), p(12, 7.2), p(14, 7.2), p(15, 8.4), p(15, 10), p(15, 11.6), p(13.8, 12.5), p(12, 13.2), p(12, 15)], color, stroke)
+        draw.ellipse((*p(11.5, 17.5), *p(12.5, 18.5)), fill=color)
+        return True
+
+    if normalized_icon == "lock":
+        _draw_lock_icon(draw, center_x, center_y, size, color)
+        return True
+
+    if normalized_icon in {"film", "clapperboard", "movie", "movies", "tv"}:
+        _draw_film_icon(draw, center_x, center_y, size, color)
+        return True
+
+    return False
+
+
 def _draw_og_icon(draw: Any, center_x: int, center_y: int, size: int, metadata: Dict[str, Any], color: tuple[int, ...]) -> None:
     if metadata.get("password_protected"):
         _draw_lock_icon(draw, center_x, center_y, size, color)
         return
     icon = str(metadata.get("icon") or "").strip().lower()
-    if icon in {"film", "clapperboard", "movie", "movies", "tv"}:
-        _draw_film_icon(draw, center_x, center_y, size, color)
+    if _draw_lucide_icon(draw, center_x, center_y, size, icon, color):
         return
     _draw_chat_icon(draw, center_x, center_y, size, color)
 
