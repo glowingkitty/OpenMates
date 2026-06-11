@@ -478,6 +478,7 @@ services:
       CELERY_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
       CELERY_AUTOSCALE_MIN: "${CELERY_VIDEOS_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9110"
+      E2B_REMOTION_TEMPLATE: "${E2B_REMOTION_TEMPLATE:-openmates-remotion-renderer-dev}"
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \

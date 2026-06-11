@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -17,9 +18,12 @@ from backend.shared.providers.e2b_application_preview import ApplicationPreviewF
 
 REMOTION_RENDER_OUTPUT = "out/openmates-remotion.mp4"
 REMOTION_THUMBNAIL_OUTPUT = "out/openmates-remotion-thumbnail.png"
+REMOTION_TEMPLATE_ENV = "E2B_REMOTION_TEMPLATE"
+REMOTION_TEMPLATE_WORKDIR = "/home/user/remotion"
 REMOTION_DEFAULT_WIDTH = 640
 REMOTION_DEFAULT_HEIGHT = 360
 REMOTION_RENDER_FLAGS = "--concurrency=1 --chromium-flags=\"--disable-dev-shm-usage --no-sandbox\""
+REMOTION_BINARY = "./node_modules/.bin/remotion"
 REMOTION_PACKAGE_JSON = {
     "scripts": {"render": "remotion render src/Root.tsx Main out/openmates-remotion.mp4"},
     "dependencies": {
@@ -56,6 +60,8 @@ class RemotionRenderPlan:
     output_path: str
     thumbnail_command: str
     thumbnail_path: str
+    sandbox_template: str | None = None
+    working_directory: str | None = None
     enable_internet: bool = True
 
 
@@ -67,7 +73,13 @@ class RemotionRenderResult:
     logs: list[str]
 
 
-def plan_remotion_render(*, source: str, filename: str | None = None, enable_internet: bool = True) -> RemotionRenderPlan:
+def plan_remotion_render(
+    *,
+    source: str,
+    filename: str | None = None,
+    enable_internet: bool = True,
+    sandbox_template: str | None = None,
+) -> RemotionRenderPlan:
     if not source.strip():
         raise RemotionRenderPlanningError("Remotion source is required")
     if any(pattern.search(source) for pattern in SECRET_PATTERNS):
@@ -81,16 +93,29 @@ def plan_remotion_render(*, source: str, filename: str | None = None, enable_int
         ApplicationPreviewFile(path="src/Root.tsx", content=root_content),
         ApplicationPreviewFile(path=component_path, content=source),
     ]
+    template = sandbox_template.strip() if sandbox_template else None
+    working_directory = REMOTION_TEMPLATE_WORKDIR if template else None
+    install_commands = [] if template else [
+        REMOTION_CHROME_DEPS_INSTALL,
+        "NODE_OPTIONS=--max-old-space-size=768 npm install --ignore-scripts --no-audit --no-fund",
+    ]
+    render_command = f"{REMOTION_BINARY} render src/Root.tsx Main {REMOTION_RENDER_OUTPUT} {REMOTION_RENDER_FLAGS}"
+    thumbnail_command = (
+        f"{REMOTION_BINARY} still src/Root.tsx Main {REMOTION_THUMBNAIL_OUTPUT} --frame=0 {REMOTION_RENDER_FLAGS}"
+    )
+    if working_directory:
+        render_command = f"cd {working_directory} && {render_command}"
+        thumbnail_command = f"cd {working_directory} && {thumbnail_command}"
+
     return RemotionRenderPlan(
         files=files,
-        install_commands=[
-            REMOTION_CHROME_DEPS_INSTALL,
-            "NODE_OPTIONS=--max-old-space-size=256 npm install --ignore-scripts --no-audit --no-fund --omit=optional",
-        ],
-        render_command=f"npm exec remotion render src/Root.tsx Main {REMOTION_RENDER_OUTPUT} {REMOTION_RENDER_FLAGS}",
+        install_commands=install_commands,
+        render_command=render_command,
         output_path=REMOTION_RENDER_OUTPUT,
-        thumbnail_command=f"npm exec remotion still src/Root.tsx Main {REMOTION_THUMBNAIL_OUTPUT} --frame=0 {REMOTION_RENDER_FLAGS}",
+        thumbnail_command=thumbnail_command,
         thumbnail_path=REMOTION_THUMBNAIL_OUTPUT,
+        sandbox_template=template,
+        working_directory=working_directory,
         enable_internet=enable_internet,
     )
 
@@ -104,12 +129,20 @@ def render_remotion_in_e2b(*, source: str, filename: str | None, api_key: str, e
     if not api_key.strip():
         raise RuntimeError("E2B API key is not configured")
 
-    plan = plan_remotion_render(source=source, filename=filename, enable_internet=enable_internet)
-    sandbox = Sandbox.create(api_key=api_key, secure=True, allow_internet_access=plan.enable_internet)
+    plan = plan_remotion_render(
+        source=source,
+        filename=filename,
+        enable_internet=enable_internet,
+        sandbox_template=_remotion_template_name(),
+    )
+    if plan.sandbox_template:
+        sandbox = Sandbox.create(plan.sandbox_template, api_key=api_key, secure=True, allow_internet_access=plan.enable_internet)
+    else:
+        sandbox = Sandbox.create(api_key=api_key, secure=True, allow_internet_access=plan.enable_internet)
     logs: list[str] = []
     try:
-        sandbox.files.write_files([{"path": file.path, "data": file.content} for file in plan.files])
-        sandbox.commands.run("mkdir -p out", timeout=30)
+        sandbox.files.write_files(_sandbox_file_payload(plan))
+        sandbox.commands.run(_command_in_workdir(plan, "mkdir -p out"), timeout=30)
         for command in plan.install_commands:
             install_result = _run_sandbox_command(sandbox, command, label="install", timeout=300)
             logs.append(_safe_log_text(install_result))
@@ -118,8 +151,8 @@ def render_remotion_in_e2b(*, source: str, filename: str | None, api_key: str, e
         thumbnail_result = _run_sandbox_command(sandbox, plan.thumbnail_command, label="thumbnail", timeout=120)
         logs.append(_safe_log_text(thumbnail_result))
         return RemotionRenderResult(
-            video_bytes=_read_sandbox_file_bytes(sandbox, plan.output_path),
-            thumbnail_bytes=_read_sandbox_file_bytes(sandbox, plan.thumbnail_path),
+            video_bytes=_read_sandbox_file_bytes(sandbox, _sandbox_path(plan, plan.output_path)),
+            thumbnail_bytes=_read_sandbox_file_bytes(sandbox, _sandbox_path(plan, plan.thumbnail_path)),
             sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
             logs=[log for log in logs if log],
         )
@@ -149,6 +182,32 @@ def _run_sandbox_command(sandbox: object, command: str, *, label: str, timeout: 
         return sandbox.commands.run(command, timeout=timeout)  # type: ignore[attr-defined]
     except Exception as exc:
         raise RuntimeError(f"Remotion E2B {label} command failed: {command}: {exc}") from exc
+
+
+def _remotion_template_name() -> str | None:
+    value = os.getenv(REMOTION_TEMPLATE_ENV, "").strip()
+    return value or None
+
+
+def _sandbox_file_payload(plan: RemotionRenderPlan) -> list[dict[str, str]]:
+    payload: list[dict[str, str]] = []
+    for file in plan.files:
+        if plan.sandbox_template and file.path == "package.json":
+            continue
+        payload.append({"path": _sandbox_path(plan, file.path), "data": file.content})
+    return payload
+
+
+def _sandbox_path(plan: RemotionRenderPlan, path: str) -> str:
+    if not plan.working_directory:
+        return path
+    return f"{plan.working_directory.rstrip('/')}/{path}"
+
+
+def _command_in_workdir(plan: RemotionRenderPlan, command: str) -> str:
+    if not plan.working_directory:
+        return command
+    return f"cd {plan.working_directory} && {command}"
 
 
 def _read_sandbox_file_bytes(sandbox: object, path: str) -> bytes:

@@ -31,13 +31,13 @@ def test_remotion_render_plan_writes_safe_project_files() -> None:
     assert plan.install_commands[0].startswith("sudo apt-get update")
     assert "libnspr4" in plan.install_commands[0]
     assert "@remotion/player" not in next(file.content for file in plan.files if file.path == "package.json")
-    assert "--max-old-space-size=256" in plan.install_commands[1]
-    assert "--omit=optional" in plan.install_commands[1]
+    assert "--max-old-space-size=768" in plan.install_commands[1]
+    assert "--omit=optional" not in plan.install_commands[1]
     assert "--concurrency=1" in plan.render_command
     assert "--disable-dev-shm-usage" in plan.render_command
     assert "width={640}" in root
     assert "height={360}" in root
-    assert plan.render_command.startswith("npm exec remotion render")
+    assert plan.render_command.startswith("./node_modules/.bin/remotion render")
     assert plan.enable_internet is True
 
 
