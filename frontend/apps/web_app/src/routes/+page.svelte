@@ -1361,6 +1361,52 @@
 			}
 		}
 
+		// --- Gift-card deep link: /#gift-card=CODE ---
+		// Process this before generic deep-link handling so unknown-hash cleanup cannot
+		// erase the pending gift card before signup promotion gating reads it.
+		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
+		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
+		let hasGiftCardHash = false;
+
+		if (browser && window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
+			const rawCode = decodeURIComponent(
+				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length).split('&')[0]
+			).toUpperCase();
+
+			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
+				hasGiftCardHash = true;
+				// Store code so GiftCardRedeem and signup promotion gating can pick it up.
+				markPendingGiftCardRedemption(rawCode);
+				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
+
+				// Clean the hash from the URL immediately (code is safely in sessionStorage).
+				history.replaceState(null, '', window.location.pathname + window.location.search);
+
+				// Branch based on auth state (isAuth is not yet set here — check optimistic local data).
+				const hasLocalAuth =
+					!!localStorage.getItem('stayLoggedIn') || !!sessionStorage.getItem('sessionToken');
+
+				if (hasLocalAuth) {
+					// Authenticated user: open the gift-card redeem settings page.
+					// Settings panel opens after initialize() completes; set the deep link store now.
+					openGiftCardRedeemSettings();
+				} else {
+					// Unauthenticated user: keep code in sessionStorage and prompt for signup/login.
+					notificationStore.addNotificationWithOptions('info', {
+						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
+						actionLabel: $text('signup.gift_card_waiting_action'),
+						onAction: () => {
+							window.dispatchEvent(new CustomEvent('openSignupInterface'));
+						},
+						duration: 10000,
+						dismissible: true
+					});
+				}
+			} else {
+				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
+			}
+		}
+
 		// Register example chat embed_ref → embed_id mappings so inline embed
 		// references in example chat messages resolve correctly.
 		registerExampleChatEmbedRefs();
@@ -1848,54 +1894,6 @@
 		console.debug(
 			'[+page.svelte] Shared chat cleanup skipped - shared chats persist until explicitly deleted'
 		);
-
-		// --- Gift-card deep link: /#gift-card=CODE ---
-		// The code lives entirely in the hash so the server never sees it.
-		// For authenticated users:  open Settings > Gift Cards > Redeem with the code pre-filled
-		// For unauthenticated users: store the code and show signup/login CTA notification.
-		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
-		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
-		let hasGiftCardHash = false;
-
-		if (window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
-			const rawCode = decodeURIComponent(
-				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length)
-					.split('&')[0]
-			).toUpperCase();
-
-			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
-				hasGiftCardHash = true;
-				// Store code so GiftCardRedeem and signup promotion gating can pick it up.
-				markPendingGiftCardRedemption(rawCode);
-				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
-
-				// Clean the hash from the URL immediately (code is safely in sessionStorage)
-				history.replaceState(null, '', window.location.pathname + window.location.search);
-
-				// Branch based on auth state (isAuth is not yet set here — check optimistic local data)
-				const hasLocalAuth =
-					!!localStorage.getItem('stayLoggedIn') || !!sessionStorage.getItem('sessionToken');
-
-				if (hasLocalAuth) {
-					// Authenticated user: open the gift-card redeem settings page
-					// (settings panel opens after initialize() completes; set the deep link store now)
-					openGiftCardRedeemSettings();
-				} else {
-					// Unauthenticated user: keep code in sessionStorage and prompt for signup/login.
-					notificationStore.addNotificationWithOptions('info', {
-						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
-						actionLabel: $text('signup.gift_card_waiting_action'),
-						onAction: () => {
-							window.dispatchEvent(new CustomEvent('openSignupInterface'));
-						},
-						duration: 10000,
-						dismissible: true
-					});
-				}
-			} else {
-				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
-			}
-		}
 
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
