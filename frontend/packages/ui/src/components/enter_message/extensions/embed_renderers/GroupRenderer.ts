@@ -39,6 +39,7 @@ import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPrevie
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
@@ -1549,6 +1550,28 @@ export class GroupRenderer implements EmbedRenderer {
             aesNonce: decodedContent?.aes_nonce || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "videos" && skillId === "create") {
+        const component = mount(VideoCreateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            remotionSource: decodedContent?.remotion_source || "",
+            filename: decodedContent?.filename || "Composition.tsx",
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "rendering" | "finished" | "error" | "cancelled" | "needs_rerender",
+            errorMessage: decodedContent?.error || decodedContent?.render_metadata?.safe_error || "",
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -3147,7 +3170,7 @@ export class GroupRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): Promise<void> {
     const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
-    const status = item.status === "cancelled" ? "error" : item.status || "finished";
+    const status = item.status === "cancelled" ? "error" : embedData?.status || decodedContent?.status || item.status || "finished";
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {

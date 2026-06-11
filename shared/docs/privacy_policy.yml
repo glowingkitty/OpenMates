@@ -431,11 +431,13 @@ provider_groups:
         used_for:
           - isolated sandbox execution for generated code embeds
           - isolated live preview sessions for generated application embeds
+          - automatic isolated Remotion rendering for videos.create embeds
         data_shared:
           - Code selected for execution
           - Generated application files and assets selected for preview
+          - Generated Remotion source code and external asset references needed to render videos
           - Runtime inputs, preview logs, and execution output needed to run and display the sandbox result
-          - Note: Shared only when you explicitly run code or start an application live preview
+          - Note: Shared when you explicitly run code, start an application live preview, or when a Remotion video render auto-starts after the assistant closes an explicit remotion code fence
 
   # =====================================================================
   # Group F — Web, search, and content retrieval. Only used when you

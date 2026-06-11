@@ -113,6 +113,8 @@ struct EmbedContentView: View {
                 TranscriptRenderer(data: rawData, mode: mode)
             case .videosGenerate:
                 GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+            case .videosCreate:
+                RemotionVideoCreateRenderer(embedId: embed.id, data: rawData, mode: mode)
 
             // Images
             case .imagesSearch:

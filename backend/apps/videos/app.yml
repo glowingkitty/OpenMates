@@ -44,6 +44,17 @@ embed_types:
     icon: videos
     gradient_var: "--color-app-videos"
     i18n_namespace: embeds.videos.generate
+  - id: create
+    category: app-skill-use
+    skill_id: create
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: videos/VideoCreateEmbedPreview.svelte
+    fullscreen_component: videos/VideoCreateEmbedFullscreen.svelte
+    icon: videos
+    gradient_var: "--color-app-videos"
+    i18n_namespace: embeds.videos.create
 settings_and_memories:
   - id: to_watch_list
     name_translation_key: videos.to_watch_list
@@ -126,8 +137,14 @@ skills:
       expose_get: true
       expose_post: true
     preprocessor_hint: >
-      Generate short AI videos from text prompts using Google Veo. Use this when
-      the user asks to create, generate, render, or make a video clip.
+      Generate short photorealistic or generative footage from text prompts using
+      Google Veo. Use this when the user asks for cinematic footage, realistic
+      scenes, camera movement, stylized animation, or non-deterministic video
+      generation.
+      Do not use this for exact text slides, product announcements, diagrams,
+      charts, UI-like motion graphics, or branded videos where exact text and
+      layout matter; those requests should use videos.create with an explicit
+      ```remotion:Name.tsx fence instead.
       Do not use this for fake real-world footage, fake endorsements, public-figure
       likeness/persona/voice imitation, scams, spam, or watermark/detection evasion.
     stage: production
@@ -178,6 +195,41 @@ skills:
       - aes_key
       - aes_nonce
       - vault_wrapped_aes_key
+  - id: create
+    name_translation_key: app_skills.videos.create
+    description_translation_key: app_skills.videos.create.description
+    icon_image: videos.svg
+    preprocessor_hint: >
+      Create deterministic code-backed videos with Remotion. Use this for text
+      slides, product announcements, diagrams, charts, UI-like motion graphics,
+      or branded videos where exact text and layout matter. The assistant must
+      write an explicit ```remotion:Name.tsx fence; do not use this for
+      photorealistic footage or generic TSX components.
+    stage: production
+    providers:
+      - E2B
+      - Remotion
+    pricing:
+      per_started_minute: 5
+      auto_start_first_minute_free: true
+    tool_schema:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Remotion TSX source code to render.
+        filename:
+          type: string
+          description: Source filename, for example ProductAnnouncement.tsx.
+      required:
+        - source
+    exclude_fields_for_llm:
+      - s3_base_url
+      - files
+      - aes_key
+      - aes_nonce
+      - vault_wrapped_aes_key
+      - sandbox_id
   - id: get_transcript
     name_translation_key: videos.get_transcript
     description_translation_key: videos.get_transcript.description

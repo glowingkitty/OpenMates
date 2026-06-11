@@ -773,6 +773,184 @@ class EmbedService:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
             return False
 
+    async def create_remotion_video_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing videos.create embed for explicit Remotion fences."""
+        try:
+            from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
+
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            embed_id = str(uuid.uuid4())
+            normalized_filename = normalize_remotion_filename(filename)
+            embed_ref = self._generate_direct_embed_ref(
+                "remotion-video",
+                embed_id,
+                {"filename": normalized_filename},
+            )
+            content = {
+                "type": "video_create",
+                "app_id": "videos",
+                "skill_id": "create",
+                "status": "processing",
+                "filename": normalized_filename,
+                "remotion_source": "",
+                "current_source_version": 1,
+                "active_render_version": None,
+                "embed_ref": embed_ref,
+                "timeline_manifest": [],
+            }
+            content_toon = encode(content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
+            created_at = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "app_skill_use",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=created_at,
+                updated_at=created_at,
+                log_prefix=log_prefix,
+                app_id="videos",
+                skill_id="create",
+            )
+            embed_reference = json.dumps({"type": "app_skill_use", "embed_id": embed_id, "app_id": "videos", "skill_id": "create"})
+            return {"embed_id": embed_id, "embed_reference": embed_reference}
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating Remotion video embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_remotion_video_embed_content(
+        self,
+        embed_id: str,
+        remotion_source: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        filename: Optional[str] = None,
+        status: str = "processing",
+        source_version: int = 1,
+        render_metadata: Optional[Dict[str, Any]] = None,
+        files: Optional[Dict[str, Any]] = None,
+        thumbnail: Optional[Dict[str, Any]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update a videos.create embed with source, render status, and artifacts."""
+        try:
+            from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
+
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Remotion video embed {embed_id} not found in cache")
+                return False
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            existing_content: Dict[str, Any] = {}
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                except Exception as exc:
+                    logger.warning(f"{log_prefix} Failed to decode Remotion embed content: {exc}")
+            normalized_filename = normalize_remotion_filename(filename or existing_content.get("filename"))
+            embed_ref = existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                "remotion-video",
+                embed_id,
+                {"filename": normalized_filename},
+            )
+            updated_content = {
+                **existing_content,
+                "type": "video_create",
+                "app_id": "videos",
+                "skill_id": "create",
+                "status": status,
+                "filename": normalized_filename,
+                "remotion_source": remotion_source,
+                "current_source_version": source_version,
+                "active_render_version": source_version if status == "finished" else existing_content.get("active_render_version"),
+                "embed_ref": embed_ref,
+                "timeline_manifest": existing_content.get("timeline_manifest") or [],
+            }
+            if render_metadata:
+                updated_content["render_metadata"] = render_metadata
+            if files:
+                updated_content["files"] = files
+            if thumbnail:
+                updated_content["thumbnail"] = thumbnail
+
+            content_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
+            updated_at = int(datetime.now().timestamp())
+            updated_embed_data = {
+                **cached_embed,
+                "type": "app_skill_use",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": updated_at,
+            }
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id or cached_embed.get("message_id", ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status=status,
+                task_id=cached_embed.get("hashed_task_id"),
+                is_private=cached_embed.get("is_private", False),
+                is_shared=cached_embed.get("is_shared", False),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_at,
+                log_prefix=log_prefix,
+                check_cache_status=False,
+                app_id="videos",
+                skill_id="create",
+            )
+            if status in {"finished", "error", "cancelled", "needs_rerender"}:
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating Remotion video embed content: {e}", exc_info=True)
+            return False
+
     async def create_application_embed(
         self,
         *,

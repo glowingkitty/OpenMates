@@ -23,11 +23,12 @@
     "test:unit:e2e-provisioning": "node --test tests/e2e-provisioning.test.ts",
     "test:unit:ws": "node --test --experimental-strip-types tests/ws.test.ts",
     "test:unit:url-embed": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/urlEmbed.test.ts",
+    "test:unit:embed-renderers": "node --test --experimental-strip-types tests/embedRenderers.test.ts",
     "test:unit:server": "node --test --experimental-strip-types tests/server.test.ts",
     "test:unit:billing": "node --test tests/billing.test.ts",
     "test:unit:account-delete": "node --test tests/account-delete.test.ts",
     "test:unit:cli": "node --test tests/cli.test.ts",
-    "test": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/crypto.test.ts tests/storage.test.ts tests/keychain.test.ts tests/mentions.test.ts tests/outputRedactor.test.ts tests/fileEmbed.test.ts tests/embedCreator.test.ts tests/shareEncryption.test.ts tests/server.test.ts tests/ws.test.ts tests/urlEmbed.test.ts && node --test tests/cli.test.ts tests/billing.test.ts tests/account-delete.test.ts tests/signup.test.ts tests/security-setup.test.ts tests/e2e-provisioning.test.ts"
+    "test": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/crypto.test.ts tests/storage.test.ts tests/keychain.test.ts tests/mentions.test.ts tests/outputRedactor.test.ts tests/fileEmbed.test.ts tests/embedCreator.test.ts tests/shareEncryption.test.ts tests/server.test.ts tests/ws.test.ts tests/urlEmbed.test.ts && node --test --experimental-strip-types tests/embedRenderers.test.ts && node --test tests/cli.test.ts tests/billing.test.ts tests/account-delete.test.ts tests/signup.test.ts tests/security-setup.test.ts tests/e2e-provisioning.test.ts"
   },
   "keywords": [
     "openmates",

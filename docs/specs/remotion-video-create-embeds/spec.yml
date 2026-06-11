@@ -1,0 +1,930 @@
+id: remotion-video-create-embeds
+title: Remotion Video Create Embeds
+status: draft
+
+goal: >
+  Let users create deterministic product-style videos from assistant-generated
+  Remotion TSX code inside chat. OpenMates should render these as first-class
+  video embeds, auto-render them in isolated E2B sandboxes, keep Remotion source
+  code as the durable editable history, and provide web and Apple parity for
+  playback, timeline inspection, code inspection, cancellation, rerendering, and
+  version-based rerendering.
+
+scope:
+  in:
+    - Add a new Videos app Remotion creation embed type, rendered as an app-skill-use embed such as app:videos:create.
+    - Add explicit assistant instructions for choosing Remotion code over Google Veo when the user asks for text, slides, product announcements, diagrams, UI-like motion graphics, or deterministic branded videos.
+    - Add a dedicated Remotion fence contract, for example ```remotion:ProductAnnouncement.tsx, so the backend does not infer arbitrary TSX as video.
+    - Convert explicit Remotion fences into videos.create processing embeds instead of code-code embeds.
+    - Stream Remotion source into the embed while the assistant is writing, parse it into a timeline, and show a processing/timeline preview before rendering is complete.
+    - Auto-start E2B rendering when the Remotion fence closes without asking for a separate confirmation.
+    - Allow generated Remotion render code to fetch external internet assets from inside E2B.
+    - Show render status transitions in the embed, including processing, rendering, finished, error, cancelled, and needs_rerender where applicable.
+    - Let the user stop an active render from the embed, kill the E2B sandbox, preserve the Remotion code and parsed timeline, and rerender later.
+    - Charge render runtime only when the render completes or when the user cancels/kills the render; auto-started E2B renders that begin without user consent get the first render minute free, while user-initiated rerenders are billable from the configured start point.
+    - Store rendered MP4 and thumbnail outputs in the existing encrypted generated-media/object-storage pipeline for chat files, not in public marketing buckets.
+    - Replace the active MP4 and thumbnail when a current Remotion source version is rerendered.
+    - Reuse existing embed diff/versioning so user modifications are represented as diffs against the Remotion source instead of full regenerated files when possible.
+    - Preserve full Remotion source history and expose a version timeline for code and parsed timeline changes.
+    - Support rendering an older source version on demand from the version timeline as a temporary preview/download, and make that behavior part of test coverage.
+    - Let users restore an older source version as the new current version by truncating later source changes and rerendering that restored source.
+    - Add web preview and fullscreen UI with thumbnail/player, parsed Remotion timeline, code toggle, download, stop, rerender, and render-this-version controls.
+    - Add Apple native parity for preview, fullscreen playback, timeline, code toggle, stop/rerender, download/share, and render older version controls.
+    - Update privacy/provider disclosures because Remotion code/assets are automatically sent to E2B for this embed type.
+  out:
+    - Replacing the existing Google Veo videos.generate skill; Veo remains the path for photorealistic or generative video prompts.
+    - Auto-detecting generic tsx/typescript/javascript fences as Remotion without an explicit Remotion fence marker.
+    - Running generated Remotion code on the OpenMates app/API origin or on the production/dev server process.
+    - Preserving every rendered MP4/thumbnail for every source version by default in v1.
+    - Publicly deploying generated Remotion projects or exposing raw E2B URLs to clients.
+    - Rendering or executing Remotion code inside the Apple app process.
+    - Building a full Remotion visual editor in v1.
+    - Guaranteeing frame-perfect timeline parsing for arbitrary Remotion code; v1 may use deterministic parser fallbacks and explicit warnings.
+
+context_discovery:
+  github_issues:
+    - "#424: Add diff-based editing support for Video Create Remotion embeds"
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/embed-diff-editing.md
+    - docs/architecture/integrations/media-generation.md
+    - docs/specs/application-embeds/spec.yml
+    - docs/specs/code-execution-fullscreen-ui/spec.yml
+  code_patterns:
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoTimeline.svelte
+    - frontend/packages/ui/src/utils/remotionTimelineParser.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+  tests:
+    - backend/tests/test_video_generate_task.py
+    - backend/tests/test_video_generation_pricing.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/skill-videos-search.spec.ts
+    - frontend/apps/web_app/tests/skill-videos-transcript.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/RemotionVideoCreateRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  parity_expectations:
+    - Apple must render videos.create preview cards with the same status states as web.
+    - Apple fullscreen must support video playback, timeline inspection, source-code toggle, download/share, stop, rerender, and render-older-version controls.
+    - Apple must never execute generated Remotion code locally; rendering occurs in E2B through backend tasks only.
+    - Apple uses generated design tokens, AppStrings, and native media playback/timeline UI that visually matches the browser source of truth.
+  verification:
+    - Remote Mac iOS build after Apple implementation.
+    - Remote Mac simulator UI evidence for preview, fullscreen playback, code toggle, and render-older-version controls.
+    - Web Playwright apple-embed-rendering-contracts spec should include videos.create contract fixtures.
+  intentional_native_differences:
+    - Native video controls, file-share sheets, text rasterization, and safe-area inset behavior may differ when the action set and information architecture remain equivalent.
+
+clarification:
+  rounds:
+    - question: >
+        Should Remotion rendering start automatically as soon as the assistant closes
+        the remotion code fence, or should the embed show a Render video
+        confirmation button first because E2B rendering costs credits and sends
+        generated code/assets to E2B?
+      answer: >
+        Auto-render after the Remotion code fence closes. Show Rendering as an
+        updated status and do not ask for permission first. The user can stop the
+        render from the embed; stopping kills the E2B instance. The user can still
+        open the embed to inspect the code timeline and retrigger rendering later.
+    - question: >
+        How should billing work for auto-render v1: charge the user per started
+        E2B render minute even if they stop/cancel midway, or only charge after a
+        completed render produces an MP4?
+      answer: >
+        Charge once rendering is completed or when the rendering is killed by the
+        user. The first minute free is specifically for E2B instances that
+        auto-start without user consent; any auto-started render is only billable
+        after that first minute. User-initiated rerenders are not covered by that
+        auto-start grace minute unless a separate product rule grants it.
+    - question: >
+        For v1 Remotion videos, should generated code be allowed to fetch external
+        assets/fonts/audio from the internet during rendering, or should v1 be
+        limited to self-contained code plus bundled OpenMates assets/fonts?
+      answer: >
+        Fetching external content is allowed from the E2B machine.
+    - question: >
+        Should v1 include Apple native rendering for Remotion video-create embeds,
+        or should Apple initially show a fallback/card while web gets the full UI?
+      answer: >
+        The Apple app must have full parity with the web app.
+    - question: >
+        How should Remotion source versions and rendered artifacts be retained when
+        the user asks for modifications?
+      answer: >
+        Use existing diff-based editing for modifications. Remotion source code is
+        the durable version history. The active video and thumbnail are replaced
+        after rerendering the current source version. Older source versions must be
+        renderable on demand as temporary preview/download renders and included in
+        the spec and tests. If the user sets an older version as the new current
+        version, later code changes after that version are deleted so the history
+        remains linear instead of becoming a git-like branch structure.
+  vision_summary: >
+    Remotion Video Create is a deterministic code-backed video workflow, not a
+    replacement for Veo video generation. The assistant writes explicit Remotion
+    code, OpenMates converts it into a video embed, automatically renders it in
+    E2B, and shows the finished encrypted MP4 and thumbnail when available. The
+    source code remains editable through diffs and durable linear version history;
+    active rendered output is replaceable, while older source versions can be
+    rendered temporarily from the timeline. Restoring an older source version makes
+    it current by deleting later code changes and rerendering from that restored
+    source.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Assistant creates a Remotion video embed from an explicit fence
+    given:
+      - Alice is authenticated in a normal chat.
+      - Alice asks, "Create a product announcement video with nice text sliding in saying Launch Week".
+      - The assistant decides the request is better served by deterministic Remotion motion graphics than by Google Veo.
+    when:
+      - The assistant outputs a code fence whose opening line is `remotion:ProductAnnouncement.tsx`.
+    then:
+      - The backend stream parser does not create a code-code embed for that fence.
+      - The backend creates one videos.create embed associated with the assistant message.
+      - The message contains a JSON embed reference to the videos.create embed.
+      - The embed content stores the Remotion source, filename, status, app_id `videos`, skill_id `create`, and an embed_ref usable for later diffs.
+      - The embed preview shows a Remotion timeline/processing state while the assistant is still streaming or before rendering finishes.
+
+  - id: S-2
+    title: Auto-render after Remotion source closes
+    given:
+      - Alice has a videos.create embed whose Remotion fence has just closed.
+      - Alice has enough credits for a render attempt after the first free minute.
+    when:
+      - The backend finalizes the Remotion source version.
+    then:
+      - OpenMates dispatches an E2B Remotion render task without asking Alice for an extra confirmation.
+      - The embed status changes to rendering.
+      - E2B receives the generated Remotion project files and can access the internet for external assets.
+      - Generated Remotion code never runs on an OpenMates app/API origin or in the Apple app process.
+      - The raw E2B sandbox URL is never exposed to the client.
+
+  - id: S-3
+    title: Finished render replaces timeline placeholder with playable video
+    given:
+      - Alice has a videos.create embed in rendering status.
+      - The E2B render task successfully renders an MP4 and thumbnail.
+    when:
+      - The render worker uploads the artifacts.
+    then:
+      - The MP4 and thumbnail are stored in encrypted generated-media storage for Alice's embed.
+      - The embed status changes to finished.
+      - The preview card shows the decrypted thumbnail with a play overlay.
+      - Opening fullscreen shows the video player, parsed Remotion timeline, metadata, download action, and code toggle.
+      - The code toggle switches between video/timeline view and source-code view without creating a separate code embed.
+
+  - id: S-4
+    title: User stops an active render and can rerender later
+    given:
+      - Alice has a videos.create embed in rendering status.
+    when:
+      - Alice clicks the embed stop control.
+    then:
+      - OpenMates requests cancellation of the render task.
+      - The E2B sandbox is killed.
+      - The embed status changes to cancelled or needs_rerender without losing the Remotion source.
+      - Alice can open fullscreen and inspect the parsed timeline and source code.
+      - Alice can click Rerender to start a new E2B render for the same current source version.
+
+  - id: S-5
+    title: Billing is charged after completion or cancellation with auto-start grace
+    given:
+      - Alice auto-renders or manually rerenders a videos.create embed.
+      - The render runtime is measured from E2B sandbox startup until completion or user cancellation.
+    when:
+      - The render completes or Alice stops the render.
+    then:
+      - For renders that auto-started without explicit user consent, OpenMates subtracts the first 60 seconds from the billable render duration.
+      - For user-initiated rerenders or render-this-version actions, OpenMates does not apply the auto-start grace minute unless a separate product rule grants it.
+      - If the remaining billable duration is zero or less, no render runtime credits are charged.
+      - If the remaining billable duration is positive, OpenMates charges per started billable minute at the configured Remotion/E2B render rate.
+      - The embed records enough sanitized billing metadata to explain the charge without storing raw E2B URLs or secrets.
+      - Provider failures before sandbox startup do not charge render runtime credits.
+
+  - id: S-6
+    title: Render failure leaves source and timeline inspectable
+    given:
+      - Alice has a videos.create embed with malformed or unsupported Remotion code.
+    when:
+      - The E2B render task fails.
+    then:
+      - The embed status changes to error.
+      - The error message shown to Alice is safe and actionable.
+      - The Remotion source and parsed timeline remain available in fullscreen.
+      - Alice can ask for a fix or click Rerender after the source is updated.
+      - OpenMates does not store a fake thumbnail or fake video artifact.
+
+  - id: S-7
+    title: User modifies a Remotion video through diff-based editing
+    given:
+      - Alice has a finished videos.create embed with source version 1 and an active MP4/thumbnail.
+      - Alice asks, "Make the intro text faster and change Launch Week to Public Beta".
+    when:
+      - The assistant outputs a diff block targeting the videos.create embed_ref.
+    then:
+      - The backend applies the diff to the Remotion source using the existing embed diff/versioning flow.
+      - The embed source version increments.
+      - The parsed timeline updates from the new source.
+      - The old active MP4 and thumbnail are invalidated or superseded.
+      - OpenMates auto-starts a new E2B render for the current source version.
+      - When the new render finishes, the active MP4 and thumbnail are replaced.
+
+  - id: S-8
+    title: User renders or restores an older source version on demand
+    given:
+      - Alice has a videos.create embed with at least three source versions.
+      - The active rendered artifact belongs to the latest source version.
+    when:
+      - Alice opens the version timeline, selects version 1, and clicks Render this version.
+    then:
+      - OpenMates reconstructs the selected Remotion source version from version history.
+      - OpenMates starts a new E2B render for that selected version only after Alice explicitly requests it.
+      - The preview and fullscreen indicate which source version is being rendered.
+      - A successful older-version render can be previewed and downloaded as a temporary render.
+      - The latest source version remains the current editable version unless Alice explicitly restores the older version.
+      - The auto-start grace minute does not apply to this explicit render-this-version action unless a separate product rule grants it.
+      - If Alice explicitly restores version 1 as current, source versions after version 1 are deleted, the restored source becomes the current editable version, and the active MP4/thumbnail are replaced only after a successful current-version render.
+
+  - id: S-9
+    title: Generic TSX remains a code embed unless explicitly marked Remotion
+    given:
+      - Alice asks for a React component.
+      - The assistant outputs a normal `tsx:Button.tsx` fence with no explicit Remotion fence marker.
+    when:
+      - The backend stream parser handles the fence.
+    then:
+      - OpenMates creates a code-code embed, not a videos.create embed.
+      - No E2B Remotion render starts.
+      - The code embed can still be edited or run through existing Code app behavior where applicable.
+
+  - id: S-10
+    title: Assistant chooses Veo or Remotion based on request shape
+    given:
+      - Alice asks for either photorealistic footage or deterministic text/graphic motion video.
+    when:
+      - The AI preprocessing and instructions choose the response path.
+    then:
+      - Requests for photorealistic/generated footage use videos.generate with Google Veo when allowed by safety policy.
+      - Requests for product announcements, text slides, diagrams, brand motion graphics, charts, or UI-like deterministic clips use explicit Remotion code.
+      - The assistant does not call videos.generate for a simple text-slideshow product announcement unless the user explicitly asks for generative footage.
+
+  - id: S-11
+    title: Shared recipients can view and rerender with their own billing
+    given:
+      - Alice shares a chat containing a videos.create embed with Bob.
+      - Bob is authenticated and has enough credits.
+    when:
+      - Bob opens the shared embed and clicks Rerender or Render this version.
+    then:
+      - Bob can view the shared thumbnail/video/source according to share permissions.
+      - Bob starts a separate E2B render session for his own rerender attempt.
+      - Bob is charged for his render after completion or cancellation using the same first-minute-free rule.
+      - Alice is not charged for Bob's render attempt.
+      - Bob does not receive Alice's raw E2B sandbox URL, temporary tokens, or private render runtime state.
+
+  - id: S-12
+    title: Apple app has full Remotion video-create parity
+    given:
+      - Alice opens the same videos.create embed on iPhone, iPad, or macOS.
+    when:
+      - Alice views the embed in preview or fullscreen.
+    then:
+      - Apple shows the same core states as web: processing, rendering, finished, error, cancelled, and needs_rerender.
+      - Apple fullscreen supports playback, timeline inspection, code toggle, download/share, stop, rerender, and render-older-version controls.
+      - Apple never executes Remotion code locally.
+      - Apple actions call the same backend contracts as web.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Explicit Remotion fences create videos.create embeds instead of code-code embeds.
+  - id: AC-2
+    scenario: S-1
+    text: videos.create embeds stream or store Remotion source and expose a parsed timeline before render completion.
+  - id: AC-3
+    scenario: S-2
+    text: Closing a valid Remotion fence auto-dispatches an isolated E2B render task and updates status to rendering without extra confirmation.
+  - id: AC-4
+    scenario: S-2
+    text: E2B render execution is isolated from OpenMates app/API origins, raw E2B URLs, auth cookies, vault keys, and provider secrets.
+  - id: AC-5
+    scenario: S-3
+    text: Successful renders store encrypted MP4 and thumbnail artifacts and update the embed to finished with playable preview/fullscreen UI.
+  - id: AC-6
+    scenario: S-3
+    text: Fullscreen provides video playback, parsed timeline, source-code toggle, metadata, and download controls.
+  - id: AC-7
+    scenario: S-4
+    text: Stopping a render cancels the task, kills the E2B sandbox, preserves source/timeline, and exposes rerender.
+  - id: AC-8
+    scenario: S-5
+    text: Render billing is charged only after completion or user cancellation; auto-started E2B renders get the first minute free, explicit rerenders do not automatically get that grace minute, and provider-pre-start failures remain uncharged.
+  - id: AC-9
+    scenario: S-6
+    text: Render failures expose safe error UI while keeping source and timeline inspectable and avoiding fake artifacts.
+  - id: AC-10
+    scenario: S-7
+    text: User modifications apply as diffs to Remotion source, increment source history, update the timeline, and auto-rerender the current version.
+  - id: AC-11
+    scenario: S-7
+    text: Current-version rerenders replace the active MP4 and thumbnail while retaining full source version history.
+  - id: AC-12
+    scenario: S-8
+    text: Older source versions can be reconstructed and rendered as temporary previews/downloads without changing the current editable version unless explicitly restored.
+  - id: AC-18
+    scenario: S-8
+    text: Restoring an older source version truncates later source changes and rerenders the restored source as the new current version.
+  - id: AC-13
+    scenario: S-9
+    text: Generic TSX/TypeScript/JavaScript code fences remain normal code embeds unless explicitly marked Remotion.
+  - id: AC-14
+    scenario: S-10
+    text: AI routing distinguishes deterministic Remotion video requests from generative footage requests handled by videos.generate.
+  - id: AC-15
+    scenario: S-11
+    text: Shared recipients can view and rerender through isolated viewer-owned sessions and are billed for their own render attempts.
+  - id: AC-16
+    scenario: S-12
+    text: Apple native clients provide full videos.create preview/fullscreen/action parity with web and never execute generated code locally.
+  - id: AC-17
+    scenario: S-2
+    text: Privacy policy, provider metadata, and consent copy disclose automatic E2B processing for Remotion video rendering.
+
+contracts:
+  api:
+    - route: POST /v1/videos/remotion/{embed_id}/render
+      purpose: Start a render for the current source version or an explicitly selected source version.
+      request: "{ chat_id: string, source_version?: integer }"
+      response: "{ render_id: string, embed_id: string, source_version: integer, status: rendering }"
+      errors:
+        - 401 when unauthenticated.
+        - 402 when the viewer lacks enough credits for a possible billable render after the first free minute.
+        - 403 when the viewer cannot access the embed.
+        - 404 when the embed or source version does not exist.
+        - 409 when another render is already active for the same embed and viewer.
+    - route: POST /v1/videos/remotion/{embed_id}/render/{render_id}/stop
+      purpose: Stop an active render and kill the E2B sandbox.
+      request: "{ chat_id: string }"
+      response: "{ render_id: string, embed_id: string, status: cancelled, charged_credits: integer }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the viewer does not own the active render session.
+        - 404 when the render session does not exist or expired.
+    - route: GET /v1/videos/remotion/{embed_id}/versions
+      purpose: Return safe source-version metadata for web and Apple version timeline controls.
+      response: "{ versions: [{ version: integer, created_at: integer, status: string, has_render: boolean }] }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the viewer cannot access the embed.
+  data:
+    - videos.create content stores type=video_create, app_id=videos, skill_id=create, status, filename, remotion_source, current_source_version, active_render_version, render metadata, files metadata, thumbnail metadata, embed_ref, and timeline_manifest when parse succeeds.
+    - Remotion source versions are stored through the existing embed_diffs/versioning pattern with enough data to reconstruct every source version.
+    - Active rendered artifacts are replaceable and point to the latest successful render for the current active render version.
+    - Older-version render artifacts are temporary preview/download artifacts by default and do not change current_source_version.
+    - Restoring an older source version truncates later source versions, marks current artifacts stale, and makes the restored source the current editable version for the next current-version render.
+    - Render session records store viewer ownership, source version, status, sanitized events, sandbox id server-side only, start/stop times, and billing result.
+  ui_states:
+    - processing: source is streaming or parsed but render has not started.
+    - rendering: E2B render is active; stop control is visible.
+    - finished: thumbnail and video are available; fullscreen opens playback/timeline/code.
+    - error: render failed; source/timeline remain available; rerender after fix is possible.
+    - cancelled: user stopped the render; source/timeline remain available; rerender is possible.
+    - needs_rerender: source changed or render artifact is missing/stale for the selected version.
+  privacy_security:
+    - Generated Remotion code and referenced assets may be sent to E2B automatically for this embed type after the assistant closes an explicit Remotion fence.
+    - Raw E2B URLs, API keys, sandbox traffic tokens, OpenMates auth cookies, provider secrets, vault keys, and decrypted chat keys must never be exposed to generated Remotion code or persisted in client-visible content.
+    - Render logs are redacted before storage or client display.
+    - External internet access from E2B is allowed for render assets, but server-side secrets are not injected.
+    - Privacy policy and provider metadata must mention Remotion video rendering under E2B processing.
+
+tests:
+  - id: T-PYTEST-PARSER
+    type: pytest
+    file: backend/tests/test_remotion_video_embed_parser.py
+    command: python3 -m pytest backend/tests/test_remotion_video_embed_parser.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-13
+    assertions:
+      - Explicit remotion fences create videos.create placeholders and JSON embed references.
+      - Generic tsx fences still create code placeholders.
+      - Closing a remotion fence dispatches a render task exactly once.
+      - Partial source updates keep the embed in processing/rendering-safe states.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-RENDER
+    type: pytest
+    file: backend/tests/test_remotion_render_task.py
+    command: python3 -m pytest backend/tests/test_remotion_render_task.py
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-17
+    assertions:
+      - Mocked E2B provider receives sanitized Remotion files and optional internet access.
+      - Successful render uploads encrypted MP4 and thumbnail metadata and marks the embed finished.
+      - Stop path kills the sandbox and records cancelled/needs_rerender without deleting source.
+      - Billing charges after completion/cancellation and subtracts the first free minute only for auto-started renders.
+      - Provider failure before sandbox startup does not charge render runtime credits.
+      - Render logs and client-visible embed content do not expose raw E2B URLs or secrets.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-DIFF
+    type: pytest
+    file: backend/tests/test_remotion_embed_diff_versions.py
+    command: python3 -m pytest backend/tests/test_remotion_embed_diff_versions.py
+    covers:
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-18
+    assertions:
+      - Diff blocks targeting videos.create embed refs patch Remotion source and increment version_number.
+      - Timeline manifest is recalculated after a successful diff.
+      - Current-version diffs mark existing active artifacts stale and dispatch rerender.
+      - Older source versions can be reconstructed and passed to a temporary render request without changing current_source_version.
+      - Restoring an older source version truncates later source versions, marks current artifacts stale, and rerenders from the restored source.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-ROUTING
+    type: pytest
+    file: backend/tests/test_remotion_video_routing.py
+    command: python3 -m pytest backend/tests/test_remotion_video_routing.py
+    covers:
+      - AC-14
+    assertions:
+      - Product announcement text-slide prompts select Remotion instructions/fence path.
+      - Photorealistic footage prompts remain eligible for videos.generate when safety policy allows.
+      - Assistant instructions mention remotion fence syntax and do not recommend generic tsx fences for video create.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-VITEST-FRONTEND
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/videos/__tests__/remotionVideoCreate.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-2
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-18
+    assertions:
+      - VideoCreate preview maps processing/rendering/finished/error/cancelled/needs_rerender content to correct UI states.
+      - Timeline parser output updates when Remotion source changes.
+      - Code toggle state preserves source and timeline context.
+      - Render-this-version action passes the selected source version.
+      - Restore-this-version action makes the selected source current and removes later version controls.
+      - Stop and rerender actions call the expected service contracts.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/remotion-video-create.spec.ts
+    command: python3 scripts/run_tests.py --spec remotion-video-create.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-13
+      - AC-15
+      - AC-18
+    assertions:
+      - Chat request for product announcement produces one videos.create embed, not a code embed.
+      - Embed transitions from processing/rendering to finished with thumbnail and video playback.
+      - Stop render changes the state and allows rerender from fullscreen.
+      - Modifying text through assistant diff updates timeline and replaces the active video/thumbnail after rerender.
+      - Selecting an older version exposes Render this version and renders a temporary preview/download without changing the current editable version.
+      - Restoring an older version deletes later source changes and rerenders the restored source as current.
+      - Shared recipient rerender starts viewer-owned render and does not charge the creator.
+      - Generic tsx prompt still renders as a code embed and does not auto-render video.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-EMBED-SHOWCASE
+    type: playwright
+    file: frontend/apps/web_app/tests/embed-showcase.spec.ts
+    command: python3 scripts/run_tests.py --spec embed-showcase.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-5
+      - AC-6
+      - AC-9
+    assertions:
+      - videos.create preview fixture renders without visual artifacts in all supported states.
+      - videos.create fullscreen fixture renders timeline, code toggle, and error/cancelled states.
+      - Existing videos.generate and videos.search fixtures keep rendering correctly.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-APPLE-CONTRACT
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    command: python3 scripts/run_tests.py --spec apple-embed-rendering-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-16
+    assertions:
+      - videos.create fixture contract exists for preview and fullscreen.
+      - Contract includes playback, timeline, code toggle, stop, rerender, download/share, and render older version actions.
+      - Apple renderer mapping includes videos.create and does not fall back to generic unsupported embed UI.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-MANUAL-APPLE
+    type: manual
+    covers:
+      - AC-16
+    assertions:
+      - Remote Mac iOS build succeeds after Apple implementation.
+      - Simulator evidence shows videos.create preview, fullscreen playback, timeline, code toggle, stop/rerender, and render-this-version controls.
+      - Apple does not execute Remotion code locally and only invokes backend render contracts.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/videos/skills/generate_skill.py for async video embed placeholders and generated-media result shape.
+    - backend/apps/videos/tasks/generate_task.py for encrypted MP4 upload, generated asset indexing, and post-completion embed updates.
+    - backend/shared/providers/e2b_application_preview.py for E2B sandbox lifecycle and secret-redaction patterns.
+    - backend/apps/ai/tasks/stream_consumer.py for special code-fence conversion into first-class embeds.
+    - backend/core/api/app/services/embed_service.py for code placeholder updates, app-skill-use embed updates, and versioning hooks.
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte for prototype preview UI.
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte for prototype fullscreen/timeline UI.
+    - docs/specs/application-embeds/spec.yml for viewer-owned E2B session and billing isolation.
+  architecture: >
+    Add a Videos Create Remotion embed as a code-backed media artifact. The
+    stream parser creates the embed from explicit remotion fences and stores the
+    Remotion source as the editable content. A backend render worker runs the
+    generated Remotion project in E2B, uploads encrypted artifacts through the
+    generated-media pipeline, and updates the same embed. Diff-based editing
+    patches Remotion source versions and triggers rerendering of the selected
+    source version.
+  data_flow:
+    - User asks for deterministic video; AI chooses Remotion instructions.
+    - Assistant emits explicit remotion fence.
+    - Stream parser creates videos.create embed and source placeholder.
+    - Source streams to client; frontend parses timeline.
+    - Fence closes; backend finalizes source version and dispatches E2B render task.
+    - Render task writes source into pinned Remotion project, renders MP4 and thumbnail, uploads encrypted artifacts, charges after completion/cancel with first minute free, and updates embed.
+    - User modifications use diff blocks against embed_ref; source version increments and current active artifacts are replaced after rerender.
+    - Older source versions can be reconstructed and rendered on demand as temporary preview/download artifacts.
+    - Restoring an older source version truncates later source versions, marks active artifacts stale, and rerenders the restored source as current.
+  affected_files:
+    - path: backend/apps/videos/app.yml
+      reason: Register videos.create embed type, i18n namespace, skill/instruction metadata, and provider disclosures.
+    - path: backend/apps/ai/instructions/base_code_block_instruction.md
+      reason: Add explicit Remotion fence guidance and prevent generic TSX ambiguity.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Convert remotion fences into videos.create embeds and dispatch render on closure.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Create/update videos.create embeds, source versions, render status, and artifact metadata.
+    - path: backend/apps/videos/tasks/render_remotion_task.py
+      reason: New E2B Remotion render worker.
+    - path: backend/shared/providers/e2b_remotion_renderer.py
+      reason: Deterministic E2B Remotion project setup, render command, sandbox kill, and log redaction.
+    - path: backend/core/api/app/routes/video_remotion.py
+      reason: Render, stop, and version metadata endpoints.
+    - path: frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+      reason: Wire prototype to real decoded embed content and actions.
+    - path: frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+      reason: Add real playback, code toggle, version timeline, stop/rerender, download, and render older version controls.
+    - path: frontend/packages/ui/src/utils/remotionTimelineParser.ts
+      reason: Harden parser for production fallback and test contracts.
+    - path: frontend/packages/ui/src/data/embedRegistry.generated.ts
+      reason: Regenerated from app.yml after registering videos.create.
+    - path: frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+      reason: Add create/render status/action labels.
+    - path: shared/docs/privacy_policy.yml
+      reason: Disclose E2B automatic Remotion render processing.
+    - path: frontend/packages/ui/src/data/providersMetadata.ts
+      reason: Update E2B provider description if needed.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+      reason: Add native videos.create preview/fullscreen renderer logic.
+    - path: apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      reason: Add typed localized strings for Apple Remotion controls.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/remotion-video-create-embeds/spec.yml
+    - python3 -m pytest backend/tests/test_remotion_video_embed_parser.py backend/tests/test_remotion_render_task.py backend/tests/test_remotion_embed_diff_versions.py backend/tests/test_remotion_video_routing.py
+    - python3 scripts/run_tests.py --suite vitest
+    - Deploy to dev before Playwright green-phase verification.
+    - python3 scripts/run_tests.py --spec remotion-video-create.spec.ts
+    - python3 scripts/run_tests.py --spec embed-showcase.spec.ts
+    - python3 scripts/run_tests.py --spec apple-embed-rendering-contracts.spec.ts
+    - Remote Mac iOS build and simulator evidence for Apple parity.
+
+tasks:
+  - id: TASK-1
+    title: Register Videos Create Remotion embed contract
+    covers:
+      scenarios:
+        - S-1
+        - S-9
+        - S-10
+      acceptance_criteria:
+        - AC-1
+        - AC-13
+        - AC-14
+    expected_files:
+      - backend/apps/videos/app.yml
+      - backend/apps/ai/instructions/base_code_block_instruction.md
+      - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    verification:
+      - T-PYTEST-PARSER
+      - T-PYTEST-ROUTING
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Convert Remotion fences into source-backed video embeds
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-13
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_remotion_video_embed_parser.py
+    verification:
+      - T-PYTEST-PARSER
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add E2B Remotion render worker and billing
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-7
+        - AC-8
+        - AC-9
+    expected_files:
+      - backend/shared/providers/e2b_remotion_renderer.py
+      - backend/apps/videos/tasks/render_remotion_task.py
+      - backend/core/api/app/routes/video_remotion.py
+      - backend/tests/test_remotion_render_task.py
+    verification:
+      - T-PYTEST-RENDER
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add Remotion diff editing and version rendering
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+        - AC-12
+        - AC-18
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_diff_service.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_remotion_embed_diff_versions.py
+    verification:
+      - T-PYTEST-DIFF
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Implement web videos.create preview and fullscreen UI
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-6
+        - S-7
+        - S-8
+        - S-11
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+        - AC-15
+        - AC-18
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/videos/VideoTimeline.svelte
+      - frontend/packages/ui/src/utils/remotionTimelineParser.ts
+      - frontend/apps/web_app/tests/remotion-video-create.spec.ts
+    verification:
+      - T-VITEST-FRONTEND
+      - T-PLAYWRIGHT-WEB
+      - T-PLAYWRIGHT-EMBED-SHOWCASE
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add Apple parity for videos.create embeds
+    covers:
+      scenarios:
+        - S-12
+      acceptance_criteria:
+        - AC-16
+    expected_files:
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    verification:
+      - T-PLAYWRIGHT-APPLE-CONTRACT
+      - T-MANUAL-APPLE
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Update privacy and provider documentation
+    covers:
+      scenarios:
+        - S-2
+      acceptance_criteria:
+        - AC-17
+    expected_files:
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+      - frontend/packages/ui/src/data/providersMetadata.ts
+      - frontend/packages/ui/src/data/appsMetadata.ts
+    verification:
+      - T-PYTEST-RENDER
+    independently_deployable: false
+
+risks:
+  - Remotion rendering can be expensive or slow; worker timeouts and cancellation must be reliable.
+  - Generated code may fetch arbitrary internet assets; E2B isolation and secret non-injection are required.
+  - Timeline parsing may not fully understand dynamic Remotion code; UI must degrade to source view and safe metadata.
+  - Storing every rendered version would increase storage cost; v1 keeps source history linear, active artifacts replaceable, and older-version renders temporary unless the user restores that source as current.
+  - Apple parity increases implementation scope and requires remote Mac verification.

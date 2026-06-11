@@ -6486,13 +6486,15 @@ providers.code_execution.e2b.heading:
 providers.code_execution.e2b.description:
   context: E2B description
   en: >-
-    E2B runs selected code embeds and generated application previews inside
-    isolated sandboxes. E2B receives the code or generated application files and
-    assets you choose to run, runtime inputs, preview logs, and execution output
-    needed to run and display the sandbox result. This sharing only happens when
-    you explicitly run code, create a generated application that auto-starts a
-    short screenshot preview, or start/resume an application live preview.
-  de: E2B führt ausgewählte Code-Einbettungen und Vorschauen generierter Anwendungen in isolierten Sandboxes aus. E2B erhält den Code oder die Dateien und Assets der generierten Anwendung, die du ausführen möchtest, Laufzeiteingaben, Vorschau-Logs und die zur Ausführung und Anzeige des Sandbox-Ergebnisses erforderliche Ausgabe. Diese Weitergabe erfolgt nur, wenn du explizit Code ausführst, eine generierte Anwendung erstellst, die automatisch eine kurze Screenshot-Vorschau startet, oder eine Live-Vorschau einer Anwendung startest/fortsetzt.
+    E2B runs selected code embeds, generated application previews, and Remotion
+    video renders inside isolated sandboxes. E2B receives the code or generated
+    application/Remotion files and assets needed to run or render the result,
+    runtime inputs, preview/render logs, and execution output needed to display
+    the sandbox result. This sharing happens when you explicitly run code,
+    create a generated application that auto-starts a short screenshot preview,
+    start/resume an application live preview, or when a Remotion video render
+    auto-starts after the assistant closes an explicit remotion code fence.
+  de: E2B führt ausgewählte Code-Einbettungen, Vorschauen generierter Anwendungen und Remotion-Video-Renderings in isolierten Sandboxes aus. E2B erhält den Code oder die generierten Anwendungs-/Remotion-Dateien und Assets, die zum Ausführen oder Rendern des Ergebnisses benötigt werden, Laufzeiteingaben, Vorschau-/Render-Logs und die zur Anzeige des Sandbox-Ergebnisses erforderliche Ausgabe. Diese Weitergabe erfolgt, wenn du explizit Code ausführst, eine generierte Anwendung erstellst, die automatisch eine kurze Screenshot-Vorschau startet, eine Live-Vorschau einer Anwendung startest/fortsetzt oder wenn ein Remotion-Video-Rendering automatisch startet, nachdem der Assistent einen expliziten Remotion-Codeblock geschlossen hat.
   zh: E2B 在隔离沙箱中运行选定的嵌入代码和生成的应用预览。E2B 会接收你选择运行的代码或生成的应用文件及资产、运行时输入、预览日志以及运行和显示沙箱结果所需的执行输出。只有当你明确运行代码、创建自动启动短截图预览的生成应用，或启动/恢复应用实时预览时，才会发生此类共享。
   es: E2B ejecuta incrustaciones de código seleccionadas y vistas previas de aplicaciones generadas dentro de entornos aislados. E2B recibe el código o los archivos y activos de la aplicación generada que elijas ejecutar, las entradas de tiempo de ejecución, los registros de vista previa y la salida de ejecución necesaria para ejecutar y mostrar el resultado del entorno de pruebas. Este intercambio solo ocurre cuando ejecutas código explícitamente, creas una aplicación generada que inicia automáticamente una breve vista previa de captura de pantalla, o inicias/renuevas una vista previa en vivo de la aplicación.
   fr: "E2B exécute les intégrations de code sélectionnées et les aperçus d'applications générés dans des bacs à sable isolés. E2B reçoit le code ou les fichiers et ressources d'application générés que tu choisis d'exécuter, les entrées d'exécution, les journaux d'aperçu et la sortie d'exécution nécessaires pour faire fonctionner et afficher le résultat du bac à sable. Ce partage n'a lieu que lorsque tu exécutes explicitement du code, crées une application générée qui lance automatiquement un court aperçu par capture d'écran, ou démarres/reprends un aperçu en direct d'une application."

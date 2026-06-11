@@ -52,6 +52,126 @@ generate.description:
     - en
     - de
 
+create:
+  context: Skill name for Remotion video creation
+  en: Create Video
+  de: Video erstellen
+  verified_by_human:
+    - en
+    - de
+
+create.description:
+  context: Description for Remotion video creation skill
+  en: Create deterministic videos with editable Remotion code.
+  de: Erstelle deterministische Videos mit bearbeitbarem Remotion-Code.
+  verified_by_human:
+    - en
+    - de
+
+create.view.video:
+  context: Tab label for Remotion video playback view
+  en: Video
+  de: Video
+  verified_by_human:
+    - en
+    - de
+
+create.view.timeline:
+  context: Tab label for Remotion video timeline view
+  en: Timeline
+  de: Timeline
+  verified_by_human:
+    - en
+    - de
+
+create.view.code:
+  context: Tab label for Remotion video source code view
+  en: Code
+  de: Code
+  verified_by_human:
+    - en
+    - de
+
+create.status.rendering:
+  context: Status text while a Remotion video is rendering
+  en: Rendering video...
+  de: Video wird gerendert...
+  verified_by_human:
+    - en
+    - de
+
+create.status.processing:
+  context: Status text while Remotion source is being prepared
+  en: Preparing Remotion source...
+  de: Remotion-Quelle wird vorbereitet...
+  verified_by_human:
+    - en
+    - de
+
+create.status.cancelled:
+  context: Status text after a Remotion render was cancelled
+  en: Render stopped
+  de: Rendern gestoppt
+  verified_by_human:
+    - en
+    - de
+
+create.status.needs_rerender:
+  context: Status text when Remotion source changed and needs a new render
+  en: Needs rerender
+  de: Muss neu gerendert werden
+  verified_by_human:
+    - en
+    - de
+
+create.status.error:
+  context: Status text when a Remotion render failed
+  en: Render failed
+  de: Rendern fehlgeschlagen
+  verified_by_human:
+    - en
+    - de
+
+create.status.unavailable:
+  context: Placeholder when a Remotion video file is not yet available
+  en: Video is not available yet.
+  de: Das Video ist noch nicht verfügbar.
+  verified_by_human:
+    - en
+    - de
+
+create.action.rerender:
+  context: Button label to rerender the current Remotion video source
+  en: Rerender
+  de: Neu rendern
+  verified_by_human:
+    - en
+    - de
+
+create.action.render_this_version:
+  context: Button label to render a selected Remotion source version
+  en: Render this version
+  de: Diese Version rendern
+  verified_by_human:
+    - en
+    - de
+
+create.action.stop_render:
+  context: Button label to stop an active Remotion render
+  en: Stop render
+  de: Rendern stoppen
+  verified_by_human:
+    - en
+    - de
+
+create.header.subtitle:
+  context: Header subtitle for Remotion video create embeds, with version and status
+  en: Remotion · v{version} · {status}
+  de: Remotion · v{version} · {status}
+  verified_by_human:
+    - en
+    - de
+
 get_transcript:
   context: Skill name for get transcript
   en: Get Transcript

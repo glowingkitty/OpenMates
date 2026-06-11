@@ -50,7 +50,7 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 import { renderWebSearch, renderWebRead, renderWebsite } from '../components/embeds/web/webEmbedText';
 import { renderTravelConnections, renderTravelStays, renderPriceCalendar, renderFlight, renderConnection, renderStay } from '../components/embeds/travel/travelEmbedText';
 import { renderApplication, renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch } from '../components/embeds/code/codeEmbedText';
-import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderVideo } from '../components/embeds/videos/videoEmbedText';
+import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderVideoCreate, renderVideo } from '../components/embeds/videos/videoEmbedText';
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
 import { renderEventsSearch, renderEvent } from '../components/embeds/events/eventsEmbedText';
@@ -111,6 +111,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:events:search': renderEventsSearch,
 	'app:videos:search': renderVideosSearch,
 	'app:videos:generate': renderVideoGenerate,
+	'app:videos:create': renderVideoCreate,
 	'app:videos:get_transcript': renderVideoTranscript,
 	'app:maps:search': renderMapsSearch,
 	'app:code:search_repos': renderCodeRepoSearch,
