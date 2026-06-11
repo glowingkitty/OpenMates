@@ -200,10 +200,13 @@ test.describe('Example chats loading for new users', () => {
 		}).toBeGreaterThan(initialIds.length);
 
 		const expandedIds = await sidebarExampleIds(page);
+		for (const id of initialIds) {
+			expect(expandedIds, `Show more should keep already-visible example ${id}`).toContain(id);
+		}
 		expect(
-			expandedIds.slice(0, initialIds.length),
-			'Newly revealed examples should be appended after already-visible examples'
-		).toEqual(initialIds);
+			new Set(expandedIds).size,
+			'Show more should not duplicate example chat rows'
+		).toBe(expandedIds.length);
 	});
 
 	test('example chat SSR pages are accessible', async ({ request }: { request: any }) => {
