@@ -114,7 +114,6 @@ SECRET_PATTERNS = [
         r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
         re.DOTALL,
     ),
-    re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*=\s*[^\s]+"),
 ]
 PYTHON_IMPORT_PACKAGE_MAP = {
     "bs4": "beautifulsoup4",

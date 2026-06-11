@@ -423,6 +423,7 @@
   let requestedRunOutputKey = $state<string | null>(null);
   let codeRunOverlayActive = $derived(runPanelOpen || runSelectionOpen);
   let outputPaneActive = $derived(previewActive);
+  let splitPaneActive = $derived(outputPaneActive || codeRunOverlayActive);
   let hasCodeHeaderCta = $derived(((isRunnable && !!embedId && !codeRunOverlayActive) || isPreviewable));
   let savedRunOutput = $state<SavedCodeRunOutput | null>(null);
   let runDisplayEvents = $derived(buildCompactRunEvents(runEvents));
@@ -758,14 +759,11 @@
 
   function dependencyCandidate(embedIdValue: string, install: CodeRunDependencyInstall): CodeRunFileCandidate {
     const packageList = install.packages.join(', ');
-    const titleKey = install.ecosystem === 'python'
-      ? 'app_skills.code.run.install_python_packages'
-      : 'app_skills.code.run.install_npm_packages';
     return {
       id: `dependency:${install.ecosystem}:${embedIdValue}:${install.packages.join('|')}`,
       embedId: embedIdValue,
       kind: 'dependency',
-      title: $text(titleKey, { values: { packages: packageList } }),
+      title: packageList,
       subtitle: $text('app_skills.code.run.detected_install_command'),
       selected: true,
       required: false,
@@ -792,7 +790,7 @@
       id: `dependency:${suggestion.ecosystem}:${suggestion.package}`,
       embedId: `dependency:${suggestion.package}`,
       kind: 'dependency',
-      title: $text('app_skills.code.run.install_detected_package', { values: { package: suggestion.package } }),
+      title: suggestion.package,
       subtitle: released
         ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version, releaseDate: released } })
         : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version } }),
@@ -1227,7 +1225,7 @@
       <!-- Split-pane layout when preview or terminal output is active, full code otherwise -->
       <div
         class="code-fullscreen-container"
-        class:output-pane-active={outputPaneActive}
+        class:output-pane-active={splitPaneActive}
         class:with-header-cta={hasCodeHeaderCta}
       >
         {#if hasPII}
@@ -1263,10 +1261,19 @@
           </div>
         {/if}
 
-        <div class="code-split-wrapper" class:split-active={outputPaneActive} class:code-run-overlay-active={codeRunOverlayActive}>
-          <!-- Code panel — always visible. Preview mode still uses the legacy split;
-               Code Run states render as an overlay on top of this source panel. -->
-          <div class="code-panel" class:code-panel-split={outputPaneActive} data-testid="code-source-panel">
+        <div
+          class="code-split-wrapper"
+          class:split-active={splitPaneActive}
+          class:preview-split-active={outputPaneActive}
+          class:code-run-pane-active={codeRunOverlayActive}
+        >
+          <div
+            class="code-panel"
+            class:code-panel-split={splitPaneActive}
+            class:code-panel-preview-split={outputPaneActive}
+            class:code-panel-code-run-split={codeRunOverlayActive}
+            data-testid="code-source-panel"
+          >
             <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}
@@ -1533,10 +1540,18 @@
   }
 
   .code-panel.code-panel-split {
-    width: 30%;
-    flex: 0 0 30%;
+    min-width: 0;
     overflow: auto;
     background-color: var(--color-grey-15);
+  }
+
+  .code-panel.code-panel-preview-split {
+    width: 30%;
+    flex: 0 0 30%;
+  }
+
+  .code-panel.code-panel-code-run-split {
+    display: none;
   }
 
   .preview-panel {
@@ -1549,37 +1564,32 @@
     position: relative;
   }
 
-  .code-run-overlay-active {
-    position: relative;
-  }
-
   .code-run-overlay-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     justify-content: center;
     padding: var(--spacing-8) var(--spacing-8) var(--spacing-10);
-    pointer-events: none;
+    overflow: hidden;
   }
 
   .code-run-overlay {
-    width: min(48rem, 58vw);
-    max-height: min(36rem, calc(100vh - 22rem));
+    width: 100%;
+    height: 100%;
     overflow: auto;
-    pointer-events: auto;
     box-sizing: border-box;
     border-radius: 2rem;
-    background: var(--color-grey-100);
-    color: var(--color-grey-0);
+    background: var(--color-grey-0);
+    color: var(--color-grey-100);
     box-shadow: 0 8px 10px rgba(0, 0, 0, 0.22), 0 24px 44px rgba(0, 0, 0, 0.28);
     padding: var(--spacing-6) var(--spacing-8) var(--spacing-8);
   }
 
   .code-run-overlay-terminal {
-    background: #242424;
-    color: #ffffff;
+    background: var(--color-grey-0);
+    color: var(--color-grey-100);
   }
 
   .code-run-breadcrumb {
@@ -1595,7 +1605,7 @@
     background: transparent;
     box-shadow: none;
     filter: none;
-    color: #bcbcbc;
+    color: var(--color-grey-70);
     font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: var(--font-size-small);
     font-weight: 700;
@@ -1604,7 +1614,7 @@
   .code-run-breadcrumb:hover,
   .code-run-breadcrumb:focus-visible {
     background: transparent;
-    color: #ffffff;
+    color: var(--color-grey-100);
     scale: 1;
   }
 
@@ -1631,13 +1641,13 @@
   }
 
   .code-run-execute-title {
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
     font-size: var(--font-size-p);
     font-weight: 800;
   }
 
   .code-run-execute-cost {
-    color: #bcbcbc;
+    color: var(--color-grey-70);
     font-size: var(--font-size-small);
     font-weight: 700;
   }
@@ -1671,7 +1681,7 @@
   }
 
   .code-run-selection-group :global(.heading-text) {
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
   }
 
   .code-run-file-list {
@@ -1694,7 +1704,7 @@
     background: transparent;
     box-shadow: none;
     filter: none;
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
     text-align: left;
   }
 
@@ -1748,7 +1758,7 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
-    color: #bcbcbc;
+    color: var(--color-grey-70);
     font-size: var(--font-size-xxs);
   }
 
@@ -1763,7 +1773,7 @@
   }
 
   .code-run-selection-message {
-    color: #bcbcbc;
+    color: var(--color-grey-70);
     font-size: var(--font-size-small);
   }
 
@@ -1786,7 +1796,7 @@
     background: transparent;
     box-shadow: none;
     filter: none;
-    color: #bcbcbc;
+    color: var(--color-grey-70);
     font-size: var(--font-size-small);
     font-weight: 700;
   }
@@ -1794,13 +1804,14 @@
   .code-run-selection-link:hover,
   .code-run-selection-link:focus-visible {
     background: transparent;
-    color: #ffffff;
+    color: var(--color-grey-100);
     scale: 1;
   }
 
   .code-run-terminal {
     display: flex;
     flex-direction: column;
+    height: 100%;
     min-height: 22rem;
   }
 
@@ -1808,7 +1819,7 @@
     flex: 1;
     margin: 0;
     padding: var(--spacing-4) 0 var(--spacing-8);
-    min-height: 14rem;
+    min-height: 0;
     overflow: auto;
     white-space: pre-wrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -1816,7 +1827,7 @@
     font-weight: 700;
     line-height: 1.55;
     background: transparent;
-    color: #ffffff;
+    color: var(--color-grey-100);
   }
 
   .code-run-terminal-divider {
@@ -1842,7 +1853,7 @@
     background: transparent;
     box-shadow: none;
     filter: none;
-    color: #bcbcbc;
+    color: var(--color-grey-70);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.95rem;
     font-weight: 800;
@@ -1853,7 +1864,7 @@
   .code-run-terminal-action:focus-visible,
   .code-run-terminal-action:active {
     background: transparent;
-    color: #ffffff;
+    color: var(--color-grey-100);
     scale: 1;
   }
 
@@ -1873,6 +1884,24 @@
 
   .code-run-stderr {
     color: #fca5a5;
+  }
+
+  @container fullscreen (min-width: 1600px) {
+    .code-split-wrapper.code-run-pane-active {
+      gap: var(--spacing-8);
+      background-color: transparent;
+    }
+
+    .code-panel.code-panel-code-run-split {
+      display: block;
+      width: 50%;
+      flex: 1 1 50%;
+    }
+
+    .code-run-pane-active .code-run-overlay-layer {
+      flex: 1 1 50%;
+      padding: 0 var(--spacing-8) var(--spacing-8) 0;
+    }
   }
 
   /* Mobile: preview only — hide code panel, show full-width preview.

@@ -28,6 +28,7 @@ from backend.core.api.app.routes.code_execution import (
     _dependency_installs_from_install_snippets,
     _execution_key,
     _infer_import_packages,
+    _looks_like_secret,
     _merge_dependency_installs,
     _safe_filename,
     _validate_dependency_manifest,
@@ -480,6 +481,26 @@ def test_package_json_manifest_rejects_scripts_and_file_deps() -> None:
 def test_dependency_manifests_accept_plain_registry_packages() -> None:
     _validate_dependency_manifest("requirements.txt", "requests==2.32.0\npandas>=2.2\n")
     _validate_dependency_manifest("package.json", json.dumps({"dependencies": {"@sveltejs/kit": "^2.0.0", "vite": "latest"}}))
+
+
+def test_code_run_secret_detection_allows_environment_variable_placeholders() -> None:
+    code = """
+import os
+import requests
+
+api_key = os.getenv("OPENWEATHER_API_KEY")
+params = {"q": "Berlin", "appid": api_key, "units": "metric"}
+response = requests.get("https://api.openweathermap.org/data/2.5/weather", params=params)
+print(response.status_code)
+"""
+
+    assert not _looks_like_secret(code)
+
+
+def test_code_run_secret_detection_blocks_high_confidence_tokens() -> None:
+    assert _looks_like_secret("OPENAI_API_KEY='sk-abcdefghijklmnopqrstuvwxyz123456'")
+    assert _looks_like_secret("GITHUB_TOKEN='ghp_abcdefghijklmnopqrstuvwxyz123456'")
+    assert _looks_like_secret("AWS_ACCESS_KEY_ID='AKIAABCDEFGHIJKLMNOP'")
 
 
 def test_dependency_installs_from_selected_install_snippets() -> None:

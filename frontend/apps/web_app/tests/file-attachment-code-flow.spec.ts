@@ -23,6 +23,7 @@ const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helper
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
+const CODE_RUN_REQUESTS_PY = path.join(__dirname, 'fixtures', 'code_run_requests.py');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
@@ -159,7 +160,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await editor.click();
 	await page.keyboard.type('Please run this Python file and keep the result visible:');
 
-	await attachFiles(page, [SAMPLE_PY], log);
+	await attachFiles(page, [CODE_RUN_REQUESTS_PY], log);
 	await page.waitForTimeout(5000);
 
 	const sendButton = page.locator('[data-action="send-message"]');
@@ -181,6 +182,12 @@ test('code run output becomes the default code embed preview after reload', asyn
 	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
 	await fullscreenOverlay.getByTestId('embed-run-button').click();
+
+	const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
+	await expect(fileSelection).toBeVisible({ timeout: 20000 });
+	await expect(fileSelection.getByText('requests', { exact: true })).toBeVisible({ timeout: 30000 });
+	await expect(fileSelection).not.toContainText('Install Python packages');
+	await fileSelection.getByTestId('code-run-continue').click();
 
 	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
 	await expect(terminal).toBeVisible({ timeout: 20000 });

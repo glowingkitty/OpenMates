@@ -248,7 +248,11 @@ async function waitForCodeRunSuccess(fullscreenOverlay: any, expectedOutput: str
 	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
 }
 
-async function expectCodeRunOverlaySurface(fullscreenOverlay: any, expectedBackground: string) {
+async function expectCodeRunPaneSurface(
+ fullscreenOverlay: any,
+ expectedBackground: string,
+ options: { sourceVisible?: boolean; sideBySide?: boolean } = {}
+) {
 	const overlay = fullscreenOverlay.getByTestId('code-run-overlay');
 	await expect(overlay).toBeVisible({ timeout: 15000 });
 	const colors = await overlay.evaluate((node: HTMLElement, expected: string) => {
@@ -264,7 +268,36 @@ async function expectCodeRunOverlaySurface(fullscreenOverlay: any, expectedBackg
 		};
 	}, expectedBackground);
 	expect(colors.actual).toBe(colors.expected);
-	await expect(fullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
+
+	const sourcePanel = fullscreenOverlay.getByTestId('code-source-panel');
+	if (options.sourceVisible === false) {
+		await expect(sourcePanel).not.toBeVisible({ timeout: 10000 });
+	} else {
+		await expect(sourcePanel).toBeVisible({ timeout: 10000 });
+	}
+
+	if (options.sideBySide) {
+		const layout = await sourcePanel.evaluate((source: HTMLElement) => {
+			const overlayNode = source
+				.closest('[data-testid="embed-fullscreen-overlay"]')
+				?.querySelector('[data-testid="code-run-overlay"]') as HTMLElement | null;
+			const sourceRect = source.getBoundingClientRect();
+			const overlayRect = overlayNode?.getBoundingClientRect();
+			const firstCodeLine = source.querySelector('[data-line="1"]') as HTMLElement | null;
+			return {
+				sourceRight: sourceRect.right,
+				overlayLeft: overlayRect?.left ?? 0,
+				overlayWidth: overlayRect?.width ?? 0,
+				sourceOverflowX: getComputedStyle(source).overflowX,
+				firstLineMinWidth: firstCodeLine ? getComputedStyle(firstCodeLine).minWidth : ''
+			};
+		});
+		expect(layout.overlayWidth).toBeGreaterThan(300);
+		expect(layout.overlayLeft).toBeGreaterThanOrEqual(layout.sourceRight - 1);
+		expect(['auto', 'scroll']).toContain(layout.sourceOverflowX);
+		expect(layout.firstLineMinWidth).toBe('max-content');
+	}
+
 	return overlay;
 }
 
@@ -627,39 +660,45 @@ test('generated Python code embed can run in E2B sandbox', async ({ page, contex
    .locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
    .filter({ hasText: 'code_run_smoke.py' })
    .first();
- const fullscreenOverlay = await openFullscreen(page, codeEmbed);
- await screenshot(page, 'fullscreen-open');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const fullscreenOverlay = await openFullscreen(page, codeEmbed);
+  await screenshot(page, 'fullscreen-open');
 
   const runButton = fullscreenOverlay.getByTestId('embed-run-button');
   await expect(runButton).toBeVisible({ timeout: 10000 });
   await runButton.click();
 
-   const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
-   await expect(fileSelection).toBeVisible({ timeout: 15000 });
-   await expectCodeRunOverlaySurface(fullscreenOverlay, 'var(--color-grey-100)');
-   await expect(fullscreenOverlay.getByTestId('code-run-view-code')).toBeVisible({ timeout: 10000 });
-   await expect(fileSelection).toContainText('Upload to E2B & execute:');
-   await expect(fileSelection).toContainText('Cost: 5 credits per minute');
-   await expect(fileSelection).toContainText('Files');
-   await expect(fileSelection).toContainText('Packages');
-   await expect(fileSelection).toContainText('code_run_helper.py');
-   await expect(fullscreenOverlay.getByRole('button', { name: 'Hide output' })).toHaveCount(0);
+    const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
+    await expect(fileSelection).toBeVisible({ timeout: 15000 });
+    await expectCodeRunPaneSurface(fullscreenOverlay, 'var(--color-grey-0)', { sourceVisible: false });
+    await expect(fullscreenOverlay.getByTestId('code-run-view-code')).toBeVisible({ timeout: 10000 });
+    await expect(fileSelection).toContainText('Upload to E2B & execute:');
+    await expect(fileSelection).toContainText('Cost: 5 credits per minute');
+    await expect(fileSelection).toContainText('Files');
+    await expect(fileSelection).toContainText('Packages');
+    await expect(fileSelection).toContainText('code_run_helper.py');
+    await expect(fullscreenOverlay.getByRole('button', { name: 'Hide output' })).toHaveCount(0);
 
-   const requiredToggle = fileSelection.getByTestId('code-run-required-file-toggle').first();
-   await expect(requiredToggle).toHaveAttribute('aria-checked', 'true');
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await expectCodeRunPaneSurface(fullscreenOverlay, 'var(--color-grey-0)', { sourceVisible: true, sideBySide: true });
+
+    const requiredToggle = fileSelection.getByTestId('code-run-required-file-toggle').first();
+    await expect(requiredToggle).toHaveAttribute('aria-checked', 'true');
    await expect(requiredToggle).toHaveAttribute('aria-disabled', 'true');
 
    const optionalToggle = fileSelection.getByTestId('code-run-optional-file-toggle').first();
    await expect(optionalToggle).toHaveAttribute('aria-checked', 'true');
-   await fileSelection.getByRole('button', { name: 'Unselect all' }).click();
-   await expect(optionalToggle).toHaveAttribute('aria-checked', 'false');
-   await screenshot(page, 'file-selection');
+    await fileSelection.getByRole('button', { name: 'Unselect all' }).click();
+    await expect(optionalToggle).toHaveAttribute('aria-checked', 'false');
+    await fileSelection.getByRole('button', { name: 'Select all' }).click();
+    await expect(optionalToggle).toHaveAttribute('aria-checked', 'true');
+    await screenshot(page, 'file-selection');
 
    await fileSelection.getByTestId('code-run-continue').click();
 
-   await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
-   await expectCodeRunOverlaySurface(fullscreenOverlay, 'rgb(36, 36, 36)');
-   await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
+    await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
+    await expectCodeRunPaneSurface(fullscreenOverlay, 'var(--color-grey-0)', { sourceVisible: true, sideBySide: true });
+    await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
 	await screenshot(page, 'run-complete');
 
 	const terminalActions = fullscreenOverlay.getByTestId('code-run-terminal-actions');
