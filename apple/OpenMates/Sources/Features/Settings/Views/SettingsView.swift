@@ -1029,6 +1029,7 @@ struct SettingsInterfaceSubPage: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color.grey0)
+            .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: .spacing8) {
@@ -1083,6 +1084,12 @@ struct SettingsInterfaceSubPage: View {
         var backAccessibilityIdentifier: String {
             switch self {
             case .language: return "settings-language-back"
+            }
+        }
+
+        var pageAccessibilityIdentifier: String {
+            switch self {
+            case .language: return "settings-language-page"
             }
         }
 
