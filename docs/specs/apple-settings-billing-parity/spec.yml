@@ -82,6 +82,7 @@ context_discovery:
     - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
     - frontend/apps/web_app/tests/settings-support-monthly.spec.ts
     - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - docs/architecture/apple/settings-web-spec-coverage.md
 
 apple_impact:
   affected_files:
@@ -92,6 +93,7 @@ apple_impact:
     - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
     - apple/OpenMatesUITests/SettingsFullParityUITests.swift
     - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
+    - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
     - apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
     - apple/OpenMatesTests/SettingsBillingParityTests.swift
     - apple/OpenMatesTests/SettingsFullParityTests.swift
@@ -489,6 +491,31 @@ tests:
         status: passed
         run_id: apple-remote-ipad-pro-13-m5-5352-settings-ipad-layout
         timestamp: "2026-06-10"
+  - id: T-UI-007
+    type: unit
+    file: apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsInterfaceLanguageParityUITests
+    covers:
+      - AC-1
+      - AC-6
+    assertions:
+      - Apple opens Settings → Interface → Language with stable native identifiers matching the web language settings concept.
+      - Selecting Deutsch updates the selected language state and visible UI copy, then the test resets to English.
+      - The language settings flow uses OpenMates settings primitives without default table/List chrome.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
 
 implementation_plan:
   existing_patterns:
@@ -529,6 +556,8 @@ implementation_plan:
       reason: Full settings route and safe action UI coverage.
     - path: apple/OpenMatesUITests/SettingsAppsParityUITests.swift
       reason: Apps, app details, skills, focus modes, examples coverage.
+    - path: apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
+      reason: Native reproduction of the web Interface → Language settings flow.
     - path: apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
       reason: Reserved-account sensitive/destructive settings coverage.
     - path: apple/OpenMatesTests/SettingsFullParityTests.swift
@@ -606,9 +635,11 @@ tasks:
       - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
       - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
       - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+      - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
     verification:
       - T-UI-001
       - T-UI-006
+      - T-UI-007
     independently_deployable: true
   - id: TASK-4
     title: Complete billing StoreKit support and web-only fallback parity
@@ -677,6 +708,7 @@ tasks:
       - T-UI-004
       - T-UI-005
       - T-UI-006
+      - T-UI-007
     independently_deployable: true
 
 risks:

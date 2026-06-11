@@ -1004,6 +1004,7 @@ struct SettingsPrivacySubPage: View {
 
 struct SettingsInterfaceSubPage: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @ObservedObject private var locManager = LocalizationManager.shared
     @State private var destination: InterfaceDestination?
 
     var body: some View {
@@ -1013,6 +1014,7 @@ struct SettingsInterfaceSubPage: View {
                     OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
                         destination = nil
                     }
+                    .accessibilityIdentifier(dest.backAccessibilityIdentifier)
                     Text(dest.title)
                         .font(.omH3)
                         .fontWeight(.semibold)
@@ -1054,7 +1056,9 @@ struct SettingsInterfaceSubPage: View {
                         OMSettingsRow(
                             title: AppStrings.language,
                             icon: "language",
-                            iconGradient: .appLanguage
+                            iconGradient: .appLanguage,
+                            value: locManager.currentLanguage.name,
+                            accessibilityIdentifier: "settings-interface-language-row"
                         ) { destination = .language }
                     }
                 }
@@ -1073,6 +1077,12 @@ struct SettingsInterfaceSubPage: View {
         var title: String {
             switch self {
             case .language: return AppStrings.language
+            }
+        }
+
+        var backAccessibilityIdentifier: String {
+            switch self {
+            case .language: return "settings-language-back"
             }
         }
 
