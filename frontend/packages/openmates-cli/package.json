@@ -55,9 +55,11 @@
     "ws": "8.20.1"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
     "@types/node": "^24.5.0",
     "@types/qrcode-terminal": "^0.12.2",
     "@types/ws": "^8.18.1",
+    "eslint": "^9.35.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2"
   }

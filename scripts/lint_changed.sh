@@ -479,6 +479,36 @@ run_eslint_file() {
   local eslint_config_args=()
   local eslint_bin_path=""
 
+  find_eslint_workspace_root() {
+    local start_root="$1"
+    local probe_dir="${start_root}"
+
+    while [[ "${probe_dir}" != "/" ]]; do
+      if [[ -f "${probe_dir}/eslint.config.js" ]] && [[ -f "${probe_dir}/package.json" ]]; then
+        printf '%s\n' "${probe_dir}"
+        return 0
+      fi
+      if [[ "${probe_dir}" == "${repo_root}" ]]; then
+        break
+      fi
+      probe_dir="$(dirname "${probe_dir}")"
+    done
+
+    # Shared frontend lint deps live in the UI package. Use them when a package
+    # has not refreshed local node_modules after adding lint dependencies.
+    if [[ -f "${repo_root}/frontend/packages/ui/eslint.config.js" ]]; then
+      printf '%s\n' "${repo_root}/frontend/packages/ui"
+      return 0
+    fi
+
+    if [[ -f "${repo_root}/frontend/apps/web_app/eslint.config.js" ]]; then
+      printf '%s\n' "${repo_root}/frontend/apps/web_app"
+      return 0
+    fi
+
+    return 1
+  }
+
   # Prefer a package-local ESLint install, but fall back to the workspace root
   # so pnpm workspaces can still lint even when deps are hoisted.
   if [[ -f "${pkg_root}/node_modules/eslint/bin/eslint.js" ]]; then
@@ -503,6 +533,22 @@ run_eslint_file() {
     done
   fi
 
+  if [[ -z "${eslint_bin_path}" && "${pnpm_cmd}" == "pnpm" ]]; then
+    # `pnpm exec` resolves commands from the current workspace package. If the
+    # target package just added ESLint but local node_modules has not been
+    # refreshed, execute from the UI workspace, which owns an installed frontend
+    # lint toolchain, while the config selection can still point at the target.
+    if [[ -f "${repo_root}/frontend/packages/ui/package.json" ]]; then
+      eslint_root="${repo_root}/frontend/packages/ui"
+    else
+      local workspace_eslint_root
+      workspace_eslint_root="$(find_eslint_workspace_root "${pkg_root}" || true)"
+      if [[ -n "${workspace_eslint_root}" ]]; then
+        eslint_root="${workspace_eslint_root}"
+      fi
+    fi
+  fi
+
   if [[ "${pnpm_cmd}" == "pnpm" ]]; then
     # Keep pnpm exec in the directory where ESLint is installed.
     # With ESLint flat config, plugin resolution happens relative to the config file,
@@ -511,6 +557,8 @@ run_eslint_file() {
     eslint_target="${pkg_root}/${rel_file}"
     if [[ -f "${pkg_root}/eslint.config.js" ]]; then
       eslint_config_args=(--config "${pkg_root}/eslint.config.js")
+    elif [[ -f "${eslint_root}/eslint.config.js" ]]; then
+      eslint_config_args=(--config "${eslint_root}/eslint.config.js")
     else
       # Walk upward to find the nearest eslint.config.js — matches the eslint
       # binary lookup above so a nested package.json without its own config
@@ -528,7 +576,7 @@ run_eslint_file() {
 
   if ! ${eslint_ready}; then
     # We check the real eslint package entrypoint to avoid stale .bin entries.
-    if [[ -n "${eslint_bin_path}" ]]; then
+    if [[ -n "${eslint_bin_path}" || ( "${pnpm_cmd}" == "pnpm" && -f "${eslint_root}/package.json" ) ]]; then
       eslint_ready=true
     else
       echo "ESLint: not installed or incomplete in ${pkg_root#${repo_root}/} or repo root." >&2
@@ -550,7 +598,24 @@ run_eslint_file() {
       overall_status=1
     fi
   elif [[ "${pnpm_cmd}" == "pnpm" ]]; then
-    if pnpm -C "${eslint_cwd}" exec eslint --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
+    local pnpm_eslint_bin=""
+    if [[ -z "${eslint_bin_path}" ]]; then
+      pnpm_eslint_bin="$(pnpm -C "${eslint_cwd}" exec node -e "const p=require.resolve('eslint/package.json'); console.log(p.replace(/package\\.json$/, 'bin/eslint.js'))" 2>/dev/null || true)"
+    fi
+
+    if [[ -n "${pnpm_eslint_bin}" ]]; then
+      local resolved_config_args=("${eslint_config_args[@]}")
+      if [[ -f "${pkg_root}/eslint.config.js" ]]; then
+        resolved_config_args=()
+        eslint_target="${rel_file}"
+      fi
+      if (cd "${pkg_root}" && node "${pnpm_eslint_bin}" --max-warnings=0 --no-ignore "${resolved_config_args[@]}" "${eslint_target}"); then
+        echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
+      else
+        echo "${label}: error ${pkg_root#${repo_root}/}/${rel_file}" >&2
+        overall_status=1
+      fi
+    elif pnpm -C "${eslint_cwd}" exec eslint --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
       echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
     else
       echo "${label}: error ${pkg_root#${repo_root}/}/${rel_file}" >&2

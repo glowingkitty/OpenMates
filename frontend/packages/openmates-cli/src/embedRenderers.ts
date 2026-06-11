@@ -423,7 +423,7 @@ export async function renderEmbedFullscreen(
 async function renderSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} results\x1b[0m`);
@@ -458,7 +458,7 @@ async function renderSearchFullscreen(
 async function renderEventsSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} events\x1b[0m`);
@@ -499,7 +499,7 @@ async function renderEventsSearchFullscreen(
 async function renderVideosSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} videos\x1b[0m`);
@@ -718,7 +718,7 @@ function renderMapsSearchFullscreen(c: Record<string, unknown>): void {
 async function renderTravelConnectionsPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   const results = c.results as Array<Record<string, unknown>> | undefined;
@@ -791,7 +791,7 @@ async function renderTravelConnectionsFullscreen(
 async function renderTravelStaysPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m${count} stays\x1b[0m`);
@@ -1075,7 +1075,7 @@ function renderVideoTranscriptFullscreen(c: Record<string, unknown>): void {
 async function renderHealthSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} appointments\x1b[0m`);
