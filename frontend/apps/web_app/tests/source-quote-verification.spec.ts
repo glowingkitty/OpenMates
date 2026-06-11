@@ -85,7 +85,10 @@ test.describe('Source quote verification', () => {
 		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
 		await sourceQuote.click();
 
-		const overlay = page.getByTestId('embed-fullscreen-overlay');
+		// A source quote from a web search child result opens the parent search fullscreen
+		// and then the focused website child overlay, so scope assertions to the topmost
+		// fullscreen instead of the hidden parent shell.
+		const overlay = page.getByTestId('embed-fullscreen-overlay').last();
 		await expect(overlay).toBeVisible({ timeout: 30_000 });
 
 		const highlight = overlay.getByTestId('embed-source-text-highlight');
