@@ -23,6 +23,7 @@ from backend.apps.videos.remotion_billing import calculate_remotion_render_credi
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
+from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
 from backend.shared.providers.e2b_remotion_renderer import render_remotion_in_e2b
 from backend.shared.python_utils.generated_assets import (
     cache_s3_file_keys,
@@ -34,27 +35,77 @@ logger = logging.getLogger(__name__)
 
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
-E2B_API_KEY_ENV_NAMES = ("E2B_API_KEY", "E2B_ACCESS_TOKEN")
 
 
 def _hash_value(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _e2b_api_key(task: BaseServiceTask) -> str:
+async def _e2b_api_key(task: BaseServiceTask) -> str:
     secrets_manager = getattr(task, "_secrets_manager", None)
-    for name in E2B_API_KEY_ENV_NAMES:
-        value = os.getenv(name)
-        if value:
-            return value
-        if secrets_manager and hasattr(secrets_manager, "get_secret"):
-            try:
-                secret = secrets_manager.get_secret(name)
-                if secret:
-                    return str(secret)
-            except Exception:
-                continue
+    return await get_e2b_api_key_async(secrets_manager)
+
+
+async def _resolve_user_vault_key_id(task: BaseServiceTask, *, user_id: str, vault_key_id: str) -> str:
+    if vault_key_id:
+        return vault_key_id
+    if not user_id:
+        return ""
+    cached_vault_key_id = await task._cache_service.get_user_vault_key_id(user_id)
+    if cached_vault_key_id:
+        return str(cached_vault_key_id)
+    user_data = await task._directus_service.get_user_fields_direct(user_id, ["vault_key_id"])
+    if isinstance(user_data, dict) and user_data.get("vault_key_id"):
+        return str(user_data["vault_key_id"])
     return ""
+
+
+async def _ensure_remotion_video_embed(
+    *,
+    task: BaseServiceTask,
+    embed_service: Any,
+    embed_id: str,
+    source: str,
+    chat_id: str | None,
+    message_id: str | None,
+    user_id: str,
+    user_id_hash: str,
+    vault_key_id: str,
+    filename: str,
+    source_version: int,
+    log_prefix: str,
+) -> str:
+    if not chat_id or not message_id:
+        return embed_id
+    cached_embed = await embed_service._get_cached_embed(embed_id, vault_key_id, log_prefix) if embed_id else None
+    if not cached_embed:
+        placeholder = await embed_service.create_remotion_video_embed_placeholder(
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            user_vault_key_id=vault_key_id,
+            embed_id=embed_id or str(uuid.uuid4()),
+            task_id=getattr(task.request, "id", None),
+            filename=filename,
+            log_prefix=log_prefix,
+        )
+        if placeholder and placeholder.get("embed_id"):
+            embed_id = str(placeholder["embed_id"])
+    await embed_service.update_remotion_video_embed_content(
+        embed_id=embed_id,
+        remotion_source=source,
+        chat_id=str(chat_id),
+        message_id=str(message_id),
+        user_id=user_id,
+        user_id_hash=user_id_hash,
+        user_vault_key_id=vault_key_id,
+        filename=filename,
+        status="rendering",
+        source_version=source_version,
+        log_prefix=log_prefix,
+    )
+    return embed_id
 
 
 async def _charge_remotion_render_credits(
@@ -115,7 +166,11 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
         user_id_hash = str(arguments.get("user_id_hash") or _hash_value(user_id))
         chat_id = arguments.get("chat_id")
         message_id = arguments.get("message_id")
-        vault_key_id = str(arguments.get("vault_key_id") or "")
+        vault_key_id = await _resolve_user_vault_key_id(
+            task,
+            user_id=user_id,
+            vault_key_id=str(arguments.get("vault_key_id") or ""),
+        )
         source = str(arguments.get("remotion_source") or "")
         filename = arguments.get("filename")
         source_version = int(arguments.get("source_version") or 1)
@@ -123,10 +178,29 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
         if not embed_id or not user_id or not vault_key_id or not source.strip():
             raise ValueError("Missing required Remotion render arguments")
 
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
+        filename = str(filename or "Composition.tsx")
+        embed_id = await _ensure_remotion_video_embed(
+            task=task,
+            embed_service=embed_service,
+            embed_id=embed_id,
+            source=source,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            vault_key_id=vault_key_id,
+            filename=filename,
+            source_version=source_version,
+            log_prefix=log_prefix,
+        )
+
         rendered = render_remotion_in_e2b(
             source=source,
-            filename=str(filename or "Composition.tsx"),
-            api_key=_e2b_api_key(task),
+            filename=filename,
+            api_key=await _e2b_api_key(task),
             enable_internet=True,
         )
         runtime_seconds = max(1, int(time.monotonic() - started_at))
@@ -197,9 +271,6 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             raise RuntimeError("Failed to index Remotion video in account storage")
         await cache_s3_file_keys(task, embed_id=embed_id, files_metadata=files_metadata, log_prefix=log_prefix)
 
-        from backend.core.api.app.services.embed_service import EmbedService
-
-        embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
         await embed_service.update_remotion_video_embed_content(
             embed_id=embed_id,
             remotion_source=source,
@@ -208,7 +279,7 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             user_id=user_id,
             user_id_hash=user_id_hash,
             user_vault_key_id=vault_key_id,
-            filename=str(filename or "Composition.tsx"),
+            filename=filename,
             status="finished",
             source_version=source_version,
             render_metadata={

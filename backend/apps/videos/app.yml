@@ -206,6 +206,7 @@ skills:
       write an explicit ```remotion:Name.tsx fence; do not use this for
       photorealistic footage or generic TSX components.
     stage: production
+    class_path: backend.apps.videos.skills.create_skill.CreateSkill
     providers:
       - E2B
       - Remotion

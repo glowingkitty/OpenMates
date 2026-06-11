@@ -780,6 +780,7 @@ class EmbedService:
         user_id: str,
         user_id_hash: str,
         user_vault_key_id: str,
+        embed_id: Optional[str] = None,
         task_id: Optional[str] = None,
         filename: Optional[str] = None,
         log_prefix: str = "",
@@ -791,7 +792,7 @@ class EmbedService:
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
-            embed_id = str(uuid.uuid4())
+            embed_id = embed_id or str(uuid.uuid4())
             normalized_filename = normalize_remotion_filename(filename)
             embed_ref = self._generate_direct_embed_ref(
                 "remotion-video",
