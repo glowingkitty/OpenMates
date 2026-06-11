@@ -112,6 +112,11 @@
     return ids.length > 0 ? ids : undefined;
   }
 
+  function hasExplicitZeroResults(content: Record<string, unknown> | undefined): boolean {
+    if (!content) return false;
+    return typeof content.result_count === 'number' && content.result_count === 0;
+  }
+
   let {
     data,
     onClose,
@@ -127,7 +132,11 @@
 
   // Extract fields from data prop
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
-  let embedIds = $derived(normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids));
+  let embedIds = $derived(
+    hasExplicitZeroResults(data.decodedContent)
+      ? undefined
+      : normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids)
+  );
   let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   // Local reactive state for streaming updates
@@ -304,7 +313,9 @@
     const c = data.decodedContent;
     if (typeof c.query === "string") localQuery = c.query;
     if (typeof c.provider === "string") localProvider = c.provider;
-    if ('embed_ids' in c) embedIdsOverride = normalizeEmbedIds(c.embed_ids);
+    if ('embed_ids' in c || hasExplicitZeroResults(c)) {
+      embedIdsOverride = hasExplicitZeroResults(c) ? undefined : normalizeEmbedIds(c.embed_ids);
+    }
     if (typeof c.error === "string") localErrorMessage = c.error;
   }
 </script>
