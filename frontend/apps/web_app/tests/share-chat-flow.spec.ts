@@ -98,9 +98,11 @@ test('creates and shares a chat link with QR code and short link', async ({
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
 	await waitForEmbedFinished(page, 'images', 'search');
+	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
+	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, { timeout: 30000 });
 	await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('chat-header-image-bubble-right')).toBeVisible({ timeout: 30000 });
-	logCheckpoint('Assistant response received and chat header image bubbles are visible.');
+	logCheckpoint('Assistant response received and loaded chat header metadata plus image bubbles are visible.');
 	await takeStepScreenshot(page, 'assistant-response');
 
 	saveWarnErrorLogs('share-chat', 'after_response');
