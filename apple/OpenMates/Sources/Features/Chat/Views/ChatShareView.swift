@@ -192,10 +192,26 @@ struct ChatShareView: View {
         guard let url = URL(string: shareLink) else { return }
         #if os(iOS)
         let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = scene.windows.first?.rootViewController {
-            rootVC.present(activityVC, animated: true)
+        guard let presenter = topMostViewController() else { return }
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 1, height: 1)
         }
+        presenter.present(activityVC, animated: true)
         #endif
     }
+
+    #if os(iOS)
+    private func topMostViewController() -> UIViewController? {
+        let keyWindow = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }
+        var controller = keyWindow?.rootViewController
+        while let presented = controller?.presentedViewController {
+            controller = presented
+        }
+        return controller
+    }
+    #endif
 }
