@@ -45,6 +45,7 @@
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
     import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
+    import { clearPendingGiftCardRedemption, getPendingGiftCardRedemptionCode } from '../../stores/serverStatusStore';
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
     import { createOnboardingChat, hasOnboardingChat, ONBOARDING_ENABLED } from '../../services/onboardingChatService'; // Import onboarding chat creation
@@ -1061,7 +1062,7 @@
 
         // Check for pending gift card code in sessionStorage to auto-redeem
         if (typeof window !== 'undefined') {
-            const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+            const pendingCode = getPendingGiftCardRedemptionCode();
             if (pendingCode) {
                 const normalizedCode = pendingCode.trim().toUpperCase();
                 console.info(`[Signup] Found pending gift card code ${normalizedCode}, attempting auto-redemption...`);
@@ -1092,7 +1093,7 @@
                             const result = await response.json();
                             if (result.success) {
                                 console.info("[Signup] Gift card redeemed automatically upon signup:", result);
-                                sessionStorage.removeItem('pending_gift_card_code');
+                                clearPendingGiftCardRedemption();
                                 
                                 // Update profile store with new credit amount
                                 if (typeof result.current_credits === 'number') {

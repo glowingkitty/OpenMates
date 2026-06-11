@@ -195,6 +195,18 @@ scenarios:
       - Signup completion does not grant Free testing credits.
       - Server settings does not mention gift-card generation or Free testing budget management.
       - Direct gift-card and Free testing budget endpoints return not found for self-hosted requests.
+  - id: S-9
+    title: Gift-card signup is excluded from Free testing credits
+    given:
+      - The Free testing promotion is active.
+      - A visitor opens signup through a gift-card deep link that stores a pending code for auto-redemption after account creation.
+    when:
+      - The visitor views signup basics and completes account creation.
+    then:
+      - Signup basics shows Pay per use instead of Free credits for testing.
+      - The signup request sends the pending gift-card code to the backend for eligibility validation.
+      - If the code currently resolves to a redeemable gift card, signup does not grant Free testing credits.
+      - The existing auto-redemption flow applies only the gift-card credits after signup.
 
 acceptance_criteria:
   - id: AC-1
@@ -236,6 +248,9 @@ acceptance_criteria:
   - id: AC-13
     scenario: S-8
     text: Self-hosted editions do not expose, mention, or permit Free testing credits or gift-card features through public metadata, signup grants, Settings UI, or direct API calls.
+  - id: AC-14
+    scenario: S-9
+    text: Gift-card deep-link signup hides the Free credits claim and excludes the account from Free testing grants when the pending code resolves to a redeemable gift card.
 
 contracts:
   api:
@@ -261,6 +276,7 @@ contracts:
         - Called from existing signup completion paths after a new user is authenticated and before or during the /chat/new completion transition.
         - Must be idempotent per user.
         - Must no-op on self-hosted requests.
+        - Must no-op when password or passkey signup includes a pending_gift_card_code that resolves to an existing redeemable gift card.
     - route: gift-card and Free testing admin/payment endpoints
       notes:
         - Direct self-hosted requests return 404 Feature not available on this server edition.
@@ -280,7 +296,7 @@ contracts:
     - Free testing credits should use separate stats fields such as free_testing_credits_granted and free_testing_grants_created if grant analytics are needed.
   ui_states:
     - Signup basics advantage text shows Free credits for testing only when server status says the promotion is active.
-    - Signup basics advantage text falls back to signup.advantage_pay_per_use on server-status error, disabled budget, exhausted budget, insufficient remaining budget, or a local device flag showing this browser/account already received the promotion.
+    - Signup basics advantage text falls back to signup.advantage_pay_per_use on server-status error, disabled budget, exhausted budget, insufficient remaining budget, a local device flag showing this browser/account already received the promotion, or a pending gift-card redemption code.
     - Admin Server settings shows loading, saved, validation error, disabled, active, exhausted, and email-sent states.
     - User grant notification uses translated string signup.free_testing_credits_received with {credits} replacement.
     - Local device flag is first-party localStorage only and is not cleared by logout.
@@ -380,6 +396,7 @@ tests:
       - successful signup grant shows You received 1000 free credits for testing
       - inactive promotion shows Pay per use and no free-testing notification
       - local device marker hides the Free credits for testing copy on the same browser after grant
+      - gift-card deep-link signup hides Free credits for testing and sends pending_gift_card_code with password signup
     red_phase:
       required: true
       expected: fail
@@ -477,9 +494,11 @@ tests:
     covers:
       - AC-11
       - AC-12
+      - AC-14
     assertions:
       - active public promotion is visible when the local device flag is absent
       - marking the device as already granted hides the signup promotion without changing raw public metadata
+      - marking a pending gift-card redemption hides the signup promotion until that pending state is cleared
       - malformed localStorage reads fail closed without crashing signup rendering
     red_phase:
       required: true
@@ -493,8 +512,33 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "27272385166"
-        timestamp: "2026-06-10"
+        run_id: "27337539317"
+        timestamp: "2026-06-11"
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_auth_endpoints.py
+    command: python3 -m pytest backend/tests/test_auth_endpoints.py -k pending_signup_gift_card
+    covers:
+      - AC-14
+    assertions:
+      - pending signup gift-card codes are normalized before backend validation
+      - only valid-looking codes call the gift-card lookup path
+      - unknown or invalid pending codes do not suppress normal promotion eligibility
+      - gift-card lookup errors fail closed and suppress the promotional grant
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-pending-signup-gift-card-6-passed
+        timestamp: "2026-06-11"
 
 implementation_plan:
   existing_patterns:

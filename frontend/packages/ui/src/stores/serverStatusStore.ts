@@ -52,6 +52,7 @@ const initialState: ServerStatusState = {
 };
 
 export const FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY = 'openmates_free_testing_credits_granted';
+export const PENDING_GIFT_CARD_CODE_STORAGE_KEY = 'pending_gift_card_code';
 
 function readFreeTestingCreditsDeviceGrantFlag(): boolean {
     if (typeof localStorage === 'undefined') {
@@ -66,10 +67,24 @@ function readFreeTestingCreditsDeviceGrantFlag(): boolean {
     }
 }
 
+function readPendingGiftCardCode(): string | null {
+    if (typeof sessionStorage === 'undefined') {
+        return null;
+    }
+
+    try {
+        return sessionStorage.getItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY);
+    } catch (error) {
+        console.warn('[ServerStatusStore] Failed to read pending gift card code:', error);
+        return null;
+    }
+}
+
 // --- Store ---
 
 const serverStatusStore = writable<ServerStatusState>(initialState);
 export const freeTestingCreditsDeviceGrantReceived = writable<boolean>(readFreeTestingCreditsDeviceGrantFlag());
+export const pendingGiftCardRedemption = writable<boolean>(!!readPendingGiftCardCode());
 
 // --- Derived Values ---
 
@@ -100,14 +115,44 @@ export const freeTestingCreditsPromotion = derived(
 );
 
 export const signupFreeTestingCreditsPromotion = derived(
-    [freeTestingCreditsPromotion, freeTestingCreditsDeviceGrantReceived],
-    ([$promotion, $deviceGrantReceived]) => {
-        if (!$promotion?.active || $deviceGrantReceived) {
+    [freeTestingCreditsPromotion, freeTestingCreditsDeviceGrantReceived, pendingGiftCardRedemption],
+    ([$promotion, $deviceGrantReceived, $pendingGiftCardRedemption]) => {
+        if (!$promotion?.active || $deviceGrantReceived || $pendingGiftCardRedemption) {
             return null;
         }
         return $promotion;
     }
 );
+
+export function getPendingGiftCardRedemptionCode(): string | null {
+    return readPendingGiftCardCode();
+}
+
+export function refreshPendingGiftCardRedemptionFromStorage(): void {
+    pendingGiftCardRedemption.set(!!readPendingGiftCardCode());
+}
+
+export function markPendingGiftCardRedemption(code: string): void {
+    if (typeof sessionStorage !== 'undefined') {
+        try {
+            sessionStorage.setItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY, code);
+        } catch (error) {
+            console.warn('[ServerStatusStore] Failed to persist pending gift card code:', error);
+        }
+    }
+    pendingGiftCardRedemption.set(true);
+}
+
+export function clearPendingGiftCardRedemption(): void {
+    if (typeof sessionStorage !== 'undefined') {
+        try {
+            sessionStorage.removeItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY);
+        } catch (error) {
+            console.warn('[ServerStatusStore] Failed to clear pending gift card code:', error);
+        }
+    }
+    pendingGiftCardRedemption.set(false);
+}
 
 export function hasDeviceReceivedFreeTestingCredits(): boolean {
     return get(freeTestingCreditsDeviceGrantReceived);

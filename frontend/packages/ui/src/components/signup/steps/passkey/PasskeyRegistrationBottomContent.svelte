@@ -17,6 +17,7 @@
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
+    import { getPendingGiftCardRedemptionCode } from '../../../../stores/serverStatusStore';
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
     import { generateDeviceName } from '../../../../utils/deviceName';
@@ -284,7 +285,8 @@
                     lookup_hash: lookupHash,
                     language: storeData.language || 'en',
                     darkmode: storeData.darkmode || false,
-                    prf_enabled: true // Confirmed PRF is enabled
+                    prf_enabled: true, // Confirmed PRF is enabled
+                    pending_gift_card_code: getPendingGiftCardRedemptionCode()
                 }),
                 credentials: 'include'
             });

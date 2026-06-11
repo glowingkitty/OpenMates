@@ -29,6 +29,7 @@
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
     import { notificationStore } from '../../../../stores/notificationStore';
+    import { getPendingGiftCardRedemptionCode } from '../../../../stores/serverStatusStore';
     import { setLastAuthMethod } from '../../../../utils/lastAuthMethod';
     import { 
         isChunkLoadError, 
@@ -213,7 +214,8 @@
                         salt: saltB64,
                         lookup_hash: lookupHash, // Hash of email + password
                         language: storeData.language || 'en',
-                        darkmode: storeData.darkmode || false
+                        darkmode: storeData.darkmode || false,
+                        pending_gift_card_code: getPendingGiftCardRedemptionCode()
                     }),
                     credentials: 'include'
                 });

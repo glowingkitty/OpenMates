@@ -60,7 +60,9 @@
 		notFoundPathStore,
 		decryptWithChatKey,
 		getPublicChatById,
-		translateDemoChat
+		translateDemoChat,
+		getPendingGiftCardRedemptionCode,
+		markPendingGiftCardRedemption
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -365,7 +367,7 @@
 			return;
 		}
 
-		const pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code');
+		const pendingGiftCardCode = getPendingGiftCardRedemptionCode();
 		if (!pendingGiftCardCode) {
 			return;
 		}
@@ -1858,12 +1860,13 @@
 		if (window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
 			const rawCode = decodeURIComponent(
 				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length)
+					.split('&')[0]
 			).toUpperCase();
 
 			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
 				hasGiftCardHash = true;
-				// Store code in sessionStorage so GiftCardRedeem / CreditsTopContent can pick it up
-				sessionStorage.setItem('pending_gift_card_code', rawCode);
+				// Store code so GiftCardRedeem and signup promotion gating can pick it up.
+				markPendingGiftCardRedemption(rawCode);
 				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
 
 				// Clean the hash from the URL immediately (code is safely in sessionStorage)

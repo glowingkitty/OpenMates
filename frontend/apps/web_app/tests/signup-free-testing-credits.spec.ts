@@ -39,8 +39,8 @@ async function mockServerStatus(page: any, freeTestingCredits: FreeTestingPromot
 	});
 }
 
-async function openSignupBasics(page: any) {
-	await page.goto(getE2EDebugUrl('/'));
+async function openSignupBasics(page: any, path: string = '/') {
+    await page.goto(getE2EDebugUrl(path));
 	await page.waitForLoadState('load');
 	await openSignupInterface(page, 30000);
 
@@ -72,4 +72,67 @@ test('signup basics falls back to Pay per use when promotion is inactive', async
 
 	await expect(page.getByText('Pay per use')).toBeVisible();
 	await expect(page.getByText('Free credits for testing')).toHaveCount(0);
+});
+
+test('gift-card signup hides Free credits claim and sends pending code to password signup', async ({ page }: { page: any }) => {
+	const giftCardCode = 'AB23-CDEF-4567';
+	let setupPasswordPayload: Record<string, unknown> | null = null;
+
+	await mockServerStatus(page, { active: true, grant_credits: 1000 });
+	await page.route('**/v1/auth/check_username_valid', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ available: true })
+		});
+	});
+	await page.route('**/v1/auth/request_confirm_email_code', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ success: true, message: 'Confirmation code sent' })
+		});
+	});
+	await page.route('**/v1/auth/check_confirm_email_code', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ success: true, message: 'Email confirmed' })
+		});
+	});
+	await page.route('**/v1/auth/setup_password', async (route: any) => {
+		setupPasswordPayload = route.request().postDataJSON();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				success: true,
+				message: 'Password set up successfully. Account created.',
+				user: { id: 'gift-card-signup-user', username: 'giftcard_e2e', is_admin: false }
+			})
+		});
+	});
+
+	await openSignupBasics(page, `/#gift-card=${giftCardCode}`);
+
+	await expect(page.getByText('Pay per use')).toBeVisible();
+	await expect(page.getByText('Free credits for testing')).toHaveCount(0);
+	await expect.poll(() => page.evaluate(() => sessionStorage.getItem('pending_gift_card_code'))).toBe(giftCardCode);
+
+	await page.getByPlaceholder(/email/i).fill('giftcard-e2e@example.com');
+	await page.getByPlaceholder(/username/i).fill('giftcard_e2e');
+	await page.locator('#terms-agreed-toggle').check({ force: true });
+	await page.locator('#privacy-agreed-toggle').check({ force: true });
+	await page.getByRole('button', { name: /create new account/i }).click();
+
+	await page.getByPlaceholder(/one.?time code/i).fill('123456');
+	await expect(page.locator('#signup-password-option')).toBeVisible({ timeout: 10000 });
+	await page.locator('#signup-password-option').click();
+
+	await page.getByPlaceholder(/^password$/i).fill('GiftcardTest!234');
+	await page.getByPlaceholder(/repeat password/i).fill('GiftcardTest!234');
+	await page.locator('#signup-password-continue').click();
+
+	await expect.poll(() => setupPasswordPayload).not.toBeNull();
+	expect(setupPasswordPayload?.pending_gift_card_code).toBe(giftCardCode);
 });

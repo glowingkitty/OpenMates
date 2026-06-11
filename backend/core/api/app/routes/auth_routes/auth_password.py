@@ -11,7 +11,12 @@ from backend.core.api.app.utils.device_fingerprint import generate_device_finger
 from backend.core.api.app.utils.invite_code import is_email_domain_allowed, validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, store_account_lifecycle_contact_email
+from backend.core.api.app.routes.auth_routes.auth_utils import (
+    verify_allowed_origin,
+    validate_username,
+    store_account_lifecycle_contact_email,
+    has_pending_signup_gift_card,
+)
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.schemas.auth import LoginRequest
@@ -428,6 +433,11 @@ async def setup_password(
             if is_self_hosted_request:
                 logger.info(
                     "Skipping free testing credits for self-hosted password signup user %s",
+                    user_id[:8],
+                )
+            elif await has_pending_signup_gift_card(directus_service, setup_request.pending_gift_card_code):
+                logger.info(
+                    "Skipping free testing credits for password signup user %s with pending gift-card redemption",
                     user_id[:8],
                 )
             else:

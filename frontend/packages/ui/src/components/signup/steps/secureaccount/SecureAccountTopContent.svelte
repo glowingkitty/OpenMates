@@ -12,6 +12,7 @@
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import { get } from 'svelte/store';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
+    import { getPendingGiftCardRedemptionCode } from '../../../../stores/serverStatusStore';
     import * as cryptoService from '../../../../services/cryptoService';
     import { generateDeviceName } from '../../../../utils/deviceName';
     import { checkAuth, authStore } from '../../../../stores/authStore';
@@ -372,7 +373,8 @@
                     lookup_hash: lookupHash,
                     language: storeData.language || 'en',
                     darkmode: storeData.darkmode || false,
-                    prf_enabled: true
+                    prf_enabled: true,
+                    pending_gift_card_code: getPendingGiftCardRedemptionCode()
                 }),
                 credentials: 'include'
             });

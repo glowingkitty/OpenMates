@@ -75,7 +75,13 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service,
     get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, verify_auth_client, validate_username, store_account_lifecycle_contact_email
+from backend.core.api.app.routes.auth_routes.auth_utils import (
+    verify_allowed_origin,
+    verify_auth_client,
+    validate_username,
+    store_account_lifecycle_contact_email,
+    has_pending_signup_gift_card,
+)
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
@@ -1450,6 +1456,11 @@ async def passkey_registration_complete(
                 if is_self_hosted_request:
                     logger.info(
                         "Skipping free testing credits for self-hosted passkey signup user %s",
+                        user_id[:8],
+                    )
+                elif await has_pending_signup_gift_card(directus_service, complete_request.pending_gift_card_code):
+                    logger.info(
+                        "Skipping free testing credits for passkey signup user %s with pending gift-card redemption",
                         user_id[:8],
                     )
                 else:

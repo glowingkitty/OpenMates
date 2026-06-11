@@ -13,10 +13,30 @@ logger = logging.getLogger(__name__)
 ACCOUNT_CONTACT_EMAIL_COLLECTION = "account_contact_emails"
 ACCOUNT_LIFECYCLE_EMAIL_PURPOSE = "account_lifecycle"
 ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE = uuid.UUID("7f330c19-7aa0-5403-89ca-d97578fb8110")
+GIFT_CARD_CODE_REGEX = regex.compile(
+    r"^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$",
+    regex.IGNORECASE,
+)
 
 
 def _account_contact_email_id(user_id: str) -> str:
     return str(uuid.uuid5(ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE, user_id))
+
+
+async def has_pending_signup_gift_card(
+    directus_service: Any,
+    pending_gift_card_code: Optional[str],
+) -> bool:
+    """Return true only when signup provided a currently redeemable gift-card code."""
+    code = (pending_gift_card_code or "").strip().upper()
+    if not code or not GIFT_CARD_CODE_REGEX.match(code):
+        return False
+
+    try:
+        return bool(await directus_service.get_gift_card_by_code(code))
+    except Exception as exc:
+        logger.error("Failed to validate pending signup gift card %s: %s", code, exc, exc_info=True)
+        return True
 
 
 async def store_account_lifecycle_contact_email(

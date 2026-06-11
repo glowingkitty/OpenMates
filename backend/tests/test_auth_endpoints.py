@@ -203,7 +203,7 @@ class TestAuthClientVerification:
         request.method = "POST"
         return request
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_valid_web_origin_accepted_for_login_and_lookup(self):
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 
@@ -213,7 +213,7 @@ class TestAuthClientVerification:
 
             assert await verify_auth_client(request) is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_invalid_web_origin_rejected(self):
         from fastapi import HTTPException
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
@@ -225,7 +225,7 @@ class TestAuthClientVerification:
 
         assert exc_info.value.status_code == 403
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_missing_origin_without_native_headers_rejected(self):
         from fastapi import HTTPException
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
@@ -237,7 +237,7 @@ class TestAuthClientVerification:
 
         assert exc_info.value.status_code == 403
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_missing_origin_with_native_ios_headers_accepted(self):
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 
@@ -248,7 +248,7 @@ class TestAuthClientVerification:
 
         assert await verify_auth_client(request) is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_cli_pair_login_origin_still_accepted(self):
         from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 
@@ -299,6 +299,39 @@ class TestAuthClientVerification:
                     found_paths.add(path_arg.value)
 
             assert found_paths == expected_paths
+
+
+class TestSignupGiftCardFreeTestingEligibility:
+    @pytest.mark.anyio
+    async def test_pending_signup_gift_card_requires_existing_redeemable_card(self):
+        from core.api.app.routes.auth_routes.auth_utils import has_pending_signup_gift_card
+
+        directus_service = AsyncMock()
+        directus_service.get_gift_card_by_code = AsyncMock(return_value={"code": "AB23-CDEF-4567"})
+
+        assert await has_pending_signup_gift_card(directus_service, "ab23-cdef-4567") is True
+        directus_service.get_gift_card_by_code.assert_awaited_once_with("AB23-CDEF-4567")
+
+    @pytest.mark.anyio
+    async def test_pending_signup_gift_card_ignores_empty_invalid_or_unknown_codes(self):
+        from core.api.app.routes.auth_routes.auth_utils import has_pending_signup_gift_card
+
+        directus_service = AsyncMock()
+        directus_service.get_gift_card_by_code = AsyncMock(return_value=None)
+
+        assert await has_pending_signup_gift_card(directus_service, None) is False
+        assert await has_pending_signup_gift_card(directus_service, "not-a-gift-card") is False
+        assert await has_pending_signup_gift_card(directus_service, "AB23-CDEF-4567") is False
+        directus_service.get_gift_card_by_code.assert_awaited_once_with("AB23-CDEF-4567")
+
+    @pytest.mark.anyio
+    async def test_pending_signup_gift_card_validation_errors_fail_closed(self):
+        from core.api.app.routes.auth_routes.auth_utils import has_pending_signup_gift_card
+
+        directus_service = AsyncMock()
+        directus_service.get_gift_card_by_code = AsyncMock(side_effect=RuntimeError("lookup unavailable"))
+
+        assert await has_pending_signup_gift_card(directus_service, "AB23-CDEF-4567") is True
 
 
 class TestLoginRequestValidation:
@@ -453,7 +486,7 @@ class TestCacheMissFallback:
     Commits: e4d5ea5, 792526c, a20bacf
     """
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.integration
     async def test_verify_authenticated_user_falls_back_on_cache_miss(
         self, mock_cache_service, mock_directus_service, doc_assert
@@ -498,7 +531,7 @@ class TestCacheMissFallback:
         # Should have attempted Directus fallback
         mock_directus_service.refresh_token.assert_called_once_with("valid-refresh-token")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     @pytest.mark.integration
     async def test_verify_authenticated_user_fails_without_cookie(
         self, mock_cache_service, mock_directus_service

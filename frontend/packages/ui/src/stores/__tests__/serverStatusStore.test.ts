@@ -10,12 +10,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import {
   FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY,
+  PENDING_GIFT_CARD_CODE_STORAGE_KEY,
+  clearPendingGiftCardRedemption,
   freeTestingCreditsDeviceGrantReceived,
   freeTestingCreditsPromotion,
+  getPendingGiftCardRedemptionCode,
   hasDeviceReceivedFreeTestingCredits,
   markDeviceReceivedFreeTestingCredits,
   markDeviceReceivedFreeTestingCreditsFromNotification,
+  markPendingGiftCardRedemption,
+  pendingGiftCardRedemption,
   refreshFreeTestingCreditsDeviceGrantFromStorage,
+  refreshPendingGiftCardRedemptionFromStorage,
   serverStatusStore,
   signupFreeTestingCreditsPromotion,
 } from "../serverStatusStore";
@@ -36,6 +42,28 @@ function installLocalStorageMock() {
   } as unknown as Storage;
 
   Object.defineProperty(globalThis, "localStorage", {
+    value: storage,
+    configurable: true,
+  });
+  return storage;
+}
+
+function installSessionStorageMock() {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value);
+    }),
+    removeItem: vi.fn((key: string) => {
+      values.delete(key);
+    }),
+    clear: vi.fn(() => {
+      values.clear();
+    }),
+  } as unknown as Storage;
+
+  Object.defineProperty(globalThis, "sessionStorage", {
     value: storage,
     configurable: true,
   });
@@ -63,11 +91,14 @@ function setActivePromotion(): void {
 
 describe("serverStatusStore Free testing promotion", () => {
   let storage: Storage;
+  let sessionStorageMock: Storage;
 
   beforeEach(() => {
     vi.restoreAllMocks();
     storage = installLocalStorageMock();
+    sessionStorageMock = installSessionStorageMock();
     freeTestingCreditsDeviceGrantReceived.set(false);
+    pendingGiftCardRedemption.set(false);
     serverStatusStore.set({
       status: null,
       initialized: false,
@@ -109,6 +140,36 @@ describe("serverStatusStore Free testing promotion", () => {
     markDeviceReceivedFreeTestingCreditsFromNotification("signup.free_testing_credits_received");
 
     expect(hasDeviceReceivedFreeTestingCredits()).toBe(true);
+    expect(get(signupFreeTestingCreditsPromotion)).toBeNull();
+  });
+
+  it("hides signup promotion while a gift-card redemption is pending", () => {
+    setActivePromotion();
+
+    markPendingGiftCardRedemption("AB23-CDEF-4567");
+
+    expect(sessionStorageMock.getItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY)).toBe("AB23-CDEF-4567");
+    expect(getPendingGiftCardRedemptionCode()).toBe("AB23-CDEF-4567");
+    expect(get(pendingGiftCardRedemption)).toBe(true);
+    expect(get(signupFreeTestingCreditsPromotion)).toBeNull();
+
+    clearPendingGiftCardRedemption();
+
+    expect(sessionStorageMock.getItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY)).toBeNull();
+    expect(get(pendingGiftCardRedemption)).toBe(false);
+    expect(get(signupFreeTestingCreditsPromotion)).toEqual({
+      active: true,
+      grant_credits: 1000,
+    });
+  });
+
+  it("refreshes pending gift-card state from sessionStorage", () => {
+    setActivePromotion();
+    sessionStorageMock.setItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY, "AB23-CDEF-4567");
+
+    refreshPendingGiftCardRedemptionFromStorage();
+
+    expect(get(pendingGiftCardRedemption)).toBe(true);
     expect(get(signupFreeTestingCreditsPromotion)).toBeNull();
   });
 
