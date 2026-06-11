@@ -794,7 +794,7 @@
       subtitle: released
         ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version, releaseDate: released } })
         : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version } }),
-      selected: false,
+      selected: true,
       required: false,
       dependencyPackage: suggestion.package,
       dependencyImportName: suggestion.import_name,
