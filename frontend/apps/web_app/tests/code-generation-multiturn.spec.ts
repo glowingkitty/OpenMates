@@ -467,7 +467,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 		page,
 		withMockMarker(
 			'Refactor this into a class called CsvProcessor with methods: ' +
-				'__init__ (takes filepath), load_data, sort_by_column, and get_top_rows. ' +
+				'initializer (takes filepath), load_data, sort_by_column, and get_top_rows. ' +
 				'Keep all the error handling and type hints from before. ' +
 				'The class should still use pandas and the CSV processing logic from process_csv. ' +
 				'Show the complete updated file.',
