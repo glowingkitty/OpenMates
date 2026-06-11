@@ -231,6 +231,8 @@ describe("Embed State Machine — backend/frontend parity", () => {
     expect(normalizeEmbedStatus(undefined)).toBe(EmbedStatus.FINISHED);
     // Valid statuses pass through
     expect(normalizeEmbedStatus("processing")).toBe(EmbedStatus.PROCESSING);
+    expect(normalizeEmbedStatus("rendering")).toBe(EmbedStatus.RENDERING);
+    expect(normalizeEmbedStatus("needs_rerender")).toBe(EmbedStatus.NEEDS_RERENDER);
     expect(normalizeEmbedStatus("error")).toBe(EmbedStatus.ERROR);
     expect(normalizeEmbedStatus("cancelled")).toBe(EmbedStatus.CANCELLED);
   });
@@ -240,11 +242,15 @@ describe("Embed State Machine — backend/frontend parity", () => {
     expect(isTerminalStatus("error")).toBe(true);
     expect(isTerminalStatus("cancelled")).toBe(true);
     expect(isTerminalStatus("processing")).toBe(false);
+    expect(isTerminalStatus("rendering")).toBe(false);
+    expect(isTerminalStatus("needs_rerender")).toBe(false);
     expect(isTerminalStatus("unknown")).toBe(false);
   });
 
   it("isValidEmbedStatus rejects unknown values", () => {
     expect(isValidEmbedStatus("processing")).toBe(true);
+    expect(isValidEmbedStatus("rendering")).toBe(true);
+    expect(isValidEmbedStatus("needs_rerender")).toBe(true);
     expect(isValidEmbedStatus("finished")).toBe(true);
     expect(isValidEmbedStatus("completed")).toBe(false); // alias, not a valid status
     expect(isValidEmbedStatus("")).toBe(false);

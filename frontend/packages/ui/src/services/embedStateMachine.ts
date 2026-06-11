@@ -9,13 +9,18 @@
  * Tests: frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
  *
  * State diagram:
- *     (initial) ──► PROCESSING ──► FINISHED
+ *     (initial) ──► PROCESSING ──► RENDERING ──► FINISHED
+ *                         │             │
+ *                         │             ├──► ERROR
+ *                         │             │
+ *                         │             └──► CANCELLED
  *                         │
  *                         ├──► ERROR
  *                         │
  *                         └──► CANCELLED
  *
  *     FINISHED ──► ERROR  (frontend-only: decryption failure)
+ *     FINISHED ──► NEEDS_RERENDER ──► RENDERING
  *
  * Terminal states: FINISHED, ERROR, CANCELLED
  */
@@ -25,9 +30,11 @@
 /** All valid embed statuses. Used as the single source of truth across the frontend. */
 export const EmbedStatus = {
   PROCESSING: "processing",
+  RENDERING: "rendering",
   FINISHED: "finished",
   ERROR: "error",
   CANCELLED: "cancelled",
+  NEEDS_RERENDER: "needs_rerender",
 } as const;
 
 export type EmbedStatusValue = (typeof EmbedStatus)[keyof typeof EmbedStatus];
@@ -44,12 +51,26 @@ const ALLOWED_TRANSITIONS: Record<
 > = {
   [EmbedStatus.PROCESSING]: new Set([
     EmbedStatus.PROCESSING, // streaming updates (content changes, status stays)
+    EmbedStatus.RENDERING, // long-running render started after source is available
     EmbedStatus.FINISHED, // normal completion
     EmbedStatus.ERROR, // skill failure
     EmbedStatus.CANCELLED, // user pressed stop
   ]),
+  [EmbedStatus.RENDERING]: new Set([
+    EmbedStatus.RENDERING, // render progress updates
+    EmbedStatus.FINISHED, // render produced final artifacts
+    EmbedStatus.ERROR, // render failed
+    EmbedStatus.CANCELLED, // user pressed stop
+  ]),
   [EmbedStatus.FINISHED]: new Set([
     EmbedStatus.ERROR, // frontend-only: decryption failure on stored embed
+    EmbedStatus.NEEDS_RERENDER, // source restore/edit invalidated active artifacts
+  ]),
+  [EmbedStatus.NEEDS_RERENDER]: new Set([
+    EmbedStatus.NEEDS_RERENDER, // source-only updates before render starts
+    EmbedStatus.RENDERING, // rerender started
+    EmbedStatus.ERROR, // rerender request failed before provider start
+    EmbedStatus.CANCELLED, // user cancelled rerender
   ]),
   [EmbedStatus.ERROR]: new Set(), // terminal — no transitions out
   [EmbedStatus.CANCELLED]: new Set(), // terminal — no transitions out

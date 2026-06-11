@@ -21,21 +21,28 @@ class EmbedStatus(str, Enum):
     All valid embed statuses.
 
     State diagram:
-        (initial) ──► PROCESSING ──► FINISHED
+        (initial) ──► PROCESSING ──► RENDERING ──► FINISHED
+                            │             │
+                            │             ├──► ERROR
+                            │             │
+                            │             └──► CANCELLED
                             │
                             ├──► ERROR
                             │
                             └──► CANCELLED
 
         FINISHED ──► ERROR  (frontend-only: decryption failure)
+        FINISHED ──► NEEDS_RERENDER ──► RENDERING
 
-    Terminal states: FINISHED, ERROR, CANCELLED
+        Terminal states: FINISHED, ERROR, CANCELLED
     """
 
     PROCESSING = "processing"
+    RENDERING = "rendering"
     FINISHED = "finished"
     ERROR = "error"
     CANCELLED = "cancelled"
+    NEEDS_RERENDER = "needs_rerender"
 
 
 # ── Valid transitions ────────────────────────────────────────────────────────
@@ -44,12 +51,26 @@ class EmbedStatus(str, Enum):
 ALLOWED_TRANSITIONS: Dict[EmbedStatus, FrozenSet[EmbedStatus]] = {
     EmbedStatus.PROCESSING: frozenset({
         EmbedStatus.PROCESSING,   # streaming updates (content changes, status stays)
+        EmbedStatus.RENDERING,    # long-running render started after source is available
         EmbedStatus.FINISHED,     # normal completion
         EmbedStatus.ERROR,        # skill failure
         EmbedStatus.CANCELLED,    # user pressed stop
     }),
+    EmbedStatus.RENDERING: frozenset({
+        EmbedStatus.RENDERING,    # render progress updates
+        EmbedStatus.FINISHED,     # render produced final artifacts
+        EmbedStatus.ERROR,        # render failed
+        EmbedStatus.CANCELLED,    # user pressed stop
+    }),
     EmbedStatus.FINISHED: frozenset({
         EmbedStatus.ERROR,        # frontend-only: decryption failure on stored embed
+        EmbedStatus.NEEDS_RERENDER,  # source restore/edit invalidated active artifacts
+    }),
+    EmbedStatus.NEEDS_RERENDER: frozenset({
+        EmbedStatus.NEEDS_RERENDER,  # source-only updates before render starts
+        EmbedStatus.RENDERING,       # rerender started
+        EmbedStatus.ERROR,           # rerender request failed before provider start
+        EmbedStatus.CANCELLED,       # user cancelled rerender
     }),
     EmbedStatus.ERROR: frozenset(),       # terminal — no transitions out
     EmbedStatus.CANCELLED: frozenset(),   # terminal — no transitions out
