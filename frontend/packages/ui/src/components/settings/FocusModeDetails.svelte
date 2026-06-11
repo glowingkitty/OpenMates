@@ -28,8 +28,10 @@
     import { panelState } from '../../stores/panelStateStore';
     import ChatPreviewCard from './ChatPreviewCard.svelte';
     import { activeChatStore } from '../../stores/activeChatStore';
+    import { isMobileView } from '../../stores/uiStateStore';
     import { getExampleChatsForFocusMode } from '../../demo_chats';
     import type { Chat } from '../../types/chat';
+    import { get } from 'svelte/store';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -223,7 +225,9 @@
         activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
-        dispatch('closeSettings');
+        if (get(isMobileView)) {
+            dispatch('closeSettings');
+        }
     }
 </script>
 

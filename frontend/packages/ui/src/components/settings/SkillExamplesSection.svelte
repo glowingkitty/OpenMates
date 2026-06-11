@@ -33,8 +33,10 @@
     } from '../../services/skillStoreExamplesResolver';
     import { openSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
     import { activeChatStore } from '../../stores/activeChatStore';
+    import { isMobileView } from '../../stores/uiStateStore';
     import { getExampleChatsForSkill } from '../../demo_chats';
     import type { Chat } from '../../types/chat';
+    import { get } from 'svelte/store';
 
     interface Props {
         appId: string;
@@ -151,7 +153,9 @@
         activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
-        dispatch('closeSettings');
+        if (get(isMobileView)) {
+            dispatch('closeSettings');
+        }
     }
 </script>
 

@@ -151,7 +151,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await exampleChatCard.click();
 		await expect(page).toHaveURL(/#chat-id=example-berlin-weather-bike-commute/, { timeout: 15_000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
-		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
 	test('Phase 1c: app store linked example chat uses the large continue-card preview and opens the chat', async ({ page }: { page: any }) => {
@@ -179,7 +179,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await exampleChatCard.click();
 		await expect(page).toHaveURL(/#chat-id=example-flights-berlin-bangkok/, { timeout: 15_000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
-		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
 	test('Phase 1d: representative app store linked example chats are visible and open', async ({ page }: { page: any }) => {
@@ -209,7 +209,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await exampleChatCard.click();
 			await expect(page).toHaveURL(new RegExp(`#chat-id=${example.chatId}`), { timeout: 15_000 });
 			await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
-			await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
+			await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 		}
 	});
 
