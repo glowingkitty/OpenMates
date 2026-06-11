@@ -51,7 +51,7 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 8))
         XCTAssertTrue(waitForElement("settings-interface-language-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-interface-language-row"].tap()
-        XCTAssertTrue(waitForElement("settings-language-page", in: app, timeout: 5))
+        XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
     }
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
