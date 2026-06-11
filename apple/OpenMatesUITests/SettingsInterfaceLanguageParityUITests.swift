@@ -25,8 +25,7 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         app.descendants(matching: .any)["settings-language-option-de"].tap()
         returnToInterfaceIfNeeded(in: app, expectedText: "Sprache")
 
-        app.descendants(matching: .any)["settings-interface-language-row"].tap()
-        XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
+        openLanguageOptionsIfNeeded(in: app)
         app.descendants(matching: .any)["settings-language-option-en"].tap()
         returnToInterfaceIfNeeded(in: app, expectedText: "Language")
         XCTAssertFalse(app.tables.firstMatch.exists, "Language settings must not render default List/table chrome")
@@ -65,6 +64,13 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         }
         XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 5))
         XCTAssertTrue(waitForText(expectedText, in: app, timeout: 5))
+    }
+
+    private func openLanguageOptionsIfNeeded(in app: XCUIApplication) {
+        if app.descendants(matching: .any)["settings-language-option-en"].exists { return }
+
+        app.descendants(matching: .any)["settings-interface-language-row"].tap()
+        XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
     }
 
     private func waitForText(_ text: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
