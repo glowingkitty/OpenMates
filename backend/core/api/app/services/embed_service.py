@@ -4835,14 +4835,13 @@ class EmbedService:
                 f"{log_prefix} [QUOTE_VERIFY] Embed {embed_id} not in cache — "
                 f"cannot verify quote, treating as unverifiable"
             )
-            # If the embed is no longer in cache, we can't verify — don't flag as wrong
-            return True
+            return False
 
         try:
             decoded = decode(toon_str)
         except Exception as e:
             logger.warning(f"{log_prefix} [QUOTE_VERIFY] Failed to decode TOON for {embed_id}: {e}")
-            return True  # Can't verify — don't penalise
+            return False
 
         normalized_quote = self._normalize_for_quote_comparison(quoted_text)
         if not normalized_quote:
