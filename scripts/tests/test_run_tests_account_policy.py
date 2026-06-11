@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -69,6 +70,71 @@ def test_dispatch_run_matching_uses_unique_token():
 
     assert run_tests._matching_dispatched_run_id(runs, "rt-target") == 222
     assert run_tests._matching_dispatched_run_id(runs, "rt-missing") is None
+
+
+def test_preflight_account_payload_deduplicates_emails():
+    run_tests = load_run_tests_module()
+
+    results = [
+        run_tests.SpecResult(name="test-account-preflight.spec.ts", status="passed", account=1, account_email="Test@Example.test"),
+        run_tests.SpecResult(name="test-account-preflight.spec.ts", status="passed", account=2, account_email="test@example.test"),
+        run_tests.SpecResult(name="test-account-preflight.spec.ts", status="passed", account=3, account_email=None),
+    ]
+
+    assert run_tests._configured_preflight_accounts(results) == [
+        {"slot": 1, "email": "Test@Example.test"}
+    ]
+
+
+def test_extract_account_email_from_playwright_stdout(tmp_path):
+    run_tests = load_run_tests_module()
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        '{"suites":[{"specs":[{"tests":[{"results":[{"stdout":['
+        '{"text":"[ACCOUNT_PREFLIGHT][slot 1] Starting. | meta={\\"email\\":\\"acct@example.test\\"}\\n"}'
+        ']}]}]}]}]}',
+        encoding="utf-8",
+    )
+
+    assert run_tests.BatchRunner._extract_account_email_from_playwright_json(report) == "acct@example.test"
+
+
+def test_credit_guard_pipes_local_script_into_api_container(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    guard_script = tmp_path / "backend" / "scripts" / "top_up_test_account_credits.py"
+    guard_script.parent.mkdir(parents=True)
+    guard_script.write_text("print('guard script')\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+
+    captured = {}
+
+    def fake_run(cmd, input, capture_output, text, timeout):
+        captured["cmd"] = cmd
+        captured["input"] = input
+        captured["capture_output"] = capture_output
+        captured["text"] = text
+        captured["timeout"] = timeout
+        return SimpleNamespace(stdout="accounts_checked=1\nok slots=1 credits=50000\n", stderr="", returncode=0)
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    error = run_tests.TestOrchestrator._ensure_preflight_account_credits([
+        run_tests.SpecResult(
+            name="test-account-preflight.spec.ts",
+            status="passed",
+            account=1,
+            account_email="acct@example.test",
+        )
+    ])
+
+    assert error is None
+    assert captured["cmd"][:6] == ["docker", "exec", "-i", "api", "python", "-"]
+    assert captured["cmd"][6] == "--accounts-json"
+    assert '"email": "acct@example.test"' in captured["cmd"][7]
+    assert captured["input"] == "print('guard script')\n"
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+    assert captured["timeout"] == 180
 
 
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):

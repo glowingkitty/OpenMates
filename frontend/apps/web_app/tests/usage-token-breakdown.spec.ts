@@ -133,14 +133,12 @@ test.describe('Usage Token Breakdown', () => {
 		// until the receipt-style token rows are present.
 		await page.waitForTimeout(2000);
 		const usageDetailView = page.getByTestId('usage-detail-view');
-		const chatEntryButtons = settingsMenu.getByRole('button');
+		const chatEntryButtons = usageDetailView.getByTestId('usage-chat-entry');
 		await expect(chatEntryButtons.first()).toBeVisible({ timeout: 10000 });
 		const buttonCount = await chatEntryButtons.count();
 		let openedTokenEntry = false;
 		for (let index = 0; index < buttonCount; index += 1) {
 			const button = chatEntryButtons.nth(index);
-			const label = ((await button.textContent().catch(() => '')) ?? '').trim();
-			if (/^back$/i.test(label)) continue;
 			await button.click();
 			await expect(usageDetailView).toBeVisible({ timeout: 10000 });
 			if (await page.getByTestId('usage-input-tokens').isVisible({ timeout: 3000 }).catch(() => false)) {

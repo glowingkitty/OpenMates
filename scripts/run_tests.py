@@ -80,6 +80,8 @@ GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
+E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
+E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
 RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
     "account-recovery-flow.spec.ts": 14,
     "backup-code-login-flow.spec.ts": 15,
@@ -142,6 +144,7 @@ class SpecResult:
     file: Optional[str] = None
     run_id: Optional[int] = None
     account: Optional[int] = None
+    account_email: Optional[str] = None
     retries: int = 0
     flaky: bool = False
     # Structured Playwright data for MD reports
@@ -680,6 +683,32 @@ def _matching_dispatched_run_id(runs: list[dict], dispatch_token: str) -> Option
     return None
 
 
+def _configured_preflight_accounts(results: list[SpecResult]) -> list[dict]:
+    """Build a de-duplicated credit-guard payload from preflight results."""
+    accounts_by_email: dict[str, dict] = {}
+    for result in results:
+        if not result.account_email:
+            continue
+        normalized_email = result.account_email.strip().lower()
+        account = accounts_by_email.setdefault(
+            normalized_email,
+            {"slot": result.account, "email": result.account_email, "slots": []},
+        )
+        if result.account and result.account not in account["slots"]:
+            account["slots"].append(result.account)
+
+    payload: list[dict] = []
+    for account in sorted(
+        accounts_by_email.values(),
+        key=lambda item: min(item["slots"] or [item.get("slot") or 999]),
+    ):
+        slots = account.pop("slots")
+        if slots:
+            account["slot"] = min(slots)
+        payload.append(account)
+    return payload
+
+
 class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
@@ -998,7 +1027,12 @@ class BatchRunner:
             duration_seconds=round(duration, 1),
         )
 
-    def _run_batch(self, specs: list[str], batch_idx: int) -> list[SpecResult]:
+    def _run_batch(
+        self,
+        specs: list[str],
+        batch_idx: int,
+        account_overrides: Optional[list[int]] = None,
+    ) -> list[SpecResult]:
         """Dispatch and wait for a single batch of specs."""
         # Dispatch all specs in this batch
         dispatched: list[tuple[str, int, int]] = []  # (spec, account, run_id)
@@ -1006,7 +1040,9 @@ class BatchRunner:
         normal_account_index = 0
 
         for i, spec in enumerate(specs):
-            if spec == ACCOUNT_PREFLIGHT_SPEC:
+            if account_overrides is not None:
+                account = account_overrides[i]
+            elif spec == ACCOUNT_PREFLIGHT_SPEC:
                 account = i + 1
             else:
                 account = _account_for_spec_in_batch(spec, normal_account_index)
@@ -1069,6 +1105,7 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            account_email: Optional[str] = None
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -1081,6 +1118,7 @@ class BatchRunner:
                     extracted_err, pw_errors, pw_steps = (
                         self._extract_structured_data_from_playwright_json(pw_json)
                     )
+                    account_email = self._extract_account_email_from_playwright_json(pw_json)
                     if extracted_err and status == "failed":
                         error = extracted_err
 
@@ -1117,7 +1155,7 @@ class BatchRunner:
 
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
-                error=error, run_id=rid, account=account,
+                error=error, run_id=rid, account=account, account_email=account_email,
                 playwright_errors=pw_errors,
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
@@ -1222,6 +1260,36 @@ class BatchRunner:
             _log(f"Failed to parse playwright.json: {e}", "WARN")
 
         return first_error, errors, steps
+
+    @staticmethod
+    def _extract_account_email_from_playwright_json(pw_json: Path) -> Optional[str]:
+        """Extract the configured test account email from preflight stdout."""
+        marker = 'meta={"email":"'
+
+        def _walk_suite(suite: dict) -> Optional[str]:
+            for spec in suite.get("specs", []):
+                for test in spec.get("tests", []):
+                    for result in test.get("results", []):
+                        for entry in result.get("stdout", []):
+                            text = str(entry.get("text", ""))
+                            if marker in text:
+                                return text.split(marker, 1)[1].split('"}', 1)[0]
+            for child_suite in suite.get("suites", []):
+                email = _walk_suite(child_suite)
+                if email:
+                    return email
+            return None
+
+        try:
+            with open(pw_json) as f:
+                data = json.load(f)
+            for suite in data.get("suites", []):
+                email = _walk_suite(suite)
+                if email:
+                    return email
+        except Exception as e:
+            _log(f"Failed to extract preflight account email: {e}", "WARN")
+        return None
 
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
@@ -4888,6 +4956,11 @@ class TestOrchestrator:
             preflight = self._run_account_preflight(client)
             if preflight.status == "failed":
                 return preflight
+        elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
+            account = _account_for_spec_in_batch(self.spec, 0)
+            preflight = self._run_account_preflight(client, accounts=[account])
+            if preflight.status == "failed":
+                return preflight
 
         runner = BatchRunner(
             client=client,
@@ -4907,18 +4980,27 @@ class TestOrchestrator:
 
         return result
 
-    def _run_account_preflight(self, client: GitHubActionsClient) -> SuiteResult:
+    def _run_account_preflight(
+        self,
+        client: GitHubActionsClient,
+        accounts: Optional[list[int]] = None,
+    ) -> SuiteResult:
         """Validate each configured persistent E2E account before normal specs."""
         started = time.time()
-        _log(f"Playwright account preflight: {MAX_ACCOUNTS} account slot(s)")
+        target_accounts = accounts or list(range(1, MAX_ACCOUNTS + 1))
+        _log(f"Playwright account preflight: {len(target_accounts)} account slot(s)")
         runner = BatchRunner(
             client=client,
-            specs=[ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS,
-            batch_size=MAX_ACCOUNTS,
+            specs=[ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+            batch_size=len(target_accounts),
             fail_fast=False,
             use_mocks=self.use_mocks,
         )
-        results = runner._run_batch([ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS, 0)
+        results = runner._run_batch(
+            [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+            0,
+            account_overrides=target_accounts,
+        )
         failures = [r for r in results if r.status != "passed"]
         if failures:
             failed_slots = ", ".join(str(r.account) for r in failures)
@@ -4927,12 +5009,72 @@ class TestOrchestrator:
             failed_slots = ""
             _log("Account preflight passed", "OK")
 
+        credit_guard_error = self._ensure_preflight_account_credits(results)
+        if credit_guard_error:
+            return SuiteResult(
+                status="failed",
+                tests=[runner._spec_result_to_dict(r) for r in results],
+                duration_seconds=round(time.time() - started, 1),
+                reason=credit_guard_error,
+            )
+
         return SuiteResult(
             status="failed" if failures else "passed",
             tests=[runner._spec_result_to_dict(r) for r in results],
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
+
+    @staticmethod
+    def _ensure_preflight_account_credits(results: list[SpecResult]) -> Optional[str]:
+        """Top up configured E2E accounts discovered by account preflight."""
+        if os.getenv("OPENMATES_E2E_CREDIT_GUARD", "1") in {"0", "false", "False"}:
+            _log("E2E credit guard disabled via OPENMATES_E2E_CREDIT_GUARD", "WARN")
+            return None
+
+        accounts = _configured_preflight_accounts(results)
+        missing_slots = [str(r.account) for r in results if r.account and not r.account_email]
+        if missing_slots:
+            _log(
+                "E2E credit guard: no configured credentials discovered for slot(s): "
+                + ", ".join(missing_slots),
+                "WARN",
+            )
+        if not accounts:
+            _log("E2E credit guard: no configured accounts discovered", "WARN")
+            return None
+
+        minimum = int(os.getenv("OPENMATES_E2E_CREDIT_MINIMUM", str(E2E_CREDIT_GUARD_DEFAULT_MINIMUM)))
+        target = int(os.getenv("OPENMATES_E2E_CREDIT_TARGET", str(E2E_CREDIT_GUARD_DEFAULT_TARGET)))
+        script_path = PROJECT_ROOT / "backend" / "scripts" / "top_up_test_account_credits.py"
+        try:
+            script_source = script_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            detail = f"credit guard script unavailable: {exc}"
+            _log(f"E2E credit guard failed: {detail}", "ERROR")
+            return f"E2E credit guard failed: {detail}"
+
+        proc = subprocess.run(
+            [
+                "docker", "exec", "-i", "api", "python", "-",
+                "--accounts-json", json.dumps(accounts),
+                "--minimum", str(minimum),
+                "--target", str(target),
+            ],
+            input=script_source,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        output = (proc.stdout or "").strip()
+        if output:
+            for line in output.splitlines():
+                _log(f"E2E credit guard: {line}")
+        if proc.returncode != 0:
+            detail = (proc.stderr or output or "unknown error").strip()[:MAX_ERROR_SNIPPET]
+            _log(f"E2E credit guard failed: {detail}", "ERROR")
+            return f"E2E credit guard failed: {detail}"
+        return None
 
     @staticmethod
     def _merge_cookie_audits() -> None:
