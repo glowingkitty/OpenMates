@@ -1980,6 +1980,7 @@ Usage Settings - View usage statistics and export usage data
                     
 					<button
 						type="button"
+						data-testid="usage-chat-entry"
 						class="detail-entry clickable"
 						onclick={() => overviewSelectedEntry = entry}
 					>
