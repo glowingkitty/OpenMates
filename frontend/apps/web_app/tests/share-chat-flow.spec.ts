@@ -102,6 +102,10 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, { timeout: 30000 });
 	await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('chat-header-image-bubble-right')).toBeVisible({ timeout: 30000 });
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const chatIdMatch = page.url().match(/chat-id=([a-zA-Z0-9-]+)/);
+	const activeChatId = chatIdMatch?.[1] ?? '';
+	expect(activeChatId).toBeTruthy();
 	logCheckpoint('Assistant response received and loaded chat header metadata plus image bubbles are visible.');
 	await takeStepScreenshot(page, 'assistant-response');
 
@@ -242,6 +246,26 @@ test('creates and shares a chat link with QR code and short link', async ({
 		expect(imageBytes.length).toBeGreaterThan(10000);
 	});
 	logCheckpoint('Generated OG image URL returns PNG data large enough to include rendered preview artwork.');
+
+	const directCrawlerUrl = new URL(`/share/chat/${activeChatId}`, page.url()).toString();
+	const directCrawlerResponse = await page.request.get(directCrawlerUrl);
+	const directCrawlerHtml = await directCrawlerResponse.text();
+	const directOgImage = metaContent(directCrawlerHtml, 'og:image');
+	await docAssert('direct-share-link-uses-generated-og-image', async () => {
+		expect(directCrawlerResponse.ok()).toBe(true);
+		expect(directOgImage).toContain(`/v1/share/chat/${activeChatId}/og-image.png`);
+		expect(directOgImage).toContain('api.dev.openmates.org');
+	});
+
+	const directOgImageResponse = await page.request.get(directOgImage);
+	await docAssert('direct-share-link-og-image-is-generated-png', async () => {
+		expect(directOgImageResponse.ok()).toBe(true);
+		expect(directOgImageResponse.headers()['content-type']).toContain('image/png');
+		const directImageBytes = await directOgImageResponse.body();
+		expect(directImageBytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+		expect(directImageBytes.length).toBeGreaterThan(10000);
+	});
+	logCheckpoint('Direct shared-chat crawler metadata uses generated API-hosted PNG.', { directOgImage });
 
 	await takeStepScreenshot(page, 'short-link-generated');
 	await docCheckpoint(page, {
