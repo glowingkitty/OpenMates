@@ -225,6 +225,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(terminal).toContainText('Exited', { timeout: 120000 });
 	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Copy output');
 	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Run again');
+	await stopActiveResponseIfNeeded(page, log);
 	await screenshot(page, 'code-run-output-visible-fullscreen');
 	await fullscreenOverlay.getByTestId('code-run-view-code').click();
 	await expect(terminalOverlay).not.toBeVisible({ timeout: 10000 });
