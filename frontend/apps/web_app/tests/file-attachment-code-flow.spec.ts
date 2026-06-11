@@ -94,6 +94,16 @@ async function openEmbedFullscreen(page: any, embed: any): Promise<any> {
 	return fullscreenOverlay;
 }
 
+async function waitForCodeRunSurface(page: any, fileSelection: any, terminal: any): Promise<'selection' | 'terminal'> {
+	const deadline = Date.now() + 30000;
+	while (Date.now() < deadline) {
+		if (await terminal.isVisible({ timeout: 250 }).catch(() => false)) return 'terminal';
+		if (await fileSelection.isVisible({ timeout: 250 }).catch(() => false)) return 'selection';
+		await page.waitForTimeout(250);
+	}
+	throw new Error('Code Run did not show file selection or terminal output in time.');
+}
+
 test('uploaded Python file renders as code embed without JSON leakage', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -195,7 +205,8 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await fullscreenOverlay.getByTestId('embed-run-button').click();
 
 	const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
-	if (await fileSelection.isVisible({ timeout: 5000 }).catch(() => false)) {
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	if ((await waitForCodeRunSurface(page, fileSelection, terminal)) === 'selection') {
 		await expect(fileSelection.getByText('requests', { exact: true })).toBeVisible({ timeout: 30000 });
 		await expect(fileSelection).not.toContainText('Install Python packages');
 		const selectAllButton = fileSelection.getByRole('button', { name: 'Select all' });
@@ -205,7 +216,6 @@ test('code run output becomes the default code embed preview after reload', asyn
 		await fileSelection.getByTestId('code-run-continue').click();
 	}
 
-	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
 	await expect(terminal).toBeVisible({ timeout: 20000 });
 	const terminalOverlay = fullscreenOverlay.getByTestId('code-run-overlay');
 	await expect(terminalOverlay).toBeVisible({ timeout: 20000 });
