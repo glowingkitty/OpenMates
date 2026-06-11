@@ -117,20 +117,23 @@ test('gift-card signup hides Free credits claim and sends pending code to passwo
 
 	await expect(page.getByText('Pay per use')).toBeVisible();
 	await expect(page.getByText('Free credits for testing')).toHaveCount(0);
-	await expect.poll(() => page.evaluate(() => sessionStorage.getItem('pending_gift_card_code'))).toBe(giftCardCode);
+	await expect
+		.poll(() => page.evaluate(() => sessionStorage.getItem('pending_gift_card_code')), { timeout: 5000 })
+		.toBe(giftCardCode);
 
-	await page.getByPlaceholder(/email/i).fill('giftcard-e2e@example.com');
-	await page.getByPlaceholder(/username/i).fill('giftcard_e2e');
+	await page.locator('input[type="email"][autocomplete="email"]').fill('giftcard-e2e@example.com');
+	await page.locator('input[autocomplete="username"]').fill('giftcard_e2e');
 	await page.locator('#terms-agreed-toggle').check({ force: true });
 	await page.locator('#privacy-agreed-toggle').check({ force: true });
 	await page.getByRole('button', { name: /create new account/i }).click();
 
-	await page.getByPlaceholder(/one.?time code/i).fill('123456');
+	await page.locator('input[inputmode="numeric"][maxlength="6"]').fill('123456');
 	await expect(page.locator('#signup-password-option')).toBeVisible({ timeout: 10000 });
 	await page.locator('#signup-password-option').click();
 
-	await page.getByPlaceholder(/^password$/i).fill('GiftcardTest!234');
-	await page.getByPlaceholder(/repeat password/i).fill('GiftcardTest!234');
+	const passwordInputs = page.locator('input[autocomplete="new-password"]');
+	await passwordInputs.nth(0).fill('GiftcardTest!234');
+	await passwordInputs.nth(1).fill('GiftcardTest!234');
 	await page.locator('#signup-password-continue').click();
 
 	await expect.poll(() => setupPasswordPayload).not.toBeNull();
