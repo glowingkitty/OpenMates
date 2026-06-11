@@ -64,7 +64,7 @@
     e.preventDefault();
     e.stopPropagation();
 
-    const resolvedEmbedId = embedStore.resolveByRef(embedRef);
+    const resolvedEmbedId = await embedStore.resolveByRefDeep(embedRef);
 
     if (!resolvedEmbedId) {
       console.warn(
