@@ -1253,6 +1253,7 @@ DEFAULT_EMBED_DESCRIPTION = "View this shared content on OpenMates"
 OG_IMAGE_WIDTH = 1200
 OG_IMAGE_HEIGHT = 630
 OG_SAFE_IMAGE_HOSTS = {"preview.openmates.org"}
+OPENMATES_LOGO_RELATIVE_PATH = os.path.join("frontend", "apps", "web_app", "static", "favicon.png")
 
 OG_CATEGORY_GRADIENTS: Dict[str, tuple[str, str]] = {
     "software_development": ("#155D91", "#42ABF4"),
@@ -1605,6 +1606,66 @@ def _draw_og_icon(draw: Any, center_x: int, center_y: int, size: int, metadata: 
     _draw_chat_icon(draw, center_x, center_y, size, color)
 
 
+def _draw_openmates_logo(canvas: Any, left: int, top: int, size: int) -> None:
+    from PIL import Image, ImageDraw
+
+    route_dir = os.path.dirname(__file__)
+    logo_candidates = (
+        os.path.abspath(os.path.join(route_dir, "..", "..", "..", "..", "..", OPENMATES_LOGO_RELATIVE_PATH)),
+        os.path.abspath(os.path.join("/app", OPENMATES_LOGO_RELATIVE_PATH)),
+    )
+    for path in logo_candidates:
+        try:
+            logo_image = Image.open(path).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+            canvas.alpha_composite(logo_image, (left, top))
+            return
+        except Exception:
+            continue
+
+    logo = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    pixels = logo.load()
+    start = (70, 102, 255)
+    end = (179, 112, 255)
+    for x in range(size):
+        ratio = x / max(1, size - 1)
+        color = tuple(int(start[channel] * (1 - ratio) + end[channel] * ratio) for channel in range(3))
+        for y in range(size):
+            pixels[x, y] = (*color, 255)
+
+    draw = ImageDraw.Draw(logo)
+    white = (255, 255, 255, 255)
+    # Simplified favicon mark: mate silhouette plus AI sparkles.
+    draw.ellipse((size * 0.35, size * 0.17, size * 0.65, size * 0.47), fill=white)
+    draw.rounded_rectangle((size * 0.20, size * 0.52, size * 0.80, size * 0.86), radius=size // 9, fill=white)
+    draw.polygon(
+        [
+            (size * 0.58, size * 0.65),
+            (size * 0.66, size * 0.68),
+            (size * 0.58, size * 0.71),
+            (size * 0.55, size * 0.79),
+            (size * 0.52, size * 0.71),
+            (size * 0.44, size * 0.68),
+            (size * 0.52, size * 0.65),
+            (size * 0.55, size * 0.57),
+        ],
+        fill=(86, 118, 255, 255),
+    )
+    draw.polygon(
+        [
+            (size * 0.43, size * 0.66),
+            (size * 0.47, size * 0.68),
+            (size * 0.43, size * 0.70),
+            (size * 0.41, size * 0.74),
+            (size * 0.39, size * 0.70),
+            (size * 0.35, size * 0.68),
+            (size * 0.39, size * 0.66),
+            (size * 0.41, size * 0.62),
+        ],
+        fill=(86, 118, 255, 255),
+    )
+    canvas.alpha_composite(logo, (left, top))
+
+
 def _is_safe_og_bubble_url(url: str) -> bool:
     parsed = urlparse(url)
     return parsed.scheme == "https" and parsed.netloc in OG_SAFE_IMAGE_HOSTS and parsed.path == "/api/v1/image"
@@ -1677,52 +1738,28 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     draw = ImageDraw.Draw(overlay)
     white = (255, 255, 255, 255)
     soft_white = (255, 255, 255, 238)
-    muted_white = (255, 255, 255, 92)
-    title_font = _load_og_font(44, bold=True)
-    summary_font = _load_og_font(34, bold=True)
+    title_font = _load_og_font(58, bold=True)
+    summary_font = _load_og_font(42, bold=True)
 
     icon_center_x = OG_IMAGE_WIDTH // 2
-    icon_center_y = 170
+    icon_center_y = 122
 
-    image_bubbles = metadata.get("image_bubbles") if isinstance(metadata.get("image_bubbles"), list) else []
-    loaded_bubbles = []
-    for bubble in image_bubbles[:2]:
-        if not isinstance(bubble, dict):
-            continue
-        image_url = bubble.get("imageUrl")
-        if not isinstance(image_url, str):
-            continue
-        bubble_image = _load_safe_og_bubble_image(image_url)
-        if bubble_image is not None:
-            loaded_bubbles.append(bubble_image)
-
-    if loaded_bubbles:
-        if len(loaded_bubbles) == 1:
-            loaded_bubbles.append(loaded_bubbles[0])
-        _draw_image_bubble(overlay, loaded_bubbles[0], 260, OG_IMAGE_HEIGHT - 20, 250, -15)
-        _draw_image_bubble(overlay, loaded_bubbles[1], OG_IMAGE_WIDTH - 260, OG_IMAGE_HEIGHT - 20, 250, 15)
-    else:
-        # ChatHeader.svelte falls back to large low-opacity category icons when
-        # image bubbles are unavailable. Do the same rather than drawing a generic
-        # chat bubble for every category.
-        _draw_og_icon(draw, 250, OG_IMAGE_HEIGHT - 118, 190, metadata, muted_white)
-        _draw_og_icon(draw, OG_IMAGE_WIDTH - 250, OG_IMAGE_HEIGHT - 118, 190, metadata, muted_white)
-
-    _draw_og_icon(draw, icon_center_x, icon_center_y, 76, metadata, white)
+    _draw_openmates_logo(overlay, 62, 52, 70)
+    _draw_og_icon(draw, icon_center_x, icon_center_y, 112, metadata, white)
 
     title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 1120, 2)
-    y = 245
+    y = 220
     for line in title_lines:
         bbox = draw.textbbox((0, 0), line, font=title_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=white, font=title_font)
-        y += 66
+        y += 76
 
-    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 1040, 2)
-    y += 18
+    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 1080, 2)
+    y += 24
     for line in summary_lines:
         bbox = draw.textbbox((0, 0), line, font=summary_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
-        y += 46
+        y += 56
 
     image = Image.alpha_composite(image, overlay)
     buffer = io.BytesIO()

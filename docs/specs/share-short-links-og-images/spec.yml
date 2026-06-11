@@ -140,7 +140,7 @@ scenarios:
       - The HTML contains `og:title` with the shared chat title.
       - The HTML contains `og:description` with the shared chat summary.
       - The HTML contains `og:image` pointing to a generated chat OG image route.
-      - The OG image visually follows the chat header design with gradient, icon, title, summary, and optional side bubbles.
+      - The OG image uses an OpenMates logo, category gradient, large centered icon, title, and summary with no side images or decorative side icons.
 
   - id: S-4
     title: Social crawler previews a password-protected shared chat
@@ -185,7 +185,7 @@ acceptance_criteria:
     text: Short-link expiration is absent by default and matches the selected share expiration when one is configured.
   - id: AC-3
     scenario: S-3
-    text: Non-password-protected shared chats expose only explicitly shared title/summary metadata and a generated chat-header-style OG image.
+    text: Non-password-protected shared chats expose only explicitly shared title/summary metadata and a simplified generated OpenMates OG image.
   - id: AC-4
     scenario: S-4
     text: Password-protected shared chats expose only the generic protected OG metadata and image.
@@ -248,7 +248,7 @@ contracts:
     - URL fragment secrets are never sent to backend routes or included in OG HTML.
     - The owner-facing stored short URL includes a fragment secret and must remain client-encrypted at rest.
     - Password-protected shares never expose chat title, summary, category, icon, or preview images in crawler-visible metadata.
-    - Non-password OG metadata is limited to title, summary, category, icon, and future explicitly shared preview images from the owner-controlled share metadata path.
+    - Non-password OG metadata is limited to title, summary, category, and icon; generated OG images must not fetch or render chat preview side images.
     - The resolver must not distinguish missing/private/unshared targets in user-facing error copy beyond generic invalid or expired states.
     - Short-link token entropy must remain high enough for non-enumerability and be rate-limited on create and resolve.
 

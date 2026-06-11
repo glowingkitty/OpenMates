@@ -327,13 +327,11 @@ async def test_short_url_og_image_generates_png_for_shared_chat_metadata():
     assert image.size == (share_routes.OG_IMAGE_WIDTH, share_routes.OG_IMAGE_HEIGHT)
 
 
-def test_short_url_og_image_renders_safe_header_image_bubbles(monkeypatch):
+def test_short_url_og_image_omits_side_images_and_draws_openmates_logo(monkeypatch):
     from PIL import Image
 
-    bubble_colors = iter([(220, 40, 40, 255), (40, 80, 220, 255)])
-
     def fake_load_safe_bubble(_url: str):
-        return Image.new("RGBA", (64, 64), next(bubble_colors))
+        raise AssertionError("OG renderer should not fetch side images")
 
     monkeypatch.setattr(share_routes, "_load_safe_og_bubble_image", fake_load_safe_bubble)
 
@@ -351,10 +349,8 @@ def test_short_url_og_image_renders_safe_header_image_bubbles(monkeypatch):
     )
 
     image = Image.open(io.BytesIO(png)).convert("RGBA")
-    left_pixel = image.getpixel((260, share_routes.OG_IMAGE_HEIGHT - 58))
-    right_pixel = image.getpixel((share_routes.OG_IMAGE_WIDTH - 260, share_routes.OG_IMAGE_HEIGHT - 58))
-    assert left_pixel[0] > left_pixel[2]
-    assert right_pixel[2] > right_pixel[0]
+    logo_head_pixel = image.getpixel((96, 74))
+    assert logo_head_pixel[:3] == (255, 255, 255)
 
 
 def test_short_url_og_image_uses_packaged_lexend_deca_font():

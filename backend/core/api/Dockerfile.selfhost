@@ -38,6 +38,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt \
 
 COPY backend /app/backend
 COPY shared /shared
+COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
 COPY frontend/apps/web_app/static/newsletter-assets /app/frontend/apps/web_app/static/newsletter-assets
 

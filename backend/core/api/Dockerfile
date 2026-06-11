@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire 'backend' directory from the host into '/app/backend' in the image.
 # This makes the 'backend' module available for import.
 COPY backend /app/backend
+COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 
 # Create a directory for logs. The application should be configured to write logs here.
 RUN mkdir -p /app/logs
