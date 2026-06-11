@@ -94,7 +94,6 @@
   let localResults = $state<HomeListingResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
   let storeResolved = $state(false);
 
   // Initialize local state from props
@@ -156,54 +155,6 @@
         localResults = content.results as HomeListingResult[];
       }
 
-      // Load child embeds when finished with embed_ids but no results
-      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            isLoadingChildren = true;
-            loadChildEmbedsForPreview(childEmbedIds);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Load child embeds to extract listing data for preview display.
-   * Uses retry logic because child embeds might not be persisted yet.
-   */
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-
-      if (childEmbeds.length > 0) {
-        const loadedResults = await Promise.all(childEmbeds.map(async (embed) => {
-          const content = embed.content ? await decodeToonContent(embed.content) : null;
-          if (!content) return null;
-
-          return {
-            title: content.title as string || '',
-            image_url: content.image_url as string || undefined,
-            price_label: content.price_label as string || undefined,
-            provider: content.provider as string || undefined
-          } as HomeListingResult;
-        }));
-
-        const validResults = loadedResults.filter(r => r !== null) as HomeListingResult[];
-        if (validResults.length > 0) {
-          localResults = validResults;
-        }
-      }
-    } catch (error) {
-      console.warn('[HomeSearchEmbedPreview] Error loading child embeds:', error);
-    } finally {
-      isLoadingChildren = false;
     }
   }
 
@@ -319,17 +270,13 @@
       {:else if status === 'finished'}
         <div class="ds-search-results-info">
           {#if flatResults.length === 0}
-            {#if isLoadingChildren}
-              <span class="no-results-text">{$text('common.loading')}</span>
-            {:else}
-              <span class="no-results-text" data-testid="search-no-results-message">
-                {#if localQuery}
-                  {$text('embeds.search_no_results_for_query').replace('{query}', localQuery)}
-                {:else}
-                  {$text('embeds.search_no_results')}
-                {/if}
-              </span>
-            {/if}
+            <span class="no-results-text" data-testid="search-no-results-message">
+              {#if localQuery}
+                {$text('embeds.search_no_results_for_query').replace('{query}', localQuery)}
+              {:else}
+                {$text('embeds.search_no_results')}
+              {/if}
+            </span>
           {:else}
             <!-- Listing thumbnails row -->
             {#if imageResults.length > 0}

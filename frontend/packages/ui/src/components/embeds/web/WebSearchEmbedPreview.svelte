@@ -25,7 +25,6 @@
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
-  import { limitLegacyPreviewChildIds } from '../embedPreviewHydration';
   
   /**
    * Web search result interface for favicon display
@@ -118,8 +117,6 @@
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
   let storeResolved = $state(false);
-  let isLoadingChildren = $state(false);
-  const LEGACY_PREVIEW_CHILD_LIMIT = 3;
 
   // Initialize local state from props
   $effect(() => {
@@ -160,8 +157,8 @@
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
    * 
-   * NOTE: When parent embed becomes "finished", it may have `embed_ids` but no `results`.
-   * In this case, we need to load child embeds asynchronously to get favicon data.
+    * Parent previews are intentionally self-contained: they may use parent-level
+    * preview_results/preview_favicons, but must not decrypt child embeds.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
@@ -190,50 +187,12 @@
       if (previewResults && Array.isArray(previewResults)) {
         localResults = previewResults as WebSearchResult[];
         console.debug(`[WebSearchEmbedPreview] Updated results from callback:`, localResults.length);
-      } else if (data.status === 'finished' && content.embed_ids && !isLoadingChildren) {
-        const childEmbedIds = typeof content.embed_ids === 'string'
-          ? content.embed_ids.split('|').filter((embedId) => embedId.length > 0)
-          : Array.isArray(content.embed_ids) ? (content.embed_ids as string[]) : [];
-        if (childEmbedIds.length > 0) {
-          loadChildEmbedsForPreview(limitLegacyPreviewChildIds(childEmbedIds, LEGACY_PREVIEW_CHILD_LIMIT));
-        }
       }
       // Extract skill_task_id for individual skill cancellation
       if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
       
-    }
-  }
-  
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    if (isLoadingChildren) return;
-    isLoadingChildren = true;
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 2, 200);
-      const results = await Promise.all(childEmbeds.map(async (embed) => {
-        const content = embed.content ? await decodeToonContent(embed.content) : null;
-        if (!content) return null;
-        const faviconUrl =
-          content.meta_url_favicon ||
-          (content.meta_url as { favicon?: string } | undefined)?.favicon ||
-          content.favicon ||
-          content.favicon_url ||
-          '';
-        return {
-          title: content.title || '',
-          url: content.url || '',
-          favicon: faviconUrl,
-          favicon_url: faviconUrl,
-        } as WebSearchResult;
-      }));
-      const validResults = results.filter((result): result is WebSearchResult => result !== null);
-      if (validResults.length > 0) localResults = validResults;
-    } catch (error) {
-      console.warn('[WebSearchEmbedPreview] Legacy preview child-load budget failed:', error);
-    } finally {
-      isLoadingChildren = false;
     }
   }
   

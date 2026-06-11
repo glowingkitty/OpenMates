@@ -5,8 +5,10 @@ status: implementing
 goal: >
   Make owner chats and shared chats open reliably and quickly regardless of total
   message or embed count by loading a bounded visible message window first,
-  rendering only visible chat content, and keeping embed previews lightweight
-  until a user explicitly opens an embed or follows an embed/message deep link.
+  rendering only visible chat content, and making parent embed previews
+  self-contained. Parent previews must not load, decrypt, decode, or request child
+  embed content until a user explicitly opens an embed or follows an embed/message
+  deep link.
 
 scope:
   in:
@@ -15,8 +17,8 @@ scope:
     - Initial chat viewport anchored around the latest user/assistant turn unless a message or embed deep link targets another location.
     - Paged/windowed IndexedDB message reads for chat open, upward scroll hydration, and target-message hydration.
     - ChatHistory rendering bounded to messages currently in the viewport plus overscan before and after the viewport for smooth scrolling.
-    - Lightweight embed preview metadata for all embed types, including search result counts and the first preview thumbnails/URLs needed for the card.
-    - Deferring child embed content decryption and full embed content loading until explicit fullscreen/open/copy/download/memory actions require it.
+    - Self-contained parent embed preview metadata for all parent/composite embed types, including search result counts and the first preview thumbnails/URLs needed for the card.
+    - Deferring all child embed content decryption and full embed content loading until explicit fullscreen/open/copy/download/memory actions require it.
     - Inline embed links in assistant messages resolving reliably without eager child-content hydration.
     - Message deep links using URL hash parameters, target-message window loading, scroll-to-message, and orange highlight border while the hash target is active.
     - Message context menu action to copy a link to a specific message.
@@ -87,11 +89,11 @@ clarification:
   rounds:
     - question: Should embed previews be strictly metadata-only until click, or may visible previews lazily load a capped subset of child metadata such as thumbnails?
       answer: >
-        Embed previews must stay useful. Search/image previews should include the
-        image links, result counts, and first preview thumbnails/URLs needed for
-        the card. They must not decrypt/load child embeds until the user actively
-        opens the embed, but parent embed metadata should contain enough preview
-        fields to render the lightweight card.
+        Embed previews must stay useful and self-contained. Search/image previews
+        should include result counts and first preview thumbnails/URLs on the
+        parent record itself. They must not decrypt, decode, load, or request child
+        embeds until the user actively opens the embed or follows a specific embed
+        link.
     - question: When opening an existing chat, should the default behavior load/render the latest message window first and target message windows for deep links?
       answer: >
         Yes. Initial open should show the latest conversation turn: the last user
@@ -117,10 +119,11 @@ clarification:
     Users expect chats to open like scalable chat applications: a bounded visible
     window is loaded first, older content hydrates on scroll, and deep links load
     the target window. Embed cards must remain informative, but preview metadata
-    belongs on the parent/lightweight record and child/full content is hydrated
-    only for explicit actions such as fullscreen, inline embed link navigation,
-    copy, download, or memory save. The same product guarantees apply to owner
-    chats and shared-chat recipients.
+    belongs on the parent/lightweight record. Parent preview rendering and
+    inline-link rendering are forbidden from touching child content; child/full
+    content is hydrated only for explicit actions such as fullscreen, inline embed
+    link navigation, copy, download, or memory save. The same product guarantees
+    apply to owner chats and shared-chat recipients.
   approved_by_user: true
 
 scenarios:
@@ -153,15 +156,15 @@ scenarios:
       - Shared-chat access remains zero-knowledge; the URL fragment key is not sent to the server.
 
   - id: S-3
-    title: Lightweight search/image embed preview does not load child embeds
+    title: Parent embed previews are self-contained and do not load children
     given:
       - A visible assistant message contains an image-search parent embed with 10 child image-result embeds.
       - The parent embed stores preview metadata including result count and the first preview thumbnail URLs.
     when:
       - The message enters the visible chat window.
     then:
-      - The image-search preview shows useful metadata, result count, and the capped preview thumbnails.
-      - The preview does not decrypt or load child image-result embed content.
+      - The image-search preview shows useful metadata, result count, and preview thumbnails from the parent record.
+      - The preview does not decrypt, decode, load, or request child image-result embed content.
       - Child embed content is loaded only when the user opens the embed fullscreen or performs an explicit action that needs child content.
 
   - id: S-4
@@ -174,7 +177,7 @@ scenarios:
     then:
       - Inline embed links render with the correct label and app styling from lightweight ref metadata when available.
       - Clicking an inline embed link loads the target embed content on demand and opens the correct fullscreen view.
-      - Missing ref metadata shows a recoverable loading state rather than triggering broad IndexedDB scans or all-embed decryption.
+      - Missing ref metadata shows a recoverable loading state rather than triggering broad IndexedDB scans, child graph hydration, or all-embed decryption.
 
   - id: S-5
     title: Message deep link loads and highlights the target message
@@ -209,7 +212,8 @@ scenarios:
       - The message enters the visible chat window.
     then:
       - Only the active slide and a small overscan of adjacent slides mount embed preview renderers.
-      - Hidden slides do not resolve, decrypt, decode, or render full previews until selected or near-selected.
+      - Hidden slides do not resolve, decrypt, decode, or render previews until selected or near-selected.
+      - Hydrated slides still render parent previews only and do not load child content until clicked.
       - Carousel navigation loads newly selected slides on demand without breaking swipe, keyboard, or dot navigation.
 
   - id: S-8
@@ -248,7 +252,7 @@ acceptance_criteria:
     text: Shared-chat open uses the same bounded message and visible-embed hydration model rather than importing all content before navigation.
   - id: AC-3
     scenario: S-3
-    text: Search and image previews render useful parent metadata while avoiding child embed content hydration before explicit user action.
+    text: Parent/composite embed previews render useful parent metadata while avoiding any child embed content hydration before explicit user action.
   - id: AC-4
     scenario: S-4
     text: Inline embed links and large preview links resolve and open on demand without forcing full chat/embed graph hydration.
@@ -260,7 +264,7 @@ acceptance_criteria:
     text: Message context menus include Copy link and copy a same-origin chat/message URL that reopens the target message.
   - id: AC-7
     scenario: S-7
-    text: Large-preview carousel rendering is windowed to active/near-active slides and does not mount every slide at once.
+    text: Large-preview carousel rendering is windowed to active/near-active slides and does not mount every slide at once; hydrated slides still use parent-only preview rendering.
   - id: AC-8
     scenario: S-8
     text: Upward scroll loads older message windows while preserving scroll position and lightweight embed behavior.
@@ -299,9 +303,10 @@ contracts:
   data:
     - Add or expose IndexedDB message-window read APIs using the existing chat_id_created_at index.
     - Keep existing full getMessagesForChat for export/debug/fork paths that explicitly require all messages.
-    - Store lightweight embed preview metadata separately from encrypted full child content when needed for preview cards.
+    - Store self-contained parent preview metadata separately from encrypted full child content when needed for preview cards.
     - Persist local hydration ranges/manifests for owner and shared chats so reloads can resume partial hydration safely.
     - Keep child embed content encrypted and load/decrypt it on explicit fullscreen/open/copy/download/memory actions.
+    - Parent preview renderers must not call child-content APIs, including loadEmbedsWithRetry(child_ids), resolveEmbed(child_id), embedStore.get(child contentRef), or decode child TOON content.
     - Store compression checkpoints as lightweight chat-window metadata and do not treat forgotten pre-checkpoint messages as part of the default latest-turn window.
   ui_states:
     - Initial latest-turn loading.
@@ -310,7 +315,7 @@ contracts:
     - Viewport virtualization with overscan before and after the visible messages.
     - Compression summary visible with forgotten messages collapsed.
     - Forgotten pre-checkpoint messages loading after Show earlier messages or target-message hydration.
-    - Lightweight embed preview loaded.
+    - Self-contained parent embed preview loaded.
     - Full embed content loading after explicit action.
     - Target message highlighted with orange border while hash target is active.
     - Recoverable missing embed-ref metadata state.
@@ -360,7 +365,7 @@ tests:
       - AC-4
       - AC-7
     assertions:
-      - image/search preview derives card metadata from parent preview fields without loading child embeds
+      - parent/composite preview derives card metadata from parent preview fields without loading child embeds
       - clicking/opening an embed triggers child/full content hydration on demand
       - large-preview carousel hydrates only active and adjacent slides
     red_phase:
@@ -377,6 +382,32 @@ tests:
         status: passed
         run_id: "27139465578; python3 scripts/run_tests.py --suite vitest; 344/344 passed on a6573cbd7"
         timestamp: "2026-06-08T13:03:22Z"
+
+  - id: T-PYTEST-EMBED-PREVIEW-AUDIT
+    type: pytest
+    file: scripts/tests/test_audit_embed_preview_hydration.py
+    command: python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py
+    covers:
+      - AC-3
+      - AC-7
+    assertions:
+      - parent preview components do not define child preview loader helpers
+      - parent preview components do not call child batch hydration APIs
+      - fullscreen components remain allowed to hydrate child content after explicit user action
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: parent_only_invariant_added_after_initial_spec
+        timestamp: "2026-06-11T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_embed_preview_hydration.py; python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py; 3 passed"
+        timestamp: "2026-06-11T21:24:04Z"
 
   - id: T-VITEST-DEEP-LINK
     type: vitest
@@ -525,8 +556,9 @@ implementation_plan:
     Introduce a chat content window abstraction used by owner and shared chats.
     The active chat store keeps a bounded hydrated message window plus hydration cursors,
     while IndexedDB and shared-chat endpoints expose bounded message windows.
-    Embed previews render from lightweight parent preview metadata and defer child
-    or full-content hydration to explicit user actions. ChatHistory is virtualized
+    Embed previews render from self-contained parent preview metadata and never
+    touch child content during preview render. Child or full-content hydration is
+    deferred to explicit user actions. ChatHistory is virtualized
     so message and large-preview component mount counts scale with viewport size and overscan,
     not total chat history.
   data_flow:
@@ -535,7 +567,8 @@ implementation_plan:
     - If the chat has a compression checkpoint, ActiveChat includes checkpoint metadata in the window and treats pre-checkpoint messages as a separate forgotten-history range.
     - ChatHistory renders only viewport messages plus overscan and asks for older windows as the user scrolls upward.
     - ChatHistory loads forgotten pre-checkpoint messages only after Show earlier messages or when a target-message link requires that range.
-    - Embed preview components read preview metadata from parent/lightweight records and render only capped preview fields.
+    - Embed preview components read preview metadata from parent/lightweight records and render only parent-owned preview fields.
+    - Parent preview components do not call child hydration APIs, even with capped child limits.
     - Full embed content and child embeds hydrate on explicit fullscreen/open/copy/download/memory actions.
     - Message Copy link writes a same-origin hash URL with chat-id and message-id.
   affected_files:
@@ -552,15 +585,19 @@ implementation_plan:
     - path: frontend/packages/ui/src/services/deepLinkHandler.ts
       reason: Normalize message-id variants and preserve embed/message targets.
     - path: frontend/packages/ui/src/services/embedStore.ts
-      reason: Store/resolve lightweight embed preview metadata and avoid deep ref scans on preview render.
+      reason: Store/resolve lightweight parent embed preview metadata and avoid child-content access on preview render.
     - path: frontend/packages/ui/src/services/embedResolver.ts
-      reason: Split preview metadata resolution from full-content hydration.
+      reason: Split parent preview metadata resolution from child/full-content hydration.
     - path: frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
       reason: Window carousel slide hydration to active/adjacent slides.
     - path: frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
       reason: Avoid full embed resolution until selected/needed.
     - path: frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
       reason: Render preview thumbnails from parent metadata and defer child embed loads.
+    - path: scripts/audit_embed_preview_hydration.py
+      reason: Deterministically forbid preview-time child hydration regressions.
+    - path: scripts/tests/test_audit_embed_preview_hydration.py
+      reason: Test the deterministic parent-only preview audit.
     - path: frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
       reason: Use shared-chat manifest/window import instead of all-content import before navigation.
     - path: backend/core/api/app/routes/share.py
@@ -572,6 +609,7 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/scalable-chat-embed-loading/spec.yml
     - python3 scripts/run_tests.py --suite vitest
+    - python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py
     - python3 -m pytest backend/tests/test_share_chat_window_loading.py
     - python3 -m pytest backend/tests/test_chat_compression_checkpoint_handler.py
     - python3 scripts/run_tests.py --spec scalable-chat-loading.spec.ts
@@ -615,7 +653,7 @@ tasks:
     independently_deployable: false
 
   - id: TASK-3
-    title: Split embed preview metadata from full content hydration
+    title: Split parent preview metadata from child/full content hydration
     covers:
       scenarios:
         - S-3
@@ -631,9 +669,13 @@ tasks:
       - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
       - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
       - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
-      - frontend/packages/ui/src/services/__tests__/embedPreviewHydration.test.ts
+      - frontend/packages/ui/src/components/embeds/*/*SearchEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+      - scripts/audit_embed_preview_hydration.py
+      - scripts/tests/test_audit_embed_preview_hydration.py
     verification:
       - T-VITEST-EMBED-PREVIEW-METADATA
+      - T-PYTEST-EMBED-PREVIEW-AUDIT
     independently_deployable: true
 
   - id: TASK-4
@@ -697,7 +739,7 @@ tasks:
 
 risks:
   - Windowed rendering can break scroll restoration if message heights change after embed previews hydrate.
-  - Deferring full embed hydration can expose missing preview metadata in older embeds that were created before lightweight preview fields existed.
+  - Deferring full embed hydration can expose missing preview metadata in older embeds that were created before lightweight preview fields existed; those previews must use parent-only fallback UI rather than child decryption fallback.
   - Shared-chat endpoint changes must preserve non-enumeration behavior for missing/private chats.
   - Large ref-index repair scans can reappear if inline embed links do not get lightweight ref metadata.
     - E2E performance assertions must avoid brittle timing thresholds while still proving bounded work.
@@ -706,6 +748,6 @@ risks:
 
 open_questions:
   - Which exact preview metadata schema should be standardized for each app/skill parent embed type?
-  - Should legacy embeds without preview metadata be upgraded lazily on first open or handled with a fallback preview-only hydration budget?
+  - Should legacy embeds without preview metadata be upgraded lazily after explicit fullscreen/open, or only when the skill reruns?
   - Should full ChatHistory virtualization be implemented immediately, or is bounded message-window rendering enough for the first deployable slice?
   - Should shared-chat compression checkpoints be included in the new manifest response on day one, or should compressed shared chats use a backward-compatible full import until checkpoint windowing is added?
