@@ -12,6 +12,7 @@ from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatList
 logger = logging.getLogger(__name__)
 
 DEFAULT_CHAT_VERSION = 0
+DEFAULT_UNREAD_COUNT = 0
 
 
 def _timestamp_or_zero(value: Optional[int]) -> int:
@@ -54,6 +55,27 @@ def _cached_chat_versions_from_details(
         version_values[field] = value
 
     return CachedChatVersions(**version_values)
+
+
+def _cached_unread_count_from_details(
+    chat_data: Dict[str, Any],
+    user_id: str,
+    chat_id: str,
+) -> int:
+    """Build unread count metadata while tolerating old corrupted rows."""
+
+    unread_count = chat_data.get("unread_count")
+    if unread_count is None:
+        logger.warning(
+            "[CACHE_WARMING_DATA_REPAIR] Chat %s for user %s has null unread_count; "
+            "using %s so cache warming can complete.",
+            chat_id,
+            user_id,
+            DEFAULT_UNREAD_COUNT,
+        )
+        return DEFAULT_UNREAD_COUNT
+    return unread_count
+
 
 async def _load_and_cache_embeds_for_chats(
     chat_ids: List[str],
@@ -261,7 +283,7 @@ async def _warm_cache_phase_one(
 
         list_item_data = CachedChatListItemData(
             title=chat_details["encrypted_title"],
-            unread_count=chat_details["unread_count"],
+            unread_count=_cached_unread_count_from_details(chat_details, user_id, target_immediate_chat_id),
             created_at=chat_details['created_at'],
             updated_at=chat_details['updated_at'],
             encrypted_chat_key=chat_details.get("encrypted_chat_key"),
@@ -377,7 +399,7 @@ async def _warm_cache_phase_two_optimized(
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
@@ -431,7 +453,7 @@ async def _warm_cache_phase_two_optimized(
 
                     list_item = CachedChatListItemData(
                         title=chat_data["encrypted_title"],
-                        unread_count=chat_data["unread_count"],
+                        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                         created_at=chat_data['created_at'],
                         updated_at=chat_data['updated_at'],
                         encrypted_chat_key=chat_data.get("encrypted_chat_key"),
@@ -514,7 +536,7 @@ async def _warm_cache_phase_two(
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
@@ -568,7 +590,7 @@ async def _warm_cache_phase_three_optimized(
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
@@ -622,7 +644,7 @@ async def _warm_cache_phase_three_optimized(
 
                     list_item = CachedChatListItemData(
                         title=chat_data["encrypted_title"],
-                        unread_count=chat_data["unread_count"],
+                        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                         created_at=chat_data['created_at'],
                         updated_at=chat_data['updated_at'],
                         encrypted_chat_key=chat_data.get("encrypted_chat_key"),
@@ -732,7 +754,7 @@ async def _warm_cache_phase_three(
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),

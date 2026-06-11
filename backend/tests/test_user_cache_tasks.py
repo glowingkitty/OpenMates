@@ -77,6 +77,39 @@ def test_cached_chat_versions_from_details_keeps_valid_versions(monkeypatch) -> 
     assert versions.title_v == 2
 
 
+def test_cached_unread_count_from_details_normalizes_null_count(monkeypatch) -> None:
+    user_cache_tasks = _load_user_cache_tasks_module(monkeypatch)
+    warnings = []
+
+    monkeypatch.setattr(
+        user_cache_tasks.logger,
+        "warning",
+        lambda message, *args, **kwargs: warnings.append(message % args),
+    )
+
+    unread_count = user_cache_tasks._cached_unread_count_from_details(
+        {"unread_count": None},
+        user_id="user-1",
+        chat_id="chat-1",
+    )
+
+    assert unread_count == 0
+    assert any("[CACHE_WARMING_DATA_REPAIR]" in warning for warning in warnings)
+    assert any("unread_count" in warning for warning in warnings)
+
+
+def test_cached_unread_count_from_details_keeps_valid_count(monkeypatch) -> None:
+    user_cache_tasks = _load_user_cache_tasks_module(monkeypatch)
+
+    unread_count = user_cache_tasks._cached_unread_count_from_details(
+        {"unread_count": 3},
+        user_id="user-1",
+        chat_id="chat-1",
+    )
+
+    assert unread_count == 3
+
+
 def test_effective_chat_timestamp_tolerates_nullable_directus_fields(monkeypatch) -> None:
     user_cache_tasks = _load_user_cache_tasks_module(monkeypatch)
 
