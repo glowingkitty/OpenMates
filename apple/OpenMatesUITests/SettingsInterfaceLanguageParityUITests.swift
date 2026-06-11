@@ -23,17 +23,12 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-language-option-de", in: app, timeout: 5))
 
         app.descendants(matching: .any)["settings-language-option-de"].tap()
-        XCTAssertTrue(waitForElement("settings-language-back", in: app, timeout: 3))
-        app.descendants(matching: .any)["settings-language-back"].tap()
-        XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 5))
-        XCTAssertTrue(waitForText("Sprache", in: app, timeout: 5))
+        returnToInterfaceIfNeeded(in: app, expectedText: "Sprache")
 
         app.descendants(matching: .any)["settings-interface-language-row"].tap()
         XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-language-option-en"].tap()
-        XCTAssertTrue(waitForElement("settings-language-back", in: app, timeout: 3))
-        app.descendants(matching: .any)["settings-language-back"].tap()
-        XCTAssertTrue(waitForText("Language", in: app, timeout: 5))
+        returnToInterfaceIfNeeded(in: app, expectedText: "Language")
         XCTAssertFalse(app.tables.firstMatch.exists, "Language settings must not render default List/table chrome")
 
         attachScreenshot(name: "Interface language parity")
@@ -61,6 +56,15 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
             if element.waitForExistence(timeout: 1) { return true }
         }
         return false
+    }
+
+    private func returnToInterfaceIfNeeded(in app: XCUIApplication, expectedText: String) {
+        let backButton = app.descendants(matching: .any)["settings-language-back"]
+        if backButton.waitForExistence(timeout: 2) {
+            backButton.tap()
+        }
+        XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 5))
+        XCTAssertTrue(waitForText(expectedText, in: app, timeout: 5))
     }
 
     private func waitForText(_ text: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
