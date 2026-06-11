@@ -572,9 +572,20 @@ struct OMIconButton: View {
     var size: CGFloat = 36
     var iconSize: CGFloat = 18
     var isProminent = false
+    var accessibilityIdentifier: String? = nil
     let action: () -> Void
 
     var body: some View {
+        Group {
+            if let accessibilityIdentifier {
+                button.accessibilityIdentifier(accessibilityIdentifier)
+            } else {
+                button
+            }
+        }
+    }
+
+    private var button: some View {
         Button(action: action) {
             Icon(icon, size: iconSize)
                 .foregroundStyle(isProminent ? Color.fontButton : Color.fontPrimary)
