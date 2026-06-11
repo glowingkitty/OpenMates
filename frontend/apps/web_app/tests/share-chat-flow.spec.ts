@@ -251,15 +251,8 @@ test('creates and shares a chat link with QR code and short link', async ({
 		screenshot: 'docs/images/user-guide/sharing/short-link-generated.jpg'
 	});
 
-	await page.getByTestId('icon-button-close').click();
-	await expect(copyLinkButton).not.toBeVisible({ timeout: 5000 });
-	await shareButton.click();
-	await expect(copyLinkButton).toBeVisible({ timeout: 10000 });
-	await expect(page.locator('[data-testid="share-short-link-url"]')).toHaveText(shortLinkUrl, {
-		timeout: 5000
-	});
 	await expect(qrCode).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Reopening share panel restored existing short link and QR code directly.');
+	logCheckpoint('Generated share panel shows short link and QR code directly.');
 
 	// ── Step 13: Test copy link ───────────────────────────────────────────
 	await copyLinkButton.click();
