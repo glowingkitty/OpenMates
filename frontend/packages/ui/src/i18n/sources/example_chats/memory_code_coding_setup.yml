@@ -108,28 +108,15 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
     
     ***
     
-    To help me give you more specific commands or tool suggestions, what kind of issue are you tackling tonight?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "debug_type_selection",
-      "multiple": false,
-      "question": "What is the nature of the bug you're hunting?",
-      "options": [
-        { "id": "logic", "text": "Logic/Algorithm error (Incorrect output)" },
-        { "id": "crash", "text": "Crash/Segmentation Fault (Unexpected exit)" },
-        { "id": "env", "text": "Environment/Dependency issue (It works on my machine)" },
-        { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
-      ]
-    }
+    To help me give you more specific commands or tool suggestions, tell me what kind of issue you are tackling tonight: logic error, crash, environment/dependency issue, or performance bottleneck.
+
     ```json
     {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
@@ -168,7 +155,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -228,7 +215,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -288,7 +275,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -348,7 +335,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -408,7 +395,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -468,7 +455,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -528,7 +515,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -588,7 +575,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -648,7 +635,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -708,7 +695,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -768,7 +755,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -828,7 +815,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -888,7 +875,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -948,7 +935,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1008,7 +995,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1068,7 +1055,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1128,7 +1115,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1188,7 +1175,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1248,7 +1235,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1308,7 +1295,7 @@ message_2:
     *   **The "Check-in" Loop:**
         1.  Modify code in your [text editor](wiki:Text_editor) (likely Vim/Emacs/Nano given your keyboard-first preference).
         2.  Run `./repro.sh`.
-        3.  If successful, `git commit -am "fix: attempt X"`. If it fails, `git checkout -- .` to revert and try a different hypothesis.
+        3.  If successful, commit the focused change. If it fails, inspect `git diff`, revert only the specific hunks you decide to abandon, and try a different hypothesis.
     
     ### 5. Final Verification
     Once the bug is squashed, convert your `repro.sh` into a permanent [unit test](wiki:Unit_testing) to prevent [regression](wiki:Software_regression).
@@ -1336,4 +1323,3 @@ message_2:
     
     
   verified_by_human: []
-

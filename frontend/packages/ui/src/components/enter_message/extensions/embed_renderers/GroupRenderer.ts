@@ -1658,6 +1658,11 @@ export class GroupRenderer implements EmbedRenderer {
 
       // Handle images.search skill — image search results
       if (appId === "images" && skillId === "search") {
+        const imagePreviewResults =
+          decodedContent?.results ||
+          decodedContent?.preview_results ||
+          decodedContent?.preview_thumbnails ||
+          [];
         const component = mount(ImagesSearchEmbedPreview, {
           target,
           props: {
@@ -1665,7 +1670,7 @@ export class GroupRenderer implements EmbedRenderer {
             query: query || "",
             provider: provider || "Brave",
             status,
-            results,
+            results: imagePreviewResults,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

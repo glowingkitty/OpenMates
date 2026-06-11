@@ -1908,7 +1908,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
+    const results =
+      decodedContent?.results ||
+      decodedContent?.preview_results ||
+      decodedContent?.preview_thumbnails ||
+      [];
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -2747,6 +2751,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
+    const previewImageUrl = decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "";
     const error = decodedContent?.error || "";
     const inputEmbedIds: string[] = Array.isArray(
       decodedContent?.input_embed_ids,
@@ -2793,6 +2798,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
+          previewImageUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2847,6 +2853,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
+    const previewAudioUrl = decodedContent?.previewAudioUrl || decodedContent?.preview_audio_url || "";
     const error = decodedContent?.error || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -2881,6 +2888,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
+          previewAudioUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2932,6 +2940,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
+    const previewVideoUrl = decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "";
     const error = decodedContent?.error || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -2966,6 +2975,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
+          previewVideoUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,

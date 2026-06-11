@@ -33,6 +33,13 @@ export const frameworkStoreReputationCheckChat: ExampleChat = {
 ],
   embeds: [
     {
+        "embed_id": "31cda6fb-6154-4745-9492-830477f82dd4",
+        "type": "focus-mode-activation",
+        "content": "app_id: web\nskill_id: check_reputation\nstatus: finished\nfocus_id: web-check_reputation\nfocus_mode_name: Check reputation",
+        "parent_embed_id": null,
+        "embed_ids": null
+    },
+    {
         "embed_id": "6a169d18-9372-4b61-9565-5696ffbb0b07",
         "type": "image_result",
         "content": "type: image_result\ntitle: The side of the Framework Laptop 13 showing two port modules and a headphones socket.\nsource_page_url: \"https://www.theguardian.com/technology/2023/may/17/framework-laptop-13-review-modular-pc-upgrade-performance\"\nimage_url: \"https://i.guim.co.uk/img/media/80930546436b7596eaa81ddf8e05b4b18cfbc0cd/344_0_5042_3025/master/5042.jpg?width=445&dpr=1&s=none&crop=none\"\nthumbnail_url: \"https://imgs.search.brave.com/r6fkkR3YfRJ1-EyepMHACr1Pd7jQbPxCWMsVnow02ck/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pLmd1/aW0uY28udWsvaW1n/L21lZGlhLzgwOTMw/NTQ2NDM2Yjc1OTZl/YWE4MWRkZjhlMDVi/NGIxOGNmYmMwY2Qv/MzQ0XzBfNTA0Ml8z/MDI1L21hc3Rlci81/MDQyLmpwZz93aWR0/aD00NDUmZHByPTEm/cz1ub25lJmNyb3A9/bm9uZQ\"\nsource: theguardian.com\nfavicon_url: \"https://imgs.search.brave.com/rC70n-17a9InstnH-PH4YuXbWwFkdbesPtRJKvIQAwQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNGRmYTNkMTZl/NmJhYTQwYmQ4NDRj/MzQ4NDZkNGQ0YTgy/ZWRlZDM4YWVkMzM4/NmM0Y2Y2NTgyMTQ5/NzQxOTExYy93d3cu/dGhlZ3VhcmRpYW4u/Y29tLw\"\nhash: a548cd2d45586abe\nembed_ref: theguardian.com-LyG\napp_id: images\nskill_id: search",

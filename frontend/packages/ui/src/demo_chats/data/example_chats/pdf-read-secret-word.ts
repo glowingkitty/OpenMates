@@ -42,7 +42,7 @@ export const pdfReadSecretWordChat: ExampleChat = {
     {
         "embed_id": "9d2331ef-af7e-4855-8890-c23a371e1e42",
         "type": "pdf",
-        "content": "type: pdf\nstatus: processing\nfilename: sample.pdf\npage_count: 2\ncontent_hash: 619d273f4198a50241da5ccac8134fea530a7683663f776596888978bb273141\ns3_base_url: \"https://dev-openmates-chatfiles.nbg1.your-objectstorage.com\"\nfiles:\n  original:\n    s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/619d273f4198a50241da5ccac8134fea530a7683663f776596888978bb273141/20260608_141412_original.bin\n    width: 0\n    height: 0\n    size_bytes: 2924\n    format: pdf\naes_key: MLlRH4CmHwP6orAiCZlrGyvf0GX++EcqB3+XmB8nFJY=\naes_nonce: v+MCn41l1E8P/3f2\nvault_wrapped_aes_key: \"vault:v1:L1KFfeKNP8WTF36aoezDD179RQ7fiJfwAM1PpG1LMdOMk8ajr63QMxQMo+vcMugCQLq/lRAkwci5tj5iYqGZkUzBVnTvUNg5\"",
+        "content": "type: pdf\nstatus: finished\nfilename: sample.pdf\npage_count: 2\ncontent_hash: public-sample-pdf-fixture\nsummary: Public fixture PDF metadata; private source file omitted from static example.",
         "parent_embed_id": null,
         "embed_ids": null
     }

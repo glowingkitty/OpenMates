@@ -39,6 +39,26 @@ RAW_PAYLOAD_PATTERNS = [
 ]
 FOCUS_MODES_REQUIRING_SUB_CHATS = {"web-research"}
 FOCUS_MENTION_RE = re.compile(r"(^|\s)@focus:[a-z0-9_-]+:[a-z0-9_-]+\b")
+FOCUS_ACTIVATION_MARKERS = ("focus_mode_activation", "focus-mode-activation")
+FOCUS_ACTIVATION_TYPE = "focus-mode-activation"
+PUBLIC_SAFETY_PATTERNS = [
+    ("vault_wrapped_aes_key", "contains a vault-wrapped encryption key"),
+    ("vault:v1:", "contains a vault key reference"),
+    ("dev-openmates-chatfiles", "references the private dev chatfiles bucket"),
+    ("chatfiles/", "references a private chatfiles object key"),
+    ("s3_key:", "references a private S3 object key"),
+    ("docx_s3_key:", "references a private document object key"),
+    ("screenshot_s3_keys:", "references private screenshot object keys"),
+]
+BROKEN_PUBLIC_TEXT_PATTERNS = [
+    ("Presigned URL request failed", "contains a public presigned-URL failure"),
+    ("Network error fetching S3", "contains a public S3 fetch failure"),
+    ("Transcript not available", "contains a missing transcript placeholder"),
+    ("[Interactive Question - Invalid JSON]", "contains an invalid interactive-question placeholder"),
+]
+UNSAFE_ADVICE_PATTERNS = [
+    ("git checkout -- .", "suggests a destructive git cleanup command"),
+]
 
 
 @dataclass(frozen=True)
@@ -65,7 +85,7 @@ def unescape_ts_string(value: str) -> str:
 
 
 def parse_ts_string_field(source: str, field: str) -> str | None:
-    match = re.search(rf"\b{re.escape(field)}:\s*\"((?:\\.|[^\"])*)\"", source)
+    match = re.search(rf"[\"']?{re.escape(field)}[\"']?\s*:\s*\"((?:\\.|[^\"])*)\"", source)
     return unescape_ts_string(match.group(1)) if match else None
 
 
@@ -145,6 +165,36 @@ def iter_embed_blocks(source: str) -> list[str]:
     return [item.group("body") for item in re.finditer(r"\{(?P<body>[\s\S]*?)\n\s*\}", match.group("body"))]
 
 
+def has_matching_focus_activation(source: str, active_focus_id: str) -> bool:
+    for block in iter_embed_blocks(source):
+        if parse_ts_string_field(block, "type") != FOCUS_ACTIVATION_TYPE:
+            continue
+        content = parse_embed_content(block)
+        if toon_value(content, "focus_id") == active_focus_id:
+            return True
+    return False
+
+
+def sub_chats_have_assistant_messages(source: str) -> bool:
+    sub_chats = source.split("sub_chats:", 1)
+    if len(sub_chats) != 2:
+        return True
+    sub_chat_count = len(re.findall(r'["\']?is_sub_chat["\']?\s*:\s*true', sub_chats[1]))
+    assistant_count = len(re.findall(r'["\']?role["\']?\s*:\s*["\']assistant["\']', sub_chats[1]))
+    return sub_chat_count > 0 and assistant_count >= sub_chat_count
+
+
+def audit_static_source(chat_id: str, source: str) -> list[str]:
+    issues: list[str] = []
+    for needle, description in PUBLIC_SAFETY_PATTERNS:
+        if needle in source:
+            issues.append(f"{chat_id}: {description}")
+    for needle, description in BROKEN_PUBLIC_TEXT_PATTERNS + UNSAFE_ADVICE_PATTERNS:
+        if needle in source:
+            issues.append(f"{chat_id}: {description}")
+    return issues
+
+
 def parse_embed_content(block: str) -> str:
     content = parse_ts_template_field(block, "content") or parse_ts_string_field(block, "content")
     return content.replace("\\n", "\n") if content else ""
@@ -168,15 +218,26 @@ def audit() -> list[str]:
         source = path.read_text(encoding="utf-8")
         chat_id = parse_ts_string_field(source, "chat_id") or path.stem
         category = parse_ts_string_field(source, "category")
+        issues.extend(audit_static_source(chat_id, source))
 
         if category not in valid_categories:
             issues.append(f"{chat_id}: invalid chat category {category!r}")
 
         active_focus_id = parse_ts_string_field(source, "active_focus_id")
+        if active_focus_id and not has_matching_focus_activation(source, active_focus_id):
+            focus_examples = parse_ts_string_array_field(source, "app_focus_mode_examples")
+            issues.append(
+                f"{chat_id}: focus-mode example {focus_examples or [active_focus_id]} is missing a matching focus activation embed"
+            )
         if active_focus_id in FOCUS_MODES_REQUIRING_SUB_CHATS and "sub_chats:" not in source:
             focus_examples = parse_ts_string_array_field(source, "app_focus_mode_examples")
             issues.append(
                 f"{chat_id}: focus-mode example {focus_examples or [active_focus_id]} is missing sub_chats"
+            )
+        if active_focus_id in FOCUS_MODES_REQUIRING_SUB_CHATS and not sub_chats_have_assistant_messages(source):
+            focus_examples = parse_ts_string_array_field(source, "app_focus_mode_examples")
+            issues.append(
+                f"{chat_id}: focus-mode example {focus_examples or [active_focus_id]} has sub_chats without assistant messages"
             )
 
         for index, message in enumerate(parse_messages(source), start=1):
@@ -188,11 +249,16 @@ def audit() -> list[str]:
                     issues.append(
                         f"{chat_id}: user message {index} contains @focus directive; focus-mode examples must demonstrate auto-selection"
                     )
-            if message.role == "assistant" and not resolved.lstrip().startswith("```json"):
+            if message.role == "assistant":
                 for pattern in RAW_PAYLOAD_PATTERNS:
                     if pattern.search(resolved):
                         issues.append(f"{chat_id}: assistant message {index} exposes raw embed/tool payload")
                         break
+                if resolved.lstrip().startswith("```json") and any(marker in resolved for marker in FOCUS_ACTIVATION_MARKERS):
+                    issues.append(f"{chat_id}: assistant message {index} exposes raw focus activation JSON")
+            for needle, description in PUBLIC_SAFETY_PATTERNS + BROKEN_PUBLIC_TEXT_PATTERNS + UNSAFE_ADVICE_PATTERNS:
+                if needle in resolved:
+                    issues.append(f"{chat_id}: message {index} {description}")
 
         for block in iter_embed_blocks(source):
             embed_type = parse_ts_string_field(block, "type")

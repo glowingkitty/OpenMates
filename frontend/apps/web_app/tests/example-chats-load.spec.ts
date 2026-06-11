@@ -23,6 +23,23 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
+	'Presigned URL request failed',
+	'Network error fetching S3',
+	'Transcript not available',
+	'[Interactive Question - Invalid JSON]',
+	'vault_wrapped_aes_key',
+	'vault:v1:',
+	'dev-openmates-chatfiles',
+	'chatfiles/',
+	's3_key:',
+	'docx_s3_key:',
+	'screenshot_s3_keys:',
+	'git checkout -- .',
+	'"type":"focus_mode_activation"',
+	'"type": "focus_mode_activation"'
+];
+
 function countMatches(text: string, pattern: RegExp): number {
 	return [...text.matchAll(pattern)].length;
 }
@@ -148,6 +165,11 @@ test.describe('Example chats loading for new users', () => {
 		const carousel = page.getByTestId('sub-chats-carousel');
 		await expect(carousel).toBeVisible({ timeout: 15000 });
 		await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(3);
+
+		const focusBar = page.getByTestId('focus-mode-bar');
+		await expect(focusBar).toBeVisible({ timeout: 15000 });
+		await expect(focusBar.getByTestId('focus-status-label')).toContainText('Deep research');
+		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({
@@ -224,6 +246,11 @@ test.describe('Example chats loading for new users', () => {
 			expect(html, `/example/${slug} should not leak unresolved i18n keys`).not.toContain(
 				'example_chats.'
 			);
+			for (const marker of PUBLIC_EXAMPLE_BROKEN_MARKERS) {
+				expect(html, `/example/${slug} should not contain broken public marker ${marker}`).not.toContain(
+					marker
+				);
+			}
 
 			expect(countMatches(html, /<title[\s>]/gi), `/example/${slug} title count`).toBe(1);
 			expect(

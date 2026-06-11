@@ -31,7 +31,15 @@ export const usEggPricesDeepResearchChat: ExampleChat = {
         "model_name": "Gemini 3.1 Pro"
     }
 ],
-  embeds: [],
+  embeds: [
+    {
+        "embed_id": "070f626b-44ed-43d0-b159-e8a4f567b50f",
+        "type": "focus-mode-activation",
+        "content": "app_id: web\nskill_id: research\nstatus: finished\nfocus_id: web-research\nfocus_mode_name: Deep research",
+        "parent_embed_id": null,
+        "embed_ids": null
+    }
+],
   sub_chats: [
     {
         "chat_id": "example-us-egg-prices-deep-sub-chat-1",
@@ -46,6 +54,14 @@ export const usEggPricesDeepResearchChat: ExampleChat = {
                 "role": "user",
                 "content": "example_chats.us_egg_prices_deep_research.sub_chat_1_message_1",
                 "created_at": 1781095196
+            },
+            {
+                "id": "36d9ff59-640a-4727-9288-b9b166952d4e",
+                "role": "assistant",
+                "content": "Supply recovered slowly because the 2024-2025 HPAI losses hit laying hens, not just short-lived broilers. Repopulation requires cleaning houses, restoring biosecurity, sourcing pullets, and waiting roughly 19 to 20 weeks for hens to reach laying age, so retail relief lagged the headline decline in outbreaks.",
+                "created_at": 1781095242,
+                "category": "business_development",
+                "model_name": "Gemini 3.1 Pro"
             }
         ],
         "embeds": [],
@@ -67,6 +83,14 @@ export const usEggPricesDeepResearchChat: ExampleChat = {
                 "role": "user",
                 "content": "example_chats.us_egg_prices_deep_research.sub_chat_2_message_1",
                 "created_at": 1781095196
+            },
+            {
+                "id": "d956cf2b-796d-49dd-9745-66bc695490d5",
+                "role": "assistant",
+                "content": "The market-structure evidence supports a cautious conclusion: concentrated producers and retailers had room to hold prices above the immediate supply shock, but public evidence does not prove formal coordination. The strongest confirmed signal is margin expansion during a period when national supply losses were materially smaller than the retail price spike.",
+                "created_at": 1781095269,
+                "category": "business_development",
+                "model_name": "Gemini 3.1 Pro"
             }
         ],
         "embeds": [],
@@ -88,6 +112,14 @@ export const usEggPricesDeepResearchChat: ExampleChat = {
                 "role": "user",
                 "content": "example_chats.us_egg_prices_deep_research.sub_chat_3_message_1",
                 "created_at": 1781095196
+            },
+            {
+                "id": "d6376b54-7082-491e-a69f-8eea677e94fd",
+                "role": "assistant",
+                "content": "Regulation raised the long-run price floor rather than explaining every short-run spike. Cage-free mandates increase capital, labor, and disease-risk costs, while the counterargument is that these costs should not automatically translate into the extreme retail markups seen during the flu shock.",
+                "created_at": 1781095297,
+                "category": "business_development",
+                "model_name": "Gemini 3.1 Pro"
             }
         ],
         "embeds": [],

@@ -35,14 +35,14 @@ export const imageVectorizeOpenmatesHeaderChat: ExampleChat = {
     {
         "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f",
         "type": "app_skill_use",
-        "content": "app_id: images\nskill_id: vectorize\ntype: image\nstatus: finished\nfiles:\n  original:\n    s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/20260608_144442_a5e61d77_original.svg\n    width: 0\n    height: 0\n    size_bytes: 54718\n    format: svg\n  preview:\n    s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/20260608_144442_a5e61d77_preview_webp.webp\n    width: 600\n    height: 400\n    size_bytes: 167838\n    format: webp\ns3_base_url: \"https://dev-openmates-chatfiles.nbg1.your-objectstorage.com\"\naes_key: rIVhrX5BieCg4RppRwTifq7tPCO1pQJXwx8G8LgdkTI=\naes_nonce: EgOdGILtsS6shBQa\nvault_wrapped_aes_key: \"vault:v1:R+jcBGU2qBNMx2s4xHTWmsMGv66lX3Z78mvQkvAEi57TgmG/OPXyyVrGCv6f0tvQpqK54x77PSsUXaqcyyGaYBQt+HaJJmtZ\"\nprompt: Vectorized from raster image\nmodel: vectorize\naspect_ratio: \"1:1\"\noutput_filetype: svg\ngenerated_at: \"2026-06-08T14:44:42.720060+00:00\"",
+        "content": "app_id: images\nskill_id: vectorize\ntype: image\nstatus: finished\nprompt: Vectorized from raster image\nmodel: vectorize\naspect_ratio: \"1:1\"\noutput_filetype: svg\npreviewImageUrl: /favicon.svg\ngenerated_at: \"2026-06-08T14:44:42.720060+00:00\"",
         "parent_embed_id": null,
         "embed_ids": null
     },
     {
         "embed_id": "d25f5a45-1247-4eaf-bd27-c0a194a18371",
         "type": "image",
-        "content": "type: image\napp_id: images\nskill_id: upload\nstatus: finished\nfilename: openmates_header.png\ncontent_hash: b36160b34e4d706a4223cfc7e4b4901591800e005299e4c763d0619674185ed8\ns3_base_url: \"https://dev-openmates-chatfiles.nbg1.your-objectstorage.com\"\nfiles:\n  original:\n    s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/b36160b34e4d706a4223cfc7e4b4901591800e005299e4c763d0619674185ed8/20260608_144430_original.bin\n    width: 1469\n    height: 783\n    size_bytes: 46041\n    format: webp\n  full:\n    s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/b36160b34e4d706a4223cfc7e4b4901591800e005299e4c763d0619674185ed8/20260608_144430_full.bin\n    width: 1469\n    height: 783\n    size_bytes: 31324\n    format: webp\n  preview:\n    s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/b36160b34e4d706a4223cfc7e4b4901591800e005299e4c763d0619674185ed8/20260608_144430_preview.bin\n    width: 600\n    height: 400\n    size_bytes: 8950\n    format: webp\naes_key: YbB1+h6LVcfiCsI67vEagKtPgfn+8KVEdS1I6EJAmnA=\naes_nonce: jISEWJAvpEVIR0Uf\nvault_wrapped_aes_key: \"vault:v1:ZradQqz4BCUXz8nD5Z064HU+Jkn3RwpwVEtTc01xF1gzHQ4+CqCJ9X4u51bSwuCqTXeJSeUHbjfyY4rPOMpn2MESszrPbyCH\"\nai_detection:\n  ai_generated: 0.001\n  provider: sightengine",
+        "content": "type: image\napp_id: images\nskill_id: upload\nstatus: finished\nfilename: openmates_header.png\ncontent_hash: public-openmates-header-fixture\npreviewImageUrl: /images/og-image.jpg\nai_detection:\n  ai_generated: 0.001\n  provider: static_public_fixture",
         "parent_embed_id": null,
         "embed_ids": null
     }

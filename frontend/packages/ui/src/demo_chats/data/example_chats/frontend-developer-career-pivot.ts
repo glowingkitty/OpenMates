@@ -31,7 +31,15 @@ export const frontendDeveloperCareerPivotChat: ExampleChat = {
         "model_name": "Gemini 3.1 Pro"
     }
 ],
-  embeds: [],
+  embeds: [
+    {
+        "embed_id": "8ef5093e-4e55-4938-bc63-bfc4a016b16f",
+        "type": "focus-mode-activation",
+        "content": "app_id: jobs\nskill_id: career_insights\nstatus: finished\nfocus_id: jobs-career_insights\nfocus_mode_name: Career insights",
+        "parent_embed_id": null,
+        "embed_ids": null
+    }
+],
   metadata: {
     featured: true,
     order: 49,
