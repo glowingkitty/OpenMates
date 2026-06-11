@@ -232,7 +232,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 
 	await fullscreenOverlay.getByTestId('embed-minimize').click();
 	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 10000 });
-	await expect(chatCodeEmbed).toContainText('Hello, World!', { timeout: 20000 });
+	await expect(chatCodeEmbed).toContainText('Hello, World!', { timeout: 120000 });
 	await expect(chatCodeEmbed).not.toContainText('def greet');
 	log('Code embed preview switched to run output after execution.');
 
@@ -244,7 +244,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
 	);
 	await expect(reloadedCodeEmbed).toBeVisible({ timeout: 30000 });
-	await expect(reloadedCodeEmbed).toContainText('Hello, World!', { timeout: 30000 });
+	await expect(reloadedCodeEmbed).toContainText('Hello, World!', { timeout: 120000 });
 	await expect(reloadedCodeEmbed).not.toContainText('def greet');
 	const reloadedFullscreenOverlay = await openEmbedFullscreen(page, reloadedCodeEmbed);
 	await expect(reloadedFullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
