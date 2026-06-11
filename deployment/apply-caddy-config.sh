@@ -110,7 +110,10 @@ if ! caddy adapt --config "$CADDYFILE_PATH" --adapter caddyfile >/tmp/openmates-
     exit 1
 fi
 
-if caddy validate --config "$CADDYFILE_PATH" --adapter caddyfile 2>&1; then
+if [ "$CHECK_ONLY" = true ] && [ "$EUID" -ne 0 ]; then
+    echo -e "${YELLOW}Skipping caddy validate in non-root check mode because it provisions log writers.${NC}"
+    echo -e "${GREEN}✓ Caddyfile adapts with the installed Caddy binary${NC}"
+elif caddy validate --config "$CADDYFILE_PATH" --adapter caddyfile 2>&1; then
     echo -e "${GREEN}✓ Caddyfile syntax is valid${NC}"
 else
     echo -e "${RED}✗ Caddyfile validation failed${NC}"

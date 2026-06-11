@@ -131,3 +131,32 @@ def test_apply_caddy_config_restores_previous_file_when_restart_fails(tmp_path: 
     assert "Failed to restart Caddy" in result.stdout
     assert "Previous Caddy configuration restored" in result.stdout
     assert system_caddyfile.read_text(encoding="utf-8") == "previous working config\n"
+
+
+def test_check_mode_runs_without_root_and_does_not_copy_or_reload(tmp_path: Path):
+    source = tmp_path / "candidate.Caddyfile"
+    source.write_text("new valid config\n", encoding="utf-8")
+    system_caddyfile = tmp_path / "system.Caddyfile"
+    system_caddyfile.write_text("previous working config\n", encoding="utf-8")
+    fakebin = prepare_fakebin(tmp_path)
+    env = os.environ.copy()
+    env.update({
+        "OPENMATES_SYSTEM_CADDYFILE": str(system_caddyfile),
+        "PATH": f"{fakebin}:{env['PATH']}",
+    })
+
+    result = subprocess.run(
+        ["bash", str(APPLY_SCRIPT), "--check", str(source)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "check passed" in result.stdout
+    assert "Skipping caddy validate in non-root check mode" in result.stdout
+    assert system_caddyfile.read_text(encoding="utf-8") == "previous working config\n"
+    assert not (tmp_path / "restart-count").exists()
