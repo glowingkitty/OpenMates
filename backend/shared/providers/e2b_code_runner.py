@@ -35,7 +35,6 @@ SECRET_PATTERNS = [
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
-    re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*=\s*[^\s]+"),
 ]
 
 

@@ -18,8 +18,9 @@ from backend.shared.providers.e2b_code_runner import (
     CodeRunDependencyInstall,
     CodeRunFile,
     _dependency_commands,
-    _run_interruptible_command,
     _run_command_for_file,
+    _run_interruptible_command,
+    redact_execution_output,
     run_code_in_e2b,
 )
 
@@ -127,6 +128,12 @@ def test_run_command_supports_compiled_language_targets(file: CodeRunFile, expec
 
     for part in expected_parts:
         assert part in command
+
+
+def test_redact_execution_output_allows_harmless_env_api_key_placeholder() -> None:
+    output = "api_key = os.getenv('SERVICE_API_KEY', 'demo-placeholder')\nprint('ok')"
+
+    assert redact_execution_output(output) == output
 
 
 def test_interruptible_command_kills_active_handle_when_cancelled() -> None:
