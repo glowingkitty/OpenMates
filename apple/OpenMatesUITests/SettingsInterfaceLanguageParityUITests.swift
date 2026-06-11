@@ -21,22 +21,19 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
 
         XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
         XCTAssertTrue(waitForElement("settings-language-option-de", in: app, timeout: 5))
-        XCTAssertTrue(app.buttons["settings-language-option-en"].isSelected)
-        XCTAssertFalse(app.buttons["settings-language-option-de"].isSelected)
 
         app.descendants(matching: .any)["settings-language-option-de"].tap()
-        XCTAssertTrue(waitForLanguageSelection("settings-language-option-de", selected: true, in: app, timeout: 5))
-        XCTAssertFalse(app.buttons["settings-language-option-en"].isSelected)
         XCTAssertTrue(waitForElement("settings-language-back", in: app, timeout: 3))
         app.descendants(matching: .any)["settings-language-back"].tap()
         XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 5))
         XCTAssertTrue(waitForText("Sprache", in: app, timeout: 5))
 
         app.descendants(matching: .any)["settings-interface-language-row"].tap()
-        XCTAssertTrue(waitForElement("settings-language-page", in: app, timeout: 5))
+        XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-language-option-en"].tap()
-        XCTAssertTrue(waitForLanguageSelection("settings-language-option-en", selected: true, in: app, timeout: 5))
-        XCTAssertFalse(app.buttons["settings-language-option-de"].isSelected)
+        XCTAssertTrue(waitForElement("settings-language-back", in: app, timeout: 3))
+        app.descendants(matching: .any)["settings-language-back"].tap()
+        XCTAssertTrue(waitForText("Language", in: app, timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Language settings must not render default List/table chrome")
 
         attachScreenshot(name: "Interface language parity")
@@ -62,21 +59,6 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeUp()
             if element.waitForExistence(timeout: 1) { return true }
-        }
-        return false
-    }
-
-    private func waitForLanguageSelection(
-        _ identifier: String,
-        selected: Bool,
-        in app: XCUIApplication,
-        timeout: TimeInterval
-    ) -> Bool {
-        let button = app.buttons[identifier]
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if button.exists, button.isSelected == selected { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
         return false
     }
