@@ -51,5 +51,6 @@ export const pdfViewPageLayoutChat: ExampleChat = {
     featured: true,
     order: 43,
     app_skill_examples: ["pdf.view"],
+    content_embed_examples: ["pdf.pdf"],
   },
 };

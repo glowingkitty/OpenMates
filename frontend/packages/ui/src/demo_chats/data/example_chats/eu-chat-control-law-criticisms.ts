@@ -469,5 +469,6 @@ skill_id: search`,
     featured: true,
     order: 5,
     app_skill_examples: ["web.search"],
+    content_embed_examples: ["web.website"],
   },
 };

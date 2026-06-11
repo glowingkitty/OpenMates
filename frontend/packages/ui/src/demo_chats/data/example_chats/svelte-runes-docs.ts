@@ -51,5 +51,6 @@ export const svelteRunesDocsChat: ExampleChat = {
     featured: true,
     order: 17,
     app_skill_examples: ["code.get_docs"],
+    content_embed_examples: ["code.code"],
   },
 };

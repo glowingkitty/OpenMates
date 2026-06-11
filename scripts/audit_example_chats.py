@@ -80,6 +80,26 @@ def load_registry_keys() -> set[str]:
     return set(re.findall(r'"(app:[^"]+)"\s*:', source))
 
 
+def load_content_catalog() -> dict[str, dict[str, str]]:
+    source = REGISTRY_PATH.read_text(encoding="utf-8")
+    match = re.search(r"export const CONTENT_EMBED_CATALOG:[\s\S]*?= \[(?P<body>[\s\S]*?)\n\];", source)
+    if not match:
+        return {}
+
+    catalog: dict[str, dict[str, str]] = {}
+    for item in re.finditer(r"\{(?P<body>[\s\S]*?)\n\s*\}", match.group("body")):
+        body = item.group("body")
+        catalog_id = parse_ts_string_field(body, "id")
+        if not catalog_id:
+            continue
+        catalog[catalog_id] = {
+            key: value
+            for key in ("registryKey", "frontendType", "backendType", "skillId")
+            if (value := parse_ts_string_field(body, key))
+        }
+    return catalog
+
+
 def unescape_ts_string(value: str) -> str:
     try:
         return bytes(value, "utf-8").decode("unicode_escape")
@@ -203,6 +223,39 @@ def parse_embed_content(block: str) -> str:
     return content.replace("\\n", "\n") if content else ""
 
 
+def has_matching_content_embed(source: str, catalog_item: dict[str, str]) -> bool:
+    registry_key = catalog_item.get("registryKey", "")
+    accepted_types = {
+        value
+        for value in (
+            catalog_item.get("frontendType"),
+            catalog_item.get("backendType"),
+            registry_key.removeprefix("app:") if registry_key.startswith("app:") else registry_key,
+        )
+        if value
+    }
+    accepted_types.update({value.replace("-", "_") for value in list(accepted_types)})
+
+    expected_app_id: str | None = None
+    expected_skill_id: str | None = catalog_item.get("skillId")
+    if registry_key.startswith("app:"):
+        _, expected_app_id, expected_skill_id = registry_key.split(":", 2)
+
+    for block in iter_embed_blocks(source):
+        embed_type = parse_ts_string_field(block, "type")
+        content = parse_embed_content(block)
+        content_type = toon_value(content, "type")
+        app_id = toon_value(content, "app_id")
+        skill_id = toon_value(content, "skill_id")
+
+        if expected_app_id and app_id == expected_app_id and skill_id == expected_skill_id:
+            return True
+        if embed_type in accepted_types or content_type in accepted_types:
+            return True
+
+    return False
+
+
 def toon_value(content: str, key: str) -> str | None:
     match = re.search(rf"(?:^|\n){re.escape(key)}:\s*\"?([^\n\"]+)\"?", content)
     return match.group(1).strip() if match else None
@@ -216,6 +269,8 @@ def audit() -> list[str]:
     issues: list[str] = []
     valid_categories = load_canonical_categories()
     registry_keys = load_registry_keys()
+    content_catalog = load_content_catalog()
+    content_example_counts = dict.fromkeys(content_catalog, 0)
 
     for path in sorted(EXAMPLE_DIR.glob("*.ts")):
         source = path.read_text(encoding="utf-8")
@@ -225,6 +280,15 @@ def audit() -> list[str]:
 
         if category not in valid_categories:
             issues.append(f"{chat_id}: invalid chat category {category!r}")
+
+        for content_key in parse_ts_string_array_field(source, "content_embed_examples"):
+            catalog_item = content_catalog.get(content_key)
+            if catalog_item is None:
+                issues.append(f"{chat_id}: unknown content embed example {content_key!r}")
+                continue
+            content_example_counts[content_key] = content_example_counts.get(content_key, 0) + 1
+            if not has_matching_content_embed(source, catalog_item):
+                issues.append(f"{chat_id}: content embed example {content_key!r} has no matching embed")
 
         active_focus_id = parse_ts_string_field(source, "active_focus_id")
         if active_focus_id and not has_matching_focus_activation(source, active_focus_id):
@@ -278,6 +342,12 @@ def audit() -> list[str]:
                 issues.append(
                     f"{chat_id}: {registry_key} has no registry preview and no generic preview fields"
                 )
+
+    for content_key, count in sorted(content_example_counts.items()):
+        if count == 0:
+            issues.append(f"content catalog item {content_key!r} has no example chat")
+        elif count > 1:
+            issues.append(f"content catalog item {content_key!r} has {count} example chats; expected exactly one")
 
     return issues
 

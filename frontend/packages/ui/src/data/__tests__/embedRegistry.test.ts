@@ -29,6 +29,7 @@ import {
   EMBED_FULLSCREEN_COMPONENTS,
   EMBED_RENDERER_MAP,
   EMBED_METADATA,
+  CONTENT_EMBED_CATALOG,
   EMBED_GROUPABLE_TYPES,
   normalizeEmbedType,
   getChildEmbedType,
@@ -428,7 +429,62 @@ describe("Embed Registry — internal consistency", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Section 5: Code Generator Integrity
+// Section 5: Content Catalog Consistency
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("Embed Registry — content catalog", () => {
+  it("contains the expected durable v1 content types", () => {
+    const EXPECTED_CONTENT_IDS = [
+      "audio.recording",
+      "code.application",
+      "code.code",
+      "code.repo",
+      "docs.document",
+      "images.image",
+      "mail.email",
+      "maps.location",
+      "math.plot",
+      "pdf.pdf",
+      "sheets.sheet",
+      "videos.video",
+      "videos.rendered_video",
+      "web.website",
+    ];
+
+    expect(CONTENT_EMBED_CATALOG.map((item) => item.id).sort()).toEqual(
+      EXPECTED_CONTENT_IDS.sort(),
+    );
+  });
+
+  it("has unique content IDs and example keys", () => {
+    const ids = CONTENT_EMBED_CATALOG.map((item) => item.id);
+    const exampleKeys = CONTENT_EMBED_CATALOG.map((item) => item.exampleKey);
+
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(exampleKeys).size).toBe(exampleKeys.length);
+  });
+
+  it("points each content item at registered metadata and components", () => {
+    const missing: string[] = [];
+
+    for (const item of CONTENT_EMBED_CATALOG) {
+      if (!EMBED_METADATA[item.registryKey]) {
+        missing.push(`[${item.id}] missing EMBED_METADATA['${item.registryKey}']`);
+      }
+      if (!EMBED_PREVIEW_COMPONENTS[item.registryKey]) {
+        missing.push(`[${item.id}] missing preview for '${item.registryKey}'`);
+      }
+      if (!EMBED_FULLSCREEN_COMPONENTS[item.registryKey]) {
+        missing.push(`[${item.id}] missing fullscreen for '${item.registryKey}'`);
+      }
+    }
+
+    expect(missing, `Invalid content catalog entries:\n${missing.join("\n")}`).toHaveLength(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Section 6: Code Generator Integrity
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("Embed Registry — code generator", () => {

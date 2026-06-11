@@ -138,7 +138,13 @@
     <div class="preview-details" data-testid="video-create-preview">
       {#if currentStatus === 'finished' && (thumbnailUrl || videoUrl)}
         <div class="thumbnail-wrapper">
-          {#if thumbnailUrl}<img src={thumbnailUrl} alt={currentManifest.meta.title} class="thumbnail" />{/if}
+          {#if thumbnailUrl}
+            <img src={thumbnailUrl} alt={currentManifest.meta.title} class="thumbnail" />
+          {:else if videoUrl}
+            <video src={videoUrl} class="thumbnail" muted playsinline preload="metadata" aria-label={currentManifest.meta.title}>
+              <track kind="captions" src="data:text/vtt,WEBVTT" />
+            </video>
+          {/if}
           <div class="play-overlay"><span class="play-icon">&#9654;</span></div>
           <span class="duration-badge">{durationLabel}</span>
         </div>

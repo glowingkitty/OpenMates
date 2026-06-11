@@ -89,5 +89,6 @@ export const buildingMaintenanceEmailChat: ExampleChat = {
     featured: true,
     order: 8,
     app_skill_examples: ["mail.search"],
+    content_embed_examples: ["mail.email"],
   },
 };

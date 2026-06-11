@@ -51,5 +51,6 @@ export const imageVectorizeOpenmatesHeaderChat: ExampleChat = {
     featured: true,
     order: 45,
     app_skill_examples: ["images.vectorize"],
+    content_embed_examples: ["images.image"],
   },
 };

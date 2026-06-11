@@ -44,5 +44,6 @@ export const audioTranscribeVoiceNoteChat: ExampleChat = {
     featured: true,
     order: 46,
     app_skill_examples: ["audio.transcribe"],
+    content_embed_examples: ["audio.recording"],
   },
 };

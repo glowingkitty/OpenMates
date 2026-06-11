@@ -46,6 +46,13 @@
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as { original?: VideoFileVariant; thumbnail?: VideoFileVariant } : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : '');
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : '');
+  let publicVideoUrl = $derived(
+    typeof dc.video_url === 'string'
+      ? dc.video_url
+      : typeof dc.public_video_url === 'string'
+        ? dc.public_video_url
+        : '',
+  );
   let currentSourceVersion = $derived(typeof dc.current_source_version === 'number' ? dc.current_source_version : 1);
   let manifest = $derived(parseRemotionTimeline(source));
   let videoUrl = $state<string | undefined>();
@@ -57,7 +64,11 @@
   let retainedS3Key: string | undefined;
 
   $effect(() => {
-    if (!videoUrl && files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) void loadVideo();
+    if (!videoUrl && publicVideoUrl) {
+      videoUrl = publicVideoUrl;
+    } else if (!videoUrl && files?.original?.s3_key && s3BaseUrl && aesKey && aesNonce) {
+      void loadVideo();
+    }
   });
 
   onDestroy(() => { if (retainedS3Key) releaseCachedAudio(retainedS3Key); });

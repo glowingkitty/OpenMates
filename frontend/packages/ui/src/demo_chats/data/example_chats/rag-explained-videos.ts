@@ -125,5 +125,6 @@ export const ragExplainedVideosChat: ExampleChat = {
     featured: true,
     order: 13,
     app_skill_examples: ["videos.search"],
+    content_embed_examples: ["videos.video"],
   },
 };

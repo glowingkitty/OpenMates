@@ -268,5 +268,6 @@ export const rustVectorDatabaseReposChat: ExampleChat = {
     featured: true,
     order: 16,
     app_skill_examples: ["code.search_repos"],
+    content_embed_examples: ["code.repo", "sheets.sheet"],
   },
 };
